@@ -18,6 +18,7 @@ import {
 } from '../../application/usePanelFrame';
 import { Composer } from '../Composer';
 import { useComposerAttachments } from '../../application/useComposerAttachments';
+import { useComposerSkills } from '../../application/useComposerSkills';
 import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
@@ -153,6 +154,14 @@ export interface CopilotPanelProps {
     choice: CopilotModelChoice | null;
     /** Routes the next turn elsewhere. */
     onChoiceChange(choice: CopilotModelChoice | null): void;
+    /**
+     * Skills staged for this chat, from the session — a prop for the same
+     * reason `choice` is: `PanelBody` unmounts when the window collapses, and
+     * holding the selection there would silently drop it.
+     */
+    skills: readonly string[];
+    /** Replaces the staged set. */
+    onSkillsChange(names: readonly string[]): void;
     /** Focused when the panel closes, so keyboard focus doesn't fall to `<body>`. */
     returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
@@ -190,6 +199,8 @@ export function CopilotPanel({
     onNewChat,
     choice,
     onChoiceChange,
+    skills,
+    onSkillsChange,
     returnFocusRef
 }: CopilotPanelProps) {
     const intl = useIntl();
@@ -387,6 +398,8 @@ export function CopilotPanel({
                     routeContext={routeContext}
                     choice={choice}
                     onChoiceChange={onChoiceChange}
+                    skills={skills}
+                    onSkillsChange={onSkillsChange}
                 />
             </div>
         </div>
@@ -460,13 +473,17 @@ function PanelBody({
     workspaceId,
     routeContext,
     choice,
-    onChoiceChange
+    onChoiceChange,
+    skills: stagedSkills,
+    onSkillsChange
 }: {
     chat: CopilotChat;
     workspaceId: string;
     routeContext: RouteContext;
     choice: CopilotModelChoice | null;
     onChoiceChange(choice: CopilotModelChoice | null): void;
+    skills: readonly string[];
+    onSkillsChange(names: readonly string[]): void;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
@@ -476,6 +493,9 @@ function PanelBody({
     // the window collapses to the dock — deliberately: a half-written turn's
     // attachments are part of that draft, and the draft text goes with it too.
     const files = useComposerAttachments();
+    // Skills, unlike files, come from the session — collapsing the window must
+    // not silently change what the next turn runs under.
+    const skills = useComposerSkills(workspaceId, stagedSkills, onSkillsChange);
 
     // The panel is opened to type into, so put the cursor where it is needed.
     useEffect(() => {
@@ -530,14 +550,19 @@ function PanelBody({
                             provider: choice?.provider ?? null,
                             model: choice?.model ?? null
                         },
-                        attachments: files.sent
+                        attachments: files.sent,
+                        skills: skills.inForce,
+                        chosenSkills: skills.chosen
                     });
                     // Cleared on send, not on the run finishing: the files
-                    // belong to the turn just sent.
+                    // belong to the turn just sent. Skills are not cleared —
+                    // they are the mode the chat is working in, and the chips
+                    // keep saying so.
                     files.clear();
                 }}
                 onStop={chat.stop}
                 attachments={files}
+                skills={skills}
             />
         </>
     );

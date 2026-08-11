@@ -25,6 +25,12 @@ export interface StartRunRequest {
      * verify.
      */
     attachments?: { assetId: string }[];
+    /**
+     * Skills attached to this turn. **Names only** — the server resolves the
+     * instructions from the catalogue, because a request that could carry them
+     * would be a client writing its own system prompt.
+     */
+    skills?: { name: string }[];
 }
 
 /** Everything the transport needs beyond the request body. */

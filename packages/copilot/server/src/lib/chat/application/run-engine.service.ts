@@ -9,6 +9,7 @@ import {
     isAbortError,
     isProposalDraft,
     resolveModel,
+    toSkillRef,
     validateToolInput,
     type AttachmentRef,
     type AttachmentResolver,
@@ -23,6 +24,7 @@ import {
     type ProposalDraft,
     type RunLimits,
     type RunStopReason,
+    type SkillRef,
     type ToolResultBlock,
     type ToolUseBlock
 } from '@ortha-cms/copilot-domain';
@@ -37,6 +39,7 @@ import {
 } from './capability-profile.service';
 import { DecideProposalService } from './decide-proposal.service';
 import { ToolPermissionBroker } from './tool-permission.broker';
+import { SkillCatalogService } from '../../skills/application/skill-catalog.service';
 import { summarizeToolOutput } from './summarize-tool-output';
 import {
     buildSystemPrompt,
@@ -69,6 +72,15 @@ export interface StartRunInput {
      * persisted; an id that does not resolve ends the run.
      */
     attachments?: readonly string[];
+    /**
+     * Skill **names** the person attached to this turn.
+     *
+     * Names, never the instruction text: the catalogue is the only thing that
+     * can say what a name means, and a request carrying a body would let anyone
+     * holding `copilot:use` write their own system prompt. The same rule
+     * attachments follow, for a sharper reason.
+     */
+    skills?: readonly string[];
     /** Where the user is. */
     context: SurfaceContext;
     /** The admin UI's locale — the language to answer in. */
@@ -133,6 +145,7 @@ export class RunEngine {
         private readonly proposals: ProposalRepository,
         private readonly decisions: DecideProposalService,
         private readonly permissions: ToolPermissionBroker,
+        private readonly skills: SkillCatalogService,
         // Optional and named explicitly: a deployment with no media plugin
         // binds nothing here, and a parameter typed `X | null` emits `Object`
         // for `design:paramtypes`, so an unnamed token would silently inject
@@ -171,6 +184,17 @@ export class RunEngine {
             input.workspaceId
         );
 
+        // Resolved here for the same reason, and before the same line: a turn
+        // must never be persisted claiming skills the model was not actually
+        // given. `SkillResolutionError` reaches the controller as an error
+        // frame, exactly like a bad attachment.
+        const { available: availableSkills, inForce: skillsInForce } =
+            await this.skills.resolveRunSkills(
+                input.workspaceId,
+                input.skills ?? []
+            );
+        const skillRefs: SkillRef[] = skillsInForce.map(toSkillRef);
+
         const conversation = input.conversationId
             ? await this.conversations.findOrFail(
                   input.conversationId,
@@ -191,7 +215,8 @@ export class RunEngine {
             runId,
             role: 'user',
             content: [{ type: 'text', text: input.message }],
-            attachments
+            attachments,
+            skills: skillRefs
         });
 
         yield {
@@ -240,7 +265,9 @@ export class RunEngine {
             context: input.context,
             typeSummaries: input.typeSummaries,
             toolNames: profile.tools.map((tool) => tool.name),
-            hasWriteTools: profile.tools.some((tool) => tool.effect !== 'read')
+            hasWriteTools: profile.tools.some((tool) => tool.effect !== 'read'),
+            availableSkills,
+            skillsInForce
         });
 
         // The thread so far, plus this turn. Read from the transcript rather
@@ -1017,18 +1044,29 @@ export class RunEngine {
      */
     private async loadHistory(conversationId: string): Promise<ModelMessage[]> {
         const rows = await this.conversations.messages(conversationId);
-        return rows.map((row) => ({
-            role: row.role,
-            content: row.attachments?.length
-                ? [
-                      ...row.content,
-                      {
-                          type: 'text' as const,
-                          text: attachmentManifest(row.attachments)
-                      }
-                  ]
-                : row.content
-        }));
+        return rows.map((row) => {
+            const extra: ModelContentBlock[] = [];
+            if (row.attachments?.length) {
+                extra.push({
+                    type: 'text',
+                    text: attachmentManifest(row.attachments)
+                });
+            }
+            // A **note**, never the bodies again. The instructions a past turn
+            // ran with are already reflected in the answer it produced, and
+            // re-injecting them per turn would multiply the prompt by the
+            // length of the thread — five turns under one always-on skill would
+            // carry five copies of it. What the model still needs is why an
+            // earlier answer reads the way it does, which a name supplies.
+            if (row.skills?.length) {
+                extra.push({ type: 'text', text: skillNote(row.skills) });
+            }
+            return {
+                role: row.role,
+                content:
+                    extra.length > 0 ? [...row.content, ...extra] : row.content
+            };
+        });
     }
 }
 
@@ -1052,6 +1090,20 @@ function attachmentManifest(attachments: readonly AttachmentRef[]): string {
         '`readable` is true.\n' +
         fenceUntrusted('attachments', attachments)
     );
+}
+
+/**
+ * The line telling the model which skills an earlier turn ran under.
+ *
+ * Titles rather than bodies, and not fenced: a skill name is written by
+ * somebody holding `copilot:skills:manage`, so unlike a file name it is not
+ * user-supplied text arriving in the prompt from outside the trust boundary.
+ * The skills in force *now* are stated in the system prompt; this only explains
+ * the shape of what is already above it.
+ */
+function skillNote(skills: readonly SkillRef[]): string {
+    const names = skills.map((skill) => skill.title).join(', ');
+    return `(That turn ran with these skills in force: ${names}. They are not necessarily in force now.)`;
 }
 
 /** The prompt version this engine builds with, for the run record. */

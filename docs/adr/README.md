@@ -33,5 +33,6 @@ routine, easily-reversed changes.
 - [0007 — One tool registry, two surfaces](0007-one-tool-registry-two-surfaces.md)
 - [0008 — GraphQL is a protocol adapter over the public content API](0008-graphql-as-a-protocol-adapter.md)
 - [0009 — The copilot asks in the moment, then applies directly](0009-copilot-applies-directly.md)
+- [0010 — Skills are prompt configuration, authored in two places and delivered in one](0010-copilot-skills.md)
 
 <!-- Add new ADRs to this index. -->

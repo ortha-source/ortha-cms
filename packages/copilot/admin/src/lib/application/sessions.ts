@@ -55,6 +55,27 @@ export interface CopilotSession {
      * What this fixes is forgetting the choice, which nobody chose.
      */
     choice: CopilotModelChoice | null;
+    /**
+     * The skills the person has staged for this chat, by name.
+     *
+     * On the session for the same reason the model choice is — a picker's
+     * `useState` is lost by collapsing a window or leaving the Agents view, and
+     * silently running the next turn without the instructions the user set up
+     * is worse than the model case, because nothing on screen would say so.
+     *
+     * **Sticky across turns**, unlike attachments: a file belongs to the
+     * message it was attached to, a skill is the mode you are working in, and
+     * re-picking it before every message is the friction that makes people stop
+     * using the feature.
+     *
+     * **And seeded into the next chat**, exactly like the model choice. That is
+     * not symmetry for its own sake — leaving the Agents view *closes* an idle
+     * chat (`release`), so without the seed, staging a skill, stepping into the
+     * CMS and coming back ran the next turn without it, silently. The chips are
+     * on screen throughout, so an inherited selection is always visible and can
+     * never become a setting nobody remembers turning on.
+     */
+    skills: readonly string[];
 }
 
 /**
@@ -81,6 +102,8 @@ export type SessionsAction =
           presented?: 'dock' | 'page';
           /** The model it starts on — seeded from the last one picked. */
           choice?: CopilotModelChoice | null;
+          /** The skills it starts with — seeded from the last set staged. */
+          skills?: readonly string[];
       }
     /** Close a chat for good — its window unmounts and its run is cancelled. */
     | { type: 'close'; id: string }
@@ -104,7 +127,9 @@ export type SessionsAction =
     /** Move a chat between the full-page surface and the dock. */
     | { type: 'present'; id: string; presented: 'dock' | 'page' }
     /** Route this chat's next turn to a different backend. */
-    | { type: 'model'; id: string; choice: CopilotModelChoice | null };
+    | { type: 'model'; id: string; choice: CopilotModelChoice | null }
+    /** Replace the skills staged for this chat. */
+    | { type: 'skills'; id: string; names: readonly string[] };
 
 /**
  * Folds an action into the set of open chats.
@@ -129,7 +154,8 @@ export function sessionsReducer(
                 unread: false,
                 awaiting: false,
                 presented,
-                choice: action.choice ?? null
+                choice: action.choice ?? null,
+                skills: [...(action.skills ?? [])]
             };
             // Reopening a thread that is already open focuses it instead of
             // showing the same conversation in two windows, which would give it
@@ -199,6 +225,11 @@ export function sessionsReducer(
         case 'model':
             return state.map((s) =>
                 s.id === action.id ? { ...s, choice: action.choice } : s
+            );
+
+        case 'skills':
+            return state.map((s) =>
+                s.id === action.id ? { ...s, skills: [...action.names] } : s
             );
 
         case 'present': {

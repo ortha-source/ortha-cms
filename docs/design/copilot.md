@@ -30,8 +30,9 @@ settled in ADRs and are not re-argued here:
 - [ADR-0005](../adr/0005-copilot-authority-model.md) — what the copilot may do
   (capability profile, propose-then-apply, untrusted content).
 
-**Status:** in progress. **Phases 0, 1 and 3 have shipped** (§9); phase 2
-(export) is the next buildable slice. Phase 0 landed the
+**Status:** in progress. **Phases 0, 1 and 3 have shipped** (§9), plus
+**skills** (§11), which is not one of the six phases — it arrived from use
+rather than from this plan. Phase 0 landed the
 `ModelProvider` port and registry, the three adapters, `plugins.copilot`, the two
 permission keys, and an empty plugin in both hosts. Phase 1 landed the chat
 vertical slice: the SSE run route, the bounded run engine, the capability
@@ -274,6 +275,7 @@ runtime model registry of ADR-0004 §5 lands.
 | `copilot_model_configs` | Adapter kind, base URL, model id, encrypted credential, probed capabilities | Runtime provider registration (ADR-0004 §5); secrets never leave the server |
 | `copilot_connectors`    | MCP endpoint, auth, enabled workspaces, per-tool permission mapping         | Admin-managed; disabled by default                                          |
 | `copilot_usage`         | Per run: input/output tokens, cost, provider, model                         | Backs quotas and the cost panel                                             |
+| `copilot_skills`        | Workspace-authored instruction packets: name, description, body, mode       | The CMS half of §11; code-defined skills have no row                        |
 
 Phase 5 adds `copilot_embeddings` (entry, locale, chunk, vector), which needs
 the `pgvector` extension — a deployment change, not just a migration, and the
@@ -473,3 +475,58 @@ Settled enough to start phase 0; decide before the phase that needs them.
 - **Is there a headless surface?** `api-tokens` already mints workspace-scoped
   bearer tokens; exposing runs to them turns the copilot into an automation
   endpoint with a much larger blast radius. Not in v1.
+
+## 11. Skills
+
+Settled in [ADR-0010](../adr/0010-copilot-skills.md) and shipped. **Not one of
+the six phases** — it came from watching people paste the same instructions into
+the message box, once per question.
+
+A skill is a named instruction packet with a description of when it applies:
+house style, the checklist before a page is published, how a release note is
+written. Seven fields, and the one that matters is the split between
+`description` — short, and in the prompt for every enabled skill — and
+`instructions`, the body, which reaches the model only when the skill is
+actually in force. That is the same trade §10 settles for content types.
+
+**Two sources, one catalogue.** An operator declares skills in code
+(`CopilotPlugin({ skills })`), validated at construction like the provider list
+and available in every workspace; an admin authors them in the CMS, scoped to
+one workspace, from a page at `/workspaces/:id/agents/skills`. `mergeSkills`
+combines the two with code winning a name collision, and the write routes refuse
+a colliding name up front rather than letting the merge drop a row somebody just
+saved.
+
+**Three channels, all of them the system prompt.** `always` skills apply to
+every run in their workspace; attached ones to that turn; everything else
+appears as `name — description` so the model can recommend a skill it was not
+given. There is deliberately **no tool** that loads a skill: the engine fences
+every tool result as untrusted data, and a skill body is the opposite of that.
+Automatic selection, when it lands, is a server-side pre-pass before the first
+model call rather than a second trust channel — see the ADR.
+
+**The client sends names.** `CreateRunDto.skills` is `[{ name }]`, capped at
+`MAX_RUN_SKILLS`, resolved against the workspace's catalogue. A request that
+could carry instruction text would let anyone with `copilot:use` write their own
+system prompt, which is the sharper version of the reason attachments carry ids
+only. An always-on skill never appears in the request at all — the server
+applies it regardless, so naming it would be the client asserting a decision
+that is not its own.
+
+**Authoring is admin-only** (`copilot:skills:manage`, new in `PERMISSIONS`,
+no migration). Using a skill needs nothing beyond `copilot:use`. That asymmetry
+is the whole authority story: writing a skill writes prompt text that runs for
+every member of the workspace, so it is configuration rather than content.
+
+**In the UI** the composer grows a skills button beside the paperclip, opening a
+filterable picker; staged skills render as chips above the field, always-on ones
+with a lock rather than an `×`. The selection lives on the chat session — like
+the model choice, and for the same reason it was moved there — and is seeded
+into the next chat, because leaving the Agents view _closes_ an idle chat and
+the selection would otherwise vanish silently. Every turn records the skills it
+ran under (`copilot_messages.skills`), and the transcript draws them, so a
+thread read back says what shaped it.
+
+**Two things this does not do**, both deliberate: a skill cannot narrow or widen
+the tool offer (one authority mechanism, not two), and a skill is not versioned
+— the transcript snapshots the name, not the body a turn ran with.

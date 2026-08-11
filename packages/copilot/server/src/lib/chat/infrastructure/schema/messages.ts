@@ -10,7 +10,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
     AttachmentRef,
-    ModelContentBlock
+    ModelContentBlock,
+    SkillRef
 } from '@ortha-cms/copilot-domain';
 import { copilotConversations } from './conversations';
 
@@ -67,6 +68,22 @@ export const copilotMessages = pgTable(
          * model messages, so a follow-up turn still knows what was attached.
          */
         attachments: jsonb('attachments').$type<AttachmentRef[]>(),
+        /**
+         * The skills that were in force for this turn — attached by the person
+         * *and* the workspace's always-on ones. Null on an assistant turn and
+         * on a user turn that ran with none.
+         *
+         * A **snapshot** (name, title, source), not ids: a skill can be renamed
+         * or deleted, and a thread read months later still has to be able to
+         * say what shaped the answer. It is also what the transcript renders as
+         * chips, which is the only way a person ever learns, after the fact,
+         * that an answer was written under instructions they did not see.
+         *
+         * Its own column rather than a content block, for the same two reasons
+         * `attachments` is: no adapter needs to switch on it, and recovering it
+         * by parsing a text block works until someone types the prefix.
+         */
+        skills: jsonb('skills').$type<SkillRef[]>(),
         /** Which model produced an assistant turn; null on a user turn. */
         model: text('model'),
         /** Which registered provider served it; null on a user turn. */

@@ -97,3 +97,30 @@ export type {
     AttachmentRef,
     AttachmentResolver
 } from './lib/attachments/attachment';
+
+// --- skills ---
+//
+// Reusable instruction packets a run can be given. Two sources (the host's
+// config and the CMS) produce one catalogue; the merge rule and the shape
+// checks are pure, so both the server's write routes and its boot-time
+// validation read the same definition of "valid".
+export {
+    MAX_RUN_SKILLS,
+    MAX_SKILL_DESCRIPTION_LENGTH,
+    MAX_SKILL_INSTRUCTIONS_LENGTH,
+    MAX_SKILL_NAME_LENGTH,
+    MAX_SKILL_SUMMARIES,
+    MAX_SKILL_TITLE_LENGTH,
+    SKILL_NAME_PATTERN,
+    toSkillRef,
+    validateSkillShape
+} from './lib/skills/skill';
+export type {
+    Skill,
+    SkillDefinition,
+    SkillMode,
+    SkillRef,
+    SkillSource
+} from './lib/skills/skill';
+export { buildSkillRegistry, mergeSkills } from './lib/skills/skill-registry';
+export type { SkillRegistry } from './lib/skills/skill-registry';

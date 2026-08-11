@@ -28,3 +28,13 @@ export const InjectCopilotConfig = (): ParameterDecorator =>
  * unresolvable dependency at that index rather than quietly using the default.
  */
 export const COPILOT_RUN_LIMITS = Symbol('COPILOT_RUN_LIMITS');
+
+/**
+ * The host's code-defined skills, as a built `SkillRegistry`.
+ *
+ * Always bound (an empty registry when the host declared none) rather than
+ * optional: "this deployment ships no skills" and "the registry was not wired"
+ * would otherwise be the same missing dependency, and only one of them is a
+ * bug.
+ */
+export const COPILOT_SKILL_REGISTRY = Symbol('COPILOT_SKILL_REGISTRY');

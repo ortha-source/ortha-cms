@@ -134,6 +134,26 @@ genuinely belongs to a framework-free core:
 - The interface's contract is one sentence: **scope to the workspace and omit
   what does not match**. An id in a request body is proven by nothing.
 
+### Skills
+
+- `Skill` / `SkillDefinition` / `SkillRef` / `SkillMode` / `SkillSource` — a
+  reusable instruction packet, what a host declares, and the snapshot a
+  transcript keeps of one ([ADR-0010](../../../docs/adr/0010-copilot-skills.md)).
+- `buildSkillRegistry(definitions)` — the host's code-defined skills, frozen at
+  boot. Structurally `buildModelRegistry`: a null-prototype snapshot, order
+  preserved, and a duplicate or malformed name is a **throw** rather than a
+  silent last-one-wins. The implementation lives here rather than in the server
+  because the merge rule and the shape checks are pure, and both the server's
+  boot-time validation and its write routes have to agree on them.
+- `mergeSkills(code, cms)` — one workspace's catalogue. Code wins a collision,
+  and the CMS row is dropped rather than overwritten: reaching this filter means
+  a deploy took a name over, and a deploy silently changing one workspace's
+  instructions is the surprise it avoids.
+- `validateSkillShape(skill)` — returns **every** problem, not the first,
+  because both callers report to a human who would otherwise fix one and rerun.
+- The bounds (`MAX_RUN_SKILLS`, `MAX_SKILL_INSTRUCTIONS_LENGTH`, …) live here so
+  the DTOs, the host's validation and the admin's form all read one set.
+
 ### The run (phase 1)
 
 - `CopilotRunEvent` — the engine's output vocabulary and exactly what the SSE

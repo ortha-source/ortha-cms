@@ -32,7 +32,8 @@ export function CopilotSession({
     onDescribe,
     onActivity,
     onAwaiting,
-    onChoiceChange
+    onChoiceChange,
+    onSkillsChange
 }: {
     session: Session;
     workspaceId: string;
@@ -46,6 +47,7 @@ export function CopilotSession({
     onActivity(): void;
     onAwaiting(value: boolean): void;
     onChoiceChange(choice: CopilotModelChoice | null): void;
+    onSkillsChange(names: readonly string[]): void;
 }) {
     const chat = useCopilotChat(session.id, workspaceId, session.minimized);
 
@@ -114,6 +116,8 @@ export function CopilotSession({
             // reopening it does not quietly put it back on the default model.
             choice={session.choice}
             onChoiceChange={onChoiceChange}
+            skills={session.skills}
+            onSkillsChange={onSkillsChange}
         />
     );
 }

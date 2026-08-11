@@ -5,7 +5,9 @@ import {
     dispatchSessions,
     nextSessionId,
     rememberChoice,
+    rememberSkills,
     seedChoice,
+    seedSkills,
     subscribeToCopilotStore
 } from './copilotStore';
 import type { CopilotModelChoice } from './useCopilotModels';
@@ -54,6 +56,8 @@ export interface CopilotSessions {
     setAwaiting(id: string, value: boolean): void;
     /** Routes this chat's next turn to a different backend. */
     setModel(id: string, choice: CopilotModelChoice | null): void;
+    /** Replaces the skills staged for this chat. */
+    setSkills(id: string, names: readonly string[]): void;
 }
 
 /**
@@ -72,7 +76,13 @@ export function useCopilotSessions(): CopilotSessions {
 
     const start = useCallback((presented: 'dock' | 'page' = 'dock') => {
         const id = nextSessionId();
-        dispatchSessions({ type: 'open', id, presented, choice: seedChoice() });
+        dispatchSessions({
+            type: 'open',
+            id,
+            presented,
+            choice: seedChoice(),
+            skills: seedSkills()
+        });
         return id;
     }, []);
 
@@ -92,6 +102,7 @@ export function useCopilotSessions(): CopilotSessions {
                 conversationId,
                 presented,
                 choice: seedChoice(),
+                skills: seedSkills(),
                 ...(title ? { title } : {})
             });
             const landed = copilotStoreState().sessions.find(
@@ -154,6 +165,15 @@ export function useCopilotSessions(): CopilotSessions {
         []
     );
 
+    const setSkills = useCallback((id: string, names: readonly string[]) => {
+        // Both, exactly as `setModel` does: this chat runs under these from
+        // now on, and the next chat inherits them. Leaving the Agents view
+        // *closes* an idle chat, so without the second half a trip into the
+        // CMS silently dropped the instructions the person had set up.
+        rememberSkills(names);
+        dispatchSessions({ type: 'skills', id, names });
+    }, []);
+
     const describe = useCallback(
         (
             id: string,
@@ -189,6 +209,7 @@ export function useCopilotSessions(): CopilotSessions {
         describe,
         noteActivity,
         setAwaiting,
-        setModel
+        setModel,
+        setSkills
     };
 }

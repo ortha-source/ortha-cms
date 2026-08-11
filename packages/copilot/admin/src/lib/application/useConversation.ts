@@ -5,7 +5,8 @@ import type {
     ChatAttachment,
     ChatBlock,
     ChatMessage,
-    ChatProposal
+    ChatProposal,
+    ChatSkill
 } from '../domain/types/chat';
 import type { CopilotConversation } from './useConversations';
 
@@ -17,6 +18,8 @@ interface PersistedMessage {
     content: ModelContentBlock[];
     /** Files attached to a user turn; null otherwise. */
     attachments: ChatAttachment[] | null;
+    /** Skills in force for a user turn; null otherwise. */
+    skills: ChatSkill[] | null;
     stopReason: string | null;
 }
 
@@ -246,6 +249,10 @@ function toChatMessages(
                 ...(message.attachments?.length
                     ? { attachments: message.attachments }
                     : {}),
+                // Likewise its own column: the skills a turn ran under are the
+                // only record of *why* an answer reads the way it does, and
+                // rebuilding them from the prompt is not possible at all.
+                ...(message.skills?.length ? { skills: message.skills } : {}),
                 ...(message.stopReason
                     ? { stopReason: message.stopReason }
                     : {})

@@ -12,11 +12,33 @@
 export const AGENTS_SEGMENT = 'agents';
 
 /**
+ * The sub-segment the skills management page is mounted at.
+ *
+ * **Reserved**: it sits in the same slot a `:conversationId` occupies, so
+ * `readAgentThreadId` excludes it explicitly. React Router ranks the literal
+ * `agents/skills` above the `agents/*` wildcard and the thread page never
+ * renders there — but that is a fact about the router's ranking, and the page
+ * would otherwise try to fetch a conversation called "skills" if it ever
+ * changed.
+ */
+export const SKILLS_SEGMENT = 'skills';
+
+/**
  * The permission the whole copilot surface is gated on — the launcher, the
  * sidebar switcher, and the Agents page alike. It mirrors the server's gate
  * rather than replacing it; every route enforces it regardless.
  */
 export const COPILOT_USE = 'copilot:use';
+
+/**
+ * The permission the skills management page is gated on — admin-only.
+ *
+ * Separate from {@link COPILOT_USE} because using a skill and writing one are
+ * different acts: a skill's instructions are prompt text that runs for everyone
+ * in the workspace, so authoring is configuration
+ * ([ADR-0010](../../../../../docs/adr/0010-copilot-skills.md)).
+ */
+export const COPILOT_SKILLS_MANAGE = 'copilot:skills:manage';
 
 /** The Agents view's base path — an unsaved new chat. */
 export function agentsPath(workspaceId: string): string {
@@ -29,6 +51,11 @@ export function agentThreadPath(
     conversationId: string
 ): string {
     return `${agentsPath(workspaceId)}/${conversationId}`;
+}
+
+/** Where the workspace's skills are managed. */
+export function agentSkillsPath(workspaceId: string): string {
+    return `${agentsPath(workspaceId)}/${SKILLS_SEGMENT}`;
 }
 
 /** Whether a pathname is inside the Agents view of some workspace. */
@@ -58,6 +85,10 @@ export function readAgentThreadId(pathname: string): string | null {
         !segments[1] ||
         segments[2] !== AGENTS_SEGMENT
     ) {
+        return null;
+    }
+    // The skills page shares this slot with a thread id and is not one.
+    if (segments[3] === SKILLS_SEGMENT) {
         return null;
     }
     return segments[3] ?? null;

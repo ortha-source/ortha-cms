@@ -5,6 +5,7 @@ import type {
     ChatMessage,
     ChatPermissionRequest,
     ChatProposal,
+    ChatSkill,
     ChatState
 } from '../domain/types/chat';
 
@@ -16,6 +17,7 @@ export type ChatAction =
           text: string;
           localId: string;
           attachments?: ChatAttachment[];
+          skills?: ChatSkill[];
       }
     /** One frame arrived from the run stream. */
     | { type: 'event'; event: CopilotRunEvent }
@@ -78,6 +80,15 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         // until the first frame lands reads as a failed send.
                         ...(action.attachments?.length
                             ? { attachments: action.attachments }
+                            : {}),
+                        // Optimistic like the attachment chips, and for the
+                        // same reason — except these are also *incomplete*
+                        // until the run lands: the workspace's always-on skills
+                        // are added server-side, so a reopened thread can show
+                        // more than the person picked. Showing what they picked
+                        // now beats showing nothing until the first frame.
+                        ...(action.skills?.length
+                            ? { skills: action.skills }
                             : {})
                     },
                     // The assistant turn is created up front and empty, so the

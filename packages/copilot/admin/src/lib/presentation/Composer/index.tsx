@@ -12,7 +12,10 @@ import { defineMessages, useIntl } from 'react-intl';
 import { ArrowUp, Paperclip, Square } from 'lucide-react';
 import { Button, Textarea, cn } from '@ortha-cms/design-system';
 import { AttachmentChip } from '../AttachmentChip';
+import { SkillChip } from '../SkillChip';
+import { SkillPicker } from '../SkillPicker';
 import type { ComposerAttachments } from '../../application/useComposerAttachments';
+import type { ComposerSkills } from '../../application/useComposerSkills';
 
 const messages = defineMessages({
     placeholder: {
@@ -47,6 +50,12 @@ const messages = defineMessages({
         id: 'copilot.composer.attachedFiles',
         defaultMessage: 'Files to send'
     },
+    // Its own name for the same reason: two chip lists in one box answering to
+    // one label leaves a screen-reader user unable to tell a file from a skill.
+    stagedSkills: {
+        id: 'copilot.composer.stagedSkills',
+        defaultMessage: 'Skills for this chat'
+    },
     uploadingHint: {
         id: 'copilot.composer.uploadingHint',
         defaultMessage: 'Waiting for uploads to finish…'
@@ -74,6 +83,13 @@ export interface ComposerProps {
      * without a media library should do, rather than offer a button that fails.
      */
     attachments?: ComposerAttachments;
+    /**
+     * The workspace's skills and what is staged from them. Omit and the
+     * composer renders no skills control — the same discipline as
+     * `attachments`, and what keeps a surface with no catalogue from offering a
+     * button that opens an empty list.
+     */
+    skills?: ComposerSkills;
     /** Cancels the run in flight. */
     onStop(): void;
     /**
@@ -121,7 +137,8 @@ export function Composer({
     inputRef,
     controls,
     className,
-    attachments
+    attachments,
+    skills
 }: ComposerProps) {
     const intl = useIntl();
     const [value, setValue] = useState('');
@@ -245,6 +262,28 @@ export function Composer({
                 field itself is stripped of both — two nested rings on focus is
                 the giveaway that a composer was assembled rather than designed. */}
             <div className="border-input bg-card focus-within:border-primary focus-within:ring-primary/15 rounded-lg border shadow-xs transition-colors focus-within:ring-2">
+                {/* Skills above the files, because they change how the whole
+                    turn is answered while a file is one thing in it. */}
+                {skills && skills.staged.length + skills.always.length > 0 ? (
+                    <ul
+                        className="flex flex-wrap gap-1.5 px-2 pt-2"
+                        aria-label={intl.formatMessage(messages.stagedSkills)}
+                    >
+                        {skills.always.map((skill) => (
+                            <li key={skill.name}>
+                                <SkillChip title={skill.title} alwaysOn />
+                            </li>
+                        ))}
+                        {skills.staged.map((skill) => (
+                            <li key={skill.name}>
+                                <SkillChip
+                                    title={skill.title}
+                                    onRemove={() => skills.remove(skill.name)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
                 {attachments && attachments.items.length > 0 ? (
                     <ul
                         className="flex flex-wrap gap-1.5 px-2 pt-2"
@@ -315,6 +354,15 @@ export function Composer({
                                     <Paperclip className="size-4" />
                                 </Button>
                             </>
+                        ) : null}
+                        {skills ? (
+                            <SkillPicker
+                                skills={skills.all}
+                                selected={skills.selected}
+                                onChange={skills.setSelected}
+                                max={skills.max}
+                                loading={skills.loading}
+                            />
                         ) : null}
                         {controls}
                     </div>

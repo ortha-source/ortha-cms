@@ -3,7 +3,8 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type {
     AttachmentRef,
-    ModelContentBlock
+    ModelContentBlock,
+    SkillRef
 } from '@ortha-cms/copilot-domain';
 import { copilotConversations } from '../schema/conversations';
 import { copilotMessages } from '../schema/messages';
@@ -28,6 +29,8 @@ export interface MessageView {
     content: ModelContentBlock[];
     /** Files attached to a user turn; null on an assistant turn and when none. */
     attachments: AttachmentRef[] | null;
+    /** Skills in force for a user turn; null on an assistant turn and when none. */
+    skills: SkillRef[] | null;
     model: string | null;
     provider: string | null;
     stopReason: string | null;
@@ -248,6 +251,7 @@ export class ConversationRepository {
                 role: copilotMessages.role,
                 content: copilotMessages.content,
                 attachments: copilotMessages.attachments,
+                skills: copilotMessages.skills,
                 model: copilotMessages.model,
                 provider: copilotMessages.provider,
                 stopReason: copilotMessages.stopReason,
@@ -274,6 +278,7 @@ export class ConversationRepository {
         role: 'user' | 'assistant';
         content: ModelContentBlock[];
         attachments?: AttachmentRef[] | null;
+        skills?: SkillRef[] | null;
         model?: string | null;
         provider?: string | null;
         stopReason?: string | null;
@@ -299,6 +304,10 @@ export class ConversationRepository {
                 attachments: input.attachments?.length
                     ? input.attachments
                     : null,
+                // Null for "none", for the same reason as `attachments`: the
+                // column answers "did this turn run with skills", and an empty
+                // array answers it with a value every reader has to length-check.
+                skills: input.skills?.length ? input.skills : null,
                 model: input.model ?? null,
                 provider: input.provider ?? null,
                 stopReason: input.stopReason ?? null,

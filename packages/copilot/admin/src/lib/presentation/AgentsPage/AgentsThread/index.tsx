@@ -10,6 +10,7 @@ import {
 } from '@ortha-cms/design-system';
 import { useAgentThread } from '../../../application/useAgentThread';
 import { useComposerAttachments } from '../../../application/useComposerAttachments';
+import { useComposerSkills } from '../../../application/useComposerSkills';
 import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
 import { ContextChip } from '../../ContextChip';
@@ -62,11 +63,22 @@ export function AgentsThread({
 }: AgentsThreadProps) {
     const intl = useIntl();
     const composerRef = useRef<HTMLTextAreaElement>(null);
-    const { chat, loading, failed, retry, choice, setChoice } =
-        useAgentThread(workspaceId);
+    const {
+        chat,
+        loading,
+        failed,
+        retry,
+        choice,
+        setChoice,
+        skills: stagedSkills,
+        setSkills
+    } = useAgentThread(workspaceId);
     // Files staged for the next turn. Held here rather than inside `Composer`
     // so `send` can read what was staged and clear it once the turn is away.
     const files = useComposerAttachments();
+    // Skills, likewise — except the selection lives on the chat rather than in
+    // this component, so it survives leaving the page.
+    const skills = useComposerSkills(workspaceId, stagedSkills, setSkills);
 
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
     // context should not silently change under the user as they navigate.
@@ -89,12 +101,19 @@ export function AgentsThread({
                 provider: choice?.provider ?? null,
                 model: choice?.model ?? null
             },
-            attachments: files.sent
+            attachments: files.sent,
+            skills: skills.inForce,
+            chosenSkills: skills.chosen
         });
         // Cleared on send, not on the run finishing: the files belong to the
         // turn that was just sent, and leaving them staged would silently
         // attach them to the next question too.
         files.clear();
+        // Skills are deliberately **not** cleared. A file belongs to the
+        // message it was attached to; a skill is the mode you are working in,
+        // and re-picking "house style" before every message is the friction
+        // that makes people stop using the feature. The chips stay on screen,
+        // so it is never a hidden state.
     };
 
     return (
@@ -164,6 +183,7 @@ export function AgentsThread({
                     onSend={send}
                     onStop={chat.stop}
                     attachments={files}
+                    skills={skills}
                 />
             </div>
         </div>

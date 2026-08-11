@@ -1,8 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
-import { Archive, ArrowLeft, MessageSquarePlus, Search } from 'lucide-react';
+import {
+    Archive,
+    ArrowLeft,
+    BookOpen,
+    MessageSquarePlus,
+    Search
+} from 'lucide-react';
 import { Button, Input, Skeleton, toast } from '@ortha-cms/design-system';
+import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useAgentNavigation } from '../../../application/useAgentThread';
 import {
     useConversations,
@@ -14,7 +21,11 @@ import {
     groupConversations,
     type ConversationGroupId
 } from '../../../application/groupConversations';
-import { readAgentThreadId } from '../../../domain/agentsRoute';
+import {
+    COPILOT_SKILLS_MANAGE,
+    agentSkillsPath,
+    readAgentThreadId
+} from '../../../domain/agentsRoute';
 import { AgentsRailRow } from './AgentsRailRow';
 import { RenameChatDialog } from './RenameChatDialog';
 
@@ -22,6 +33,10 @@ const messages = defineMessages({
     newChat: {
         id: 'copilot.agents.rail.newChat',
         defaultMessage: 'New chat'
+    },
+    skills: {
+        id: 'copilot.agents.rail.skills',
+        defaultMessage: 'Skills'
     },
     search: {
         id: 'copilot.agents.rail.search',
@@ -343,6 +358,12 @@ export function AgentsRailList({
                 />
             )}
 
+            {/* The way to the workspace's skills, and the only one — the page
+                is admin-only, so it is not in the nav where everyone would see
+                a door they cannot open. Fail-closed, like every other
+                permission check on this surface. */}
+            <SkillsLink workspaceId={workspaceId} />
+
             <RenameChatDialog
                 conversation={renaming}
                 saving={update.isPending}
@@ -366,6 +387,39 @@ export function AgentsRailList({
                     );
                 }}
             />
+        </div>
+    );
+}
+
+/**
+ * The link to the workspace's skills, under the archive link.
+ *
+ * Rendered only for someone who may actually write one. Skills are visible to
+ * everybody in the composer's picker; this page is where they are *authored*,
+ * which is admin-only, so a contributor gets no link rather than a page that
+ * greets them with "no access".
+ */
+function SkillsLink({ workspaceId }: { workspaceId: string }) {
+    const intl = useIntl();
+    const canManage = useHasPermission(COPILOT_SKILLS_MANAGE);
+
+    if (!canManage) {
+        return null;
+    }
+
+    return (
+        <div className="border-t p-2">
+            <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground w-full justify-start gap-2"
+            >
+                <Link to={agentSkillsPath(workspaceId)}>
+                    <BookOpen className="size-3.5" />
+                    {intl.formatMessage(messages.skills)}
+                </Link>
+            </Button>
         </div>
     );
 }

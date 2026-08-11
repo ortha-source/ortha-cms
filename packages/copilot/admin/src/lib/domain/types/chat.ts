@@ -131,6 +131,23 @@ export interface ChatAttachment {
     readable: boolean;
 }
 
+/**
+ * A skill a turn ran under, as the transcript renders it.
+ *
+ * Mirrors the server's `SkillRef` — a **snapshot**, so a turn keeps saying what
+ * shaped it after the skill is renamed or deleted. It is the only place a
+ * person learns, reading a thread back, that an answer was written under
+ * instructions they did not type.
+ */
+export interface ChatSkill {
+    /** The skill's machine name. */
+    name: string;
+    /** Its title, as it was at the time of the turn. */
+    title: string;
+    /** Whether it came from the deployment's config or from this workspace. */
+    source: 'code' | 'cms';
+}
+
 /** One turn as the transcript renders it. */
 export interface ChatMessage {
     /** Stable key. The server's message id once persisted, else a local id. */
@@ -150,6 +167,12 @@ export interface ChatMessage {
     blocks: ChatBlock[];
     /** Files the user attached to this turn. Absent on an assistant turn. */
     attachments?: ChatAttachment[];
+    /**
+     * Skills in force for this turn — the ones the person attached **and** the
+     * workspace's always-on ones, which is why it can be non-empty on a turn
+     * where nobody picked anything.
+     */
+    skills?: ChatSkill[];
     /** Tool calls waiting on the user, in order. */
     permissions?: ChatPermissionRequest[];
     /** True while this turn is still streaming. */

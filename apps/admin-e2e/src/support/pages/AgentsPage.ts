@@ -323,6 +323,76 @@ export class AgentsPage extends BasePage {
         return this.main.getByRole('button', { name: `Remove ${name}` });
     }
 
+    // --- skills -----------------------------------------------------------
+
+    /**
+     * The skills button in the composer. Named "Skills" while nothing is
+     * staged and "N skills" once something is — the count is in the accessible
+     * name on purpose, because a colour-only signal for "this run behaves
+     * differently" is no signal.
+     */
+    skillsButton(): Locator {
+        return this.main.getByRole('button', {
+            name: /^(Skills|\d+ skills?)$/
+        });
+    }
+
+    /**
+     * The picker popover. Radix gives `PopoverContent` `role="dialog"`, and it
+     * is named by the panel's own title through `aria-labelledby` — the title
+     * is a `<p>`, not a heading, because a popover this small does not belong
+     * in the page's heading outline.
+     */
+    skillsPicker(): Locator {
+        return this.page.getByRole('dialog', { name: 'Skills for this chat' });
+    }
+
+    /** Opens the picker and waits for it to be there. */
+    async openSkills() {
+        await this.skillsButton().click();
+        await this.skillsPicker().waitFor();
+    }
+
+    /** One skill's checkbox in the picker, by its title. */
+    skillOption(title: string): Locator {
+        return this.skillsPicker().getByRole('checkbox', {
+            name: new RegExp(title)
+        });
+    }
+
+    /**
+     * The staged-skill row inside the composer.
+     *
+     * A different accessible name from the transcript's sent list — the same
+     * lesson the file lists learned: two lists in one view answering to one
+     * name leave a screen-reader user unable to tell them apart.
+     */
+    stagedSkills(): Locator {
+        return this.main.getByRole('list', { name: 'Skills for this chat' });
+    }
+
+    /** Every staged skill chip. */
+    stagedSkillChips(): Locator {
+        return this.stagedSkills().getByRole('listitem');
+    }
+
+    /** One turn's skill chips in the transcript. */
+    sentSkills(): Locator {
+        return this.main.getByRole('list', { name: 'Skills used' });
+    }
+
+    /** Drop a staged skill. Its title is in the control's accessible name. */
+    removeSkill(title: string): Locator {
+        return this.main.getByRole('button', {
+            name: `Remove the ${title} skill`
+        });
+    }
+
+    /** The rail's link to the skills page. Absent without the permission. */
+    manageSkillsLink(): Locator {
+        return this.page.getByRole('link', { name: 'Skills' });
+    }
+
     /**
      * Attach files through the hidden `<input type=file>`.
      *

@@ -25,9 +25,59 @@ describe('sessionsReducer', () => {
                 unread: false,
                 awaiting: false,
                 presented: 'dock',
-                choice: null
+                choice: null,
+                skills: []
             }
         ]);
+    });
+
+    it('starts a chat with no skills staged when none are seeded', () => {
+        expect(play(open('a'))[0].skills).toEqual([]);
+    });
+
+    // Seeded like the model choice, and for a sharper reason: leaving the
+    // Agents view *closes* an idle chat, so without this a trip into the CMS
+    // silently dropped the instructions the person had staged.
+    it('starts a chat with the skills it was seeded with', () => {
+        const state = play({
+            type: 'open',
+            id: 'a',
+            skills: ['house-style']
+        });
+
+        expect(state[0].skills).toEqual(['house-style']);
+    });
+
+    // Copied, not aliased: the seed is module state, and a chat mutating it
+    // through its own array would change what the *next* chat inherits.
+    it('copies the seeded list rather than aliasing it', () => {
+        const seed = ['house-style'];
+        const state = play({ type: 'open', id: 'a', skills: seed });
+
+        seed.push('seo-checklist');
+
+        expect(state[0].skills).toEqual(['house-style']);
+    });
+
+    it('replaces the staged skills wholesale', () => {
+        const state = play(open('a'), {
+            type: 'skills',
+            id: 'a',
+            names: ['house-style', 'seo-checklist']
+        });
+
+        expect(state[0].skills).toEqual(['house-style', 'seo-checklist']);
+    });
+
+    it('leaves other chats’ staged skills alone', () => {
+        const state = play(open('a'), open('b'), {
+            type: 'skills',
+            id: 'b',
+            names: ['house-style']
+        });
+
+        expect(state[0].skills).toEqual([]);
+        expect(state[1].skills).toEqual(['house-style']);
     });
 
     it('keeps open order, so a window never jumps slots', () => {
