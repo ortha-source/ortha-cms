@@ -138,7 +138,7 @@ Every block below assumes the temporary registration from §1.
 | --- | --- | --- |
 | 1 | `await p.url('any/key')` | rejects with `S3NotImplementedError` |
 | 2 | Compare with `local` | `local` **resolves** to `/api/media/blob/any%2Fkey`, a path no route serves (`🐞 BUG-media-provider-local-05`) |
-| 3 | Confirm nothing calls it | `grep -rn "\.url(" packages/media` finds no caller — `AssetView.url` comes from `to-asset-view.ts:128` |
+| 3 | Confirm nothing calls it | `grep -rn "\.url(" packages/media` finds no caller — `AssetView.url` comes from `to-asset-view.ts:26` |
 
 ### F7 — Config is ignored
 

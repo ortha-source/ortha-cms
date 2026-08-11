@@ -150,7 +150,7 @@ exists anywhere under `packages/media/provider-local/`.
 | --- | --- | --- |
 | 1 | `provider.url('W/A/logo.png')` | `"/api/media/blob/W%2FA%2Flogo.png"` with the default `publicBasePath` |
 | 2 | `curl localhost:3000/api/media/blob/W%2FA%2Flogo.png` | `404` — **no route serves this path** (`grep -rn "'blob'" packages apps` finds only this file) |
-| 3 | Confirm nothing calls it | `AssetView.url` is built by `to-asset-view.ts:128`, not by the provider — `url()` is dead code today |
+| 3 | Confirm nothing calls it | `AssetView.url` is built by `to-asset-view.ts:26`, not by the provider — `url()` is dead code today |
 
 ## 4. Edge Cases & Negative Paths
 

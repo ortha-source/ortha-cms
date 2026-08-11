@@ -110,7 +110,7 @@ is created by the content editor's ordinary Save/Publish
 | F13 | **Has locale / Missing locale / Locale count** filter fields | `.../hooks/useLocaleFilterFields/index.ts:34-64` | ❌ NONE |
 | F14 | Entry params: single read scoping, create-body keys, relation-candidate locale | `.../utils/i18nPlugin/index.tsx:120-142` | ✅ E2E |
 | F15 | ⋯ menu **Publish all locales** (reuses content's `BulkPublishDialog`) | `.../hooks/usePublishAllLocales/index.tsx:44-93` | ✅ E2E |
-| F16 | ⋯ menu **Unpublish all locales** (`ConfirmDialog` + `useBulkEntryActions`) | `.../hooks/useUnpublishAllLocales/index.tsx:151-216` | ✅ E2E |
+| F16 | ⋯ menu **Unpublish all locales** (`ConfirmDialog` + `useBulkEntryActions`) | `.../hooks/useUnpublishAllLocales/index.tsx:58-123` | ✅ E2E |
 | F17 | A switch keeps the editor **tab** the user was on (`tabSegment`) | `.../components/LocaleWidget/index.tsx:216-233` | ✅ E2E |
 | F18 | Coverage card — three overlapping headline figures with hints | `.../components/LocalizationCoverageWidget/index.tsx:234-250`, `.../CoverageFigure/index.tsx:22` | ✅ E2E |
 | F19 | Coverage **By language** bars (translated / missing, share of records) | `.../components/LocalizationCoverageWidget/index.tsx:135-165` | ✅ E2E |

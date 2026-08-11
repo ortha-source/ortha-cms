@@ -23,7 +23,7 @@ sidebar (`@ortha-cms/workspaces-admin` injects it via `useSidebarContent`); the
 Home dashboard's *content* (every tile and panel arrives through
 `HOME_SECTION_SLOT` from `workspaces-admin` and `activity-admin`).
 
-- **Entry points** — `packages/shell/admin/src/index.ts:1-42`.
+- **Entry points** — `packages/shell/admin/src/index.ts:1-41`.
     - Plugin factory: `ShellPlugin()` → `{ name:'shell', layout, routes:[{path:'/', element:<HomePage/>}], slots:[SIDEBAR_NAV_SLOT ← Home] }` (`packages/shell/admin/src/lib/utils/shellPlugin/index.tsx:37-66`).
     - **Slots defined:** `SIDEBAR_NAV_SLOT` (`shell.sidebar.nav`), `SIDEBAR_SECTION_SLOT` (`shell.sidebar.section`), `SIDEBAR_FOOTER_SLOT` (`shell.sidebar.footer`) — `packages/shell/admin/src/lib/slots/sidebarSlots/index.ts:54, 77, 102`; `HOME_SECTION_SLOT` (`shell.home.section`) — `packages/shell/admin/src/lib/slots/homeSlots/index.ts:34`; `COMMAND_SLOT` (`shell.command`) — `packages/shell/admin/src/lib/slots/commandSlots/index.ts:32`.
     - **Slots filled:** one `SidebarItem` (Home, `group:'overview'`, `order:10`).

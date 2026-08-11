@@ -1005,7 +1005,7 @@ Do NOT implement.
   mapper carries it only on the create response (`toCreatedApiToken`), and the list mapper
   has no `secret` field at all (`apiTokenMapper/index.ts:36-49`).
 - **The list never receives a secret.** The server's `toView` strips it
-  (`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:170-183`), and the admin's
+  (`packages/identity/server/src/lib/api-tokens/application/api-token.service.ts:170-182`), and the admin's
   `ApiTokenResponse` type has no `secret` member — only `CreatedApiTokenResponse` does.
 - **Only the `lookupPrefix` is displayed.** The Token column renders the non-secret prefix,
   which is exactly what it exists for.

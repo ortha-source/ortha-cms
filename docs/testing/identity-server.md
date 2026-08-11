@@ -655,7 +655,7 @@ sense (the 7-day session TTL and the 10/min login throttle are security limits, 
 **Location:** `packages/bootstrap/server/src/lib/create-server.ts:28-34` (the global
 `ValidationPipe`, no `exceptionFactory`); consumed by
 `packages/identity/server/src/lib/auth/dto/accept-invite.dto.ts:16-35` and
-`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-25`
+`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-24`
 
 The host constructs `new ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`
 with **no `exceptionFactory`**, and `grep -rn "ExceptionFilter|exceptionFactory" packages
@@ -730,7 +730,7 @@ preferences)
 **Verdict:** **Does Not Support** (for the language half) / **Supports** (for the theme
 half)
 **Location:** `packages/identity/server/src/lib/schema/user-preferences.ts:23-38`,
-`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-25`
+`packages/identity/server/src/lib/preferences/dto/update-preferences.dto.ts:14-24`
 
 `user_preferences` has exactly one preference column — `theme` (`light`/`dark`/`system`) —
 and `UpdatePreferencesDto` accepts exactly one field, `theme`, under
