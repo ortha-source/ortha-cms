@@ -439,6 +439,13 @@ export async function seedMediaAsset(opts: {
     kind?: 'image' | 'video' | 'audio' | 'document' | 'archive';
     mimeType?: string;
     size?: number;
+    /**
+     * Alt text. Distinguishes three states the alt-coverage aggregate has to
+     * tell apart: absent (`undefined` → NULL), explicitly blank (`''`, which is
+     * the markup for "decorative" and must NOT count as covered), and real
+     * text.
+     */
+    alt?: string | null;
 }): Promise<{ id: string }> {
     const [row] = await getDatabase()
         .insert(mediaAsset)
@@ -449,6 +456,7 @@ export async function seedMediaAsset(opts: {
             kind: opts.kind ?? 'document',
             mimeType: opts.mimeType ?? 'application/pdf',
             size: opts.size ?? 1024,
+            alt: opts.alt ?? null,
             storageKey: `${opts.workspaceId}/seed/${opts.name}`,
             storageProvider: 'memory',
             uploadedBy: opts.uploadedBy

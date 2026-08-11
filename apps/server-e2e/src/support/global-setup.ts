@@ -19,11 +19,28 @@ import { publishDatabaseUrl } from './db-url';
  * connection string is published for the worker via {@link publishDatabaseUrl}.
  */
 module.exports = async function () {
-    console.log('\n[e2e] starting Postgres testcontainer…');
-    const container = await new PostgreSqlContainer(
-        'postgres:16-alpine'
-    ).start();
-    const connectionString = container.getConnectionUri();
+    // `E2E_DATABASE_URL` points the run at an already-running Postgres instead
+    // of starting a container. Deliberately its OWN variable rather than
+    // reusing `DATABASE_URL`: this suite truncates every table between tests,
+    // and `DATABASE_URL` is routinely set in a developer's `.env` pointing at
+    // their working database. An opt-in name cannot be triggered by accident.
+    //
+    // The database it names must be disposable. This exists so the suite can
+    // run where Docker is unavailable (a sandbox, a Docker-less CI runner);
+    // the container remains the default and the thing CI normally uses.
+    const external = process.env['E2E_DATABASE_URL'];
+
+    let container: Awaited<ReturnType<PostgreSqlContainer['start']>> | undefined;
+    let connectionString: string;
+
+    if (external) {
+        console.log('\n[e2e] using E2E_DATABASE_URL (no testcontainer)…');
+        connectionString = external;
+    } else {
+        console.log('\n[e2e] starting Postgres testcontainer…');
+        container = await new PostgreSqlContainer('postgres:16-alpine').start();
+        connectionString = container.getConnectionUri();
+    }
 
     // Apply every plugin's migrations against the fresh container. We build the
     // plugin list from the e2e factory so order and descriptors match the boot;
@@ -46,5 +63,5 @@ module.exports = async function () {
 
     publishDatabaseUrl(connectionString);
     (globalThis as any).__PG_CONTAINER__ = container;
-    console.log('[e2e] testcontainer ready.\n');
+    console.log(`[e2e] database ready${container ? ' (testcontainer)' : ''}.\n`);
 };

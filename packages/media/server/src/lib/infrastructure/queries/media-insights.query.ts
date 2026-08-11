@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset } from '../schema/media-asset';
 import type {
@@ -19,6 +19,31 @@ function granularityFor(days: number): Granularity {
     if (days <= 31) return 'day';
     if (days <= 120) return 'week';
     return 'month';
+}
+
+/**
+ * The bucket unit as a SQL **literal**, never a bound parameter.
+ *
+ * This looks like a pointless detour and is load-bearing. Drizzle re-renders a
+ * reused `sql` fragment at each call site, so `date_trunc(${granularity}, …)`
+ * becomes `$1` in the SELECT and `$4` in the GROUP BY — Postgres then sees two
+ * different expressions and rejects the query with "column must appear in the
+ * GROUP BY clause". Emitting the unit inline makes the two textually identical,
+ * which is what lets it match.
+ *
+ * Safe to inline because it is not caller data: `Granularity` is a closed union
+ * produced only by {@link granularityFor} from a bounded number, and the switch
+ * below maps it to a fixed literal rather than interpolating the variable.
+ */
+function truncUnit(granularity: Granularity): SQL {
+    switch (granularity) {
+        case 'day':
+            return sql`'day'`;
+        case 'week':
+            return sql`'week'`;
+        case 'month':
+            return sql`'month'`;
+    }
 }
 
 /** The instant a window of `days` starts, relative to now. */
@@ -77,7 +102,7 @@ export class MediaInsightsQuery {
         days: number
     ): Promise<MediaUploadsView> {
         const granularity = granularityFor(days);
-        const truncated = sql`date_trunc(${granularity}, ${mediaAsset.createdAt})`;
+        const truncated = sql`date_trunc(${truncUnit(granularity)}, ${mediaAsset.createdAt})`;
 
         const rows = await this.db
             .select({
