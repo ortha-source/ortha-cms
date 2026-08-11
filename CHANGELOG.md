@@ -1,3 +1,14 @@
+## 0.2.1 (2026-08-11)
+
+### 🩹 Fixes
+
+- **release:** throttle and retry npm publishes ([ec3e8b45](https://github.com/ortha-source/ortha-cms/commit/ec3e8b45))
+
+### ❤️ Thank You
+
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.2.0 (2026-08-11)
 
 This was a version bump only, there were no code changes.
