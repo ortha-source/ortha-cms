@@ -102,7 +102,7 @@ UI steps, and §4A is short by design.
 | F9 | `db-generate` executor — resolves `cwd` against the workspace root, forwards `--name` | `packages/nx/src/executors/db-generate/executor.ts:20-27` | ❌ NONE |
 | F10 | `runDrizzleKitGenerate` — bin resolution, `cwd`-relative config paths, no DB | `packages/nx/src/lib/drizzle/generate.ts:13-26` | ❌ NONE |
 | F11 | `db-migrate` executor — loads `ortha.config.ts` + `buildPlugins()` through jiti+swc | `packages/nx/src/executors/db-migrate/executor.ts:27-46` | ❌ NONE |
-| F12 | `applyPluginMigrations` — per-plugin tracking table, ordered loop, pool always closed | `packages/nx/src/lib/drizzle/apply.ts:12-44` | ❌ NONE (a **verbatim copy** runs in every server e2e — see §5) |
+| F12 | `applyPluginMigrations` — per-plugin tracking table, ordered loop, pool always closed | `packages/nx/src/lib/drizzle/apply.ts:12-44` | ❌ NONE (a structurally identical re-implementation runs in every server e2e — see §5) |
 | F13 | `db-studio` executor — resolves the URL, refuses with an actionable message when absent | `packages/nx/src/executors/db-studio/executor.ts:29-50` | ❌ NONE |
 | F14 | `runDrizzleKitStudio` — ephemeral config in a temp dir, secret via env only, `--host`/`--port`, cleanup | `packages/nx/src/lib/drizzle/studio.ts:31-68` | ❌ NONE |
 | F15 | `createTsJiti` — swc in **legacy-decorator** mode so the Nest plugin graph loads | `packages/nx/src/lib/jiti.ts:14-49` | ❌ NONE |
@@ -491,7 +491,7 @@ that is the finding, not an omission.
 | F1–F8 target inference | — | — | ❌ NONE — nothing snapshots the inferred target graph, so a change to `src/index.ts` is caught only when a human notices a target missing |
 | F9–F10 `db:generate` | — | — | ❌ NONE |
 | F11 `db:migrate` executor | — | — | ❌ NONE |
-| F12 `applyPluginMigrations` | `apps/server-e2e/src/support/global-setup.ts:45-62` | a **verbatim re-implementation** of the same loop — `new Pool` → `drizzle` → `for (plugin of plugins) migrate(db, { migrationsFolder: plugin.migrations.dir(), migrationsTable: plugin.migrations.table })` → `finally pool.end()` — whose own comment says it applies migrations "exactly as `server:db:migrate` does" | ❌ NONE — the copy is exercised by every server e2e run; **the production function is not imported and not covered** → `🐞 BUG-nx-07` |
+| F12 `applyPluginMigrations` | `apps/server-e2e/src/support/global-setup.ts:45-62` | a **structurally identical re-implementation** of the same loop (the log strings differ, and it has neither the empty-list early return nor the `Migrations complete.` line) — `new Pool` → `drizzle` → `for (plugin of plugins) migrate(db, { migrationsFolder: plugin.migrations.dir(), migrationsTable: plugin.migrations.table })` → `finally pool.end()` — whose own comment says it applies migrations "exactly as `server:db:migrate` does" | ❌ NONE — the copy is exercised by every server e2e run; **the production function is not imported and not covered** → `🐞 BUG-nx-07` |
 | F13–F14 `db:studio` | — | — | ❌ NONE |
 | F15 `createTsJiti` | — | — | ❌ NONE — the legacy-decorator behaviour it exists for is verified only by `db:migrate` not crashing when a human runs it |
 | F16–F25 the publish path | — | — | ❌ NONE — `npm run release:dry-run` is the only rehearsal, and it deliberately skips the probe, the spacing and the breaker (`executor:118, 156-163`), i.e. **every mechanism worth testing** |
@@ -853,6 +853,13 @@ flag. Passing the port through is fine as-is.
 **Location:** `packages/nx/src/executors/db-generate/executor.ts:24-26`; `packages/nx/src/executors/db-migrate/executor.ts:42-45`; `packages/nx/src/lib/drizzle/apply.ts:27-43`; `packages/nx/src/lib/drizzle/studio.ts:60-67`
 **Category:** ux-state (operator legibility)
 
+> **Unverified —** the Ctrl+C half. That `execFileSync` throws on a
+> signal-terminated child is documented Node behaviour, but whether Nx ends up
+> printing the target as *failed* depends on whether the SIGINT that reaches the
+> parent kills it first, and that could not be executed here. The unwrapped-error
+> half (`db-generate`, `db-migrate`) and the missing `finally` guarantee are
+> confirmed from source.
+
 **What the code does:** `db-generate` calls `runDrizzleKitGenerate` unwrapped, so
 a non-zero drizzle-kit exit throws an `execFileSync` `Error` whose message is the
 full command line. `db-migrate` calls `applyPluginMigrations` unwrapped, so a bad
@@ -894,12 +901,12 @@ the temp directory is removed.
 
 ---
 
-### 🐞 BUG-nx-07 — The migration apply loop is duplicated verbatim in the e2e harness with a comment asserting equivalence, so the shipped function has no coverage and the two can drift · Severity: Low
+### 🐞 BUG-nx-07 — The migration apply loop is re-implemented in the e2e harness under a comment asserting equivalence, so the shipped function has no coverage and the two can drift · Severity: Low
 
 **Location:** `packages/nx/src/lib/drizzle/apply.ts:12-44` vs `apps/server-e2e/src/support/global-setup.ts:45-62`
 **Category:** correctness (duplication) / test-coverage
 
-**What the code does:** `global-setup.ts` re-implements the loop line for line —
+**What the code does:** `global-setup.ts` re-implements the loop step for step —
 `new Pool({ connectionString })`, `drizzle(pool)`, `for (const plugin of plugins)
 { if (!plugin.migrations) continue; migrate(db, { migrationsFolder:
 plugin.migrations.dir(), migrationsTable: plugin.migrations.table }) }`,
@@ -926,7 +933,9 @@ code path than production migrations.
    printed once per run.
 
 **Blast radius:** the correctness of a claim the test harness makes about itself.
-No user impact today, because the two copies are currently identical.
+No user impact today, because the two are currently equivalent in effect — they
+already differ in their logging (`apply.ts:19, 32-34, 40` vs
+`global-setup.ts:54`), which is the drift starting.
 
 **Suggested fix:** have `global-setup.ts` import `applyPluginMigrations` from
 `@ortha-cms/nx` (it is a plain function with no Nx dependency, which is exactly
@@ -935,8 +944,10 @@ its first real exercise, on every e2e run.
 
 ---
 
-**Tally:** 7 🐞 — 0 Critical, 2 High, 3 Medium, 2 Low (two 🔒).
-**♿ tally:** 4 — 1 Supports · 2 Partially Supports · 1 Not Applicable · 0 Does Not Support.
+**Tally:** 7 🐞 — 0 Critical · 1 High · 3 Medium · 3 Low (one 🔒) · 0 deleted on
+verification · 3 carrying an `Unverified —` qualifier (BUG-nx-02's `pg` fallback,
+BUG-nx-05's Studio auth model, BUG-nx-06's Ctrl+C exit status).
+**♿ tally:** 4 ♿ — 1 Supports · 2 Partially Supports · 0 Does Not Support · 1 Not Applicable.
 
 **Checked and cleared:** no executor builds a shell command string — all four use
 `execFileSync` with an argv array, so a migration `--name`, a studio `--host`, and
