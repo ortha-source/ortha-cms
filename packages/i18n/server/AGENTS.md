@@ -172,22 +172,37 @@ relations are filled in by the extension from the group it joined, so the client
 sends none — and a **mirrored** one it _did_ send would be rejected as a
 cross-locale link (the source's id names another language's row).
 
-## The copilot tools (`src/lib/copilot/`)
+## The agent tools (`src/lib/copilot/`)
 
 `I18nCopilotToolProvider` binds two read tools, registered by
 `copilotToolsRegistrar('i18n', …)` in `I18nModule.forRoot` (the registry is
-injected **optionally** — a deployment without `CopilotPlugin` is normal).
+injected **optionally** — a deployment running neither the copilot nor MCP is
+normal).
 
-- **`i18n_locales_list`** is what makes `admin_content_search`'s `locale`
-  parameter usable at all. Locale slugs are deployment configuration, not
-  content, so nothing else tells the model they exist: without this it either
-  omits `locale` and silently searches the default language, or guesses a slug
-  and gets a tool error. One cheap call replaces both failure modes.
-- **`i18n_translations_get`** answers "which languages is this in, and which is
-  missing?" from the same `LocaleGroupService.entryLocales` the admin's locale
-  panel reads, so the copilot's answer cannot drift from what the editor shows.
-  It returns one item per **configured** locale, so a missing translation is
-  `entry: null` rather than an absent key.
+**The two land on different surfaces, which is worth reading before adding a
+third.** Same file, same plugin, opposite answers to "who is this for?":
+
+- **`i18n_locales_list`** — **shared with the MCP endpoint** (no `surfaces`
+  field). It returns deployment configuration, identical for every caller, with
+  no workspace data and no publish state to leak, and an external agent needs it
+  for exactly the reason the copilot does: `?locale=` on the public reads takes
+  a slug that appears in no schema and no system prompt, so without it a client
+  either omits the parameter and silently reads the default language or guesses
+  and gets an error. One cheap call replaces both failure modes.
+- **`i18n_translations_get`** — **copilot-only**, and the reason is easy to
+  miss. `LocaleGroupService.entryLocales` builds its predicate from a
+  `liveWhere` that scopes to workspace and soft-delete but **not** publish
+  state, so it reports a draft sibling *and its status*. An MCP `read` token
+  must not see that — the endpoint's own `content_translations` is
+  published-only — and widening the tool to match would take the answer away
+  from the copilot, which is where it is useful. It otherwise answers "which
+  languages is this in, and which is missing?" from the same service the admin's
+  locale panel reads, one item per **configured** locale, so a missing
+  translation is `entry: null` rather than an absent key.
+
+The deciding question is always what the tool would show a **token** holding
+`content:read`, not which consumer asked for it; the full checklist is in
+[`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
 
 It also binds **`i18n_propose_translation`** (`effect: 'propose'`), which
 translates an entry into another locale. Since

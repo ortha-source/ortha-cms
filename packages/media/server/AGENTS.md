@@ -154,21 +154,34 @@ the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
 `EntryWriterService` resolves the binding regardless of registration order.
 
-## The copilot tools (`src/lib/copilot/`)
+## The agent tools (`src/lib/copilot/`)
 
-This package binds the copilot's tool port — `copilot/server` declares
-`COPILOT_TOOL_PROVIDER` (in `copilot-domain`) and never imports media. Each
-binder injects `ToolRegistry` **`@Optional()`** and registers itself from
-`onModuleInit`: a deployment without `CopilotPlugin` is normal, and media must
-boot without it.
+This package contributes to the shared tool registry
+([`@ortha-cms/tools-server`](../../tools/server/AGENTS.md)). Each binder injects
+`ToolRegistry` **`@Optional()`** and registers itself from `onModuleInit`: a
+deployment running neither the copilot nor MCP is normal, and media must boot
+without either.
 
-| Tool                  | Effect    | Requires       | Wraps                             |
-| --------------------- | --------- | -------------- | --------------------------------- |
-| `media_assets_search` | `read`    | `media:read`   | `ListAssetsQuery`                 |
-| `media_folders_list`  | `read`    | `media:read`   | `ListFoldersQuery`                |
-| `media_asset_read`    | `read`    | `media:read`   | `DownloadAssetQuery`              |
-| `media_propose_alt_text` | `propose` | `media:update` | → `UpdateAssetUseCase`         |
-| `media_propose_file`  | `propose` | `media:create` | → `UploadAssetUseCase`            |
+| Tool                     | Effect    | Requires       | Surface  | Wraps                  |
+| ------------------------ | --------- | -------------- | -------- | ---------------------- |
+| `media_assets_search`    | `read`    | `media:read`   | **both** | `ListAssetsQuery`      |
+| `media_folders_list`     | `read`    | `media:read`   | **both** | `ListFoldersQuery`     |
+| `media_asset_read`       | `read`    | `media:read`   | **both** | `DownloadAssetQuery`   |
+| `media_propose_alt_text` | `propose` | `media:update` | copilot  | → `UpdateAssetUseCase` |
+| `media_propose_file`     | `propose` | `media:create` | copilot  | → `UploadAssetUseCase` |
+
+**The three reads are shared with the MCP endpoint** (they declare no
+`surfaces`), and they are the registry's clearest case for it: an asset has no
+draft/published state to leak, the library is workspace-scoped identically for a
+token and a signed-in user, and **both** token scopes carry `media:read`. Before
+they were shared, a `full` token could upload an asset over `/api/v1/media` and
+then had no way to find it again. The two propose tools stay copilot-only —
+their handlers write nothing and hand back a change for the run engine to
+record, and MCP has no engine.
+
+Changing any of the three now changes what an external agent sees. The decision
+procedure for a new tool lives in
+[`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
 
 The three reads live in `MediaCopilotToolProvider`; each propose tool has its
 own provider + applier pair, and both appliers are registered by the single
@@ -191,12 +204,21 @@ needs and a person browsing does not:
   the key with `in`, not truthiness, so the two stay distinguishable.
 - **It returns a narrowed projection** — id, name, kind, MIME type, size, alt,
   tags, folder, created, plus a `downloadPath` — dropping `variants` and the
-  intrinsic dimensions. It still drops the full `url`: that is a session-gated
-  route the *model* cannot fetch, so it costs prompt tokens and answers nothing.
-  The **path** is kept for a different reader — the person who asked "list the
-  files in the library" wants links they can click, and their browser is signed
-  in. `GET /media/assets/:id/raw` derives its scope from membership precisely so
-  a browser can load it directly, which is what makes handing the path out safe.
+  intrinsic dimensions. It still drops the full `url`: that is a route the
+  *model* cannot fetch, so it costs prompt tokens and answers nothing. The
+  **path** is kept for a different reader — the person who asked "list the files
+  in the library" wants links they can click.
+
+  **`downloadPath` is the one field in the catalogue that varies by surface**,
+  because the two callers authenticate differently and neither route serves
+  both. The copilot gets `/media/assets/:id/raw`, which derives its scope from
+  workspace *membership* precisely so a signed-in browser can load it directly.
+  MCP gets `/api/v1/media/assets/:id/raw`, which is `media:read` gated and
+  fetchable with the very bearer token that made the call — the session route
+  would 401 an external agent, and a link guaranteed to fail is worse than no
+  link. `downloadPathFor` reads `ToolContext.surface`, which the registry stamps
+  at dispatch; it is **presentation only**, and both routes enforce the same
+  workspace scoping and the same permission.
 
 `media_folders_list` is what makes `folderId` usable at all. Nothing else in the
 catalogue told a model that folders have ids, so before it "what's in the Brand
@@ -215,6 +237,15 @@ instructions". The defence is the one every tool result already gets — the run
 engine wraps the output in `fenceUntrusted` (ADR-0005 §8) — and the real ceiling
 stays the capability profile: a viewer whose copilot reads a hostile file still
 cannot write anything, because it was never offered a write tool.
+
+**Over MCP that first defence is the client's, not ours.** There is no run
+engine on that path, so nothing here fences the bytes; an MCP host is expected
+to treat tool results as untrusted data, and the same is true of every other
+server it connects to. What does carry over is the ceiling, which is the part
+that matters: the token's scope decides what it can do with anything it reads,
+and a `read` token that swallows an injected instruction still has no write tool
+to reach for. Both halves of that were weighed when the tool was shared — a
+capability that relied on the fence to be safe would have stayed copilot-only.
 
 Four constraints, all load-bearing, in `asset-text.ts` (framework-free, so the
 awkward paths are unit-tested without Nest):

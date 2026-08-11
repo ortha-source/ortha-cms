@@ -42,6 +42,41 @@ companion to it.
   UX; it is **not** security. The server guard is the real boundary — never rely
   on the hidden button alone.
 
+## Agent tools (the shared registry — copilot + MCP)
+
+One registry serves two consumers, so **every** review of a new or changed
+`ToolDefinition` has to ask who it reaches. See
+[`packages/tools/server/AGENTS.md`](../packages/tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
+
+- **`surfaces` omitted by accident.** Omitting the field means **both**
+  consumers, which is the right default but the wrong accident: a `propose` tool
+  that forgets it becomes callable by an MCP client that has no way to accept
+  the change, and an admin-scoped read leaks drafts to a `read` token. Treat
+  `surfaces` as security-relevant, like `requires`. A tool should carry a
+  comment saying why it is narrowed — or why it is not.
+- **`surfaces` copy-pasted from the file next door.** The opposite failure, and
+  the more common one: a genuinely neutral tool marked `['copilot']` because its
+  neighbour is. `i18n_locales_list` and `i18n_translations_get` sit in one file
+  and land on opposite surfaces. Ask what the tool would show a **token**
+  holding `content:read`, not which consumer asked for it.
+- **A permission no token scope mints.** `scopePermissions` yields only
+  `content:*` plus `media:read`/`media:create`. A tool requiring `activity:read`
+  or `users:read` can never list for a token, so it must say `['copilot']`
+  rather than rely on that coincidence — a future scope would silently expose
+  it.
+- **Bare `Error` in a shared tool's handler.** The copilot reports
+  `error.message`; MCP's `toToolError` treats a non-`HttpException` as a bug and
+  returns an opaque 500 with the message withheld. Throw `NotFoundException` /
+  `BadRequestException` / etc. so the failure is legible on both.
+- **Branching on `ToolContext.surface` for anything but presentation.** It may
+  choose a URL a caller can actually fetch. It may **not** gate a permission,
+  widen a filter, or withhold a field — that is authority, and authority is
+  `requires` + `can()`. A tool that wants `if (surface === …)` around a rule is
+  two tools.
+- **Cross-surface e2e not updated.** `mcp.spec.ts` and
+  `copilot-read-catalogue.spec.ts` each assert what their surface is and is not
+  shown. A new tool named in neither is a tool nobody is checking.
+
 ## Accessibility (every interactive UI)
 
 - Label inputs via the design-system `Field`/`InputField`, not bare ARIA.

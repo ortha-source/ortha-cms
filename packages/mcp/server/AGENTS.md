@@ -8,10 +8,19 @@
 > workspace resolution, JSON-RPC dispatch. It imports `ToolsModule` for the
 > registry rather than providing it, because the copilot imports the same one.
 >
-> Consequently a tool now declares `surfaces`, and every tool here is
-> `['mcp']`: they read the public API's published-only services and attribute
-> writes to a token, which is right for an external agent and wrong for the
-> chat panel. The e2e asserts no copilot tool is listed **or callable** here.
+> Consequently a tool declares `surfaces`, and every **content** tool served
+> here is `['mcp']`: they read the public API's published-only services and
+> attribute writes to a token, which is right for an external agent and wrong
+> for the chat panel. The e2e asserts no copilot-only tool is listed **or
+> callable** here.
+>
+> **This endpoint serves more than its own tools.** `i18n_locales_list` and the
+> three `media_*` reads name no surface and are offered to both consumers — so a
+> change to a tool you did not write can change what this endpoint exposes.
+> Adding a tool anywhere in the monorepo means answering "who is this for?"
+> against the checklist in
+> [`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately),
+> which is the canonical home for that decision.
 
 The **Model Context Protocol** front door onto the CMS, and the home of the
 shared **agent tool registry**. An external agent — Claude Desktop, Cursor, an
@@ -32,19 +41,18 @@ See [ADR-0006](../../../docs/adr/0006-cms-as-an-mcp-server.md) for why.
 ```
 src/lib/
   types/
-    tool.ts              # ToolDefinition / ToolContext / ToolActor — transport-neutral
-    tool-provider.ts     # the ToolProvider port a capability plugin implements
     mcp-config.ts        # kill switch + the identity clients see
-  application/
-    tool-registry.ts     # the catalogue AND the authorization point
-    tool-error.ts        # thrown HttpException → a model-readable failure
   http/
     mcp-auth.service.ts  # bearer → verified token → ToolContext (+ workspace)
-    tool-context.ts      # createToolContext, shared with the copilot
     mcp.controller.ts    # POST /api/v1/mcp, stateless Streamable HTTP
   protocol/
     build-mcp-server.ts  # per-request SDK server: tools/list, tools/call, resources/*
 ```
+
+`ToolDefinition` / `ToolContext` / `ToolProvider` / `ToolRegistry` /
+`createToolContext` / `toToolError` all live in
+[`@ortha-cms/tools-server`](../../tools/server/AGENTS.md) and are imported from
+there — this package defines none of them.
 
 ## Two consumers, one registry
 

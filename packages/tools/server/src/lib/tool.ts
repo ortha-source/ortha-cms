@@ -66,6 +66,25 @@ export interface ToolContext {
      */
     signal?: AbortSignal;
     /**
+     * Which consumer dispatched this call — stamped by
+     * {@link ToolRegistry.call}, so it is always the surface the call was
+     * authorized against and never something the caller can assert.
+     *
+     * **For presentation only, never for authorization.** A tool offered to
+     * both surfaces may need to render the same fact differently for each — a
+     * download link is the session-gated admin route for the copilot and the
+     * bearer-fetchable `/v1` one for MCP, because the two callers hold
+     * different credentials. What a tool must *not* do is widen what it returns
+     * or skip a check on one surface: that is a difference in authority, and
+     * authority is `requires` plus {@link can}, which mean one thing for
+     * everybody. A tool that finds itself wanting `if (surface === 'copilot')`
+     * around a rule is two tools.
+     *
+     * Optional so a handler can be unit-tested with a hand-built context;
+     * absent, treat it as the copilot's admin-facing rendering.
+     */
+    surface?: ToolSurface;
+    /**
      * Whether the actor holds a permission. Handlers use this for decisions
      * **finer** than the tool's own `requires` gate — e.g. content reads let a
      * writer see drafts, which is a widening inside one tool rather than a

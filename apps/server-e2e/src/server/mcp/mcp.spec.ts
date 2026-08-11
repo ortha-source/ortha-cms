@@ -16,6 +16,9 @@ const ADMIN_EMAIL = 'mcp-admin@example.com';
 const PASSWORD = 'SecurePass123!';
 const MCP_PATH = '/api/v1/mcp';
 
+/** Enough of a PNG for the upload route; the bytes are never decoded here. */
+const PNG = Buffer.from('\x89PNG\r\n\x1a\nfake-png-bytes', 'binary');
+
 /** The Accept header every MCP client sends on a Streamable HTTP POST. */
 const ACCEPT = 'application/json, text/event-stream';
 
@@ -383,18 +386,25 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
             expect(names).toEqual(
                 expect.not.arrayContaining([
+                    // The admin-scoped content reads: they see drafts on
+                    // `content:read` alone, which a `read` token must not.
                     'admin_content_types',
                     'admin_content_search',
                     'admin_content_get',
                     'admin_content_revisions',
                     'admin_content_diff',
-                    'i18n_locales_list',
+                    // Reports a draft sibling and its status — `liveWhere`
+                    // there scopes to workspace + soft-delete only.
                     'i18n_translations_get',
-                    'media_assets_search',
-                    'media_folders_list',
-                    'media_asset_read',
+                    // Permissions no token scope mints, so these could never
+                    // list anyway; `surfaces` says so rather than leaving it
+                    // to a coincidence of the scope table.
                     'activity_recent',
                     'workspace_members_list',
+                    // Every propose tool: the handler writes nothing and hands
+                    // back a change for the run engine to record and apply.
+                    // There is no engine here, so a call would look like a
+                    // success and change nothing at all.
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
@@ -402,6 +412,81 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
                     'media_propose_file'
                 ])
             );
+        });
+
+        // The complement of the case above, and the reason `surfaces` is a
+        // deliberate declaration rather than a wall: a tool with no draft
+        // state to leak, no write, and no user-only attribution belongs to
+        // both callers. These are the registry's shared tools — a change that
+        // makes one of them copilot-only should have to delete an assertion.
+        it('shows the shared tools to a read-scoped token', async () => {
+            const { secret } = await mintToken({ scope: 'read' });
+
+            const res = await rpc(secret, 'tools/list').expect(200);
+            const names = (
+                (res.body as RpcResponse).result as { tools: McpTool[] }
+            ).tools.map((tool) => tool.name);
+
+            expect(names).toEqual(
+                expect.arrayContaining([
+                    'i18n_locales_list',
+                    'media_assets_search',
+                    'media_folders_list',
+                    'media_asset_read'
+                ])
+            );
+        });
+
+        it('runs a shared tool for a read-scoped token', async () => {
+            const { secret } = await mintToken({ scope: 'read' });
+
+            const { isError, data } = await callTool(
+                secret,
+                'i18n_locales_list'
+            );
+
+            expect(isError).toBeFalsy();
+            // Listed *and* callable: `forSurface` narrows both, so a tool that
+            // lists but 404s on call would mean the two had drifted.
+            expect(data).toHaveProperty('locales');
+        });
+
+        // The one thing a shared tool is allowed to vary by surface, and the
+        // reason `ToolContext.surface` exists. The admin's raw route scopes by
+        // workspace *membership*, which a token has none of, so handing an MCP
+        // client that path would be a link it is guaranteed to get a 401 from.
+        it('gives an MCP caller the bearer-fetchable download path', async () => {
+            const { secret: writeSecret } = await mintToken({ scope: 'full' });
+            await request(harness.server)
+                .post('/api/v1/media/assets')
+                .set('Authorization', `Bearer ${writeSecret}`)
+                .set('X-Workspace-Id', workspaceId)
+                .attach('file', PNG, {
+                    filename: 'pixel.png',
+                    contentType: 'image/png'
+                })
+                .expect(201);
+
+            const { secret } = await mintToken({ scope: 'read' });
+            const { isError, data } = await callTool(
+                secret,
+                'media_assets_search'
+            );
+
+            expect(isError).toBeFalsy();
+            const items = (data as { items: { downloadPath: string }[] }).items;
+            expect(items).toHaveLength(1);
+            expect(items[0].downloadPath).toMatch(
+                /^\/api\/v1\/media\/assets\/[^/]+\/raw$/
+            );
+            // …and the path is one the caller can actually fetch, which is the
+            // whole point: the admin's route derives its scope from workspace
+            // membership and 401s a bearer.
+            await request(harness.server)
+                .get(items[0].downloadPath)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('X-Workspace-Id', workspaceId)
+                .expect(200);
         });
 
         // Surface filtering is applied in `call` too, not only in `list` —

@@ -94,11 +94,20 @@ registry either. Both facts are settled by
 - **`ToolsModule` is imported by this module**, not provided by it, so a
   deployment running the copilot _without_ MCP still has a registry and one
   running both has exactly one.
-- **A copilot tool declares `surfaces: ['copilot']`.** It is not decoration:
-  these tools read the _admin_ services (a viewer must see drafts) and their
-  write half produces proposals only the chat panel can accept, so an MCP client
-  reaching one would see unpublished content or create a change it cannot apply.
-  The cross-surface e2e cases in both suites are the guard.
+- **A copilot tool declares `surfaces: ['copilot']` when — and only when — it
+  has a reason to.** It is not decoration: the content tools read the _admin_
+  services (a viewer must see drafts) and the write half produces proposals only
+  the chat panel can accept, so an MCP client reaching one would see unpublished
+  content or create a change it cannot apply. The cross-surface e2e cases in
+  both suites are the guard.
+
+  It is not a default either. A tool with none of that tension — no draft
+  visibility, no write, no user-only attribution — **omits the field and is
+  offered to both**; `i18n_locales_list` and the three `media_*` reads already
+  are, which means a change to one of them changes what the MCP endpoint
+  exposes. Adding a tool here means working the checklist in
+  [`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
+  first, and recording the answer in a comment whichever way it goes.
 - **`ToolRegistry.call` is the authorization boundary**, checking `requires`
   before dispatch. The engine's offer is a usability filter on top.
 - What stays here is the copilot-specific narrowing: `CapabilityProfileService`
@@ -111,13 +120,20 @@ registry either. Both facts are settled by
 Every tool ships with the plugin that owns its data, as a thin wrapper over the
 same service the HTTP controllers call:
 
-| Plugin     | Tools                                                                                                               |
-| ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` |
-| `i18n`     | `i18n_locales_list`, `i18n_translations_get`                                                                        |
-| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                     |
-| `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                   |
-| `users`    | `workspace_members_list` — scoped to the run's workspace                                                            |
+| Plugin     | Tools                                                                                                              | Surface |
+| ---------- | ------------------------------------------------------------------------------------------------------------------ | ------- |
+| `content`  | `admin_content_types`, `admin_content_search`, `admin_content_get`, `admin_content_revisions`, `admin_content_diff` | copilot |
+| `i18n`     | `i18n_translations_get`                                                                                            | copilot |
+| `i18n`     | `i18n_locales_list`                                                                                                | **both** |
+| `media`    | `media_assets_search`, `media_folders_list`, `media_asset_read`                                                    | **both** |
+| `activity` | `activity_recent` — deployment-wide, `activity:read` (admin only)                                                  | copilot |
+| `users`    | `workspace_members_list` — scoped to the run's workspace                                                           | copilot |
+
+The **both** rows are offered to the MCP endpoint as well and are not the
+copilot's to change unilaterally. `media_assets_search`'s `downloadPath` is the
+one field in the catalogue that varies by caller — the session route for the
+panel, the bearer-fetchable `/v1` one for a token — via `ToolContext.surface`,
+which is for presentation and never for authority.
 
 Plus the `propose` half — the write tools, all of which **write nothing**:
 
