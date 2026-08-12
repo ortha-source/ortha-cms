@@ -32,7 +32,7 @@ migrations.
     | `CONTENT_FIELD_TYPE` | 12 field-type identifiers | `src/lib/fields/field-type.ts:11-24` |
     | `FieldType` | derived union type | `src/lib/fields/field-type.ts:27-28` |
     | `isEmptyFieldValue(value)` | the canonical empty test | `src/lib/fields/field-type.ts:37-44` |
-    | `EntryFieldSpec` / `EntryFieldSpecMap` / `FieldValidationRules` | structural types | `src/lib/fields/field-spec.ts:11-65` |
+    | `EntryFieldSpec` / `EntryFieldSpecMap` / `FieldValidationRules` | structural types | `src/lib/fields/field-spec.ts:11-63` |
     | `validateFieldValue(name,spec,value)` | returns `ValidationIssue[]` | `src/lib/validation/validate-entry-values.ts:56-183` |
     | `validateEntryValues(fields,values,options?)` | returns `ValidationResult` | `src/lib/validation/validate-entry-values.ts:204-225` |
     | `ValidateEntryValuesOptions` | `{rejectUnknownKeys?,typeName?}` | `src/lib/validation/validate-entry-values.ts:186-196` |

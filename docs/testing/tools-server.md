@@ -153,9 +153,9 @@ tool leaks to the copilot. **Checked and cleared** — see §6.
 | F13 | `readResource(uri, context)` — first provider that claims the URI wins | `src/lib/tool-registry.ts:155-166` | 🧪 UNIT `tool-registry.spec.ts:297-316` · ✅ E2E `mcp.spec.ts:665` |
 | F14 | `readResource` 404s a URI nobody claims | `src/lib/tool-registry.ts:165` | 🧪 UNIT `tool-registry.spec.ts:289-295` |
 | F15 | `createToolContext` — `can()` is a plain set membership over `grantedPermissions` | `src/lib/tool-context.ts:17-27` | 🧪 UNIT (used throughout `tool-registry.spec.ts:9-20`) |
-| F16 | `toToolError` maps 404 → `not_found`, 403 → `forbidden`, 422 → `validation_failed`, 400 → `bad_request`, 401 → `unauthorized`, 409 → `conflict` | `src/lib/tool-error.ts:16-23`, `42-64` | 🧪 UNIT `src/lib/tool-error.spec.ts:351-367` |
-| F17 | `toToolError` carries a 422's per-field `issues` through verbatim | `src/lib/tool-error.ts:56-63` | 🧪 UNIT `tool-error.spec.ts:370-386` · ✅ E2E `mcp.spec.ts:858` |
-| F18 | `toToolError` joins an array `message` into one string | `src/lib/tool-error.ts:51-54` | 🧪 UNIT `tool-error.spec.ts:388-396` |
+| F16 | `toToolError` maps 404 → `not_found`, 403 → `forbidden`, 422 → `validation_failed`, 400 → `bad_request`, 401 → `unauthorized`, 409 → `conflict` | `src/lib/tool-error.ts:16-23`, `42-64` | 🧪 UNIT `src/lib/tool-error.spec.ts:10-28` |
+| F17 | `toToolError` carries a 422's per-field `issues` through verbatim | `src/lib/tool-error.ts:56-63` | 🧪 UNIT `tool-error.spec.ts:29-46` · ✅ E2E `mcp.spec.ts:858` |
+| F18 | `toToolError` joins an array `message` into one string | `src/lib/tool-error.ts:51-54` | 🧪 UNIT `tool-error.spec.ts:47-58` |
 | F19 | `toToolError` reduces a non-`HttpException` to an **opaque** 500 and logs the stack | `src/lib/tool-error.ts:67-77` | 🧪 UNIT `tool-error.spec.ts:59-70` |
 | F20 | `ToolsModule` is `@Global()` and yields one instance to both importers | `src/lib/tools.module.ts:22-27` | ❌ NONE (no test asserts instance identity across both modules) |
 | F21 | A capability plugin injects `ToolRegistry` `@Optional()` and boots without either consumer | `src/lib/tool-provider.ts:20-25` (contract); binders e.g. `activity-tool.provider.ts:30` | ❌ NONE |
@@ -515,7 +515,7 @@ Because this unit has no route, the matrix is over **actors**, not roles.
 
 - **EC-26 — A handler that throws a non-`Error` (a string, `null`).** `🧪 UNIT`
   `tool-error.ts:67-72` handles it: `String(error)` for the log, opaque 500 for
-  the caller. `tool-error.spec.ts:400` covers the `Error` case only.
+  the caller. `tool-error.spec.ts:59-70` covers the `Error` case only.
 
 - **EC-27 — An `HttpException` whose `getResponse()` is a bare string.**
   `❌ NONE` `tool-error.ts:46-49` falls back to `{}`, so `body['message']` is
@@ -658,10 +658,10 @@ indirectly through both consumers' suites.
 | F14 resource 404 | `tool-registry.spec.ts:289-295` | `NotFoundException` | ✅ |
 | F13 first-claim | `tool-registry.spec.ts:297-316` | Second provider's contents returned; first returned `undefined` | ✅ |
 | F12 flatten | `tool-registry.spec.ts:318-339` | `[one, two]` in registration order | ✅ |
-| F16 404 mapping | `src/lib/tool-error.spec.ts:351-359` | `{status:404, code:'not_found', message}` exactly | ✅ |
-| F16 403 mapping | `tool-error.spec.ts:361-367` | `toMatchObject({status:403, code:'forbidden'})` | ✅ |
-| F17 issues | `tool-error.spec.ts:370-386` | `issues` array preserved by reference-equality | ✅ |
-| F18 array message | `tool-error.spec.ts:388-396` | joined with `'; '` | ✅ |
+| F16 404 mapping | `src/lib/tool-error.spec.ts:10-19` | `{status:404, code:'not_found', message}` exactly | ✅ |
+| F16 403 mapping | `tool-error.spec.ts:20-28` | `toMatchObject({status:403, code:'forbidden'})` | ✅ |
+| F17 issues | `tool-error.spec.ts:29-46` | `issues` array preserved by reference-equality | ✅ |
+| F18 array message | `tool-error.spec.ts:47-58` | joined with `'; '` | ✅ |
 | F19 opaque 500 | `tool-error.spec.ts:59-70` | Exact opaque shape **and** `JSON.stringify(error)` does not contain `ECONNREFUSED` | ✅ — the negative assertion is what makes this test worth having |
 
 ### Indirect — through the MCP surface

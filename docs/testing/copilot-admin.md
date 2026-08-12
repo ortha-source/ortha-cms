@@ -654,7 +654,7 @@ Roles: `admin` / `contributor` / `viewer` / unauthenticated / member-of-another-
   picker and the same paperclip — and a viewer holds no `media:create`, so
   attaching fails at upload with an API error rather than the control being
   absent. Compare `Composer`'s own discipline of not rendering a control that
-  fails (`Composer/index.tsx:752-753` of AGENTS.md). → 🐞 BUG-copilot-admin-07.
+  fails (`packages/copilot/admin/AGENTS.md:752-753`). → 🐞 BUG-copilot-admin-07.
 - **EC-26 — unauthenticated.** Handled by the shell's route guard; out of scope
   here.
 - **EC-27 — permissions still loading.** `⚠️ PARTIAL` — `useHasPermission` is

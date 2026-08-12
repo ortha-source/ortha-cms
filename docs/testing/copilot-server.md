@@ -226,12 +226,12 @@ npx nx run @ortha-cms/copilot-server:db:generate --name=x    # must emit nothing
 | F51 | An unregistered provider / unknown model → `error` frame, not 500 | `run-engine.service.ts:249-253`, `create-run.controller.ts:140-152` | ✅ E2E `copilot-chat.spec.ts:719,733` |
 | F52 | `buildModelRegistry` rejects a blank or duplicate name; null-prototype map | `model-registry.ts:39-53,29-37` | 🧪 UNIT `src/lib/infrastructure/model-registry.spec.ts` |
 | F53 | `GET /conversations` — this user's threads in this workspace, `updatedAt` desc | `conversation.repository.ts:74-97` | ✅ E2E `copilot-conversations.spec.ts:151,174` |
-| F54 | `?archived=true` selects a **disjoint** set; `'false'` string coerced correctly | `list-conversations-query.dto.ts:135-138` | ✅ E2E `copilot-conversations.spec.ts:174` |
+| F54 | `?archived=true` selects a **disjoint** set; `'false'` string coerced correctly | `list-conversations-query.dto.ts:26-31` | ✅ E2E `copilot-conversations.spec.ts:174` |
 | F55 | `GET /conversations/:id` — thread + transcript; archived threads still served | `get-conversation.controller.ts:48-62` | ✅ E2E `copilot-conversations.spec.ts:189` |
 | F56 | `PATCH /conversations/:id` — rename and/or archive; ownership predicate in the `UPDATE` | `conversation.repository.ts:112-142` | ✅ E2E `copilot-conversations.spec.ts:116,174,204,248,262` |
 | F57 | A rename does **not** bump `updatedAt` | `conversation.repository.ts:118-132` | ✅ E2E `copilot-conversations.spec.ts:151` |
 | F58 | Empty patch → 400; unknown key → 400; non-uuid id → 400 | `update-conversation.controller.ts:60-64`, `:49` | ✅ E2E `copilot-conversations.spec.ts:220,226,234` |
-| F59 | Title trimmed before validation; blank-once-trimmed rejected | `update-conversation.dto.ts:85-90` | ✅ E2E `copilot-conversations.spec.ts:130,142` |
+| F59 | Title trimmed before validation; blank-once-trimmed rejected | `update-conversation.dto.ts:46-55` | ✅ E2E `copilot-conversations.spec.ts:130,142` |
 | F60 | There is **no** delete route for a conversation | absent by design | ⚠️ PARTIAL — `copilot-proposals.spec.ts:627` asserts no accept/reject, not no delete |
 | F61 | `deriveTitle` — whitespace collapsed, 60-char clip at a word boundary, null on empty | `derive-title.ts:15-33` | 🧪 UNIT `src/lib/chat/infrastructure/persistence/derive-title.spec.ts` |
 | F62 | `appendMessage` computes `position` as `max+1` **in SQL** | `conversation.repository.ts:288-292` | ❌ NONE (no concurrent-turn test) |
@@ -770,7 +770,7 @@ below is an assertion about that string.
   an untitled thread deliberately. Observed: an untitled thread with a one-space
   user turn is created and a model call is paid for. Compare
   `UpdateConversationDto`, which trims *before* validating
-  (`update-conversation.dto.ts:85-88`) — the two DTOs disagree about whitespace.
+  (`update-conversation.dto.ts:46-55`) — the two DTOs disagree about whitespace.
 
 - **EC-02 — a workspace with zero content grants.** `✅ E2E`
   `copilot-chat.spec.ts:1185`. The prompt says the workspace has no types and
@@ -791,7 +791,7 @@ below is an assertion about that string.
 
 - **EC-05 — a tool returning `undefined`.** `❌ NONE`
   `summarizeToolOutput` yields `no result` (`summarize-tool-output.ts:22-24`)
-  and `fenceUntrusted` encodes it as `null` (`untrusted.ts:120`). Neither path
+  and `fenceUntrusted` encodes it as `null` (`untrusted.ts:53`). Neither path
   throws — good — but the model is told `null`, which reads as "nothing found"
   rather than "the tool is broken".
 
@@ -847,7 +847,7 @@ below is an assertion about that string.
 
 - **EC-17 — an entry body containing `</untrusted-data>`.** `⚠️ PARTIAL`
   `copilot-chat.spec.ts:381` asserts the fence exists; it does not plant a
-  forged closing delimiter. `untrusted.ts:117-125` escapes `<` to `<`,
+  forged closing delimiter. `untrusted.ts:50-58` escapes `<` to `<`,
   which is the property the whole defence rests on — it deserves an explicit
   case.
 
@@ -873,13 +873,13 @@ below is an assertion about that string.
 
 - **EC-22 — a tool returning a cyclic object.** `❌ NONE`
   `encode` catches and returns `"[unserializable tool result]"`
-  (`untrusted.ts:117-125`) — but `summarizeToolOutput` runs **first**
+  (`untrusted.ts:50-58`) — but `summarizeToolOutput` runs **first**
   (`run-engine.service.ts:752`) and `Object.keys` on a cycle is fine, so the
   order is safe. Assert it.
 
 - **EC-23 — a tool name containing markup**, e.g. a connector tool
   `mcp.<x>.<y>`. `❌ NONE` `sanitizeSource` strips everything outside
-  `[A-Za-z0-9._-]` (`untrusted.ts:132-134`).
+  `[A-Za-z0-9._-]` (`untrusted.ts:65-67`).
 
 ### Permission matrix
 

@@ -32,7 +32,7 @@ the chrome (`packages/shell/admin`).
 | `src/main.tsx` | side-effecting `createAdmin({ plugins })` call | `src/main.tsx:16-48` |
 | `index.html` | `<div id="root">`, `<title>`, `<html lang>`, pre-paint theme script | `index.html:2,5,11-35,38` |
 | `src/styles.css` | Tailwind entry, token palette, `@source` globs | `src/styles.css:1-10,29+` |
-| `vite.config.mts` | dev server + `^/api/` proxy + build + vitest | `vite.config.mts:5-63` |
+| `vite.config.mts` | dev server + `^/api/` proxy + build + vitest | `vite.config.mts:5-61` |
 
 **Registered plugins, in order** (`src/main.tsx:17-47`) — `IdentityPlugin`, `ShellPlugin`,
 `WorkspacesPlugin`, `InsightsPlugin`, `ContentPlugin`, `I18nPlugin`, `WysiwygPlugin`,
@@ -83,7 +83,7 @@ npx nx e2e admin-e2e -- --project=chromium src/**/a11y.spec.ts src/**/keyboard.s
 | F15 | Dev server on `:4200`, host `localhost` | `vite.config.mts:7-8` | ✅ E2E |
 | F16 | `^/api/` **regex** proxy to `:3000` with `changeOrigin` — deliberately not the bare `/api` prefix | `vite.config.mts:12-28` | ⚠️ PARTIAL |
 | F17 | Production build to `./dist` with `emptyOutDir` | `vite.config.mts:41-48` | ❌ NONE |
-| F18 | Vitest config (jsdom, globals, v8 coverage) | `vite.config.mts:49-62` | ❌ NONE |
+| F18 | Vitest config (jsdom, globals, v8 coverage) | `vite.config.mts:47-61` | ❌ NONE |
 | F19 | `admin:dev:typecheck` target — `tsc --build --watch`, because Vite never typechecks | `apps/admin/package.json` `nx.targets` | ⚠️ PARTIAL |
 
 ## 3. Manual Test Plan

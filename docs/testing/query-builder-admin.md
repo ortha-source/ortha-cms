@@ -322,9 +322,9 @@ via `aria-labelledby`; if the consumer omits `labelledBy` the region is unnamed.
 | 2 | Click the chip's `×` | The narrowed tree re-commits at once; with no conditions left the URL param is dropped. Asserted at `records-filter.spec.ts:270-280` |
 | 3 | Click **Clear all** | Every condition goes. Asserted at `records-filter.spec.ts:282-290` |
 | 4 | Apply two rules inside an OR group, then read the chips | The nesting is **flattened** — two chips with no indication they were OR-ed. Removing one silently changes the semantics of the remaining filter |
-| 5 | Read a chip's `aria-label` | "Remove condition Author · Name equals" — genuinely unique per condition (`QueryBuilderSummary/index.tsx:378-380` in the file's `messages.remove` template) |
+| 5 | Read a chip's `aria-label` | "Remove condition Author · Name equals" — genuinely unique per condition (`QueryBuilderSummary/index.tsx:18-20` in the file's `messages.remove` template) |
 | 6 | Remove a chip with the keyboard | **Suspected defect:** the button unmounts and focus falls to `<body>`. See `♿ A11Y-query-builder-admin-05` |
-| 7 | Apply a filter on a field the schema no longer offers, then collapse | The chip falls back to the raw `fieldId` (`QueryBuilderSummary/index.tsx:349-351`) — readable, if unlovely |
+| 7 | Apply a filter on a field the schema no longer offers, then collapse | The chip falls back to the raw `fieldId` (`QueryBuilderSummary/index.tsx:97-99`) — readable, if unlovely |
 
 ### F33 — the JSON preview
 
