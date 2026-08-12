@@ -74,7 +74,11 @@ export class ApiTokensController {
             workspaceIds: body.workspaceIds,
             scope: body.scope,
             expiresAt,
-            createdBy: user.id
+            createdBy: user.id,
+            // Named separately from `createdBy` so the audit row carries a
+            // frozen email snapshot rather than a foreign key into a user who
+            // may later be renamed or deleted.
+            actor: { id: user.id, email: user.email }
         });
         return { ...token, secret };
     }
@@ -94,14 +98,18 @@ export class ApiTokensController {
 
     /**
      * `DELETE /api/api-tokens/:id` — revoke a token. Idempotent: an unknown or
-     * already-revoked id still 204s. `Origin`-guarded.
+     * already-revoked id still 204s, and only the call that actually revoked a
+     * live token writes an audit row. `Origin`-guarded.
      */
     @Delete(':id')
     @RequirePermissions(PERMISSIONS.TOKENS_DELETE)
     @UseGuards(OriginGuard)
     @HttpCode(204)
-    async revoke(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-        await this.tokens.revoke(id);
+    async revoke(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: PublicUser
+    ): Promise<void> {
+        await this.tokens.revoke(id, { id: user.id, email: user.email });
     }
 }
 

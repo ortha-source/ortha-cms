@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -5,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    getActivityRows,
     resetDb,
     seedActiveUser,
     seedUserWithEmptyRole,
@@ -197,5 +199,144 @@ describe('API token management (/api/api-tokens)', () => {
 
     it('requires authentication', async () => {
         await request(harness.server).get('/api/api-tokens').expect(401);
+    });
+
+    describe('audit trail', () => {
+        /** Every `token.*` audit row currently in the log. */
+        async function tokenAudit() {
+            const rows = await getActivityRows();
+            return rows.filter((row) => row.kind.startsWith('token.'));
+        }
+
+        it('records token.created when a token is minted', async () => {
+            // BUG-identity-server-01: minting and revoking wrote nothing at
+            // all, so the log could not answer "who issued this credential,
+            // when, and scoped to what" — for a long-lived key to workspace
+            // content.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId, otherWorkspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            const rows = await tokenAudit();
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                kind: 'token.created',
+                subjectType: 'api_token',
+                subjectId: created.body.id,
+                actorEmail: ADMIN_EMAIL
+            });
+            expect(rows[0].meta).toMatchObject({
+                name: 'CI',
+                scope: 'read',
+                lookupPrefix: created.body.lookupPrefix
+            });
+            expect(
+                (rows[0].meta as { workspaceIds: string[] }).workspaceIds.sort()
+            ).toEqual([workspaceId, otherWorkspaceId].sort());
+        });
+
+        it('never writes the secret or its hash into the log', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(201);
+
+            // `api_tokens` stores only a SHA-256 so a read of the table yields
+            // nothing usable; the audit log must not become the second copy.
+            const serialised = JSON.stringify(await tokenAudit());
+            expect(serialised).not.toContain(created.body.secret);
+            expect(serialised).not.toContain(
+                createHash('sha256').update(created.body.secret).digest('hex')
+            );
+        });
+
+        it('records token.revoked when a token is killed', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'temp',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            const revoked = (await tokenAudit()).filter(
+                (row) => row.kind === 'token.revoked'
+            );
+            expect(revoked).toHaveLength(1);
+            expect(revoked[0]).toMatchObject({
+                kind: 'token.revoked',
+                subjectType: 'api_token',
+                subjectId: created.body.id,
+                actorEmail: ADMIN_EMAIL
+            });
+            expect(revoked[0].meta).toMatchObject({ name: 'temp' });
+        });
+
+        it('audits a replayed revoke once, not once per call', async () => {
+            // The route is idempotent — a second DELETE still 204s — but only
+            // the call that actually revoked a live token is an event.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'temp',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            expect(
+                (await tokenAudit()).filter(
+                    (row) => row.kind === 'token.revoked'
+                )
+            ).toHaveLength(1);
+        });
+
+        it('writes nothing when the revoked id is unknown', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .delete('/api/api-tokens/11111111-1111-4111-8111-111111111111')
+                .expect(204);
+
+            expect(await tokenAudit()).toEqual([]);
+        });
+
+        it('writes no audit row when the mint is rejected', async () => {
+            // The event commits with the token or not at all: a rejected mint
+            // must leave the log as clean as it leaves `api_tokens`.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send({ name: 'nowhere', workspaceIds: [], scope: 'read' })
+                .expect(400);
+
+            expect(await tokenAudit()).toEqual([]);
+            expect((await agent.get('/api/api-tokens').expect(200)).body.total)
+                .toBe(0);
+        });
     });
 });

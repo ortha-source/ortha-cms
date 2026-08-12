@@ -240,7 +240,17 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       (once each). The management
       routes `POST`/`GET`/`DELETE /api/api-tokens` are **session**-authenticated
       and gated on `tokens:create|read|delete`, which only `admin` holds — they
-      are not reachable with a bearer token. `verify` rejects unknown, revoked,
+      are not reachable with a bearer token. Mint and revoke each run in a
+      **unit of work** and append an `api_token.created` / `api_token.revoked`
+      domain event, which the activity plugin maps to a `token.created` /
+      `token.revoked` audit row: a long-lived key to workspace content has to be
+      accountable, and a token that existed while its audit row did not would be
+      exactly the credential nobody can explain. The event payload carries the
+      name, scope, bucket and the non-secret `lookupPrefix` — **never** the
+      secret or its hash, since `api_tokens` stores only a SHA-256 precisely so
+      no other table yields a usable credential. A replayed (idempotent) revoke
+      appends nothing, because only the call that actually killed a live token
+      is an event. `verify` rejects unknown, revoked,
       and expired tokens identically (no enumeration signal) and refreshes
       `last_used_at` fire-and-forget on a 60s throttle. The guard that
       authenticates `Authorization: Bearer` ships with the public content API it

@@ -21,7 +21,9 @@ export const ACTIVITY_KINDS = [
     'workspace.member_added',
     'workspace.member_removed',
     'entry.published',
-    'entry.unpublished'
+    'entry.unpublished',
+    'token.created',
+    'token.revoked'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */

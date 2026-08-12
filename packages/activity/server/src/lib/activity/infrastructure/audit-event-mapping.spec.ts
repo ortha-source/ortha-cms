@@ -388,6 +388,95 @@ describe('toAuditRow — event → audit-row parity', () => {
         });
     });
 
+    describe('API token lifecycle', () => {
+        const TOKEN_ID = '99999999-9999-4999-8999-999999999999';
+
+        it('api_token.created → token.created on an api_token subject', () => {
+            const row = toAuditRow(
+                event(
+                    'api_token.created',
+                    'api_token',
+                    TOKEN_ID,
+                    {
+                        name: 'CI',
+                        scope: 'read',
+                        workspaceIds: [WORKSPACE_ID],
+                        lookupPrefix: 'orthacms_abc123',
+                        expiresAt: null
+                    },
+                    { id: TARGET_USER_ID, email: 'admin@example.com' }
+                )
+            );
+            expect(row).toEqual({
+                id: EVENT_ID,
+                kind: 'token.created',
+                subjectType: 'api_token',
+                subjectId: TOKEN_ID,
+                actorId: TARGET_USER_ID,
+                actorEmail: 'admin@example.com',
+                meta: {
+                    name: 'CI',
+                    scope: 'read',
+                    workspaceIds: [WORKSPACE_ID],
+                    lookupPrefix: 'orthacms_abc123'
+                },
+                at: AT
+            });
+        });
+
+        it('api_token.revoked → token.revoked, same shape', () => {
+            const row = toAuditRow(
+                event(
+                    'api_token.revoked',
+                    'api_token',
+                    TOKEN_ID,
+                    {
+                        name: 'CI',
+                        scope: 'full',
+                        workspaceIds: [WORKSPACE_ID],
+                        lookupPrefix: 'orthacms_abc123'
+                    },
+                    { id: TARGET_USER_ID, email: 'admin@example.com' }
+                )
+            );
+            expect(row).toMatchObject({
+                kind: 'token.revoked',
+                subjectType: 'api_token',
+                subjectId: TOKEN_ID,
+                meta: {
+                    name: 'CI',
+                    scope: 'full',
+                    lookupPrefix: 'orthacms_abc123'
+                }
+            });
+        });
+
+        it('never carries a secret or a hash into the audit row', () => {
+            // The mapper projects a fixed field set, so even a producer that
+            // over-shares cannot leak a credential into the log — `api_tokens`
+            // stores only a SHA-256 for exactly this reason, and the audit
+            // table must not become the second copy.
+            const row = toAuditRow(
+                event('api_token.created', 'api_token', TOKEN_ID, {
+                    name: 'CI',
+                    scope: 'read',
+                    workspaceIds: [],
+                    lookupPrefix: 'orthacms_abc123',
+                    secret: 'orthacms_the-actual-secret',
+                    tokenHash: 'f'.repeat(64)
+                })
+            );
+            expect(Object.keys(row?.meta ?? {}).sort()).toEqual([
+                'lookupPrefix',
+                'name',
+                'scope',
+                'workspaceIds'
+            ]);
+            expect(JSON.stringify(row)).not.toContain('the-actual-secret');
+            expect(JSON.stringify(row)).not.toContain('f'.repeat(64));
+        });
+    });
+
     describe('content entry lifecycle', () => {
         it('maps a publish to a content_entry row carrying its type', () => {
             const row = toAuditRow(
@@ -431,9 +520,11 @@ describe('toAuditRow — event → audit-row parity', () => {
             ).toBeNull();
         });
 
-        it('audits exactly the 21 expected kinds', () => {
+        it('audits exactly the 23 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
+                    'api_token.created',
+                    'api_token.revoked',
                     'auth.signed_in',
                     'auth.signed_out',
                     'user.password_changed',

@@ -104,6 +104,32 @@ function entrySubject(event: DomainEvent): AuditFacet {
     };
 }
 
+/**
+ * An `'api_token'`-subject facet. The subject is the token, and the acting
+ * admin arrives separately as the actor.
+ *
+ * `meta` records what a reviewer needs to reason about the credential — its
+ * label, its scope, its workspace bucket, and the non-secret `lookupPrefix`
+ * that identifies it in the admin list. It deliberately carries **neither the
+ * plaintext nor the hash**: `api_tokens` stores only a SHA-256 precisely so a
+ * read of another table yields nothing usable, and the audit log is another
+ * table.
+ */
+function apiTokenSubject(event: DomainEvent, auditKind: string): AuditFacet {
+    const payload = event.payload;
+    return {
+        kind: auditKind,
+        subjectType: 'api_token',
+        subjectId: event.aggregateId,
+        meta: {
+            name: nullableString(payload.name),
+            scope: nullableString(payload.scope),
+            workspaceIds: payload.workspaceIds ?? [],
+            lookupPrefix: nullableString(payload.lookupPrefix)
+        }
+    };
+}
+
 /** A workspace membership facet — subject is the affected **user**, not the workspace. */
 function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
     const payload = event.payload;
@@ -141,6 +167,8 @@ function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
  * | `member.disabled`          | `user.suspended`          | user / `null`                                    |
  * | `member.reactivated`       | `user.reactivated`        | user / `null`                                    |
  * | `user.password_changed`    | `user.password_changed`   | user / `{ sessionsRevoked }`                     |
+ * | `api_token.created`        | `token.created`           | api_token / `{ name, scope, workspaceIds, lookupPrefix }` |
+ * | `api_token.revoked`        | `token.revoked`           | api_token / same shape                           |
  * | `auth.signed_in`           | `user.signed_in`          | user / `null`                                    |
  * | `auth.signed_out`          | `user.signed_out`         | user / `null`                                    |
  * | `entry.published`          | `entry.published`         | content_entry / `{ contentType }`                |
@@ -214,6 +242,15 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),
     'auth.signed_out': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null),
+
+    // External-API bearer tokens. Nothing mapped these before, so minting and
+    // revoking a long-lived key to workspace content left the log completely
+    // silent (BUG-identity-server-01) — the audit trail could not answer "who
+    // issued this credential, when, and scoped to what".
+    'api_token.created': (e) =>
+        apiTokenSubject(e, IDENTITY_ACTIVITY_KINDS.TOKEN_CREATED),
+    'api_token.revoked': (e) =>
+        apiTokenSubject(e, IDENTITY_ACTIVITY_KINDS.TOKEN_REVOKED),
 
     // Content publish lifecycle. `content-server` has raised these on the outbox
     // since the entry aggregate was introduced — its own comment anticipated

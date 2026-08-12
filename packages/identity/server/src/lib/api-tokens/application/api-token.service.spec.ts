@@ -1,3 +1,4 @@
+import type { DomainEvent, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import { HashingService } from '../../auth/services/hashing.service';
 import { ApiTokenService } from './api-token.service';
 import type {
@@ -30,6 +31,31 @@ function recordFrom(
 describe('ApiTokenService', () => {
     const hashing = new HashingService();
 
+    /** A `UnitOfWork` that just runs the callback — one logical transaction. */
+    const uow = { run: (fn: () => Promise<unknown>) => fn() } as UnitOfWork;
+
+    /** An outbox that collects appended events for assertion. */
+    function makeOutbox() {
+        const events: DomainEvent[] = [];
+        return {
+            events,
+            outbox: {
+                append: async (batch: DomainEvent[]) => {
+                    events.push(...batch);
+                }
+            } as OutboxWriter
+        };
+    }
+
+    /** Builds the service over stubbed collaborators, exposing the outbox. */
+    function makeService(repo: DrizzleApiTokenRepository) {
+        const { events, outbox } = makeOutbox();
+        return {
+            service: new ApiTokenService(repo, hashing, uow, outbox),
+            events
+        };
+    }
+
     /** A repo stub that records the last insert and serves a fixed record. */
     function makeRepo(row: ApiTokenRecord | null) {
         const touchLastUsed = jest.fn().mockResolvedValue(undefined);
@@ -49,7 +75,7 @@ describe('ApiTokenService', () => {
     describe('mint', () => {
         it('returns a prefixed secret and stores only its hash', async () => {
             const { repo } = makeRepo(null);
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
 
             const { token, secret } = await service.mint({
                 name: 'CI',
@@ -71,7 +97,7 @@ describe('ApiTokenService', () => {
 
         it('persists the whole workspace bucket', async () => {
             const { repo } = makeRepo(null);
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
 
             const { token } = await service.mint({
                 name: 'multi',
@@ -87,7 +113,7 @@ describe('ApiTokenService', () => {
 
         it('collapses duplicate workspace ids', async () => {
             const { repo } = makeRepo(null);
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
 
             await service.mint({
                 name: 'dupes',
@@ -102,7 +128,7 @@ describe('ApiTokenService', () => {
 
         it('defaults a missing expiry to null (never expires)', async () => {
             const { repo } = makeRepo(null);
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
             await service.mint({
                 name: 'forever',
                 workspaceIds: ['ws-1'],
@@ -111,6 +137,118 @@ describe('ApiTokenService', () => {
             });
             const insert = (repo.insert as jest.Mock).mock.calls[0][0];
             expect(insert.expiresAt).toBeNull();
+        });
+
+        it('emits api_token.created naming the actor and the bucket', async () => {
+            // BUG-identity-server-01: minting wrote no audit event at all, so
+            // the log could not account for a long-lived credential.
+            const { repo } = makeRepo(null);
+            const { service, events } = makeService(repo);
+
+            const { secret } = await service.mint({
+                name: 'CI',
+                workspaceIds: ['ws-1', 'ws-2'],
+                scope: 'read',
+                createdBy: 'user-1',
+                actor: { id: 'user-1', email: 'admin@example.com' }
+            });
+
+            expect(events).toHaveLength(1);
+            expect(events[0]).toMatchObject({
+                kind: 'api_token.created',
+                aggregateType: 'api_token',
+                aggregateId: 'token-1',
+                payload: {
+                    name: 'CI',
+                    scope: 'read',
+                    workspaceIds: ['ws-1', 'ws-2'],
+                    actor: { id: 'user-1', email: 'admin@example.com' }
+                }
+            });
+            // The event must not become a second place the secret lives.
+            const serialised = JSON.stringify(events[0]);
+            expect(serialised).not.toContain(secret);
+            expect(serialised).not.toContain(hashing.hashToken(secret));
+        });
+
+        it('falls back to createdBy when no actor is supplied', async () => {
+            const { repo } = makeRepo(null);
+            const { service, events } = makeService(repo);
+
+            await service.mint({
+                name: 'CI',
+                workspaceIds: ['ws-1'],
+                scope: 'read',
+                createdBy: 'user-1'
+            });
+
+            expect(events[0].payload).toMatchObject({
+                actor: { id: 'user-1', email: null }
+            });
+        });
+    });
+
+    describe('revoke', () => {
+        const stored = recordFrom({
+            workspaceIds: ['ws-1'],
+            name: 'temp',
+            tokenHash: 'x'.repeat(64),
+            lookupPrefix: 'orthacms_tmp',
+            scope: 'full',
+            expiresAt: null,
+            createdBy: 'user-1'
+        });
+
+        /** A repo whose `revoke` reports `revoked` and whose read serves `row`. */
+        function revokeRepo(revoked: boolean, row: ApiTokenRecord | null) {
+            return {
+                insert: jest.fn(),
+                findByHash: jest.fn(),
+                findById: jest.fn(async () => row),
+                list: jest.fn(),
+                revoke: jest.fn(async () => revoked),
+                touchLastUsed: jest.fn()
+            } as unknown as DrizzleApiTokenRepository;
+        }
+
+        it('emits api_token.revoked when a live token was killed', async () => {
+            const { service, events } = makeService(revokeRepo(true, stored));
+
+            await expect(
+                service.revoke('token-1', {
+                    id: 'user-9',
+                    email: 'admin@example.com'
+                })
+            ).resolves.toBe(true);
+
+            expect(events).toHaveLength(1);
+            expect(events[0]).toMatchObject({
+                kind: 'api_token.revoked',
+                aggregateType: 'api_token',
+                aggregateId: 'token-1',
+                payload: {
+                    name: 'temp',
+                    scope: 'full',
+                    lookupPrefix: 'orthacms_tmp',
+                    actor: { id: 'user-9', email: 'admin@example.com' }
+                }
+            });
+        });
+
+        it('emits nothing when the token was already revoked', async () => {
+            // The route is idempotent, so a replayed DELETE must not append a
+            // second event — the log records the act, not the attempt.
+            const { service, events } = makeService(revokeRepo(false, stored));
+
+            await expect(service.revoke('token-1')).resolves.toBe(false);
+            expect(events).toEqual([]);
+        });
+
+        it('emits nothing for an unknown id', async () => {
+            const { service, events } = makeService(revokeRepo(false, null));
+
+            await expect(service.revoke('nope')).resolves.toBe(false);
+            expect(events).toEqual([]);
         });
     });
 
@@ -128,7 +266,7 @@ describe('ApiTokenService', () => {
 
         it('resolves a live token with its whole bucket, and touches last-used when stale', async () => {
             const { repo, touchLastUsed } = makeRepo(recordFrom(baseInsert));
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
 
             const result = await service.verify(secret);
 
@@ -143,7 +281,7 @@ describe('ApiTokenService', () => {
             const { repo } = makeRepo(
                 recordFrom(baseInsert, { revokedAt: new Date('2026-02-01Z') })
             );
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
             expect(await service.verify(secret)).toBeNull();
         });
 
@@ -151,13 +289,13 @@ describe('ApiTokenService', () => {
             const { repo } = makeRepo(
                 recordFrom(baseInsert, { expiresAt: new Date('2020-01-01Z') })
             );
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
             expect(await service.verify(secret)).toBeNull();
         });
 
         it('rejects an unknown token', async () => {
             const { repo } = makeRepo(null);
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
             expect(await service.verify(secret)).toBeNull();
         });
 
@@ -165,7 +303,7 @@ describe('ApiTokenService', () => {
             const { repo, touchLastUsed } = makeRepo(
                 recordFrom(baseInsert, { lastUsedAt: new Date() })
             );
-            const service = new ApiTokenService(repo, hashing);
+            const { service } = makeService(repo);
             await service.verify(secret);
             expect(touchLastUsed).not.toHaveBeenCalled();
         });
