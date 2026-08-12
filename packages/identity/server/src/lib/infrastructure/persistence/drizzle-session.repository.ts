@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq, gt, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm';
 import { UnitOfWork } from '@ortha-cms/database';
 import { sessions } from '../../schema';
 import { SessionPolicy } from '../../domain/session-policy';
@@ -118,6 +118,32 @@ export class DrizzleSessionRepository implements SessionRepository {
                 )
             )
             .orderBy(desc(sessions.lastUsedAt));
+    }
+
+    /** {@inheritDoc SessionRepository.revokeAllForUser} */
+    async revokeAllForUser(
+        userId: string,
+        options: { exceptSessionId?: string } = {}
+    ): Promise<number> {
+        const revoked = await this.uow
+            .current()
+            .update(sessions)
+            .set({ revokedAt: new Date() })
+            .where(
+                and(
+                    eq(sessions.userId, userId),
+                    isNull(sessions.revokedAt),
+                    // Already-expired rows are dead anyway; skipping them keeps
+                    // the returned count meaningful ("sessions actually
+                    // evicted") rather than counting tombstones.
+                    gt(sessions.expiresAt, new Date()),
+                    ...(options.exceptSessionId
+                        ? [ne(sessions.id, options.exceptSessionId)]
+                        : [])
+                )
+            )
+            .returning({ id: sessions.id });
+        return revoked.length;
     }
 
     /** {@inheritDoc SessionRepository.revokeById} */

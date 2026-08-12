@@ -49,7 +49,15 @@ const USER_AUDIT_KINDS = {
     PROFILE_UPDATED: 'user.profile_updated',
     ROLE_CHANGED: 'user.role_changed',
     SUSPENDED: 'user.suspended',
-    REACTIVATED: 'user.reactivated'
+    REACTIVATED: 'user.reactivated',
+    /**
+     * A credential rotation. Unlike the kinds above this one has no in-band
+     * predecessor to stay bug-compatible with — `user.password_changed` was
+     * raised on the outbox by identity's aggregate but nothing mapped it, so
+     * the log recorded nothing at all when a password changed
+     * (BUG-identity-server-05).
+     */
+    PASSWORD_CHANGED: 'user.password_changed'
 } as const;
 
 /** Reads a payload field as a string (or `null` when absent/nullish). */
@@ -132,6 +140,7 @@ function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
  * | `member.role_changed`      | `user.role_changed`       | user / `{ from, to }`                            |
  * | `member.disabled`          | `user.suspended`          | user / `null`                                    |
  * | `member.reactivated`       | `user.reactivated`        | user / `null`                                    |
+ * | `user.password_changed`    | `user.password_changed`   | user / `{ sessionsRevoked }`                     |
  * | `auth.signed_in`           | `user.signed_in`          | user / `null`                                    |
  * | `auth.signed_out`          | `user.signed_out`         | user / `null`                                    |
  * | `entry.published`          | `entry.published`         | content_entry / `{ contentType }`                |
@@ -191,6 +200,15 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     'member.disabled': (e) => userSubject(e, USER_AUDIT_KINDS.SUSPENDED, null),
     'member.reactivated': (e) =>
         userSubject(e, USER_AUDIT_KINDS.REACTIVATED, null),
+
+    // Credential rotation. The kind is passed straight through (identity's
+    // event kind and the audit kind are the same string), and `meta` records
+    // how many live sessions the change evicted — the number a security review
+    // actually wants: "the password changed AND N devices were signed out".
+    'user.password_changed': (e) =>
+        userSubject(e, USER_AUDIT_KINDS.PASSWORD_CHANGED, {
+            sessionsRevoked: e.payload.sessionsRevoked ?? null
+        }),
 
     'auth.signed_in': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),

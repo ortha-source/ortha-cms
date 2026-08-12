@@ -324,6 +324,44 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
+        it('user.password_changed → an audit row carrying the eviction count', () => {
+            // BUG-identity-server-05: identity's aggregate raised this event
+            // from the start, but no mapper existed, so a credential rotation
+            // left the audit log completely silent.
+            const row = toAuditRow(
+                event(
+                    'user.password_changed',
+                    'user',
+                    TARGET_USER_ID,
+                    { sessionsRevoked: 3 },
+                    { id: TARGET_USER_ID, email: 'me@example.com' }
+                )
+            );
+            expect(row).toEqual({
+                id: EVENT_ID,
+                kind: 'user.password_changed',
+                subjectType: 'user',
+                subjectId: TARGET_USER_ID,
+                actorId: TARGET_USER_ID,
+                actorEmail: 'me@example.com',
+                meta: { sessionsRevoked: 3 },
+                at: AT
+            });
+        });
+
+        it('records a password change that evicted nothing as a zero, not a gap', () => {
+            const row = toAuditRow(
+                event(
+                    'user.password_changed',
+                    'user',
+                    TARGET_USER_ID,
+                    { sessionsRevoked: 0 },
+                    { id: TARGET_USER_ID, email: 'me@example.com' }
+                )
+            );
+            expect(row?.meta).toEqual({ sessionsRevoked: 0 });
+        });
+
         it('auth.signed_out → user.signed_out (actorEmail may be null)', () => {
             const row = toAuditRow(
                 event(
@@ -393,11 +431,12 @@ describe('toAuditRow — event → audit-row parity', () => {
             ).toBeNull();
         });
 
-        it('audits exactly the 20 expected kinds', () => {
+        it('audits exactly the 21 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'auth.signed_in',
                     'auth.signed_out',
+                    'user.password_changed',
                     'entry.published',
                     'entry.unpublished',
                     'member.disabled',

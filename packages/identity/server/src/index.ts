@@ -45,6 +45,13 @@ export { Permission } from './lib/domain/value-objects/permission';
 export { AccessPolicy } from './lib/domain/access-policy';
 export type { Actor, PermissionScope } from './lib/domain/access-policy';
 export { RoleNotFoundError, SystemRoleProtectedError } from './lib/rbac/errors';
+// Credential rotation. Exported ahead of the controller that will wire it (the
+// self-service change / reset flows), so the server-e2e suite can drive the
+// real use case out of DI — a flow that revokes sessions and writes an audit
+// row is not something to leave unexercised until a route shows up.
+export { ChangePasswordUseCase } from './lib/application/use-cases/change-password.use-case';
+export type { ChangePasswordOptions } from './lib/application/use-cases/change-password.use-case';
+export { PasswordTooLongError } from './lib/auth/errors';
 export { RootAdminService } from './lib/root-admin/services/root-admin.service';
 export type {
     RootAdminOutcome,

@@ -96,6 +96,16 @@ lint isn't wired yet — self-enforce it.
   rules (last-admin protection) and self-action guards need knowledge the
   aggregate doesn't hold, so the **users** context owns those flows — identity's
   aggregate models the single-account lifecycle only.
+- **Credential rotation revokes sessions.** `ChangePasswordUseCase` writes the
+  new hash **and** revokes the account's live sessions in the same unit of work,
+  because a session is a bearer credential the *old* password opened and it
+  outlives that password by its full TTL — so changing a phished password
+  without this would leave every session the attacker holds signed in for up to
+  a week. `keepSessionId` spares the caller's own device. The
+  `user.password_changed` event carries the actor and the eviction count, and
+  the activity plugin's audit subscriber maps it to a `user.password_changed`
+  row. No HTTP route wires it yet; `apps/server-e2e/.../change-password.spec.ts`
+  drives it out of DI so the flow is not left unexercised until one appears.
 - **`Session`** is an entity + **`SessionPolicy`** holds the expiry and
   `lastUsedAt`-refresh-throttle rules lifted out of the old session service into
   a pure, DB-free object (constructed with the configured TTL).

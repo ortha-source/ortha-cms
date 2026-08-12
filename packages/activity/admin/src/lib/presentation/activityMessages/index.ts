@@ -40,6 +40,10 @@ const actionMessages = defineMessages({
         id: 'activity.action.user.reactivated',
         defaultMessage: 'Reactivated member'
     },
+    passwordChanged: {
+        id: 'activity.action.user.password_changed',
+        defaultMessage: 'Changed password'
+    },
     signedIn: {
         id: 'activity.action.user.signed_in',
         defaultMessage: 'Signed in'
@@ -79,6 +83,7 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.role_changed': actionMessages.roleChanged,
     'user.suspended': actionMessages.suspended,
     'user.reactivated': actionMessages.reactivated,
+    'user.password_changed': actionMessages.passwordChanged,
     'user.signed_in': actionMessages.signedIn,
     'user.signed_out': actionMessages.signedOut,
     'workspace.created': actionMessages.workspaceCreated,
