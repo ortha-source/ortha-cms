@@ -271,9 +271,17 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 - `IDENTITY_CONFIG` / `InjectIdentityConfig()` — the config token, exported
   because `users-server`'s invite issuer reads `token.inviteTtlSeconds` from it
   (it previously hard-coded 7 days, silently ignoring the host's setting)
-- `MIN_PASSWORD_LENGTH` / `MAX_PASSWORD_LENGTH` — the credential-length rule
-  (12 … 72). The upper bound is bcrypt's 72-**byte** truncation point: we reject
-  rather than silently truncate, so what the user typed is what protects them
+- `MIN_PASSWORD_LENGTH` / `MAX_PASSWORD_LENGTH` / `passwordByteLength` — the
+  credential-length rule (12 … 72). The two bounds are counted in **different
+  units on purpose**: the floor in characters, the ceiling in **UTF-8 bytes**,
+  because 72 bytes is bcrypt's truncation point and we reject rather than
+  silently truncate, so what the user typed is what protects them. Enforce the
+  ceiling with `@MaxByteLength`, never `class-validator`'s `@MaxLength` — that
+  counts UTF-16 code units, so it waves through `'é'.repeat(72)` (72 characters,
+  **144 bytes**) and bcrypt then hashes only the first half of the passphrase.
+  `HashingService.hashPassword` throws `PasswordTooLongError` as the backstop for
+  the paths that have no DTO (`ChangePasswordUseCase`, the root-admin bootstrap
+  reading `ORTHA_ROOT_ADMIN_PASSWORD`)
 - `IdentityServerPlugin` — the plugin shape, with `identityConfig` attached
 - `IdentityModule` — global NestJS module; provides config and the RBAC services
   (`RolesService`, `SystemRolesSeeder`)

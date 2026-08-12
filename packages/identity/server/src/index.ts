@@ -13,7 +13,10 @@ export { IdentityModule } from './lib/identity.module';
 export { IDENTITY_CONFIG, InjectIdentityConfig } from './lib/identity.tokens';
 export {
     MIN_PASSWORD_LENGTH,
-    MAX_PASSWORD_LENGTH
+    MAX_PASSWORD_LENGTH,
+    // The ceiling is a BYTE bound (bcrypt's truncation point), so anything
+    // enforcing it must measure the same way this does.
+    passwordByteLength
 } from './lib/auth/auth.constants';
 export { AuthGuard } from './lib/auth/guards/auth.guard';
 export { OriginGuard } from './lib/auth/guards/origin.guard';
