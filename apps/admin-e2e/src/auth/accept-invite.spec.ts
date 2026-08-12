@@ -204,6 +204,39 @@ test.describe('accept an invite', () => {
         await expect(page.getByText(/missing its invite code/)).toBeVisible();
     });
 
+    test('tells a server outage apart from a dead link', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // The token is untouched — only the endpoint is broken. Telling the
+        // invitee their link no longer works would send them off to ask for a
+        // replacement they don't need.
+        await mockInvite(page, DEFAULT_INVITE, { status: 500 });
+        await acceptInvitePage.goto();
+
+        await expect(acceptInvitePage.lookupFailedHeading()).toBeVisible();
+        await expect(acceptInvitePage.unavailableHeading()).toHaveCount(0);
+        await expect(acceptInvitePage.retryLookup()).toBeVisible();
+    });
+
+    test('retrying a failed lookup picks up where it left off', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page, DEFAULT_INVITE, { status: 500 });
+        await acceptInvitePage.goto();
+        await expect(acceptInvitePage.lookupFailedHeading()).toBeVisible();
+
+        // The API comes back (later routes win) and the same link resolves.
+        await mockInvite(page);
+        await acceptInvitePage.retryLookup().click();
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        await expect(acceptInvitePage.emailField()).toHaveValue(
+            DEFAULT_INVITE.email
+        );
+    });
+
     test('announces the lookup while it is in flight', async ({
         page,
         acceptInvitePage

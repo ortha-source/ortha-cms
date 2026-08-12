@@ -132,10 +132,13 @@ owns auth). `src/lib` is organized into:
   library (the host mounts the query provider). The cookie is reached same-origin
   via the admin dev proxy (`/api` → the API).
 - **Accept-invite.** `AcceptInvitePage` resolves the token via `useInvite`
-  (`GET /api/auth/invite/:token`) and renders one of three states: a skeleton, a
+  (`GET /api/auth/invite/:token`) and renders one of four states: a skeleton, a
   dead-link card (`InviteUnavailable` — the server returns one generic 404 for
   unknown/expired/used, so the UI has exactly one failure shape, plus a distinct
-  message when the URL carried no token at all), or `AcceptInviteForm`. The form
+  message when the URL carried no token at all), an outage card
+  (`InviteLookupFailed`, for any failure that is **not** a 404 — the token is
+  fine, the server is not, so it offers a retry instead of telling the invitee
+  to chase a replacement link), or `AcceptInviteForm`. The form
   collects **only a password, twice**: the invite's email and name render as
   `readOnly` fields — not `disabled`, so they stay focusable and announced —
   because letting someone edit the email on the way in would let them claim an

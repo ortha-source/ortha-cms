@@ -87,6 +87,21 @@ export class AcceptInvitePage extends BasePage {
         return this.page.getByRole('link', { name: 'Go to sign in' });
     }
 
+    /**
+     * The *outage* state's heading — the lookup failed for a reason other than
+     * the server refusing the token, so the link is probably still good.
+     */
+    lookupFailedHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'We couldn’t check your invite'
+        });
+    }
+
+    /** The outage state's retry control. */
+    retryLookup(): Locator {
+        return this.page.getByRole('button', { name: 'Try again' });
+    }
+
     /** The busy region shown while the invite lookup is in flight. */
     loadingStatus(): Locator {
         return this.page
