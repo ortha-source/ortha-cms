@@ -147,9 +147,10 @@ describe('System role seeding', () => {
 
         await seedSystemRoles(db);
 
+        const matrixRow = SYSTEM_ROLES.find((role) => role.key === 'viewer');
         expect(await grantsFor('viewer')).not.toContain('content:delete');
         expect(await grantsFor('viewer')).toEqual(
-            [...SYSTEM_ROLES.find((r) => r.key === 'viewer')!.permissions].sort()
+            [...(matrixRow?.permissions ?? [])].sort()
         );
     });
 

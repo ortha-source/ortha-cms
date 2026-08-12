@@ -8,6 +8,7 @@ import {
 import {
     archiveWorkspace,
     getActivityRows,
+    getApiTokenHash,
     resetDb,
     seedActiveUser,
     seedUserWithEmptyRole,
@@ -259,6 +260,140 @@ describe('API token management (/api/api-tokens)', () => {
 
     it('requires authentication', async () => {
         await request(harness.server).get('/api/api-tokens').expect(401);
+    });
+
+    describe('list pagination', () => {
+        /** Mints `count` tokens so the page arithmetic has something to slice. */
+        async function mint(agent: request.Agent, count: number) {
+            for (let i = 0; i < count; i++) {
+                await agent
+                    .post('/api/api-tokens')
+                    .send({
+                        name: `token-${i}`,
+                        workspaceIds: [workspaceId],
+                        scope: 'read'
+                    })
+                    .expect(201);
+            }
+        }
+
+        it('returns an empty first page with a real total when there is nothing', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent.get('/api/api-tokens').expect(200);
+            expect(res.body).toMatchObject({
+                items: [],
+                total: 0,
+                page: 1,
+                pageSize: 25
+            });
+        });
+
+        it('returns an empty page past the last one, still with the real total', async () => {
+            // Not a 404: the page is simply beyond the data, and the caller
+            // needs `total` to work out where the data ended.
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 3);
+
+            const res = await agent
+                .get('/api/api-tokens')
+                .query({ page: 99999 })
+                .expect(200);
+            expect(res.body.items).toEqual([]);
+            expect(res.body.total).toBe(3);
+        });
+
+        it('accepts the maximum page size and rejects one past it', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/api-tokens')
+                .query({ pageSize: 100 })
+                .expect(200);
+            await agent
+                .get('/api/api-tokens')
+                .query({ pageSize: 101 })
+                .expect(400);
+        });
+
+        it('rejects a zero or negative page', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent.get('/api/api-tokens').query({ page: 0 }).expect(400);
+            await agent.get('/api/api-tokens').query({ page: -1 }).expect(400);
+        });
+
+        it('rejects a non-uuid workspace filter', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/api-tokens')
+                .query({ workspaceId: 'not-a-uuid' })
+                .expect(400);
+        });
+
+        it('pages without dropping or repeating a token', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 5);
+
+            const first = await agent
+                .get('/api/api-tokens')
+                .query({ page: 1, pageSize: 2 })
+                .expect(200);
+            const second = await agent
+                .get('/api/api-tokens')
+                .query({ page: 2, pageSize: 2 })
+                .expect(200);
+            const third = await agent
+                .get('/api/api-tokens')
+                .query({ page: 3, pageSize: 2 })
+                .expect(200);
+
+            const ids = [...first.body.items, ...second.body.items, ...third.body.items].map(
+                (item: { id: string }) => item.id
+            );
+            expect(ids).toHaveLength(5);
+            expect(new Set(ids).size).toBe(5);
+            expect(first.body.total).toBe(5);
+        });
+    });
+
+    describe('secrets at rest', () => {
+        it('stores the SHA-256 of the secret, never the secret', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            const stored = await getApiTokenHash(created.body.id);
+            expect(stored).toBe(
+                createHash('sha256').update(created.body.secret).digest('hex')
+            );
+            expect(stored).not.toBe(created.body.secret);
+            expect(stored).toMatch(/^[0-9a-f]{64}$/);
+            // The display prefix is the non-secret handle, and it is only a
+            // prefix — it must not be enough to reconstruct the token.
+            expect(created.body.secret.startsWith(created.body.lookupPrefix)).toBe(
+                true
+            );
+            expect(created.body.lookupPrefix.length).toBeLessThan(
+                created.body.secret.length
+            );
+        });
+
+        it('round-trips a name with RTL and multibyte characters intact', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const name = 'مرحبا é 🔑';
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({ name, workspaceIds: [workspaceId], scope: 'read' })
+                .expect(201);
+            expect(created.body.name).toBe(name);
+
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].name).toBe(name);
+        });
     });
 
     describe('audit trail', () => {

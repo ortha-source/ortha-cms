@@ -143,6 +143,26 @@ describe('accept an invite', () => {
                 .expect(404);
         });
 
+        it('404s an empty token segment, without a 500', async () => {
+            // `GET /api/auth/invite/` matches no route at all. Worth pinning:
+            // the interesting failure would be the segment reaching the handler
+            // as an empty string and being hashed into a lookup.
+            await request(harness.server)
+                .get('/api/auth/invite/')
+                .expect(404);
+        });
+
+        it('404s a token that is not hex, without a 500', async () => {
+            // The raw token is `randomBytes(32).toString('hex')`, so anything
+            // else simply misses the hash lookup — including path
+            // metacharacters, which are data here and never a pattern.
+            for (const token of ['%_', '../../etc/passwd', "' OR 1=1 --"]) {
+                await request(harness.server)
+                    .get(`/api/auth/invite/${encodeURIComponent(token)}`)
+                    .expect(404);
+            }
+        });
+
         it('404s a token whose invite was revoked', async () => {
             const { id, token } = await invite();
             const agent = await loginAsAdmin();

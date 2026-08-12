@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_851 test cases across 51 spec files._
+_921 test cases across 56 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -78,11 +78,43 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | mints a token spanning several workspaces |
 | collapses duplicate workspace ids |
 | rejects an empty workspace bucket |
+| rejects a bucket naming a workspace that does not exist |
+| rejects a bucket that mixes real and phantom workspaces |
+| still accepts an archived workspace — existence, not status |
 | lists a multi-workspace token under each of its workspaces |
 | rejects an expiry in the past |
 | revokes a token |
 | gates management on the tokens permissions |
 | requires authentication |
+
+### list pagination
+
+| Test case |
+| --- |
+| returns an empty first page with a real total when there is nothing |
+| returns an empty page past the last one, still with the real total |
+| accepts the maximum page size and rejects one past it |
+| rejects a zero or negative page |
+| rejects a non-uuid workspace filter |
+| pages without dropping or repeating a token |
+
+### secrets at rest
+
+| Test case |
+| --- |
+| stores the SHA-256 of the secret, never the secret |
+| round-trips a name with RTL and multibyte characters intact |
+
+### audit trail
+
+| Test case |
+| --- |
+| records token.created when a token is minted |
+| never writes the secret or its hash into the log |
+| records token.revoked when a token is killed |
+| audits a replayed revoke once, not once per call |
+| writes nothing when the revoked id is unknown |
+| writes no audit row when the mint is rejected |
 
 <!-- source: apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts -->
 _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
@@ -402,6 +434,8 @@ _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
 | does not consume the token — the link survives a page refresh |
 | 404s an unknown token |
 | 404s an expired token |
+| 404s an empty token segment, without a 500 |
+| 404s a token that is not hex, without a 500 |
 | 404s a token whose invite was revoked |
 
 ### POST /api/auth/invite/accept
@@ -418,9 +452,40 @@ _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
 | stops working once the invite is resent (the link rotated) |
 | 400s a password under the minimum length |
 | 400s a password past bcrypt’s 72-byte ceiling rather than truncating it |
+| accepts the exact 12-character floor |
+| accepts the exact 72-byte ceiling |
+| counts the ceiling in bytes, so a 72-character accented passphrase is rejected |
+| accepts a multibyte passphrase that fits inside 72 bytes |
 | 400s when the confirmation does not match |
 | rejects a request from a disallowed origin (CSRF defense) |
 | 404s an invite for an account that is already active |
+
+<!-- source: apps/server-e2e/src/server/auth/change-password.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/change-password.spec.ts</sub>_
+
+## Change password (ChangePasswordUseCase)
+
+| Test case |
+| --- |
+| replaces the stored credential |
+| signs out every device the old password had signed in |
+| keeps the caller’s own session alive when one is named |
+| touches nobody else’s sessions |
+| writes a user.password_changed audit row naming the actor and the eviction count |
+| audits a change that evicted nothing rather than staying silent |
+| leaves the credential and the sessions alone when the account is unknown |
+| refuses a password past bcrypt’s byte ceiling instead of truncating it |
+
+<!-- source: apps/server-e2e/src/server/auth/login-throttle-proxy.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/login-throttle-proxy.spec.ts</sub>_
+
+## POST /api/auth/login (rate limit behind a trusted proxy)
+
+| Test case |
+| --- |
+| buckets per forwarded client IP |
+| does not let a second client inherit the first client’s exhaustion |
+| records the forwarded client IP on the session, not the proxy’s |
 
 <!-- source: apps/server-e2e/src/server/auth/login-throttle.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
@@ -430,6 +495,7 @@ _<sub>apps/server-e2e/src/server/auth/login-throttle.spec.ts</sub>_
 | Test case |
 | --- |
 | returns 429 once the limit is exceeded |
+| ignores a spoofed X-Forwarded-For when no proxy is trusted |
 
 <!-- source: apps/server-e2e/src/server/auth/login.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/login.spec.ts</sub>_
@@ -471,6 +537,9 @@ _<sub>apps/server-e2e/src/server/auth/login.spec.ts</sub>_
 | rejects a non-string email |
 | rejects a null email |
 | rejects an unknown extra field (forbidNonWhitelisted) |
+| rejects an email with leading or trailing whitespace |
+| rejects an oversized body with 413 rather than parsing it |
+| treats SQL metacharacters in the email as data, not syntax |
 
 ### OriginGuard (login CSRF defense)
 
@@ -523,7 +592,8 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | --- |
 | returns the current user after login (cookie flow) |
 | exposes only the public fields (no hash/token leak) |
-| includes the permission keys the user’s role grants |
+| includes exactly the permission keys the user’s role grants |
+| grants a viewer exactly the read-only set |
 | works with an explicitly forwarded session cookie |
 | finds the session cookie among several cookies |
 | reflects the user’s assigned role |
@@ -538,6 +608,35 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | rejects a live session whose account was suspended |
 | accepts the same session again once the account is reactivated |
 | rejects a live session whose account fell back to pending |
+
+<!-- source: apps/server-e2e/src/server/auth/role-seeding.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/role-seeding.spec.ts</sub>_
+
+## System role seeding
+
+| Test case |
+| --- |
+| seeds exactly the catalogue the code defines |
+| grants each system role exactly its matrix row |
+| is idempotent — a second run changes nothing |
+| survives two instances seeding at once |
+| prunes a permission the code no longer defines |
+| revokes a stale grant of a permission that still exists |
+| leaves a custom role’s grants of live permissions alone |
+| drops a custom role’s grant of a permission the code retired |
+
+<!-- source: apps/server-e2e/src/server/auth/roles-service.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/roles-service.spec.ts</sub>_
+
+## RolesService.delete
+
+| Test case |
+| --- |
+| deletes a custom role |
+| refuses to delete the %s system role |
+| distinguishes "protected" from "missing" |
+| is not idempotent — a second delete reports the role is gone |
+| refuses concurrently, without one racer slipping through |
 
 <!-- source: apps/server-e2e/src/server/auth/root-admin.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
@@ -564,6 +663,41 @@ _<sub>apps/server-e2e/src/server/auth/root-admin.spec.ts</sub>_
 | Test case |
 | --- |
 | aborts boot when an email is configured without a password |
+
+<!-- source: apps/server-e2e/src/server/auth/session-boundaries.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/session-boundaries.spec.ts</sub>_
+
+## Session lifetime boundaries
+
+### lastUsedAt refresh throttle
+
+| Test case |
+| --- |
+| does not write on every authenticated request |
+| writes once the throttle window has elapsed, then throttles again |
+
+### expiry instant
+
+| Test case |
+| --- |
+| rejects a session at exactly its expiry, not just past it |
+| keeps a session valid a moment before its expiry |
+
+### secrets at rest
+
+| Test case |
+| --- |
+| stores the session token’s digest, never the token |
+| stores a password as bcrypt at cost 12 |
+
+### Cookie header parsing
+
+| Test case |
+| --- |
+| finds the session among two hundred other cookies |
+| 401s on a malformed header rather than failing |
+| 401s on an empty session value |
+| 401s when the token arrives under a different cookie name |
 
 <!-- source: apps/server-e2e/src/server/content/content-entries-write.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
@@ -1790,8 +1924,16 @@ _<sub>apps/server-e2e/src/server/users/user-sessions.spec.ts</sub>_
 | marks the caller’s own session as current |
 | revokes a session and drops it from the list |
 | is idempotent — revoking an unknown session still 204s |
-| lets a viewer read sessions but not revoke them (403) |
+| 403s a viewer on both routes — a session list is not `users:read` data |
+| 403s a viewer reading even their OWN session list |
+| 403s a contributor — the gate is the permission, not the role |
+| never exposes a session token beyond the revocation handle |
 | returns 400 for a non-uuid user id |
+| returns an empty list for a member with no live sessions |
+| returns an empty list for a user id that does not exist |
+| scopes a revoke to :id — a session belonging to someone else survives |
+| is idempotent — revoking the same session twice still 204s |
+| takes effect on the member’s very next request, with no cache TTL |
 
 <!-- source: apps/server-e2e/src/server/workspaces/create-workspace.spec.ts -->
 _<sub>apps/server-e2e/src/server/workspaces/create-workspace.spec.ts</sub>_

@@ -229,6 +229,43 @@ describe('POST /api/auth/login', () => {
                 expect.arrayContaining([expect.stringContaining('role')])
             );
         });
+
+        it('rejects an email with leading or trailing whitespace', async () => {
+            await post()
+                .send({ email: ` ${EMAIL}`, password: PASSWORD })
+                .expect(400);
+            await post()
+                .send({ email: `${EMAIL} `, password: PASSWORD })
+                .expect(400);
+        });
+
+        it('rejects an oversized body with 413 rather than parsing it', async () => {
+            // Express caps JSON at 100 kb. The point is that a 10 MB body is
+            // refused at the transport, so an unauthenticated caller cannot
+            // make the server allocate it — the login route is public.
+            await post()
+                .send({ email: EMAIL, password: 'x'.repeat(10 * 1024 * 1024) })
+                .expect(413);
+        });
+
+        it('treats SQL metacharacters in the email as data, not syntax', async () => {
+            // Every query is a parameterised Drizzle builder, so this can only
+            // ever be a failed lookup. The assertion is a regression guard: a
+            // 500 here would mean someone had started concatenating SQL.
+            for (const email of [
+                "a' OR '1'='1@example.com",
+                'a";DROP TABLE users;--@example.com',
+                "%_@example.com"
+            ]) {
+                const res = await post().send({ email, password: PASSWORD });
+                expect([400, 401]).toContain(res.status);
+            }
+
+            // And the table is still there.
+            await post()
+                .send({ email: EMAIL, password: PASSWORD })
+                .expect(201);
+        });
     });
 
     describe('OriginGuard (login CSRF defense)', () => {

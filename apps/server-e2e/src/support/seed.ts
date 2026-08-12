@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
@@ -236,6 +236,78 @@ export async function expireApiToken(tokenId: string): Promise<void> {
         .update(apiTokens)
         .set({ expiresAt: new Date(Date.now() - 60_000) })
         .where(eq(apiTokens.id, tokenId));
+}
+
+/** One session row's timing columns, for the refresh-throttle assertions. */
+export interface SessionTiming {
+    id: string;
+    lastUsedAt: Date;
+    expiresAt: Date;
+}
+
+/** A user's session rows, newest-used first. */
+export async function getUserSessions(
+    userId: string
+): Promise<SessionTiming[]> {
+    return getDatabase()
+        .select({
+            id: sessions.id,
+            lastUsedAt: sessions.lastUsedAt,
+            expiresAt: sessions.expiresAt
+        })
+        .from(sessions)
+        .where(eq(sessions.userId, userId))
+        .orderBy(desc(sessions.lastUsedAt));
+}
+
+/**
+ * Push a user's `last_used_at` `ms` milliseconds into the past. The refresh is
+ * throttled to one write a minute, so a spec that wants to observe the refresh
+ * back-dates the column instead of sleeping out the real window.
+ */
+export async function backdateSessionLastUsed(
+    userId: string,
+    ms: number
+): Promise<void> {
+    await getDatabase()
+        .update(sessions)
+        .set({ lastUsedAt: new Date(Date.now() - ms) })
+        .where(eq(sessions.userId, userId));
+}
+
+/**
+ * Set a user's session expiry to **exactly now**. The validity predicate is a
+ * strict `expires_at > now()`, so the instant of expiry is already invalid —
+ * the boundary this exists to pin down.
+ */
+export async function expireUserSessionsAt(
+    userId: string,
+    at: Date = new Date()
+): Promise<void> {
+    await getDatabase()
+        .update(sessions)
+        .set({ expiresAt: at })
+        .where(eq(sessions.userId, userId));
+}
+
+/** Whether any row of `sessions` stores `token` verbatim (it must not). */
+export async function sessionRowsContainToken(
+    token: string
+): Promise<boolean> {
+    const { rows } = await getPool().query(
+        'SELECT count(*)::int AS total FROM sessions WHERE id = $1',
+        [token]
+    );
+    return rows[0].total > 0;
+}
+
+/** An API token's stored hash — asserted to be a digest, never the secret. */
+export async function getApiTokenHash(id: string): Promise<string | null> {
+    const [row] = await getDatabase()
+        .select({ tokenHash: apiTokens.tokenHash })
+        .from(apiTokens)
+        .where(eq(apiTokens.id, id));
+    return row?.tokenHash ?? null;
 }
 
 /** Revoke every session of a user — simulates an explicit logout/kill. */
