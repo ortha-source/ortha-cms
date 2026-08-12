@@ -290,7 +290,7 @@ who accepted). Server booted, migrations applied.
 | 2 | Accept with `'a'.repeat(73)` | `400` |
 | 3 | Accept with a 12-char password | `201` |
 | 4 | Accept with mismatched `confirmPassword` | `400 "confirmPassword must match password"`; nothing consumed |
-| 5 | Accept with `'é'.repeat(72)` (72 chars, 144 bytes) | **Expected `400`; observed `201`** → 🐞 BUG-identity-server-02 |
+| 5 | Accept with `'é'.repeat(72)` (72 chars, 144 bytes) | **Expected `400`; observed `201`** → 🐞 BUG-identity-server-03 |
 
 ### F18 — List a member's sessions
 
@@ -301,7 +301,7 @@ who accepted). Server booted, migrations applied.
 | 1 | `GET $BASE/users/<memberId>/sessions` as admin | `200` array of 2, newest-`lastUsedAt` first |
 | 2 | Inspect a row | `{ id, userAgent, ipAddress, createdAt, lastUsedAt, expiresAt, current:false }` — no token |
 | 3 | `GET $BASE/users/<yourOwnId>/sessions` | exactly one row has `current: true` |
-| 4 | Repeat step 1 as a `viewer` | `200` — see 🐞 BUG-identity-server-01 |
+| 4 | Repeat step 1 as a `viewer` | `200` — see 🐞 BUG-identity-server-04 |
 | 5 | `GET $BASE/users/not-a-uuid/sessions` | `400` (`ParseUUIDPipe`) |
 | 6 | `GET $BASE/users/<random uuid>/sessions` | `200 []` |
 
@@ -341,7 +341,7 @@ who accepted). Server booted, migrations applied.
 | 6 | Mint with `expiresAt` in the past | `400 "expiresAt must be in the future."` |
 | 7 | Mint with 101 workspace ids | `400` (`ArrayMaxSize`) |
 | 8 | Mint as `contributor` | `403` |
-| 9 | `select * from activity_events where kind like 'token%'` | **empty** → 🐞 BUG-identity-server-03 |
+| 9 | `select * from activity_events where kind like 'token%'` | **empty** → 🐞 BUG-identity-server-01 |
 
 ### F23 — List API tokens
 
@@ -402,7 +402,7 @@ harness or accept that it is unreachable.
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | `grep -rn "ChangePasswordUseCase" packages apps --include=*.ts` | only the provider registration and the class itself — no controller |
-| 2 | Call `execute(userId, 'a-new-password')` in a test | the hash changes; **other sessions stay live** → 🐞 BUG-identity-server-04 |
+| 2 | Call `execute(userId, 'a-new-password')` in a test | the hash changes; **other sessions stay live** → 🐞 BUG-identity-server-05 |
 | 3 | `select * from activity_events where kind='user.password_changed'` | empty — the raised event has no mapper |
 
 ## 4. Edge Cases & Negative Paths
@@ -448,7 +448,7 @@ harness or accept that it is unreachable.
 - **EC-16 — 10 MB login body.** `❌ NONE` — expect `413` from Express's default 100 kb
   JSON limit, never an OOM.
 - **EC-17 — Unicode / emoji password.** `❌ NONE` — **this is the bug.** `@MaxLength(72)`
-  counts UTF-16 code units; bcrypt truncates at 72 **bytes**. See 🐞 BUG-identity-server-02.
+  counts UTF-16 code units; bcrypt truncates at 72 **bytes**. See 🐞 BUG-identity-server-03.
 - **EC-18 — Email with a trailing space / different case.** `⚠️ PARTIAL` — case is covered
   (`login.spec.ts:102`); leading/trailing whitespace is not. `class-validator`'s `@IsEmail`
   rejects `" a@b.com"`, so expect `400`.
@@ -565,7 +565,7 @@ The v1 matrix (`rbac/system-roles.ts:76-105`) is global — there is no per-work
   (`schema/tokens.ts:12`) but **no code path issues, describes, or redeems one.** Password
   reset does not exist. `❌ NONE` — nothing to test yet; flag it as a gap in the product.
 - **EC-47 — Does a password change revoke other sessions?** **No.** See
-  🐞 BUG-identity-server-04.
+  🐞 BUG-identity-server-05.
 
 ### Throttling
 
@@ -574,12 +574,12 @@ The v1 matrix (`rbac/system-roles.ts:76-105`) is global — there is no per-work
   (`identity.module.ts:76-83`). `⚠️ PARTIAL` (`login-throttle.spec.ts:42`).
 - **EC-49 — Can an attacker lock out a victim?** Not by account — the bucket is not
   keyed on the email, so hammering `victim@x.com` costs the attacker's own IP quota, not
-  the victim's. **But behind a proxy it locks out everyone** → 🐞 BUG-identity-server-05.
+  the victim's. **But behind a proxy it locks out everyone** → 🐞 BUG-identity-server-02.
 - **EC-50 — Is the throttle bypassable by varying the email case?** No — the key does not
   include the body. `❌ NONE`.
 - **EC-51 — Is it bypassable by a header?** Not directly; but because `trust proxy` is
   unset, `X-Forwarded-For` is **ignored**, which is the safe direction (no spoofing) and
-  the harmful one (no per-client bucketing). See BUG-05.
+  the harmful one (no per-client bucketing). See BUG-identity-server-02.
 - **EC-52 — Is `/auth/invite/accept` throttled?** Yes, same guard
   (`invite.controller.ts:45`) — an invite-token brute force costs the same 10/min.
   `❌ NONE`.
@@ -813,6 +813,13 @@ axe has nothing to scan on a JSON endpoint.
 
 ### 🐞 BUG-identity-server-01 — API-token mint and revoke are completely unaudited · Severity: Medium · 🔒
 
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** `mint`/`revoke` now run
+> in a `UnitOfWork` and append `api_token.created` / `api_token.revoked` to the outbox;
+> the activity subscriber maps them to `token.created` / `token.revoked` rows on an
+> `api_token` subject. The payload carries the name, scope, bucket and the non-secret
+> `lookupPrefix` — never the secret or its hash. A replayed (idempotent) revoke appends
+> nothing.
+
 > **Verified 2026-08-11.** Claim confirmed against source; **severity downgraded High →
 > Medium** and the blast radius corrected — revocation is soft
 > (`drizzle-api-token.repository.ts:154-160` sets `revoked_at`, it does not delete), so the
@@ -873,6 +880,13 @@ inside a `UnitOfWork.run` in `ApiTokenService`, and add the two mappers to
 
 ### 🐞 BUG-identity-server-02 — Login throttling collapses to one global bucket behind a proxy (`trust proxy` is never set) · Severity: High · 🔒
 
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** `createServer` gained a
+> `trustProxy` option (sourced from `TRUST_PROXY`), applied to the Express adapter before
+> anything reads `req.ip`. It stays **unset by default** — a directly-exposed server must
+> not believe a client-supplied `X-Forwarded-For` — so this is a deployment setting, not a
+> code default. `login-throttle.spec.ts` and `login-throttle-proxy.spec.ts` boot the app
+> both ways.
+
 **Location:** `packages/identity/server/src/lib/identity.module.ts:76-83`;
 absence verified by `grep -rn "trust proxy\|trustProxy\|set('trust" apps packages --include=*.ts`
 → the only hit is the **comment** at `identity.module.ts:79`.
@@ -917,6 +931,12 @@ independent buckets. Do NOT implement.
 ---
 
 ### 🐞 BUG-identity-server-03 — `MAX_PASSWORD_LENGTH` is counted in characters but bcrypt truncates at bytes, so a non-ASCII passphrase is silently shortened · Severity: Medium · 🔒
+
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** A `@MaxByteLength`
+> validator replaces `@MaxLength` on `AcceptInviteDto.password`, and
+> `HashingService.hashPassword` throws `PasswordTooLongError` past the bound as the
+> backstop for the paths with no DTO (`ChangePasswordUseCase`, the root-admin bootstrap).
+> The admin's client-side rule now measures bytes too.
 
 **Location:** `packages/identity/server/src/lib/auth/auth.constants.ts:9-15`,
 `packages/identity/server/src/lib/auth/dto/accept-invite.dto.ts:21-24`
@@ -970,6 +990,10 @@ Do NOT implement.
 
 ### 🐞 BUG-identity-server-04 — Every signed-in role can read any member's session list, including IP addresses · Severity: Medium · 🔒
 
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** Both `/users/:id/sessions`
+> routes now require `users:update` rather than `users:read`. The admin already gated its
+> Sessions tab on `users:update`, so only the API moved.
+
 **Location:** `packages/identity/server/src/lib/auth/controllers/user-sessions.controller.ts:67-79`,
 matrix at `packages/identity/server/src/lib/rbac/system-roles.ts:83,99`
 **Category:** tenant-leak / privacy
@@ -1019,6 +1043,13 @@ accordingly. Do NOT implement.
 ---
 
 ### 🐞 BUG-identity-server-05 — Changing a password does not revoke other sessions, and the change is unaudited · Severity: Medium · 🔒
+
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** `ChangePasswordUseCase`
+> revokes the account's live sessions in the same unit of work as the hash write
+> (`SessionRepository.revokeAllForUser`, with `keepSessionId` to spare the caller's own
+> device), and the `user.password_changed` event now has an audit mapper carrying the
+> eviction count. Driven end-to-end out of DI by `change-password.spec.ts`, since the use
+> case still has no HTTP route.
 
 **Location:** `packages/identity/server/src/lib/application/use-cases/change-password.use-case.ts:33-47`
 **Category:** permission-bypass (latent)
@@ -1070,6 +1101,12 @@ to `FACET_MAPPERS`. Do NOT implement.
 ---
 
 ### 🐞 BUG-identity-server-06 — A token can be minted for a workspace that does not exist · Severity: Low
+
+> **Resolved on `claude/identity-server-bugs-tests-myase3`.** Minting validates the
+> bucket against a new `WORKSPACE_DIRECTORY` port (identity owns it, the workspaces plugin
+> binds `WorkspaceExistenceQuery`), so an unknown id 400s. A mixed real/phantom bucket is
+> rejected whole rather than narrowed, and the check is existence, not status — an
+> archived workspace stays a valid scope.
 
 **Location:** `packages/identity/server/src/lib/api-tokens/http/dto/create-api-token.dto.ts:56-60`,
 `packages/identity/server/src/lib/api-tokens/infrastructure/persistence/drizzle-api-token.repository.ts:60-75`
