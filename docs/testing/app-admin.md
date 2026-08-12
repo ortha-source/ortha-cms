@@ -148,7 +148,7 @@ explanation at all.
 | Step | Action | Expected result |
 | --- | --- | --- |
 | 1 | `npx nx build admin`; inspect the emitted CSS | Utility classes used only inside `packages/*/admin` are present — the `@source` globs at `src/styles.css:9-10` are what keeps them |
-| 2 | Add a new admin package at `packages/newthing/admin` using a class no other package uses; build | The class is included (the glob is `packages/*/admin/**`). Now try `packages/deep/nested/admin` | The second is **not** matched — the glob is one level deep |
+| 2 | Add a new admin package at `packages/newthing/admin` using a class no other package uses; build | The class is included (the glob is `packages/*/admin/**`). Now try `packages/deep/nested/admin` — the second is **not** matched, because the glob is one level deep |
 | 3 | Toggle Light/Dark and re-check contrast on muted text, disabled buttons, table borders, and focus rings | Every text-on-surface pairing should clear 4.5:1; `src/styles.css:23-25` records that this was verified and that the axe scan enforces it. Verify **both** themes |
 | 4 | Confirm the documented brand caveat | White text on `bg-brand` (flame orange) does **not** clear AA — `src/styles.css:25-27` says to use ink text or keep orange to icons/accents. Spot-check that no component violates it |
 | 5 | With the WYSIWYG editor open, inspect `.ortha-wysiwyg` | The rich-text scope reads the same `--color-*` tokens, so it follows the theme (`src/styles.css:3-6`) |
