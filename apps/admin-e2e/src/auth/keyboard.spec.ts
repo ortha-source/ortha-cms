@@ -3,11 +3,9 @@ import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
 import { mockInvite, spyAcceptInvite } from '../support/api/invites';
 
 /**
- * Keyboard operability of the login flow — the part axe can't check. Avoids
- * asserting the exact tab order through the placeholder "Forgot password" /
- * "Sign up" buttons (those are TODO and will change); instead it pins the two
- * properties that matter: the form is the first focus target, and it can be
- * completed and submitted by keyboard alone.
+ * Keyboard operability of the login flow — the part axe can't check: the form
+ * is the first focus target, every stop on the way through it is a control that
+ * works, and the whole thing can be completed and submitted by keyboard alone.
  */
 test.describe('keyboard accessibility', () => {
     test('the email field is the first focus stop', async ({
@@ -21,6 +19,24 @@ test.describe('keyboard accessibility', () => {
         await expect(loginPage.heading).toBeVisible();
         await page.keyboard.press('Tab');
         await expect(loginPage.email).toBeFocused();
+    });
+
+    test('tabbing through the form hits credentials then submit, with no dead stop between', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        // The "Forgot your password?" placeholder used to sit in the label row
+        // above the password box, i.e. between the two credential fields.
+        await page.keyboard.press('Tab');
+        await expect(loginPage.email).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(loginPage.password).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(loginPage.submit).toBeFocused();
     });
 
     test('login can be completed and submitted by keyboard alone', async ({

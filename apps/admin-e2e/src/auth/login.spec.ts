@@ -86,6 +86,38 @@ test.describe('Login page (/identity/signin)', () => {
         });
     });
 
+    test.describe('the controls on offer', () => {
+        // Password recovery, sign-up and the legal pages have no routes yet, so
+        // the page must not advertise them: they used to render as buttons with
+        // no handler, four focusable stops that did nothing when activated.
+        test('offers no control that leads nowhere', async ({
+            page,
+            loginPage
+        }) => {
+            await expect(loginPage.submit).toBeVisible();
+
+            for (const name of [
+                'Forgot your password?',
+                'Sign up',
+                'Terms of Service',
+                'Privacy Policy'
+            ]) {
+                await expect(page.getByRole('button', { name })).toHaveCount(0);
+                await expect(page.getByRole('link', { name })).toHaveCount(0);
+            }
+        });
+
+        test('says how an account is obtained instead', async ({
+            page,
+            loginPage
+        }) => {
+            await expect(loginPage.submit).toBeVisible();
+            await expect(
+                page.getByText(/Accounts are created by invitation/)
+            ).toBeVisible();
+        });
+    });
+
     test.describe('pending state', () => {
         test('disables the submit button while the request is in flight', async ({
             page,
