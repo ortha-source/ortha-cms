@@ -67,12 +67,26 @@ const ALL_PERMISSIONS = [
 ];
 
 /**
+ * The shape `GET /api/auth/me` answers with. `name` is **nullable** on the
+ * wire — the seeded root admin has none — so suites can seed that case and
+ * assert the display-name fallbacks.
+ */
+export interface CurrentUserSeed {
+    id: string;
+    email: string;
+    name: string | null;
+    roleId: string;
+    status: string;
+    permissions: string[];
+}
+
+/**
  * The authenticated user `GET /api/auth/me` returns (the server's `PublicUser`
  * plus the role's `permissions`). Defaults to an admin holding every permission,
  * so signed-in suites see all permission-gated UI; override `permissions` to
  * test a restricted role (e.g. a viewer without `workspaces:create`).
  */
-const DEFAULT_USER = {
+const DEFAULT_USER: CurrentUserSeed = {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@example.com',
     name: 'Admin User',
@@ -97,7 +111,7 @@ const DEFAULT_USER = {
  */
 export async function mockSignedIn(
     page: Page,
-    user: Partial<typeof DEFAULT_USER> = {},
+    user: Partial<CurrentUserSeed> = {},
     { delayMs }: { delayMs?: number } = {}
 ): Promise<void> {
     await page.route('**/api/auth/me', async (route) => {
@@ -126,6 +140,31 @@ export async function mockSignedOut(page: Page): Promise<void> {
             body: JSON.stringify({ message: 'Unauthorized' })
         });
     });
+}
+
+/**
+ * Like {@link mockSignedOut} but records each call, so a test can assert how
+ * many times the session was probed — the `401` resolves to "no user" rather
+ * than an error, and the query is `retry: false`, so a signed-out load must ask
+ * exactly once.
+ */
+export async function spySignedOut(
+    page: Page
+): Promise<{ readonly count: number }> {
+    let count = 0;
+    await page.route('**/api/auth/me', async (route) => {
+        count += 1;
+        await route.fulfill({
+            status: 401,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Unauthorized' })
+        });
+    });
+    return {
+        get count() {
+            return count;
+        }
+    };
 }
 
 /**

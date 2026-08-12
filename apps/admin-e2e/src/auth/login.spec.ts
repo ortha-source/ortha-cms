@@ -3,7 +3,8 @@ import {
     mockLogin,
     mockSignedIn,
     mockSignedOut,
-    spyLogin
+    spyLogin,
+    spySignedOut
 } from '../support/api/auth';
 
 const EMAIL = 'admin@example.com';
@@ -141,5 +142,45 @@ test.describe('Login page (/identity/signin)', () => {
 
             await expect(loginPage.submit).toBeDisabled();
         });
+    });
+});
+
+/**
+ * The session probe behind the page, rather than the form on it: how often it
+ * asks, and what a `401` means to it (nobody is signed in — an ordinary answer,
+ * not an error worth retrying).
+ */
+test.describe('The session probe on the sign-in page', () => {
+    test('asks once and does not retry the 401', async ({
+        page,
+        loginPage
+    }) => {
+        const probe = await spySignedOut(page);
+        // Entering through a private route, not `/identity/signin` directly:
+        // the sign-in page is public and sits outside `AuthProvider`, so it
+        // probes nothing at all — the gate is what asks.
+        await page.goto('/');
+        await expect(loginPage.heading).toBeVisible();
+
+        // Give a retry room to happen before asserting it didn't: the query is
+        // `retry: false` precisely because "not signed in" is the answer, not a
+        // failure.
+        await page.waitForTimeout(1_500);
+        expect(probe.count).toBe(1);
+    });
+
+    test('renders the form for an already signed-in visitor', async ({
+        page,
+        loginPage
+    }) => {
+        // Documented current behaviour, not an endorsement: the sign-in route is
+        // public and does not bounce a live session away, so submitting here
+        // opens a second server-side session. Pinned so a change to it is a
+        // deliberate one (EC-13 on ORT-57).
+        await mockSignedIn(page);
+        await loginPage.goto();
+
+        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.email).toBeEditable();
     });
 });
