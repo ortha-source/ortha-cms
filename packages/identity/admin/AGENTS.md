@@ -99,7 +99,9 @@ owns auth). `src/lib` is organized into:
 - `useLogoutMutation` — `POST /api/auth/logout`, then writes `null` into
   `currentUserKey` and clears the rest of the cache, so the gate flips to
   unauthenticated and redirects to sign-in with nothing of the account left
-  behind. Used by the toolbar account menu (`users-admin`)
+  behind. A failed request keeps the UI signed in (the session was not revoked)
+  and says so in a toast, rather than swallowing the click. Used by the toolbar
+  account menu (`users-admin`)
 - `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture

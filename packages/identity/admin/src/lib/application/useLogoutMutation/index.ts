@@ -1,8 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { defineMessages, useIntl } from 'react-intl';
+import { toast } from '@ortha-cms/design-system';
 import type { ApiError } from '@ortha-cms/utils-admin';
 import { httpAuthGateway } from '../../infrastructure/httpAuthGateway';
 import { currentUserKey } from '../useCurrentUser';
 import { resetSessionCache } from '../resetSessionCache';
+
+/** Intl descriptors for {@link useLogoutMutation}, co-located with the hook. */
+const messages = defineMessages({
+    failed: {
+        id: 'identity.logout.failed',
+        defaultMessage:
+            'We couldn’t sign you out — you are still signed in on this device. Check your connection and try again.'
+    }
+});
 
 /**
  * TanStack Query mutation for signing out. Delegates to the {@link AuthGateway}
@@ -11,8 +22,15 @@ import { resetSessionCache } from '../resetSessionCache';
  * cached, so `AuthProvider` reports "unauthenticated", the route gate redirects
  * to the sign-in page, and nothing of the outgoing account is left behind.
  * Callers just call `mutate()`.
+ *
+ * A failed logout is reported here rather than left to each call site: the
+ * request failing means the session was **not** revoked, so the UI both stays
+ * signed in (the truthful state — pretending otherwise would leave someone on a
+ * shared machine believing they had left) and says so, instead of swallowing
+ * the click.
  */
 export function useLogoutMutation() {
+    const intl = useIntl();
     const queryClient = useQueryClient();
     return useMutation<void, ApiError, void>({
         mutationFn: () => httpAuthGateway.logout(),
@@ -25,6 +43,7 @@ export function useLogoutMutation() {
             // leaves it holding the value it already had.
             queryClient.setQueryData(currentUserKey, null);
             resetSessionCache(queryClient);
-        }
+        },
+        onError: () => toast.error(intl.formatMessage(messages.failed))
     });
 }

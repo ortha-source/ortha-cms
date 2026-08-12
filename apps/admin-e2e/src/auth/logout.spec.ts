@@ -39,6 +39,28 @@ test.describe('Logout', () => {
         await expect(membersPage.nav).toBeHidden();
     });
 
+    test('says so when the request fails, instead of swallowing the click', async ({
+        page,
+        membersPage
+    }) => {
+        await mockSignedIn(page);
+        await mockMembers(page);
+        // The request never reaches a server — what a user on a dropped
+        // connection gets. The session was therefore *not* revoked.
+        await page.route('**/api/auth/logout', (route) => route.abort());
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        await membersPage.openAccountMenu();
+        await membersPage.accountMenuItem('Logout').click();
+
+        await expect(page.getByText(/We couldn’t sign you out/)).toBeVisible();
+        // And still signed in, truthfully: claiming otherwise would leave
+        // someone on a shared machine believing they had left.
+        await expect(page).toHaveURL(/\/users$/);
+        await expect(membersPage.heading).toBeVisible();
+    });
+
     test('leaves nothing of the previous account in the cache', async ({
         page,
         loginPage,
