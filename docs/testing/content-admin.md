@@ -150,12 +150,12 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F11 | Library empty state (no grants) | `ContentLibraryPage/index.tsx:115-121` | ✅ E2E |
 | F12 | Type catalogue scoped to `workspace.content` | `ContentLibraryPage/index.tsx:112-113` | ✅ E2E |
 | F13 | Unknown `:typeName` → not-found pane | `ContentTypeView/index.tsx:48-66` | ❌ NONE |
-| F14 | Unknown type on an entry route → redirect to library index | `ContentEntryRoute/index.tsx:104-111` | ❌ NONE |
+| F14 | Unknown type on an entry route → redirect to library index | `ContentEntryRoute/index.tsx:27-34` | ❌ NONE |
 | F15 | Top bar breadcrumb (Content › type › record / New / Trash) | `ContentTopBar/index.tsx` | ⚠️ PARTIAL |
 | F16 | Records table: columns from schema, `scope="col"`, table `aria-label` | `CollectionRecordsTable/index.tsx:277-354` | ✅ E2E |
 | F17 | Click-to-sort headers, asc → desc → off, `aria-sort`, `?sort=` | `CollectionRecordsTable/index.tsx:291-348`, `LoadedRecordsView/index.tsx:176-187` | ✅ E2E |
 | F18 | Relation columns render `RelationCell` (titles + `+N`), non-sortable | `CollectionRecordsTable/index.tsx:80-86,146-159` | ✅ E2E |
-| F19 | Rich-text columns render a plain-text excerpt | `domain/richTextExcerpt/index.ts:205-214`, `renderCell.tsx:101-110` | ❌ NONE |
+| F19 | Rich-text columns render a plain-text excerpt | `domain/richTextExcerpt/index.ts:47-56`, `renderCell.tsx:101-110` | ❌ NONE |
 | F20 | Per-type cell rendering (bool/select/multiselect/date/money/number/json) | `CollectionRecordsTable/renderCell.tsx:26-118` | ⚠️ PARTIAL |
 | F21 | Row click + first non-interactive cell `<Link>` open the record | `CollectionRecordsTable/index.tsx:261-263,443-456` | ✅ E2E |
 | F22 | Fallback `sr-only` open-link when every column is interactive | `CollectionRecordsTable/index.tsx:392-410` | ❌ NONE |
@@ -168,7 +168,7 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F29 | Applied-filter chip summary when the panel is collapsed | `LoadedRecordsView/index.tsx:517-524` | ✅ E2E |
 | F30 | Filter fields **served** (`/filter-fields`) with loading + error + retry | `application/useFilterFields`, `LoadedRecordsView/index.tsx:254-259` | ✅ E2E |
 | F31 | `RelationValuePicker` for relation-id filter rules | `components/RelationValuePicker/index.tsx` | ✅ E2E |
-| F32 | Column picker: toggle + drag/keyboard reorder (session-only) | `CollectionRecordsColumnPicker/*`, `hooks/useEntryColumns/index.ts:113-158` | ✅ E2E |
+| F32 | Column picker: toggle + drag/keyboard reorder (session-only) | `CollectionRecordsColumnPicker/*`, `hooks/useEntryColumns/index.ts:34-79` | ✅ E2E |
 | F33 | Relation preview requested only for **visible** relation columns | `LoadedRecordsView/index.tsx:277-293` | ⚠️ PARTIAL |
 | F34 | Pagination: rows-per-page select, range readout, prev/next | `CollectionRecordsPagination/index.tsx:46-142` | ❌ NONE |
 | F35 | Page clamped to `pageCount` after a narrowing change / delete | `LoadedRecordsView/index.tsx:333-340` | ❌ NONE |
@@ -180,7 +180,7 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F41 | Per-field-type controls (text, number/money, bool, select, multiselect, date/datetime, json, richtext, relation) | `EntryFieldInput/index.tsx:234-536` | ⚠️ PARTIAL |
 | F42 | Required indication: `*` mark (aria-hidden) + `aria-required` on the control | `EntryFieldInput/index.tsx:162-171`, `RequiredMark/index.tsx:18-29` | ✅ E2E |
 | F43 | Localized-field globe mark in a focusable tooltip | `LocalizedFieldMark/index.tsx:34-54` | ✅ E2E |
-| F44 | "Changed" badge per dirty field / relation section | `ChangedBadge/index.tsx:66-73`, `EntryEditor/index.tsx:269-271` | ✅ E2E |
+| F44 | "Changed" badge per dirty field / relation section | `ChangedBadge/index.tsx:15-22`, `EntryEditor/index.tsx:269-271` | ✅ E2E |
 | F45 | Validation errors: `<FieldError id>` + `aria-describedby` + `aria-invalid` | `EntryFieldInput/index.tsx:180-184` | ❌ NONE |
 | F46 | Strict vs draft validation (`submit` vs `submitDraft`), reveal on submit | `hooks/useEntryForm/index.ts:152-170` | ⚠️ PARTIAL |
 | F47 | Server 422 → inline per-field errors, cleared on edit | `useEntryForm/index.ts:108-129`, `infrastructure/entryIssues` | ❌ NONE |
@@ -189,8 +189,8 @@ workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
 | F50 | Required **link-managed** relation gated by effective link count | `EntryEditor/index.tsx:396-436` | ❌ NONE |
 | F51 | Editor tabs are routes (General/Relations/[slot tabs]/History) | `domain/entryTab/index.ts:16-21`, `ContentEntryView/index.tsx:242-257` | ✅ E2E |
 | F52 | Write actions portalled into the top bar (primary + ⋯ menu, grouped) | `EntryActions/index.tsx:110-143`, `EntryMenu/index.tsx:113-166` | ✅ E2E |
-| F53 | Properties rail portalled into the shell right panel | `EntryEditor/index.tsx:663-672`, `EntrySidebar/index.tsx:189-216` | ⚠️ PARTIAL |
-| F54 | Four publish labels over two stored values (Not saved / Draft / Modified / Published) | `domain/entryStatusView`, `EntryStatusBadge/index.tsx:115-141` | ⚠️ PARTIAL |
+| F53 | Properties rail portalled into the shell right panel | `EntryEditor/index.tsx:663-672`, `EntrySidebar/index.tsx:45-72` | ⚠️ PARTIAL |
+| F54 | Four publish labels over two stored values (Not saved / Draft / Modified / Published) | `domain/entryStatusView`, `EntryStatusBadge/index.tsx:42-68` | ⚠️ PARTIAL |
 | F55 | Save → toast, stay on editor; a create navigates to its own id | `ContentEntryView/index.tsx:486-518` | ✅ E2E |
 | F56 | Save→publish chain with one deferred cache-refresh pass | `application/usePublishEntryFlow/index.ts:118-187`, `refreshEntryCaches` | ⚠️ PARTIAL |
 | F57 | Busy overlay covering the whole write incl. refetches | `ContentEntryView/index.tsx:320,444-481`, `EntryBusyOverlay` | ⚠️ PARTIAL |
@@ -387,7 +387,7 @@ result count region updates. The chip summary is a plain row of buttons.
 | 4 | Focus a grip and press Space, ↓, Space | Same reorder from the keyboard (dnd-kit `KeyboardSensor`) |
 | 5 | Hide the only relation column | The next list request drops `relations=preview` + `relationFields` entirely |
 | 6 | Reorder two relation columns | **No** refetch — `relationFields` is sorted before joining (`LoadedRecordsView/index.tsx:286-291`) |
-| 7 | Reload the page | The column choice resets to the schema defaults — it is session state, not persisted (`useEntryColumns/index.ts:113-118`) |
+| 7 | Reload the page | The column choice resets to the schema defaults — it is session state, not persisted (`useEntryColumns/index.ts:34-39`) |
 | 8 | Untick every column | The table renders only the checkbox and Actions columns; an `sr-only` "Open {label}" link appears in the checkbox cell (F22) |
 
 **Keyboard-only path:** as step 4; the picker is a Popover (not a menu)
@@ -458,7 +458,7 @@ the package.
 | 11 | On a localized type, read a `localized` field | A globe button sits beside the badge; focusing it opens a tooltip "This value can differ per locale." and does **not** focus the control |
 
 **Keyboard-only path:** Tab walks the fields in schema-rank order (simple →
-choice → large, `EntryFieldSections/index.tsx:156-171`). Every control is
+choice → large, `EntryFieldSections/index.tsx:43-58`). Every control is
 natively focusable; the globe is a real `<button>` that suppresses the label's
 activation. **Screen-reader expectation:** each control announces label,
 required, invalid, and — once invalid — the error via `aria-describedby`. The
@@ -733,7 +733,7 @@ cards. **Screen-reader expectation:** chart primitives belong to
   `wysiwyg-admin`.
 - **EC-20 — A rich-text body containing `<script>…</script>`.** `❌ NONE`
   `richTextExcerpt` strips script/style bodies wholesale before tag-stripping
-  (`richTextExcerpt/index.ts:173,207`), and the result is only ever rendered as
+  (`richTextExcerpt/index.ts:15,49`), and the result is only ever rendered as
   text.
 - **EC-21 — Emoji / CJK / RTL in a title.** `❌ NONE` No `dir="auto"` anywhere in
   the package, so RTL content inside the LTR table renders with mixed direction.
@@ -824,7 +824,7 @@ cards. **Screen-reader expectation:** chart primitives belong to
   filter, sort, page and pageSize are all URL state, so both survive. Only the
   search's URL round-trip is asserted (`content-library.spec.ts:233`).
 - **EC-40 — Column choice surviving a reload.** `❌ NONE` It does **not** —
-  session-only by design (`useEntryColumns/index.ts:113-118`).
+  session-only by design (`useEntryColumns/index.ts:34-39`).
 - **EC-41 — Over-invalidation.** `⚠️ PARTIAL` `refreshEntryCaches` invalidates
   six prefixes plus the read-ones minus the primed id
   (`refreshEntryCaches/index.ts:46-74`) — scoped to the workspace and the type,
@@ -1018,7 +1018,7 @@ where the real exposure is.
 | 1.3.2 Meaningful Sequence (A) | **Supports** | DOM order matches visual order; no positive `tabindex` in the package |
 | 1.3.5 Identify Input Purpose (AA) | **Not Applicable** | No field collects information about the *user* |
 | 1.4.1 Use of Color (A) | **Does Not Support** | ♿-07 — a passing publish-gate row is a green `aria-hidden` check and nothing else |
-| 1.4.3 / 1.4.11 Contrast (AA) | **Not verified** | axe enforces `color-contrast` on the eleven scanned states only, and no suite runs the **dark** theme separately. Unverified: the `ChangedBadge` `warning-soft` pill (`ChangedBadge/index.tsx:69`), `ReadOnlyNotice`'s `info-soft` (`ReadOnlyNotice/index.tsx:173`), the `text-muted-foreground/50` sort glyph (`CollectionRecordsTable/index.tsx:341`), and the destructive gate messages |
+| 1.4.3 / 1.4.11 Contrast (AA) | **Not verified** | axe enforces `color-contrast` on the eleven scanned states only, and no suite runs the **dark** theme separately. Unverified: the `ChangedBadge` `warning-soft` pill (`ChangedBadge/index.tsx:18`), `ReadOnlyNotice`'s `info-soft` (`ReadOnlyNotice/index.tsx:32`), the `text-muted-foreground/50` sort glyph (`CollectionRecordsTable/index.tsx:341`), and the destructive gate messages |
 | 1.4.4 Resize Text (AA) | **Not verified** | No zoom test exists |
 | 1.4.10 Reflow (AA) | **Not verified** | The records card is `overflow-hidden` around a full-width `<table>` (`CollectionRecordsTable/index.tsx:276`) with no `overflow-x:auto` — at 320 px a wide table is **clipped, not scrollable**. Untested and a likely failure |
 | 1.4.12 Text Spacing (AA) | **Not verified** | `truncate` / `max-w-[28ch]` on every text cell (`renderCell.tsx:109,115`) is the risk |
@@ -1029,7 +1029,7 @@ where the real exposure is.
 | 2.4.1 Bypass Blocks (A) | **Not Applicable here** | The skip link belongs to `shell/admin`'s `AppShell` |
 | 2.4.2 Page Titled (AA→A) | **Does Not Support** | `document.title` is the static "Admin" (`apps/admin/index.html:5`); nothing in this package updates it per route, so every content route is titled identically. Owned jointly with `bootstrap-admin` |
 | 2.4.3 Focus Order (A) | **Does Not Support** | ♿-02 (focus lost after delete), ♿-06 (no focus move to the first invalid field), ♿-08 (tab change moves no focus) |
-| 2.4.6 Headings and Labels (AA) | **Partially Supports** | One `<h1>` per editor route; the sidebar `<h2>`. But the editor's main column jumps **h1 → h3** (`FieldGroup/index.tsx:272`) — the intervening `<h2>` is "Properties" in the shell's *right panel*, a different region, so `AGENTS.md`'s claimed h1→h2→h3 does not hold in reading order. Plus ♿-01 |
+| 2.4.6 Headings and Labels (AA) | **Partially Supports** | One `<h1>` per editor route; the sidebar `<h2>`. But the editor's main column jumps **h1 → h3** (`FieldGroup/index.tsx:29`) — the intervening `<h2>` is "Properties" in the shell's *right panel*, a different region, so `AGENTS.md`'s claimed h1→h2→h3 does not hold in reading order. Plus ♿-01 |
 | 2.4.7 Focus Visible (AA) | **Supports** | `focus-visible:ring-*` on every hand-rolled control (`CollectionRecordsTable/index.tsx:319`, `ContentSidebar/index.tsx:116`, `LocalizedFieldMark/index.tsx:42`, `RelationCandidateRow/index.tsx:48` via `has-[:focus-visible]`) |
 | 3.1.1 Language of Page (A) | **Not Applicable here** | `<html lang>` is `bootstrap-admin`'s |
 | 3.1.2 Language of Parts (AA) | **Does Not Support** | No content field can carry a `lang` marker, so a German record in an English admin (or a German excerpt inside an English record) is announced in the wrong voice. Schema-level — file against `content/domain` too |
@@ -1690,7 +1690,7 @@ case CONTENT_FIELD_TYPE.Select:
 localized messages in the **form** (`EntryFieldInput/index.tsx:57-64,262-267`),
 so one record reads two ways in the two places a writer looks at it — precisely
 the drift `EntryStatusBadge` was created to prevent
-(`EntryStatusBadge/index.tsx:105-114`: "the single rendering … so the same record
+(`EntryStatusBadge/index.tsx:32-41`: "the single rendering … so the same record
 can't read two different ways"). The Status column was migrated off raw wire
 values for this reason; boolean was not. In a non-English locale the cell shows
 literal `true` / `false`. (A `select`'s option values are author-defined, so
