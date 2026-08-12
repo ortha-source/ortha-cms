@@ -38,6 +38,27 @@ export interface ServerPlugin {
     docs?: PluginApiDocs;
 }
 
+/**
+ * Express's `trust proxy` setting — how many reverse proxies sit in front of
+ * the app, or which ones to believe.
+ *
+ * It decides what `req.ip` resolves to, and therefore what identity's login
+ * `ThrottlerGuard` buckets on. Left unset, Express ignores `X-Forwarded-For`
+ * entirely and every request behind a load balancer reports the **proxy's**
+ * address — collapsing the whole deployment into one rate-limit bucket, so one
+ * attacker's 10 requests a minute deny login to every user. Setting it too
+ * loosely is the mirror-image failure: any client could spoof
+ * `X-Forwarded-For` and mint itself unlimited buckets.
+ *
+ * Prefer a **hop count** matching the topology (`1` for a single load
+ * balancer): Express reads the address that many hops from the right of
+ * `X-Forwarded-For`, which a client cannot forge past. `true` trusts the whole
+ * chain, and is only safe when nothing untrusted can reach the app directly. A
+ * string is passed to Express verbatim as a subnet/preset list (e.g.
+ * `'loopback'`, `'10.0.0.0/8'`).
+ */
+export type TrustProxySetting = boolean | number | string;
+
 /** Options for {@link createServer}. */
 export interface CreateServerOptions {
     /** Plugins to register. */
@@ -46,6 +67,12 @@ export interface CreateServerOptions {
     port?: number;
     /** Global API prefix. Defaults to "api". */
     globalPrefix?: string;
+    /**
+     * Express `trust proxy` setting. Omitted (the default), forwarded headers
+     * are ignored and `req.ip` is the socket's peer — correct when the app is
+     * exposed directly, wrong behind any proxy. See {@link TrustProxySetting}.
+     */
+    trustProxy?: TrustProxySetting;
     /**
      * OpenAPI document + Scalar API reference settings. Omitted, the reference
      * is served on `/reference` outside production.

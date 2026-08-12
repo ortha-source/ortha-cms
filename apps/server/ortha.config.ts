@@ -7,7 +7,10 @@
  * values come from the environment; stable tuning lives here as literals.
  */
 
-import type { ApiDocsOptions } from '@ortha-cms/bootstrap-server';
+import type {
+    ApiDocsOptions,
+    TrustProxySetting
+} from '@ortha-cms/bootstrap-server';
 import type { CopilotPluginConfig } from '@ortha-cms/copilot-server';
 import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthropic';
 import type { OpenAiProviderConfig } from '@ortha-cms/copilot-provider-openai';
@@ -53,6 +56,13 @@ export interface OrthaConfig {
     port: number;
     /** Global API route prefix. */
     globalPrefix: string;
+    /**
+     * How many reverse proxies sit in front of the app, sourced from
+     * `TRUST_PROXY`. Undefined when unset, which is what a directly-exposed
+     * deployment wants; behind a load balancer it must be set or every client
+     * shares one rate-limit bucket.
+     */
+    trustProxy?: TrustProxySetting;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
     /** OpenAPI document + Scalar API reference settings. */
@@ -74,9 +84,38 @@ export interface OrthaConfig {
     };
 }
 
+/**
+ * Reads `TRUST_PROXY` into Express's `trust proxy` setting.
+ *
+ * Three accepted shapes, in the order they are checked: a hop count (`'1'` —
+ * the recommended form, and the only one a client cannot forge past), a
+ * boolean (`'true'` trusts the entire `X-Forwarded-For` chain, `'false'`
+ * trusts none), or any other non-empty string, passed to Express verbatim as a
+ * subnet/preset list (`'loopback'`, `'10.0.0.0/8'`). Unset yields `undefined`,
+ * leaving Express's default of ignoring forwarded headers entirely.
+ */
+function readTrustProxy(): TrustProxySetting | undefined {
+    const raw = process.env['TRUST_PROXY']?.trim();
+    if (!raw) {
+        return undefined;
+    }
+    const hops = Number(raw);
+    if (Number.isInteger(hops) && hops >= 0) {
+        return hops;
+    }
+    if (raw === 'true' || raw === 'false') {
+        return raw === 'true';
+    }
+    return raw;
+}
+
 const config: OrthaConfig = {
     port: Number(process.env['PORT']) || 3000,
     globalPrefix: 'api',
+    // Unset by default: a directly-exposed server must not believe a
+    // client-supplied `X-Forwarded-For`. Deployments behind a load balancer set
+    // `TRUST_PROXY` to their hop count.
+    trustProxy: readTrustProxy(),
     database: {
         url: process.env['DATABASE_URL'] ?? ''
     },

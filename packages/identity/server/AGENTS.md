@@ -355,11 +355,18 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   path that flips `status` without revoking. All of it reads as a plain `401`,
   so a suspended account is indistinguishable from an expired session.
 - **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
-  (10/min, in-memory — per-instance; needs a shared store + Express `trust
-proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
+  (10/min, in-memory — per-instance; needs a shared store at scale) against
+  brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   which rejects browser requests whose `Origin` is not in
   `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser
-  clients pass). Still **deferred**: a CSRF token for higher-value mutations,
+  clients pass). The throttle buckets on `req.ip`, which is only the **client's**
+  address if the host set Express `trust proxy` — `createServer`'s `trustProxy`
+  option, sourced from `TRUST_PROXY`. It is a host concern (identity never sees
+  the adapter), but it is identity's failure when it is missing: behind a proxy
+  every caller reports the same address, so the deployment shares one bucket and
+  one attacker's ten requests a minute lock every user out of login. Covered by
+  `apps/server-e2e/src/server/auth/login-throttle.spec.ts`, which boots the app
+  both ways. Still **deferred**: a CSRF token for higher-value mutations,
   `helmet` security headers (host concern), and expired-session pruning.
 - **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
   design. They may be empty at boot today (sessions are unsigned, see above);

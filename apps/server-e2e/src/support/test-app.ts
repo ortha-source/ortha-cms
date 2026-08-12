@@ -1,5 +1,6 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ServerModule } from '@ortha-cms/bootstrap-server';
 import { getPool } from '@ortha-cms/database';
 import type { Server } from 'node:http';
@@ -27,9 +28,8 @@ export interface TestApp {
 export async function createTestApp(
     overrides: TestConfigOverrides = {}
 ): Promise<TestApp> {
-    const plugins = buildTestPlugins(
-        buildTestConfig(resolveDatabaseUrl(), overrides)
-    );
+    const config = buildTestConfig(resolveDatabaseUrl(), overrides);
+    const plugins = buildTestPlugins(config);
 
     // Mirror createServer: plugin init hooks run before the app is created so
     // the database connection is open before any provider is instantiated.
@@ -37,9 +37,16 @@ export async function createTestApp(
         await plugin.onPluginInit?.();
     }
 
-    const app = await NestFactory.create(ServerModule.forRoot(plugins), {
-        logger: false
-    });
+    const app = await NestFactory.create<NestExpressApplication>(
+        ServerModule.forRoot(plugins),
+        { logger: false }
+    );
+    // Mirrors `createServer`, and before anything reads `req.ip`: the login
+    // throttle buckets on it, so a suite that asserts per-client limiting has
+    // to boot with the same proxy trust a real deployment configures.
+    if (config.trustProxy !== undefined) {
+        app.set('trust proxy', config.trustProxy);
+    }
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
         new ValidationPipe({

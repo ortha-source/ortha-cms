@@ -6,5 +6,6 @@ createServer({
     plugins: buildPlugins(config),
     port: config.port,
     globalPrefix: config.globalPrefix,
+    trustProxy: config.trustProxy,
     docs: config.docs
 });

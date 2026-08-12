@@ -30,7 +30,9 @@ contains no features.
 - `ServerModule` — dynamic root module; `forRoot(plugins)` imports every
   plugin's module
 - `ServerPlugin` — the plugin contract: `{ name, module, onPluginInit? }`
-- `CreateServerOptions` — `{ plugins, port?, globalPrefix?, docs? }`
+- `CreateServerOptions` — `{ plugins, port?, globalPrefix?, trustProxy?, docs? }`
+- `TrustProxySetting` — Express's `trust proxy` value: a hop count, a boolean,
+  or a subnet/preset string
 - `setupApiDocs(app, plugins, docs?, globalPrefix?)` — the API-reference wiring,
   exported for a host that builds its own `INestApplication`
 - `ApiDocsOptions` / `PluginApiDocs` / `ApiSecurityScheme` — the docs contracts
@@ -48,6 +50,15 @@ contains no features.
 - **Global policy, once.** The `api` prefix and the strict `ValidationPipe`
   (`whitelist` + `forbidNonWhitelisted` + `transform`) are configured here so no
   plugin repeats them.
+- **Proxy trust, once.** `trustProxy` is applied to the Express adapter before
+  the prefix, because it decides what `req.ip` resolves to — and a plugin that
+  rate-limits or audits by client address is only as correct as that. Unset by
+  default: Express then ignores `X-Forwarded-For`, which is right for a
+  directly-exposed server and **wrong behind any proxy**, where every caller
+  reports the proxy's address and identity's login throttle degenerates into one
+  global bucket. Deployments set `TRUST_PROXY` to their hop count. Never trust a
+  chain you don't terminate — a spoofable `X-Forwarded-For` makes the limit one
+  header away from bypassable.
 - **API docs, once.** `setupApiDocs` (`utils/setup-api-docs.ts`) runs after the
   prefix + pipe and before `listen`, so the document describes the real URLs.
   See below.
@@ -103,6 +114,7 @@ createServer({
     plugins: [DatabasePlugin({ connectionString: config.database.url })],
     port: config.port,
     globalPrefix: config.globalPrefix,
+    trustProxy: config.trustProxy,
     docs: config.docs
 });
 ```

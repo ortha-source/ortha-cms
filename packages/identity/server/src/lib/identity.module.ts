@@ -74,10 +74,13 @@ export class IdentityModule {
             global: true,
             imports: [
                 // Per-instance, in-memory rate limit guarding /auth/login
-                // against brute-force + bcrypt CPU-DoS. For multi-instance
-                // deploys swap in a shared store (e.g. Redis); set Express
-                // `trust proxy` behind a load balancer so the client IP — not
-                // the proxy's — is what gets throttled.
+                // against brute-force + bcrypt CPU-DoS. The bucket key is
+                // `req.ip`, so it is only per-client if the host set Express
+                // `trust proxy` — `createServer`'s `trustProxy` option, fed by
+                // `TRUST_PROXY`. Unset behind a load balancer, every caller
+                // reports the proxy's address and shares one bucket, which
+                // turns one attacker's quota into a global login outage. For
+                // multi-instance deploys also swap in a shared store (Redis).
                 ThrottlerModule.forRoot([
                     { ttl: rateLimit.ttlSeconds * 1000, limit: rateLimit.limit }
                 ])
