@@ -16,24 +16,32 @@ export type AuthUser = {
 };
 
 /**
- * The three states auth resolution can be in. Used as the `AuthState`
- * discriminant; `AuthProvider` sets it and `RequireAuth` branches on it, so the
- * literal lives here once instead of being re-typed at each call site.
+ * The states auth resolution can be in. Used as the `AuthState` discriminant;
+ * `AuthProvider` sets it and `RequireAuth` branches on it, so the literal lives
+ * here once instead of being re-typed at each call site.
+ *
+ * `Unauthenticated` and `Unavailable` are deliberately separate: "the server
+ * says nobody is signed in" and "we could not ask the server" look identical in
+ * a two-way split, and collapsing them makes every API outage present itself to
+ * a signed-in user as a sign-out.
  */
 export enum AuthStatus {
     /** A probe (initial load or post-login/logout refetch) is in flight. */
     Loading = 'loading',
     /** A current user was resolved. */
     Authenticated = 'authenticated',
-    /** A fetch completed with no user. */
-    Unauthenticated = 'unauthenticated'
+    /** A fetch completed with no user — the session is gone or never existed. */
+    Unauthenticated = 'unauthenticated',
+    /** The probe failed for a reason other than `401`; who is signed in is unknown. */
+    Unavailable = 'unavailable'
 }
 
 /** Resolved auth state the route gate reads. */
 export type AuthState =
     | { status: AuthStatus.Loading; user: null }
     | { status: AuthStatus.Authenticated; user: AuthUser }
-    | { status: AuthStatus.Unauthenticated; user: null };
+    | { status: AuthStatus.Unauthenticated; user: null }
+    | { status: AuthStatus.Unavailable; user: null };
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -55,8 +63,9 @@ export function useAuth(): AuthState {
 
 /**
  * Whether the signed-in user holds `permission`. Fail-closed: returns `false`
- * while auth is still loading or when unauthenticated, so permission-gated UI
- * stays hidden until a grant is confirmed. Use it to gate actions (e.g. show the
+ * for every status but `Authenticated` — loading, signed out, or unreachable —
+ * so permission-gated UI stays hidden until a grant is confirmed. Use it to
+ * gate actions (e.g. show the
  * "New workspace" button only with `workspaces:create`); the server enforces the
  * same permission, this just keeps the UI honest.
  */

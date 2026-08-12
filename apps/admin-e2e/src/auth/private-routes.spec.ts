@@ -1,5 +1,6 @@
 import { test, expect } from '../support/fixtures';
 import {
+    mockAuthProbeUnavailable,
     mockLogin,
     mockSignedIn,
     mockSignedOut,
@@ -58,6 +59,40 @@ test.describe('Private route gating', () => {
         await expect(page).toHaveURL('/');
         await expect(homePage.heading).toBeVisible();
         await expect(homePage.nav).toBeVisible();
+    });
+});
+
+/**
+ * The gate's third answer. `GET /api/auth/me` failing is not the same as it
+ * saying "nobody": the session cookie can be perfectly valid and the endpoint
+ * simply down. Redirecting on that reports an outage as a sign-out, and sends
+ * the user to a form that posts to the same dead API.
+ */
+test.describe('Auth probe unavailable', () => {
+    test('says the server is unreachable instead of signing the user out', async ({
+        page,
+        homePage,
+        loginPage
+    }) => {
+        await mockAuthProbeUnavailable(page);
+        await homePage.goto();
+
+        await expect(homePage.authUnavailableHeading()).toBeVisible();
+        await expect(page).toHaveURL('/');
+        await expect(loginPage.heading).toHaveCount(0);
+    });
+
+    test('recovers when the API comes back', async ({ page, homePage }) => {
+        await mockAuthProbeUnavailable(page);
+        await homePage.goto();
+        await expect(homePage.authUnavailableHeading()).toBeVisible();
+
+        // The API recovers (later routes win) and the same session resolves.
+        await mockSignedIn(page);
+        await homePage.retryAuthProbe().click();
+
+        await expect(homePage.nav).toBeVisible();
+        await expect(homePage.heading).toBeVisible();
     });
 });
 

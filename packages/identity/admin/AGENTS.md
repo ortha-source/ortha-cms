@@ -88,9 +88,10 @@ owns auth). `src/lib` is organized into:
   wraps it around `RequireAuth` in its `layout`. It also owns the **session-lost**
   reaction (see below)
 - `RequireAuth` — the route gate; redirects to `/identity/signin` while
-  unauthenticated, preserving the attempted location for return-to. Reusable by
-  any plugin that needs to gate its own sub-routes (imported from here, not the
-  host)
+  unauthenticated, preserving the attempted location for return-to, and renders
+  the `AuthUnavailable` screen when the probe **failed** rather than answering
+  "nobody". Reusable by any plugin that needs to gate its own sub-routes
+  (imported from here, not the host)
 - `useHasPermission(permission)` — whether the signed-in user holds a permission key
   (from `/auth/me`); fail-closed while loading. Gate permission-aware UI with it
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
@@ -163,6 +164,15 @@ owns auth). `src/lib` is organized into:
       suspended is caught on return without waiting for the next action. The
       refetch is invisible: `AuthProvider` keeps reporting the cached user while
       it is in flight, so focus never flashes the root loader.
+- **An outage is not a sign-out.** `AuthState` has **four** statuses, not three:
+  `loading`, `authenticated`, `unauthenticated`, and `unavailable`. The gateway
+  turns a `401` on `/auth/me` into `data === null` (signed out) and rethrows
+  everything else, so a `500`, a timeout or a dead connection resolves to
+  `unavailable` and `RequireAuth` renders `AuthUnavailable` — a "we can't reach
+  the server" card with a retry — instead of redirecting. Collapsing the two
+  told a user with a valid session cookie that they were signed out and pointed
+  them at a login form posting to the same dead API. `useHasPermission` stays
+  fail-closed: everything but `authenticated` denies.
 - **One tab, one identity.** Whenever the identity behind a tab changes —
   logout, login, accepting an invite — the mutation calls `resetSessionCache`,
   which removes every cached query outside this plugin's `auth` namespace. The

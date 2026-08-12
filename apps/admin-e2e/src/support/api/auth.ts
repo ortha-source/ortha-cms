@@ -129,6 +129,24 @@ export async function mockSignedOut(page: Page): Promise<void> {
 }
 
 /**
+ * Stub `GET /api/auth/me` as **broken** (`500`) — the session cookie is still
+ * valid, the endpoint just cannot answer. Distinct from {@link mockSignedOut}
+ * on purpose: an outage must not present itself as a sign-out, so the gate
+ * holds the tab on its "can't reach the server" screen instead of redirecting.
+ *
+ * Register `mockSignedIn` after it to bring the API back mid-test.
+ */
+export async function mockAuthProbeUnavailable(page: Page): Promise<void> {
+    await page.route('**/api/auth/me', async (route) => {
+        await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Internal Server Error' })
+        });
+    });
+}
+
+/**
  * Answer `401` on any request matching `urlPattern` — the shape a live tab sees
  * the moment its session stops being valid (revoked elsewhere, expired, or the
  * account suspended by an admin). Register it **after** the endpoint's normal
