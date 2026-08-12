@@ -1,5 +1,6 @@
 import request from 'supertest';
 import type { Response } from 'supertest';
+import { PERMISSION_KEYS } from '@ortha-cms/identity-server';
 import {
     closeTestApp,
     createTestApp,
@@ -123,21 +124,43 @@ describe('GET /api/auth/me', () => {
             ]);
         });
 
-        it('includes the permission keys the user’s role grants', async () => {
+        it('includes exactly the permission keys the user’s role grants', async () => {
             const res = await get()
                 .set('Cookie', await login())
                 .expect(200);
             // The seeded user is an admin, so they hold the full catalogue —
-            // workspaces:create plus the users:* keys the admin UI gates on.
+            // and *only* the catalogue. Asserting the exact set rather than a
+            // superset is the point: `seedSystemRoles` was additive-only, so a
+            // permission deleted from the code (ADR-0009 removed
+            // `copilot:configure`) stayed granted in the database forever and
+            // an admin kept being handed a key that no longer exists.
             expect(Array.isArray(res.body.permissions)).toBe(true);
-            expect(res.body.permissions).toEqual(
-                expect.arrayContaining([
-                    'workspaces:create',
+            expect([...res.body.permissions].sort()).toEqual(
+                [...PERMISSION_KEYS].sort()
+            );
+        });
+
+        it('grants a viewer exactly the read-only set', async () => {
+            const viewer = await seedActiveUser(harness.app, {
+                email: 'me-viewer@example.com',
+                password: PASSWORD,
+                role: 'viewer'
+            });
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: viewer.email, password: PASSWORD })
+                .expect(201);
+
+            const res = await agent.get('/api/auth/me').expect(200);
+            expect([...res.body.permissions].sort()).toEqual(
+                [
+                    'workspaces:read',
                     'users:read',
-                    'users:create',
-                    'users:update',
-                    'users:delete'
-                ])
+                    'content:read',
+                    'media:read',
+                    'copilot:use'
+                ].sort()
             );
         });
 

@@ -64,8 +64,15 @@ export interface SystemRole {
  * *provably* read-only — it can only ever offer the tools that viewer's own
  * permissions already allow. Cost is handled with per-role rate limits rather
  * than by excluding the largest population from the feature.
- * `copilot:configure` stays admin-only: registering a model or a connector
- * decides where workspace content travels.
+ *
+ * There is **no** `copilot:configure`:
+ * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+ * deleted the per-workspace policy it gated, and the key with it. It is worth
+ * naming here because the key outlived its deletion in every existing database
+ * — `seedSystemRoles` used to be additive-only, so the `permissions` row and
+ * its grant to `admin` persisted and `/auth/me` kept returning 24 keys against
+ * the 23 defined above. The seeder now reconciles in both directions, so
+ * removing a key from this file removes the grant.
  *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
