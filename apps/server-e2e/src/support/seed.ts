@@ -170,6 +170,18 @@ export async function seedWorkspace(opts: {
 }
 
 /**
+ * Archive a workspace directly. The API route needs membership plus an
+ * `Origin` header, which is noise for a spec that only cares that an archived
+ * workspace still **exists** — the distinction the API-token bucket check draws.
+ */
+export async function archiveWorkspace(workspaceId: string): Promise<void> {
+    await getDatabase()
+        .update(workspaces)
+        .set({ status: 'archived' })
+        .where(eq(workspaces.id, workspaceId));
+}
+
+/**
  * Grant a workspace access to content slugs (the `workspace_content` rows the
  * create wizard writes). Membership alone is not access: the filter-fields
  * surface 404s a type the workspace was never granted, and prunes relations

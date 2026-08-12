@@ -6,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    archiveWorkspace,
     getActivityRows,
     resetDb,
     seedActiveUser,
@@ -120,6 +121,65 @@ describe('API token management (/api/api-tokens)', () => {
             .post('/api/api-tokens')
             .send({ name: 'nowhere', workspaceIds: [], scope: 'read' })
             .expect(400);
+    });
+
+    it('rejects a bucket naming a workspace that does not exist', async () => {
+        // BUG-identity-server-06. `api_token_workspaces` carries no
+        // cross-plugin foreign key, so a typo used to mint happily and leave a
+        // row pointing at nothing — a token that reads as configured, grants
+        // access to no content, and survives forever because no cascade will
+        // ever reach it.
+        const agent = await login(ADMIN_EMAIL);
+        const phantom = '11111111-1111-4111-8111-111111111111';
+
+        const res = await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'phantom',
+                workspaceIds: [phantom],
+                scope: 'read'
+            })
+            .expect(400);
+        expect(res.body.message).toContain(phantom);
+
+        // Nothing was written — not the token, not the bucket row.
+        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
+            0
+        );
+    });
+
+    it('rejects a bucket that mixes real and phantom workspaces', async () => {
+        // Partial validity is still invalid: minting the "real" half would
+        // silently narrow a bucket the admin believed they had granted.
+        const agent = await login(ADMIN_EMAIL);
+        const phantom = '22222222-2222-4222-8222-222222222222';
+
+        await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'half-real',
+                workspaceIds: [workspaceId, phantom],
+                scope: 'read'
+            })
+            .expect(400);
+
+        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
+            0
+        );
+    });
+
+    it('still accepts an archived workspace — existence, not status', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        await archiveWorkspace(workspaceId);
+
+        await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'archived-ok',
+                workspaceIds: [workspaceId],
+                scope: 'read'
+            })
+            .expect(201);
     });
 
     it('lists a multi-workspace token under each of its workspaces', async () => {

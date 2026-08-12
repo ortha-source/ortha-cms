@@ -1,6 +1,7 @@
 import type { DomainEvent, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import { HashingService } from '../../auth/services/hashing.service';
 import { ApiTokenService } from './api-token.service';
+import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';
 import type {
     ApiTokenRecord,
     DrizzleApiTokenRepository,
@@ -47,11 +48,30 @@ describe('ApiTokenService', () => {
         };
     }
 
-    /** Builds the service over stubbed collaborators, exposing the outbox. */
-    function makeService(repo: DrizzleApiTokenRepository) {
+    /**
+     * Builds the service over stubbed collaborators, exposing the outbox.
+     * `known` seeds the workspace directory; omit it to leave the optional port
+     * unbound, which is how the service behaves with no workspaces plugin.
+     */
+    function makeService(
+        repo: DrizzleApiTokenRepository,
+        known?: readonly string[]
+    ) {
         const { events, outbox } = makeOutbox();
+        const directory = known
+            ? {
+                  existing: async (ids: readonly string[]) =>
+                      ids.filter((id) => known.includes(id))
+              }
+            : undefined;
         return {
-            service: new ApiTokenService(repo, hashing, uow, outbox),
+            service: new ApiTokenService(
+                repo,
+                hashing,
+                uow,
+                outbox,
+                directory
+            ),
             events
         };
     }
@@ -184,6 +204,70 @@ describe('ApiTokenService', () => {
 
             expect(events[0].payload).toMatchObject({
                 actor: { id: 'user-1', email: null }
+            });
+        });
+
+        describe('workspace bucket validation', () => {
+            const mintInput = (workspaceIds: string[]) => ({
+                name: 'CI',
+                workspaceIds,
+                scope: 'read' as const,
+                createdBy: 'user-1'
+            });
+
+            it('rejects a bucket naming a workspace that does not exist', async () => {
+                // BUG-identity-server-06: `api_token_workspaces` has no
+                // cross-plugin FK, so nothing stopped a typo from minting a
+                // token scoped to nothing that reads as configured.
+                const { repo } = makeRepo(null);
+                const { service, events } = makeService(repo, ['ws-1']);
+
+                await expect(
+                    service.mint(mintInput(['ws-nope']))
+                ).rejects.toBeInstanceOf(UnknownWorkspaceError);
+                expect(repo.insert).not.toHaveBeenCalled();
+                expect(events).toEqual([]);
+            });
+
+            it('rejects a bucket mixing real and phantom ids, naming only the phantoms', async () => {
+                const { repo } = makeRepo(null);
+                const { service } = makeService(repo, ['ws-1']);
+
+                await expect(
+                    service.mint(mintInput(['ws-1', 'ws-nope', 'ws-also-nope']))
+                ).rejects.toMatchObject({
+                    workspaceIds: ['ws-nope', 'ws-also-nope']
+                });
+                expect(repo.insert).not.toHaveBeenCalled();
+            });
+
+            it('accepts a bucket whose ids all exist', async () => {
+                const { repo } = makeRepo(null);
+                const { service } = makeService(repo, ['ws-1', 'ws-2']);
+
+                await expect(
+                    service.mint(mintInput(['ws-1', 'ws-2']))
+                ).resolves.toBeDefined();
+            });
+
+            it('checks the deduped bucket, so a repeated bad id reports once', async () => {
+                const { repo } = makeRepo(null);
+                const { service } = makeService(repo, ['ws-1']);
+
+                await expect(
+                    service.mint(mintInput(['ws-nope', 'ws-nope']))
+                ).rejects.toMatchObject({ workspaceIds: ['ws-nope'] });
+            });
+
+            it('skips the check entirely when no directory is bound', async () => {
+                // With no workspaces plugin there is nothing to validate
+                // against; failing every mint would be worse than the gap.
+                const { repo } = makeRepo(null);
+                const { service } = makeService(repo);
+
+                await expect(
+                    service.mint(mintInput(['ws-anything']))
+                ).resolves.toBeDefined();
             });
         });
     });

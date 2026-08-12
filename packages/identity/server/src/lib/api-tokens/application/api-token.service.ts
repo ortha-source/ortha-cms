@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     attachActor,
     OutboxWriter,
@@ -12,6 +12,11 @@ import {
 } from '../../domain/events/identity-events';
 import { HashingService } from '../../auth/services/hashing.service';
 import type { ApiTokenScope } from '../domain/api-token-scope';
+import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';
+import {
+    WORKSPACE_DIRECTORY,
+    type WorkspaceDirectory
+} from './ports/workspace-directory.port';
 import {
     DrizzleApiTokenRepository,
     type ApiTokenRecord
@@ -95,7 +100,10 @@ export class ApiTokenService {
         private readonly repo: DrizzleApiTokenRepository,
         private readonly hashing: HashingService,
         private readonly uow: UnitOfWork,
-        private readonly outbox: OutboxWriter
+        private readonly outbox: OutboxWriter,
+        @Optional()
+        @Inject(WORKSPACE_DIRECTORY)
+        private readonly workspaces?: WorkspaceDirectory
     ) {}
 
     /**
@@ -108,12 +116,18 @@ export class ApiTokenService {
      * token is a long-lived key to workspace content, so "who minted this, when,
      * scoped to what" has to be answerable — and a token that existed while its
      * audit row did not would be exactly the credential nobody can account for.
+     *
+     * @throws UnknownWorkspaceError when the bucket names a workspace that does
+     * not exist. `api_token_workspaces` carries no cross-plugin foreign key, so
+     * without this check a typo mints a token scoped to nothing that reads as
+     * correctly configured.
      */
     async mint(input: MintApiTokenInput): Promise<MintedApiToken> {
         const secret =
             TOKEN_PREFIX +
             randomBytes(TOKEN_ENTROPY_BYTES).toString('base64url');
         const workspaceIds = [...new Set(input.workspaceIds)];
+        await this.assertWorkspacesExist(workspaceIds);
 
         const row = await this.uow.run(async () => {
             const inserted = await this.repo.insert({
@@ -238,6 +252,27 @@ export class ApiTokenService {
             );
             return revoked;
         });
+    }
+
+    /**
+     * Rejects a bucket naming workspaces that do not exist.
+     *
+     * A no-op when nothing is bound to {@link WORKSPACE_DIRECTORY}: with no
+     * workspaces plugin there is no directory to check against, and failing
+     * every mint would be worse than the referential gap. In the assembled app
+     * the binding is always present.
+     */
+    private async assertWorkspacesExist(
+        workspaceIds: readonly string[]
+    ): Promise<void> {
+        if (!this.workspaces || workspaceIds.length === 0) {
+            return;
+        }
+        const existing = new Set(await this.workspaces.existing(workspaceIds));
+        const missing = workspaceIds.filter((id) => !existing.has(id));
+        if (missing.length > 0) {
+            throw new UnknownWorkspaceError(missing);
+        }
     }
 
     /**

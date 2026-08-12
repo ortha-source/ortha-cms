@@ -235,7 +235,14 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       cross-plugin FK on the workspace), the create body takes `workspaceIds`
       (at least one; duplicates collapsed), and every read returns the row and
       its bucket together as an `ApiTokenRecord` — so no caller can observe a
-      token scoped to nothing. `?workspaceId=` on the list is a bucket-membership
+      token scoped to nothing. Because there is no FK, the ids are checked
+      against the `WORKSPACE_DIRECTORY` **port** (identity owns it, the
+      workspaces plugin binds `WorkspaceExistenceQuery` — the `ACTIVITY_RECORDER`
+      inversion, keeping the graph acyclic): a bucket naming a workspace that
+      does not exist 400s instead of minting a row that points at nothing. The
+      check is **existence, not status** — an archived workspace is a legitimate
+      scope — and it is skipped when nothing binds the port, since with no
+      workspaces plugin there is no directory to consult. `?workspaceId=` on the list is a bucket-membership
       test, so a multi-workspace token appears under each of its workspaces
       (once each). The management
       routes `POST`/`GET`/`DELETE /api/api-tokens` are **session**-authenticated

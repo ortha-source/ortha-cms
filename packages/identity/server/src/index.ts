@@ -92,3 +92,9 @@ export type {
     ApiTokenScope,
     ScopedToken
 } from './lib/api-tokens/domain/api-token-scope';
+// The workspace-existence port a token's bucket is validated against. Identity
+// owns it and the workspaces plugin binds it — the same inversion as
+// `ACTIVITY_RECORDER`, keeping the package graph acyclic.
+export { WORKSPACE_DIRECTORY } from './lib/api-tokens/application/ports/workspace-directory.port';
+export type { WorkspaceDirectory } from './lib/api-tokens/application/ports/workspace-directory.port';
+export { UnknownWorkspaceError } from './lib/api-tokens/domain/unknown-workspace.error';
