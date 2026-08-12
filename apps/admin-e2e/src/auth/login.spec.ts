@@ -1,5 +1,10 @@
 import { test, expect } from '../support/fixtures';
-import { mockLogin, mockSignedIn, mockSignedOut, spyLogin } from '../support/api/auth';
+import {
+    mockLogin,
+    mockSignedIn,
+    mockSignedOut,
+    spyLogin
+} from '../support/api/auth';
 
 const EMAIL = 'admin@example.com';
 const PASSWORD = 'SecurePass123!';
@@ -66,12 +71,20 @@ test.describe('Login page (/identity/signin)', () => {
             expect(login.count).toBe(0);
         });
 
-        // Regression guard for the duplicate-error bug (onChange + onSubmit
-        // both validating) we fixed while wiring login.
+        // Regression guard for two ways a field ends up announcing more than
+        // one thing: the same validator running twice (onChange + onSubmit),
+        // and two *different* rules both failing on an empty box — "required"
+        // plus "that isn't a valid email". Asserting the region's whole text
+        // catches both; counting one message's occurrences catches only the
+        // first.
         test('shows exactly one error per field', async ({ loginPage }) => {
             await loginPage.submit.click();
-            await expect(loginPage.fieldError('Email is required')).toHaveCount(
-                1
+
+            await expect(loginPage.fieldErrorRegion('email')).toHaveText(
+                'Email is required'
+            );
+            await expect(loginPage.fieldErrorRegion('password')).toHaveText(
+                'Password is required'
             );
         });
 

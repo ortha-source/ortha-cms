@@ -57,12 +57,22 @@ export function useAcceptInviteSchema() {
                                 messages.passwordRequired
                             )
                         })
-                        .min(PASSWORD_MIN_LENGTH, {
-                            message: intl.formatMessage(
-                                messages.passwordTooShort,
-                                { min: PASSWORD_MIN_LENGTH }
-                            )
-                        })
+                        // Length is judged only once something has been typed:
+                        // zod reports every failing check on a field, so a
+                        // plain `.min(PASSWORD_MIN_LENGTH)` would stack "Choose
+                        // a password…" and "Use at least 12 characters…" in one
+                        // `role="alert"` for an empty box.
+                        .refine(
+                            (value) =>
+                                value.length === 0 ||
+                                value.length >= PASSWORD_MIN_LENGTH,
+                            {
+                                message: intl.formatMessage(
+                                    messages.passwordTooShort,
+                                    { min: PASSWORD_MIN_LENGTH }
+                                )
+                            }
+                        )
                         .max(PASSWORD_MAX_LENGTH, {
                             message: intl.formatMessage(
                                 messages.passwordTooLong,
@@ -73,10 +83,13 @@ export function useAcceptInviteSchema() {
                         message: intl.formatMessage(messages.confirmRequired)
                     })
                 })
-                .refine((values) => values.password === values.confirmPassword, {
-                    message: intl.formatMessage(messages.confirmMismatch),
-                    path: ['confirmPassword']
-                }),
+                .refine(
+                    (values) => values.password === values.confirmPassword,
+                    {
+                        message: intl.formatMessage(messages.confirmMismatch),
+                        path: ['confirmPassword']
+                    }
+                ),
         [intl]
     );
 }

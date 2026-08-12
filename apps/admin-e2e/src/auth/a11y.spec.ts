@@ -1,5 +1,10 @@
 import { test } from '../support/fixtures';
-import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
+import {
+    mockAuthProbeUnavailable,
+    mockLogin,
+    mockSignedIn,
+    mockSignedOut
+} from '../support/api/auth';
 import {
     DEFAULT_INVITE,
     mockInvite,
@@ -95,6 +100,29 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockInvite(page, DEFAULT_INVITE, { status: 404 });
         await acceptInvitePage.goto();
         await acceptInvitePage.unavailableHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('accept-invite page — lookup outage', async ({
+        page,
+        acceptInvitePage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockInvite(page, DEFAULT_INVITE, { status: 500 });
+        await acceptInvitePage.goto();
+        await acceptInvitePage.lookupFailedHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('auth gate — probe unavailable', async ({
+        page,
+        homePage,
+        makeAxe
+    }) => {
+        await mockAuthProbeUnavailable(page);
+        await homePage.goto();
+        await homePage.authUnavailableHeading().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_418 test cases across 44 spec files._
+_432 test cases across 45 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -68,6 +68,8 @@ _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
 | accept-invite page — validation errors visible |
 | accept-invite page — submission-error banner visible |
 | accept-invite page — dead link |
+| accept-invite page — lookup outage |
+| auth gate — probe unavailable |
 | home page |
 | root loader — auth probe pending |
 
@@ -84,10 +86,13 @@ _<sub>apps/admin-e2e/src/auth/accept-invite.spec.ts</sub>_
 | blocks a too-short password client-side, sending no request |
 | blocks a mismatched confirmation, sending no request |
 | flags both empty fields on submit |
+| gives an empty field one message, not a stack of them |
 | explains a link that died while the form was open |
 | explains a password the server rejected |
 | shows the dead-link state for a rejected token |
 | tells a truncated link apart from a dead one |
+| tells a server outage apart from a dead link |
+| retrying a failed lookup picks up where it left off |
 | announces the lookup while it is in flight |
 | disables the submit button while the request is in flight |
 
@@ -99,6 +104,7 @@ _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
 | Test case |
 | --- |
 | the email field is the first focus stop |
+| tabbing through the form hits credentials then submit, with no dead stop between |
 | login can be completed and submitted by keyboard alone |
 | an invite can be accepted by keyboard alone |
 | every accept-invite field is reachable in source order |
@@ -128,11 +134,35 @@ _<sub>apps/admin-e2e/src/auth/login.spec.ts</sub>_
 | shows exactly one error per field |
 | rejects a malformed email |
 
+### the controls on offer
+
+| Test case |
+| --- |
+| offers no control that leads nowhere |
+| says how an account is obtained instead |
+
 ### pending state
 
 | Test case |
 | --- |
 | disables the submit button while the request is in flight |
+
+<!-- source: apps/admin-e2e/src/auth/logout.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/logout.spec.ts</sub>_
+
+## Logout
+
+| Test case |
+| --- |
+| lands the tab on the sign-in page |
+| says so when the request fails, instead of swallowing the click |
+| leaves nothing of the previous account in the cache |
+
+## Signing in after a session ended on its own
+
+| Test case |
+| --- |
+| does not inherit the previous account’s cached data |
 
 <!-- source: apps/admin-e2e/src/auth/private-routes.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
@@ -144,6 +174,13 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | redirects a signed-out user from / to the sign-in page |
 | redirects a signed-out user from an unknown path to the sign-in page |
 | returns to the home page after a gated user signs in |
+
+## Auth probe unavailable
+
+| Test case |
+| --- |
+| says the server is unreachable instead of signing the user out |
+| recovers when the API comes back |
 
 ## Session lost mid-visit
 

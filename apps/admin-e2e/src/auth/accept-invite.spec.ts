@@ -143,6 +143,26 @@ test.describe('accept an invite', () => {
         expect(accept.count).toBe(0);
     });
 
+    test('gives an empty field one message, not a stack of them', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+
+        await acceptInvitePage.submit.click();
+
+        // An empty box fails "required" and "at least 12 characters" alike;
+        // announcing both tells the invitee to lengthen a password they have
+        // not typed, in a single `role="alert"`.
+        await expect(acceptInvitePage.fieldErrorRegion('password')).toHaveText(
+            'Choose a password to finish setting up your account'
+        );
+        await expect(
+            acceptInvitePage.fieldErrorRegion('confirm-password')
+        ).toHaveText('Type your password once more to confirm it');
+    });
+
     test('explains a link that died while the form was open', async ({
         page,
         acceptInvitePage

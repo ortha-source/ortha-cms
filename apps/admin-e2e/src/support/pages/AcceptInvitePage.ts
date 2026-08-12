@@ -75,6 +75,16 @@ export class AcceptInvitePage extends BasePage {
         return this.page.getByText(pattern);
     }
 
+    /**
+     * A field's whole validation region — the `role="alert"` the input points
+     * at with `aria-describedby`. Assert its *text* to pin how many messages a
+     * field announces at once: stacked messages render as a list inside this
+     * one region.
+     */
+    fieldErrorRegion(field: 'password' | 'confirm-password'): Locator {
+        return this.page.locator(`#accept-invite-${field}-error`);
+    }
+
     /** The dead-link state's heading. */
     unavailableHeading(): Locator {
         return this.page.getByRole('heading', {

@@ -45,4 +45,15 @@ export class LoginPage extends BasePage {
     fieldError(message: string): Locator {
         return this.page.getByText(message, { exact: true });
     }
+
+    /**
+     * A field's whole validation region — the `role="alert"` the input points
+     * at with `aria-describedby`. Assert its *text* to pin how many messages a
+     * field is announcing at once: several stacked messages render as a list
+     * inside this one region, so counting a single message's occurrences can't
+     * see them.
+     */
+    fieldErrorRegion(field: 'email' | 'password'): Locator {
+        return this.page.locator(`#login-${field}-error`);
+    }
 }
