@@ -96,9 +96,10 @@ owns auth). `src/lib` is organized into:
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
 - `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
   types
-- `useLogoutMutation` — `POST /api/auth/logout` then invalidates
-  `currentUserKey`, so the gate flips to unauthenticated and redirects to
-  sign-in. Used by the toolbar account menu (`users-admin`)
+- `useLogoutMutation` — `POST /api/auth/logout`, then writes `null` into
+  `currentUserKey` and clears the rest of the cache, so the gate flips to
+  unauthenticated and redirects to sign-in with nothing of the account left
+  behind. Used by the toolbar account menu (`users-admin`)
 - `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
@@ -157,6 +158,15 @@ owns auth). `src/lib` is organized into:
       suspended is caught on return without waiting for the next action. The
       refetch is invisible: `AuthProvider` keeps reporting the cached user while
       it is in flight, so focus never flashes the root loader.
+- **One tab, one identity.** Whenever the identity behind a tab changes —
+  logout, login, accepting an invite — the mutation calls `resetSessionCache`,
+  which removes every cached query outside this plugin's `auth` namespace. The
+  session cookie is not the only state a session accumulates: the members
+  roster, workspaces, activity and preferences all sit in the query cache for
+  the whole page load, and without the sweep the next person to sign in on that
+  tab inherits them until each query refetches. Logout does it on the way out
+  and login on the way in, because a session can also end without a logout
+  (revoked elsewhere, expired), and that path only nulls the probe.
 
 ## Usage
 
