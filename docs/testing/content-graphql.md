@@ -38,7 +38,7 @@ Plus two routes and a dev-gated GraphiQL page.
 | --- | --- | --- |
 | `POST /api/v1/graphql` | `GraphqlController.execute` (`graphql.controller.ts:106-126`) | `ApiTokenGuard` + `ApiTokenWorkspaceGuard` + `@RequirePermissions(CONTENT_READ)` (class-level, `:76-78`) |
 | `GET /api/v1/graphql` | `GraphqlController.sdl` (`:136-146`) — `printSchema` of this workspace's schema, `text/plain` | **same class-level guards** — verified from the decorators, see EC-32 |
-| `GET /api/v1/graphql/playground` | `GraphqlPlaygroundController.playground` (`graphql-playground.controller.ts:233-250`) | **`@Public()`, no guards**, and registered only when the host passes `playground: true` (`content-graphql.module.ts:376-379`) |
+| `GET /api/v1/graphql/playground` | `GraphqlPlaygroundController.playground` (`graphql-playground.controller.ts:44-61`) | **`@Public()`, no guards**, and registered only when the host passes `playground: true` (`content-graphql.module.ts:36-39`) |
 
 **Exports** (`src/index.ts`): `ContentGraphqlPlugin`, `ContentGraphqlModule`,
 `ContentGraphqlPluginConfig` / `…Options` / `ResolvedContentGraphqlConfig`,
@@ -52,7 +52,7 @@ Plus two routes and a dev-gated GraphiQL page.
 
 **Composition-time invariant:** `ContentGraphqlPlugin` runs
 `assertNoNameCollisions(content.registry.all().map(t => t.name))`
-(`utils/content-graphql-plugin.ts:545`) against the **whole** registry, so two
+(`utils/content-graphql-plugin.ts:72`) against the **whole** registry, so two
 content types that would collide as GraphQL names fail the host's boot rather
 than the first request from a workspace granted both.
 
@@ -142,7 +142,7 @@ changes both protocols at once**), `@ortha-cms/identity-server` (`AccessPolicy`,
 | F14 | `article(id:)` / `article(localeGroupId:, locale:)` single read | `entry-resolvers.ts:95-110` | ✅ E2E |
 | F15 | `articles(page:, pageSize:, sort:, search:, filter:, locale:, status:)` list | `entry-resolvers.ts:113-127` | ✅ E2E |
 | F16 | A `single` type is served as one record, not `items[0]` | `entry-resolvers.ts:139-155` | ✅ E2E |
-| F17 | `id` **xor** `localeGroupId` is enforced | `entry-resolvers.ts:393-410` | ❌ NONE |
+| F17 | `id` **xor** `localeGroupId` is enforced | `entry-resolvers.ts:328-345` | ❌ NONE |
 | F18 | Value fields resolved out of the `values` bag | `entry-resolvers.ts:164-168` | ✅ E2E |
 | F19 | Owning single relation served as the **target**, not a list | `entry-resolvers.ts:211-225` | ✅ E2E |
 | F20 | Join-backed relation served as `{ items, total }` with `page`/`pageSize` | `build-schema.ts:339-370` | ✅ E2E |
@@ -153,12 +153,12 @@ changes both protocols at once**), `@ortha-cms/identity-server` (`AccessPolicy`,
 | F25 | `translations` — the entry's other locale rows | `entry-resolvers.ts:313-333` | ✅ E2E |
 | F26 | Selection set → `?fields=` (SQL projection narrowing) | `resolvers/selection.ts:179-199` | 🧪 UNIT |
 | F27 | Selection set → `relations=preview` + `relationFields` + `relationLimit` | `selection.ts:186-190` | 🧪 UNIT |
-| F28 | One `relationLimit` = the **max** any field asked; each resolver slices back | `selection.ts:189`, `entry-resolvers.ts:413-423` | ✅ E2E |
+| F28 | One `relationLimit` = the **max** any field asked; each resolver slices back | `selection.ts:189`, `entry-resolvers.ts:348-358` | ✅ E2E |
 | F29 | Fragments and inline fragments followed when deriving the selection | `selection.ts:86-107` | 🧪 UNIT |
-| F30 | `EntryLoader` batches one query per level, per (type, locale, cap) | `resolvers/entry-loader.ts:273-315` | ⚠️ PARTIAL |
-| F31 | The batch runs through `PublicEntriesQuery.list` + an `id in […]` filter — same `readableWhere` | `entry-loader.ts:335-341` | ❌ NONE |
-| F32 | The batch chunks at `MAX_PAGE_SIZE` rather than truncating | `entry-loader.ts:333-334` | ❌ NONE |
-| F33 | Draft rule: `status: DRAFT|ANY` requires `content:update` | `entry-resolvers.ts:366-378` | ✅ E2E |
+| F30 | `EntryLoader` batches one query per level, per (type, locale, cap) | `resolvers/entry-loader.ts:63-95` | ⚠️ PARTIAL |
+| F31 | The batch runs through `PublicEntriesQuery.list` + an `id in […]` filter — same `readableWhere` | `entry-loader.ts:125-131` | ❌ NONE |
+| F32 | The batch chunks at `MAX_PAGE_SIZE` rather than truncating | `entry-loader.ts:123-124` | ❌ NONE |
+| F33 | Draft rule: `status: DRAFT|ANY` requires `content:update` | `entry-resolvers.ts:301-313` | ✅ E2E |
 | F34 | `createX(input:, relations:, locale:, localeGroupId:)` | `resolvers/mutation-resolvers.ts:38-54` | ✅ E2E |
 | F35 | `updateX` — a **partial** update, by key presence | `mutation-resolvers.ts:57-74,139-151` | ✅ E2E |
 | F36 | Write input fields never declare a `defaultValue` | `build-schema.ts` (input builders) | 🧪 UNIT |
@@ -173,21 +173,21 @@ changes both protocols at once**), `@ortha-cms/identity-server` (`AccessPolicy`,
 | F45 | Limit: `maxAliases` (really a total **field count**) | `limits.ts:186-194` | ✅ E2E |
 | F46 | Limit: `maxComplexity` (Σ pageSize down the nesting path) | `limits.ts:196-209,309-372` | ✅ E2E |
 | F47 | One operation per request unless `operationName` names one | `limits.ts:145-171` | ✅ E2E |
-| F48 | `items` excluded from complexity multiplication | `limits.ts:323-335,387` | 🧪 UNIT |
+| F48 | `items` excluded from complexity multiplication | `limits.ts:214-226,387` | 🧪 UNIT |
 | F49 | Cyclic fragment spreads do not hang the cost checker | `limits.ts:222-258` (the `visiting` set) | 🧪 UNIT |
 | F50 | Limits run **before** execution, so a refused query costs a parse | `execute-operation.ts:37-88` | ✅ E2E |
-| F51 | `HttpException` → `GraphQLError` with `code` + `status` (+ `issues` on 422) | `execution/errors.ts:484-493` | ✅ E2E |
-| F52 | Anything not an `HttpException` is logged and replaced with a blank message | `errors.ts:495-504` | 🧪 UNIT |
-| F53 | An `HttpException` wrapped inside a `GraphQLError` is unwrapped | `errors.ts:468-482` | 🧪 UNIT |
+| F51 | `HttpException` → `GraphQLError` with `code` + `status` (+ `issues` on 422) | `execution/errors.ts:54-63` | ✅ E2E |
+| F52 | Anything not an `HttpException` is logged and replaced with a blank message | `errors.ts:65-74` | 🧪 UNIT |
+| F53 | An `HttpException` wrapped inside a `GraphQLError` is unwrapped | `errors.ts:38-52` | 🧪 UNIT |
 | F54 | Introspection stays **enabled** | (no `NoSchemaIntrospectionCustomRule` in `specifiedRules`, `execute-operation.ts:81`) | ❌ NONE |
-| F55 | Name collisions across the whole registry fail **boot** | `utils/content-graphql-plugin.ts:545`, `schema/naming.ts:193-204` | 🧪 UNIT |
+| F55 | Name collisions across the whole registry fail **boot** | `utils/content-graphql-plugin.ts:72`, `schema/naming.ts:140-151` | 🧪 UNIT |
 | F56 | A content field colliding with the GraphQL envelope throws | `build-schema.ts:272-277` | 🧪 UNIT |
-| F57 | `select` options become an enum, or fall back to `String` when ambiguous | `naming.ts:159-165` | 🧪 UNIT |
+| F57 | `select` options become an enum, or fall back to `String` when ambiguous | `naming.ts:106-112` | 🧪 UNIT |
 | F58 | SDL is stable across builds (types sorted) | `build-schema.ts:87-90` | 🧪 UNIT |
-| F59 | GraphiQL playground, self-contained, memoised, endpoint derived from the path | `graphql-playground.controller.ts:230-267` | ✅ E2E |
-| F60 | The playground controller is **not registered** when tooling is off | `content-graphql.module.ts:376-379` | ✅ E2E |
-| F61 | `GraphqlRequestDto` satisfies the host's `forbidNonWhitelisted` pipe | `http/dto/graphql-request.dto.ts:309-339` | ✅ E2E |
-| F62 | Host-tunable limits + schema-cache TTL with defaults | `types/config.ts:449-473` | ⚠️ PARTIAL |
+| F59 | GraphiQL playground, self-contained, memoised, endpoint derived from the path | `graphql-playground.controller.ts:41-78` | ✅ E2E |
+| F60 | The playground controller is **not registered** when tooling is off | `content-graphql.module.ts:36-39` | ✅ E2E |
+| F61 | `GraphqlRequestDto` satisfies the host's `forbidNonWhitelisted` pipe | `http/dto/graphql-request.dto.ts:14-45` | ✅ E2E |
+| F62 | Host-tunable limits + schema-cache TTL with defaults | `types/config.ts:66-90` | ⚠️ PARTIAL |
 | F63 | **No rate limiting** (documented, matches REST) | `AGENTS.md` "Rate limiting is absent" | ❌ NONE |
 
 ## 3. Manual Test Plan
@@ -423,7 +423,7 @@ defaults are 8 / 1000 / 30 / 16384.
   spread. Measured: a bare 10⁹-call recursion of that shape takes ~4.3 s; the
   real one is far worse. See `🐞 BUG-content-graphql-01`.
 - **EC-15 — `EntryLoader` batching more than `MAX_PAGE_SIZE` ids.** `❌ NONE`
-  Chunked at `MAX_PAGE_SIZE` rather than truncated (`entry-loader.ts:333-334`) —
+  Chunked at `MAX_PAGE_SIZE` rather than truncated (`entry-loader.ts:123-124`) —
   correct, untested.
 - **EC-16 — A `relationLimit` derived from several fields.** `🧪 UNIT`
   `selection.spec.ts:130` — the **largest** wins, and each resolver slices back.
@@ -445,7 +445,7 @@ defaults are 8 / 1000 / 30 / 16384.
   `🧪 UNIT` `naming.spec.ts:71` — the whole field falls back to `String` rather
   than serving a value the client cannot round-trip.
 - **EC-21 — Two `select` options sanitising to the same enum name.** `🧪 UNIT`
-  Same fallback (`naming.ts:159-165`).
+  Same fallback (`naming.ts:106-112`).
 - **EC-22 — A content slug with a `-` or `.`.** `🧪 UNIT` `pascalCase` splits on
   any non-alphanumeric run (`naming.ts:91-97`). But see EC-28 for the cache key.
 
@@ -511,7 +511,7 @@ defaults are 8 / 1000 / 30 / 16384.
   schemas, no request data. Cleared.
 - **EC-31 — Cross-workspace read via a nested relation.** `❌ NONE` The loader's
   batch is a `PublicEntriesQuery.list` with an `id in […]` filter
-  (`entry-loader.ts:335-341`) scoped to `this.workspaceId`, so it inherits
+  (`entry-loader.ts:125-131`) scoped to `this.workspaceId`, so it inherits
   `readableWhere` unchanged. Verified by reading; never asserted.
 
 **Concurrency & idempotency**
@@ -521,7 +521,7 @@ defaults are 8 / 1000 / 30 / 16384.
   of cold requests each pays a build.
 - **EC-33 — Batching correctness under concurrent requests.** `❌ NONE` Batches
   are keyed per `EntryLoader`, i.e. per request, and dispatched on
-  `process.nextTick` after a microtask drain (`entry-loader.ts:299-301`). A
+  `process.nextTick` after a microtask drain (`entry-loader.ts:89-91`). A
   second request never joins the first's batch.
 - **EC-34 — Replaying the same mutation.** `❌ NONE` Same semantics as REST —
   `createX` twice creates two entries; `publishX` twice is idempotent;
@@ -538,12 +538,12 @@ defaults are 8 / 1000 / 30 / 16384.
   SQL reaches the client.**
 - **EC-37 — An `HttpException` whose message embeds internals.** `❌ NONE`
   `messageOf` passes an `HttpException`'s message through verbatim
-  (`errors.ts:534-548`). That is correct for a `NotFoundException` and dangerous
+  (`errors.ts:104-118`). That is correct for a `NotFoundException` and dangerous
   for anything that wraps a driver error in an `InternalServerErrorException` —
   the mapper trusts the exception type, not the content. Worth a scan of
   `content-server`'s throw sites.
 - **EC-38 — A GraphQL coercion error.** `❌ NONE` Not an `HttpException`, so it
-  is a `GraphQLError` returned unchanged (`errors.ts:468-482`) — the message can
+  is a `GraphQLError` returned unchanged (`errors.ts:38-52`) — the message can
   echo the offending input value, which is standard GraphQL behaviour and not a
   leak of server internals.
 - **EC-39 — A partial result (one field errors, others succeed).** `❌ NONE`
