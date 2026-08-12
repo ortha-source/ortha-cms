@@ -204,7 +204,25 @@ createAdmin({
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 
+## Tests
+
+- **Unit (vitest)** — `src/**/*.spec.ts(x)`, configured in `vite.config.mts`
+  (jsdom + the React plugin, so a component test needs no harness change).
+  Today it covers `domain/` only: the `Email` and `Password` value objects,
+  where the rules actually live. Both mirror a server rule, so the specs pin the
+  boundaries the two have to agree on — 320/321 characters for an email, 11/12
+  and 72/73 for a password, plus the UTF-16-vs-bytes counting that `Password`
+  shares with the server.
+- **End-to-end** — everything above `domain/` is covered from the browser in
+  [`apps/admin-e2e/src/auth`](../../../apps/admin-e2e/AGENTS.md) (`login`,
+  `logout`, `accept-invite`, `private-routes`, `routing`, plus the `a11y` and
+  `keyboard` suites), against mocked `/api` routes. Prefer adding there over
+  unit-testing a hook or a page: the states worth guarding — an outage, a dead
+  link, a stale cache after a session change — only exist once the router, the
+  query client and the gate are wired together.
+
 ## Commands
 
 - `npm exec nx typecheck @ortha-cms/identity-admin`
 - `npm exec nx lint @ortha-cms/identity-admin`
+- `npm exec nx test @ortha-cms/identity-admin`
