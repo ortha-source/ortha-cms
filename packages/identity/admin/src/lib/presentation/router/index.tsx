@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginSkeleton } from '../components/LoginSkeleton';
+import { AuthErrorBoundary } from '../components/AuthErrorBoundary';
 
 /**
  * Login page, code-split so its bundle (form, schema, validation) loads only
@@ -29,19 +30,28 @@ const AcceptInvitePage = lazy(() =>
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
  * under the `/identity` base path (see {@link IdentityPlugin}). The lazy pages
  * are wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
- * while their chunk loads.
+ * while their chunk loads, and an {@link AuthErrorBoundary} outside it for when
+ * that chunk never arrives — `Suspense` handles the waiting, not the failing, so
+ * a rejected `import()` (a deploy while the tab was open) would otherwise
+ * propagate to the root and blank the page on the one route a locked-out user
+ * needs.
  *
  * `accept-invite` takes its token from the query string (`?token=…`) rather
  * than a path segment, so the secret never becomes part of a route pattern.
  */
 export function IdentityRouter() {
     return (
-        <Suspense fallback={<LoginSkeleton />}>
-            <Routes>
-                <Route index element={<Navigate to="signin" replace />} />
-                <Route path="signin" element={<LoginPage />} />
-                <Route path="accept-invite" element={<AcceptInvitePage />} />
-            </Routes>
-        </Suspense>
+        <AuthErrorBoundary>
+            <Suspense fallback={<LoginSkeleton />}>
+                <Routes>
+                    <Route index element={<Navigate to="signin" replace />} />
+                    <Route path="signin" element={<LoginPage />} />
+                    <Route
+                        path="accept-invite"
+                        element={<AcceptInvitePage />}
+                    />
+                </Routes>
+            </Suspense>
+        </AuthErrorBoundary>
     );
 }

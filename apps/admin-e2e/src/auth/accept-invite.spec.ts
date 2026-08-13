@@ -52,6 +52,33 @@ test.describe('accept an invite', () => {
         await expect(acceptInvitePage.confirmPassword).toBeEditable();
     });
 
+    test('each read-only field explains why it cannot be edited', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+        await expect(acceptInvitePage.heading).toBeVisible();
+
+        // "Read only" with no reason leaves the invitee guessing whether they
+        // are stuck. The explanation used to sit on the email alone, so a user
+        // tabbing onto the name heard a locked value and nothing else — and the
+        // recovery differs per field, which is why they don't share one sentence.
+        await expect(acceptInvitePage.fieldDescription('name')).toContainText(
+            /change it later in your profile/
+        );
+        await expect(acceptInvitePage.fieldDescription('email')).toContainText(
+            /ask them for a new invite/
+        );
+
+        // Announced, not merely present: `InputField` points the input at its
+        // description with `aria-describedby`.
+        await expect(acceptInvitePage.nameField()).toHaveAttribute(
+            'aria-describedby',
+            /accept-invite-name-description/
+        );
+    });
+
     test('omits the name field when the invite carries none', async ({
         page,
         acceptInvitePage

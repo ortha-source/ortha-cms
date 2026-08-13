@@ -7,12 +7,17 @@ import { LoginForm } from '../../components/LoginForm';
 import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginMutation } from '../../../application/useLoginMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
+import { useDocumentTitle } from '../../useDocumentTitle';
 
 /** Router state `RequireAuth` attaches when it bounces a user to sign-in. */
 type FromState = { from?: { pathname?: string } };
 
 /** Intl descriptors for {@link LoginPage}, co-located with the component. */
 const messages = defineMessages({
+    documentTitle: {
+        id: 'identity.login.documentTitle',
+        defaultMessage: 'Sign in · Ortha CMS'
+    },
     invalidCredentials: {
         id: 'identity.login.error.invalidCredentials',
         defaultMessage:
@@ -40,6 +45,8 @@ export function LoginPage() {
     const queryClient = useQueryClient();
     const { mutate, isPending, error } = useLoginMutation();
 
+    useDocumentTitle(intl.formatMessage(messages.documentTitle));
+
     const from = (location.state as FromState | null)?.from?.pathname ?? '/';
 
     const handleSubmit = (credentials: LoginCredentials) => {
@@ -62,7 +69,7 @@ export function LoginPage() {
         : undefined;
 
     return (
-        <AuthLayout>
+        <AuthLayout surface="signin">
             <LoginForm
                 onSubmit={handleSubmit}
                 isPending={isPending}

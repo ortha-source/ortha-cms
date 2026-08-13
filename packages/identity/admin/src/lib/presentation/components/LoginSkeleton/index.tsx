@@ -26,7 +26,7 @@ export function LoginSkeleton() {
     const intl = useIntl();
 
     return (
-        <AuthLayout>
+        <AuthLayout surface="chunk-loading">
             <div role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loading)}

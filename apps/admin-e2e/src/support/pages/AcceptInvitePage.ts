@@ -118,4 +118,23 @@ export class AcceptInvitePage extends BasePage {
             .getByRole('status')
             .filter({ hasText: /Checking your invite/ });
     }
+
+    /**
+     * A field's description region — the `${id}-description` node `InputField`
+     * points at with `aria-describedby`. The read-only fields use it to say why
+     * they cannot be edited, which is the only thing separating "prefilled for
+     * you" from "inexplicably stuck" for a screen-reader user.
+     */
+    fieldDescription(field: 'name' | 'email' | 'password'): Locator {
+        return this.page.locator(`#accept-invite-${field}-description`);
+    }
+
+    /**
+     * The individual pulsing blocks of the busy card. Selected by the animation
+     * utility itself because that *is* what is under test — whether the pulse is
+     * suppressed under `prefers-reduced-motion`.
+     */
+    skeletonBlocks(): Locator {
+        return this.page.locator('[data-slot="skeleton"], .animate-pulse');
+    }
 }

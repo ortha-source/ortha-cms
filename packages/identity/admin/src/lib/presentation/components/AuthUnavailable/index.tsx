@@ -48,7 +48,7 @@ export function AuthUnavailable() {
     const queryClient = useQueryClient();
 
     return (
-        <AuthLayout>
+        <AuthLayout surface="auth-unavailable">
             <Card>
                 <CardHeader className="text-center">
                     <CardTitle asChild className="text-xl">

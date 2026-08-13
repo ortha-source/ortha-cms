@@ -18,9 +18,14 @@ import {
 import { useInvite } from '../../../application/useInvite';
 import { useAcceptInviteMutation } from '../../../application/useAcceptInviteMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
+import { useDocumentTitle } from '../../useDocumentTitle';
 
 /** Intl descriptors for {@link AcceptInvitePage}, co-located with the component. */
 const messages = defineMessages({
+    documentTitle: {
+        id: 'identity.acceptInvite.documentTitle',
+        defaultMessage: 'Accept your invite · Ortha CMS'
+    },
     loading: {
         id: 'identity.acceptInvite.loading',
         defaultMessage: 'Checking your invite…'
@@ -65,6 +70,8 @@ export function AcceptInvitePage() {
     const invite = useInvite(token);
     const { mutate, isPending, error } = useAcceptInviteMutation();
 
+    useDocumentTitle(intl.formatMessage(messages.documentTitle));
+
     const handleSubmit = (values: AcceptInviteFormValues) => {
         mutate(
             { token, ...values },
@@ -81,7 +88,7 @@ export function AcceptInvitePage() {
 
     if (!token) {
         return (
-            <AuthLayout>
+            <AuthLayout surface="invite-missing-token">
                 <InviteUnavailable missingToken />
             </AuthLayout>
         );
@@ -89,7 +96,7 @@ export function AcceptInvitePage() {
 
     if (invite.isPending) {
         return (
-            <AuthLayout>
+            <AuthLayout surface="invite-loading">
                 <div role="status">
                     <span className="sr-only">
                         {intl.formatMessage(messages.loading)}
@@ -125,7 +132,7 @@ export function AcceptInvitePage() {
     // the invitee is offered a retry instead of a replacement invite.
     if (invite.isError && invite.error?.status !== HTTP_STATUS.NOT_FOUND) {
         return (
-            <AuthLayout>
+            <AuthLayout surface="invite-lookup-failed">
                 <InviteLookupFailed
                     onRetry={() => void invite.refetch()}
                     isRetrying={invite.isFetching}
@@ -136,7 +143,7 @@ export function AcceptInvitePage() {
 
     if (invite.isError || !invite.data) {
         return (
-            <AuthLayout>
+            <AuthLayout surface="invite-dead-link">
                 <InviteUnavailable />
             </AuthLayout>
         );
@@ -153,7 +160,7 @@ export function AcceptInvitePage() {
         : undefined;
 
     return (
-        <AuthLayout>
+        <AuthLayout surface="invite-form">
             <AcceptInviteForm
                 invite={invite.data}
                 onSubmit={handleSubmit}
