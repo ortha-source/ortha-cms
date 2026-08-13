@@ -12,11 +12,15 @@ import {
 import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginSchema } from './useLoginSchema';
 import { AuthField } from '../AuthField';
-import { LoginAlert } from './LoginAlert';
+import { AuthAlert } from '../AuthAlert';
 import { LoginActions } from './LoginActions';
 
 /** Intl descriptors for {@link LoginForm}, co-located with the component. */
 const messages = defineMessages({
+    authFailedTitle: {
+        id: 'identity.login.authFailedTitle',
+        defaultMessage: 'Authentication failed'
+    },
     loginTitle: {
         id: 'identity.login.title',
         defaultMessage: 'Welcome back'
@@ -113,7 +117,17 @@ export function LoginForm({
                         }}
                     >
                         <FieldGroup>
-                            <LoginAlert message={error} />
+                            {/* Mounted only when there is a message: AuthAlert
+                                takes focus as it appears, so it must not sit
+                                mounted-and-empty. */}
+                            {error && (
+                                <AuthAlert
+                                    title={intl.formatMessage(
+                                        messages.authFailedTitle
+                                    )}
+                                    message={error}
+                                />
+                            )}
 
                             <form.Field name="email">
                                 {(field) => (

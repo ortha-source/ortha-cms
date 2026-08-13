@@ -173,6 +173,43 @@ owns auth). `src/lib` is organized into:
   told a user with a valid session cookie that they were signed out and pointed
   them at a login form posting to the same dead API. `useHasPermission` stays
   fail-closed: everything but `authenticated` denies.
+- **Arrival is not a navigation.** Every auth screen is reached by a transition
+  the browser does not treat as one — the gate redirecting an expired session,
+  the invite lookup resolving from skeleton to form, a submission failing — so
+  focus stays wherever it was (often `<body>`, or a control that just
+  unmounted) and nothing announces the change. Two pieces fix that, and both
+  live where the transition happens rather than in each screen:
+    - **`AuthLayout` takes a `surface` prop** and moves focus to the current
+      screen's `<h1>` whenever it changes. It is a prop rather than something
+      inferred from `children` because these screens swap *inside one layout
+      instance* — `AcceptInvitePage` renders a skeleton, then a form or one of
+      two failure cards, and React keeps the same `AuthLayout` mounted
+      throughout, so nothing in its own lifecycle marks the moment the user
+      arrived somewhere new. The busy state deliberately has no heading and is
+      skipped: it already announces through its `role="status"`, and stealing
+      focus into something about to be replaced helps nobody.
+    - **`AuthAlert`** is the shared submission-failure banner for both forms, and
+      it **takes focus as it appears**. `role="alert"` alone was not enough —
+      focus stayed on the submit button, which sits *after* the banner in DOM
+      order, so Tab moved further away and the banner (not being in the tab
+      order) was reachable only in browse mode. Render it conditionally: it
+      focuses on mount and on `message` change, so it must never sit mounted and
+      empty.
+- **The tab title names the screen.** `useDocumentTitle` sets `document.title`
+  while a page is mounted and **restores the previous value on unmount** — which
+  is what lets this plugin title its own routes without owning every route in the
+  app: signing in hands the title back rather than stranding "Sign in" over the
+  shell. One writer at a time is the rule; `copilot-admin`'s `useTabBadge`
+  snapshots the title when it mounts, so a second title hook added *inside* the
+  shell would have to reckon with that (these screens render outside it, so they
+  cannot collide today).
+- **A chunk that never arrives.** `AuthErrorBoundary` wraps the router's
+  `Suspense`. `Suspense` handles waiting, not failing: when a deploy lands while
+  a tab is open the old `index.html`'s content-hashed chunk is gone, the dynamic
+  `import()` rejects, and with nothing to catch it the app unmounted to a blank
+  page — on the one route a locked-out user needs. The boundary renders a card
+  with a reload action, because only a fresh document request can fetch the new
+  build's assets.
 - **One tab, one identity.** Whenever the identity behind a tab changes —
   logout, login, accepting an invite — the mutation calls `resetSessionCache`,
   which removes every cached query outside this plugin's `auth` namespace. The

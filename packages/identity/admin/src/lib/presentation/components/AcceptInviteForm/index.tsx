@@ -1,9 +1,6 @@
 import { useForm } from '@tanstack/react-form';
 import { defineMessages, useIntl } from 'react-intl';
 import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
     Button,
     Card,
     CardContent,
@@ -20,6 +17,7 @@ import {
 import type { InviteDetails } from '../../../../types/auth';
 import { PASSWORD_MIN_LENGTH } from '../../../domain/value-objects/password';
 import { AuthField } from '../AuthField';
+import { AuthAlert } from '../AuthAlert';
 import { useAcceptInviteSchema } from './useAcceptInviteSchema';
 
 /** Intl descriptors for {@link AcceptInviteForm}, co-located with the component. */
@@ -49,7 +47,12 @@ const messages = defineMessages({
     prefilledHint: {
         id: 'identity.acceptInvite.prefilledHint',
         defaultMessage:
-            'Set by whoever invited you. If it looks wrong, ask them for a new invite — you can change your name later in your profile.'
+            'Set by whoever invited you. If it looks wrong, ask them for a new invite.'
+    },
+    namePrefilledHint: {
+        id: 'identity.acceptInvite.namePrefilledHint',
+        defaultMessage:
+            'Set by whoever invited you. You can change it later in your profile.'
     },
     passwordLabel: {
         id: 'identity.acceptInvite.passwordLabel',
@@ -168,14 +171,12 @@ export function AcceptInviteForm({
                     >
                         <FieldGroup>
                             {error && (
-                                <Alert variant="destructive">
-                                    <AlertTitle>
-                                        {intl.formatMessage(
-                                            messages.errorTitle
-                                        )}
-                                    </AlertTitle>
-                                    <AlertDescription>{error}</AlertDescription>
-                                </Alert>
+                                <AuthAlert
+                                    title={intl.formatMessage(
+                                        messages.errorTitle
+                                    )}
+                                    message={error}
+                                />
                             )}
 
                             {invite.name && (
@@ -190,6 +191,17 @@ export function AcceptInviteForm({
                                     // screen-reader user can read what they're
                                     // signing up as. It just can't be changed.
                                     readOnly
+                                    // Each read-only field carries its own
+                                    // reason. A field that announces "read only"
+                                    // without saying why leaves the invitee
+                                    // guessing whether they are stuck; and the
+                                    // recovery differs per field — a wrong name
+                                    // is fixable later, a wrong email is not, so
+                                    // one shared sentence on the email alone
+                                    // (the previous shape) left this field mute.
+                                    description={intl.formatMessage(
+                                        messages.namePrefilledHint
+                                    )}
                                 />
                             )}
 

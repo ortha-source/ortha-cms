@@ -16,10 +16,24 @@ export class LoginPage extends BasePage {
      * than the bare role.
      */
     readonly errorBanner: Locator;
+    /**
+     * The heading the auth error boundary shows when a lazily-loaded auth screen
+     * fails to arrive — a chunk request that 404s after a deploy, which
+     * `Suspense` cannot recover from on its own.
+     */
+    readonly chunkErrorHeading: Locator;
+    /** The error boundary's recovery action — a full reload fetches the new build. */
+    readonly chunkErrorReload: Locator;
 
     constructor(page: Page) {
         super(page);
         this.heading = page.getByRole('heading', { name: 'Welcome back' });
+        this.chunkErrorHeading = page.getByRole('heading', {
+            name: /didn’t finish loading/
+        });
+        this.chunkErrorReload = page.getByRole('button', {
+            name: 'Reload the page'
+        });
         this.email = page.getByLabel('Email');
         this.password = page.getByLabel('Password');
         // The button's accessible name flips to "Signing in…" while submitting,

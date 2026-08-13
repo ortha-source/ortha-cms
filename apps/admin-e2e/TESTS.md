@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_452 test cases across 46 spec files._
+_466 test cases across 49 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -85,6 +85,7 @@ _<sub>apps/admin-e2e/src/auth/accept-invite.spec.ts</sub>_
 | Test case |
 | --- |
 | shows who the invite is for and asks only for a password |
+| each read-only field explains why it cannot be edited |
 | omits the name field when the invite carries none |
 | posts the token with the password and lands in the app |
 | blocks a too-short password client-side, sending no request |
@@ -106,6 +107,38 @@ _<sub>apps/admin-e2e/src/auth/accept-invite.spec.ts</sub>_
 | transports a token with reserved characters intact |
 | announces the lookup while it is in flight |
 | disables the submit button while the request is in flight |
+
+<!-- source: apps/admin-e2e/src/auth/chunk-failure.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/chunk-failure.spec.ts</sub>_
+
+## a chunk that never loads
+
+| Test case |
+| --- |
+| shows a recoverable card instead of blanking the page |
+| the failure is announced as a heading, not left as bare text |
+
+<!-- source: apps/admin-e2e/src/auth/focus-and-title.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/focus-and-title.spec.ts</sub>_
+
+## auth focus management
+
+| Test case |
+| --- |
+| a failed sign-in moves focus to the error, not past it |
+| the fields are one Tab away from the focused error |
+| the banner is not added to the tab order |
+| arriving at sign-in focuses its heading rather than the document body |
+| the invite form takes focus when the lookup resolves |
+| the dead-link card takes focus when the lookup fails |
+
+## auth page titles
+
+| Test case |
+| --- |
+| the sign-in page names itself in the tab title |
+| the accept-invite page names itself in the tab title |
+| signing in hands the title back instead of stranding "Sign in" over the app |
 
 <!-- source: apps/admin-e2e/src/auth/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
@@ -213,6 +246,16 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | --- |
 | holds the branded loader and never flashes the sign-in page |
 | gates every affordance while it resolves — fail-closed |
+
+<!-- source: apps/admin-e2e/src/auth/reduced-motion.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/reduced-motion.spec.ts</sub>_
+
+## reduced motion
+
+| Test case |
+| --- |
+| the busy skeleton does not pulse when reduced motion is requested |
+| the skeleton still animates by default |
 
 <!-- source: apps/admin-e2e/src/auth/reflow.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/reflow.spec.ts</sub>_
