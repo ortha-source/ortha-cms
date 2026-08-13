@@ -88,17 +88,21 @@ owns auth). `src/lib` is organized into:
   wraps it around `RequireAuth` in its `layout`. It also owns the **session-lost**
   reaction (see below)
 - `RequireAuth` — the route gate; redirects to `/identity/signin` while
-  unauthenticated, preserving the attempted location for return-to. Reusable by
-  any plugin that needs to gate its own sub-routes (imported from here, not the
-  host)
+  unauthenticated, preserving the attempted location for return-to, and renders
+  the `AuthUnavailable` screen when the probe **failed** rather than answering
+  "nobody". Reusable by any plugin that needs to gate its own sub-routes
+  (imported from here, not the host)
 - `useHasPermission(permission)` — whether the signed-in user holds a permission key
   (from `/auth/me`); fail-closed while loading. Gate permission-aware UI with it
   (e.g. the workspaces "New workspace" button on `workspaces:create`)
 - `useAuth` — reads the current `AuthState`; `AuthState` / `AuthUser` are the
   types
-- `useLogoutMutation` — `POST /api/auth/logout` then invalidates
-  `currentUserKey`, so the gate flips to unauthenticated and redirects to
-  sign-in. Used by the toolbar account menu (`users-admin`)
+- `useLogoutMutation` — `POST /api/auth/logout`, then writes `null` into
+  `currentUserKey` and clears the rest of the cache, so the gate flips to
+  unauthenticated and redirects to sign-in with nothing of the account left
+  behind. A failed request keeps the UI signed in (the session was not revoked)
+  and says so in a toast, rather than swallowing the click. Used by the toolbar
+  account menu (`users-admin`)
 - `LoginCredentials` / `AuthTokens` / `CurrentUser` — auth wire types
 
 ## Architecture
@@ -131,10 +135,13 @@ owns auth). `src/lib` is organized into:
   library (the host mounts the query provider). The cookie is reached same-origin
   via the admin dev proxy (`/api` → the API).
 - **Accept-invite.** `AcceptInvitePage` resolves the token via `useInvite`
-  (`GET /api/auth/invite/:token`) and renders one of three states: a skeleton, a
+  (`GET /api/auth/invite/:token`) and renders one of four states: a skeleton, a
   dead-link card (`InviteUnavailable` — the server returns one generic 404 for
   unknown/expired/used, so the UI has exactly one failure shape, plus a distinct
-  message when the URL carried no token at all), or `AcceptInviteForm`. The form
+  message when the URL carried no token at all), an outage card
+  (`InviteLookupFailed`, for any failure that is **not** a 404 — the token is
+  fine, the server is not, so it offers a retry instead of telling the invitee
+  to chase a replacement link), or `AcceptInviteForm`. The form
   collects **only a password, twice**: the invite's email and name render as
   `readOnly` fields — not `disabled`, so they stay focusable and announced —
   because letting someone edit the email on the way in would let them claim an
@@ -157,6 +164,24 @@ owns auth). `src/lib` is organized into:
       suspended is caught on return without waiting for the next action. The
       refetch is invisible: `AuthProvider` keeps reporting the cached user while
       it is in flight, so focus never flashes the root loader.
+- **An outage is not a sign-out.** `AuthState` has **four** statuses, not three:
+  `loading`, `authenticated`, `unauthenticated`, and `unavailable`. The gateway
+  turns a `401` on `/auth/me` into `data === null` (signed out) and rethrows
+  everything else, so a `500`, a timeout or a dead connection resolves to
+  `unavailable` and `RequireAuth` renders `AuthUnavailable` — a "we can't reach
+  the server" card with a retry — instead of redirecting. Collapsing the two
+  told a user with a valid session cookie that they were signed out and pointed
+  them at a login form posting to the same dead API. `useHasPermission` stays
+  fail-closed: everything but `authenticated` denies.
+- **One tab, one identity.** Whenever the identity behind a tab changes —
+  logout, login, accepting an invite — the mutation calls `resetSessionCache`,
+  which removes every cached query outside this plugin's `auth` namespace. The
+  session cookie is not the only state a session accumulates: the members
+  roster, workspaces, activity and preferences all sit in the query cache for
+  the whole page load, and without the sweep the next person to sign in on that
+  tab inherits them until each query refetches. Logout does it on the way out
+  and login on the way in, because a session can also end without a logout
+  (revoked elsewhere, expired), and that path only nulls the probe.
 
 ## Usage
 
@@ -179,7 +204,25 @@ createAdmin({
 - User/role/access screens and their data fetching
 - Nav items and slot wiring — added with the host's slot system
 
+## Tests
+
+- **Unit (vitest)** — `src/**/*.spec.ts(x)`, configured in `vite.config.mts`
+  (jsdom + the React plugin, so a component test needs no harness change).
+  Today it covers `domain/` only: the `Email` and `Password` value objects,
+  where the rules actually live. Both mirror a server rule, so the specs pin the
+  boundaries the two have to agree on — 320/321 characters for an email, 11/12
+  and 72/73 for a password, plus the UTF-16-vs-bytes counting that `Password`
+  shares with the server.
+- **End-to-end** — everything above `domain/` is covered from the browser in
+  [`apps/admin-e2e/src/auth`](../../../apps/admin-e2e/AGENTS.md) (`login`,
+  `logout`, `accept-invite`, `private-routes`, `routing`, plus the `a11y` and
+  `keyboard` suites), against mocked `/api` routes. Prefer adding there over
+  unit-testing a hook or a page: the states worth guarding — an outage, a dead
+  link, a stale cache after a session change — only exist once the router, the
+  query client and the gate are wired together.
+
 ## Commands
 
 - `npm exec nx typecheck @ortha-cms/identity-admin`
 - `npm exec nx lint @ortha-cms/identity-admin`
+- `npm exec nx test @ortha-cms/identity-admin`

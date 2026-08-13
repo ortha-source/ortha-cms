@@ -33,6 +33,16 @@ states.
 - Target: **WCAG 2.1 A/AA**, best-practice (not a formal 508/VPAT obligation).
   Automated scans are a regression guard — they catch a fraction of WCAG issues,
   never prove conformance; manual keyboard/screen-reader passes stay a human task.
+- **Scan both themes.** The dark palette is a second, independently authored set
+  of colour tokens — a light scan says nothing about it. Signed-in pages seed it
+  through `mockPreferences(page, { theme: 'dark' })`; the **public** auth screens
+  have no stored preference, so `page.emulateMedia({ colorScheme: 'dark' })` is
+  what the pre-paint bootstrap in `index.html` resolves. Assert the `.dark` class
+  landed before scanning — a dark scan that quietly ran in light mode is worse
+  than none.
+- **Reflow is not axe's job.** WCAG 1.4.10 (320px / 400% zoom) needs a viewport
+  and geometry, not a rule engine: `src/auth/reflow.spec.ts` pins zero horizontal
+  overflow and every control reachable by vertical scrolling alone.
 - `makeAxe` runs the **full** WCAG 2.1 A/AA ruleset (no rule exclusions). The
   scan originally caught a real `color-contrast` failure on muted text; the
   `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)

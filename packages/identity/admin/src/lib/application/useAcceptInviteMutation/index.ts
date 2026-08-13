@@ -1,6 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiError } from '@ortha-cms/utils-admin';
 import { httpAuthGateway } from '../../infrastructure/httpAuthGateway';
+import { resetSessionCache } from '../resetSessionCache';
 import type { AcceptInviteInput } from '../../../types/auth';
 
 /**
@@ -13,9 +14,15 @@ import type { AcceptInviteInput } from '../../../types/auth';
  * The thrown error is an {@link ApiError}, so callers can branch on
  * `error.status` (`HTTP_STATUS.NOT_FOUND` = the link is dead,
  * `HTTP_STATUS.BAD_REQUEST` = the password was rejected server-side).
+ *
+ * Accepting swaps the identity behind this tab — the server's new cookie is for
+ * the invitee, whoever was signed in before — so it clears the cache on the way
+ * in, like signing in does.
  */
 export function useAcceptInviteMutation() {
+    const queryClient = useQueryClient();
     return useMutation<void, ApiError, AcceptInviteInput>({
-        mutationFn: (input) => httpAuthGateway.acceptInvite(input)
+        mutationFn: (input) => httpAuthGateway.acceptInvite(input),
+        onSuccess: () => resetSessionCache(queryClient)
     });
 }

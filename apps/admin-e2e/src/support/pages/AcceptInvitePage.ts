@@ -75,6 +75,16 @@ export class AcceptInvitePage extends BasePage {
         return this.page.getByText(pattern);
     }
 
+    /**
+     * A field's whole validation region — the `role="alert"` the input points
+     * at with `aria-describedby`. Assert its *text* to pin how many messages a
+     * field announces at once: stacked messages render as a list inside this
+     * one region.
+     */
+    fieldErrorRegion(field: 'password' | 'confirm-password'): Locator {
+        return this.page.locator(`#accept-invite-${field}-error`);
+    }
+
     /** The dead-link state's heading. */
     unavailableHeading(): Locator {
         return this.page.getByRole('heading', {
@@ -85,6 +95,21 @@ export class AcceptInvitePage extends BasePage {
     /** The dead-link state's escape hatch back to sign-in. */
     signInLink(): Locator {
         return this.page.getByRole('link', { name: 'Go to sign in' });
+    }
+
+    /**
+     * The *outage* state's heading — the lookup failed for a reason other than
+     * the server refusing the token, so the link is probably still good.
+     */
+    lookupFailedHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'We couldn’t check your invite'
+        });
+    }
+
+    /** The outage state's retry control. */
+    retryLookup(): Locator {
+        return this.page.getByRole('button', { name: 'Try again' });
     }
 
     /** The busy region shown while the invite lookup is in flight. */

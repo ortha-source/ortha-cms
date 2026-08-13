@@ -11,6 +11,50 @@ import {
     type AuthState
 } from '../authContext';
 
+/** What {@link AuthProvider} reads off the current-user query. */
+type CurrentUserQuery = ReturnType<typeof useCurrentUser>;
+
+/**
+ * Maps the probe's query state onto the published {@link AuthState}.
+ *
+ * `data` present → authenticated. Otherwise, while a probe is in flight — the
+ * initial load or a post-login/logout refetch — hold in `loading` so the gate
+ * doesn't redirect on the stale "no user" gap between invalidating the query
+ * and the fresh response landing.
+ *
+ * A settled probe then splits two ways, and the split matters: the gateway
+ * turns a `401` into `data === null` (nobody is signed in — the ordinary signed
+ * out state), and rethrows everything else. A `500`, a timeout or a dropped
+ * connection therefore lands on `unavailable`, not `unauthenticated`, because
+ * it tells us nothing about the session. Treating the two alike is what made an
+ * API outage sign a perfectly valid session out.
+ */
+function toAuthState({
+    data,
+    isPending,
+    isFetching,
+    isError
+}: CurrentUserQuery): AuthState {
+    if (data) {
+        return {
+            status: AuthStatus.Authenticated,
+            user: {
+                id: data.id,
+                email: data.email,
+                name: data.name,
+                permissions: data.permissions
+            }
+        };
+    }
+    if (isPending || isFetching) {
+        return { status: AuthStatus.Loading, user: null };
+    }
+    if (isError) {
+        return { status: AuthStatus.Unavailable, user: null };
+    }
+    return { status: AuthStatus.Unauthenticated, user: null };
+}
+
 /**
  * Resolves the current user via `GET /api/auth/me` and publishes it into the
  * auth context, so {@link RequireAuth} can gate routes. The shell composes this
@@ -25,7 +69,7 @@ import {
  * shell that 401s on every request.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const { data, isPending, isFetching } = useCurrentUser();
+    const currentUser = useCurrentUser();
     const queryClient = useQueryClient();
 
     useEffect(() => {
@@ -42,24 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => setUnauthorizedHandler(null);
     }, [queryClient]);
 
-    // `data` present → authenticated. Otherwise, while the probe is in flight —
-    // the initial load or a post-login/logout refetch — hold in `loading` so the
-    // gate doesn't redirect on the stale "no user" gap between invalidating the
-    // query and the fresh response landing; only settle on `unauthenticated`
-    // once a fetch has completed with no user.
-    const value: AuthState = data
-        ? {
-              status: AuthStatus.Authenticated,
-              user: {
-                  id: data.id,
-                  email: data.email,
-                  name: data.name,
-                  permissions: data.permissions
-              }
-          }
-        : isPending || isFetching
-          ? { status: AuthStatus.Loading, user: null }
-          : { status: AuthStatus.Unauthenticated, user: null };
-
-    return <AuthProviderContext value={value}>{children}</AuthProviderContext>;
+    return (
+        <AuthProviderContext value={toAuthState(currentUser)}>
+            {children}
+        </AuthProviderContext>
+    );
 }

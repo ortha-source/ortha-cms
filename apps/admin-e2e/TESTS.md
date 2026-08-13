@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_418 test cases across 44 spec files._
+_452 test cases across 46 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -68,6 +68,12 @@ _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
 | accept-invite page — validation errors visible |
 | accept-invite page — submission-error banner visible |
 | accept-invite page — dead link |
+| accept-invite page — lookup outage |
+| auth gate — probe unavailable |
+| login page — dark theme |
+| login page — dark theme, errors visible |
+| accept-invite page — dark theme |
+| login page — banner and field error at once |
 | home page |
 | root loader — auth probe pending |
 
@@ -84,10 +90,20 @@ _<sub>apps/admin-e2e/src/auth/accept-invite.spec.ts</sub>_
 | blocks a too-short password client-side, sending no request |
 | blocks a mismatched confirmation, sending no request |
 | flags both empty fields on submit |
+| gives an empty field one message, not a stack of them |
 | explains a link that died while the form was open |
 | explains a password the server rejected |
+| falls back to the generic message for any other failure |
+| keeps the form usable after a failed accept — the token is unspent |
+| replaces the token URL in history when the invite is accepted |
+| hands the tab to the invitee when somebody else was signed in |
 | shows the dead-link state for a rejected token |
 | tells a truncated link apart from a dead one |
+| tells a server outage apart from a dead link |
+| retrying a failed lookup picks up where it left off |
+| renders a name with markup in it as literal text |
+| renders an RTL name without disturbing the copy around it |
+| transports a token with reserved characters intact |
 | announces the lookup while it is in flight |
 | disables the submit button while the request is in flight |
 
@@ -99,6 +115,7 @@ _<sub>apps/admin-e2e/src/auth/keyboard.spec.ts</sub>_
 | Test case |
 | --- |
 | the email field is the first focus stop |
+| tabbing through the form hits credentials then submit, with no dead stop between |
 | login can be completed and submitted by keyboard alone |
 | an invite can be accepted by keyboard alone |
 | every accept-invite field is reachable in source order |
@@ -128,11 +145,42 @@ _<sub>apps/admin-e2e/src/auth/login.spec.ts</sub>_
 | shows exactly one error per field |
 | rejects a malformed email |
 
+### the controls on offer
+
+| Test case |
+| --- |
+| offers no control that leads nowhere |
+| says how an account is obtained instead |
+
 ### pending state
 
 | Test case |
 | --- |
 | disables the submit button while the request is in flight |
+
+## The session probe on the sign-in page
+
+| Test case |
+| --- |
+| asks once and does not retry the 401 |
+| renders the form for an already signed-in visitor |
+
+<!-- source: apps/admin-e2e/src/auth/logout.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/logout.spec.ts</sub>_
+
+## Logout
+
+| Test case |
+| --- |
+| lands the tab on the sign-in page |
+| says so when the request fails, instead of swallowing the click |
+| leaves nothing of the previous account in the cache |
+
+## Signing in after a session ended on its own
+
+| Test case |
+| --- |
+| does not inherit the previous account’s cached data |
 
 <!-- source: apps/admin-e2e/src/auth/private-routes.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
@@ -145,11 +193,37 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | redirects a signed-out user from an unknown path to the sign-in page |
 | returns to the home page after a gated user signs in |
 
+## Auth probe unavailable
+
+| Test case |
+| --- |
+| says the server is unreachable instead of signing the user out |
+| recovers when the API comes back |
+
 ## Session lost mid-visit
 
 | Test case |
 | --- |
 | redirects to the sign-in page when a request comes back 401 |
+| redirects when the session dies under a mutation, without an unhandled error |
+
+## Auth still resolving
+
+| Test case |
+| --- |
+| holds the branded loader and never flashes the sign-in page |
+| gates every affordance while it resolves — fail-closed |
+
+<!-- source: apps/admin-e2e/src/auth/reflow.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/reflow.spec.ts</sub>_
+
+## reflow at 320px
+
+| Test case |
+| --- |
+| the sign-in card fits without sideways scrolling |
+| the accept-invite card fits, long email and all |
+| nothing is stranded above the scroll origin |
 
 <!-- source: apps/admin-e2e/src/auth/routing.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
@@ -741,6 +815,7 @@ _<sub>apps/admin-e2e/src/users/account-menu.spec.ts</sub>_
 | --- |
 | shows the signed-in account in the toolbar dropdown |
 | "My profile" opens the current user’s detail page |
+| falls back to the email when the account has no name |
 | Logout calls the logout endpoint |
 
 <!-- source: apps/admin-e2e/src/users/keyboard.spec.ts -->

@@ -10,6 +10,7 @@ import {
 import { HTTP_STATUS } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { InviteUnavailable } from '../../components/InviteUnavailable';
+import { InviteLookupFailed } from '../../components/InviteLookupFailed';
 import {
     AcceptInviteForm,
     type AcceptInviteFormValues
@@ -117,8 +118,22 @@ export function AcceptInvitePage() {
         );
     }
 
-    // Any failure to resolve the token is a dead link — the server does not
-    // distinguish unknown from expired from already-used, and neither do we.
+    // A `404` is the one answer that means the link itself is finished: the
+    // server returns it for unknown, expired and already-used alike, and so
+    // does this page. Anything else — a `500`, a timeout, a dropped connection —
+    // says nothing about the token, so it must not be reported as a dead link;
+    // the invitee is offered a retry instead of a replacement invite.
+    if (invite.isError && invite.error?.status !== HTTP_STATUS.NOT_FOUND) {
+        return (
+            <AuthLayout>
+                <InviteLookupFailed
+                    onRetry={() => void invite.refetch()}
+                    isRetrying={invite.isFetching}
+                />
+            </AuthLayout>
+        );
+    }
+
     if (invite.isError || !invite.data) {
         return (
             <AuthLayout>
