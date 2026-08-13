@@ -96,6 +96,16 @@ lint isn't wired yet — self-enforce it.
   rules (last-admin protection) and self-action guards need knowledge the
   aggregate doesn't hold, so the **users** context owns those flows — identity's
   aggregate models the single-account lifecycle only.
+- **Credential rotation revokes sessions.** `ChangePasswordUseCase` writes the
+  new hash **and** revokes the account's live sessions in the same unit of work,
+  because a session is a bearer credential the *old* password opened and it
+  outlives that password by its full TTL — so changing a phished password
+  without this would leave every session the attacker holds signed in for up to
+  a week. `keepSessionId` spares the caller's own device. The
+  `user.password_changed` event carries the actor and the eviction count, and
+  the activity plugin's audit subscriber maps it to a `user.password_changed`
+  row. No HTTP route wires it yet; `apps/server-e2e/.../change-password.spec.ts`
+  drives it out of DI so the flow is not left unexercised until one appears.
 - **`Session`** is an entity + **`SessionPolicy`** holds the expiry and
   `lastUsedAt`-refresh-throttle rules lifted out of the old session service into
   a pure, DB-free object (constructed with the configured TTL).
@@ -225,12 +235,29 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       cross-plugin FK on the workspace), the create body takes `workspaceIds`
       (at least one; duplicates collapsed), and every read returns the row and
       its bucket together as an `ApiTokenRecord` — so no caller can observe a
-      token scoped to nothing. `?workspaceId=` on the list is a bucket-membership
+      token scoped to nothing. Because there is no FK, the ids are checked
+      against the `WORKSPACE_DIRECTORY` **port** (identity owns it, the
+      workspaces plugin binds `WorkspaceExistenceQuery` — the `ACTIVITY_RECORDER`
+      inversion, keeping the graph acyclic): a bucket naming a workspace that
+      does not exist 400s instead of minting a row that points at nothing. The
+      check is **existence, not status** — an archived workspace is a legitimate
+      scope — and it is skipped when nothing binds the port, since with no
+      workspaces plugin there is no directory to consult. `?workspaceId=` on the list is a bucket-membership
       test, so a multi-workspace token appears under each of its workspaces
       (once each). The management
       routes `POST`/`GET`/`DELETE /api/api-tokens` are **session**-authenticated
       and gated on `tokens:create|read|delete`, which only `admin` holds — they
-      are not reachable with a bearer token. `verify` rejects unknown, revoked,
+      are not reachable with a bearer token. Mint and revoke each run in a
+      **unit of work** and append an `api_token.created` / `api_token.revoked`
+      domain event, which the activity plugin maps to a `token.created` /
+      `token.revoked` audit row: a long-lived key to workspace content has to be
+      accountable, and a token that existed while its audit row did not would be
+      exactly the credential nobody can explain. The event payload carries the
+      name, scope, bucket and the non-secret `lookupPrefix` — **never** the
+      secret or its hash, since `api_tokens` stores only a SHA-256 precisely so
+      no other table yields a usable credential. A replayed (idempotent) revoke
+      appends nothing, because only the call that actually killed a live token
+      is an event. `verify` rejects unknown, revoked,
       and expired tokens identically (no enumeration signal) and refreshes
       `last_used_at` fire-and-forget on a 60s throttle. The guard that
       authenticates `Authorization: Bearer` ships with the public content API it
@@ -271,9 +298,17 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 - `IDENTITY_CONFIG` / `InjectIdentityConfig()` — the config token, exported
   because `users-server`'s invite issuer reads `token.inviteTtlSeconds` from it
   (it previously hard-coded 7 days, silently ignoring the host's setting)
-- `MIN_PASSWORD_LENGTH` / `MAX_PASSWORD_LENGTH` — the credential-length rule
-  (12 … 72). The upper bound is bcrypt's 72-**byte** truncation point: we reject
-  rather than silently truncate, so what the user typed is what protects them
+- `MIN_PASSWORD_LENGTH` / `MAX_PASSWORD_LENGTH` / `passwordByteLength` — the
+  credential-length rule (12 … 72). The two bounds are counted in **different
+  units on purpose**: the floor in characters, the ceiling in **UTF-8 bytes**,
+  because 72 bytes is bcrypt's truncation point and we reject rather than
+  silently truncate, so what the user typed is what protects them. Enforce the
+  ceiling with `@MaxByteLength`, never `class-validator`'s `@MaxLength` — that
+  counts UTF-16 code units, so it waves through `'é'.repeat(72)` (72 characters,
+  **144 bytes**) and bcrypt then hashes only the first half of the passphrase.
+  `HashingService.hashPassword` throws `PasswordTooLongError` as the backstop for
+  the paths that have no DTO (`ChangePasswordUseCase`, the root-admin bootstrap
+  reading `ORTHA_ROOT_ADMIN_PASSWORD`)
 - `IdentityServerPlugin` — the plugin shape, with `identityConfig` attached
 - `IdentityModule` — global NestJS module; provides config and the RBAC services
   (`RolesService`, `SystemRolesSeeder`)
@@ -355,11 +390,18 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   path that flips `status` without revoking. All of it reads as a plain `401`,
   so a suspended account is indistinguishable from an expired session.
 - **Login hardening (#8).** `/auth/login` is guarded by `ThrottlerGuard`
-  (10/min, in-memory — per-instance; needs a shared store + Express `trust
-proxy` at scale) against brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
+  (10/min, in-memory — per-instance; needs a shared store at scale) against
+  brute-force and bcrypt CPU-DoS, and by `OriginGuard`,
   which rejects browser requests whose `Origin` is not in
   `config.allowedOrigins` (login-CSRF defense; missing-`Origin` non-browser
-  clients pass). Still **deferred**: a CSRF token for higher-value mutations,
+  clients pass). The throttle buckets on `req.ip`, which is only the **client's**
+  address if the host set Express `trust proxy` — `createServer`'s `trustProxy`
+  option, sourced from `TRUST_PROXY`. It is a host concern (identity never sees
+  the adapter), but it is identity's failure when it is missing: behind a proxy
+  every caller reports the same address, so the deployment shares one bucket and
+  one attacker's ten requests a minute lock every user out of login. Covered by
+  `apps/server-e2e/src/server/auth/login-throttle.spec.ts`, which boots the app
+  both ways. Still **deferred**: a CSRF token for higher-value mutations,
   `helmet` security headers (host concern), and expired-session pruning.
 - **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
   design. They may be empty at boot today (sessions are unsigned, see above);

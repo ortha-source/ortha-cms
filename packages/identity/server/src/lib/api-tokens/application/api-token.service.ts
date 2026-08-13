@@ -1,7 +1,22 @@
 import { randomBytes } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork,
+    type EventActor
+} from '@ortha-cms/database';
+import {
+    apiTokenEvent,
+    IDENTITY_EVENT_KINDS
+} from '../../domain/events/identity-events';
 import { HashingService } from '../../auth/services/hashing.service';
 import type { ApiTokenScope } from '../domain/api-token-scope';
+import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';
+import {
+    WORKSPACE_DIRECTORY,
+    type WorkspaceDirectory
+} from './ports/workspace-directory.port';
 import {
     DrizzleApiTokenRepository,
     type ApiTokenRecord
@@ -39,6 +54,13 @@ export interface MintApiTokenInput {
     expiresAt?: Date | null;
     /** The user minting the token. */
     createdBy: string;
+    /**
+     * The acting admin, as the audit log should name them. Defaults to
+     * `{ id: createdBy, email: null }` — pass the email so the log carries a
+     * frozen snapshot rather than requiring a join against a user who may later
+     * be renamed or deleted.
+     */
+    actor?: EventActor;
 }
 
 /** The metadata-only view of a token (never carries the secret). */
@@ -76,27 +98,72 @@ export interface MintedApiToken {
 export class ApiTokenService {
     constructor(
         private readonly repo: DrizzleApiTokenRepository,
-        private readonly hashing: HashingService
+        private readonly hashing: HashingService,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
+        @Optional()
+        @Inject(WORKSPACE_DIRECTORY)
+        private readonly workspaces?: WorkspaceDirectory
     ) {}
 
     /**
      * Generates a token, persists its hash and workspace bucket, and returns
      * the plaintext once. Duplicate workspace ids are collapsed, so the bucket
      * a caller sees back is the set it actually granted.
+     *
+     * The insert and the `api_token.created` event commit in one transaction.
+     * Auditing a credential's creation is not optional bookkeeping: an API
+     * token is a long-lived key to workspace content, so "who minted this, when,
+     * scoped to what" has to be answerable — and a token that existed while its
+     * audit row did not would be exactly the credential nobody can account for.
+     *
+     * @throws UnknownWorkspaceError when the bucket names a workspace that does
+     * not exist. `api_token_workspaces` carries no cross-plugin foreign key, so
+     * without this check a typo mints a token scoped to nothing that reads as
+     * correctly configured.
      */
     async mint(input: MintApiTokenInput): Promise<MintedApiToken> {
         const secret =
             TOKEN_PREFIX +
             randomBytes(TOKEN_ENTROPY_BYTES).toString('base64url');
-        const row = await this.repo.insert({
-            workspaceIds: [...new Set(input.workspaceIds)],
-            name: input.name,
-            tokenHash: this.hashing.hashToken(secret),
-            lookupPrefix: secret.slice(0, LOOKUP_PREFIX_LENGTH),
-            scope: input.scope,
-            expiresAt: input.expiresAt ?? null,
-            createdBy: input.createdBy
+        const workspaceIds = [...new Set(input.workspaceIds)];
+        await this.assertWorkspacesExist(workspaceIds);
+
+        const row = await this.uow.run(async () => {
+            const inserted = await this.repo.insert({
+                workspaceIds,
+                name: input.name,
+                tokenHash: this.hashing.hashToken(secret),
+                lookupPrefix: secret.slice(0, LOOKUP_PREFIX_LENGTH),
+                scope: input.scope,
+                expiresAt: input.expiresAt ?? null,
+                createdBy: input.createdBy
+            });
+            await this.outbox.append(
+                attachActor(
+                    [
+                        apiTokenEvent(
+                            IDENTITY_EVENT_KINDS.API_TOKEN_CREATED,
+                            inserted.id,
+                            {
+                                name: inserted.name,
+                                scope: inserted.scope,
+                                workspaceIds: inserted.workspaceIds,
+                                // The non-secret display prefix, never the
+                                // secret or its hash — the audit log must not
+                                // become a second place a token can leak from.
+                                lookupPrefix: inserted.lookupPrefix,
+                                expiresAt:
+                                    inserted.expiresAt?.toISOString() ?? null
+                            }
+                        )
+                    ],
+                    input.actor ?? { id: input.createdBy, email: null }
+                )
+            );
+            return inserted;
         });
+
         return { token: toView(row), secret };
     }
 
@@ -148,9 +215,64 @@ export class ApiTokenService {
         };
     }
 
-    /** Revokes a token by id; `false` if it was unknown or already revoked. */
-    revoke(id: string): Promise<boolean> {
-        return this.repo.revoke(id);
+    /**
+     * Revokes a token by id; `false` if it was unknown or already revoked.
+     *
+     * Emits `api_token.revoked` in the same transaction — but **only when a
+     * live token was actually revoked**, so replaying the idempotent DELETE
+     * writes one audit row rather than one per attempt. Killing a credential is
+     * as much of an audited act as minting one: it is the line that explains why
+     * an integration stopped working at 04:12.
+     */
+    revoke(id: string, actor?: EventActor): Promise<boolean> {
+        return this.uow.run(async () => {
+            // Read first so the event can name the token; inside the same
+            // transaction as the update, so the row cannot change underneath.
+            const token = await this.repo.findById(id);
+            const revoked = await this.repo.revoke(id);
+            if (!revoked || !token) {
+                return revoked;
+            }
+            await this.outbox.append(
+                attachActor(
+                    [
+                        apiTokenEvent(
+                            IDENTITY_EVENT_KINDS.API_TOKEN_REVOKED,
+                            token.id,
+                            {
+                                name: token.name,
+                                scope: token.scope,
+                                workspaceIds: token.workspaceIds,
+                                lookupPrefix: token.lookupPrefix
+                            }
+                        )
+                    ],
+                    actor ?? { id: token.createdBy, email: null }
+                )
+            );
+            return revoked;
+        });
+    }
+
+    /**
+     * Rejects a bucket naming workspaces that do not exist.
+     *
+     * A no-op when nothing is bound to {@link WORKSPACE_DIRECTORY}: with no
+     * workspaces plugin there is no directory to check against, and failing
+     * every mint would be worse than the referential gap. In the assembled app
+     * the binding is always present.
+     */
+    private async assertWorkspacesExist(
+        workspaceIds: readonly string[]
+    ): Promise<void> {
+        if (!this.workspaces || workspaceIds.length === 0) {
+            return;
+        }
+        const existing = new Set(await this.workspaces.existing(workspaceIds));
+        const missing = workspaceIds.filter((id) => !existing.has(id));
+        if (missing.length > 0) {
+            throw new UnknownWorkspaceError(missing);
+        }
     }
 
     /**

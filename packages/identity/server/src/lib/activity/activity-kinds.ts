@@ -1,12 +1,22 @@
 /**
- * The audit-event kinds identity emits — authentication and workspace
- * lifecycle. Each plugin owns the kinds for the endpoints it exposes; identity
- * owns auth (sign-in/out) and the workspaces feature (create + membership), so
- * those kinds live here, next to the services that record them.
+ * The audit-event kinds identity emits — authentication, API-token lifecycle,
+ * and workspace lifecycle. Each plugin owns the kinds for the endpoints it
+ * exposes; identity owns auth (sign-in/out), the `/api/api-tokens` management
+ * routes, and the workspaces feature (create + membership), so those kinds live
+ * here, next to the services that record them.
  */
 export const IDENTITY_ACTIVITY_KINDS = {
     USER_SIGNED_IN: 'user.signed_in',
     USER_SIGNED_OUT: 'user.signed_out',
+    /**
+     * An external-API bearer token was minted. Named for the `tokens:*`
+     * permission family that gates the route, not for the `api_token.created`
+     * domain event it is mapped from — identity keeps the two catalogues
+     * distinct, same as `auth.signed_in` → `user.signed_in`.
+     */
+    TOKEN_CREATED: 'token.created',
+    /** An external-API bearer token was revoked. */
+    TOKEN_REVOKED: 'token.revoked',
     WORKSPACE_CREATED: 'workspace.created',
     WORKSPACE_UPDATED: 'workspace.updated',
     WORKSPACE_ARCHIVED: 'workspace.archived',

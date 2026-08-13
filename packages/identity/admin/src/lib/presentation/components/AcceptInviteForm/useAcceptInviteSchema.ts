@@ -2,8 +2,9 @@ import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { z } from 'zod';
 import {
-    PASSWORD_MAX_LENGTH,
-    PASSWORD_MIN_LENGTH
+    PASSWORD_MAX_BYTES,
+    PASSWORD_MIN_LENGTH,
+    passwordByteLength
 } from '../../../domain/value-objects/password';
 
 /**
@@ -22,7 +23,8 @@ const messages = defineMessages({
     },
     passwordTooLong: {
         id: 'identity.acceptInvite.passwordTooLong',
-        defaultMessage: 'Keep it under {max} characters'
+        defaultMessage:
+            'Keep it under {max} bytes — accented letters and emoji each count for more than one'
     },
     confirmRequired: {
         id: 'identity.acceptInvite.confirmRequired',
@@ -73,12 +75,22 @@ export function useAcceptInviteSchema() {
                                 )
                             }
                         )
-                        .max(PASSWORD_MAX_LENGTH, {
-                            message: intl.formatMessage(
-                                messages.passwordTooLong,
-                                { max: PASSWORD_MAX_LENGTH }
-                            )
-                        }),
+                        // Zod's `.max` counts characters; the server's ceiling
+                        // is bcrypt's 72-BYTE truncation point, so measure the
+                        // way it does or the form green-lights a passphrase the
+                        // server will reject. An empty box is already covered by
+                        // the required rule above and 0 bytes clears this one,
+                        // so the two never stack.
+                        .refine(
+                            (value) =>
+                                passwordByteLength(value) <= PASSWORD_MAX_BYTES,
+                            {
+                                message: intl.formatMessage(
+                                    messages.passwordTooLong,
+                                    { max: PASSWORD_MAX_BYTES }
+                                )
+                            }
+                        ),
                     confirmPassword: z.string().min(1, {
                         message: intl.formatMessage(messages.confirmRequired)
                     })

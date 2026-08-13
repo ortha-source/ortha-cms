@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../auth.constants';
 import { MatchesField } from './matches-field.validator';
+import { MaxByteLength } from './max-byte-length.validator';
 
 /**
  * The body accepted by `POST /auth/invite/accept`. Validated by the host's
@@ -17,10 +18,16 @@ export class AcceptInviteDto {
     @IsNotEmpty()
     token!: string;
 
-    /** The password to set as this account's first credential. */
+    /**
+     * The password to set as this account's first credential. The floor is
+     * counted in characters; the ceiling is counted in **bytes**, because that
+     * is the unit bcrypt truncates on — `@MaxLength` would wave through a
+     * 72-character accented passphrase that is 144 bytes and let bcrypt discard
+     * half of it.
+     */
     @IsString()
     @MinLength(MIN_PASSWORD_LENGTH)
-    @MaxLength(MAX_PASSWORD_LENGTH)
+    @MaxByteLength(MAX_PASSWORD_LENGTH)
     password!: string;
 
     /**

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { UnitOfWork } from '@ortha-cms/database';
 import { apiTokens, apiTokenWorkspaces } from '../../../schema';
 import type { ApiTokenScope } from '../../domain/api-token-scope';
 
@@ -42,24 +42,29 @@ export interface ListApiTokensOptions {
 
 /**
  * Drizzle-backed store for `api_tokens` and its `api_token_workspaces` bucket.
- * Runs against the base connection (`@InjectDatabase()`), not the request unit
- * of work — minting and revoking a token are standalone writes, not part of
- * another aggregate's transaction. Only the SHA-256 hash is ever persisted; the
- * raw token is minted and returned once by {@link ApiTokenService}, never
- * stored.
+ * Only the SHA-256 hash is ever persisted; the raw token is minted and returned
+ * once by {@link ApiTokenService}, never stored.
  *
  * A token and its bucket are written in **one transaction**, and every read
  * returns them together as an {@link ApiTokenRecord} — so no caller can observe
  * a token with an empty bucket (which would read as "scoped to nothing").
+ *
+ * Every statement runs through {@link UnitOfWork.current}, so a write joins the
+ * caller's transaction when there is one and runs against the base connection
+ * when there is not. `ApiTokenService` wraps mint and revoke in a unit of work
+ * so the token row and its audit event commit together: a minted token that
+ * failed to audit would be a credential nobody can account for. `insert` keeps
+ * its own inner transaction (a savepoint when nested) so a direct caller still
+ * cannot land a bucket-less token.
  */
 @Injectable()
 export class DrizzleApiTokenRepository {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(private readonly uow: UnitOfWork) {}
 
     /** Inserts a minted token and its bucket; returns the created record. */
     async insert(token: NewApiToken): Promise<ApiTokenRecord> {
         const { workspaceIds, ...columns } = token;
-        return this.db.transaction(async (tx) => {
+        return this.uow.current().transaction(async (tx) => {
             const [row] = await tx
                 .insert(apiTokens)
                 .values(columns)
@@ -81,7 +86,7 @@ export class DrizzleApiTokenRepository {
      * 401, no enumeration signal).
      */
     async findByHash(tokenHash: string): Promise<ApiTokenRecord | null> {
-        const [row] = await this.db
+        const [row] = await this.uow.current()
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.tokenHash, tokenHash));
@@ -94,7 +99,7 @@ export class DrizzleApiTokenRepository {
 
     /** One token by id (with its bucket), or null. */
     async findById(id: string): Promise<ApiTokenRecord | null> {
-        const [row] = await this.db
+        const [row] = await this.uow.current()
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.id, id));
@@ -115,7 +120,7 @@ export class DrizzleApiTokenRepository {
         const where = options.workspaceId
             ? inArray(
                   apiTokens.id,
-                  this.db
+                  this.uow.current()
                       .select({ tokenId: apiTokenWorkspaces.tokenId })
                       .from(apiTokenWorkspaces)
                       .where(
@@ -127,8 +132,8 @@ export class DrizzleApiTokenRepository {
               )
             : undefined;
         const [[{ total }], rows] = await Promise.all([
-            this.db.select({ total: count() }).from(apiTokens).where(where),
-            this.db
+            this.uow.current().select({ total: count() }).from(apiTokens).where(where),
+            this.uow.current()
                 .select()
                 .from(apiTokens)
                 .where(where)
@@ -152,7 +157,7 @@ export class DrizzleApiTokenRepository {
      * means a second revoke is a no-op that returns `false`.
      */
     async revoke(id: string): Promise<boolean> {
-        const [row] = await this.db
+        const [row] = await this.uow.current()
             .update(apiTokens)
             .set({ revokedAt: new Date() })
             .where(and(eq(apiTokens.id, id), isNull(apiTokens.revokedAt)))
@@ -162,7 +167,7 @@ export class DrizzleApiTokenRepository {
 
     /** Records the last time a token authenticated a request. */
     async touchLastUsed(id: string, at: Date): Promise<void> {
-        await this.db
+        await this.uow.current()
             .update(apiTokens)
             .set({ lastUsedAt: at })
             .where(eq(apiTokens.id, id));
@@ -179,7 +184,7 @@ export class DrizzleApiTokenRepository {
         if (tokenIds.length === 0) {
             return buckets;
         }
-        const rows = await this.db
+        const rows = await this.uow.current()
             .select()
             .from(apiTokenWorkspaces)
             .where(inArray(apiTokenWorkspaces.tokenId, [...tokenIds]));

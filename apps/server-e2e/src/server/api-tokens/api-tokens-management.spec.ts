@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -5,6 +6,9 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    archiveWorkspace,
+    getActivityRows,
+    getApiTokenHash,
     resetDb,
     seedActiveUser,
     seedUserWithEmptyRole,
@@ -120,6 +124,65 @@ describe('API token management (/api/api-tokens)', () => {
             .expect(400);
     });
 
+    it('rejects a bucket naming a workspace that does not exist', async () => {
+        // BUG-identity-server-06. `api_token_workspaces` carries no
+        // cross-plugin foreign key, so a typo used to mint happily and leave a
+        // row pointing at nothing — a token that reads as configured, grants
+        // access to no content, and survives forever because no cascade will
+        // ever reach it.
+        const agent = await login(ADMIN_EMAIL);
+        const phantom = '11111111-1111-4111-8111-111111111111';
+
+        const res = await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'phantom',
+                workspaceIds: [phantom],
+                scope: 'read'
+            })
+            .expect(400);
+        expect(res.body.message).toContain(phantom);
+
+        // Nothing was written — not the token, not the bucket row.
+        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
+            0
+        );
+    });
+
+    it('rejects a bucket that mixes real and phantom workspaces', async () => {
+        // Partial validity is still invalid: minting the "real" half would
+        // silently narrow a bucket the admin believed they had granted.
+        const agent = await login(ADMIN_EMAIL);
+        const phantom = '22222222-2222-4222-8222-222222222222';
+
+        await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'half-real',
+                workspaceIds: [workspaceId, phantom],
+                scope: 'read'
+            })
+            .expect(400);
+
+        expect((await agent.get('/api/api-tokens').expect(200)).body.total).toBe(
+            0
+        );
+    });
+
+    it('still accepts an archived workspace — existence, not status', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        await archiveWorkspace(workspaceId);
+
+        await agent
+            .post('/api/api-tokens')
+            .send({
+                name: 'archived-ok',
+                workspaceIds: [workspaceId],
+                scope: 'read'
+            })
+            .expect(201);
+    });
+
     it('lists a multi-workspace token under each of its workspaces', async () => {
         const agent = await login(ADMIN_EMAIL);
         await agent
@@ -197,5 +260,278 @@ describe('API token management (/api/api-tokens)', () => {
 
     it('requires authentication', async () => {
         await request(harness.server).get('/api/api-tokens').expect(401);
+    });
+
+    describe('list pagination', () => {
+        /** Mints `count` tokens so the page arithmetic has something to slice. */
+        async function mint(agent: request.Agent, count: number) {
+            for (let i = 0; i < count; i++) {
+                await agent
+                    .post('/api/api-tokens')
+                    .send({
+                        name: `token-${i}`,
+                        workspaceIds: [workspaceId],
+                        scope: 'read'
+                    })
+                    .expect(201);
+            }
+        }
+
+        it('returns an empty first page with a real total when there is nothing', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent.get('/api/api-tokens').expect(200);
+            expect(res.body).toMatchObject({
+                items: [],
+                total: 0,
+                page: 1,
+                pageSize: 25
+            });
+        });
+
+        it('returns an empty page past the last one, still with the real total', async () => {
+            // Not a 404: the page is simply beyond the data, and the caller
+            // needs `total` to work out where the data ended.
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 3);
+
+            const res = await agent
+                .get('/api/api-tokens')
+                .query({ page: 99999 })
+                .expect(200);
+            expect(res.body.items).toEqual([]);
+            expect(res.body.total).toBe(3);
+        });
+
+        it('accepts the maximum page size and rejects one past it', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/api-tokens')
+                .query({ pageSize: 100 })
+                .expect(200);
+            await agent
+                .get('/api/api-tokens')
+                .query({ pageSize: 101 })
+                .expect(400);
+        });
+
+        it('rejects a zero or negative page', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent.get('/api/api-tokens').query({ page: 0 }).expect(400);
+            await agent.get('/api/api-tokens').query({ page: -1 }).expect(400);
+        });
+
+        it('rejects a non-uuid workspace filter', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .get('/api/api-tokens')
+                .query({ workspaceId: 'not-a-uuid' })
+                .expect(400);
+        });
+
+        it('pages without dropping or repeating a token', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await mint(agent, 5);
+
+            const first = await agent
+                .get('/api/api-tokens')
+                .query({ page: 1, pageSize: 2 })
+                .expect(200);
+            const second = await agent
+                .get('/api/api-tokens')
+                .query({ page: 2, pageSize: 2 })
+                .expect(200);
+            const third = await agent
+                .get('/api/api-tokens')
+                .query({ page: 3, pageSize: 2 })
+                .expect(200);
+
+            const ids = [...first.body.items, ...second.body.items, ...third.body.items].map(
+                (item: { id: string }) => item.id
+            );
+            expect(ids).toHaveLength(5);
+            expect(new Set(ids).size).toBe(5);
+            expect(first.body.total).toBe(5);
+        });
+    });
+
+    describe('secrets at rest', () => {
+        it('stores the SHA-256 of the secret, never the secret', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            const stored = await getApiTokenHash(created.body.id);
+            expect(stored).toBe(
+                createHash('sha256').update(created.body.secret).digest('hex')
+            );
+            expect(stored).not.toBe(created.body.secret);
+            expect(stored).toMatch(/^[0-9a-f]{64}$/);
+            // The display prefix is the non-secret handle, and it is only a
+            // prefix — it must not be enough to reconstruct the token.
+            expect(created.body.secret.startsWith(created.body.lookupPrefix)).toBe(
+                true
+            );
+            expect(created.body.lookupPrefix.length).toBeLessThan(
+                created.body.secret.length
+            );
+        });
+
+        it('round-trips a name with RTL and multibyte characters intact', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const name = 'مرحبا é 🔑';
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({ name, workspaceIds: [workspaceId], scope: 'read' })
+                .expect(201);
+            expect(created.body.name).toBe(name);
+
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].name).toBe(name);
+        });
+    });
+
+    describe('audit trail', () => {
+        /** Every `token.*` audit row currently in the log. */
+        async function tokenAudit() {
+            const rows = await getActivityRows();
+            return rows.filter((row) => row.kind.startsWith('token.'));
+        }
+
+        it('records token.created when a token is minted', async () => {
+            // BUG-identity-server-01: minting and revoking wrote nothing at
+            // all, so the log could not answer "who issued this credential,
+            // when, and scoped to what" — for a long-lived key to workspace
+            // content.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId, otherWorkspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            const rows = await tokenAudit();
+            expect(rows).toHaveLength(1);
+            expect(rows[0]).toMatchObject({
+                kind: 'token.created',
+                subjectType: 'api_token',
+                subjectId: created.body.id,
+                actorEmail: ADMIN_EMAIL
+            });
+            expect(rows[0].meta).toMatchObject({
+                name: 'CI',
+                scope: 'read',
+                lookupPrefix: created.body.lookupPrefix
+            });
+            expect(
+                (rows[0].meta as { workspaceIds: string[] }).workspaceIds.sort()
+            ).toEqual([workspaceId, otherWorkspaceId].sort());
+        });
+
+        it('never writes the secret or its hash into the log', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'CI',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(201);
+
+            // `api_tokens` stores only a SHA-256 so a read of the table yields
+            // nothing usable; the audit log must not become the second copy.
+            const serialised = JSON.stringify(await tokenAudit());
+            expect(serialised).not.toContain(created.body.secret);
+            expect(serialised).not.toContain(
+                createHash('sha256').update(created.body.secret).digest('hex')
+            );
+        });
+
+        it('records token.revoked when a token is killed', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'temp',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            const revoked = (await tokenAudit()).filter(
+                (row) => row.kind === 'token.revoked'
+            );
+            expect(revoked).toHaveLength(1);
+            expect(revoked[0]).toMatchObject({
+                kind: 'token.revoked',
+                subjectType: 'api_token',
+                subjectId: created.body.id,
+                actorEmail: ADMIN_EMAIL
+            });
+            expect(revoked[0].meta).toMatchObject({ name: 'temp' });
+        });
+
+        it('audits a replayed revoke once, not once per call', async () => {
+            // The route is idempotent — a second DELETE still 204s — but only
+            // the call that actually revoked a live token is an event.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'temp',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            expect(
+                (await tokenAudit()).filter(
+                    (row) => row.kind === 'token.revoked'
+                )
+            ).toHaveLength(1);
+        });
+
+        it('writes nothing when the revoked id is unknown', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .delete('/api/api-tokens/11111111-1111-4111-8111-111111111111')
+                .expect(204);
+
+            expect(await tokenAudit()).toEqual([]);
+        });
+
+        it('writes no audit row when the mint is rejected', async () => {
+            // The event commits with the token or not at all: a rejected mint
+            // must leave the log as clean as it leaves `api_tokens`.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send({ name: 'nowhere', workspaceIds: [], scope: 'read' })
+                .expect(400);
+
+            expect(await tokenAudit()).toEqual([]);
+            expect((await agent.get('/api/api-tokens').expect(200)).body.total)
+                .toBe(0);
+        });
     });
 });

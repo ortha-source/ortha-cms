@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { WORKSPACE_DIRECTORY } from '@ortha-cms/identity-server';
 import { CreateWorkspaceController } from './workspace/http/controllers/create-workspace.controller';
 import { ListWorkspacesController } from './workspace/http/controllers/list-workspaces.controller';
 import { CheckSlugController } from './workspace/http/controllers/check-slug.controller';
@@ -37,6 +38,7 @@ import { WorkspaceViewQuery } from './workspace/infrastructure/queries/workspace
 import { SlugAvailabilityQuery } from './workspace/infrastructure/queries/slug-availability.query';
 import { MemberLookupQuery } from './workspace/infrastructure/queries/member-lookup.query';
 import { MembershipCheckQuery } from './workspace/infrastructure/queries/membership-check.query';
+import { WorkspaceExistenceQuery } from './workspace/infrastructure/queries/workspace-existence.query';
 
 /**
  * NestJS module for the workspaces plugin — the tenancy bounded context,
@@ -105,6 +107,16 @@ export class WorkspacesModule {
                 SlugAvailabilityQuery,
                 MemberLookupQuery,
                 MembershipCheckQuery,
+                // Binds identity's WORKSPACE_DIRECTORY port, so minting an API
+                // token can reject a bucket naming a workspace that does not
+                // exist. `api_token_workspaces` carries no cross-plugin FK
+                // (identity must not depend on this package), so this inversion
+                // is what closes the referential gap — same shape as identity
+                // owning ACTIVITY_RECORDER and the activity plugin binding it.
+                {
+                    provide: WORKSPACE_DIRECTORY,
+                    useClass: WorkspaceExistenceQuery
+                },
                 // Resolved by `@UseGuards(WorkspaceGuard)` on workspace-scoped
                 // routes in other plugins; injectable everywhere since this
                 // module is global (same pattern as identity's PermissionsGuard).
@@ -118,6 +130,9 @@ export class WorkspacesModule {
                 // (instantiated in the consuming module's injector) can resolve
                 // the guard and its `MembershipCheckQuery` dependency.
                 MembershipCheckQuery,
+                // Exported so identity's `ApiTokenService` — constructed in the
+                // identity module's injector — resolves the optional port.
+                WORKSPACE_DIRECTORY,
                 WorkspaceGuard,
                 WorkspaceMemberGuard
             ]

@@ -14,13 +14,16 @@ export const ACTIVITY_KINDS = [
     'user.role_changed',
     'user.suspended',
     'user.reactivated',
+    'user.password_changed',
     'user.signed_in',
     'user.signed_out',
     'workspace.created',
     'workspace.member_added',
     'workspace.member_removed',
     'entry.published',
-    'entry.unpublished'
+    'entry.unpublished',
+    'token.created',
+    'token.revoked'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */

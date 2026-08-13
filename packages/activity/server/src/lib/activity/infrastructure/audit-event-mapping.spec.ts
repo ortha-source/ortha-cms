@@ -324,6 +324,44 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
+        it('user.password_changed → an audit row carrying the eviction count', () => {
+            // BUG-identity-server-05: identity's aggregate raised this event
+            // from the start, but no mapper existed, so a credential rotation
+            // left the audit log completely silent.
+            const row = toAuditRow(
+                event(
+                    'user.password_changed',
+                    'user',
+                    TARGET_USER_ID,
+                    { sessionsRevoked: 3 },
+                    { id: TARGET_USER_ID, email: 'me@example.com' }
+                )
+            );
+            expect(row).toEqual({
+                id: EVENT_ID,
+                kind: 'user.password_changed',
+                subjectType: 'user',
+                subjectId: TARGET_USER_ID,
+                actorId: TARGET_USER_ID,
+                actorEmail: 'me@example.com',
+                meta: { sessionsRevoked: 3 },
+                at: AT
+            });
+        });
+
+        it('records a password change that evicted nothing as a zero, not a gap', () => {
+            const row = toAuditRow(
+                event(
+                    'user.password_changed',
+                    'user',
+                    TARGET_USER_ID,
+                    { sessionsRevoked: 0 },
+                    { id: TARGET_USER_ID, email: 'me@example.com' }
+                )
+            );
+            expect(row?.meta).toEqual({ sessionsRevoked: 0 });
+        });
+
         it('auth.signed_out → user.signed_out (actorEmail may be null)', () => {
             const row = toAuditRow(
                 event(
@@ -347,6 +385,95 @@ describe('toAuditRow — event → audit-row parity', () => {
                 meta: null,
                 at: AT
             });
+        });
+    });
+
+    describe('API token lifecycle', () => {
+        const TOKEN_ID = '99999999-9999-4999-8999-999999999999';
+
+        it('api_token.created → token.created on an api_token subject', () => {
+            const row = toAuditRow(
+                event(
+                    'api_token.created',
+                    'api_token',
+                    TOKEN_ID,
+                    {
+                        name: 'CI',
+                        scope: 'read',
+                        workspaceIds: [WORKSPACE_ID],
+                        lookupPrefix: 'orthacms_abc123',
+                        expiresAt: null
+                    },
+                    { id: TARGET_USER_ID, email: 'admin@example.com' }
+                )
+            );
+            expect(row).toEqual({
+                id: EVENT_ID,
+                kind: 'token.created',
+                subjectType: 'api_token',
+                subjectId: TOKEN_ID,
+                actorId: TARGET_USER_ID,
+                actorEmail: 'admin@example.com',
+                meta: {
+                    name: 'CI',
+                    scope: 'read',
+                    workspaceIds: [WORKSPACE_ID],
+                    lookupPrefix: 'orthacms_abc123'
+                },
+                at: AT
+            });
+        });
+
+        it('api_token.revoked → token.revoked, same shape', () => {
+            const row = toAuditRow(
+                event(
+                    'api_token.revoked',
+                    'api_token',
+                    TOKEN_ID,
+                    {
+                        name: 'CI',
+                        scope: 'full',
+                        workspaceIds: [WORKSPACE_ID],
+                        lookupPrefix: 'orthacms_abc123'
+                    },
+                    { id: TARGET_USER_ID, email: 'admin@example.com' }
+                )
+            );
+            expect(row).toMatchObject({
+                kind: 'token.revoked',
+                subjectType: 'api_token',
+                subjectId: TOKEN_ID,
+                meta: {
+                    name: 'CI',
+                    scope: 'full',
+                    lookupPrefix: 'orthacms_abc123'
+                }
+            });
+        });
+
+        it('never carries a secret or a hash into the audit row', () => {
+            // The mapper projects a fixed field set, so even a producer that
+            // over-shares cannot leak a credential into the log — `api_tokens`
+            // stores only a SHA-256 for exactly this reason, and the audit
+            // table must not become the second copy.
+            const row = toAuditRow(
+                event('api_token.created', 'api_token', TOKEN_ID, {
+                    name: 'CI',
+                    scope: 'read',
+                    workspaceIds: [],
+                    lookupPrefix: 'orthacms_abc123',
+                    secret: 'orthacms_the-actual-secret',
+                    tokenHash: 'f'.repeat(64)
+                })
+            );
+            expect(Object.keys(row?.meta ?? {}).sort()).toEqual([
+                'lookupPrefix',
+                'name',
+                'scope',
+                'workspaceIds'
+            ]);
+            expect(JSON.stringify(row)).not.toContain('the-actual-secret');
+            expect(JSON.stringify(row)).not.toContain('f'.repeat(64));
         });
     });
 
@@ -393,11 +520,14 @@ describe('toAuditRow — event → audit-row parity', () => {
             ).toBeNull();
         });
 
-        it('audits exactly the 20 expected kinds', () => {
+        it('audits exactly the 23 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
+                    'api_token.created',
+                    'api_token.revoked',
                     'auth.signed_in',
                     'auth.signed_out',
+                    'user.password_changed',
                     'entry.published',
                     'entry.unpublished',
                     'member.disabled',

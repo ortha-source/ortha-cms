@@ -7,11 +7,24 @@
 export const PASSWORD_MIN_LENGTH = 12;
 
 /**
- * Longest password the server accepts. bcrypt truncates its input at 72 bytes,
- * so anything beyond that would be silently ignored; the server rejects rather
- * than truncates, and so do we.
+ * Longest password the server accepts, counted in **UTF-8 bytes**. bcrypt
+ * truncates its input at 72 bytes, so anything beyond that would be silently
+ * ignored; the server rejects rather than truncates, and so do we.
+ *
+ * The unit is not decorative. `'é'.repeat(72)` is 72 characters but 144 bytes:
+ * measured with `.length` the form would call it valid and the server would
+ * then reject it, so the ceiling has to be measured the way bcrypt measures.
  */
-export const PASSWORD_MAX_LENGTH = 72;
+export const PASSWORD_MAX_BYTES = 72;
+
+/**
+ * The length of `value` in the unit the ceiling is expressed in — UTF-8 bytes.
+ * `TextEncoder` is the browser's `Buffer.byteLength`; ASCII reads the same as
+ * `.length`, and anything else reads longer.
+ */
+export function passwordByteLength(value: string): number {
+    return new TextEncoder().encode(value).length;
+}
 
 /**
  * A new account password — a client-side value object mirroring the server's
@@ -28,9 +41,11 @@ export class Password {
      * throwing — the check the password field uses per keystroke.
      */
     static isValid(value: string): boolean {
+        // Floor in characters, ceiling in bytes — the two bounds are measured
+        // in different units on purpose (see the constants above).
         return (
             value.length >= PASSWORD_MIN_LENGTH &&
-            value.length <= PASSWORD_MAX_LENGTH
+            passwordByteLength(value) <= PASSWORD_MAX_BYTES
         );
     }
 

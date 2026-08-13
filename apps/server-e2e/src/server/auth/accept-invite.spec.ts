@@ -143,6 +143,26 @@ describe('accept an invite', () => {
                 .expect(404);
         });
 
+        it('404s an empty token segment, without a 500', async () => {
+            // `GET /api/auth/invite/` matches no route at all. Worth pinning:
+            // the interesting failure would be the segment reaching the handler
+            // as an empty string and being hashed into a lookup.
+            await request(harness.server)
+                .get('/api/auth/invite/')
+                .expect(404);
+        });
+
+        it('404s a token that is not hex, without a 500', async () => {
+            // The raw token is `randomBytes(32).toString('hex')`, so anything
+            // else simply misses the hash lookup — including path
+            // metacharacters, which are data here and never a pattern.
+            for (const token of ['%_', '../../etc/passwd', "' OR 1=1 --"]) {
+                await request(harness.server)
+                    .get(`/api/auth/invite/${encodeURIComponent(token)}`)
+                    .expect(404);
+            }
+        });
+
         it('404s a token whose invite was revoked', async () => {
             const { id, token } = await invite();
             const agent = await loginAsAdmin();
@@ -377,6 +397,94 @@ describe('accept an invite', () => {
                     confirmPassword: tooLong
                 })
                 .expect(400);
+        });
+
+        it('accepts the exact 12-character floor', async () => {
+            const { token } = await invite();
+            const exactly12 = 'a'.repeat(12);
+
+            await request(harness.server)
+                .post('/api/auth/invite/accept')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: exactly12,
+                    confirmPassword: exactly12
+                })
+                .expect(201);
+        });
+
+        it('accepts the exact 72-byte ceiling', async () => {
+            const { token } = await invite();
+            const exactly72 = 'a'.repeat(72);
+
+            await request(harness.server)
+                .post('/api/auth/invite/accept')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: exactly72,
+                    confirmPassword: exactly72
+                })
+                .expect(201);
+        });
+
+        it('counts the ceiling in bytes, so a 72-character accented passphrase is rejected', async () => {
+            // BUG-identity-server-03. `'é'.repeat(72)` is 72 UTF-16 code units
+            // but 144 UTF-8 bytes. `@MaxLength(72)` measured the former and let
+            // it through, and bcrypt then hashed only the first 72 bytes — so
+            // `'é'.repeat(36)`, literally half the passphrase, logged the user
+            // in. The bound has to be measured the way bcrypt truncates.
+            const { id, token } = await invite();
+            const multibyte = 'é'.repeat(72);
+            expect(multibyte.length).toBe(72);
+            expect(Buffer.byteLength(multibyte, 'utf8')).toBe(144);
+
+            await request(harness.server)
+                .post('/api/auth/invite/accept')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: multibyte,
+                    confirmPassword: multibyte
+                })
+                .expect(400);
+
+            // Nothing was spent: the link still works and the account is
+            // untouched, so the invitee can retry with a shorter passphrase.
+            expect(await getInviteConsumedAt(id)).toBeNull();
+            expect((await getUserByEmail(INVITEE_EMAIL))?.status).toBe(
+                'pending'
+            );
+        });
+
+        it('accepts a multibyte passphrase that fits inside 72 bytes', async () => {
+            // The rule is a byte budget, not a ban on non-ASCII: 24 two-byte
+            // characters are 48 bytes and must pass.
+            const { token } = await invite();
+            const multibyte = 'é'.repeat(24);
+            expect(Buffer.byteLength(multibyte, 'utf8')).toBe(48);
+
+            await request(harness.server)
+                .post('/api/auth/invite/accept')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: multibyte,
+                    confirmPassword: multibyte
+                })
+                .expect(201);
+
+            // And the whole thing is what protects the account — a truncated
+            // prefix must not authenticate.
+            await request(harness.server)
+                .post('/api/auth/login')
+                .send({ email: INVITEE_EMAIL, password: 'é'.repeat(12) })
+                .expect(401);
+            await request(harness.server)
+                .post('/api/auth/login')
+                .send({ email: INVITEE_EMAIL, password: multibyte })
+                .expect(201);
         });
 
         it('400s when the confirmation does not match', async () => {

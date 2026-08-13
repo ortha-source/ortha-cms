@@ -1,3 +1,4 @@
+import type { TrustProxySetting } from '@ortha-cms/bootstrap-server';
 import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
 import type {
     IdentityRateLimitConfig,
@@ -30,6 +31,13 @@ const RELAXED_RATE_LIMIT: IdentityRateLimitConfig = {
 export interface TestConfigOverrides {
     /** Replace the login rate limit (e.g. pin it low to test throttling). */
     rateLimit?: IdentityRateLimitConfig;
+    /**
+     * Express `trust proxy`. Unset by default (matching a directly-exposed
+     * server, where `X-Forwarded-For` is ignored); the throttle suite boots a
+     * second app with it set to prove the rate limit then buckets per
+     * forwarded client IP rather than collapsing to one global bucket.
+     */
+    trustProxy?: TrustProxySetting;
     /** Replace the allow-listed origins. */
     allowedOrigins?: string[];
     /**
@@ -64,6 +72,7 @@ export function buildTestConfig(
     return {
         port: 0,
         globalPrefix: 'api',
+        trustProxy: overrides.trustProxy,
         database: { url: connectionString },
         // `createTestApp` builds the app itself and never calls `setupApiDocs`,
         // so this mounts no Scalar reference. It is NOT inert, though: the

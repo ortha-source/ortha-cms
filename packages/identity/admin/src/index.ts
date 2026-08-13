@@ -7,7 +7,8 @@ export type { AcceptInviteFormValues } from './lib/presentation/components/Accep
 export { AuthLayout } from './lib/presentation/components/AuthLayout';
 export {
     PASSWORD_MIN_LENGTH,
-    PASSWORD_MAX_LENGTH
+    PASSWORD_MAX_BYTES,
+    passwordByteLength
 } from './lib/domain/value-objects/password';
 export { AuthProvider } from './lib/presentation/auth/AuthProvider';
 export { RequireAuth } from './lib/presentation/auth/RequireAuth';

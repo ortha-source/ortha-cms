@@ -40,6 +40,10 @@ const actionMessages = defineMessages({
         id: 'activity.action.user.reactivated',
         defaultMessage: 'Reactivated member'
     },
+    passwordChanged: {
+        id: 'activity.action.user.password_changed',
+        defaultMessage: 'Changed password'
+    },
     signedIn: {
         id: 'activity.action.user.signed_in',
         defaultMessage: 'Signed in'
@@ -67,6 +71,14 @@ const actionMessages = defineMessages({
     entryUnpublished: {
         id: 'activity.action.entry.unpublished',
         defaultMessage: 'Unpublished content'
+    },
+    tokenCreated: {
+        id: 'activity.action.token.created',
+        defaultMessage: 'Created API token'
+    },
+    tokenRevoked: {
+        id: 'activity.action.token.revoked',
+        defaultMessage: 'Revoked API token'
     }
 });
 
@@ -79,13 +91,16 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.role_changed': actionMessages.roleChanged,
     'user.suspended': actionMessages.suspended,
     'user.reactivated': actionMessages.reactivated,
+    'user.password_changed': actionMessages.passwordChanged,
     'user.signed_in': actionMessages.signedIn,
     'user.signed_out': actionMessages.signedOut,
     'workspace.created': actionMessages.workspaceCreated,
     'workspace.member_added': actionMessages.workspaceMemberAdded,
     'workspace.member_removed': actionMessages.workspaceMemberRemoved,
     'entry.published': actionMessages.entryPublished,
-    'entry.unpublished': actionMessages.entryUnpublished
+    'entry.unpublished': actionMessages.entryUnpublished,
+    'token.created': actionMessages.tokenCreated,
+    'token.revoked': actionMessages.tokenRevoked
 };
 
 /** Detail-template descriptors for the kinds that render a "Details" string. */
@@ -146,6 +161,12 @@ export function formatActivityDetails(
             // The entry's content type — what was published, without the log
             // having to join anything to say it.
             return metaStr(meta, 'contentType');
+        case 'token.created':
+        case 'token.revoked':
+            // The token's label — the same string the API Tokens page shows,
+            // so a reader can match a log line to a row there. Never the
+            // secret, which the server does not put on the event.
+            return metaStr(meta, 'name');
         default:
             return '';
     }

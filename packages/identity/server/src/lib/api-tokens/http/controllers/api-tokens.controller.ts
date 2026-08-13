@@ -21,6 +21,7 @@ import {
     ApiTokenService,
     type ApiTokenView
 } from '../../application/api-token.service';
+import { UnknownWorkspaceError } from '../../domain/unknown-workspace.error';
 import { CreateApiTokenDto } from '../dto/create-api-token.dto';
 import {
     API_TOKENS_DEFAULT_PAGE_SIZE,
@@ -69,14 +70,29 @@ export class ApiTokensController {
         @CurrentUser() user: PublicUser
     ): Promise<CreateApiTokenResponse> {
         const expiresAt = parseExpiry(body.expiresAt);
-        const { token, secret } = await this.tokens.mint({
-            name: body.name,
-            workspaceIds: body.workspaceIds,
-            scope: body.scope,
-            expiresAt,
-            createdBy: user.id
-        });
-        return { ...token, secret };
+        try {
+            const { token, secret } = await this.tokens.mint({
+                name: body.name,
+                workspaceIds: body.workspaceIds,
+                scope: body.scope,
+                expiresAt,
+                createdBy: user.id,
+                // Named separately from `createdBy` so the audit row carries a
+                // frozen email snapshot rather than a foreign key into a user
+                // who may later be renamed or deleted.
+                actor: { id: user.id, email: user.email }
+            });
+            return { ...token, secret };
+        } catch (error) {
+            // A bucket naming a workspace that does not exist is a client
+            // mistake, not an authorization failure — 400, alongside the DTO's
+            // own shape errors. Nothing is leaked: only an admin reaches this
+            // route, and they are being told about ids they just supplied.
+            if (error instanceof UnknownWorkspaceError) {
+                throw new BadRequestException(error.message);
+            }
+            throw error;
+        }
     }
 
     /** `GET /api/api-tokens` — one page of token metadata (never the secret). */
@@ -94,14 +110,18 @@ export class ApiTokensController {
 
     /**
      * `DELETE /api/api-tokens/:id` — revoke a token. Idempotent: an unknown or
-     * already-revoked id still 204s. `Origin`-guarded.
+     * already-revoked id still 204s, and only the call that actually revoked a
+     * live token writes an audit row. `Origin`-guarded.
      */
     @Delete(':id')
     @RequirePermissions(PERMISSIONS.TOKENS_DELETE)
     @UseGuards(OriginGuard)
     @HttpCode(204)
-    async revoke(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-        await this.tokens.revoke(id);
+    async revoke(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: PublicUser
+    ): Promise<void> {
+        await this.tokens.revoke(id, { id: user.id, email: user.email });
     }
 }
 

@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, Password } from './index';
+import { PASSWORD_MAX_BYTES, PASSWORD_MIN_LENGTH, Password } from './index';
 
 /**
  * The client-side length rule behind the accept-invite form, mirroring
  * identity-server's. Length only — composition rules push people toward
  * predictable substitutions — so the whole contract is the pair of boundaries,
  * which is exactly what this pins.
+ *
+ * The two bounds are measured in **different units on purpose**: the floor in
+ * characters (what a person types), the ceiling in UTF-8 bytes (what bcrypt
+ * truncates on).
  */
 describe('Password', () => {
-    it('mirrors the server rule: 12 to 72', () => {
+    it('mirrors the server rule: 12 characters to 72 bytes', () => {
         expect(PASSWORD_MIN_LENGTH).toBe(12);
-        expect(PASSWORD_MAX_LENGTH).toBe(72);
+        expect(PASSWORD_MAX_BYTES).toBe(72);
     });
 
     describe('isValid', () => {
@@ -37,28 +41,34 @@ describe('Password', () => {
             expect(Password.isValid('abcdefghijkl')).toBe(true);
         });
 
-        // Length is counted in UTF-16 code units, which is what
-        // `String.prototype.length` gives and what the server's character check
-        // uses — so the two agree. bcrypt, however, truncates at 72 *bytes*, so
-        // a multi-byte passphrase that passes both is still cut short when it is
-        // hashed. That is BUG-identity-server-03 (a server-side fix); these
-        // cases document the client's half of the boundary so a future change
-        // to either rule has to face the mismatch deliberately.
-        it('counts UTF-16 code units, not bytes, for accented text', () => {
+        // The ceiling is measured in UTF-8 bytes because that is the unit
+        // bcrypt truncates on. Counting UTF-16 code units instead was
+        // BUG-identity-server-03: `'é'.repeat(72)` passed both the client and
+        // the server, then lost half its length in the hash, so the account was
+        // protected by the first 36 characters only. These cases pin the fix —
+        // a passphrase the hash cannot carry whole is rejected, not silently cut.
+        it('measures the ceiling in bytes, not UTF-16 code units', () => {
             const passphrase = 'é'.repeat(72);
 
             expect(passphrase).toHaveLength(72);
             expect(new TextEncoder().encode(passphrase)).toHaveLength(144);
-            expect(Password.isValid(passphrase)).toBe(true);
+            expect(Password.isValid(passphrase)).toBe(false);
         });
 
-        it('counts an astral emoji as two code units', () => {
-            // 36 keys = 72 UTF-16 units = 144 bytes: accepted at exactly the
-            // maximum, and one emoji more is over it.
-            expect(Password.isValid('🔑'.repeat(36))).toBe(true);
-            expect(Password.isValid('🔑'.repeat(37))).toBe(false);
-            // Six emoji are 12 code units, so they clear the minimum even
-            // though a person would count six characters.
+        it('accepts accented text right up to the byte ceiling', () => {
+            // 'é' is two bytes: 36 of them are 72 bytes exactly, and 37 are over.
+            expect(new TextEncoder().encode('é'.repeat(36))).toHaveLength(72);
+            expect(Password.isValid('é'.repeat(36))).toBe(true);
+            expect(Password.isValid('é'.repeat(37))).toBe(false);
+        });
+
+        it('counts an astral emoji as four bytes', () => {
+            // 18 keys = 72 bytes exactly; 19 is over the ceiling.
+            expect(new TextEncoder().encode('🔑'.repeat(18))).toHaveLength(72);
+            expect(Password.isValid('🔑'.repeat(18))).toBe(true);
+            expect(Password.isValid('🔑'.repeat(19))).toBe(false);
+            // The floor is still counted in code units, so six emoji (12 units,
+            // 24 bytes) clear it even though a person would count six characters.
             expect(Password.isValid('🔑'.repeat(6))).toBe(true);
             expect(Password.isValid('🔑'.repeat(5))).toBe(false);
         });

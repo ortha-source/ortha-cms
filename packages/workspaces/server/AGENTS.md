@@ -109,6 +109,14 @@ transaction-script services this replaced.
 - `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER`: secondary ports **this context
   owns** and `content-server` binds — the acyclic inversion (content depends on
   workspaces for its route guards, so workspaces must not depend on content).
+- `WORKSPACE_DIRECTORY` → `WorkspaceExistenceQuery`: the same inversion pointing
+  the other way. **Identity** owns this port (this package depends on identity,
+  so identity cannot depend back), and binds it here so minting an API token can
+  reject a bucket naming a workspace that does not exist —
+  `api_token_workspaces` deliberately carries no cross-plugin foreign key, so
+  this is the only thing standing between a typo and a token scoped to nothing.
+  Answers **existence**, not status: an archived workspace is still a valid
+  scope.
 
 ## Unit of work + outbox
 

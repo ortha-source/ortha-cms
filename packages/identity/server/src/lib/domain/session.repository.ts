@@ -90,6 +90,25 @@ export interface SessionRepository {
      * member. Returns whether a live session was revoked.
      */
     revokeById(userId: string, sessionId: string): Promise<boolean>;
+
+    /**
+     * Revokes **every** live session a user holds, returning how many were
+     * revoked. The credential-rotation primitive: a password change has to
+     * invalidate the sessions the old password opened, or "I changed my
+     * password" fails to evict whoever knew the old one.
+     *
+     * `exceptSessionId` keeps one session alive — the caller's own, so a user
+     * who changes their password from a signed-in device is not logged out of
+     * the device they just used. Pass the session **row id** (the token's
+     * SHA-256), the same handle {@link listForUser} returns.
+     *
+     * Joins the active unit of work, so the revocations commit with the
+     * credential change and can never be left half-applied.
+     */
+    revokeAllForUser(
+        userId: string,
+        options?: { exceptSessionId?: string }
+    ): Promise<number>;
 }
 
 /**

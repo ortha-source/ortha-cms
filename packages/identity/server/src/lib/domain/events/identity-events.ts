@@ -1,13 +1,16 @@
 import { createDomainEvent, type DomainEvent } from '@ortha-cms/database';
 
 /**
- * The domain event kinds the identity context raises. Two families:
+ * The domain event kinds the identity context raises. Three families:
  *
  * - `user.*` — {@link UserAccount} lifecycle/credential facts, raised by the
  *   aggregate;
  * - `auth.*` — session facts (sign-in / sign-out), raised by the auth
  *   use-cases (a sign-in mutates no `UserAccount`, so its fact is minted by the
- *   flow rather than drained from an aggregate).
+ *   flow rather than drained from an aggregate);
+ * - `api_token.*` — external-API bearer token lifecycle, raised by
+ *   `ApiTokenService`. Their aggregate is the **token**, not a user, so they are
+ *   built with {@link apiTokenEvent}.
  *
  * These are **distinct** from the `user.*` audit kinds
  * ({@link IDENTITY_ACTIVITY_KINDS}) the activity recorder writes in-band: like
@@ -22,15 +25,20 @@ export const IDENTITY_EVENT_KINDS = {
     USER_ENABLED: 'user.enabled',
     PASSWORD_CHANGED: 'user.password_changed',
     SIGNED_IN: 'auth.signed_in',
-    SIGNED_OUT: 'auth.signed_out'
+    SIGNED_OUT: 'auth.signed_out',
+    API_TOKEN_CREATED: 'api_token.created',
+    API_TOKEN_REVOKED: 'api_token.revoked'
 } as const;
 
 /** A domain event kind raised by the identity context. */
 export type IdentityEventKind =
     (typeof IDENTITY_EVENT_KINDS)[keyof typeof IDENTITY_EVENT_KINDS];
 
-/** The aggregate type stamped on every identity domain event. */
+/** The aggregate type stamped on identity's `user.*` / `auth.*` events. */
 const AGGREGATE_TYPE = 'user';
+
+/** The aggregate type stamped on identity's `api_token.*` events. */
+const API_TOKEN_AGGREGATE_TYPE = 'api_token';
 
 /**
  * Builds an identity {@link DomainEvent} of `kind` for `userId`, carrying
@@ -47,6 +55,31 @@ export function identityEvent(
         kind,
         aggregateType: AGGREGATE_TYPE,
         aggregateId: userId,
+        payload
+    });
+}
+
+/**
+ * Builds an identity {@link DomainEvent} of `kind` for the API token `tokenId`,
+ * carrying `payload`. The sibling of {@link identityEvent} for the one identity
+ * concern whose aggregate is not a user: an API token has its own lifecycle
+ * (minted, revoked) and its own id, and the acting admin rides on the payload
+ * as the actor rather than being the subject.
+ *
+ * `payload` must never carry the token's plaintext or its hash — the audit log
+ * is a lower-trust store than `api_tokens`, and the whole point of hashing at
+ * rest is that a read of another table yields no usable credential. The
+ * non-secret `lookupPrefix` is what identifies a token in a log line.
+ */
+export function apiTokenEvent(
+    kind: string,
+    tokenId: string,
+    payload: Record<string, unknown> = {}
+): DomainEvent {
+    return createDomainEvent({
+        kind,
+        aggregateType: API_TOKEN_AGGREGATE_TYPE,
+        aggregateId: tokenId,
         payload
     });
 }

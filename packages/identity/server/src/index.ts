@@ -13,7 +13,10 @@ export { IdentityModule } from './lib/identity.module';
 export { IDENTITY_CONFIG, InjectIdentityConfig } from './lib/identity.tokens';
 export {
     MIN_PASSWORD_LENGTH,
-    MAX_PASSWORD_LENGTH
+    MAX_PASSWORD_LENGTH,
+    // The ceiling is a BYTE bound (bcrypt's truncation point), so anything
+    // enforcing it must measure the same way this does.
+    passwordByteLength
 } from './lib/auth/auth.constants';
 export { AuthGuard } from './lib/auth/guards/auth.guard';
 export { OriginGuard } from './lib/auth/guards/origin.guard';
@@ -42,6 +45,13 @@ export { Permission } from './lib/domain/value-objects/permission';
 export { AccessPolicy } from './lib/domain/access-policy';
 export type { Actor, PermissionScope } from './lib/domain/access-policy';
 export { RoleNotFoundError, SystemRoleProtectedError } from './lib/rbac/errors';
+// Credential rotation. Exported ahead of the controller that will wire it (the
+// self-service change / reset flows), so the server-e2e suite can drive the
+// real use case out of DI — a flow that revokes sessions and writes an audit
+// row is not something to leave unexercised until a route shows up.
+export { ChangePasswordUseCase } from './lib/application/use-cases/change-password.use-case';
+export type { ChangePasswordOptions } from './lib/application/use-cases/change-password.use-case';
+export { PasswordTooLongError } from './lib/auth/errors';
 export { RootAdminService } from './lib/root-admin/services/root-admin.service';
 export type {
     RootAdminOutcome,
@@ -82,3 +92,9 @@ export type {
     ApiTokenScope,
     ScopedToken
 } from './lib/api-tokens/domain/api-token-scope';
+// The workspace-existence port a token's bucket is validated against. Identity
+// owns it and the workspaces plugin binds it — the same inversion as
+// `ACTIVITY_RECORDER`, keeping the package graph acyclic.
+export { WORKSPACE_DIRECTORY } from './lib/api-tokens/application/ports/workspace-directory.port';
+export type { WorkspaceDirectory } from './lib/api-tokens/application/ports/workspace-directory.port';
+export { UnknownWorkspaceError } from './lib/api-tokens/domain/unknown-workspace.error';
