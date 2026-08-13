@@ -14,6 +14,37 @@ import { mockInvite } from '../support/api/invites';
  * or on a control that no longer exists, and the tab title still says whatever
  * it said before.
  */
+/**
+ * The resolved `outline-style` of one element — `'none'` when the browser is
+ * drawing no focus ring.
+ *
+ * Typed inline through `globalThis`: this project's tsconfig ships no DOM lib
+ * (the specs drive a browser, they do not compile against one), the same reason
+ * `reflow.spec.ts` reaches for `documentElement` that way. Runs in the page, so
+ * it must stay self-contained.
+ */
+function outlineStyleOf(node: unknown): string {
+    return (
+        globalThis as unknown as {
+            getComputedStyle: (el: unknown) => { outlineStyle: string };
+        }
+    ).getComputedStyle(node).outlineStyle;
+}
+
+/**
+ * The resolved `box-shadow` of one element — how the design system actually
+ * draws a focus indicator. Its inputs set `focus-visible:outline-none` and
+ * `focus-visible:ring-2`, so "has an outline" is the wrong question to ask of a
+ * control: the ring is a shadow.
+ */
+function boxShadowOf(node: unknown): string {
+    return (
+        globalThis as unknown as {
+            getComputedStyle: (el: unknown) => { boxShadow: string };
+        }
+    ).getComputedStyle(node).boxShadow;
+}
+
 test.describe('auth focus management', () => {
     test('a failed sign-in moves focus to the error, not past it', async ({
         page,
@@ -73,6 +104,62 @@ test.describe('auth focus management', () => {
 
         await expect(loginPage.heading).toBeVisible();
         await expect(loginPage.heading).toBeFocused();
+    });
+
+    test('the focused heading is not ringed like a control', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.heading).toBeFocused();
+
+        // Chrome treats this programmatic focus as `:focus-visible` and paints
+        // its default outline, which drew a box around the page title — it read
+        // as something to interact with. Suppressing it is safe *only* because
+        // `tabindex="-1"` keeps the heading out of the tab order, so nobody can
+        // navigate onto it and need the indicator.
+        expect(await loginPage.heading.evaluate(outlineStyleOf)).toBe('none');
+    });
+
+    test('the focused error banner is not ringed either', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await mockLogin(page, { status: 401 });
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+        await loginPage.login('admin@example.com', 'wrong-password');
+        await expect(loginPage.errorBanner).toBeFocused();
+
+        // A second box inside the banner's own destructive border is noise.
+        expect(await loginPage.errorBanner.evaluate(outlineStyleOf)).toBe(
+            'none'
+        );
+    });
+
+    test('a control reached by Tab keeps its focus indicator', async ({
+        page,
+        loginPage
+    }) => {
+        await mockSignedOut(page);
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        // The guard on the two tests above: suppressing the indicator on
+        // non-interactive focus targets must not have leaked into anything a
+        // keyboard user actually navigates to.
+        //
+        // Asserted on the *shadow*, not the outline: the design system's inputs
+        // set `focus-visible:outline-none focus-visible:ring-2`, so they have no
+        // outline by design and checking for one would fail on a control that is
+        // in fact perfectly indicated.
+        const unfocused = await loginPage.email.evaluate(boxShadowOf);
+        await page.keyboard.press('Tab');
+        await expect(loginPage.email).toBeFocused();
+        expect(await loginPage.email.evaluate(boxShadowOf)).not.toBe(unfocused);
     });
 
     test('the invite form takes focus when the lookup resolves', async ({

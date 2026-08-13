@@ -45,8 +45,17 @@ export function AuthAlert({ title, message }: AuthAlertProps) {
     return (
         // `tabIndex={-1}` makes the banner programmatically focusable without
         // adding a stop to the tab order — the user is placed here, but nobody
-        // tabbing through the form has to pass through it.
-        <Alert ref={ref} tabIndex={-1} variant="destructive">
+        // tabbing through the form has to pass through it. `outline-none` for
+        // the same reason the heading drops its ring: the browser paints one for
+        // this programmatic focus, and a second box inside the banner's own
+        // destructive border is noise on something that is not interactive.
+        // Nothing reachable by Tab loses an indicator.
+        <Alert
+            ref={ref}
+            tabIndex={-1}
+            variant="destructive"
+            className="focus:outline-none"
+        >
             <AlertTitle>{title}</AlertTitle>
             <AlertDescription>{message}</AlertDescription>
         </Alert>
