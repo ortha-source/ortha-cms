@@ -8,6 +8,7 @@ import { Slug } from '../../domain/slug';
 import type { WorkspaceMember } from '../../domain/types/workspace';
 import type { WizardSnapshot } from '../../domain/types/wizard';
 import { buildCreateWorkspaceBody } from '../../infrastructure/buildCreateWorkspaceBody';
+import { isConflict } from '../../infrastructure/isConflict';
 import { useCreateWorkspace } from '../useCreateWorkspace';
 
 /** Toast copy for the create-workspace use case. */
@@ -19,6 +20,16 @@ const messages = defineMessages({
     error: {
         id: 'workspaces.create.error',
         defaultMessage: 'Could not create workspace. Please try again.'
+    },
+    conflict: {
+        id: 'workspaces.create.errorConflict',
+        defaultMessage:
+            'That slug is already taken. Pick a different one on the Basics step.'
+    },
+    invalidSlug: {
+        id: 'workspaces.create.errorInvalidSlug',
+        defaultMessage:
+            'That slug isn’t valid. Use lowercase letters, numbers, and hyphens only.'
     }
 });
 
@@ -52,9 +63,11 @@ export function useCreateWorkspaceFlow(): CreateWorkspaceFlow {
 
     const submit = useCallback(
         async (snapshot: WizardSnapshot): Promise<void> => {
+            let slugGuarded = false;
             try {
                 // Guard the shape through the domain VO before hitting the API.
                 Slug.create(snapshot.data.slug.trim());
+                slugGuarded = true;
 
                 const displayName = user?.name ?? user?.email ?? 'You';
                 const creator: WorkspaceMember = {
@@ -73,8 +86,18 @@ export function useCreateWorkspaceFlow(): CreateWorkspaceFlow {
                     intl.formatMessage(messages.success, { name: created.name })
                 );
                 navigate('/workspaces');
-            } catch {
-                toast.error(intl.formatMessage(messages.error));
+            } catch (error) {
+                // Narrow the outcome rather than collapsing every failure onto
+                // "Please try again" — for a taken slug that advice is actively
+                // wrong, since retrying can never succeed. `isConflict` is the
+                // same 409 narrowing the settings dialogs already use.
+                if (!slugGuarded) {
+                    toast.error(intl.formatMessage(messages.invalidSlug));
+                } else if (isConflict(error)) {
+                    toast.error(intl.formatMessage(messages.conflict));
+                } else {
+                    toast.error(intl.formatMessage(messages.error));
+                }
             }
         },
         [user, createMutation, intl, navigate]

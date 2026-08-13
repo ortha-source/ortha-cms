@@ -95,11 +95,23 @@ export function WorkspaceShell() {
     const current = workspaces?.find((workspace) => workspace.id === id);
 
     // Take over the app sidebar's contextual region with this workspace's nav
-    // while the shell is mounted; the shell clears it on unmount. Keyed on the
-    // workspace id so switching rebuilds it (the nav reads the rest itself).
+    // while the shell is mounted; the shell clears it on unmount.
+    //
+    // `useSidebarContent` stores the *rendered element*, not the render function,
+    // so the `workspace` prop captured here is frozen until a dep changes. The
+    // deps therefore have to name every field the nav actually renders — keying
+    // on the id alone meant renaming, recoloring or archiving a workspace left
+    // the switcher showing the old values (including in its `aria-label`) for the
+    // rest of the session, while the settings page beside it showed the new ones.
     useSidebarContent(
         () => (current ? <WorkspaceNav workspace={current} /> : null),
-        [current?.id]
+        [
+            current?.id,
+            current?.name,
+            current?.color,
+            current?.status,
+            current?.members.length
+        ]
     );
 
     if (isPending) {

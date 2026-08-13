@@ -1,8 +1,16 @@
-/** Up-to-two uppercase initials from the leading character of each part. */
+/**
+ * Up-to-two uppercase initials from the leading character of each part.
+ *
+ * The leading character is taken with `[...part][0]`, not `part[0]`: string
+ * indexing addresses UTF-16 **code units**, so a name starting with an
+ * astral-plane character (any emoji, and much of CJK Ext-B) would yield a lone
+ * surrogate — an unpaired half of the character, which renders as a tofu box.
+ * Spreading iterates by code point and keeps the character whole.
+ */
 function initialsFromParts(parts: string[]): string {
     return parts
         .filter(Boolean)
-        .map((part) => part[0])
+        .map((part) => [...part][0])
         .slice(0, 2)
         .join('')
         .toUpperCase();

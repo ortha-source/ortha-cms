@@ -78,6 +78,22 @@ export class WorkspacesPage extends BasePage {
         return this.table.getByRole('link', { name, exact: true });
     }
 
+    /**
+     * A row's avatar monogram — the initials derived on the client. The avatar
+     * is a design-system `Avatar` (a Radix span pair with no role or test id),
+     * so it is addressed as the first span of the row's first cell, ahead of
+     * the name link.
+     */
+    monogram(name: string | RegExp): Locator {
+        return this.table
+            .getByRole('row')
+            .filter({ hasText: name })
+            .getByRole('cell')
+            .first()
+            .locator('span')
+            .first();
+    }
+
     // --- status filter chips (SegmentedControl → role=radio) ---
 
     statusOption(label: string): Locator {

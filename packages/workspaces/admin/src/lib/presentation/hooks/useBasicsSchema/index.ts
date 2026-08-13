@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { z } from 'zod';
 import { Slug } from '../../../domain/slug';
+import { DESCRIPTION_MAX, NAME_MAX } from '../../../domain/workspaceLimits';
 
 /** Validation copy for the basics step, co-located with the schema. */
 const messages = defineMessages({
@@ -11,7 +12,7 @@ const messages = defineMessages({
     },
     nameTooLong: {
         id: 'workspaces.create.basics.nameTooLong',
-        defaultMessage: 'Name must be at most 100 characters.'
+        defaultMessage: 'Name must be at most {max} characters.'
     },
     slugRequired: {
         id: 'workspaces.create.basics.slugRequired',
@@ -23,14 +24,15 @@ const messages = defineMessages({
     },
     descriptionTooLong: {
         id: 'workspaces.create.basics.descriptionTooLong',
-        defaultMessage: 'Description must be at most 500 characters.'
+        defaultMessage: 'Description must be at most {max} characters.'
     }
 });
 
 /**
  * Builds the basics-step Zod schema with localized messages. Mirrors the
- * server `CreateWorkspaceDto` (name required, ≤100; slug required, matching the
- * {@link Slug} value object's rule; description ≤500). The slug shape check
+ * server `CreateWorkspaceDto` through the shared {@link NAME_MAX} /
+ * {@link DESCRIPTION_MAX} constants (name required, ≤120; slug required, matching
+ * the {@link Slug} value object's rule; description ≤2000). The slug shape check
  * delegates to the shared {@link Slug} VO so it can't drift from the availability
  * hook or the server. Rebuilt when the locale changes so the copy stays in sync
  * with the UI. Slug *availability* is checked separately by `useSlugAvailability`
@@ -45,20 +47,34 @@ export function useBasicsSchema() {
                 name: z
                     .string()
                     .trim()
-                    .min(1, { message: intl.formatMessage(messages.nameRequired) })
-                    .max(100, {
-                        message: intl.formatMessage(messages.nameTooLong)
+                    .min(1, {
+                        message: intl.formatMessage(messages.nameRequired)
+                    })
+                    .max(NAME_MAX, {
+                        message: intl.formatMessage(messages.nameTooLong, {
+                            max: NAME_MAX
+                        })
                     }),
                 slug: z
                     .string()
                     .trim()
-                    .min(1, { message: intl.formatMessage(messages.slugRequired) })
+                    .min(1, {
+                        message: intl.formatMessage(messages.slugRequired)
+                    })
                     .refine((value) => Slug.isValid(value), {
                         message: intl.formatMessage(messages.slugPattern)
                     }),
-                description: z.string().trim().max(500, {
-                    message: intl.formatMessage(messages.descriptionTooLong)
-                })
+                description: z
+                    .string()
+                    .trim()
+                    .max(DESCRIPTION_MAX, {
+                        message: intl.formatMessage(
+                            messages.descriptionTooLong,
+                            {
+                                max: DESCRIPTION_MAX
+                            }
+                        )
+                    })
             }),
         [intl]
     );

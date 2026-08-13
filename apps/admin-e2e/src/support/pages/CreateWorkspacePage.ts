@@ -82,6 +82,22 @@ export class CreateWorkspacePage extends BasePage {
     }
 
     /**
+     * The slug field's "we couldn't answer that" state — the availability
+     * endpoint failed, so uniqueness is unknown and the step stays blocked. A
+     * `role="alert"`, unlike the passive Checking/Available/Taken lines.
+     */
+    slugCheckFailed(): Locator {
+        return this.page.getByRole('alert').filter({
+            hasText: /Couldn’t check whether this slug is free/
+        });
+    }
+
+    /** A sonner toast by text (success or failure of the submit). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
+    /**
      * Walk the wizard with default members (just the owner) and content (all),
      * submitting at the end. `continueToMembers.click()` auto-waits for the slug
      * availability check to enable it.

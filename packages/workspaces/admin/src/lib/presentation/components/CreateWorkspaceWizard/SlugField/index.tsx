@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, RotateCcw, X } from 'lucide-react';
+import { AlertCircle, Check, RotateCcw, X } from 'lucide-react';
 import {
     Button,
     Field,
@@ -40,6 +40,11 @@ const messages = defineMessages({
     taken: {
         id: 'workspaces.create.basics.slugTaken',
         defaultMessage: 'That slug is already taken.'
+    },
+    unknown: {
+        id: 'workspaces.create.basics.slugUnknown',
+        defaultMessage:
+            'Couldn’t check whether this slug is free, so you can’t continue yet. Please try again.'
     }
 });
 
@@ -68,6 +73,20 @@ function SlugStatusLine({ status }: { status: SlugStatus }) {
             <span className="flex items-center gap-1.5 text-sm text-destructive">
                 <X className="size-3.5" />
                 {intl.formatMessage(messages.taken)}
+            </span>
+        );
+    }
+    if (status === SlugStatus.Unknown) {
+        // `role="alert"` because this one appears only on a failure the user
+        // didn't cause and must act on — the other states are passive progress
+        // reporting and would be noise if announced.
+        return (
+            <span
+                role="alert"
+                className="flex items-center gap-1.5 text-sm text-destructive"
+            >
+                <AlertCircle className="size-3.5" />
+                {intl.formatMessage(messages.unknown)}
             </span>
         );
     }

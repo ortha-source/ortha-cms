@@ -176,12 +176,22 @@ export function CreateWorkspacePage() {
     const contentBlocked =
         wizard.contentMode === 'specific' &&
         (wizard.ctLoading || wizard.ctError);
+    // `useWizard` already falls back to step 1 when the basics are incomplete,
+    // so this is defense in depth: submitting without a name/slug can only ever
+    // throw inside the `Slug` guard and surface as a generic failure, which
+    // reads as "the server refused" when nothing was ever sent.
+    const createBlocked =
+        flow.submitting || contentBlocked || !wizard.basicsValid;
 
     // Submission (slug VO validation → create → toast + navigate) lives in the
     // create use-case hook; the page only assembles the snapshot. "Skip &
     // create" submits an override with empty content without mutating state.
-    const submitTo = (skip: boolean) =>
-        flow.submit(
+    // Both entry points share the incomplete-basics guard: `WizardFooter`'s Skip
+    // takes no disabled state, so refusing here is what stops it submitting a
+    // snapshot that can only fail.
+    const submitTo = (skip: boolean) => {
+        if (createBlocked) return Promise.resolve();
+        return flow.submit(
             skip
                 ? {
                       ...wizard.snapshot,
@@ -191,6 +201,7 @@ export function CreateWorkspacePage() {
                   }
                 : wizard.snapshot
         );
+    };
 
     const railSteps = [
         {
@@ -399,10 +410,7 @@ export function CreateWorkspacePage() {
                                             <Button
                                                 type="button"
                                                 onClick={() => submitTo(false)}
-                                                disabled={
-                                                    flow.submitting ||
-                                                    contentBlocked
-                                                }
+                                                disabled={createBlocked}
                                             >
                                                 {flow.submitting ? (
                                                     <>

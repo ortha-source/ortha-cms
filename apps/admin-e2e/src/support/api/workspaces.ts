@@ -173,6 +173,13 @@ export async function mockWorkspaces(
     });
 }
 
+/** JSON error response with an arbitrary status. */
+const jsonError = (status: number, message: string) => ({
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({ statusCode: status, message })
+});
+
 /**
  * Stub the full create-workspace flow with a **stateful** in-memory store: the
  * list `GET` reflects whatever `POST /api/workspaces` has created, so a created
@@ -183,7 +190,24 @@ export async function mockWorkspaces(
  */
 export async function mockWorkspacesApi(
     page: Page,
-    initial: WorkspaceView[] = WORKSPACES_SEED
+    initial: WorkspaceView[] = WORKSPACES_SEED,
+    {
+        slugAvailabilityStatus,
+        createStatus
+    }: {
+        /**
+         * Force `GET /slug-available` to fail with this status, so a suite can
+         * assert the wizard treats an unanswerable uniqueness check as
+         * *unknown* (blocking) rather than *available*.
+         */
+        slugAvailabilityStatus?: number;
+        /**
+         * Force `POST /api/workspaces` to fail with this status instead of
+         * creating — `409` is the duplicate-slug conflict the create flow has
+         * to report as such rather than as a retryable error.
+         */
+        createStatus?: number;
+    } = {}
 ): Promise<void> {
     const store = initial.map((w) => ({ ...w }));
 
@@ -194,6 +218,12 @@ export async function mockWorkspacesApi(
             return;
         }
         if (request.method() === 'POST') {
+            if (createStatus) {
+                await route.fulfill(
+                    jsonError(createStatus, 'Workspace slug already exists')
+                );
+                return;
+            }
             const body = request.postDataJSON() as {
                 name: string;
                 slug: string;
@@ -226,6 +256,15 @@ export async function mockWorkspacesApi(
     await page.route(
         /\/api\/workspaces\/slug-available(\?.*)?$/,
         async (route) => {
+            if (slugAvailabilityStatus) {
+                await route.fulfill(
+                    jsonError(
+                        slugAvailabilityStatus,
+                        'Availability check failed'
+                    )
+                );
+                return;
+            }
             const slug = new URL(route.request().url()).searchParams.get(
                 'slug'
             );
@@ -261,13 +300,6 @@ export async function mockWorkspacesApi(
         await route.fulfill(json(CONTENT_TYPES));
     });
 }
-
-/** JSON error response with an arbitrary status. */
-const jsonError = (status: number, message: string) => ({
-    status,
-    contentType: 'application/json',
-    body: JSON.stringify({ statusCode: status, message })
-});
 
 /** The path segments of a routed request (`['', 'api', 'workspaces', …]`). */
 const segments = (url: string): string[] => new URL(url).pathname.split('/');
@@ -463,7 +495,12 @@ export async function mockWorkspaceSettingsApi(
               )
             : DIRECTORY;
         await route.fulfill(
-            json({ items, page: 1, pageSize: items.length, total: items.length })
+            json({
+                items,
+                page: 1,
+                pageSize: items.length,
+                total: items.length
+            })
         );
     });
 }
