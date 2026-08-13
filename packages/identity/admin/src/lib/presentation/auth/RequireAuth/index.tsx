@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { AppLoader } from '@ortha-cms/design-system';
 import { AuthStatus, useAuth } from '../authContext';
+import { AuthUnavailable } from '../../components/AuthUnavailable';
 
 /** Where the gate sends unauthenticated users; identity owns its sign-in path. */
 const DEFAULT_SIGN_IN_PATH = '/identity/signin';
@@ -31,6 +32,12 @@ type RequireAuthProps = {
  * attempted location in router state so the sign-in flow can return the user
  * there.
  *
+ * "Resolved" has two failure shapes, and only one of them is a redirect. The
+ * server answering "nobody is signed in" sends the visitor to sign in; the
+ * server not answering at all renders {@link AuthUnavailable}, because an
+ * outage is not a sign-out and the sign-in form would fail against the same
+ * API.
+ *
  * Composed by the shell into its `layout` (wrapped in {@link AuthProvider}), so
  * one check guards the whole authenticated area. It must render under an
  * `AuthProvider`, which supplies the state it reads via `useAuth`.
@@ -45,6 +52,13 @@ export function RequireAuth({
 
     if (status === AuthStatus.Loading) {
         return <AppLoader label={intl.formatMessage(messages.loading)} />;
+    }
+
+    // The probe failed rather than answering "nobody": say so and offer a
+    // retry. Redirecting here would report an API outage as a sign-out, and
+    // send the user to a form whose submit hits the same dead endpoint.
+    if (status === AuthStatus.Unavailable) {
+        return <AuthUnavailable />;
     }
 
     if (status === AuthStatus.Unauthenticated) {

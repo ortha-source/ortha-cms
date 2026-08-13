@@ -54,6 +54,27 @@ test.describe('Account menu', () => {
         await expect(userDetailPage.heading('Ada Lovelace')).toBeVisible();
     });
 
+    test('falls back to the email when the account has no name', async ({
+        membersPage,
+        page
+    }) => {
+        // `name` is nullable on `/auth/me` — the seeded root admin has none —
+        // so every place that renders a display name needs a fallback rather
+        // than an empty row or a literal "null" (EC-04 on ORT-57).
+        await mockSignedIn(page, {
+            id: 'u_ada',
+            name: null,
+            email: 'ada@ortha.dev'
+        });
+        await membersPage.goto();
+
+        await expect(membersPage.accountMenuTrigger()).toBeVisible();
+        await expect(
+            membersPage.accountMenuTrigger().getByText('ada@ortha.dev')
+        ).toHaveCount(2);
+        await expect(page.getByText('null', { exact: true })).toHaveCount(0);
+    });
+
     test('Logout calls the logout endpoint', async ({ membersPage, page }) => {
         const logout = await spyLogout(page);
         await membersPage.goto();

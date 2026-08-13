@@ -14,7 +14,6 @@ import { useLoginSchema } from './useLoginSchema';
 import { AuthField } from '../AuthField';
 import { LoginAlert } from './LoginAlert';
 import { LoginActions } from './LoginActions';
-import { LegalFooter } from './LegalFooter';
 
 /** Intl descriptors for {@link LoginForm}, co-located with the component. */
 const messages = defineMessages({
@@ -41,10 +40,6 @@ const messages = defineMessages({
     passwordPlaceholder: {
         id: 'identity.login.passwordPlaceholder',
         defaultMessage: '••••••••'
-    },
-    forgotPassword: {
-        id: 'identity.login.forgotPassword',
-        defaultMessage: 'Forgot your password?'
     }
 });
 
@@ -65,10 +60,16 @@ type LoginFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
 };
 
 /**
- * Login form with card wrapper, email/password fields, and legal footer.
- * Uses TanStack Form for field state. Presentation-only: submission is
- * delegated to the `onSubmit` prop, with `isPending`/`error` driving the
- * button and alert. No API call lives here.
+ * Login form with card wrapper and email/password fields. Uses TanStack Form
+ * for field state. Presentation-only: submission is delegated to the `onSubmit`
+ * prop, with `isPending`/`error` driving the button and alert. No API call
+ * lives here.
+ *
+ * Every control on the card does something. Password recovery, sign-up, and the
+ * terms/privacy pages have no routes yet, so they are absent rather than
+ * rendered as buttons that swallow the click — a control that announces itself
+ * as operable has to be operable (WCAG 4.1.2), and a keyboard user who tabs
+ * into a dead stop mid-credential-flow reasonably concludes the page is broken.
  */
 export function LoginForm({
     className,
@@ -144,17 +145,6 @@ export function LoginForm({
                                         placeholder={intl.formatMessage(
                                             messages.passwordPlaceholder
                                         )}
-                                        labelAction={
-                                            // TODO(#8): wire to the real forgot-password route
-                                            <button
-                                                type="button"
-                                                className="ml-auto text-sm underline-offset-4 hover:underline"
-                                            >
-                                                {intl.formatMessage(
-                                                    messages.forgotPassword
-                                                )}
-                                            </button>
-                                        }
                                     />
                                 )}
                             </form.Field>
@@ -164,7 +154,6 @@ export function LoginForm({
                     </form>
                 </CardContent>
             </Card>
-            <LegalFooter />
         </div>
     );
 }

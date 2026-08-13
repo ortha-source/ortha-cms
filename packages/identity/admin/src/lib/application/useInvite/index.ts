@@ -15,7 +15,9 @@ export const inviteKey = (token: string) =>
  * Disabled when there is no token at all (a link with no `?token=`), so the
  * page can render its "this link looks broken" state without a pointless
  * request. Retries are off: a `404` here means the link is dead, and retrying a
- * dead link only delays telling the user.
+ * dead link only delays telling the user. Failures that are *not* a `404` say
+ * nothing about the token, so the page renders its outage state and hands the
+ * retry to the invitee (`refetch`) rather than looping on their behalf.
  */
 export function useInvite(token: string) {
     return useQuery<InviteDetails, ApiError>({

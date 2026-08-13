@@ -60,4 +60,20 @@ export class HomePage extends BasePage {
     rootLoader(): Locator {
         return this.page.getByRole('status').filter({ hasText: /Loading/ });
     }
+
+    /**
+     * The gate's outage screen (`AuthUnavailable`), shown when the auth probe
+     * fails for a reason other than `401`. Seed it with
+     * `mockAuthProbeUnavailable(page)`.
+     */
+    authUnavailableHeading(): Locator {
+        return this.page.getByRole('heading', {
+            name: 'We can’t reach the server'
+        });
+    }
+
+    /** The outage screen's retry control. */
+    retryAuthProbe(): Locator {
+        return this.page.getByRole('button', { name: 'Try again' });
+    }
 }

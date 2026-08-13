@@ -143,6 +143,26 @@ test.describe('accept an invite', () => {
         expect(accept.count).toBe(0);
     });
 
+    test('gives an empty field one message, not a stack of them', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await acceptInvitePage.goto();
+
+        await acceptInvitePage.submit.click();
+
+        // An empty box fails "required" and "at least 12 characters" alike;
+        // announcing both tells the invitee to lengthen a password they have
+        // not typed, in a single `role="alert"`.
+        await expect(acceptInvitePage.fieldErrorRegion('password')).toHaveText(
+            'Choose a password to finish setting up your account'
+        );
+        await expect(
+            acceptInvitePage.fieldErrorRegion('confirm-password')
+        ).toHaveText('Type your password once more to confirm it');
+    });
+
     test('explains a link that died while the form was open', async ({
         page,
         acceptInvitePage
@@ -180,6 +200,108 @@ test.describe('accept an invite', () => {
         ).toBeVisible();
     });
 
+    test('falls back to the generic message for any other failure', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // Only `404` (dead link) and `400` (password refused) have copy of
+        // their own; a `500` must not borrow either, or it would tell the
+        // invitee to fix something that isn't wrong.
+        await mockInvite(page);
+        await spyAcceptInvite(page, { status: 500 });
+        await acceptInvitePage.goto();
+
+        await acceptInvitePage.setPassword(GOOD_PASSWORD);
+
+        await expect(
+            acceptInvitePage.errorBanner.filter({
+                hasText: /Something went wrong/
+            })
+        ).toBeVisible();
+        await expect(page).toHaveURL(/accept-invite/);
+    });
+
+    test('keeps the form usable after a failed accept — the token is unspent', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await spyAcceptInvite(page, { status: 400 });
+        await acceptInvitePage.goto('tok_retry');
+        await acceptInvitePage.setPassword(GOOD_PASSWORD);
+        await expect(acceptInvitePage.errorBanner).toBeVisible();
+
+        // The accept is transactional server-side, so a rejected attempt does
+        // not consume the invite: reloading has to land back on the form, not
+        // on the dead-link card.
+        const accept = await spyAcceptInvite(page);
+        await page.reload();
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        await acceptInvitePage.setPassword(GOOD_PASSWORD);
+        await expect.poll(() => accept.count).toBe(1);
+    });
+
+    test('replaces the token URL in history when the invite is accepted', async ({
+        page,
+        loginPage,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page);
+        await spyAcceptInvite(page);
+        // Arrive from somewhere, so there is a history entry behind the invite
+        // and Back has a real destination to prefer.
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+        await acceptInvitePage.goto('tok_secret_in_the_url');
+        await expect(acceptInvitePage.heading).toBeVisible();
+
+        await mockSignedIn(page, { email: DEFAULT_INVITE.email });
+        await acceptInvitePage.setPassword(GOOD_PASSWORD);
+        await expect(page).toHaveURL('/');
+
+        // The invite URL carries a secret, so the landing replaces it rather
+        // than pushing: Back steps over it to where the invitee came from.
+        await page.goBack();
+        await expect(page).not.toHaveURL(/accept-invite/);
+        await expect(page).toHaveURL(/\/identity\/signin$/);
+    });
+
+    test('hands the tab to the invitee when somebody else was signed in', async ({
+        page,
+        homePage,
+        acceptInvitePage
+    }) => {
+        // A live session opening an invite link is an odd flow, but a real one —
+        // and the server is right to honour it: the token proves the invitee's
+        // identity, so it issues *their* cookie and the tab changes hands. What
+        // this pins is that the UI follows all the way through rather than
+        // showing one account's chrome over another's session (EC-14 on ORT-57).
+        await mockSignedIn(page, {
+            id: 'u_root',
+            name: 'Root Admin',
+            email: 'root@orthacms.com'
+        });
+        await mockInvite(page);
+        await spyAcceptInvite(page);
+        await acceptInvitePage.goto('tok_takeover');
+        await expect(acceptInvitePage.heading).toBeVisible();
+
+        await mockSignedIn(page, {
+            id: 'u_invitee',
+            email: DEFAULT_INVITE.email,
+            name: DEFAULT_INVITE.name
+        });
+        await acceptInvitePage.setPassword(GOOD_PASSWORD);
+
+        await expect(page).toHaveURL('/');
+        await expect(homePage.nav).toBeVisible();
+        await expect(
+            page.getByText(DEFAULT_INVITE.email).first()
+        ).toBeVisible();
+        await expect(page.getByText('root@orthacms.com')).toHaveCount(0);
+    });
+
     test('shows the dead-link state for a rejected token', async ({
         page,
         acceptInvitePage
@@ -202,6 +324,100 @@ test.describe('accept an invite', () => {
 
         await expect(acceptInvitePage.unavailableHeading()).toBeVisible();
         await expect(page.getByText(/missing its invite code/)).toBeVisible();
+    });
+
+    test('tells a server outage apart from a dead link', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // The token is untouched — only the endpoint is broken. Telling the
+        // invitee their link no longer works would send them off to ask for a
+        // replacement they don't need.
+        await mockInvite(page, DEFAULT_INVITE, { status: 500 });
+        await acceptInvitePage.goto();
+
+        await expect(acceptInvitePage.lookupFailedHeading()).toBeVisible();
+        await expect(acceptInvitePage.unavailableHeading()).toHaveCount(0);
+        await expect(acceptInvitePage.retryLookup()).toBeVisible();
+    });
+
+    test('retrying a failed lookup picks up where it left off', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        await mockInvite(page, DEFAULT_INVITE, { status: 500 });
+        await acceptInvitePage.goto();
+        await expect(acceptInvitePage.lookupFailedHeading()).toBeVisible();
+
+        // The API comes back (later routes win) and the same link resolves.
+        await mockInvite(page);
+        await acceptInvitePage.retryLookup().click();
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        await expect(acceptInvitePage.emailField()).toHaveValue(
+            DEFAULT_INVITE.email
+        );
+    });
+
+    test('renders a name with markup in it as literal text', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // The name is whatever the inviting admin typed. React escapes it, and
+        // the description interpolates it — assert both places show the
+        // characters rather than acting on them (EC-10).
+        const name = '<script>alert(1)</script>';
+        await mockInvite(page, { email: 'script@ortha.dev', name });
+        await acceptInvitePage.goto();
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        await expect(acceptInvitePage.nameField()).toHaveValue(name);
+        await expect(
+            page.getByText(`Welcome, ${name}. Your account is ready`)
+        ).toBeVisible();
+        // Escaped, not parsed: nothing from the invite became an element.
+        await expect(page.locator('#root script')).toHaveCount(0);
+    });
+
+    test('renders an RTL name without disturbing the copy around it', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        const name = 'عائشة الأنصاري';
+        await mockInvite(page, { email: 'rtl@ortha.dev', name });
+        await acceptInvitePage.goto();
+
+        await expect(acceptInvitePage.nameField()).toHaveValue(name);
+        // The surrounding sentence keeps its own order — no mojibake, and the
+        // English around the name still reads left to right (EC-09).
+        await expect(
+            page.getByText(`Welcome, ${name}. Your account is ready`)
+        ).toBeVisible();
+    });
+
+    test('transports a token with reserved characters intact', async ({
+        page,
+        acceptInvitePage
+    }) => {
+        // Real tokens are 64 hex characters, but the gateway percent-encodes
+        // whatever it is handed, so a token can never break out of the path
+        // segment or lose bytes on the way (EC-07, EC-11).
+        const token = `${'a'.repeat(200)}%#&/?`;
+        const urls: string[] = [];
+        await page.route('**/api/auth/invite/*', async (route) => {
+            urls.push(route.request().url());
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(DEFAULT_INVITE)
+            });
+        });
+
+        await acceptInvitePage.goto(token);
+
+        await expect(acceptInvitePage.heading).toBeVisible();
+        expect(urls).toHaveLength(1);
+        expect(urls[0]).toContain(encodeURIComponent(token));
     });
 
     test('announces the lookup while it is in flight', async ({

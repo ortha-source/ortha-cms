@@ -37,9 +37,18 @@ export function useLoginSchema() {
                     // Delegate the format rule to the `Email` value object, the
                     // single client-side email rule, rather than an inline
                     // `z.email()` — the server stays the authority.
-                    .refine((value) => Email.isValid(value), {
-                        message: intl.formatMessage(messages.emailInvalid)
-                    }),
+                    //
+                    // Skipped for an empty value: zod reports every failing
+                    // check on a field, so an empty box would answer "Email is
+                    // required" *and* "Enter a valid email address" — two
+                    // messages stacked in one `role="alert"`, telling the user
+                    // to fix a format they haven't typed yet.
+                    .refine(
+                        (value) => value.length === 0 || Email.isValid(value),
+                        {
+                            message: intl.formatMessage(messages.emailInvalid)
+                        }
+                    ),
                 password: z.string().min(1, {
                     message: intl.formatMessage(messages.passwordRequired)
                 })
