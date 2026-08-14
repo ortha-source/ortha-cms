@@ -35,10 +35,7 @@ export class WorkspaceViewQuery {
         const rows = await this.db
             .select({ workspace: workspaces })
             .from(workspaces)
-            .innerJoin(
-                memberships,
-                eq(memberships.workspaceId, workspaces.id)
-            )
+            .innerJoin(memberships, eq(memberships.workspaceId, workspaces.id))
             .where(eq(memberships.userId, userId))
             .orderBy(desc(workspaces.createdAt));
         if (rows.length === 0) return [];
@@ -48,9 +45,25 @@ export class WorkspaceViewQuery {
     }
 
     /**
-     * The view for one workspace, or `null` when it doesn't exist. Unscoped by
-     * itself — every caller sits behind `WorkspaceMemberGuard`, which has
-     * already established that the actor is a member of that id.
+     * The view for one workspace, or `null` when it doesn't exist.
+     *
+     * **Unscoped by itself, and the scope is not established here.** It returns
+     * the full member roster (ids, names, emails) and every content grant for
+     * whatever id it is handed, so a caller that passes an attacker-supplied id
+     * without first proving membership discloses another tenant's workspace
+     * outright. There is no second line of defence.
+     *
+     * Every current caller is safe, but not for one uniform reason, so check
+     * which case a new one is:
+     * - the five mutation controllers (`update`, `set-status`, `add-member`,
+     *   `add-content`, `remove-content`) sit behind `WorkspaceMemberGuard`,
+     *   which has already established membership for that id;
+     * - `create-workspace.controller` does **not** carry that guard — it is
+     *   safe only because it passes the id its own use case just minted, which
+     *   no caller supplied.
+     *
+     * Prefer {@link listForMember}, which bakes the membership join into the
+     * query so it cannot be forgotten.
      */
     async byId(workspaceId: string): Promise<WorkspaceView | null> {
         const rows = await this.db

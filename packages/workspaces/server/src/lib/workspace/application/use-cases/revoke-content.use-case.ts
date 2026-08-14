@@ -2,7 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { WorkspaceNotFoundError } from '../../domain/errors';
+import {
+    EntryCountUnavailableError,
+    WorkspaceNotFoundError
+} from '../../domain/errors';
 import {
     WORKSPACE_REPOSITORY,
     type WorkspaceRepository
@@ -47,6 +50,11 @@ export class RevokeContentUseCase {
                 await this.workspaces.findByIdForContentMutation(id);
             if (!workspace) {
                 throw new WorkspaceNotFoundError(workspaceId);
+            }
+            // Same fail-closed rule as the delete: an unbound counter reports
+            // 0 for a type whose rows may very much exist.
+            if (!this.counter.isBound) {
+                throw new EntryCountUnavailableError(workspaceId);
             }
             const entryCount = await this.counter.countEntries(
                 workspaceId,

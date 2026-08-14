@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+    ArrayMaxSize,
     IsArray,
     IsBoolean,
     IsDefined,
+    IsEmail,
     IsIn,
     IsNotEmpty,
     IsOptional,
@@ -12,6 +14,15 @@ import {
     ValidateNested
 } from 'class-validator';
 import { WORKSPACE_COLORS } from '../../domain/value-objects/workspace-color';
+
+/**
+ * Upper bound on `members` in one create. Provisioning resolves each entry with
+ * its own round-trips, serially, inside the create transaction — so this caps
+ * how long a single request can hold that transaction open. Generous for real
+ * use (a workspace is seeded with a team, not a mailing list) and far below the
+ * point where the serial walk becomes a self-inflicted outage.
+ */
+export const MAX_MEMBERS_PER_CREATE = 200;
 
 /** A member being granted access. The owner is derived from the session. */
 export class CreateWorkspaceMemberDto {
@@ -35,14 +46,23 @@ export class CreateWorkspaceMemberDto {
     @IsString()
     name!: string;
 
-    /** Contact email. */
+    /**
+     * Contact email. Validated as a real address, not merely non-empty: an
+     * `invited` member is **provisioned as a user account** keyed on this
+     * value, so anything that gets through here becomes a permanent directory
+     * row. A whitespace-only value used to normalise to `''` and create a
+     * single empty-email account that every later blank invite then reused,
+     * silently cross-linking unrelated workspaces through one ghost user.
+     */
     @ApiProperty({
         type: String,
+        format: 'email',
         minLength: 1,
         example: 'grace@example.com',
-        description: 'Contact email.'
+        description:
+            'Contact email. Must be a valid address — an invited member is provisioned as a user account keyed on it.'
     })
-    @IsString()
+    @IsEmail()
     @IsNotEmpty()
     email!: string;
 
@@ -184,13 +204,22 @@ export class CreateWorkspaceDto {
     @IsIn(WORKSPACE_COLORS)
     color!: string;
 
-    /** Members to add. The owner (current user) is implied, not listed here. */
+    /**
+     * Members to add. The owner (current user) is implied, not listed here.
+     *
+     * Bounded because provisioning walks the array **serially inside the create
+     * transaction**, so its length directly sets how long that write
+     * transaction is held open — an unbounded array lets any
+     * `workspaces:create` holder pin a connection for as long as they like.
+     */
     @ApiProperty({
         type: () => [CreateWorkspaceMemberDto],
+        maxItems: MAX_MEMBERS_PER_CREATE,
         description:
             'Members to add. The creator is implied — do not list them here.'
     })
     @IsArray()
+    @ArrayMaxSize(MAX_MEMBERS_PER_CREATE)
     @ValidateNested({ each: true })
     @Type(() => CreateWorkspaceMemberDto)
     members!: CreateWorkspaceMemberDto[];

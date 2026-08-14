@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_921 test cases across 56 spec files._
+_930 test cases across 57 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -2098,3 +2098,42 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-members.spec.ts</sub>_
 | removes the creator like any other member (no owner protection) |
 | is a no-op (204) and records nothing when not a member |
 | forbids a viewer (lacks workspaces:update) with 403 |
+
+<!-- source: apps/server-e2e/src/server/workspaces/workspace-regressions.spec.ts -->
+_<sub>apps/server-e2e/src/server/workspaces/workspace-regressions.spec.ts</sub>_
+
+## Workspaces regressions
+
+### removing the last member
+
+| Test case |
+| --- |
+| is refused, leaving the workspace reachable |
+| still allows leaving while another member remains |
+
+### concurrent creates with the same slug
+
+| Test case |
+| --- |
+| yields exactly one 201 and 409s the losers, never a 500 |
+
+### invited member emails
+
+| Test case |
+| --- |
+| rejects %s instead of provisioning a user |
+| still provisions a pending account for a real address |
+
+### members array size
+
+| Test case |
+| --- |
+| refuses an array past the cap |
+
+### read routes that fed the create/grant decision
+
+| Test case |
+| --- |
+| 403s the slug probe for a role that cannot create |
+| 403s the content-type catalogue for a role that can neither create nor update |
+| still serves both to a role that can create |

@@ -29,9 +29,9 @@ describe('AccessPolicy', () => {
         });
 
         it('denies when the actor holds nothing', () => {
-            expect(
-                policy.can(actor(), Permission.create('content:read'))
-            ).toBe(false);
+            expect(policy.can(actor(), Permission.create('content:read'))).toBe(
+                false
+            );
         });
 
         it('ignores an unrelated scope in v1 (global decision)', () => {
@@ -64,6 +64,37 @@ describe('AccessPolicy', () => {
 
         it('is vacuously allowed for an empty requirement', () => {
             expect(policy.canAll(actor(), [])).toBe(true);
+        });
+    });
+
+    describe('canAny', () => {
+        // The catalogue route this backs is read by two roles that share no
+        // permission — a create-only role and an update-only one — so holding
+        // exactly one of the listed keys has to be enough.
+        it('allows an actor holding only one of the listed permissions', () => {
+            const listed = [
+                Permission.create('workspaces:create'),
+                Permission.create('workspaces:update')
+            ];
+            expect(policy.canAny(actor('workspaces:create'), listed)).toBe(
+                true
+            );
+            expect(policy.canAny(actor('workspaces:update'), listed)).toBe(
+                true
+            );
+        });
+
+        it('denies an actor holding none of them', () => {
+            expect(
+                policy.canAny(actor('workspaces:read'), [
+                    Permission.create('workspaces:create'),
+                    Permission.create('workspaces:update')
+                ])
+            ).toBe(false);
+        });
+
+        it('is vacuously allowed for an empty requirement, like canAll', () => {
+            expect(policy.canAny(actor(), [])).toBe(true);
         });
     });
 });
