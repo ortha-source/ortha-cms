@@ -26,3 +26,8 @@ export {
     type UnsavedChangesCopy,
     type UnsavedChangesDialog
 } from './lib/unsavedChanges';
+export {
+    useDocumentTitle,
+    setDocumentTitle,
+    setTitleDecorator
+} from './lib/documentTitle';

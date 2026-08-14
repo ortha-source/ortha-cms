@@ -273,11 +273,19 @@ export function WorkspaceGeneralSettings({
                                 <FieldLabel htmlFor="settings-slug">
                                     {intl.formatMessage(messages.slugLabel)}
                                 </FieldLabel>
+                                {/* `readOnly` but NOT `disabled`, matching
+                                    `WorkspaceIdField` below: a disabled input
+                                    can't be focused, so the slug could be
+                                    neither selected nor copied by keyboard, and
+                                    screen readers skip disabled controls in
+                                    browse mode — the label was reachable but the
+                                    value never was. The slug is the workspace's
+                                    stable public identifier, not decoration. */}
                                 <Input
                                     id="settings-slug"
                                     value={workspace.slug}
                                     readOnly
-                                    disabled
+                                    className="bg-muted text-muted-foreground"
                                 />
                                 <FieldDescription>
                                     {intl.formatMessage(messages.slugHint)}

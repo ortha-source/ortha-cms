@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_476 test cases across 50 spec files._
+_482 test cases across 50 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -964,6 +964,9 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 | --- |
 | basics step |
 | basics step — slug validation error visible |
+| members step |
+| members step — directory results open |
+| content step |
 
 <!-- source: apps/admin-e2e/src/workspaces/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
@@ -982,6 +985,9 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | --- |
 | opens the wizard from the list on Enter |
 | a color swatch is selectable by keyboard |
+| the color swatches are one tab stop and move with arrow keys |
+| the members typeahead is driven from the input by arrow keys |
+| a step change moves focus to the new step heading |
 
 <!-- source: apps/admin-e2e/src/workspaces/permissions.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_

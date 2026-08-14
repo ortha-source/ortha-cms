@@ -11,6 +11,7 @@ import {
     Container,
     ContainerHeader
 } from '@ortha-cms/design-system';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import { WorkspacesTable } from '../../components/WorkspacesTable';
 import { WorkspacesTableSkeleton } from '../../components/WorkspacesSkeleton';
@@ -21,9 +22,15 @@ import {
     type StatusFilter
 } from '../../components/WorkspaceToolbar';
 import type { Workspace } from '../../../domain/types/workspace';
+import { useRedirectNotice } from '../../hooks/useRedirectNotice';
 
 /** Intl descriptors for {@link WorkspacesPage}, co-located with the component. */
 const messages = defineMessages({
+    createDenied: {
+        id: 'workspaces.list.createDenied',
+        defaultMessage:
+            'You don’t have permission to create a workspace, so we brought you back to the workspaces list.'
+    },
     title: {
         id: 'workspaces.page.title',
         defaultMessage: 'Workspaces'
@@ -71,6 +78,8 @@ export function WorkspacesPage() {
     const intl = useIntl();
     const navigate = useNavigate();
     const canCreate = useHasPermission('workspaces:create');
+    const redirectNotice = useRedirectNotice();
+    useDocumentTitle(intl.formatMessage(messages.title));
     const {
         data: workspaces = [],
         isLoading,
@@ -127,6 +136,13 @@ export function WorkspacesPage() {
                 ]}
             />
             <Container>
+                {/* A gated redirect landed here; say so, since the page simply
+                    swapped under the user with no other signal. */}
+                <span role="status" aria-live="polite" className="sr-only">
+                    {redirectNotice === 'create-denied'
+                        ? intl.formatMessage(messages.createDenied)
+                        : ''}
+                </span>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}

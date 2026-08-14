@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Card,
@@ -10,7 +10,10 @@ import {
     Separator,
     toast
 } from '@ortha-cms/design-system';
-import type { Workspace, WorkspaceMember } from '../../../domain/types/workspace';
+import type {
+    Workspace,
+    WorkspaceMember
+} from '../../../domain/types/workspace';
 import type { DirectoryUser } from '../../../domain/types/wizard';
 import { useAddWorkspaceMember } from '../../../application/useAddWorkspaceMember';
 import { useRemoveWorkspaceMember } from '../../../application/useRemoveWorkspaceMember';
@@ -90,6 +93,30 @@ export function WorkspaceMembersSettings({
     const [pendingRemoval, setPendingRemoval] =
         useState<WorkspaceMember | null>(null);
 
+    const rosterRef = useRef<HTMLUListElement>(null);
+    const rosterLabelRef = useRef<HTMLSpanElement>(null);
+    // Index whose Remove button focus should land on once the roster re-renders.
+    const focusAfterRemoval = useRef<number | null>(null);
+
+    // Radix restores focus to the dialog's trigger on close — but the mutation
+    // has just unmounted that trigger along with its row, so focus fell to
+    // <body> and a keyboard user was dropped at the top of the document. Land on
+    // the row that took its place instead, or the roster heading when the list
+    // has emptied.
+    useEffect(() => {
+        const index = focusAfterRemoval.current;
+        if (index === null) return;
+        focusAfterRemoval.current = null;
+
+        const buttons = rosterRef.current?.querySelectorAll<HTMLElement>(
+            '[data-remove-member]'
+        );
+        const target = buttons?.length
+            ? buttons[Math.min(index, buttons.length - 1)]
+            : rosterLabelRef.current;
+        target?.focus();
+    }, [workspace.members]);
+
     const excludeIds = new Set(workspace.members.map((member) => member.id));
 
     const onSelect = async (user: DirectoryUser) => {
@@ -109,11 +136,15 @@ export function WorkspaceMembersSettings({
     const confirmRemoval = async () => {
         if (!pendingRemoval) return;
         const member = pendingRemoval;
+        const removedIndex = workspace.members.findIndex(
+            (candidate) => candidate.id === member.id
+        );
         try {
             await removeMember.mutateAsync({
                 workspaceId: workspace.id,
                 userId: member.id
             });
+            focusAfterRemoval.current = Math.max(0, removedIndex);
             toast.success(
                 intl.formatMessage(messages.removed, { name: member.name })
             );
@@ -148,12 +179,16 @@ export function WorkspaceMembersSettings({
                 )}
 
                 <div className="flex flex-col gap-1">
-                    <span className="text-sm font-medium">
+                    <span
+                        ref={rosterLabelRef}
+                        tabIndex={-1}
+                        className="text-sm font-medium focus-visible:outline-none"
+                    >
                         {intl.formatMessage(messages.rosterLabel, {
                             count: workspace.members.length
                         })}
                     </span>
-                    <ul className="rounded-xl border">
+                    <ul ref={rosterRef} className="rounded-xl border">
                         {workspace.members.map((member, index) => (
                             <li key={member.id}>
                                 {index > 0 ? <Separator /> : null}

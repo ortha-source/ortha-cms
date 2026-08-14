@@ -4,7 +4,9 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { Badge, Container } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '../../currentWorkspace';
 import { WorkspaceSettingsTabs } from '../../components/WorkspaceSettingsTabs';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 import { WorkspaceSettingsTopBar } from '../../components/WorkspaceSettingsTopBar';
+import { useRedirectNotice } from '../../hooks/useRedirectNotice';
 import { WorkspaceGeneralSettings } from '../../components/WorkspaceGeneralSettings';
 import { WorkspaceMembersSettings } from '../../components/WorkspaceMembersSettings';
 import { WorkspaceContentSettings } from '../../components/WorkspaceContentSettings';
@@ -12,6 +14,15 @@ import { WorkspaceDangerSettings } from '../../components/WorkspaceDangerSetting
 
 /** Intl descriptors for the workspace settings page, co-located here. */
 const messages = defineMessages({
+    documentTitle: {
+        id: 'workspaces.settings.documentTitle',
+        defaultMessage: 'Settings · {name}'
+    },
+    dangerDenied: {
+        id: 'workspaces.settings.dangerDenied',
+        defaultMessage:
+            'You don’t have permission to open the Danger zone, so we brought you to General settings.'
+    },
     title: {
         id: 'workspaces.settings.title',
         defaultMessage: 'Settings'
@@ -42,11 +53,22 @@ export function WorkspaceSettingsPage() {
     const canUpdate = useHasPermission('workspaces:update');
     const canDelete = useHasPermission('workspaces:delete');
     const showDanger = canUpdate || canDelete;
+    const redirectNotice = useRedirectNotice();
+    useDocumentTitle(
+        intl.formatMessage(messages.documentTitle, { name: workspace.name })
+    );
 
     return (
         <>
             <WorkspaceSettingsTopBar />
             <Container className="space-y-6 py-8">
+                {/* The Danger tab is gated on the route as well as the tab bar,
+                    so a deep link swaps the section out from under the user. */}
+                <span role="status" aria-live="polite" className="sr-only">
+                    {redirectNotice === 'danger-denied'
+                        ? intl.formatMessage(messages.dangerDenied)
+                        : ''}
+                </span>
                 <div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-semibold tracking-[-0.01em]">
@@ -119,7 +141,13 @@ export function WorkspaceSettingsPage() {
                                             canDelete={canDelete}
                                         />
                                     ) : (
-                                        <Navigate to="../general" replace />
+                                        <Navigate
+                                            to="../general"
+                                            replace
+                                            state={{
+                                                redirectNotice: 'danger-denied'
+                                            }}
+                                        />
                                     )
                                 }
                             />

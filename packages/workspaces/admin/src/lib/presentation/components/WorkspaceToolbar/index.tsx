@@ -44,6 +44,16 @@ const messages = defineMessages({
     count: {
         id: 'workspaces.toolbar.count',
         defaultMessage: '{shown} of {total}'
+    },
+    countAnnouncement: {
+        id: 'workspaces.toolbar.countAnnouncement',
+        defaultMessage:
+            '{shown, plural, one {# workspace shown} other {# workspaces shown}} of {total}.'
+    },
+    statusOption: {
+        id: 'workspaces.toolbar.statusOption',
+        defaultMessage:
+            '{label}, {count, plural, one {# workspace} other {# workspaces}}'
     }
 });
 
@@ -109,10 +119,20 @@ export function WorkspaceToolbar({
                 aria-label={intl.formatMessage(messages.statusLegend)}
             >
                 {STATUS_OPTIONS.map((option) => (
-                    <SegmentedControlItem key={option} value={option}>
+                    <SegmentedControlItem
+                        key={option}
+                        value={option}
+                        // The badge stays `aria-hidden` so the count isn't read
+                        // as a stray number after the label — but the number is
+                        // decision-shaping ("Archived" hiding 2 workspaces reads
+                        // very differently from 0), so it moves into the radio's
+                        // own name rather than being dropped from the a11y tree.
+                        aria-label={intl.formatMessage(messages.statusOption, {
+                            label: statusLabel[option],
+                            count: counts[option]
+                        })}
+                    >
                         {statusLabel[option]}
-                        {/* Decorative count — hidden from the a11y tree so the
-                            radio's name stays just the status label. */}
                         <SegmentedControlCount aria-hidden>
                             {counts[option]}
                         </SegmentedControlCount>
@@ -120,8 +140,19 @@ export function WorkspaceToolbar({
                 ))}
             </SegmentedControl>
 
-            <span className="ml-auto text-sm text-muted-foreground">
+            {/* The visible count is the only feedback that a search or a status
+                change did anything — the table just silently swaps rows. A
+                polite live region restates it so that lands for a screen-reader
+                user too; `aria-hidden` on the visible span keeps it from being
+                announced twice (once as content, once as the live update). */}
+            <span aria-hidden className="ml-auto text-sm text-muted-foreground">
                 {intl.formatMessage(messages.count, { shown, total })}
+            </span>
+            <span role="status" aria-live="polite" className="sr-only">
+                {intl.formatMessage(messages.countAnnouncement, {
+                    shown,
+                    total
+                })}
             </span>
         </div>
     );

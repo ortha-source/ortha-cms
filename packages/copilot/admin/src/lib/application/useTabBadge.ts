@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { setTitleDecorator } from '@ortha-cms/utils-admin';
 import { badgedTitle } from './tabBadge';
 
 /** The favicon link the admin ships, and the one we swap. */
@@ -17,23 +18,24 @@ const DOT_SCALE = 0.42;
  * another app. Reaching someone who has alt-tabbed away needs the Notification
  * API, which costs a prompt you get one chance at.
  *
- * The title is restored on unmount, and the favicon is best-effort: if the icon
+ * The title decoration is removed on unmount, and the favicon is best-effort: if the icon
  * cannot be drawn (no `<link rel=icon>`, a format the canvas will not take, a
  * cross-origin icon that taints it) the dot is simply skipped. A badge that
  * silently degrades to the title alone is fine; one that blanks the favicon on
  * some browsers is not.
  */
 export function useTabBadge(count: number): void {
-    // The title with no badge on it, captured once — re-reading it each time
-    // would stack `(1) (2) Ortha CMS` as the count changed.
-    const baseTitle = useRef<string | null>(null);
     const baseIcon = useRef<string | null>(null);
 
+    // Registered as a *decorator* over the shared document title rather than
+    // written straight to `document.title`: routes set their own titles now
+    // (`useDocumentTitle`), and a badge that captured the title once would pin
+    // the tab to whichever page happened to be open when the first chat
+    // started. Composing instead means either can change independently, and
+    // `badgedTitle` still builds from a clean base, so counts can't stack.
     useEffect(() => {
-        if (baseTitle.current === null) {
-            baseTitle.current = document.title;
-        }
-        document.title = badgedTitle(baseTitle.current, count);
+        setTitleDecorator((title) => badgedTitle(title, count));
+        return () => setTitleDecorator(null);
     }, [count]);
 
     useEffect(() => {
@@ -69,12 +71,10 @@ export function useTabBadge(count: number): void {
         };
     }, [count]);
 
-    // Put the tab back the way it was found.
+    // Put the favicon back the way it was found; the title restores itself when
+    // the decorator is cleared above.
     useEffect(
         () => () => {
-            if (baseTitle.current !== null) {
-                document.title = baseTitle.current;
-            }
             const link = document.querySelector<HTMLLinkElement>(ICON_SELECTOR);
             if (link && baseIcon.current !== null) {
                 link.href = baseIcon.current;

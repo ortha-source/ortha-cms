@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
@@ -26,6 +26,10 @@ const messages = defineMessages({
     role: {
         id: 'workspaces.switcher.role',
         defaultMessage: 'Workspace'
+    },
+    currentWorkspace: {
+        id: 'workspaces.switcher.currentWorkspace',
+        defaultMessage: 'Current workspace'
     },
     heading: {
         id: 'workspaces.switcher.heading',
@@ -63,6 +67,7 @@ export function WorkspaceSwitcher({
     const navigate = useNavigate();
     const canCreate = useHasPermission(WORKSPACES_CREATE);
     const [open, setOpen] = useState(false);
+    const headingId = useId();
 
     const go = (path: string) => {
         setOpen(false);
@@ -98,9 +103,17 @@ export function WorkspaceSwitcher({
                     </PopoverTrigger>
                     <PopoverContent
                         align="start"
+                        // Radix renders this as a `role="dialog"`; without a
+                        // name it announces as an anonymous "dialog". The
+                        // heading below is a styled <p>, so it is promoted to
+                        // the popover's label by id rather than by role.
+                        aria-labelledby={headingId}
                         className="w-[--radix-popover-trigger-width] min-w-64 p-2"
                     >
-                        <p className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                        <p
+                            id={headingId}
+                            className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground"
+                        >
                             {intl.formatMessage(messages.heading)}
                         </p>
                         {workspaces.map((workspace) => {
@@ -109,6 +122,14 @@ export function WorkspaceSwitcher({
                                 <button
                                     key={workspace.id}
                                     type="button"
+                                    // The open workspace was marked only by a
+                                    // background tint plus an unlabelled check
+                                    // glyph — both invisible to a screen reader,
+                                    // and the tint alone is flattened under
+                                    // forced-colors, so every row read alike.
+                                    aria-current={
+                                        isCurrent ? 'true' : undefined
+                                    }
                                     onClick={() =>
                                         go(`/workspaces/${workspace.id}`)
                                     }
@@ -134,7 +155,17 @@ export function WorkspaceSwitcher({
                                         </span>
                                     </span>
                                     {isCurrent ? (
-                                        <Check className="size-4 shrink-0 text-muted-foreground" />
+                                        <>
+                                            <Check
+                                                aria-hidden
+                                                className="size-4 shrink-0 text-muted-foreground"
+                                            />
+                                            <span className="sr-only">
+                                                {intl.formatMessage(
+                                                    messages.currentWorkspace
+                                                )}
+                                            </span>
+                                        </>
                                     ) : null}
                                 </button>
                             );
