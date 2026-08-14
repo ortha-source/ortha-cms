@@ -37,6 +37,7 @@ import { DeleteAssetsUseCase } from './application/use-cases/delete-assets.use-c
 import { CreateFolderUseCase } from './application/use-cases/create-folder.use-case';
 import { RenameFolderUseCase } from './application/use-cases/rename-folder.use-case';
 import { DeleteFolderUseCase } from './application/use-cases/delete-folder.use-case';
+import { MediaWorkspacePurger } from './infrastructure/purge/media-workspace.purger';
 import { ListFoldersController } from './http/controllers/list-folders.controller';
 import { CreateFolderController } from './http/controllers/create-folder.controller';
 import { RenameFolderController } from './http/controllers/rename-folder.controller';
@@ -121,6 +122,11 @@ export class MediaModule {
                 CreateFolderUseCase,
                 RenameFolderUseCase,
                 DeleteFolderUseCase,
+                // Removes this workspace's assets, folders and blobs when the
+                // workspace itself is deleted — registers itself with the
+                // workspaces plugin's purge registry (media's rows carry no FK
+                // to `workspaces`, so nothing else would reach them).
+                MediaWorkspacePurger,
                 // Read models.
                 ListAssetsQuery,
                 MediaInsightsQuery,

@@ -138,6 +138,30 @@ now block on us — so it converges (bounded by `SUBTREE_WALK_ROUNDS`).
 `reclaimAssetBlobs` is shared with the bulk asset delete so neither path can
 forget the derivatives.
 
+## Purges its rows when a workspace is deleted
+
+`media_asset.workspace_id` and `media_folder.workspace_id` are plain uuids with
+**no FK** to `workspaces` — that table belongs to another plugin — so nothing
+removed them when a workspace was deleted. The rows outlived it _and_ stranded
+their blobs: both delete paths above route through a live workspace, so once it
+was gone no request could reach the bytes to reclaim them.
+
+`MediaWorkspacePurger` (`infrastructure/purge/`) closes that. It implements
+workspaces-server's **`WorkspacePurger`** and registers itself with
+`WorkspacePurgeRegistry` from `onModuleInit` — the same inversion as the tool
+registry, so the workspaces plugin never learns media exists. `@Optional()`, so
+media still boots without it.
+
+It is deliberately **set-based and event-free**, unlike the two use cases above:
+one `delete … where workspace_id = …` per table, no aggregates loaded, no
+per-asset `media.asset.deleted`. A workspace can hold tens of thousands of
+assets and their individual deletions are not separately meaningful — the
+`workspace.deleted` audit row is the event that happened. The delete `returning`s
+just the storage columns, which is exactly what the blob reclaim needs, and that
+reclaim runs **post-commit** through the purge outcome's `reclaim` thunk, for
+the same reason it does everywhere else here: a rolled-back delete must never
+destroy bytes a surviving row points at.
+
 ## Binds content's media-asset resolver
 
 `MediaModule.forRoot` binds content-server's **`MEDIA_ASSET_RESOLVER`** port
@@ -205,20 +229,20 @@ needs and a person browsing does not:
 - **It returns a narrowed projection** — id, name, kind, MIME type, size, alt,
   tags, folder, created, plus a `downloadPath` — dropping `variants` and the
   intrinsic dimensions. It still drops the full `url`: that is a route the
-  *model* cannot fetch, so it costs prompt tokens and answers nothing. The
+  _model_ cannot fetch, so it costs prompt tokens and answers nothing. The
   **path** is kept for a different reader — the person who asked "list the files
   in the library" wants links they can click.
 
-  **`downloadPath` is the one field in the catalogue that varies by surface**,
-  because the two callers authenticate differently and neither route serves
-  both. The copilot gets `/media/assets/:id/raw`, which derives its scope from
-  workspace *membership* precisely so a signed-in browser can load it directly.
-  MCP gets `/api/v1/media/assets/:id/raw`, which is `media:read` gated and
-  fetchable with the very bearer token that made the call — the session route
-  would 401 an external agent, and a link guaranteed to fail is worse than no
-  link. `downloadPathFor` reads `ToolContext.surface`, which the registry stamps
-  at dispatch; it is **presentation only**, and both routes enforce the same
-  workspace scoping and the same permission.
+    **`downloadPath` is the one field in the catalogue that varies by surface**,
+    because the two callers authenticate differently and neither route serves
+    both. The copilot gets `/media/assets/:id/raw`, which derives its scope from
+    workspace _membership_ precisely so a signed-in browser can load it directly.
+    MCP gets `/api/v1/media/assets/:id/raw`, which is `media:read` gated and
+    fetchable with the very bearer token that made the call — the session route
+    would 401 an external agent, and a link guaranteed to fail is worse than no
+    link. `downloadPathFor` reads `ToolContext.surface`, which the registry stamps
+    at dispatch; it is **presentation only**, and both routes enforce the same
+    workspace scoping and the same permission.
 
 `media_folders_list` is what makes `folderId` usable at all. Nothing else in the
 catalogue told a model that folders have ids, so before it "what's in the Brand
@@ -252,7 +276,7 @@ awkward paths are unit-tested without Nest):
 
 - **An allowlist on the MIME type, never a blocklist.** `MediaKind.classify`
   files a PDF, a Word document and a Markdown file all as `document`, so the
-  coarse kind cannot be the filter — naming what we *can* read refuses a new
+  coarse kind cannot be the filter — naming what we _can_ read refuses a new
   binary format by default.
 - **The byte cap is applied while reading.** Buffering a whole asset and slicing
   afterwards would put a 50 MB upload in memory before deciding we wanted 256 KB
@@ -293,7 +317,7 @@ media field like anything someone uploaded by hand.
 - **Every check that can happen at propose time does.** The folder is verified,
   the name resolved, the size bounded — all in the handler, so a bad draft comes
   back as a tool error the model can correct and re-propose. The run engine asks
-  for permission *before* it calls a write tool at all (ADR-0009's injection
+  for permission _before_ it calls a write tool at all (ADR-0009's injection
   mitigation), so these failures land after the prompt, not before it; what they
   stay ahead of is the write. Leaving them to the applier is what would make
   them unrecoverable — it runs once the change is recorded, with nobody left to
@@ -320,7 +344,7 @@ across dynamic modules.
 
 Workspace-scoped, and it **omits rather than reports**: an asset belonging to
 another workspace comes back absent, indistinguishable from a deleted one, and
-the engine turns the shortfall into one error naming the count. Saying *which*
+the engine turns the shortfall into one error naming the count. Saying _which_
 id exists elsewhere would be an asset-id oracle in the one place a caller
 chooses the ids. `readable` reuses `isReadableMimeType` — the same allowlist
 `media_asset_read` enforces — so the two can never disagree about what a run is
@@ -404,7 +428,7 @@ Three details in `MediaInsightsQuery`:
   while images are most of the library — and a widget with only one of them
   would let a reader draw the wrong conclusion confidently.
 - **`sum(size)` is cast to `bigint`.** `size` is a bigint, so node-postgres
-  hands the sum over as a *string* to avoid precision loss; the cast keeps that
+  hands the sum over as a _string_ to avoid precision loss; the cast keeps that
   explicit and the `Number()` is safe because a workspace's byte total is
   nowhere near 2^53.
 - **A blank `alt` does not count as covered.** An empty string is the markup for
