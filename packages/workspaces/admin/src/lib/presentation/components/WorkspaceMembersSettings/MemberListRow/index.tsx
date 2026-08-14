@@ -53,6 +53,10 @@ export function MemberListRow({
                     type="button"
                     variant="ghost"
                     size="icon"
+                    // Marks this as the roster's focus target: removing a member
+                    // destroys the button focus would otherwise return to, so
+                    // the list finds the next one by this attribute.
+                    data-remove-member=""
                     onClick={onRemove}
                     aria-label={intl.formatMessage(messages.remove, {
                         name: member.name

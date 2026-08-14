@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link, Navigate } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
@@ -17,6 +18,7 @@ import {
     WizardFooter,
     WizardStepCard
 } from '@ortha-cms/design-system';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 import { useCreateWorkspaceFlow } from '../../../application/useCreateWorkspaceFlow';
 import { ContentStep } from '../../components/CreateWorkspaceWizard/ContentStep';
 import { IdentityFields } from '../../components/CreateWorkspaceWizard/IdentityFields';
@@ -89,6 +91,10 @@ const messages = defineMessages({
         id: 'workspaces.create.stepper.stepLabel',
         defaultMessage: 'Step {number}: {label}'
     },
+    stepAnnouncement: {
+        id: 'workspaces.create.stepAnnouncement',
+        defaultMessage: 'Step {number} of {total}: {label}.'
+    },
     // Step cards
     basicsTitle: {
         id: 'workspaces.create.basicsCardTitle',
@@ -158,17 +164,39 @@ const messages = defineMessages({
  */
 export function CreateWorkspacePage() {
     const intl = useIntl();
+    const stepTitleRef = useRef<HTMLHeadingElement>(null);
+    useDocumentTitle(intl.formatMessage(messages.title));
     const canCreate = useHasPermission('workspaces:create');
     const wizard = useWizard();
     const flow = useCreateWorkspaceFlow();
     const slug = useSlug({ data: wizard.data, update: wizard.update });
+
+    // `WizardStepCard` is keyed on the step so the entrance animation replays —
+    // which unmounts the button the user just pressed and drops focus to
+    // <body>, making every step change restart Tab at the top of the document.
+    // Move focus to the new card's heading instead. `previousStep` keeps this to
+    // real step *changes*: stealing focus on first paint would be its own bug.
+    const previousStep = useRef(wizard.step);
+    useEffect(() => {
+        if (previousStep.current === wizard.step) return;
+        previousStep.current = wizard.step;
+        stepTitleRef.current?.focus();
+    }, [wizard.step]);
 
     // The server enforces `workspaces:create`; redirect rather than render the
     // wizard for users who can't create one (e.g. deep-linking to
     // `/workspaces/new`). Auth is already resolved here — this route renders
     // inside the shell's `RequireAuth`, so `canCreate` reflects real grants.
     if (!canCreate) {
-        return <Navigate to="/workspaces" replace />;
+        return (
+            <Navigate
+                to="/workspaces"
+                replace
+                // Tell the list why it's showing instead of the wizard, so the
+                // redirect isn't silent for a screen-reader user.
+                state={{ redirectNotice: 'create-denied' }}
+            />
+        );
     }
 
     const basicsCanContinue =
@@ -281,14 +309,36 @@ export function CreateWorkspacePage() {
                         />
                     </div>
 
+                    {/* The rail updates visually only, and the heading swap is
+                        silent; restate where the user now is. Focus moving to
+                        the new heading covers most screen readers, but the
+                        progress ("2 of 3") lives only in the rail's styling. */}
+                    <span role="status" aria-live="polite" className="sr-only">
+                        {intl.formatMessage(messages.stepAnnouncement, {
+                            number: wizard.step,
+                            total: railSteps.length,
+                            label: railSteps[wizard.step - 1]?.label ?? ''
+                        })}
+                    </span>
+
                     <WizardStepCard key={wizard.step}>
                         {wizard.step === 1 ? (
                             <>
                                 <CardHeader>
-                                    <CardTitle>
-                                        {intl.formatMessage(
-                                            messages.basicsTitle
-                                        )}
+                                    <CardTitle asChild>
+                                        {/* A real <h2> under the page's <h1>:
+                                            it gives the step card a place in the
+                                            heading outline, and it is the focus
+                                            target on a step change. */}
+                                        <h2
+                                            ref={stepTitleRef}
+                                            tabIndex={-1}
+                                            className="focus-visible:outline-none"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.basicsTitle
+                                            )}
+                                        </h2>
                                     </CardTitle>
                                     <CardDescription>
                                         {intl.formatMessage(
@@ -328,10 +378,20 @@ export function CreateWorkspacePage() {
                         {wizard.step === 2 ? (
                             <>
                                 <CardHeader>
-                                    <CardTitle>
-                                        {intl.formatMessage(
-                                            messages.membersTitle
-                                        )}
+                                    <CardTitle asChild>
+                                        {/* A real <h2> under the page's <h1>:
+                                            it gives the step card a place in the
+                                            heading outline, and it is the focus
+                                            target on a step change. */}
+                                        <h2
+                                            ref={stepTitleRef}
+                                            tabIndex={-1}
+                                            className="focus-visible:outline-none"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.membersTitle
+                                            )}
+                                        </h2>
                                     </CardTitle>
                                     <CardDescription>
                                         {intl.formatMessage(
@@ -375,10 +435,20 @@ export function CreateWorkspacePage() {
                         {wizard.step === 3 ? (
                             <>
                                 <CardHeader>
-                                    <CardTitle>
-                                        {intl.formatMessage(
-                                            messages.contentTitle
-                                        )}
+                                    <CardTitle asChild>
+                                        {/* A real <h2> under the page's <h1>:
+                                            it gives the step card a place in the
+                                            heading outline, and it is the focus
+                                            target on a step change. */}
+                                        <h2
+                                            ref={stepTitleRef}
+                                            tabIndex={-1}
+                                            className="focus-visible:outline-none"
+                                        >
+                                            {intl.formatMessage(
+                                                messages.contentTitle
+                                            )}
+                                        </h2>
                                     </CardTitle>
                                     <CardDescription>
                                         {intl.formatMessage(

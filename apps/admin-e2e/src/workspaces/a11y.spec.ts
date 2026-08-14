@@ -76,5 +76,38 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
                 .waitFor();
             await expectNoA11yViolations(makeAxe());
         });
+
+        // The scan used to stop at the basics step, which is exactly why an
+        // unlabelled search input on the members step — an axe-detectable
+        // failure — shipped and survived. Every step the user can reach gets
+        // scanned now.
+        test('members step', async ({ createWorkspacePage, makeAxe }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.nameInput.fill('Scanned workspace');
+            await createWorkspacePage.continueToMembers.click();
+            await createWorkspacePage.memberSearch.waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('members step — directory results open', async ({
+            createWorkspacePage,
+            makeAxe
+        }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.nameInput.fill('Scanned workspace');
+            await createWorkspacePage.continueToMembers.click();
+            await createWorkspacePage.memberSearch.fill('bar');
+            await createWorkspacePage.memberOption('Barbara Liskov').waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
+
+        test('content step', async ({ createWorkspacePage, makeAxe }) => {
+            await createWorkspacePage.goto();
+            await createWorkspacePage.nameInput.fill('Scanned workspace');
+            await createWorkspacePage.continueToMembers.click();
+            await createWorkspacePage.continueToContent.click();
+            await createWorkspacePage.createButton.waitFor();
+            await expectNoA11yViolations(makeAxe());
+        });
     });
 });

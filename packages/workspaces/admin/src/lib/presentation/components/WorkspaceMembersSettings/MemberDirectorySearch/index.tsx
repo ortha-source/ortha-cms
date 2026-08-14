@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Search } from 'lucide-react';
 import {
+    cn,
     InputGroup,
     InputGroupAddon,
     InputGroupInput,
@@ -12,6 +13,7 @@ import {
 } from '@ortha-cms/design-system';
 import { useUsersSearch } from '../../../../application/useUsersSearch';
 import type { DirectoryUser } from '../../../../domain/types/wizard';
+import { useComboboxList } from '../../../hooks/useComboboxList';
 
 const messages = defineMessages({
     placeholder: {
@@ -21,6 +23,11 @@ const messages = defineMessages({
     searching: {
         id: 'workspaces.settings.members.searching',
         defaultMessage: 'Searching…'
+    },
+    results: {
+        id: 'workspaces.settings.members.resultsAnnouncement',
+        defaultMessage:
+            '{count, plural, =0 {No people match your search.} one {# person available.} other {# people available.}}'
     },
     noResults: {
         id: 'workspaces.settings.members.noResults',
@@ -66,6 +73,16 @@ export function MemberDirectorySearch({
         setQuery('');
     };
 
+    const combobox = useComboboxList({
+        count: results.length,
+        open,
+        onSelect: (index) => {
+            const user = results[index];
+            if (user) select(user);
+        },
+        onDismiss: () => setQuery('')
+    });
+
     return (
         <Popover
             open={open}
@@ -81,8 +98,14 @@ export function MemberDirectorySearch({
                     <InputGroupInput
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
+                        onKeyDown={combobox.onKeyDown}
                         placeholder={intl.formatMessage(messages.placeholder)}
                         aria-label={intl.formatMessage(messages.placeholder)}
+                        role="combobox"
+                        aria-expanded={open}
+                        aria-controls={combobox.listboxId}
+                        aria-activedescendant={combobox.activeId}
+                        aria-autocomplete="list"
                         autoComplete="off"
                         disabled={busy}
                     />
@@ -110,26 +133,45 @@ export function MemberDirectorySearch({
                         {intl.formatMessage(messages.noResults)}
                     </p>
                 ) : (
-                    <ul className="flex flex-col">
-                        {results.map((user) => (
-                            <li key={user.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => select(user)}
-                                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                >
-                                    <span className="truncate font-medium">
-                                        {user.name}
-                                    </span>
-                                    <span className="truncate text-xs text-muted-foreground">
-                                        {user.email}
-                                    </span>
-                                </button>
+                    <ul
+                        id={combobox.listboxId}
+                        role="listbox"
+                        aria-label={intl.formatMessage(messages.placeholder)}
+                        className="flex flex-col"
+                    >
+                        {results.map((user, i) => (
+                            <li
+                                key={user.id}
+                                id={combobox.optionId(i)}
+                                role="option"
+                                aria-selected={combobox.activeIndex === i}
+                                onClick={() => select(user)}
+                                onMouseEnter={() => combobox.setActiveIndex(i)}
+                                className={cn(
+                                    'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
+                                    combobox.activeIndex === i && 'bg-accent'
+                                )}
+                            >
+                                <span className="truncate font-medium">
+                                    {user.name}
+                                </span>
+                                <span className="truncate text-xs text-muted-foreground">
+                                    {user.email}
+                                </span>
                             </li>
                         ))}
                     </ul>
                 )}
             </PopoverContent>
+            {/* Result arrival is otherwise silent; the error state has its own
+                `role="alert"` inside the popover. */}
+            <span role="status" aria-live="polite" className="sr-only">
+                {!open || loading || isError
+                    ? ''
+                    : intl.formatMessage(messages.results, {
+                          count: results.length
+                      })}
+            </span>
         </Popover>
     );
 }

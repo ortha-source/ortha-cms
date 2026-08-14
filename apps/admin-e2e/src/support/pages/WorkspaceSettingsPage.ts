@@ -92,9 +92,13 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByPlaceholder('Add people by name or email');
     }
 
-    /** A directory-search result option by visible name. */
+    /**
+     * A directory-search result. The list follows the ARIA combobox pattern, so
+     * results are `role="option"` rather than buttons — options aren't tab
+     * stops; the input keeps focus and drives them with ↓/↑.
+     */
     memberOption(name: string): Locator {
-        return this.page.getByRole('button', { name: new RegExp(name) });
+        return this.page.getByRole('option', { name: new RegExp(name) });
     }
 
     /** The roster row for a member (its email is unique in the list). */

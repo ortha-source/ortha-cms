@@ -94,9 +94,14 @@ WCAG issues — they guard against regressions, they don't prove conformance.
   toolbar is a `<nav>`. Don't add a second `<main>`.
 - **Skip link (WCAG 2.4.1):** with persistent chrome, the first focusable
   element should be a "Skip to main content" link targeting the `<main>`. The
-  app has no skip link yet and `AppShell`'s `<main>` has no `id` — add both in
-  the shell `layout` when you next touch it (give `<main id="main">` and a link
-  to `#main`).
+  shell **already ships this**: `AppShell` renders the link as the first
+  focusable element inside `SidebarProvider`, and `SidebarInset` is a real
+  `<main id="main-content" tabIndex={-1}>`
+  (`packages/shell/admin/src/lib/components/AppShell/index.tsx`). Don't re-add
+  it — and note that `#main-content` being focusable is what lets a route move
+  focus there after a gated redirect (see `useRedirectNotice` in
+  `workspaces-admin`). No test pins the link yet, so a refactor could drop it
+  silently.
 
 ## Focus management
 

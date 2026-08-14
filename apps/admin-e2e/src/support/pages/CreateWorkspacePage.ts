@@ -97,6 +97,23 @@ export class CreateWorkspacePage extends BasePage {
         return this.page.getByText(text);
     }
 
+    /** Members step: the directory search box (an ARIA combobox). */
+    get memberSearch(): Locator {
+        return this.page.getByRole('combobox', {
+            name: 'Add people by name or email'
+        });
+    }
+
+    /** A result in the members typeahead's listbox. */
+    memberOption(name: string | RegExp): Locator {
+        return this.page.getByRole('option', { name });
+    }
+
+    /** The step card's `<h2>` — the focus target after a step change. */
+    stepHeading(name: string): Locator {
+        return this.page.getByRole('heading', { name, level: 2 });
+    }
+
     /**
      * Walk the wizard with default members (just the owner) and content (all),
      * submitting at the end. `continueToMembers.click()` auto-waits for the slug
