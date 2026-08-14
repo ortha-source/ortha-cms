@@ -99,7 +99,13 @@ export function UsersPlugin(): UsersAdminPlugin {
                         group: 'directory',
                         order: 20,
                         icon: Users,
-                        iconColor: 'text-nav-green'
+                        iconColor: 'text-nav-green',
+                        // Without this the entry is a dead link for anyone who
+                        // can't read the directory: the page renders its
+                        // no-access state, so the nav promises a destination it
+                        // won't deliver. The sibling plugins gate the same way
+                        // (`activity:read`, `tokens:read`).
+                        permission: 'users:read'
                     }
                 ]
             },

@@ -12,12 +12,12 @@ import {
     CardTitle,
     toast
 } from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+import { useAuth, useHasPermission } from '@ortha-cms/identity-admin';
 import { useUpdateMember } from '../../../application/useUpdateMember';
 import { useUserDetailContext } from '../../userDetailContext';
 import { RolePicker } from '../../components/RolePicker';
 import { ConfirmDialog } from '@ortha-cms/design-system';
-import { MemberEntity } from '../../../domain/member';
+import { MemberEntity, type MemberBlockReason } from '../../../domain/member';
 import type { MemberRole } from '../../../domain/types/member';
 
 /** Intl descriptors for {@link UserRolesPage}, co-located with the component. */
@@ -36,6 +36,16 @@ const messages = defineMessages({
         id: 'users.roles.lastAdmin',
         defaultMessage:
             'This member is the last remaining admin, so their role can’t change. Promote another member to admin first.'
+    },
+    self: {
+        id: 'users.roles.self',
+        defaultMessage:
+            'You can’t change your own role. Ask another admin to do it for you.'
+    },
+    customRole: {
+        id: 'users.roles.customRole',
+        defaultMessage:
+            'This member holds the custom role “{roleName}”, which this picker can’t represent. Changing it here would replace it with a system role.'
     },
     apply: { id: 'users.roles.apply', defaultMessage: 'Apply role' },
     reset: { id: 'users.roles.reset', defaultMessage: 'Reset' },
@@ -68,6 +78,16 @@ const ROLE_LABEL: Record<MemberRole, string> = {
     viewer: 'Viewer'
 };
 
+/** The explanation shown when a guardrail locks the picker. */
+const LOCK_REASON: Record<
+    MemberBlockReason,
+    (typeof messages)[keyof typeof messages]
+> = {
+    self: messages.self,
+    lastAdmin: messages.lastAdmin,
+    customRole: messages.customRole
+};
+
 /**
  * The Role tab: pick the member's single global role and apply it behind a
  * confirm step (with an extra warning when escalating to Admin). The last
@@ -77,17 +97,24 @@ const ROLE_LABEL: Record<MemberRole, string> = {
 export function UserRolesPage() {
     const intl = useIntl();
     const { member } = useUserDetailContext();
+    const { user } = useAuth();
     const canManage = useHasPermission('users:update');
     const update = useUpdateMember();
-    const [selected, setSelected] = useState<MemberRole>(member.role);
+    const [selected, setSelected] = useState<MemberRole | null>(member.role);
     const [confirming, setConfirming] = useState(false);
 
-    // Mirror the server's guardrail: the sole active admin's role is locked.
-    const roleChange = MemberEntity.of(member).canChangeRole();
+    // Mirror every server guardrail the viewer can trip: their own account, the
+    // sole active admin, and a custom role the picker can't represent. Doing it
+    // here means the control explains itself instead of failing on submit with
+    // a generic "please try again" for something that can never succeed.
+    const roleChange = MemberEntity.of(member).canChangeRole(user?.id);
     const locked = !canManage || !roleChange.ok;
     const dirty = selected !== member.role;
 
     const apply = () => {
+        if (selected === null) {
+            return;
+        }
         update.mutate(
             { id: member.id, role: selected },
             {
@@ -118,7 +145,10 @@ export function UserRolesPage() {
                 {!roleChange.ok ? (
                     <Alert>
                         <AlertDescription>
-                            {intl.formatMessage(messages.lastAdmin)}
+                            {intl.formatMessage(
+                                LOCK_REASON[roleChange.reason],
+                                { roleName: member.roleName }
+                            )}
                         </AlertDescription>
                     </Alert>
                 ) : (
@@ -164,7 +194,7 @@ export function UserRolesPage() {
                     selected === 'admin'
                         ? messages.confirmAdminBody
                         : messages.confirmBody,
-                    { role: ROLE_LABEL[selected] }
+                    { role: selected ? ROLE_LABEL[selected] : '' }
                 )}
                 confirmLabel={intl.formatMessage(messages.apply)}
                 onConfirm={apply}

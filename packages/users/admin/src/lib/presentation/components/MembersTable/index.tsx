@@ -9,6 +9,7 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import { MemberAvatar } from '../MemberAvatar';
+import { MEMBERS_TABLE_ANCHOR_ID } from './membersTableAnchor';
 import { MemberRoleChip } from './MemberRoleChip';
 import { MemberRowActions } from './MemberRowActions';
 import { MemberStatusBadge } from './MemberStatusBadge';
@@ -59,7 +60,14 @@ export function MembersTable({ members }: { members: Member[] }) {
     const navigate = useNavigate();
 
     return (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        // `tabIndex={-1}` makes this focusable programmatically but not a tab
+        // stop: it's where focus lands after a mutation removes the row whose
+        // kebab opened the overlay, instead of falling to `<body>`.
+        <div
+            id={MEMBERS_TABLE_ANCHOR_ID}
+            tabIndex={-1}
+            className="overflow-hidden rounded-xl border bg-card shadow-xs outline-none"
+        >
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>
@@ -99,7 +107,12 @@ export function MembersTable({ members }: { members: Member[] }) {
                                         color={member.color}
                                         className="size-9 shrink-0 text-xs"
                                     />
-                                    <div className="min-w-0">
+                                    {/* `max-w-*`, not just `min-w-0`: the cell
+                                    auto-sizes to its content, so a very long
+                                    display name widens the column and pushes the
+                                    row's kebab off-screen. Capping the block is
+                                    what actually lets `truncate` engage. */}
+                                    <div className="min-w-0 max-w-[22rem]">
                                         <Link
                                             to={`/users/${member.id}`}
                                             className="block truncate text-sm font-medium hover:underline"
@@ -116,7 +129,10 @@ export function MembersTable({ members }: { members: Member[] }) {
                                 </div>
                             </TableCell>
                             <TableCell>
-                                <MemberRoleChip role={member.role} />
+                                <MemberRoleChip
+                                    role={member.role}
+                                    roleName={member.roleName}
+                                />
                             </TableCell>
                             <TableCell>
                                 <MemberStatusBadge status={member.status} />

@@ -35,7 +35,10 @@ export function UserHero({ member }: { member: Member }) {
                             {member.name}
                         </h1>
                         <MemberStatusBadge status={member.status} />
-                        <MemberRoleChip role={member.role} />
+                        <MemberRoleChip
+                            role={member.role}
+                            roleName={member.roleName}
+                        />
                     </div>
                     <p className="truncate text-sm text-muted-foreground">
                         {member.email}

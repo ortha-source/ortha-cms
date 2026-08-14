@@ -79,6 +79,31 @@ export class MembersPage extends BasePage {
         return this.row(name).getByText(/^(Admin|Contributor|Viewer)$/);
     }
 
+    // --- the destructive-action confirmation ---
+
+    /**
+     * The confirm dialog a destructive row action opens. Both Disable and
+     * Revoke invite go through one — neither fires straight off the menu.
+     */
+    confirmDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /** The confirm dialog's title, which must name what is about to happen. */
+    confirmTitle(name: string): Locator {
+        return this.page.getByRole('heading', { name });
+    }
+
+    /** A button inside the confirm dialog, by label. */
+    confirmAction(label: string): Locator {
+        return this.confirmDialog().getByRole('button', { name: label });
+    }
+
+    /** The roster's focus anchor — where focus lands after a row is removed. */
+    tableAnchor(): Locator {
+        return this.page.locator('#members-table');
+    }
+
     // --- invite wizard (/users/invite) ---
 
     inviteHeading(): Locator {

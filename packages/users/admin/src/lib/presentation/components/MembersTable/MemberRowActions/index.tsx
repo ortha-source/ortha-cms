@@ -17,6 +17,7 @@ import {
 import { useAuth, useHasPermission } from '@ortha-cms/identity-admin';
 import {
     Button,
+    ConfirmDialog,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuGroup,
@@ -32,6 +33,7 @@ import {
 } from '@ortha-cms/design-system';
 import { inviteLinkFor } from '../../../../infrastructure/inviteLink';
 import { InviteLinkDialog } from '../../InviteLinkDialog';
+import { MEMBERS_TABLE_ANCHOR_ID } from '../membersTableAnchor';
 import { useResendInvite } from '../../../../application/useResendInvite';
 import { useRevokeInvite } from '../../../../application/useRevokeInvite';
 import { useSetMemberStatus } from '../../../../application/useSetMemberStatus';
@@ -121,6 +123,28 @@ const messages = defineMessages({
     actionFailed: {
         id: 'users.actions.failed.toast',
         defaultMessage: 'Something went wrong. Please try again.'
+    },
+    confirmDisableTitle: {
+        id: 'users.actions.confirmDisable.title',
+        defaultMessage: 'Disable {name}?'
+    },
+    confirmDisableBody: {
+        id: 'users.actions.confirmDisable.body',
+        defaultMessage:
+            '{email} will be signed out everywhere and blocked from signing in until you enable them again. Their workspace memberships and authored content are kept.'
+    },
+    confirmRevokeTitle: {
+        id: 'users.actions.confirmRevoke.title',
+        defaultMessage: 'Delete this invite permanently?'
+    },
+    confirmRevokeBody: {
+        id: 'users.actions.confirmRevoke.body',
+        defaultMessage:
+            'The pending account for {email} and its workspace assignments are deleted. This cannot be undone — you would have to invite them again and re-choose their workspaces.'
+    },
+    confirmRevokeAction: {
+        id: 'users.actions.confirmRevoke.action',
+        defaultMessage: 'Delete invite'
     }
 });
 
@@ -155,8 +179,35 @@ export function MemberRowActions({ member }: { member: Member }) {
     // be handed over — until a mailer exists, by the admin (identity epic #11).
     const [rotatedLink, setRotatedLink] = useState<string | null>(null);
 
+    // Which destructive action is awaiting confirmation. Both of these are
+    // irreversible from the UI — revoking deletes the pending account outright —
+    // so neither fires straight off a menu selection (WCAG 3.3.4).
+    const [confirming, setConfirming] = useState<'disable' | 'revoke' | null>(
+        null
+    );
+
     const failed = () => toast.error(intl.formatMessage(messages.actionFailed));
     const base = `/users/${member.id}`;
+    const kebabId = `member-actions-${member.id}`;
+
+    /**
+     * Put focus back on a stable anchor after an overlay closes. Radix restores
+     * focus to whatever opened it, but a row-removing mutation unmounts that
+     * trigger mid-flight and focus lands on `<body>` — restarting a keyboard
+     * user at the top of the document after every action (WCAG 2.4.3). Deferred
+     * a frame so this runs after Radix's own restoration rather than racing it.
+     */
+    const restoreFocusTo = (selector: string) => {
+        requestAnimationFrame(() => {
+            document.querySelector<HTMLElement>(selector)?.focus();
+        });
+    };
+
+    /** The row survives this action, so focus belongs back on its own kebab. */
+    const focusKebab = () => restoreFocusTo(`#${CSS.escape(kebabId)}`);
+
+    /** The row is gone; fall back to the table itself (see {@link MembersTable}). */
+    const focusTable = () => restoreFocusTo(`#${MEMBERS_TABLE_ANCHOR_ID}`);
 
     /** A navigation item that routes to one of the member's detail tabs. */
     const navItem = (
@@ -202,17 +253,7 @@ export function MemberRowActions({ member }: { member: Member }) {
             <DropdownMenuItem
                 key="revoke"
                 className="text-destructive focus:text-destructive"
-                onSelect={() =>
-                    revokeInvite.mutate(member.id, {
-                        onSuccess: () =>
-                            toast.success(
-                                intl.formatMessage(messages.revoked, {
-                                    email: member.email
-                                })
-                            ),
-                        onError: failed
-                    })
-                }
+                onSelect={() => setConfirming('revoke')}
             >
                 <Trash2 aria-hidden />
                 {intl.formatMessage(messages.revoke)}
@@ -235,20 +276,7 @@ export function MemberRowActions({ member }: { member: Member }) {
                 <GuardedMenuItem
                     key="disable"
                     blockedReason={disableBlockedReason}
-                    onSelect={() =>
-                        setStatus.mutate(
-                            { id: member.id, disabled: true },
-                            {
-                                onSuccess: () =>
-                                    toast.success(
-                                        intl.formatMessage(messages.disabled, {
-                                            name: member.name
-                                        })
-                                    ),
-                                onError: failed
-                            }
-                        )
-                    }
+                    onSelect={() => setConfirming('disable')}
                 >
                     <Ban aria-hidden />
                     {intl.formatMessage(messages.disable)}
@@ -285,6 +313,49 @@ export function MemberRowActions({ member }: { member: Member }) {
     const visibleQuick = quickItems.filter(Boolean);
     const hasQuick = visibleQuick.length > 0 || destructiveItem;
 
+    /** Delete the pending account. The row goes with it, so focus the table. */
+    const confirmRevoke = () =>
+        revokeInvite.mutate(member.id, {
+            onSuccess: () => {
+                setConfirming(null);
+                focusTable();
+                toast.success(
+                    intl.formatMessage(messages.revoked, {
+                        email: member.email
+                    })
+                );
+            },
+            onError: () => {
+                setConfirming(null);
+                focusKebab();
+                failed();
+            }
+        });
+
+    /** Suspend sign-in. The row stays (its pill flips), so focus its kebab. */
+    const confirmDisable = () =>
+        setStatus.mutate(
+            { id: member.id, disabled: true },
+            {
+                onSuccess: () => {
+                    setConfirming(null);
+                    focusKebab();
+                    toast.success(
+                        intl.formatMessage(messages.disabled, {
+                            name: member.name
+                        })
+                    );
+                },
+                onError: () => {
+                    setConfirming(null);
+                    focusKebab();
+                    failed();
+                }
+            }
+        );
+
+    const confirmBusy = revokeInvite.isPending || setStatus.isPending;
+
     return (
         <>
             {/* `modal={false}` so the open menu doesn't aria-hide the page root
@@ -293,7 +364,7 @@ export function MemberRowActions({ member }: { member: Member }) {
             <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                     <Button
-                        id={`member-actions-${member.id}`}
+                        id={kebabId}
                         variant="ghost"
                         size="icon"
                         className="size-8"
@@ -398,8 +469,44 @@ export function MemberRowActions({ member }: { member: Member }) {
                 onOpenChange={(open) => {
                     if (!open) {
                         setRotatedLink(null);
+                        // The row is still here — Radix can't restore focus to
+                        // the kebab because the menu that opened this dialog has
+                        // already unmounted, so do it explicitly.
+                        focusKebab();
                     }
                 }}
+            />
+
+            <ConfirmDialog
+                open={confirming !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setConfirming(null);
+                        focusKebab();
+                    }
+                }}
+                busy={confirmBusy}
+                title={intl.formatMessage(
+                    confirming === 'revoke'
+                        ? messages.confirmRevokeTitle
+                        : messages.confirmDisableTitle,
+                    { name: member.name }
+                )}
+                description={intl.formatMessage(
+                    confirming === 'revoke'
+                        ? messages.confirmRevokeBody
+                        : messages.confirmDisableBody,
+                    { email: member.email }
+                )}
+                confirmLabel={intl.formatMessage(
+                    confirming === 'revoke'
+                        ? messages.confirmRevokeAction
+                        : messages.disable
+                )}
+                confirmVariant="destructive"
+                onConfirm={
+                    confirming === 'revoke' ? confirmRevoke : confirmDisable
+                }
             />
         </>
     );

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_482 test cases across 50 spec files._
+_496 test cases across 52 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -864,6 +864,23 @@ _<sub>apps/admin-e2e/src/users/account-menu.spec.ts</sub>_
 | falls back to the email when the account has no name |
 | Logout calls the logout endpoint |
 
+<!-- source: apps/admin-e2e/src/users/destructive-actions.spec.ts -->
+_<sub>apps/admin-e2e/src/users/destructive-actions.spec.ts</sub>_
+
+## Destructive member actions
+
+| Test case |
+| --- |
+| confirms before revoking an invite, naming the invitee |
+| sends nothing when the revoke confirmation is cancelled |
+| sends exactly one request when the revoke is confirmed |
+| moves focus to a stable anchor after the row is removed |
+| confirms before disabling a member, naming them |
+| returns focus to the row’s own kebab when the row survives |
+| warns before discarding an uncopied invite link |
+| keeps the link on screen when the discard warning is declined |
+| closes without a warning once the link has been copied |
+
 <!-- source: apps/admin-e2e/src/users/keyboard.spec.ts -->
 _<sub>apps/admin-e2e/src/users/keyboard.spec.ts</sub>_
 
@@ -929,6 +946,18 @@ _<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_
 | the dark theme has no accessibility violations |
 | applies the saved theme on a route that overrides the sidebar |
 
+<!-- source: apps/admin-e2e/src/users/roles.spec.ts -->
+_<sub>apps/admin-e2e/src/users/roles.spec.ts</sub>_
+
+## Role tab guardrails
+
+| Test case |
+| --- |
+| locks your own role with the reason, rather than 409-ing |
+| locks the sole active admin with the reason |
+| shows a custom role by its server name and refuses to guess |
+| lets an ordinary member’s role be changed behind a confirm |
+
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_
 
@@ -942,6 +971,7 @@ _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_
 | navigates between tabs via the side rail |
 | edits the display name (PATCH /api/users/:id) |
 | revokes a session from the Sessions tab |
+| names the device in each session control and in its confirm dialog |
 | renders the activity timeline with per-action entries |
 | shows workspace membership events in the personal log |
 | hides audit and access tabs without users:update |

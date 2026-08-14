@@ -26,7 +26,7 @@ const messages = defineMessages({
     revoke: { id: 'users.sessions.revoke', defaultMessage: 'Revoke' },
     revokeLabel: {
         id: 'users.sessions.revokeLabel',
-        defaultMessage: 'Revoke this session'
+        defaultMessage: 'Revoke the session on {device}, last seen {when}'
     }
 });
 
@@ -49,8 +49,11 @@ export function SessionCard({
 }) {
     const intl = useIntl();
     const device =
-        session.userAgent?.trim() ||
-        intl.formatMessage(messages.unknownDevice);
+        session.userAgent?.trim() || intl.formatMessage(messages.unknownDevice);
+    const lastSeen = intl.formatDate(session.lastSeenAt, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
 
     return (
         <Card>
@@ -75,19 +78,23 @@ export function SessionCard({
                     <p className="truncate text-xs text-muted-foreground">
                         {session.ipAddress ? `${session.ipAddress} · ` : ''}
                         {intl.formatMessage(messages.lastSeen, {
-                            when: intl.formatDate(session.lastSeenAt, {
-                                dateStyle: 'medium',
-                                timeStyle: 'short'
-                            })
+                            when: lastSeen
                         })}
                     </p>
                 </div>
+                {/* The visible word is just "Revoke" on every card, so the
+                    accessible name has to carry the device — otherwise a screen
+                    reader hears the same label on all of them and cannot tell
+                    which one it is about to sign out (WCAG 2.4.6 / 4.1.2). */}
                 <Button
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground"
                     disabled={busy || session.current}
-                    aria-label={intl.formatMessage(messages.revokeLabel)}
+                    aria-label={intl.formatMessage(messages.revokeLabel, {
+                        device,
+                        when: lastSeen
+                    })}
                     onClick={() => onRevoke(session)}
                 >
                     {busy ? <Spinner /> : null}

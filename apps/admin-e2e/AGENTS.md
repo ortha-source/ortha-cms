@@ -89,9 +89,12 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
   which holds focusable content, so `aria-hidden-focus` fires. Every row menu and
   picker in the admin passes `modal={false}`; a new one that doesn't will fail
   its scan rather than the assertion you were writing.
-- **A query's error state is ~7s away.** TanStack Query retries 3× with
-  exponential backoff before `isError`, so an error-state assertion needs an
-  explicit `{ timeout: 15_000 }`.
+- **A query's error state is ~7s away — for a `5xx` or a network failure.**
+  TanStack Query retries those 3× with exponential backoff before `isError`, so
+  such an assertion needs an explicit `{ timeout: 15_000 }`. A **`4xx` fails
+  fast**: the shared client's retry predicate treats it as the server's settled
+  answer and stops (`packages/utils/admin/src/lib/queryClient`), so a 400/403/404
+  state appears immediately. Mock the status you actually mean.
 - **The submit button's name changes.** Idle it reads "Login"; while submitting
   the label is the `sr-only` "Signing in…". `LoginPage.submit` matches either
   (`name: /Login|Signing in/`) so one handle works across both states.

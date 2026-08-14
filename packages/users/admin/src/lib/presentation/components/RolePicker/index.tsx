@@ -29,7 +29,8 @@ const messages = defineMessages({
         id: 'users.rolePicker.viewerDesc',
         defaultMessage: 'Read-only access to members and workspaces.'
     },
-    current: { id: 'users.rolePicker.current', defaultMessage: 'Current' }
+    current: { id: 'users.rolePicker.current', defaultMessage: 'Current' },
+    group: { id: 'users.rolePicker.group', defaultMessage: 'Global role' }
 });
 
 const ROLES: ReadonlyArray<{
@@ -58,10 +59,13 @@ export function RolePicker({
     disabled = false,
     onChange
 }: {
-    /** The selected role. */
-    value: MemberRole;
+    /**
+     * The selected role, or `null` for a member holding a custom role — no card
+     * is then marked selected, rather than one being picked on their behalf.
+     */
+    value: MemberRole | null;
     /** The member's currently-saved role, badged as "Current". */
-    current?: MemberRole;
+    current?: MemberRole | null;
     /** Disables selection (read-only / in-flight). */
     disabled?: boolean;
     /** Called with the newly-picked role. */
@@ -71,9 +75,10 @@ export function RolePicker({
 
     return (
         <RadioGroup
-            value={value}
+            value={value ?? undefined}
             onValueChange={(next) => onChange(next as MemberRole)}
             disabled={disabled}
+            aria-label={intl.formatMessage(messages.group)}
             className="gap-3"
         >
             {ROLES.map((role) => {

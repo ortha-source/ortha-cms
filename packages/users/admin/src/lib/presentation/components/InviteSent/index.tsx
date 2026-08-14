@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { CircleCheck } from 'lucide-react';
+import { useUnsavedChanges } from '@ortha-cms/utils-admin';
 import {
     Button,
     CardContent,
@@ -67,6 +69,14 @@ type InviteSentProps = {
  */
 export function InviteSent({ email, link, roleLabel }: InviteSentProps) {
     const intl = useIntl();
+    const [copied, setCopied] = useState(false);
+
+    // Until the link is captured, treat leaving this step as losing unsaved
+    // work — because it is: the token exists only in this component's state and
+    // is never re-fetchable. The app-wide guard covers every exit (links,
+    // programmatic navigation, and reload via `beforeunload`), which is the
+    // only one a component here could not intercept for itself.
+    useUnsavedChanges(!copied, 'users.invite.link');
 
     return (
         <WizardStepCard>
@@ -88,7 +98,11 @@ export function InviteSent({ email, link, roleLabel }: InviteSentProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-8">
-                <InviteLinkPanel link={link} email={email} />
+                <InviteLinkPanel
+                    link={link}
+                    email={email}
+                    onCopied={() => setCopied(true)}
+                />
 
                 <div className="flex flex-col gap-3">
                     <h3 className="text-sm font-medium">
