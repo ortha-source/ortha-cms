@@ -39,7 +39,7 @@ http/            # thin controllers + the two workspace guards + @CurrentWorkspa
 
 ## The tenancy boundary — membership, not permissions
 
-**Membership decides *where* a user may act; permissions decide *what* they may
+**Membership decides _where_ a user may act; permissions decide _what_ they may
 do. Both must pass.** Holding `workspaces:update` does not grant reach into a
 workspace you don't belong to, and no endpoint ever returns one.
 
@@ -61,11 +61,14 @@ workspace you don't belong to, and no endpoint ever returns one.
 - **A non-member always gets a flat 403 — never a 404.** "Not a member" and "no
   such workspace" are indistinguishable, so the routes leak no ids. The guard
   runs before the handler, so the handler's own `WorkspaceNotFoundError → 404`
-  is now only reachable for a workspace the caller *is* a member of (i.e. one
+  is now only reachable for a workspace the caller _is_ a member of (i.e. one
   deleted concurrently).
 - **There is still no per-workspace owner or role.** Membership is a pure link:
   any member with `workspaces:update` can add or remove any other member,
-  including themselves — self-removal simply ends their own access.
+  including themselves — self-removal simply ends their own access. The one
+  exception is the **last** member, which is refused (see the aggregate's
+  invariants): with nobody left, membership-scoping makes the workspace
+  unreachable rather than merely unowned.
 
 ## The one hard rule
 
@@ -90,7 +93,15 @@ raises a domain event. Invariants guarded here:
   entries (`assertDeletable`), and a grant can't be revoked while that type has
   entries (`revokeContent`); the entry counts come from the content context via
   the `CONTENT_ENTRY_COUNTER` port, so the application supplies them and the
-  aggregate decides.
+  aggregate decides. When **no counter is bound** the port's fallback reads `0`,
+  which is fine for the read-only pre-check endpoints but is _not_ proof of
+  emptiness — the `content_*` tables outlive any one boot's plugin list — so the
+  delete and revoke use cases check `ContentEntryCounterReader.isBound` and
+  refuse (`EntryCountUnavailableError` → 503) rather than trust it;
+- **no memberless workspace** — `removeMember` throws `LastMemberError`
+  (→ 409) rather than removing the final member. Access is membership-scoped,
+  so a workspace with no members is unreachable by everyone, including a global
+  admin, with no route back to it.
 
 The aggregate exposes its accumulated `changes()` (a small persistence delta) so
 `DrizzleWorkspaceRepository.save` emits minimal, idempotent SQL
@@ -102,7 +113,7 @@ transaction-script services this replaced.
 - `WorkspaceRepository` (`WORKSPACE_REPOSITORY`) → `DrizzleWorkspaceRepository`.
   `findByIdForContentMutation` loads under the workspace's **exclusive** advisory
   content lock — the loading strategy for delete/revoke, serializing against
-  concurrent entry writes (which take the *shared* lock, exported for
+  concurrent entry writes (which take the _shared_ lock, exported for
   `content-server`). The lock is private infrastructure.
 - `MemberProvisioner` (`MEMBER_PROVISIONER`) → `DrizzleMemberProvisioner`:
   provisions pending users for invited emails, drops stale ids.
@@ -126,15 +137,16 @@ appends `aggregate.pullEvents()` to the transactional outbox (`OutboxWriter`).
 Reads (list / check-slug / counts / view assembly) bypass the aggregate as thin
 CQRS query services.
 
-## Audit transition (Wave 3 will change this)
+## Audit — outbox only
 
-Audit is **still recorded in-band** via the `ACTIVITY_RECORDER` token inside each
-use case (same kinds/meta as before), so the audit log stays correct and
-gap-free. The same operations **also** emit domain events to the outbox; with no
-subscriber yet those auto-mark dispatched (harmless). **Do NOT double-record.**
-Wave 3 moves auditing onto an outbox subscriber and removes the in-band
-`recorder.record(...)` calls. The event `kind` strings intentionally match the
-audit kinds so that move needs no data change.
+Audit runs **entirely through the outbox**; the in-band `ACTIVITY_RECORDER`
+calls this section used to describe are gone (`grep -rn ACTIVITY_RECORDER
+packages/workspaces/server/src` finds only a comment). Each use case appends
+`aggregate.pullEvents()` inside the same transaction as the state change, and
+`activity/server`'s `audit-event.subscriber.ts` is the single consumer. Atomicity
+comes from the outbox write sharing the mutation's transaction — do **not** also
+call a recorder. The event `kind` strings match the audit kinds, which is why
+that move needed no data change.
 
 ## Schema note
 

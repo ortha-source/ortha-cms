@@ -1,5 +1,6 @@
 import {
     ConflictException,
+    ServiceUnavailableException,
     Controller,
     Delete,
     NotFoundException,
@@ -21,6 +22,7 @@ import { WorkspaceViewQuery } from '../../infrastructure/queries/workspace-view.
 import type { WorkspaceView } from '../../application/queries/workspace.view';
 import {
     ContentTypeNotEmptyError,
+    EntryCountUnavailableError,
     WorkspaceNotFoundError
 } from '../../domain/errors';
 
@@ -64,6 +66,11 @@ export class RemoveWorkspaceContentController {
             if (error instanceof ContentTypeNotEmptyError) {
                 throw new ConflictException(
                     'Content type still has entries in this workspace'
+                );
+            }
+            if (error instanceof EntryCountUnavailableError) {
+                throw new ServiceUnavailableException(
+                    'Cannot verify existing content right now, so this change is blocked.'
                 );
             }
             throw error;

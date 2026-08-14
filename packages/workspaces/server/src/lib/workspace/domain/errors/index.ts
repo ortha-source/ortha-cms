@@ -4,6 +4,8 @@ export { MemberNotFoundError } from './member-not-found.error';
 export { UnknownContentTypeError } from './unknown-content-type.error';
 export { ContentTypeNotEmptyError } from './content-type-not-empty.error';
 export { WorkspaceNotEmptyError } from './workspace-not-empty.error';
+export { LastMemberError } from './last-member.error';
+export { EntryCountUnavailableError } from './entry-count-unavailable.error';
 export { InvalidSlugError } from './invalid-slug.error';
 export { InvalidWorkspaceIdError } from './invalid-workspace-id.error';
 export { InvalidWorkspaceColorError } from './invalid-workspace-color.error';

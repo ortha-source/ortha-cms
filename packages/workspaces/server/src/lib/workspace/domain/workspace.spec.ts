@@ -4,6 +4,7 @@ import { WorkspaceColor } from './value-objects/workspace-color';
 import { WorkspaceStatus } from './value-objects/workspace-status';
 import {
     ContentTypeNotEmptyError,
+    LastMemberError,
     WorkspaceNotEmptyError
 } from './errors';
 import { WORKSPACE_EVENT_KINDS } from './events/workspace-events';
@@ -11,6 +12,7 @@ import { WORKSPACE_EVENT_KINDS } from './events/workspace-events';
 const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111';
 const CREATOR = '22222222-2222-4222-8222-222222222222';
 const OTHER = '33333333-3333-4333-8333-333333333333';
+const UNKNOWN = '44444444-4444-4444-8444-444444444444';
 
 /** A loaded workspace with one member and one collection grant. */
 function rehydrated(): Workspace {
@@ -111,9 +113,22 @@ describe('Workspace aggregate', () => {
 
         it('removes a member, and removing a non-member is a no-op', () => {
             const workspace = rehydrated();
-            expect(workspace.removeMember(OTHER)).toBe(false);
+            workspace.addMember(OTHER);
+            expect(workspace.removeMember(UNKNOWN)).toBe(false);
             expect(workspace.removeMember(CREATOR)).toBe(true);
             expect(workspace.changes().removedMemberIds).toEqual([CREATOR]);
+        });
+
+        it('refuses to remove the last member (no-memberless-workspace)', () => {
+            const workspace = rehydrated();
+
+            // Access is membership-scoped, so a workspace with no members is
+            // unreachable by everyone — including a global admin — with no
+            // route left to recover or even delete it.
+            expect(() => workspace.removeMember(CREATOR)).toThrow(
+                LastMemberError
+            );
+            expect(workspace.changes().removedMemberIds).toEqual([]);
         });
     });
 

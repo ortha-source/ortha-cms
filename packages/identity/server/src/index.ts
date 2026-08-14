@@ -34,7 +34,10 @@ export { seedSystemRoles } from './lib/rbac/seeders/seed-system-roles';
 export { RolesService } from './lib/rbac/services/roles.service';
 export { PermissionsService } from './lib/rbac/services/permissions.service';
 export { PermissionsGuard } from './lib/rbac/guards/permissions.guard';
-export { RequirePermissions } from './lib/rbac/decorators/require-permissions.decorator';
+export {
+    RequireAnyPermission,
+    RequirePermissions
+} from './lib/rbac/decorators/require-permissions.decorator';
 // The pieces a plugin needs to write its OWN permission-checking guard for a
 // non-session caller (the public content API's bearer guard is the one such
 // caller today): the metadata key `@RequirePermissions` writes, the permission

@@ -9,13 +9,18 @@ import type { AuthenticatedRequest } from '../../auth/decorators/current-user.de
 import { AccessPolicy, type Actor } from '../../domain/access-policy';
 import { Permission } from '../../domain/value-objects/permission';
 import type { PermissionKey } from '../system-roles';
-import { PERMISSIONS_KEY } from '../decorators/require-permissions.decorator';
+import {
+    ANY_PERMISSION_KEY,
+    PERMISSIONS_KEY
+} from '../decorators/require-permissions.decorator';
 import { PermissionsService } from '../services/permissions.service';
 
 /**
  * Enforces `@RequirePermissions(...)`. Runs after the global `AuthGuard` (which
  * attaches the user), resolves the user's role grants, and 403s unless every
- * required permission is held. Routes without the decorator pass through.
+ * `@RequirePermissions` permission is held **and** at least one
+ * `@RequireAnyPermission` permission is. Routes carrying neither decorator pass
+ * through.
  *
  * The permission-set membership decision is delegated to {@link AccessPolicy}
  * (the pure, unit-tested RBAC rule); this guard only wires the request to it —
@@ -35,7 +40,13 @@ export class PermissionsGuard implements CanActivate {
             PERMISSIONS_KEY,
             [context.getHandler(), context.getClass()]
         );
-        if (!required || required.length === 0) {
+        const anyOf = this.reflector.getAllAndOverride<PermissionKey[]>(
+            ANY_PERMISSION_KEY,
+            [context.getHandler(), context.getClass()]
+        );
+        const hasAllOf = !!required && required.length > 0;
+        const hasAnyOf = !!anyOf && anyOf.length > 0;
+        if (!hasAllOf && !hasAnyOf) {
             return true;
         }
 
@@ -55,10 +66,17 @@ export class PermissionsGuard implements CanActivate {
                 await this.permissions.forRole(user.roleId)
             )
         };
-        const allowed = this.accessPolicy.canAll(
-            actor,
-            required.map((key) => Permission.create(key))
-        );
+        const allowed =
+            (!hasAllOf ||
+                this.accessPolicy.canAll(
+                    actor,
+                    required.map((key) => Permission.create(key))
+                )) &&
+            (!hasAnyOf ||
+                this.accessPolicy.canAny(
+                    actor,
+                    anyOf.map((key) => Permission.create(key))
+                ));
         if (!allowed) {
             throw new ForbiddenException('Insufficient permissions');
         }

@@ -10,6 +10,11 @@ import { memberships } from '../schema/memberships';
 import { workspaceContent } from '../schema/workspace-content';
 import { WorkspaceMapper } from './workspace.mapper';
 import { lockWorkspaceExclusive } from './workspace-lock';
+import { isUniqueViolation } from './unique-violation';
+import { SlugTakenError } from '../../domain/errors';
+
+/** The unique index that makes `workspaces.slug` the real arbiter of uniqueness. */
+const SLUG_UNIQUE_CONSTRAINT = 'workspaces_slug_unique';
 
 /**
  * Drizzle-backed {@link WorkspaceRepository}. Loads and saves the whole
@@ -55,9 +60,21 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
         const workspaceId = workspace.id.value;
 
         if (changes.isNew) {
-            await executor
-                .insert(workspaces)
-                .values(this.mapper.toInsertRow(workspace));
+            try {
+                await executor
+                    .insert(workspaces)
+                    .values(this.mapper.toInsertRow(workspace));
+            } catch (error) {
+                // The pre-insert availability check can't be authoritative — two
+                // concurrent creates both read "free". The unique index decides,
+                // so translate its rejection into the same domain error the
+                // pre-check raises; otherwise the loser of an ordinary race gets
+                // a 500 instead of the 409 this collision has always meant.
+                if (isUniqueViolation(error, SLUG_UNIQUE_CONSTRAINT)) {
+                    throw new SlugTakenError(workspace.slug.value);
+                }
+                throw error;
+            }
         } else {
             const patch: Partial<typeof workspaces.$inferInsert> = {};
             if (changes.profileChanged) {
@@ -116,7 +133,10 @@ export class DrizzleWorkspaceRepository implements WorkspaceRepository {
                 .where(
                     and(
                         eq(workspaceContent.workspaceId, workspaceId),
-                        inArray(workspaceContent.slug, changes.removedGrantSlugs)
+                        inArray(
+                            workspaceContent.slug,
+                            changes.removedGrantSlugs
+                        )
                     )
                 );
         }

@@ -1,4 +1,5 @@
 import {
+    ConflictException,
     Controller,
     Delete,
     HttpCode,
@@ -17,10 +18,13 @@ import {
 } from '@ortha-cms/identity-server';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { RemoveMemberUseCase } from '../../application/use-cases/remove-member.use-case';
+import { LastMemberError } from '../../domain/errors';
 
 /**
  * `DELETE /api/workspaces/:id/members/:userId` — removes a user's membership;
  * requires `workspaces:update`. Removing a non-member is a no-op (still 204).
+ * Removing the **last** member is refused with a `409`: access is
+ * membership-scoped, so it would leave the workspace unreachable by everyone.
  * Guarded by `OriginGuard` (CSRF).
  *
  * Also guarded by `WorkspaceMemberGuard`: a caller who isn't a member of
@@ -40,6 +44,15 @@ export class RemoveWorkspaceMemberController {
         @Param('id', ParseUUIDPipe) id: string,
         @Param('userId', ParseUUIDPipe) userId: string
     ): Promise<void> {
-        await this.removeMember.execute(actor, id, userId);
+        try {
+            await this.removeMember.execute(actor, id, userId);
+        } catch (error) {
+            if (error instanceof LastMemberError) {
+                throw new ConflictException(
+                    'Cannot remove the last member of a workspace. Delete the workspace instead, or add another member first.'
+                );
+            }
+            throw error;
+        }
     }
 }

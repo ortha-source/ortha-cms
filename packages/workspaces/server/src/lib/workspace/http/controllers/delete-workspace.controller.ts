@@ -1,5 +1,6 @@
 import {
     ConflictException,
+    ServiceUnavailableException,
     Controller,
     Delete,
     HttpCode,
@@ -20,6 +21,7 @@ import {
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { DeleteWorkspaceUseCase } from '../../application/use-cases/delete-workspace.use-case';
 import {
+    EntryCountUnavailableError,
     WorkspaceNotEmptyError,
     WorkspaceNotFoundError
 } from '../../domain/errors';
@@ -55,6 +57,11 @@ export class DeleteWorkspaceController {
             if (error instanceof WorkspaceNotEmptyError) {
                 throw new ConflictException(
                     'Workspace still has content entries'
+                );
+            }
+            if (error instanceof EntryCountUnavailableError) {
+                throw new ServiceUnavailableException(
+                    'Cannot verify existing content right now, so this change is blocked.'
                 );
             }
             throw error;

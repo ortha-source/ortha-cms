@@ -2,7 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
 import { WorkspaceId } from '../../domain/value-objects/workspace-id';
-import { WorkspaceNotFoundError } from '../../domain/errors';
+import {
+    EntryCountUnavailableError,
+    WorkspaceNotFoundError
+} from '../../domain/errors';
 import {
     WORKSPACE_REPOSITORY,
     type WorkspaceRepository
@@ -32,8 +35,9 @@ export class DeleteWorkspaceUseCase {
     ) {}
 
     /**
-     * Runs the delete. Throws {@link WorkspaceNotFoundError} (→ 404) and
-     * `WorkspaceNotEmptyError` (→ 409) when content entries remain.
+     * Runs the delete. Throws {@link WorkspaceNotFoundError} (→ 404),
+     * `WorkspaceNotEmptyError` (→ 409) when content entries remain, and
+     * {@link EntryCountUnavailableError} (→ 503) when the count can't be taken.
      */
     async execute(actor: PublicUser, workspaceId: string): Promise<void> {
         const id = WorkspaceId.create(workspaceId);
@@ -43,6 +47,12 @@ export class DeleteWorkspaceUseCase {
                 await this.workspaces.findByIdForContentMutation(id);
             if (!workspace) {
                 throw new WorkspaceNotFoundError(workspaceId);
+            }
+            // Fail closed on an unknown count: the unbound fallback reads 0,
+            // which would wave through exactly the delete the invariant exists
+            // to stop (a database whose content tables outlived the plugin).
+            if (!this.counter.isBound) {
+                throw new EntryCountUnavailableError(workspaceId);
             }
             const entryCount =
                 await this.counter.countWorkspaceEntries(workspaceId);

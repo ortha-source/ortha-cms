@@ -5,9 +5,13 @@ import { WorkspaceColor } from './value-objects/workspace-color';
 import { WorkspaceStatus } from './value-objects/workspace-status';
 import { Membership } from './membership';
 import { ContentGrant, type ContentGrantKind } from './content-grant';
-import { WORKSPACE_EVENT_KINDS, workspaceEvent } from './events/workspace-events';
+import {
+    WORKSPACE_EVENT_KINDS,
+    workspaceEvent
+} from './events/workspace-events';
 import {
     ContentTypeNotEmptyError,
+    LastMemberError,
     WorkspaceNotEmptyError
 } from './errors';
 
@@ -219,6 +223,11 @@ export class Workspace {
     /**
      * Removes `userId`'s membership. Removing a non-member is a no-op that
      * returns `false`; otherwise raises `workspace.member_removed`.
+     *
+     * Throws {@link LastMemberError} rather than removing the final member:
+     * access is membership-scoped, so a memberless workspace is unreachable by
+     * everyone — including a global admin — with no route back to it. The rule
+     * lives here, on the aggregate, so no caller can skip it.
      */
     removeMember(userId: string): boolean {
         const index = this._members.findIndex(
@@ -226,6 +235,9 @@ export class Workspace {
         );
         if (index === -1) {
             return false;
+        }
+        if (this._members.length === 1) {
+            throw new LastMemberError(this.id.value, userId);
         }
         this._members.splice(index, 1);
         this._removedMemberIds.push(userId);
@@ -346,10 +358,7 @@ export class Workspace {
         return this._grants.some((grant) => grant.slug === slug);
     }
 
-    private raise(
-        kind: string,
-        payload: Record<string, unknown>
-    ): void {
+    private raise(kind: string, payload: Record<string, unknown>): void {
         this.events.push(workspaceEvent(kind, this._id.value, payload));
     }
 }

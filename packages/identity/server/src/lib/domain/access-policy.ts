@@ -38,7 +38,11 @@ export class AccessPolicy {
      * `scope` is reserved for future per-workspace grants and does not yet
      * narrow the decision.
      */
-    can(actor: Actor, permission: Permission, scope?: PermissionScope): boolean {
+    can(
+        actor: Actor,
+        permission: Permission,
+        scope?: PermissionScope
+    ): boolean {
         // `scope` is reserved for future per-workspace grants; v1 RBAC is
         // global, so a present scope does not narrow the decision yet. It is
         // referenced here only to keep the parameter live.
@@ -56,6 +60,28 @@ export class AccessPolicy {
         required: readonly Permission[],
         scope?: PermissionScope
     ): boolean {
-        return required.every((permission) => this.can(actor, permission, scope));
+        return required.every((permission) =>
+            this.can(actor, permission, scope)
+        );
+    }
+
+    /**
+     * Whether `actor` holds **at least one** permission in `allowed` (an empty
+     * requirement is vacuously allowed, matching {@link canAll}). The any-of
+     * semantics the `@RequireAnyPermission(...)` guard enforces.
+     *
+     * Needed for a route that legitimately serves two audiences — the
+     * content-type catalogue is read both by the create wizard
+     * (`workspaces:create`) and by the settings content tab
+     * (`workspaces:update`), so requiring either one alone would lock out a
+     * role that holds only the other.
+     */
+    canAny(
+        actor: Actor,
+        allowed: readonly Permission[],
+        scope?: PermissionScope
+    ): boolean {
+        if (allowed.length === 0) return true;
+        return allowed.some((permission) => this.can(actor, permission, scope));
     }
 }
