@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_469 test cases across 49 spec files._
+_476 test cases across 50 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -993,6 +993,48 @@ _<sub>apps/admin-e2e/src/workspaces/permissions.spec.ts</sub>_
 | shows "New workspace" to a user with workspaces:create |
 | hides "New workspace" from a user without the permission |
 | redirects /workspaces/new to the list without the permission |
+
+<!-- source: apps/admin-e2e/src/workspaces/regressions.spec.ts -->
+_<sub>apps/admin-e2e/src/workspaces/regressions.spec.ts</sub>_
+
+## workspaces-admin regressions
+
+### a failed slug check must not read as available
+
+| Test case |
+| --- |
+| reports the check failed and keeps Continue disabled |
+
+### the basics gate holds on state, not just on transitions
+
+| Test case |
+| --- |
+| deep-linking ?step=3 falls back to Basics instead of offering Create |
+| reloading mid-wizard returns to Basics rather than a dead end |
+
+### a duplicate slug reports as a conflict, not a retryable error
+
+| Test case |
+| --- |
+| names the slug as the problem instead of "please try again" |
+
+### a name the server accepts stays editable
+
+| Test case |
+| --- |
+| a 110-character name does not lock the General tab |
+
+### the sidebar reflects a rename immediately
+
+| Test case |
+| --- |
+| the workspace switcher picks up the new name without navigating away |
+
+### monogram initials are code-point safe
+
+| Test case |
+| --- |
+| an emoji-led name renders a whole character, not half a surrogate pair |
 
 <!-- source: apps/admin-e2e/src/workspaces/settings.spec.ts -->
 _<sub>apps/admin-e2e/src/workspaces/settings.spec.ts</sub>_

@@ -11,7 +11,14 @@ export enum SlugStatus {
     /** Free to use. */
     Available = 'available',
     /** Already taken by another workspace. */
-    Taken = 'taken'
+    Taken = 'taken',
+    /**
+     * The availability request failed, so uniqueness is *unknown*. Treated as
+     * not-continuable: a failed pre-check must never read as the positive
+     * answer, matching the delete/revoke dialogs, which block when their
+     * entry-count pre-check fails rather than allowing the action.
+     */
+    Unknown = 'unknown'
 }
 
 /**
@@ -116,5 +123,9 @@ export type CreateWorkspaceBody = {
     }[];
     content:
         | { mode: 'all' }
-        | { mode: 'specific'; collections: ResourceSelection; pages: ResourceSelection };
+        | {
+              mode: 'specific';
+              collections: ResourceSelection;
+              pages: ResourceSelection;
+          };
 };

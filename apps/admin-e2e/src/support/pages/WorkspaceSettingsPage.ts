@@ -179,6 +179,17 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByText('Archived', { exact: true });
     }
 
+    // --- the workspace nav the shell injects into the app sidebar ---
+
+    /**
+     * The sidebar's workspace switcher trigger. Its accessible name carries the
+     * open workspace ("Switch workspace, current: {name}"), which is what makes
+     * it the check for whether the sidebar picked up a settings change.
+     */
+    get workspaceSwitcher(): Locator {
+        return this.page.getByRole('button', { name: /Switch workspace/ });
+    }
+
     // --- shared: confirm dialog + toasts ---
 
     get dialog(): Locator {

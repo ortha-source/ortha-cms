@@ -24,12 +24,10 @@ import { initialsOf } from '@ortha-cms/utils-admin';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useWorkspaceProfileSchema } from '../../hooks/useWorkspaceProfileSchema';
 import { useUpdateWorkspace } from '../../../application/useUpdateWorkspace';
+import { DESCRIPTION_MAX, NAME_MAX } from '../../../domain/workspaceLimits';
 import { ColorSwatchRow } from '../ColorSwatchRow';
 import { WorkspaceAvatar } from '../WorkspaceAvatar';
 import { WorkspaceIdField } from './WorkspaceIdField';
-
-const NAME_MAX = 100;
-const DESCRIPTION_MAX = 500;
 
 const messages = defineMessages({
     title: {

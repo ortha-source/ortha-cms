@@ -90,8 +90,9 @@ export type WizardController = {
  */
 export function useWizard(): WizardController {
     const [searchParams, setSearchParams] = useSearchParams();
-    const step = clampStep(Number(searchParams.get(STEP_PARAM) ?? MIN_STEP));
-    const [maxReached, setMaxReached] = useState(step);
+    const requestedStep = clampStep(
+        Number(searchParams.get(STEP_PARAM) ?? MIN_STEP)
+    );
 
     const [data, setData] = useState<WizardData>(INITIAL_DATA);
     const [members, setMembers] = useState<MemberDraft[]>([]);
@@ -102,6 +103,23 @@ export function useWizard(): WizardController {
 
     const basicsSchema = useBasicsSchema();
     const contentTypes = useContentTypes();
+
+    const basicsValid = basicsSchema.safeParse({
+        name: data.name,
+        slug: data.slug,
+        description: data.description
+    }).success;
+
+    // The basics gate is enforced on the *state*, not just on the transition.
+    // All wizard state is in-memory, so a deep link or a reload lands on a later
+    // step with an empty step 1 — previously rendering a live "Create workspace"
+    // button whose only possible outcome was a generic failure toast. Falling
+    // back to step 1 makes the wizard self-healing: the user sees exactly what
+    // is missing instead of a dead end. Steps 2 and 3 hold no basics fields, so
+    // this can never yank a user backwards mid-flow.
+    const step = basicsValid ? requestedStep : MIN_STEP;
+
+    const [maxReached, setMaxReached] = useState(step);
 
     // Keep maxReached monotonic across deep-links and browser back/forward.
     useEffect(() => {
@@ -156,11 +174,7 @@ export function useWizard(): WizardController {
         setContentMode,
         setCollections,
         setPages,
-        basicsValid: basicsSchema.safeParse({
-            name: data.name,
-            slug: data.slug,
-            description: data.description
-        }).success,
+        basicsValid,
         memberCount: members.length + 1,
         collectionCount: count(collections, collectionsTotal),
         pageCount: count(pages, pagesTotal),

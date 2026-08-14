@@ -11,12 +11,10 @@ import {
 import { useBasicsSchema } from '../../../hooks/useBasicsSchema';
 import type { UseSlugResult } from '../../../hooks/useSlug';
 import type { WizardData } from '../../../../domain/types/wizard';
+import { DESCRIPTION_MAX, NAME_MAX } from '../../../../domain/workspaceLimits';
 import { ColorSwatchRow } from '../../ColorSwatchRow';
 import { Monogram } from '../Monogram';
 import { SlugField } from '../SlugField';
-
-const NAME_MAX = 100;
-const DESCRIPTION_MAX = 500;
 
 const messages = defineMessages({
     nameLabel: {
@@ -100,8 +98,12 @@ export function IdentityFields({ data, update, slug }: IdentityFieldsProps) {
                     <Input
                         id="workspace-name"
                         value={data.name}
-                        onChange={(event) => slug.onNameChange(event.target.value)}
-                        placeholder={intl.formatMessage(messages.namePlaceholder)}
+                        onChange={(event) =>
+                            slug.onNameChange(event.target.value)
+                        }
+                        placeholder={intl.formatMessage(
+                            messages.namePlaceholder
+                        )}
                         autoComplete="off"
                         aria-invalid={!!nameError}
                     />

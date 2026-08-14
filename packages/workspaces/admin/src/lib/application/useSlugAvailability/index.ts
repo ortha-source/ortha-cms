@@ -12,6 +12,12 @@ import { httpWorkspaceGateway } from '../../infrastructure/httpWorkspaceGateway'
  * {@link SlugStatus.Checking} while debouncing or fetching. Format is validated
  * through the shared {@link Slug} VO so this and the basics schema agree on the
  * one rule the server enforces.
+ *
+ * A **failed** check resolves to {@link SlugStatus.Unknown}, never
+ * {@link SlugStatus.Available}: `query.data` is `undefined` on error, so without
+ * an explicit branch the last line would report the outage as the positive
+ * answer and unblock the wizard's continue gate — the user would then spend
+ * three steps on a slug the server rejects with a `409`.
  */
 export function useSlugAvailability(slug: string): SlugStatus {
     const debounced = useDebouncedValue(slug, 300);
@@ -27,5 +33,6 @@ export function useSlugAvailability(slug: string): SlugStatus {
     if (!slug) return SlugStatus.Empty;
     if (!Slug.isValid(slug)) return SlugStatus.Invalid;
     if (slug !== debounced || query.isFetching) return SlugStatus.Checking;
+    if (query.isError) return SlugStatus.Unknown;
     return query.data === false ? SlugStatus.Taken : SlugStatus.Available;
 }
