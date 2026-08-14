@@ -26,10 +26,13 @@ application/     # orchestration — one use case per state change
   use-cases/                       # create / update / set-status / add|remove-member / grant|revoke-content / delete
   queries/workspace.view.ts        # read-model view types
   content/                         # catalogue + entry-counter readers, content-selection resolver
-  ports/                           # secondary ports (CONTENT_CATALOG, CONTENT_ENTRY_COUNTER, MEMBER_PROVISIONER)
+  ports/                           # secondary ports (CONTENT_CATALOG, CONTENT_ENTRY_COUNTER,
+                                   #                  MEMBER_PROVISIONER, WorkspacePurger)
+  workspace-purge.registry.ts      # the cross-plugin delete fan-out
   dto/                             # class-validator DTOs (shape checks only)
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleWorkspaceRepository, WorkspaceMapper, DrizzleMemberProvisioner, workspace-lock
+  purge/        # ApiTokenGrantsPurger — identity's rows, purged from this side (see below)
   queries/      # read models (WorkspaceViewQuery — membership-scoped list, SlugAvailabilityQuery,
                 #              MemberLookupQuery, MembershipCheckQuery)
   schema/       # Drizzle tables + external-refs stub
@@ -97,7 +100,9 @@ raises a domain event. Invariants guarded here:
   which is fine for the read-only pre-check endpoints but is _not_ proof of
   emptiness — the `content_*` tables outlive any one boot's plugin list — so the
   delete and revoke use cases check `ContentEntryCounterReader.isBound` and
-  refuse (`EntryCountUnavailableError` → 503) rather than trust it;
+  refuse (`EntryCountUnavailableError` → 503) rather than trust it. This rule
+  covers **content entries only** — the other cross-plugin rows are handled by
+  the purge below, not by refusing;
 - **no memberless workspace** — `removeMember` throws `LastMemberError`
   (→ 409) rather than removing the final member. Access is membership-scoped,
   so a workspace with no members is unreachable by everyone, including a global
@@ -107,6 +112,49 @@ The aggregate exposes its accumulated `changes()` (a small persistence delta) so
 `DrizzleWorkspaceRepository.save` emits minimal, idempotent SQL
 (`onConflictDoNothing` membership/grant writes) — identical effects to the
 transaction-script services this replaced.
+
+## Deleting a workspace — three mechanisms, by what the rows _are_
+
+A workspace's rows live in many plugins, and only some can carry a foreign key
+back to `workspaces`. Which mechanism clears a table is a property of what its
+rows mean, not of where they live:
+
+| Mechanism        | Tables                                                                                 | Why                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cascade**      | `memberships`, `workspace_content`, `copilot_conversations` / `_proposals` / `_skills` | They already have an FK; the database does it.                                                                                                                  |
+| **Refuse** (409) | every `content_*` table                                                                | Entries are **authored records**. A user deletes their content deliberately — we never do it for them, so `assertDeletable` blocks the delete while any remain. |
+| **Purge**        | `media_asset`, `media_folder`, `api_token_workspaces`                                  | Pure **scoping** rows with no independent meaning once the workspace is gone: a folder tree, a token's workspace bucket.                                        |
+
+The purge closes a real gap: those three tables have no FK by design (a
+cross-plugin FK would couple their schemas to this one), and nothing removed
+them, so a delete left rows pointing at an id that resolved to nothing — a
+credential still scoped to a dead workspace, and media rows whose blobs no later
+request could reach to reclaim.
+
+`WorkspacePurgeRegistry` (`application/`) is the fan-out, and
+`WorkspacePurger` (`application/ports/`) is what a contributing plugin
+implements. Registration is a **call from `onModuleInit`**, not a DI
+multi-binding — Nest has no multi-provider token — exactly like `ToolProvider`.
+
+Two rules that are easy to get wrong:
+
+- **`purge()` runs inside the delete's transaction**, so its rows commit or roll
+  back with the workspace, and a throwing purger aborts the whole delete. A
+  partial purge is precisely the orphaning this exists to prevent.
+- **Anything non-transactional is deferred.** Blobs in object storage cannot
+  join a transaction, so a purger returns a `reclaim` thunk and the use case
+  runs it **after** the commit — the same ordering media's own asset delete
+  uses. A failed reclaim is logged and swallowed: the rows are already gone, so
+  raising would report a failed delete that succeeded.
+
+**Where an implementation lives follows the dependency direction.**
+`media/server` depends on this package, so its purger lives there and registers
+itself. Identity is the reverse — _this_ package depends on identity, so
+identity cannot depend back — which is why `ApiTokenGrantsPurger` sits here in
+`infrastructure/purge/`, reaching into identity's table the same way
+`DrizzleMemberProvisioner` already reaches into `users`. Purging a token's
+bucket narrows what that credential can reach; it does **not** revoke the token,
+which would be a policy decision this has no standing to make.
 
 ## Ports & adapters
 

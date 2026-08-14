@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_930 test cases across 57 spec files._
+_935 test cases across 57 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -2137,3 +2137,18 @@ _<sub>apps/server-e2e/src/server/workspaces/workspace-regressions.spec.ts</sub>_
 | 403s the slug probe for a role that cannot create |
 | 403s the content-type catalogue for a role that can neither create nor update |
 | still serves both to a role that can create |
+
+### deleting a workspace purges its cross-plugin rows
+
+| Test case |
+| --- |
+| removes media and token-bucket rows that no foreign key reaches |
+| drops the workspace from a token bucket without revoking the token |
+| leaves another workspace’s rows untouched |
+| purges nothing when the delete is refused |
+
+### the outbox survives a dispatcher outage
+
+| Test case |
+| --- |
+| commits the change, holds the event, and audits it on recovery |

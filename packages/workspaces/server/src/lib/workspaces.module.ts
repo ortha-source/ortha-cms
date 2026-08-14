@@ -25,6 +25,8 @@ import { GrantContentUseCase } from './workspace/application/use-cases/grant-con
 import { RevokeContentUseCase } from './workspace/application/use-cases/revoke-content.use-case';
 import { ContentCatalogReader } from './workspace/application/content/content-catalog.reader';
 import { ContentEntryCounterReader } from './workspace/application/content/content-entry-counter.reader';
+import { WorkspacePurgeRegistry } from './workspace/application/workspace-purge.registry';
+import { ApiTokenGrantsPurger } from './workspace/infrastructure/purge/api-token-grants.purger';
 import { MEMBER_PROVISIONER } from './workspace/application/ports/member-provisioner.port';
 import {
     WORKSPACE_REPOSITORY,
@@ -88,6 +90,12 @@ export class WorkspacesModule {
                 // Application — content-context readers (optional ports inside).
                 ContentCatalogReader,
                 ContentEntryCounterReader,
+                // Application — the cross-plugin delete fan-out. Contributors
+                // in other plugins register themselves; see WorkspacePurger.
+                WorkspacePurgeRegistry,
+                // Infrastructure — the one purger that must live on this side,
+                // because identity cannot depend back on this package.
+                ApiTokenGrantsPurger,
                 // Domain service — plain class, wired over the repository port so
                 // it stays free of `@nestjs/*`.
                 {
@@ -101,7 +109,10 @@ export class WorkspacesModule {
                     provide: WORKSPACE_REPOSITORY,
                     useClass: DrizzleWorkspaceRepository
                 },
-                { provide: MEMBER_PROVISIONER, useClass: DrizzleMemberProvisioner },
+                {
+                    provide: MEMBER_PROVISIONER,
+                    useClass: DrizzleMemberProvisioner
+                },
                 WorkspaceMapper,
                 WorkspaceViewQuery,
                 SlugAvailabilityQuery,
@@ -130,6 +141,9 @@ export class WorkspacesModule {
                 // (instantiated in the consuming module's injector) can resolve
                 // the guard and its `MembershipCheckQuery` dependency.
                 MembershipCheckQuery,
+                // Exported so a plugin owning workspace-scoped rows can inject
+                // it from its own injector and register its purger.
+                WorkspacePurgeRegistry,
                 // Exported so identity's `ApiTokenService` — constructed in the
                 // identity module's injector — resolves the optional port.
                 WORKSPACE_DIRECTORY,

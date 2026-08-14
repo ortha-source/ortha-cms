@@ -291,9 +291,7 @@ export async function expireUserSessionsAt(
 }
 
 /** Whether any row of `sessions` stores `token` verbatim (it must not). */
-export async function sessionRowsContainToken(
-    token: string
-): Promise<boolean> {
+export async function sessionRowsContainToken(token: string): Promise<boolean> {
     const { rows } = await getPool().query(
         'SELECT count(*)::int AS total FROM sessions WHERE id = $1',
         [token]
@@ -556,6 +554,64 @@ export async function countMediaAssets(workspaceId: string): Promise<number> {
         .from(mediaAsset)
         .where(eq(mediaAsset.workspaceId, workspaceId));
     return rows.length;
+}
+
+/** Count `media_folder` rows in a workspace — the purge's other half. */
+export async function countMediaFolders(workspaceId: string): Promise<number> {
+    const rows = await getDatabase()
+        .select({ id: mediaFolder.id })
+        .from(mediaFolder)
+        .where(eq(mediaFolder.workspaceId, workspaceId));
+    return rows.length;
+}
+
+/**
+ * Insert an `api_token_workspaces` row directly, minting the owning
+ * `api_tokens` row too. The bucket is what scopes a token to a workspace; it
+ * carries no FK to `workspaces` (identity must not depend on that package), so
+ * it is the row a workspace delete has to purge explicitly.
+ */
+export async function seedApiTokenWorkspaceGrant(opts: {
+    workspaceId: string;
+    createdBy: string;
+    name?: string;
+}): Promise<{ tokenId: string }> {
+    const { rows } = await getPool().query<{ id: string }>(
+        `insert into api_tokens (name, token_hash, lookup_prefix, scope, created_by)
+         values ($1, $2, $3, 'read', $4) returning id`,
+        [
+            opts.name ?? 'purge-test',
+            `hash-${Math.random().toString(36).slice(2)}`,
+            Math.random().toString(36).slice(2, 10),
+            opts.createdBy
+        ]
+    );
+    const tokenId = rows[0].id;
+    await getPool().query(
+        `insert into api_token_workspaces (token_id, workspace_id) values ($1, $2)`,
+        [tokenId, opts.workspaceId]
+    );
+    return { tokenId };
+}
+
+/** Count a workspace's `api_token_workspaces` bucket rows. */
+export async function countApiTokenGrants(
+    workspaceId: string
+): Promise<number> {
+    const { rows } = await getPool().query<{ count: string }>(
+        `select count(*)::text as count from api_token_workspaces where workspace_id = $1`,
+        [workspaceId]
+    );
+    return Number(rows[0].count);
+}
+
+/** Whether an `api_tokens` row still exists — a purge must not revoke the token. */
+export async function apiTokenExists(tokenId: string): Promise<boolean> {
+    const { rows } = await getPool().query(
+        `select 1 from api_tokens where id = $1`,
+        [tokenId]
+    );
+    return rows.length > 0;
 }
 
 /**

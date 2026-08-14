@@ -5,8 +5,22 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    drainOutbox,
+    getOutboxRows,
+    suspendOutboxDispatch
+} from '../../support/outbox';
+import {
+    apiTokenExists,
+    countApiTokenGrants,
+    countMediaAssets,
+    countMediaFolders,
+    getActivityRows,
     resetDb,
     seedActiveUser,
+    seedApiTokenWorkspaceGrant,
+    seedArticles,
+    seedMediaAsset,
+    seedMediaFolder,
     seedUser,
     type SeededUser,
     type SystemRoleKey
@@ -243,6 +257,212 @@ describe('Workspaces regressions', () => {
                 .get('/api/workspaces/slug-available?slug=free-slug')
                 .expect(200);
             await agent.get('/api/content-types').expect(200);
+        });
+    });
+
+    describe('deleting a workspace purges its cross-plugin rows', () => {
+        it('removes media and token-bucket rows that no foreign key reaches', async () => {
+            const { user, agent } = await loginAs(
+                'admin',
+                'wsr-purge@example.com'
+            );
+            const created = await agent
+                .post('/api/workspaces')
+                .send(validBody({ slug: 'purgeable' }))
+                .expect(201);
+            const id = created.body.id as string;
+
+            // Only `memberships`, `workspace_content` and copilot's tables
+            // carry an FK to `workspaces`. These three do not — media's rows
+            // because media is a separate plugin, the token bucket because
+            // identity must not depend on the workspaces package — so before
+            // the purge they simply outlived the workspace.
+            const folder = await seedMediaFolder({
+                workspaceId: id,
+                name: 'Brand'
+            });
+            await seedMediaAsset({
+                workspaceId: id,
+                uploadedBy: user.id,
+                name: 'logo.png',
+                folderId: folder.id
+            });
+            await seedMediaAsset({
+                workspaceId: id,
+                uploadedBy: user.id,
+                name: 'loose.pdf'
+            });
+            await seedApiTokenWorkspaceGrant({
+                workspaceId: id,
+                createdBy: user.id
+            });
+
+            expect(await countMediaAssets(id)).toBe(2);
+            expect(await countMediaFolders(id)).toBe(1);
+            expect(await countApiTokenGrants(id)).toBe(1);
+
+            await agent.delete(`/api/workspaces/${id}`).expect(204);
+
+            expect(await countMediaAssets(id)).toBe(0);
+            expect(await countMediaFolders(id)).toBe(0);
+            expect(await countApiTokenGrants(id)).toBe(0);
+        });
+
+        it('drops the workspace from a token bucket without revoking the token', async () => {
+            const { user, agent } = await loginAs(
+                'admin',
+                'wsr-token@example.com'
+            );
+            const doomed = await agent
+                .post('/api/workspaces')
+                .send(validBody({ slug: 'doomed' }))
+                .expect(201);
+            const survivor = await agent
+                .post('/api/workspaces')
+                .send(validBody({ name: 'Kept', slug: 'kept' }))
+                .expect(201);
+            const doomedId = doomed.body.id as string;
+            const survivorId = survivor.body.id as string;
+
+            const { tokenId } = await seedApiTokenWorkspaceGrant({
+                workspaceId: doomedId,
+                createdBy: user.id
+            });
+            await seedApiTokenWorkspaceGrant({
+                workspaceId: survivorId,
+                createdBy: user.id,
+                name: 'second-bucket'
+            });
+
+            await agent.delete(`/api/workspaces/${doomedId}`).expect(204);
+
+            // Purging a bucket row narrows a credential's reach; it is not a
+            // revocation, which would be a policy call this has no standing
+            // to make. The token keeps working in the workspaces that remain.
+            expect(await apiTokenExists(tokenId)).toBe(true);
+            expect(await countApiTokenGrants(doomedId)).toBe(0);
+            expect(await countApiTokenGrants(survivorId)).toBe(1);
+        });
+
+        it('leaves another workspace’s rows untouched', async () => {
+            const { user, agent } = await loginAs(
+                'admin',
+                'wsr-scope@example.com'
+            );
+            const doomed = await agent
+                .post('/api/workspaces')
+                .send(validBody({ slug: 'doomed-two' }))
+                .expect(201);
+            const keeper = await agent
+                .post('/api/workspaces')
+                .send(validBody({ name: 'Keeper', slug: 'keeper' }))
+                .expect(201);
+            const doomedId = doomed.body.id as string;
+            const keeperId = keeper.body.id as string;
+
+            await seedMediaFolder({ workspaceId: doomedId, name: 'Going' });
+            await seedMediaAsset({
+                workspaceId: doomedId,
+                uploadedBy: user.id,
+                name: 'going.pdf'
+            });
+            await seedMediaFolder({ workspaceId: keeperId, name: 'Staying' });
+            await seedMediaAsset({
+                workspaceId: keeperId,
+                uploadedBy: user.id,
+                name: 'staying.pdf'
+            });
+
+            await agent.delete(`/api/workspaces/${doomedId}`).expect(204);
+
+            // The purge is a `where workspace_id = …` delete; the whole point
+            // is that it cannot be a `delete from media_asset`.
+            expect(await countMediaAssets(keeperId)).toBe(1);
+            expect(await countMediaFolders(keeperId)).toBe(1);
+        });
+
+        it('purges nothing when the delete is refused', async () => {
+            const { user, agent } = await loginAs(
+                'admin',
+                'wsr-refused@example.com'
+            );
+            const created = await agent
+                .post('/api/workspaces')
+                .send(validBody({ slug: 'has-content' }))
+                .expect(201);
+            const id = created.body.id as string;
+
+            await seedMediaFolder({ workspaceId: id, name: 'Kept' });
+            await seedMediaAsset({
+                workspaceId: id,
+                uploadedBy: user.id,
+                name: 'kept.pdf'
+            });
+            // One content entry makes the "no orphaned content" rule bite, so
+            // the delete is refused after the purge would already have run.
+            await seedArticles([{ text: 'blocking', select: 'a' }], id);
+
+            await agent.delete(`/api/workspaces/${id}`).expect(409);
+
+            // The purge runs inside the transaction, before the workspace row
+            // goes — a refused delete must roll it back with everything else.
+            expect(await countMediaAssets(id)).toBe(1);
+            expect(await countMediaFolders(id)).toBe(1);
+        });
+    });
+
+    describe('the outbox survives a dispatcher outage', () => {
+        it('commits the change, holds the event, and audits it on recovery', async () => {
+            const { agent } = await loginAs('admin', 'wsr-outbox@example.com');
+            const restore = suspendOutboxDispatch(harness.app);
+
+            try {
+                // The mutation must not care that delivery is broken: the
+                // outbox write shares its transaction, and `UnitOfWork.run`
+                // swallows a failed post-commit drain by design.
+                const created = await agent
+                    .post('/api/workspaces')
+                    .send(validBody({ slug: 'outbox-outage' }))
+                    .expect(201);
+                const id = created.body.id as string;
+
+                // State change: durable.
+                const list = await agent.get('/api/workspaces').expect(200);
+                expect(
+                    (list.body as { id: string }[]).map((w) => w.id)
+                ).toContain(id);
+
+                // Event: recorded, undelivered — not lost, which is the one
+                // outcome an outbox exists to rule out.
+                const pending = await getOutboxRows(id);
+                expect(pending.map((row) => row.kind)).toEqual([
+                    'workspace.created'
+                ]);
+                expect(pending[0].dispatchedAt).toBeNull();
+
+                // Audit: nothing for *this* event yet, because the subscriber
+                // never ran. Scoped by kind rather than counting the whole
+                // table — logging in already wrote its own row, before the
+                // dispatcher was suspended.
+                const before = await getActivityRows();
+                expect(
+                    before.filter((row) => row.kind === 'workspace.created')
+                ).toHaveLength(0);
+
+                restore();
+                await drainOutbox(harness.app);
+
+                // Recovery delivers exactly once and stamps the row.
+                const audited = await getActivityRows();
+                expect(
+                    audited.filter((row) => row.kind === 'workspace.created')
+                ).toHaveLength(1);
+
+                const settled = await getOutboxRows(id);
+                expect(settled[0].dispatchedAt).not.toBeNull();
+            } finally {
+                restore();
+            }
         });
     });
 });
