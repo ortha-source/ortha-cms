@@ -42,3 +42,55 @@ export function isEmptyFieldValue(value: unknown): boolean {
         (Array.isArray(value) && value.length === 0)
     );
 }
+
+/** Minimal structural view of `Intl.Segmenter`, so no `lib` bump is needed. */
+interface GraphemeSegmenter {
+    segment(input: string): Iterable<unknown>;
+}
+
+let graphemeSegmenter: GraphemeSegmenter | undefined;
+let graphemeSegmenterResolved = false;
+
+/** Lazily builds the grapheme segmenter once, if the runtime has `Intl.Segmenter`. */
+function getGraphemeSegmenter(): GraphemeSegmenter | undefined {
+    if (!graphemeSegmenterResolved) {
+        graphemeSegmenterResolved = true;
+        const ctor = (
+            globalThis as {
+                Intl?: {
+                    Segmenter?: new (
+                        locales?: undefined,
+                        options?: { granularity: 'grapheme' }
+                    ) => GraphemeSegmenter;
+                };
+            }
+        ).Intl?.Segmenter;
+        if (ctor) {
+            graphemeSegmenter = new ctor(undefined, {
+                granularity: 'grapheme'
+            });
+        }
+    }
+    return graphemeSegmenter;
+}
+
+/**
+ * Length of a text value in **user-perceived characters** — the unit a
+ * `minLength`/`maxLength` rule and its `must be at most N characters` message
+ * promise the author.
+ *
+ * `String.length` counts UTF-16 code units, so `'👍'` costs 2, a decomposed
+ * `'é'` costs 2 and `'👨‍👩‍👧‍👦'` costs 11. Grapheme clusters (via `Intl.Segmenter`,
+ * a platform global — no dependency) count each of those as 1. Runtimes without
+ * `Intl.Segmenter` fall back to code points, which is still strictly closer to
+ * the promise than code units are.
+ *
+ * Both runtimes must agree, so this is defined once, here, next to
+ * {@link isEmptyFieldValue}.
+ */
+export function countCharacters(value: string): number {
+    const segmenter = getGraphemeSegmenter();
+    return segmenter
+        ? Array.from(segmenter.segment(value)).length
+        : Array.from(value).length;
+}
