@@ -88,13 +88,21 @@ export function I18nPlugin(): I18nAdminPlugin {
         label: messages.localesColumn,
         appliesTo: (schema: ContentTypeDetail) => !!schema.i18n,
         // Called from the records view's per-render item loop — safe because
-        // slot items are boot-frozen; gates its own fetching on the schema
-        // being i18n.
-        useRowsData: (entries: EntryRecord[], schema: ContentTypeDetail) =>
+        // slot items are boot-frozen. Gated on the schema being i18n **and**
+        // on the column being switched on: it is off by default, so without
+        // the second gate every records page of every localized type POSTed a
+        // batch of its translation-group ids for a column nobody had asked to
+        // see.
+        useRowsData: (
+            entries: EntryRecord[],
+            schema: ContentTypeDetail,
+            _workspaceId: string,
+            isVisible: boolean
+        ) =>
             useLocaleSummaries(
                 schema.name,
                 entries.map((entry) => entry.localeGroupId),
-                !!schema.i18n
+                !!schema.i18n && isVisible
             ),
         Cell: LocalesColumnCell
     };

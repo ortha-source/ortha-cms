@@ -366,12 +366,18 @@ export function LoadedRecordsView({
     // `useRowsData` runs on every render (boot-frozen items → stable hook
     // order; items gate their own fetching internally), keyed by item id for
     // the table's cells.
+    //
+    // Whether the column is switched on is passed **in** rather than used to
+    // skip the call — skipping would change hook order between renders. Every
+    // extension column is off by default, so an item that ignores this fetches
+    // for a column that is never drawn.
     const extensionData: Record<string, unknown> = {};
     for (const item of extensionColumnItems) {
         extensionData[item.id] = item.useRowsData?.(
             entries,
             schema,
-            workspace.id
+            workspace.id,
+            isVisible(item.id)
         );
     }
 

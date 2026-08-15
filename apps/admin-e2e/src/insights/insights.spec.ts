@@ -239,6 +239,110 @@ test.describe('Insights', () => {
         );
     });
 
+    test('coverage shares never round a near-miss to 0% or 100%', async ({
+        page,
+        insightsPage
+    }) => {
+        // 608 of 609 translated is 99.8%, and 3 of 609 is 0.49% — plain
+        // rounding prints "100%" over a record that has no English row and
+        // "0%" beside a bar you can see. Both are the reading the figure
+        // exists to prevent, so the boundaries are reserved for the real thing.
+        await mockInsightsApi(page, {
+            overrides: {
+                'i18n/coverage': {
+                    locales: [
+                        {
+                            locale: 'en',
+                            name: 'English',
+                            isDefault: true,
+                            translated: 608,
+                            missing: 1
+                        },
+                        {
+                            locale: 'de',
+                            name: 'Deutsch',
+                            isDefault: false,
+                            translated: 3,
+                            missing: 606
+                        },
+                        {
+                            locale: 'fr',
+                            name: 'Français',
+                            isDefault: false,
+                            translated: 0,
+                            missing: 609
+                        }
+                    ],
+                    records: 609,
+                    localized: 0,
+                    notLocalized: 607,
+                    requiresLocalization: 609,
+                    types: [
+                        {
+                            name: 'article',
+                            label: 'Article',
+                            records: 609,
+                            localized: 0,
+                            notLocalized: 607,
+                            requiresLocalization: 609
+                        }
+                    ]
+                }
+            }
+        });
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const card = insightsPage.card('Translation coverage');
+        await expect(card).toContainText('609 to translate');
+        await expect(card).toContainText('99%');
+        await expect(card).toContainText('1%');
+        // A genuine zero still reads 0% — French has nothing at all.
+        await expect(card).toContainText('0%');
+        await expect(card).not.toContainText('100%');
+    });
+
+    test('coverage states both series of every bar, not just the drawn one', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+
+        // The readout column prints the translated count and the share; the
+        // outstanding half used to exist only as a hue and a native `title`,
+        // so a screen-reader user heard "Deutsch 62 44%" and never the 78
+        // records still to do.
+        await expect(
+            insightsPage.cardBar(
+                'Translation coverage',
+                /62 records translated.*78 records missing/
+            )
+        ).toBeVisible();
+    });
+
+    test('an untouched workspace is not congratulated for it', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page, { empty: ['i18n/coverage'] });
+        await insightsPage.goto(WORKSPACE_ID);
+
+        const card = insightsPage.card('Translation coverage');
+        // `requiresLocalization === 0` is true both when everything is
+        // translated and when there is nothing to translate; only the first
+        // earns a green all-clear.
+        await expect(
+            insightsPage.cardChip('Translation coverage', 'Fully translated')
+        ).toHaveCount(0);
+        // …and the copy does not name a period this widget doesn't have.
+        await expect(
+            insightsPage.cardEmpty('Translation coverage')
+        ).toHaveCount(0);
+        await expect(card).toContainText(
+            'No localized content in this workspace yet.'
+        );
+    });
+
     test('a failing coverage read does not empty the localisation band', async ({
         page,
         insightsPage

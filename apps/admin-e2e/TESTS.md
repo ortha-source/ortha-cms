@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_497 test cases across 52 spec files._
+_511 test cases across 53 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -384,6 +384,21 @@ _<sub>apps/admin-e2e/src/content/entry-revisions.spec.ts</sub>_
 | saving a draft keeps the published version live |
 | publishing a version from history makes it live |
 
+<!-- source: apps/admin-e2e/src/content/i18n-resilience.spec.ts -->
+_<sub>apps/admin-e2e/src/content/i18n-resilience.spec.ts</sub>_
+
+## Content i18n — degraded reads and edge locales
+
+| Test case |
+| --- |
+| a failed locale list leaves a retry in the toolbar, not a hole |
+| a failed group read says so instead of offering to create what exists |
+| a failed summary batch marks the Locales cells unavailable |
+| the Locales column does not fetch while it is switched off |
+| an unconfigured ?locale= is reported, and any pick clears it |
+| an empty ?locale= falls back to the default rather than scoping to nothing |
+| leaving within the cover cancels the pending locale swap |
+
 <!-- source: apps/admin-e2e/src/content/i18n.spec.ts -->
 _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 
@@ -401,6 +416,10 @@ _<sub>apps/admin-e2e/src/content/i18n.spec.ts</sub>_
 | marks how a relation carries across the record’s other locales |
 | switching locale plays a brief "Switching…" overlay |
 | the Locales column shows per-group locale badges |
+| a locale badge names its publish state in words, not wire values |
+| the switcher search box is a combobox over the locale list |
+| each locale name declares its own language and direction |
+| the entry editor marks the language of the record’s own fields |
 | the entry editor locale switcher shows current / existing / missing |
 | switching to an existing sibling opens that locale row |
 | selecting a missing locale opens a prefilled draft form |
@@ -799,6 +818,9 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | separates translated, untranslated and part-way records |
 | breaks translation coverage down by content type |
 | a workspace that has never published shows no pending backlog |
+| coverage shares never round a near-miss to 0% or 100% |
+| coverage states both series of every bar, not just the drawn one |
+| an untouched workspace is not congratulated for it |
 | a failing coverage read does not empty the localisation band |
 | neither new widget takes a time range |
 | each widget calls its own endpoint |

@@ -20,7 +20,7 @@ needing a framework belongs in the consuming package.
   (`draft`/`published`, mirroring the server's column enum), the legal
   transitions, and `canTransition` / `assertTransition` (+
   `EntryStatusTransitionError`). `draft → published` is publish; `published →
-  draft` is unpublish. There is **no** separate `unpublished`/`archived` status
+draft` is unpublish. There is **no** separate `unpublished`/`archived` status
   — unpublish is the reverse transition, and archival is the paranoid
   soft-delete tombstone, not a status.
 - **Field-value validation** (`lib/validation/validate-entry-values.ts`) — the
@@ -55,7 +55,7 @@ needing a framework belongs in the consuming package.
 
 - **`content-server`** — `EntryValidationService` delegates its `validate(...)`
   to `validateEntryValues(type.fields, values, { rejectUnknownKeys: true,
-  typeName })`; the entries `Entry` domain model uses `assertTransition` +
+typeName })`; the entries `Entry` domain model uses `assertTransition` +
   `EntryStatus` for its publish lifecycle. `AnyFieldSpec` is structurally
   assignable to `EntryFieldSpec`, so no adapter is needed.
 - **`content-admin`** — its `presentation/entryValidation` runs

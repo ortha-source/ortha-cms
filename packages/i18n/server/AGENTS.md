@@ -131,7 +131,7 @@ The extension owns all locale _behavior_:
 - **`beforeWrite`** — the **first** statement in the create and update
   transactions: a transaction-scoped advisory lock on the row's
   `locale_group_id` (`lockLocaleGroup`, class `LG`). This is the deadlock fix,
-  and the reason it is a *new port hook* rather than an `ORDER BY` is worth
+  and the reason it is a _new port hook_ rather than an `ORDER BY` is worth
   reading before touching either. By the time `afterUpdate` runs, the
   transaction already holds a row lock on the entry being saved — taken by
   content's own `UPDATE`, before any i18n code — so two concurrent saves on two
@@ -157,7 +157,7 @@ The extension owns all locale _behavior_:
 
     **`hasLocale` admits `eq` and `in` only.** `ne` / `nin` were permitted and
     read as the negation of "has this locale" — they are not, because they
-    negate *inside* the EXISTS: `hasLocale ne "de"` renders
+    negate _inside_ the EXISTS: `hasLocale ne "de"` renders
     `EXISTS(sibling WHERE locale <> 'de')`, "the group holds some locale other
     than German", which a fully-translated record satisfies. Asked for records
     without a German translation it returned the German ones. `missingLocale` is
@@ -193,7 +193,7 @@ wire**: omitted, it is inferred from the slug (`ar`, `he`, `fa`, `ur`, … →
 `rtl`, with an explicit script subtag winning, so `az-arab` is RTL and
 `ku-latn` is LTR), so configuring an RTL language is one line rather than a
 silent accessibility failure. Declare it to override the inference. Without it
-an RTL locale was *configurable* and nothing anywhere recorded that it was RTL,
+an RTL locale was _configurable_ and nothing anywhere recorded that it was RTL,
 so no consumer could set `dir` on anything (WCAG 1.3.2, 1.4.10).
 
 ### Removing a locale is the change that fails silently
@@ -205,7 +205,7 @@ read path hides them: `?locale=de` becomes a 400, the panel iterates the
 configured set, coverage and the virtual filters restrict to it, the batched
 summary drops them. The content is intact, reachable only by `psql`, and the
 product never mentions it again — including to whoever made the change.
-`LocaleSet.remove` guards the *default* against this class of mistake but the
+`LocaleSet.remove` guards the _default_ against this class of mistake but the
 plugin never calls it: the config is a literal array, so there is no removal
 operation to guard, only a diff nobody computes.
 
@@ -335,7 +335,7 @@ third.** Same file, same plugin, opposite answers to "who is this for?":
 - **`i18n_translations_get`** — **copilot-only**, and the reason is easy to
   miss. `LocaleGroupService.entryLocales` builds its predicate from a
   `liveWhere` that scopes to workspace and soft-delete but **not** publish
-  state, so it reports a draft sibling *and its status*. An MCP `read` token
+  state, so it reports a draft sibling _and its status_. An MCP `read` token
   must not see that — the endpoint's own `content_translations` is
   published-only — and widening the tool to match would take the answer away
   from the copilot, which is where it is useful. It otherwise answers "which

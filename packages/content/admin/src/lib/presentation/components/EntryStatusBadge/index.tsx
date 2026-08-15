@@ -21,13 +21,27 @@ const messages = defineMessages({
     }
 });
 
-const LABEL: Record<EntryStatusView, (typeof messages)[keyof typeof messages]> =
-    {
-        [ENTRY_STATUS_VIEW.New]: messages.new,
-        [ENTRY_STATUS_VIEW.Draft]: messages.draft,
-        [ENTRY_STATUS_VIEW.Modified]: messages.modified,
-        [ENTRY_STATUS_VIEW.Published]: messages.published
-    };
+/**
+ * The localized label of each publish state.
+ *
+ * **Exported**, because the state also has to reach users who never see the
+ * badge: a locale badge in the i18n plugin's column shows a slug and puts the
+ * state in the link's accessible name instead. Interpolating the raw
+ * `EntryStatusView` there printed a lowercase English identifier
+ * ("…(modified)") in every UI language. One state, one wording, wherever it is
+ * said.
+ */
+export const ENTRY_STATUS_VIEW_LABEL: Record<
+    EntryStatusView,
+    (typeof messages)[keyof typeof messages]
+> = {
+    [ENTRY_STATUS_VIEW.New]: messages.new,
+    [ENTRY_STATUS_VIEW.Draft]: messages.draft,
+    [ENTRY_STATUS_VIEW.Modified]: messages.modified,
+    [ENTRY_STATUS_VIEW.Published]: messages.published
+};
+
+const LABEL = ENTRY_STATUS_VIEW_LABEL;
 
 /**
  * One record's publish state as a badge — the single rendering of

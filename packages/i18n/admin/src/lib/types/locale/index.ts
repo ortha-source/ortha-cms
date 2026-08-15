@@ -6,14 +6,34 @@
 
 import type { EntryStatus } from '@ortha-cms/content-admin';
 
+/**
+ * Writing direction of a locale's content.
+ *
+ * Resolved **server-side** (explicit host config, else inferred from the slug's
+ * language/script subtags) so no client has to keep its own list of which
+ * languages are right-to-left.
+ */
+export type LocaleDir = 'ltr' | 'rtl';
+
 /** One configured locale, served by `GET /api/i18n/locales`. */
 export type Locale = {
-    /** Stable machine slug stored on entry rows (e.g. `en`, `pt-br`). */
+    /**
+     * Stable machine slug stored on entry rows (e.g. `en`, `pt-br`).
+     *
+     * Contractually a **BCP-47 language tag**, so it may be used verbatim as an
+     * HTML `lang` value — which is what every surface here does.
+     */
     slug: string;
     /** Human display name. */
     name: string;
     /** Whether it's the default locale (exactly one is). */
     isDefault: boolean;
+    /**
+     * Writing direction of content in this locale. Always sent by the server;
+     * optional here only so a stale/failed read degrades to "unknown" rather
+     * than to a wrong direction.
+     */
+    dir?: LocaleDir;
 };
 
 /** The `GET /api/i18n/locales` envelope. */
@@ -24,6 +44,8 @@ export type LocalesResult = {
 /** One locale's slot in an entry's translation group. */
 export type EntryLocaleItem = {
     locale: string;
+    /** Writing direction of that locale — sent alongside `locale`. */
+    dir?: LocaleDir;
     isDefault: boolean;
     /** The group's row in this locale, or null when not yet translated. */
     entry: {

@@ -73,7 +73,10 @@ export {
     ENTRY_STATUS_VIEW_VARIANT,
     type EntryStatusView
 } from './lib/domain/entryStatusView';
-export { EntryStatusBadge } from './lib/presentation/components/EntryStatusBadge';
+export {
+    EntryStatusBadge,
+    ENTRY_STATUS_VIEW_LABEL
+} from './lib/presentation/components/EntryStatusBadge';
 
 // The editor's "unsaved edits" pill, exported for the same reason: a plugin
 // contributing an entry tab (the media plugin's Media tab) marks a changed field

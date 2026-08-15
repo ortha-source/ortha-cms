@@ -232,13 +232,20 @@ Per-hook (the `admin-plugin` convention), each owning its `apiClient` request +
 TanStack Query key:
 
 - `useLocales` — `GET /api/i18n/locales`, cached **forever** (server config).
-  Exposes `locales` + `defaultLocale`.
+  Exposes `locales`, `defaultLocale`, and — load-bearing — **`isError`**. Every
+  affordance here is gated on the locale list, so a failed read used to delete
+  the whole feature silently while `?locale=` kept scoping the list; the
+  switcher renders a retry instead of vanishing, and the title chip falls back
+  to the row's own `locale`.
 - `useEntryLocales` — `GET /api/i18n/content/:type/:id/locales` (the widget, on
   a saved record).
 - `useLocaleSummaries` — `POST …/locale-summary` batched over group ids; sorted
   ids key the cache. Feeds the **Locales column** (a page's unique group ids)
   **and** the **widget in create mode** (the single `localeGroupId` a translation
-  draft carries in its URL).
+  draft carries in its URL). Gated on the column actually being **visible** —
+  extension columns are off by default, and the batch used to fire on every
+  records page for a column nobody had switched on (`RecordsColumnItem.useRowsData`
+  now receives `isVisible`, which every item must honour).
 - `useLocalizationCoverage` — `GET /api/insights/i18n/coverage`, for the
   Insights card. Workspace-scoped key (the workspace reaches the server only as
   an ambient header, never sent on a cache hit), `retry: 1`, gated on
@@ -248,6 +255,45 @@ TanStack Query key:
   `createBodyKeys` forwards `locale` + `localeGroupId` into the create body). The
   duplicate-locale **409** / unknown-group **404** surface through the editor's
   normal save-error path.
+
+## Error is not empty, and unknown is not default
+
+Three reads gate everything here, and each of them used to fail into something
+that read as an *answer*:
+
+- **The locale list fails** → every surface early-returned, so the switcher —
+  the only control that can clear a `?locale=` — disappeared while the list
+  stayed scoped to that locale. It now renders a retry, and the title chip
+  falls back to the record's own `locale` (a BCP-47 tag, so it can name itself).
+- **The group read fails** (`…/:id/locales`, or the batch in create mode) →
+  every locale resolved to "no sibling", so the panel offered to *create* a
+  translation that already existed and whose save then 409s. The panel now says
+  the members couldn't be read, and no row is actionable while that is true.
+- **The summary batch fails** → the Locales cell rendered empty, which is what
+  "this record has no other locales" also looks like. It reads *Unavailable*.
+
+Separately, an **unconfigured `?locale=`** must never resolve to the default.
+The server 400s the unknown slug, so a switcher labelled "English" would be
+describing a list it is not showing — and re-picking English was swallowed as
+"already active", leaving no way out but editing the URL. The switcher reports
+the unknown slug, and any pick applies (`findLocale` returns `undefined` rather
+than falling back; `resolveActiveLocale` treats a blank `?locale=` as absent).
+
+## Language and direction
+
+`locale` is a **BCP-47 tag** by the server's contract and every locale carries a
+server-resolved `dir`, so this plugin states both rather than guessing:
+`localeAttrs(locales, slug)` returns the `{ lang, dir }` pair to spread onto any
+element rendering that locale's text — the switcher's rows and trigger, the
+title chip's name, the panel's rows. A locale's *display name* is written in
+that locale, so it needs this even before any content is opened; the
+surrounding UI copy ("(default)", "Translated fields") stays in the admin's own
+language and is deliberately left outside the marked element.
+
+The entry editor's translated field run carries `lang={entry.locale}` (via
+content-admin's `EntryFieldSections`), with `dir="auto"` on both runs. Field
+*labels* still inherit that `lang` — marking each control individually needs a
+pass-through in every branch of `EntryFieldInput` and is tracked separately.
 
 ## Conventions
 

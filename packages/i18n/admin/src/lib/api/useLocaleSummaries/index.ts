@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import { I18N_CONTENT_PATH } from '../../constants';
-import type { LocaleSummariesResult, LocaleSummaryItem } from '../../types/locale';
+import type {
+    LocaleSummariesResult,
+    LocaleSummaryItem
+} from '../../types/locale';
 
 /** What the Locales column's cells consume — the per-group member map. */
 export type LocaleSummariesData = {
@@ -10,6 +13,15 @@ export type LocaleSummariesData = {
     groups: Record<string, LocaleSummaryItem[]>;
     /** Whether the batch read is still in flight. */
     isPending: boolean;
+    /**
+     * Whether the batch read **failed**. Without it a failed batch is
+     * indistinguishable from "this record has no other locales" — the cell
+     * renders empty either way, which is the error-masquerading-as-empty
+     * pattern on the one column whose whole job is to say what exists.
+     */
+    isError: boolean;
+    /** Retry the batch, for an error affordance. */
+    refetch: () => void;
 };
 
 /** Query key of one page's locale summaries, workspace-scoped. */
@@ -62,8 +74,11 @@ export function useLocaleSummaries(
         enabled: enabled && uniqueIds.length > 0,
         queryFn: () => fetchLocaleSummaries(typeName, uniqueIds)
     });
+    const active = enabled && uniqueIds.length > 0;
     return {
         groups: query.data?.groups ?? {},
-        isPending: enabled && uniqueIds.length > 0 && query.isPending
+        isPending: active && query.isPending,
+        isError: active && query.isError,
+        refetch: () => void query.refetch()
     };
 }

@@ -74,6 +74,7 @@ test.describe('Content i18n', () => {
         await openCollection(contentLibraryPage);
         await contentLibraryPage.selectLocale(/Deutsch/);
         await expect(page).toHaveURL(/locale=de/);
+        await contentLibraryPage.localeSwitchSettled();
 
         // The row's editor link carries the locale the table was showing…
         await contentLibraryPage.recordLink('Winterstiefel').click();
@@ -225,6 +226,90 @@ test.describe('Content i18n', () => {
         ).toHaveCount(0);
     });
 
+    test('a locale badge names its publish state in words, not wire values', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.showLocalesColumn();
+
+        // The badge shows only a slug, so the state reaches a screen reader
+        // through the link's name — which means it has to be the *localized*
+        // label, not the `EntryStatusView` token behind it. G1's German row is
+        // live with edits on top: "Modified", never "modified".
+        const g1Row = contentLibraryPage
+            .recordRows('Localized posts')
+            .filter({ hasText: 'Winter boots' });
+        await expect(
+            g1Row.getByRole('link', { name: 'Open the de version (Modified)' })
+        ).toBeVisible();
+        await expect(
+            g1Row.getByRole('link', { name: 'Open the en version (Published)' })
+        ).toBeVisible();
+    });
+
+    test('the switcher search box is a combobox over the locale list', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.localeSwitcher.click();
+
+        // `aria-activedescendant` is only honoured on a role that owns
+        // options; on a bare textbox the arrow-key highlight moves silently.
+        const search = contentLibraryPage.localeSearch;
+        await expect(search).toBeVisible();
+        await expect(search).toHaveAttribute('aria-expanded', 'true');
+        await expect(search).toHaveAttribute('aria-autocomplete', 'list');
+        await expect(search).toHaveAttribute('aria-activedescendant', /.+/);
+
+        // The highlight it points at is a real option, and it follows ↓.
+        const first = await search.getAttribute('aria-activedescendant');
+        await page.keyboard.press('ArrowDown');
+        await expect(search).not.toHaveAttribute(
+            'aria-activedescendant',
+            first ?? ''
+        );
+    });
+
+    test('each locale name declares its own language and direction', async ({
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.localeSwitcher.click();
+
+        // A locale's display name is written *in* that locale, so a screen
+        // reader needs its language to pronounce it — and Arabic needs its
+        // direction to order at all. The slugs are BCP-47 tags by contract, so
+        // they are the `lang` value verbatim.
+        const arabic = contentLibraryPage.localeOption(/العربية/);
+        await expect(arabic.locator('[lang="ar"][dir="rtl"]')).toHaveCount(1);
+        await expect(
+            contentLibraryPage
+                .localeOption(/Deutsch/)
+                .locator('[lang="de"][dir="ltr"]')
+        ).toHaveCount(1);
+    });
+
+    test('the entry editor marks the language of the record’s own fields', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await openCollection(contentLibraryPage);
+        await contentLibraryPage.selectLocale(/Deutsch/);
+        await contentLibraryPage.localeSwitchSettled();
+        await contentLibraryPage.recordLink('Winterstiefel').click();
+        await expect(contentLibraryPage.editorSave).toBeVisible();
+
+        // The admin chrome is `<html lang="en">`; without an override the
+        // German body is announced with English pronunciation rules. The
+        // translated run carries the row's locale — the shared run does not,
+        // because its values are one text for every locale.
+        await expect(page.locator('[lang="de"]').first()).toBeVisible();
+        await expect(contentLibraryPage.fieldTextbox('Title')).toHaveValue(
+            'Winterstiefel'
+        );
+    });
+
     test('the entry editor locale switcher shows current / existing / missing', async ({
         contentLibraryPage
     }) => {
@@ -353,6 +438,7 @@ test.describe('Content i18n', () => {
         // Start a French translation of group G1 (which already has en + de).
         await contentLibraryPage.createTranslation('Français').click();
         await expect(page).toHaveURL(/localeGroupId=G1/);
+        await contentLibraryPage.localeSwitchSettled();
 
         // On that draft form the widget still knows the group's members, so the
         // existing German sibling is a switch target.
@@ -437,6 +523,9 @@ test.describe('Content i18n', () => {
             await contentLibraryPage.createTranslation('Deutsch').click();
             await expect(page).toHaveURL(/\/localized_post\/new\?/);
             await expect(page).toHaveURL(/locale=de/);
+            // The switch cover holds the page inert until the destination has
+            // loaded, so typing before it lifts goes nowhere.
+            await contentLibraryPage.localeSwitchSettled();
 
             await contentLibraryPage
                 .fieldTextbox('Title')
@@ -466,6 +555,7 @@ test.describe('Content i18n', () => {
 
             await contentLibraryPage.createTranslation('Deutsch').click();
             await expect(page).toHaveURL(/locale=de/);
+            await contentLibraryPage.localeSwitchSettled();
 
             await contentLibraryPage
                 .fieldTextbox('Title')
@@ -564,6 +654,7 @@ test.describe('Content i18n', () => {
             // Details block reads **Modified** — the state you publish from.
             await openCollection(contentLibraryPage);
             await contentLibraryPage.selectLocale(/Deutsch/);
+            await contentLibraryPage.localeSwitchSettled();
             await contentLibraryPage.recordLink('Winterstiefel').click();
             await expect(contentLibraryPage.editorSave).toBeVisible();
             await expect(contentLibraryPage.entryDetailsStatus).toHaveText(

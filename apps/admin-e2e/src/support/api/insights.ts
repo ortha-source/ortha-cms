@@ -325,6 +325,13 @@ export interface InsightsApiOptions {
     empty?: string[];
     /** Hold every response open this long, to observe the widget skeletons. */
     delayMs?: number;
+    /**
+     * Per-route payload replacements, keyed by route suffix. For the boundary
+     * shapes a shared seed can't hold at once — a locale one record short of
+     * complete, another with a handful translated out of hundreds — where the
+     * exact figures are the point of the assertion.
+     */
+    overrides?: Record<string, unknown>;
 }
 
 /**
@@ -337,7 +344,12 @@ export interface InsightsApiOptions {
  */
 export async function mockInsightsApi(
     page: Page,
-    { failing = [], empty = [], delayMs }: InsightsApiOptions = {}
+    {
+        failing = [],
+        empty = [],
+        delayMs,
+        overrides = {}
+    }: InsightsApiOptions = {}
 ): Promise<InsightsSpy> {
     const spy: InsightsSpy = { requested: [], days: {} };
 
@@ -361,7 +373,9 @@ export async function mockInsightsApi(
             return;
         }
 
-        const body = empty.includes(suffix) ? EMPTY[suffix] : SEEDS[suffix];
+        const body =
+            overrides[suffix] ??
+            (empty.includes(suffix) ? EMPTY[suffix] : SEEDS[suffix]);
         if (body === undefined) {
             await route.fulfill({ status: 404, body: '{}' });
             return;

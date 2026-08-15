@@ -772,6 +772,7 @@ export function EntryEditor({
                                                 fields={generalFields}
                                                 form={form}
                                                 isChanged={isFieldDirty}
+                                                contentLocale={entry?.locale}
                                             />
                                         </TabsContent>
 

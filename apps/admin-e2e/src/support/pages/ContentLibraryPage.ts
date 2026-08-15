@@ -579,14 +579,54 @@ export class ContentLibraryPage extends BasePage {
 
     // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---
 
-    /** The records-toolbar locale switcher trigger (label reads "Locale: {name}"). */
+    /**
+     * The records-toolbar locale switcher trigger (label reads "Locale: {name}").
+     *
+     * The lookahead excludes the unknown-locale state, whose name also starts
+     * "Locale: " — a spec asserting the healthy switcher is *absent* has to not
+     * match the control that replaced it.
+     */
     get localeSwitcher(): Locator {
-        return this.page.getByRole('button', { name: /^Locale: / });
+        return this.page.getByRole('button', { name: /^Locale: (?!unknown)/ });
     }
 
     /** A locale option inside the open switcher popover. */
     localeOption(name: string | RegExp): Locator {
         return this.page.getByRole('option', { name });
+    }
+
+    /**
+     * The switcher when the URL names a locale that is not configured. It is a
+     * **different** control from {@link localeSwitcher} on purpose — the
+     * healthy one is named for the locale it is showing, and this one must not
+     * borrow that name while the list is scoped to something else.
+     */
+    get unknownLocaleSwitcher(): Locator {
+        return this.page.getByRole('button', {
+            name: /Locale: unknown locale/
+        });
+    }
+
+    /** The switcher's failed-read state (the locale list could not be read). */
+    get localesUnavailable(): Locator {
+        return this.page.getByRole('button', { name: /Locales could not be/ });
+    }
+
+    /** The locale panel's failed-read alert in the entry editor. */
+    get localeWidgetError(): Locator {
+        return this.page.getByText(/other locales couldn’t be loaded/);
+    }
+
+    /** The switcher's search box — a combobox over the locale listbox. */
+    get localeSearch(): Locator {
+        return this.page.getByRole('combobox', { name: 'Search locales…' });
+    }
+
+    /** Turn on the optional **Locales** column via the column picker. */
+    async showLocalesColumn(): Promise<void> {
+        await this.columnsButton.click();
+        await this.columnOption('Locales').click();
+        await this.columnsButton.click();
     }
 
     /** Open the locale switcher and pick a locale by its option name. */
@@ -598,6 +638,21 @@ export class ContentLibraryPage extends BasePage {
     /** The transient "Switching to …" overlay shown while a locale switch plays. */
     get localeSwitchOverlay(): Locator {
         return this.page.getByText(/Switching to/);
+    }
+
+    /**
+     * Wait for a locale switch to finish covering the page.
+     *
+     * The cover marks the app root `inert` while it is up — it is opaque, so
+     * input must not reach the controls behind it. Anything a spec does to the
+     * page during that window is therefore dropped on the floor, exactly as it
+     * would be for a user, which shows up as a fill that never lands rather
+     * than as an error. Await this before interacting after a switch.
+     */
+    async localeSwitchSettled(): Promise<void> {
+        await this.localeSwitchOverlay
+            .first()
+            .waitFor({ state: 'detached', timeout: 10_000 });
     }
 
     /** The entry editor's locale switcher (sidebar widget) title text. */

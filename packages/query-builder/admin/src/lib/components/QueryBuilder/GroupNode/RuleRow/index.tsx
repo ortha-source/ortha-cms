@@ -12,7 +12,7 @@ import {
     type OpId
 } from '../../../../types/filter-tree.type';
 import { defaultValueForOp } from '../../../../utils/defaultValueForOp';
-import { OPS_FOR_TYPE } from '../../../../utils/operators';
+import { opsForField } from '../../../../utils/operators';
 import {
     RULE_VALIDATION,
     validateRule,
@@ -115,7 +115,7 @@ export function RuleRow({
     const field: FilterField | undefined = fields.find(
         (f) => f.id === rule.fieldId
     );
-    const ops = field ? OPS_FOR_TYPE[field.type] : [];
+    const ops = field ? opsForField(field) : [];
     // An unknown field is a broken rule, not an unfinished one, so it reports
     // regardless of `showErrors` — the user never typed it and has no draft to
     // finish.
@@ -142,7 +142,7 @@ export function RuleRow({
                                 (f) => f.id === fieldId
                             );
                             if (!nextField) return;
-                            const nextOp = OPS_FOR_TYPE[nextField.type][0];
+                            const nextOp = opsForField(nextField)[0];
                             onUpdate({
                                 fieldId,
                                 op: nextOp,

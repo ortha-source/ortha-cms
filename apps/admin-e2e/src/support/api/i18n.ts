@@ -25,11 +25,20 @@ export const I18N_WORKSPACE: WorkspaceView = {
     content: ['localized_post']
 };
 
-/** The configured locales (`en` default / `de` / `fr`). */
+/**
+ * The configured locales (`en` default / `de` / `fr` / `ar`).
+ *
+ * `dir` is sent on every item, as the server does — it resolves direction from
+ * the tag so no client has to guess. Arabic is in the set precisely because it
+ * is the one that is **not** `ltr`: without an RTL locale nothing here would
+ * ever catch a surface that hardcodes direction, and an RTL locale is
+ * configurable with no extra setup.
+ */
 const LOCALES = [
-    { slug: 'en', name: 'English', isDefault: true },
-    { slug: 'de', name: 'Deutsch', isDefault: false },
-    { slug: 'fr', name: 'Français', isDefault: false }
+    { slug: 'en', name: 'English', isDefault: true, dir: 'ltr' },
+    { slug: 'de', name: 'Deutsch', isDefault: false, dir: 'ltr' },
+    { slug: 'fr', name: 'Français', isDefault: false, dir: 'ltr' },
+    { slug: 'ar', name: 'العربية', isDefault: false, dir: 'rtl' }
 ];
 
 /** The localized collection's full field schema (i18n + a localized title). */
@@ -516,6 +525,7 @@ export async function mockI18n(page: Page): Promise<void> {
                         );
                         return {
                             locale: locale.slug,
+                            dir: locale.dir,
                             isDefault: locale.isDefault,
                             entry: member
                                 ? {
@@ -533,4 +543,78 @@ export async function mockI18n(page: Page): Promise<void> {
     );
     // Sibling creation is handled by the POST branch of the /api/content/:name
     // route above (POST + localeGroupId), so there is no i18n write route.
+}
+
+/**
+ * Fail `GET /api/i18n/locales`.
+ *
+ * Register **after** {@link mockI18n} — Playwright matches routes newest-first,
+ * so this wins over the healthy stub. Every localization affordance is gated on
+ * the locale list, so this is the mock that answers "what does the plugin look
+ * like when its one piece of configuration can't be read".
+ */
+export async function failLocales(page: Page): Promise<void> {
+    await page.route(/\/api\/i18n\/locales$/, async (route) => {
+        await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Locale registry unavailable' })
+        });
+    });
+}
+
+/**
+ * Fail `GET /api/i18n/content/:type/:id/locales` — the entry editor's locale
+ * panel. Register after {@link mockI18n}.
+ */
+export async function failEntryLocales(page: Page): Promise<void> {
+    await page.route(
+        /\/api\/i18n\/content\/[^/]+\/[^/]+\/locales$/,
+        async (route) => {
+            await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Group read failed' })
+            });
+        }
+    );
+}
+
+/**
+ * Fail `POST …/locale-summary` — the Locales column's per-page batch.
+ * Register after {@link mockI18n}.
+ */
+export async function failLocaleSummaries(page: Page): Promise<void> {
+    await page.route(
+        /\/api\/i18n\/content\/[^/]+\/locale-summary$/,
+        async (route) => {
+            await route.fulfill({
+                status: 500,
+                contentType: 'application/json',
+                body: JSON.stringify({ message: 'Summary batch failed' })
+            });
+        }
+    );
+}
+
+/**
+ * Count `POST …/locale-summary` calls.
+ *
+ * The Locales column is off by default, so "how many batches did this page
+ * issue" is the only way to see whether a hidden column is still fetching —
+ * nothing renders either way, which is exactly why it went unnoticed.
+ */
+export function spyLocaleSummaries(page: Page): { count: number } {
+    const spy = { count: 0 };
+    page.on('request', (request) => {
+        if (
+            request.method() === 'POST' &&
+            /\/api\/i18n\/content\/[^/]+\/locale-summary$/.test(
+                new URL(request.url()).pathname
+            )
+        ) {
+            spy.count += 1;
+        }
+    });
+    return spy;
 }

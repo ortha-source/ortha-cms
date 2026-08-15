@@ -62,12 +62,24 @@ const rankFor = (type: string) => FIELD_RANK[type] ?? DEFAULT_RANK;
 export function EntryFieldSections({
     fields,
     form,
-    isChanged
+    isChanged,
+    contentLocale
 }: {
     fields: ContentField[];
     form: EntryFormState;
     /** Whether a field has unsaved edits (drives its "Changed" badge). */
     isChanged?: (name: string) => boolean;
+    /**
+     * The row's own locale, on a localized type — a **BCP-47 language tag** by
+     * the i18n plugin's wire contract, so it goes on the translated group
+     * verbatim as `lang`.
+     *
+     * Without it every locale's content sat inside the admin's hardcoded
+     * `<html lang="en">`, and a screen reader read German, French and Arabic
+     * prose with English pronunciation rules — the most audible failure a
+     * localization tool can have (WCAG 3.1.2).
+     */
+    contentLocale?: string;
 }) {
     const intl = useIntl();
     const ordered = [...fields].sort(
@@ -104,12 +116,21 @@ export function EntryFieldSections({
 
     return (
         <div className="flex flex-col gap-8">
+            {/* Only the translated run carries the row's language: by
+                definition it holds this locale's text. A shared field holds one
+                value for every locale — usually still in the language it was
+                first written in — so claiming this locale for it would be a
+                worse assertion than making none. Both runs get `dir="auto"`,
+                which orders each field's own bidi text from its content rather
+                than from the admin's chrome. */}
             <FieldGroup
                 title={intl.formatMessage(messages.translatedTitle)}
                 description={intl.formatMessage(messages.translatedBody)}
                 fields={translated}
                 form={form}
                 isChanged={isChanged}
+                lang={contentLocale}
+                dir="auto"
             />
             <FieldGroup
                 title={intl.formatMessage(messages.sharedTitle)}
@@ -117,6 +138,7 @@ export function EntryFieldSections({
                 fields={shared}
                 form={form}
                 isChanged={isChanged}
+                dir="auto"
             />
         </div>
     );
