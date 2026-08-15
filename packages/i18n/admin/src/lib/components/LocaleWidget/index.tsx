@@ -3,6 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import {
+    Button,
     Tooltip,
     TooltipContent,
     TooltipTrigger
@@ -22,13 +23,17 @@ import {
 } from '../../constants';
 import {
     isDefaultLocale,
+    localeAttrs,
     localeName,
     resolveActiveLocale
 } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
 import { useEntryLocales } from '../../api/useEntryLocales';
 import { useLocaleSummaries } from '../../api/useLocaleSummaries';
-import { beginLocaleSwitch } from '../../utils/localeTransition';
+import {
+    beginLocaleSwitch,
+    cancelPendingLocaleSwitch
+} from '../../utils/localeTransition';
 import { LocaleRow } from './LocaleRow';
 
 const messages = defineMessages({
@@ -59,6 +64,15 @@ const messages = defineMessages({
     groupIdPending: {
         id: 'i18n.widget.groupIdPending',
         defaultMessage: 'Assigned when this record is saved.'
+    },
+    loadFailed: {
+        id: 'i18n.widget.loadFailed',
+        defaultMessage:
+            'This record’s other locales couldn’t be loaded, so none are listed below. Some may already exist.'
+    },
+    retry: {
+        id: 'i18n.widget.retry',
+        defaultMessage: 'Try again'
     }
 });
 
@@ -136,7 +150,20 @@ export function LocaleWidget({
         !!schema.i18n && isCreate && !!urlGroupId
     );
 
+    // A pick schedules its navigation behind the cover. If the editor unmounts
+    // in that window — the user clicked something else, which the overlay
+    // deliberately lets through — the navigation is stale and must not fire.
+    useEffect(() => cancelPendingLocaleSwitch, []);
+
     if (!schema.i18n || locales.length === 0) return null;
+
+    // A failed group read leaves every locale resolving to `undefined`, which
+    // renders as "no translation exists" — an invitation to create a sibling
+    // that may already be there, whose save then 409s. Error and empty are
+    // different answers and this panel has to say which one it has.
+    const membersFailed = isCreate
+        ? groupSummaries.isError
+        : entryLocales.isError;
 
     // No saved entry in create mode, so the target locale comes from the URL.
     const currentLocale =
@@ -242,18 +269,57 @@ export function LocaleWidget({
                 isCreate ? messages.descriptionCreate : messages.descriptionEdit
             )}
         >
+            {membersFailed ? (
+                <div
+                    role="alert"
+                    className="mb-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-2 text-xs text-destructive"
+                >
+                    <p>{intl.formatMessage(messages.loadFailed)}</p>
+                    <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs text-destructive underline"
+                        onClick={() =>
+                            void (isCreate
+                                ? groupSummaries.refetch()
+                                : entryLocales.refetch())
+                        }
+                    >
+                        {intl.formatMessage(messages.retry)}
+                    </Button>
+                </div>
+            ) : null}
             <ul className="flex flex-col gap-0.5">
                 {locales.map((locale) => {
                     const sibling = siblingFor(locale.slug);
                     const isCurrent = locale.slug === currentLocale;
                     // Existing → switch (any role); missing → create (gated).
-                    const actionable = !isCurrent && (!!sibling || canCreate);
+                    // Nothing is actionable while the members are unknown: an
+                    // "Add" we cannot stand behind is worse than no affordance.
+                    const actionable =
+                        !isCurrent &&
+                        !membersFailed &&
+                        (!!sibling || canCreate);
                     return (
                         <LocaleRow
                             key={locale.slug}
                             name={locale.name}
+                            nameAttrs={localeAttrs(locales, locale.slug)}
                             isCurrent={isCurrent}
                             exists={!!sibling}
+                            // Why a missing locale is inert, so the row reads
+                            // as a stated state rather than an unexplained
+                            // ghost. Unknown members outrank permission: we
+                            // genuinely don't know whether it is missing.
+                            inertReason={
+                                isCurrent || sibling
+                                    ? undefined
+                                    : membersFailed
+                                      ? 'unknown'
+                                      : !canCreate
+                                        ? 'forbidden'
+                                        : undefined
+                            }
                             // Publish state is **publishable-only**: an
                             // always-live type has no publish workflow, so a
                             // "Draft" chip beside a locale would name a state

@@ -90,11 +90,20 @@ export type RecordsColumnItem = {
      * rows — the place to batch-load per-page data (one request per page, not
      * per row). Called for **every** registered item on every render (see the
      * module JSDoc); gate fetching internally when not applicable.
+     *
+     * `isVisible` says whether the user actually has this column switched on.
+     * It has to be a parameter rather than a wrapper around the call, because
+     * the hook must run unconditionally to keep hook order stable — so the
+     * item is the only place the decision can be made. **Honour it**: every
+     * extension column is hidden by default, so without it a column nobody
+     * enabled still issues its batch request on every page of every records
+     * list, for data that is never rendered.
      */
     useRowsData?: (
         entries: EntryRecord[],
         schema: ContentTypeDetail,
-        workspaceId: string
+        workspaceId: string,
+        isVisible: boolean
     ) => unknown;
     /** The cell renderer. */
     Cell: ComponentType<RecordsColumnCellContext>;

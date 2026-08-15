@@ -148,9 +148,7 @@ describe('accept an invite', () => {
             // `GET /api/auth/invite/` matches no route at all. Worth pinning:
             // the interesting failure would be the segment reaching the handler
             // as an empty string and being hashed into a lookup.
-            await request(harness.server)
-                .get('/api/auth/invite/')
-                .expect(404);
+            await request(harness.server).get('/api/auth/invite/').expect(404);
         });
 
         it('404s a token that is not hex, without a 500', async () => {

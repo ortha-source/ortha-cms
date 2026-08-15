@@ -78,6 +78,27 @@ export function beginLocaleSwitch(name: string, apply: () => void) {
 }
 
 /**
+ * Cancel a switch whose swap has **not run yet**, and lift the cover with it.
+ *
+ * Called by a trigger when it unmounts. Between `beginLocaleSwitch` and
+ * {@link COVER_MS} the swap is only a scheduled `navigate`/`updateParams`; if
+ * the user leaves in that window — clicking any other link, since the cover is
+ * `pointer-events-none` — the timer used to fire anyway and yank them onto the
+ * locale they had abandoned, from a component that no longer exists.
+ *
+ * Deliberately a **no-op once the swap has run**: from that moment the flourish
+ * is legitimately in flight and has to outlive the trigger's unmount, which is
+ * the entire reason the store is module-level (a widget switch navigates away
+ * from the widget that started it).
+ */
+export function cancelPendingLocaleSwitch() {
+    if (!applyTimer) return;
+    clearTimeout(applyTimer);
+    applyTimer = undefined;
+    clear();
+}
+
+/**
  * Report that the destination has settled — no requests in flight. Ends the
  * flourish, but not before {@link MIN_HOLD_MS} has passed: the host polls this
  * as queries come and go, and the first reading (before the destination's

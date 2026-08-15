@@ -101,6 +101,20 @@ export class InsightsPage extends BasePage {
         );
     }
 
+    /** A widget's top-right chip (the accent beside its title). */
+    cardChip(title: string, text: string | RegExp): Locator {
+        return this.card(title).getByText(text);
+    }
+
+    /**
+     * One bar row's graphic in a bar-list widget, located by the text
+     * alternative it declares. The bars themselves have no text, so this is
+     * both the locator and the thing under test.
+     */
+    cardBar(title: string, name: string | RegExp): Locator {
+        return this.card(title).getByRole('img', { name });
+    }
+
     /**
      * A stat tile by the **slot id** of the widget that contributes it.
      *

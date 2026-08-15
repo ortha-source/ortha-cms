@@ -12,7 +12,9 @@ export function FieldGroup({
     description,
     fields,
     form,
-    isChanged
+    isChanged,
+    lang,
+    dir
 }: {
     /** Group heading (e.g. "Translated fields"). */
     title: string;
@@ -22,6 +24,10 @@ export function FieldGroup({
     fields: ContentField[];
     form: EntryFormState;
     isChanged?: (name: string) => boolean;
+    /** BCP-47 tag of the language this group's values are in, when known. */
+    lang?: string;
+    /** Writing direction for the group's values. */
+    dir?: 'ltr' | 'rtl' | 'auto';
 }) {
     return (
         <section className="flex flex-col gap-5">
@@ -31,17 +37,25 @@ export function FieldGroup({
                     {description}
                 </p>
             </div>
-            {fields.map((field) => (
-                <EntryFieldInput
-                    key={field.name}
-                    field={field}
-                    value={form.values[field.name]}
-                    error={form.errorFor(field.name)}
-                    changed={isChanged?.(field.name) ?? false}
-                    onChange={(value) => form.setValue(field.name, value)}
-                    onBlur={() => form.touch(field.name)}
-                />
-            ))}
+            {/* The language marker goes on the fields, not the section: the
+                heading above is UI copy in the admin's own language, and
+                wrapping it too would declare "Translated fields" to be German.
+                Field *labels* do still inherit it — marking each control
+                individually needs a `lang` pass-through in every branch of
+                `EntryFieldInput`, which is tracked separately. */}
+            <div className="flex flex-col gap-5" lang={lang} dir={dir}>
+                {fields.map((field) => (
+                    <EntryFieldInput
+                        key={field.name}
+                        field={field}
+                        value={form.values[field.name]}
+                        error={form.errorFor(field.name)}
+                        changed={isChanged?.(field.name) ?? false}
+                        onChange={(value) => form.setValue(field.name, value)}
+                        onBlur={() => form.touch(field.name)}
+                    />
+                ))}
+            </div>
         </section>
     );
 }

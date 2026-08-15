@@ -78,21 +78,31 @@ const messages = defineMessages({
         id: 'i18n.insights.coverage.defaultLocale',
         defaultMessage: '{name} (default)'
     },
+    empty: {
+        id: 'i18n.insights.coverage.empty',
+        defaultMessage: 'No localized content in this workspace yet.'
+    },
+    // Each segment label is the bar's own text alternative, so it is a whole
+    // sentence and it agrees in number — these are read aloud, not hovered.
     tipTranslated: {
         id: 'i18n.insights.coverage.tipTranslated',
-        defaultMessage: '{locale} — {count, number} records translated'
+        defaultMessage:
+            '{locale} — {count, number} {count, plural, one {record} other {records}} translated'
     },
     tipMissing: {
         id: 'i18n.insights.coverage.tipMissing',
-        defaultMessage: '{locale} — {count, number} records missing'
+        defaultMessage:
+            '{locale} — {count, number} {count, plural, one {record} other {records}} missing'
     },
     tipTypeDone: {
         id: 'i18n.insights.coverage.tipTypeDone',
-        defaultMessage: '{type} — {count, number} records in every language'
+        defaultMessage:
+            '{type} — {count, number} {count, plural, one {record} other {records}} in every language'
     },
     tipTypeOutstanding: {
         id: 'i18n.insights.coverage.tipTypeOutstanding',
-        defaultMessage: '{type} — {count, number} records still to translate'
+        defaultMessage:
+            '{type} — {count, number} {count, plural, one {record} other {records}} still to translate'
     },
     footer: {
         id: 'i18n.insights.coverage.footer',
@@ -191,6 +201,9 @@ export function LocalizationCoverageWidget() {
         secondary: share(type.localized, type.records)
     }));
 
+    // Nothing localized at all: the card has no coverage to report, which is
+    // not the same as having reported full coverage.
+    const isEmpty = records === 0;
     const byLocale = mode === 'locale';
     // Every bar is scaled against one denominator so lengths compare. By locale
     // that is the workspace's record count (each language could reach all of
@@ -208,8 +221,12 @@ export function LocalizationCoverageWidget() {
             description={intl.formatMessage(
                 byLocale ? messages.description : messages.descriptionByType
             )}
+            // No chip on an empty workspace. `requires === 0` is true both when
+            // every record is translated and when there are no records at all,
+            // and the second is not an achievement — a workspace that has never
+            // been written to was handing itself a green "Fully translated".
             action={
-                requires === 0 ? (
+                isEmpty ? undefined : requires === 0 ? (
                     <WidgetChip tone="ok" icon={Check}>
                         {intl.formatMessage(messages.complete)}
                     </WidgetChip>
@@ -227,7 +244,11 @@ export function LocalizationCoverageWidget() {
             })}
             isPending={isPending}
             isError={isError}
-            isEmpty={records === 0}
+            isEmpty={isEmpty}
+            // The shared empty copy says "for this period", and this widget
+            // takes no range — an untranslated record is untranslated whenever
+            // it was written.
+            emptyMessage={intl.formatMessage(messages.empty)}
             skeletonRows={4}
         >
             <div className="grid gap-4 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-6">
@@ -285,7 +306,22 @@ export function LocalizationCoverageWidget() {
     );
 }
 
-/** A count as a whole-percent share of its total, or nothing when there is none. */
+/**
+ * A count as a whole-percent share of its total, or nothing when there is none.
+ *
+ * `0%` and `100%` are **reserved for the real thing**. Plain rounding printed
+ * "0%" beside a visible bar (3 of 609 translated) and "100%" beside a card
+ * whose own chip said work remained (608 of 609) — the two readings a coverage
+ * figure exists to distinguish, so a rounded near-miss is clamped to 1% / 99%
+ * instead of claiming the boundary.
+ *
+ * `total <= 0` yields nothing rather than `NaN%` — the server sends counts and
+ * never divides, so every division on this card happens here.
+ */
 function share(value: number, total: number): string | undefined {
-    return total > 0 ? `${Math.round((value / total) * 100)}%` : undefined;
+    if (total <= 0) return undefined;
+    if (value <= 0) return '0%';
+    if (value >= total) return '100%';
+    const rounded = Math.round((value / total) * 100);
+    return `${Math.min(99, Math.max(1, rounded))}%`;
 }

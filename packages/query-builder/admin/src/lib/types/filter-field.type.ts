@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { MessageDescriptor } from 'react-intl';
+import type { OpId } from './filter-tree.type';
 
 /**
  * Coercion type for one filterable column. Drives operator and
@@ -38,6 +39,18 @@ export type FilterField = {
     type: FieldType;
     /** Required when `type === FIELD_TYPE.Enum`. Drives both `is_one_of` and the value editor. */
     enumValues?: readonly FilterEnumValue[];
+    /**
+     * Narrows the operators offered for **this** field, within what its
+     * `type` allows. Omit for the type's full set.
+     *
+     * A field's type describes the shape of its *values*; it does not promise
+     * the backend can answer every question of that shape. A virtual field
+     * resolved by a subquery (i18n's `hasLocale`) is enum-shaped but only
+     * supports `equals` / `is one of` — offering `is not` there let the drawer
+     * build a filter the API rejects with a 400, which surfaces as "couldn't
+     * load this collection" over a rule the UI itself proposed.
+     */
+    operators?: readonly OpId[];
     /**
      * Breadcrumb of relation labels, root-first — `['Author']` for
      * `author.name`. Empty or absent for a root field. Groups the field
@@ -78,4 +91,6 @@ export type RelationValueEditorProps = {
  * consumer owns fetching the candidate records. Omit it and such rules fall
  * back to the raw uuid input.
  */
-export type RelationValueEditor = (props: RelationValueEditorProps) => ReactNode;
+export type RelationValueEditor = (
+    props: RelationValueEditorProps
+) => ReactNode;

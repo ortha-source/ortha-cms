@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@ortha-cms/design-system';
 import {
     entryStatusView,
+    ENTRY_STATUS_VIEW_LABEL,
     ENTRY_STATUS_VIEW_VARIANT
 } from '@ortha-cms/content-admin';
 import type { LocaleSummaryItem } from '../../../types/locale';
@@ -34,13 +35,22 @@ export function LocaleBadge({
     const intl = useIntl();
     // The badge shows the locale slug, so the state has to reach a screen reader
     // through the link's name — the tint alone conveys nothing.
+    //
+    // It goes in as the **localized label**, through the same message map the
+    // visible `EntryStatusBadge` renders. `entryStatusView` returns a machine
+    // token (`'modified'`), and interpolating that put lowercase English into
+    // the accessible name in every UI language — the one per-badge state cue,
+    // spoken as an identifier.
     const view = entryStatusView(item);
     return (
         <Link
             to={`${typePath}/${item.entryId}`}
             aria-label={intl.formatMessage(
                 item.status ? messages.open : messages.openNoStatus,
-                { locale: item.locale, status: view }
+                {
+                    locale: item.locale,
+                    status: intl.formatMessage(ENTRY_STATUS_VIEW_LABEL[view])
+                }
             )}
             className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

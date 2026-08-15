@@ -7,7 +7,7 @@
  * re-inlining the same `?? ` chain.
  */
 
-import type { Locale } from '../../types/locale';
+import type { Locale, LocaleDir } from '../../types/locale';
 
 /** Inputs to {@link resolveActiveLocale}, in precedence order (highest first). */
 export type ActiveLocaleSources = {
@@ -19,16 +19,46 @@ export type ActiveLocaleSources = {
     defaultSlug?: string;
 };
 
+/** An empty/blank slug is "absent", not a locale named `''`. */
+function present(slug: string | undefined): string | undefined {
+    const trimmed = slug?.trim();
+    return trimmed ? trimmed : undefined;
+}
+
 /**
  * The active content locale, resolved by the same precedence the server's
  * `LocalePolicy.resolve` uses: the saved entry's locale, else the URL
  * `?locale=`, else the default. `undefined` only before the locales have
  * loaded (no default yet).
+ *
+ * Each source is **blank-checked** rather than nullish-checked: `?locale=`
+ * yields `''`, which is not nullish, so a plain `??` chain would resolve the
+ * active locale to the empty string and stop the default from applying.
  */
 export function resolveActiveLocale(
     sources: ActiveLocaleSources
 ): string | undefined {
-    return sources.entryLocale ?? sources.urlLocale ?? sources.defaultSlug;
+    return (
+        present(sources.entryLocale) ??
+        present(sources.urlLocale) ??
+        present(sources.defaultSlug)
+    );
+}
+
+/**
+ * The configured locale with `slug`, or `undefined` when the slug names none —
+ * a typo in the URL, or a locale dropped from the host config while rows in it
+ * still exist.
+ *
+ * Callers must **not** silently substitute the default for a miss: the request
+ * still carries the unknown slug (the server 400s it), so a control reporting
+ * the default would be describing a list it is not showing.
+ */
+export function findLocale(
+    locales: Locale[],
+    slug: string | undefined
+): Locale | undefined {
+    return slug ? locales.find((locale) => locale.slug === slug) : undefined;
 }
 
 /** Whether `slug` is the configured default locale. */
@@ -56,5 +86,36 @@ export function localeName(
     locales: Locale[],
     slug: string | undefined
 ): string | undefined {
-    return locales.find((locale) => locale.slug === slug)?.name;
+    return findLocale(locales, slug)?.name;
+}
+
+/**
+ * The writing direction of the locale with `slug`, or `undefined` if unknown.
+ *
+ * The server resolves direction (explicit config, else inferred from the tag),
+ * so this is a lookup, never a guess — the admin must not keep its own list of
+ * which languages are right-to-left.
+ */
+export function localeDir(
+    locales: Locale[],
+    slug: string | undefined
+): LocaleDir | undefined {
+    return findLocale(locales, slug)?.dir;
+}
+
+/**
+ * The `lang`/`dir` pair to put on a region rendering content **in** `slug`.
+ *
+ * `slug` is a BCP-47 tag by contract, so it is the `lang` value verbatim.
+ * Spreading the result onto an element is the whole API: an unknown slug
+ * yields `{}` rather than a wrong language, and a locale whose direction has
+ * not loaded yet yields `lang` alone rather than a wrong direction.
+ */
+export function localeAttrs(
+    locales: Locale[],
+    slug: string | undefined
+): { lang?: string; dir?: LocaleDir } {
+    if (!slug) return {};
+    const dir = localeDir(locales, slug);
+    return dir ? { lang: slug, dir } : { lang: slug };
 }

@@ -30,6 +30,12 @@ export type WidgetCardProps = {
     isError?: boolean;
     /** True when the query succeeded but there is nothing to plot. */
     isEmpty?: boolean;
+    /**
+     * Overrides the shared empty copy. The default names "this period", which
+     * is right for the range-scoped widgets and wrong for one that takes no
+     * range — a rangeless widget should not invent a window to be empty in.
+     */
+    emptyMessage?: ReactNode;
     /** How many skeleton rows to show while pending. */
     skeletonRows?: number;
     /** The widget body. Only rendered once data is loaded and non-empty. */
@@ -54,6 +60,7 @@ export function WidgetCard({
     isPending = false,
     isError = false,
     isEmpty = false,
+    emptyMessage,
     skeletonRows = 4,
     children
 }: WidgetCardProps) {
@@ -98,7 +105,7 @@ export function WidgetCard({
                     </p>
                 ) : isEmpty ? (
                     <p className="py-4 text-sm text-muted-foreground">
-                        {intl.formatMessage(messages.empty)}
+                        {emptyMessage ?? intl.formatMessage(messages.empty)}
                     </p>
                 ) : (
                     children

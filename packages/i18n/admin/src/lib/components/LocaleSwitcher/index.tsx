@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, ChevronDown, Globe } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Globe } from 'lucide-react';
 import {
     Button,
     Input,
@@ -12,12 +12,17 @@ import {
 import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
 import {
+    findLocale,
+    localeAttrs,
     localeName,
     resolveActiveLocale,
     toLocaleListParam
 } from '../../domain/localePolicy';
 import { useLocales } from '../../api/useLocales';
-import { beginLocaleSwitch } from '../../utils/localeTransition';
+import {
+    beginLocaleSwitch,
+    cancelPendingLocaleSwitch
+} from '../../utils/localeTransition';
 
 const messages = defineMessages({
     label: {
@@ -39,6 +44,24 @@ const messages = defineMessages({
     defaultSuffix: {
         id: 'i18n.switcher.defaultSuffix',
         defaultMessage: '{name} (default)'
+    },
+    unknown: {
+        id: 'i18n.switcher.unknown',
+        defaultMessage: 'Unknown locale “{slug}”'
+    },
+    unknownLabel: {
+        id: 'i18n.switcher.unknownLabel',
+        defaultMessage:
+            'Locale: unknown locale “{slug}”. Pick a configured locale to fix the list.'
+    },
+    failed: {
+        id: 'i18n.switcher.failed',
+        defaultMessage: 'Locales unavailable'
+    },
+    failedLabel: {
+        id: 'i18n.switcher.failedLabel',
+        defaultMessage:
+            'Locales could not be loaded, so the locale of this list can’t be changed. Press to retry.'
     }
 });
 
@@ -64,7 +87,15 @@ function matches(haystack: string, query: string): boolean {
  * stays in the search box, ↑/↓ move an `aria-activedescendant` highlight and
  * Enter picks — rows are `tabIndex={-1}` so a long locale list isn't a Tab
  * gauntlet, and a `listbox` whose options are only reachable by Tab would
- * announce a position the keyboard can't act on.
+ * announce a position the keyboard can't act on. The search box carries
+ * `role="combobox"` because that is the role `aria-activedescendant` is
+ * defined against — on a plain textbox it is widely ignored, so the highlight
+ * would move silently as you arrow through the list.
+ *
+ * **It renders on failure too.** This control owns `?locale=`, so it is the
+ * only way back out of a non-default locale; returning `null` when the locale
+ * read fails removed the exit while leaving the list scoped, stranding the
+ * user in a language they could no longer leave.
  */
 export function LocaleSwitcher({
     schema,
@@ -76,7 +107,7 @@ export function LocaleSwitcher({
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const listId = useId();
-    const { locales, defaultLocale } = useLocales();
+    const { locales, defaultLocale, isError, refetch } = useLocales();
 
     const activeSlug = resolveActiveLocale({
         urlLocale: params[LOCALE_PARAM],
@@ -95,15 +126,41 @@ export function LocaleSwitcher({
     // which would make Enter a no-op.
     useEffect(() => setActiveIndex(0), [query, open]);
 
-    if (!schema.i18n || locales.length === 0) return null;
+    // A pick schedules its re-scope behind the cover; if this toolbar goes away
+    // first the swap is stale, so drop it rather than re-scoping a list the
+    // user has left.
+    useEffect(() => cancelPendingLocaleSwitch, []);
 
-    const active =
-        locales.find((locale) => locale.slug === activeSlug) ?? defaultLocale;
+    if (!schema.i18n) return null;
+
+    if (isError) {
+        return (
+            <Button
+                variant="outline"
+                className="shadow-none text-destructive"
+                aria-label={intl.formatMessage(messages.failedLabel)}
+                onClick={() => refetch()}
+            >
+                <AlertTriangle aria-hidden className="size-4" />
+                {intl.formatMessage(messages.failed)}
+            </Button>
+        );
+    }
+
+    if (locales.length === 0) return null;
+
+    // Deliberately **not** `?? defaultLocale`: an unconfigured `?locale=` still
+    // goes to the server (which 400s it), so claiming the default here would
+    // label a broken list with a locale it is not showing.
+    const active = findLocale(locales, activeSlug);
+    const unknownSlug = activeSlug && !active ? activeSlug : undefined;
 
     const select = (slug: string) => {
         setOpen(false);
         // Re-selecting the active locale is a no-op — no re-scope, no flourish.
-        if (slug === active?.slug) return;
+        // Skipped while the URL names an unknown locale: there the "no-op" is
+        // the one press that clears the bad param, so it has to go through.
+        if (!unknownSlug && slug === active?.slug) return;
         const name = localeName(locales, slug) ?? slug;
         // Defer the re-scope until the overlay covers the page (see
         // `beginLocaleSwitch`) so the table doesn't visibly swap under the blur.
@@ -144,13 +201,38 @@ export function LocaleSwitcher({
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
-                        className="shadow-none"
-                        aria-label={intl.formatMessage(messages.label, {
-                            name: active?.name ?? ''
-                        })}
+                        className={cn(
+                            'shadow-none',
+                            unknownSlug && 'text-destructive'
+                        )}
+                        aria-label={
+                            unknownSlug
+                                ? intl.formatMessage(messages.unknownLabel, {
+                                      slug: unknownSlug
+                                  })
+                                : intl.formatMessage(messages.label, {
+                                      name: active?.name ?? ''
+                                  })
+                        }
                     >
-                        <Globe aria-hidden className="size-4" />
-                        {active?.name}
+                        {unknownSlug ? (
+                            <AlertTriangle aria-hidden className="size-4" />
+                        ) : (
+                            <Globe aria-hidden className="size-4" />
+                        )}
+                        {unknownSlug ? (
+                            intl.formatMessage(messages.unknown, {
+                                slug: unknownSlug
+                            })
+                        ) : (
+                            // The locale's own name is in that locale, so it
+                            // carries its own language/direction — otherwise a
+                            // screen reader says "Deutsch" with English
+                            // phonemes, before any content is even opened.
+                            <span {...localeAttrs(locales, active?.slug)}>
+                                {active?.name}
+                            </span>
+                        )}
                         <ChevronDown
                             aria-hidden
                             className="size-3.5 text-muted-foreground"
@@ -172,6 +254,15 @@ export function LocaleSwitcher({
                         aria-label={intl.formatMessage(
                             messages.searchPlaceholder
                         )}
+                        // `aria-activedescendant` is only honoured on a role
+                        // that owns options — on a bare textbox the highlight
+                        // moves silently. The Radix trigger's `haspopup` names
+                        // the *popover*, not this list, so the combobox role
+                        // has to be declared here.
+                        role="combobox"
+                        aria-expanded
+                        aria-haspopup="listbox"
+                        aria-autocomplete="list"
                         aria-controls={listId}
                         aria-activedescendant={
                             filtered[activeIndex]
@@ -196,6 +287,18 @@ export function LocaleSwitcher({
                             filtered.map((locale, index) => {
                                 const isActive = locale.slug === active?.slug;
                                 const isHighlighted = index === activeIndex;
+                                // Keyed because it is interpolated into a
+                                // message: react-intl splices rich values into
+                                // a children array, and an unkeyed element
+                                // there is a React list-key warning.
+                                const nameNode = (
+                                    <span
+                                        key="name"
+                                        {...localeAttrs(locales, locale.slug)}
+                                    >
+                                        {locale.name}
+                                    </span>
+                                );
                                 return (
                                     <button
                                         key={locale.slug}
@@ -227,13 +330,19 @@ export function LocaleSwitcher({
                                                     : 'opacity-0'
                                             )}
                                         />
+                                        {/* Only the locale's own name carries
+                                            its language — the "(default)"
+                                            qualifier is UI copy in the admin's
+                                            language, so wrapping the whole
+                                            string would mark that as German
+                                            too. */}
                                         <span className="truncate">
                                             {locale.isDefault
                                                 ? intl.formatMessage(
                                                       messages.defaultSuffix,
-                                                      { name: locale.name }
+                                                      { name: nameNode }
                                                   )
-                                                : locale.name}
+                                                : nameNode}
                                         </span>
                                     </button>
                                 );

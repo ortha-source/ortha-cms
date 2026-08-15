@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { useIsFetching } from '@tanstack/react-query';
@@ -20,6 +20,12 @@ const messages = defineMessages({
 
 /** Fade-out duration — keep in sync with the `duration-300` class below. */
 const FADE_MS = 300;
+
+/** The app root the SPA mounts into — what the cover covers. */
+const APP_ROOT_ID = 'root';
+
+/** The shell's `<main tabIndex={-1}>`, the landing spot when focus is lost. */
+const MAIN_CONTENT_ID = 'main-content';
 
 /**
  * The **locale-switch flourish** host: a non-interactive full-screen overlay —
@@ -87,6 +93,45 @@ export function LocaleSwitchOverlay() {
         const remove = setTimeout(() => setDisplay(null), FADE_MS);
         return () => clearTimeout(remove);
     }, [display?.leaving]);
+
+    // What had focus when the cover went up, so it can be handed back.
+    const restoreTo = useRef<HTMLElement | null>(null);
+
+    // Make the covered page **inert** while it is covered.
+    //
+    // `pointer-events-none` is a deliberate choice for the mouse, but it does
+    // nothing for the keyboard: Tab used to walk the page behind a 95%-opaque
+    // blur, with the focus ring invisible and Enter able to activate a control
+    // the user cannot see — and the deferred swap lands inside that window, so
+    // what sat under their focus changed without any input of theirs. `inert`
+    // removes the whole subtree from focus and from the accessibility tree; the
+    // overlay itself is portalled to `<body>`, outside it, so the live region
+    // still announces.
+    useEffect(() => {
+        if (!active) return;
+        const root = document.getElementById(APP_ROOT_ID);
+        if (!root) return;
+        const previous = document.activeElement;
+        restoreTo.current =
+            previous instanceof HTMLElement && root.contains(previous)
+                ? previous
+                : null;
+        root.setAttribute('inert', '');
+        return () => {
+            root.removeAttribute('inert');
+            // Focus is on `<body>` by now (inert blurred it). Hand it back to
+            // the trigger if it survived the swap — it usually has on a toolbar
+            // switch — else to the destination's `<main>`, which is focusable
+            // for exactly this, rather than stranding the user at the top of
+            // the document.
+            const target =
+                restoreTo.current?.isConnected === true
+                    ? restoreTo.current
+                    : document.getElementById(MAIN_CONTENT_ID);
+            target?.focus({ preventScroll: true });
+            restoreTo.current = null;
+        };
+    }, [active]);
 
     if (!display) return null;
 

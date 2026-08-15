@@ -60,6 +60,27 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
 } as const;
 
 /**
+ * The operators a field offers: its own {@link FilterField.operators} narrowing
+ * when it declares one, else everything its type allows.
+ *
+ * A field type describes value *shape*, not what the backend can answer about
+ * it — a virtual field resolved by a subquery may be enum-shaped and still
+ * support only a couple of operators. Resolving both here keeps the picker and
+ * the field-change reset from drifting apart.
+ */
+export function opsForField(field: {
+    type: FieldType;
+    operators?: readonly OpId[];
+}): readonly OpId[] {
+    const allowed = OPS_FOR_TYPE[field.type];
+    if (!field.operators) return allowed;
+    const narrowed = allowed.filter((op) => field.operators?.includes(op));
+    // A narrowing that matches nothing is a config error; falling back beats
+    // rendering an operator picker with no options at all.
+    return narrowed.length > 0 ? narrowed : allowed;
+}
+
+/**
  * Localised label for one operator — display only, never serialised.
  * Components resolve via `intl.formatMessage(OP_LABELS[op])`.
  *

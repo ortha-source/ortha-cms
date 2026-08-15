@@ -59,6 +59,15 @@ export type BarRowsProps = {
  * into a sliver of colour — a locale with nothing missing rendered a tick of the
  * "missing" hue, which is the chart stating the opposite of its data. Filtering
  * here rather than at each call site means no contributed widget has to know.
+ *
+ * **Each track is a `role="img"` named by its own segments.** A native `title`
+ * is not keyboard-reachable and not dismissible (1.4.13), and a row's readout
+ * column states only the first series — so on a split bar the second value
+ * reached the user through hue alone (1.4.1) inside a graphic with no
+ * accessible name (1.1.1). Every segment already carries a full sentence in
+ * `label`; joining them is the alternative. Doing it here fixes every widget
+ * that renders this form, which is the one on the Insights page that was
+ * missing what its sibling charts already had.
  */
 export function BarRows({ rows, max, className }: BarRowsProps) {
     // A zero or negative denominator would make every width NaN%, which renders
@@ -77,7 +86,16 @@ export function BarRows({ rows, max, className }: BarRowsProps) {
                         {row.label}
                     </span>
 
-                    <div className="flex h-3.5 min-w-0 gap-0.5">
+                    <div
+                        role="img"
+                        // Every drawn segment, in order. Dropped (zero) segments
+                        // are named too — "0 missing" is information the bar
+                        // cannot draw but the row still means.
+                        aria-label={row.segments
+                            .map((segment) => segment.label)
+                            .join('. ')}
+                        className="flex h-3.5 min-w-0 gap-0.5"
+                    >
                         {row.segments
                             .filter((segment) => segment.value > 0)
                             .map((segment) => (
