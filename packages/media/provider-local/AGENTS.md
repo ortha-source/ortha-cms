@@ -18,8 +18,9 @@ built-ins; it imports no framework.
   that happens to be named `thumb.webp`.
 - `put` streams the body through a metering `PassThrough` (size + sha256) into a
   write stream — large files never buffer fully in memory.
-- `get` opens a read stream; `remove` is idempotent (`rm … { force: true }`) and
-  prunes the directories the removed blob leaves empty.
+- `get` opens the descriptor, then streams from it; `remove` is idempotent
+  (`rm … { force: true }`) and prunes the directories the removed blob leaves
+  empty.
 
 ### The four invariants, and why they are not obvious
 
