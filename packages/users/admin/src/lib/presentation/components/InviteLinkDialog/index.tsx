@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Dialog,
     DialogContent,
@@ -8,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle
 } from '@ortha-cms/design-system';
+import { TriangleAlert } from 'lucide-react';
 import { InviteLinkPanel } from '../InviteLinkPanel';
 
 /** Intl descriptors for {@link InviteLinkDialog}, co-located with the component. */
@@ -24,6 +28,19 @@ const messages = defineMessages({
     done: {
         id: 'users.inviteLinkDialog.done',
         defaultMessage: 'Done'
+    },
+    uncopied: {
+        id: 'users.inviteLinkDialog.uncopied',
+        defaultMessage:
+            'You haven’t copied the link yet, and it can’t be shown again. Closing now leaves {email} with no working invite until you resend.'
+    },
+    closeAnyway: {
+        id: 'users.inviteLinkDialog.closeAnyway',
+        defaultMessage: 'Close without copying'
+    },
+    keepOpen: {
+        id: 'users.inviteLinkDialog.keepOpen',
+        defaultMessage: 'Keep it open'
     }
 });
 
@@ -43,6 +60,12 @@ type InviteLinkDialogProps = {
  * Shows the invite link produced by a **resend**. Resending rotates the token,
  * which kills the link the invitee may already be holding — so handing the new
  * one over is not a nicety, it is the rest of the operation.
+ *
+ * Because of that, dismissing before copying is guarded. Esc, an overlay click
+ * and the close button all reach `onOpenChange(false)` by reflex, and the link
+ * is not re-fetchable: losing it leaves the invitee with a dead link and the
+ * admin with no live one, recoverable only by resending — which rotates again.
+ * So the first dismissal without a copy asks; once copied, it closes freely.
  */
 export function InviteLinkDialog({
     link,
@@ -51,9 +74,44 @@ export function InviteLinkDialog({
     onOpenChange
 }: InviteLinkDialogProps) {
     const intl = useIntl();
+    const [copied, setCopied] = useState(false);
+    const [confirmingClose, setConfirmingClose] = useState(false);
+
+    // A new link is a new chance to lose it — reset the guard whenever one
+    // arrives, so a second resend doesn't inherit the first one's "copied".
+    useEffect(() => {
+        if (link !== null) {
+            setCopied(false);
+            setConfirmingClose(false);
+        }
+    }, [link]);
+
+    /** Close for real, clearing the guard. */
+    const close = () => {
+        setConfirmingClose(false);
+        onOpenChange(false);
+    };
+
+    /** Every dismissal path funnels through here so none of them can slip past. */
+    const requestClose = () => {
+        if (copied) {
+            close();
+            return;
+        }
+        setConfirmingClose(true);
+    };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (next) {
+                    onOpenChange(true);
+                    return;
+                }
+                requestClose();
+            }}
+        >
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
@@ -64,12 +122,41 @@ export function InviteLinkDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                {link && <InviteLinkPanel link={link} email={email} />}
+                {link && (
+                    <InviteLinkPanel
+                        link={link}
+                        email={email}
+                        onCopied={() => setCopied(true)}
+                    />
+                )}
+
+                {confirmingClose ? (
+                    <Alert variant="destructive" role="alert">
+                        <TriangleAlert aria-hidden />
+                        <AlertDescription>
+                            {intl.formatMessage(messages.uncopied, { email })}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 <DialogFooter>
-                    <Button onClick={() => onOpenChange(false)}>
-                        {intl.formatMessage(messages.done)}
-                    </Button>
+                    {confirmingClose ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                onClick={() => setConfirmingClose(false)}
+                            >
+                                {intl.formatMessage(messages.keepOpen)}
+                            </Button>
+                            <Button variant="destructive" onClick={close}>
+                                {intl.formatMessage(messages.closeAnyway)}
+                            </Button>
+                        </>
+                    ) : (
+                        <Button onClick={requestClose}>
+                            {intl.formatMessage(messages.done)}
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

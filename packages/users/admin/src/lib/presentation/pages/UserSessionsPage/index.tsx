@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Alert,
@@ -13,7 +13,10 @@ import {
     toast
 } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useUserSessions, type UserSession } from '../../../application/useUserSessions';
+import {
+    useUserSessions,
+    type UserSession
+} from '../../../application/useUserSessions';
 import { useRevokeSession } from '../../../application/useRevokeSession';
 import { useUserDetailContext } from '../../userDetailContext';
 import { ConfirmDialog } from '@ortha-cms/design-system';
@@ -37,12 +40,20 @@ const messages = defineMessages({
     retry: { id: 'users.sessions.retry', defaultMessage: 'Retry' },
     confirmTitle: {
         id: 'users.sessions.confirmTitle',
-        defaultMessage: 'Revoke this session?'
+        defaultMessage: 'Revoke the session on {device}?'
     },
     confirmBody: {
         id: 'users.sessions.confirmBody',
         defaultMessage:
-            'The device will be signed out immediately and must sign in again.'
+            'Last seen {when}{ip}. That device will be signed out immediately and must sign in again.'
+    },
+    confirmBodyIp: {
+        id: 'users.sessions.confirmBodyIp',
+        defaultMessage: ' from {ip}'
+    },
+    unknownDevice: {
+        id: 'users.sessions.confirmUnknownDevice',
+        defaultMessage: 'an unknown device'
     },
     confirmRevoke: {
         id: 'users.sessions.confirmRevoke',
@@ -75,6 +86,18 @@ export function UserSessionsPage() {
     } = useUserSessions(member.id, canManage);
     const revoke = useRevokeSession();
     const [revoking, setRevoking] = useState<UserSession | null>(null);
+    const headingRef = useRef<HTMLDivElement>(null);
+
+    /**
+     * The revoked card unmounts, so Radix has no trigger to hand focus back to
+     * and it falls to `<body>` (WCAG 2.4.3). Send it to the section heading
+     * instead — a stable anchor that also re-announces where the user is.
+     */
+    const restoreFocus = () => {
+        requestAnimationFrame(() => {
+            headingRef.current?.focus();
+        });
+    };
 
     const onRevoke = () => {
         if (!revoking) {
@@ -86,10 +109,12 @@ export function UserSessionsPage() {
                 onSuccess: () => {
                     toast.success(intl.formatMessage(messages.revoked));
                     setRevoking(null);
+                    restoreFocus();
                 },
                 onError: () => {
                     toast.error(intl.formatMessage(messages.failed));
                     setRevoking(null);
+                    restoreFocus();
                 }
             }
         );
@@ -97,7 +122,7 @@ export function UserSessionsPage() {
 
     return (
         <Card>
-            <CardHeader>
+            <CardHeader ref={headingRef} tabIndex={-1} className="outline-none">
                 <CardTitle>{intl.formatMessage(messages.title)}</CardTitle>
                 <CardDescription>
                     {intl.formatMessage(messages.description)}
@@ -145,11 +170,31 @@ export function UserSessionsPage() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setRevoking(null);
+                        restoreFocus();
                     }
                 }}
                 busy={revoke.isPending}
-                title={intl.formatMessage(messages.confirmTitle)}
-                description={intl.formatMessage(messages.confirmBody)}
+                // Name the device: the dialog is the last thing shown before an
+                // irreversible sign-out, and on a member with several sessions
+                // an unnamed one is indistinguishable from the others.
+                title={intl.formatMessage(messages.confirmTitle, {
+                    device:
+                        revoking?.userAgent?.trim() ||
+                        intl.formatMessage(messages.unknownDevice)
+                })}
+                description={intl.formatMessage(messages.confirmBody, {
+                    when: revoking
+                        ? intl.formatDate(revoking.lastSeenAt, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short'
+                          })
+                        : '',
+                    ip: revoking?.ipAddress
+                        ? intl.formatMessage(messages.confirmBodyIp, {
+                              ip: revoking.ipAddress
+                          })
+                        : ''
+                })}
                 confirmLabel={intl.formatMessage(messages.confirmRevoke)}
                 confirmVariant="destructive"
                 onConfirm={onRevoke}

@@ -40,6 +40,12 @@ type InviteLinkPanelProps = {
     link: string;
     /** Who the link is for — named in the warning so the risk is concrete. */
     email: string;
+    /**
+     * Called once the link has actually reached the clipboard. Lets a container
+     * tell "captured" from "about to be lost" — the resend dialog guards its
+     * dismissal on it.
+     */
+    onCopied?: () => void;
 };
 
 /**
@@ -52,7 +58,11 @@ type InviteLinkPanelProps = {
  * channel. When a mailer lands (identity epic #11) this becomes a fallback for
  * deployments with no SMTP rather than the only path.
  */
-export function InviteLinkPanel({ link, email }: InviteLinkPanelProps) {
+export function InviteLinkPanel({
+    link,
+    email,
+    onCopied
+}: InviteLinkPanelProps) {
     const intl = useIntl();
     const [copied, setCopied] = useState(false);
 
@@ -60,6 +70,7 @@ export function InviteLinkPanel({ link, email }: InviteLinkPanelProps) {
         try {
             await navigator.clipboard.writeText(link);
             setCopied(true);
+            onCopied?.();
             toast.success(intl.formatMessage(messages.copied));
         } catch {
             // Clipboard access can be denied (insecure origin, permissions).

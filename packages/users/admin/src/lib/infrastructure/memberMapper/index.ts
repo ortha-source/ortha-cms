@@ -78,9 +78,13 @@ export function toMember(dto: MemberResponse): Member {
         email: dto.email,
         initials: initialsOf(name),
         color: avatarColorForId(dto.id),
-        // An unknown role key (a future custom role) falls back to `viewer`
-        // for the inline select; the label still shows the server's name.
-        role: isMemberRole(dto.role.key) ? dto.role.key : 'viewer',
+        // An unknown role key (a custom, non-system role — the server's
+        // `Role.create` accepts any non-empty key) maps to `null`, NOT to a
+        // guessed `viewer`. Coercing it would make the roster and the Role tab
+        // positively assert a privilege level the member does not hold; `null`
+        // means "not one of the three assignable roles", and the UI falls back
+        // to the server's own `roleName` and refuses to offer a change.
+        role: isMemberRole(dto.role.key) ? dto.role.key : null,
         roleName: dto.role.name,
         status: dto.status,
         joinedAt: new Date(dto.createdAt),

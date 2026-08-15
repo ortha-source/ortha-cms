@@ -301,3 +301,63 @@ export async function spyResendInvite(
         }
     };
 }
+
+/**
+ * Stub `DELETE /api/users/:id/invites` and count the calls. Revoking **deletes
+ * the pending account** server-side, so the count is what a test asserts to
+ * prove a cancelled confirmation sent nothing.
+ */
+export async function spyRevokeInvite(
+    page: Page
+): Promise<{ readonly count: number }> {
+    let count = 0;
+    await page.route('**/api/users/*/invites', async (route) => {
+        if (route.request().method() !== 'DELETE') {
+            await route.fallback();
+            return;
+        }
+        count += 1;
+        await route.fulfill({ status: 204, body: '' });
+    });
+    return {
+        get count() {
+            return count;
+        }
+    };
+}
+
+/**
+ * Stub `POST /api/users/:id/disable` and `/enable`, echoing the member back
+ * with the new status and counting each call.
+ */
+export async function spySetMemberStatus(
+    page: Page,
+    member: MemberSeed
+): Promise<{ readonly disabled: number; readonly enabled: number }> {
+    let disabled = 0;
+    let enabled = 0;
+    await page.route('**/api/users/*/disable', async (route) => {
+        disabled += 1;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...member, status: 'disabled' })
+        });
+    });
+    await page.route('**/api/users/*/enable', async (route) => {
+        enabled += 1;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...member, status: 'active' })
+        });
+    });
+    return {
+        get disabled() {
+            return disabled;
+        },
+        get enabled() {
+            return enabled;
+        }
+    };
+}

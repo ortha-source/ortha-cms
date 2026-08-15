@@ -29,7 +29,14 @@ singletons live in one place instead of inside `bootstrap-admin`.
   is the endpoint's own answer (`/auth/login`, `/auth/logout`, `/auth/me`,
   `/auth/invite`) — a rejected sign-in must not read as a lost session.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
-  it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`.
+  it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`. It sets
+  one app-wide default: **a `4xx` is not retried.** A client error is the
+  server's considered answer — a 404 for a deleted record, a 400 for an
+  out-of-range page — so repeating the request cannot change it, and the default
+  3× backoff ladder just parks the user on a loading skeleton for ~12s before the
+  page can show the state it already knew about. Network failures and `5xx` are
+  transient and still retried. A hook that wants different behaviour overrides
+  `retry` itself (`usePreferences` disables it outright).
 - `ApiError` / `toApiError(error)` — a normalized transport error carrying
   `status: number | null` (`null` for a network failure) and `details` (the
   parsed response body when the server responded, else `undefined`). `toApiError`

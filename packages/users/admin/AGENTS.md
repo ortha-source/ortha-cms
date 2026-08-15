@@ -14,9 +14,15 @@ pilot. `src/lib` is organized into four layers, not the legacy per-hook `api/` +
   `types/session`, `types/workspaceOption`), the `Email` value object
   (`value-objects/email`, the single client-side email rule for instant invite
   validation), and the `MemberEntity` client entity (`member/`) exposing the
-  **UX invariants** the admin mirrors from server facts — `canChangeRole()` and
-  `canBeRemoved(viewerId)` return `{ ok, reason }` so a control disables itself
-  with a reason (sole admin / self) instead of failing on submit.
+  **UX invariants** the admin mirrors from server facts —
+  `canChangeRole(viewerId)` and `canBeRemoved(viewerId)` return `{ ok, reason }`
+  so a control disables itself with a reason instead of failing on submit. Both
+  take the **viewer's id**: the server refuses self-actions (you cannot disable
+  your own account, or change your own role), and a guard that doesn't know who
+  is asking can only mirror half the rules — which is how the Role tab used to
+  invite a click that could never succeed and then report a generic "please try
+  again". `canChangeRole` additionally vetoes a member whose `role` is `null`
+  (see below).
 - **`application/`** — the TanStack Query hooks (reads + mutations). Each calls
   the gateway, never `apiClient`. The invite wizard's submit orchestration is
   `useInviteMemberFlow` (validate `Email` → invite → toast → navigate), so the
@@ -26,6 +32,18 @@ pilot. `src/lib` is organized into four layers, not the legacy per-hook `api/` +
   implementation (the one place `apiClient` is used), `memberMapper` (the
   wire→view anti-corruption layer, formerly `utils/toMember`, keeping the
   presentation-only `initials`/`color` enrichment), and `membersKeys`.
+  - **The mapper does not invent a role.** A key outside the three assignable
+    system roles maps to `role: null`, not to a guessed `viewer` — the server's
+    `Role.create` accepts any non-empty key, so a custom role is a shape this
+    admin must expect. Everything downstream renders `roleName` (the server's own
+    label) when `role` is `null` and refuses to offer a change, so the UI never
+    asserts a privilege level someone does not hold.
+  - **`membersKeys.sessions(id)` is rooted at `member-sessions`, not under the
+    member's detail key.** TanStack matches by prefix, so nesting it would make
+    every member mutation invalidate every cached session list — which no member
+    mutation can affect, and which runs at `staleTime: 0` so it refetches
+    immediately. The separate root is what keeps the broad `membersKeys.all`
+    invalidation honest. `membersKeys/index.spec.ts` pins the scoping.
 - **`presentation/`** — pages, components, the `usersPlugin` factory, the
   `userDetailContext` Outlet provider, and `membersFilterFields`; consumes view
   models + hooks + the `MemberEntity` only, never wire types or `apiClient`.
@@ -86,6 +104,31 @@ the route redirects to General. **Preferences is self-only** — it carries the
 current user's own app settings, so it is gated on `useAuth().user.id ===
 member.id` (hidden and route-redirected on anyone else's profile).
 
+## Destructive actions are confirmed, named, and give focus back
+
+Two member actions are irreversible from the UI: **Revoke invite** deletes the
+pending account outright (cascading its token and workspace assignments), and
+**Disable** locks a person out and kills their live sessions. Both now go
+through the design-system `ConfirmDialog`, naming the member — matching what the
+Access tab (Suspend), the Workspaces tab (Remove) and the Role tab already did.
+They previously fired straight off `onSelect`, which meant one extra `↓` past
+"Resend invite" destroyed an account before the key was released, with the first
+feedback arriving in a success toast afterwards (WCAG 3.3.4).
+
+**Focus has to be placed by hand after a row-removing mutation.** Radix restores
+focus to whatever opened the overlay, but that trigger is the row's kebab and the
+row has just unmounted — so focus falls to `<body>` and a keyboard user restarts
+at the top of the document (WCAG 2.4.3). The row menu therefore targets a stable
+anchor explicitly: the member's own kebab when the row survives (disable, resend),
+and `MEMBERS_TABLE_ANCHOR_ID` — the table wrapper, `tabIndex={-1}` — when it does
+not. The Sessions tab does the same with its card heading. A `requestAnimationFrame`
+defers the move so it lands after Radix's own restoration rather than racing it.
+
+**Per-item accessible names carry the target.** Every session's visible label is
+just "Revoke", so the `aria-label` names the device and last-seen time, and the
+confirm dialog's *title* does too — a dialog's accessible name is its title, and
+"Revoke this session?" on all four cards tells a screen-reader user nothing.
+
 ## The invite link hand-off
 
 Nothing emails an invite yet (identity epic #11), so the **admin is the delivery
@@ -102,6 +145,17 @@ a plain warning that whoever opens it becomes that person):
 is already looking at the app on the origin the invitee should use, so there is
 no `publicBaseUrl` to misconfigure and no host header to poison. A server-side
 base URL becomes necessary only when the mailer lands.
+
+**Losing the link is guarded, because losing it is not recoverable.** Esc, an
+overlay click and the close button all reach `onOpenChange(false)` by reflex, and
+a resend has *already* rotated the token — so a dismissal before copying leaves
+the invitee with a dead link and the admin with no live one, fixable only by
+resending, which rotates again. `InviteLinkDialog` therefore tracks whether Copy
+was pressed (`InviteLinkPanel`'s `onCopied`) and intercepts the first uncopied
+dismissal with a warning; once copied it closes freely. The wizard's `InviteSent`
+step registers with the app-wide `useUnsavedChanges` guard for the same reason —
+that covers links, programmatic navigation and reload (`beforeunload`), which no
+component here could intercept on its own.
 
 ## Conventions
 
@@ -130,6 +184,17 @@ base URL becomes necessary only when the mailer lands.
 - Co-located `defineMessages` (ids `users.<area>.<key>`); `type` over
   `interface`; design-system primitives only; a11y per the `accessibility` skill.
 
+## Tests
+
+Component *behaviour* lives in `apps/admin-e2e`, which drives a real browser —
+`src/users/` covers the roster, the wizard, the detail tabs, the destructive-action
+confirmations and the Role tab's guardrails. The package's own `vitest` specs
+(`npx nx test @ortha-cms/users-admin`) hold only what a browser can't reach: the
+mapper's coercion rules, the `MemberEntity` guardrail matrix, and the query-key
+scoping — each needs inputs the API won't produce on demand (a custom role key, a
+member who is both you and the last admin).
+
 ## Commands
 
 - `npx nx typecheck @ortha-cms/users-admin` / `npx nx lint @ortha-cms/users-admin`
+- `npx nx test @ortha-cms/users-admin` — the unit specs above

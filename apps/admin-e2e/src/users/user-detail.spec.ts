@@ -98,13 +98,53 @@ test.describe('User detail page', () => {
         await userDetailPage.openTab('Sessions');
 
         await expect(page.getByText('Chrome on macOS')).toBeVisible();
+        // The accessible name carries the device, so each card's Revoke is
+        // distinguishable — see the a11y assertion below.
         await page
-            .getByRole('button', { name: 'Revoke this session' })
-            .first()
+            .getByRole('button', {
+                name: /Revoke the session on Chrome on macOS/
+            })
             .click();
         await userDetailPage.confirmButton('Revoke').click();
 
         await expect.poll(() => sessions.revoked.length).toBe(1);
+    });
+
+    test('names the device in each session control and in its confirm dialog', async ({
+        userDetailPage,
+        page
+    }) => {
+        await mockUserSessions(page);
+        await userDetailPage.goto('u_grace');
+        await userDetailPage.openTab('Sessions');
+
+        // Two cards, two distinct accessible names: an unnamed "Revoke this
+        // session" on both would leave a screen-reader user unable to tell
+        // which device they are about to sign out (WCAG 2.4.6 / 4.1.2).
+        await expect(
+            page.getByRole('button', {
+                name: /Revoke the session on Chrome on macOS/
+            })
+        ).toBeVisible();
+        await expect(
+            page.getByRole('button', {
+                name: /Revoke the session on Firefox on Linux/
+            })
+        ).toBeVisible();
+
+        await page
+            .getByRole('button', {
+                name: /Revoke the session on Firefox on Linux/
+            })
+            .click();
+
+        // The dialog's accessible name is its title, so the device has to be
+        // in the title — not only in the card behind the overlay.
+        await expect(
+            page.getByRole('heading', {
+                name: 'Revoke the session on Firefox on Linux?'
+            })
+        ).toBeVisible();
     });
 
     test('renders the activity timeline with per-action entries', async ({
@@ -151,9 +191,7 @@ test.describe('User detail page', () => {
         await userDetailPage.goto('u_grace');
         await userDetailPage.openTab('Activity');
 
-        await expect(
-            page.getByText('Removed from a workspace')
-        ).toBeVisible();
+        await expect(page.getByText('Removed from a workspace')).toBeVisible();
     });
 
     test('hides audit and access tabs without users:update', async ({

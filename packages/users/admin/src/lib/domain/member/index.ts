@@ -3,10 +3,12 @@ import type { Member } from '../types/member';
 /**
  * Why a guarded member action is currently vetoed, as a machine key the
  * presentation maps to a localized reason:
- * - `self` — you can't disable/suspend your own account.
+ * - `self` — you can't disable/suspend your own account, or change your own role.
  * - `lastAdmin` — the sole active admin can't be demoted or disabled.
+ * - `customRole` — the member holds a role outside the three assignable system
+ *   roles, so the picker cannot represent (or safely replace) it.
  */
-export type MemberBlockReason = 'self' | 'lastAdmin';
+export type MemberBlockReason = 'self' | 'lastAdmin' | 'customRole';
 
 /**
  * The result of a UX-invariant check: `ok` when the action is allowed, else the
@@ -40,13 +42,25 @@ export class MemberEntity {
     }
 
     /**
-     * Whether this member's global role may be changed. The sole active admin
-     * (`isLastAdmin`) is locked — demoting them would leave the system with no
-     * administrator, which the server rejects.
+     * Whether this member's global role may be changed by the viewer. Three
+     * ways it can't: it's **your own** account (the server 409s "You cannot
+     * change your own role"), they are the sole active admin (`isLastAdmin` —
+     * demoting them would leave the system with no administrator), or they hold
+     * a **custom** role the three-way picker can't represent (`role: null`).
+     *
+     * `viewerId` is required for the self check, mirroring
+     * {@link MemberEntity.canBeRemoved}. Without it the control cannot explain
+     * itself and the user is left to discover the rule from a failed request.
      */
-    canChangeRole(): MemberInvariant {
+    canChangeRole(viewerId: string | undefined): MemberInvariant {
+        if (viewerId !== undefined && viewerId === this.member.id) {
+            return { ok: false, reason: 'self' };
+        }
         if (this.member.isLastAdmin) {
             return { ok: false, reason: 'lastAdmin' };
+        }
+        if (this.member.role === null) {
+            return { ok: false, reason: 'customRole' };
         }
         return ALLOWED;
     }

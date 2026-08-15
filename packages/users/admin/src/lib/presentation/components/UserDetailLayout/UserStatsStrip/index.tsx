@@ -17,7 +17,8 @@ const messages = defineMessages({
     },
     workspaceCount: {
         id: 'users.detail.stats.workspaceCount',
-        defaultMessage: '{count, plural, one {# workspace} other {# workspaces}}'
+        defaultMessage:
+            '{count, plural, one {# workspace} other {# workspaces}}'
     },
     role: {
         id: 'users.detail.stats.role',
@@ -78,7 +79,7 @@ export function UserStatsStrip({ member }: { member: Member }) {
                 icon={ShieldCheck}
                 label={intl.formatMessage(messages.role)}
             >
-                <MemberRoleChip role={member.role} />
+                <MemberRoleChip role={member.role} roleName={member.roleName} />
             </StatTile>
         </div>
     );

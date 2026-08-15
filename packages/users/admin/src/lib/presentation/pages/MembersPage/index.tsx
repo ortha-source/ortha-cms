@@ -194,9 +194,16 @@ export function MembersPage() {
             <Container>
                 <ContainerHeader
                     title={intl.formatMessage(messages.title)}
-                    subtitle={intl.formatMessage(messages.subtitle, {
-                        count: total
-                    })}
+                    // No count until one is known: the read failed or hasn't
+                    // landed, and "0 people" is a claim about the directory
+                    // rather than a description of what happened.
+                    subtitle={
+                        isPending || isError
+                            ? undefined
+                            : intl.formatMessage(messages.subtitle, {
+                                  count: total
+                              })
+                    }
                     actions={
                         canInvite ? (
                             <Button onClick={openInvite}>

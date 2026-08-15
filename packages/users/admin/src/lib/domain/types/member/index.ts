@@ -36,8 +36,13 @@ export type Member = {
     initials: string;
     /** Accent color tinting the member's avatar (derived, not persisted). */
     color: AvatarColor;
-    /** The member's single global role, by key. */
-    role: MemberRole;
+    /**
+     * The member's single global role, by key — or `null` when they hold a
+     * custom role outside the three assignable system roles. Never guess a key
+     * for `null`: render {@link Member.roleName} instead and lock any control
+     * that would reassign it.
+     */
+    role: MemberRole | null;
     /** Human-readable role label (e.g. `Administrator`). */
     roleName: string;
     /** Account lifecycle state. */

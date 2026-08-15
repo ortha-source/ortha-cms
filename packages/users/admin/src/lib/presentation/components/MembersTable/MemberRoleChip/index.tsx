@@ -31,8 +31,20 @@ const ROLE_MESSAGE: Record<
  * The Role column's read-only chip: the member's role as a labelled badge.
  * Changing a role happens through the row's edit action (and the server gates
  * it on `users:update`), so the column itself carries no inline editor.
+ *
+ * A member holding a **custom** role has `role: null`; the chip then shows the
+ * server's own `roleName` rather than a guessed system role, so the column never
+ * misstates someone's privileges.
  */
-export function MemberRoleChip({ role }: { role: MemberRole }) {
+export function MemberRoleChip({
+    role,
+    roleName
+}: {
+    /** The member's system role, or `null` for a custom one. */
+    role: MemberRole | null;
+    /** The server's label, shown verbatim when `role` is `null`. */
+    roleName: string;
+}) {
     const intl = useIntl();
 
     return (
@@ -40,7 +52,7 @@ export function MemberRoleChip({ role }: { role: MemberRole }) {
             variant={role === 'admin' ? 'primary-soft' : 'secondary'}
             className="rounded-xl"
         >
-            {intl.formatMessage(ROLE_MESSAGE[role])}
+            {role === null ? roleName : intl.formatMessage(ROLE_MESSAGE[role])}
         </Badge>
     );
 }
