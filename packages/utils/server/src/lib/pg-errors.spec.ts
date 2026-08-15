@@ -1,4 +1,8 @@
-import { isUniqueViolation, violatedConstraint } from './pg-errors';
+import {
+    isForeignKeyViolation,
+    isUniqueViolation,
+    violatedConstraint
+} from './pg-errors';
 
 /** A driver error as `pg` shapes it. */
 const pgError = (code: string, constraint?: string) =>
@@ -70,5 +74,35 @@ describe('isUniqueViolation', () => {
         expect(isUniqueViolation(pgError('23503'))).toBe(false);
         expect(isUniqueViolation(new Error('boom'))).toBe(false);
         expect(isUniqueViolation(undefined)).toBe(false);
+    });
+});
+
+describe('isForeignKeyViolation', () => {
+    it('recognises a foreign-key violation', () => {
+        // The `ON DELETE RESTRICT` case: something still references the row.
+        // It is a refusal the caller can act on, not a server fault.
+        expect(
+            isForeignKeyViolation(
+                pgError('23503', 'content_article_author_id_fkey')
+            )
+        ).toBe(true);
+    });
+
+    it('finds it through a wrapping `cause` chain', () => {
+        const wrapped = Object.assign(new Error('Failed query'), {
+            cause: pgError('23503', 'content_article_author_id_fkey')
+        });
+        expect(isForeignKeyViolation(wrapped)).toBe(true);
+    });
+
+    it('is false for a unique violation and for a non-Postgres error', () => {
+        // The two must not collapse into one another: a duplicate key and a
+        // still-referenced row need different answers.
+        expect(isForeignKeyViolation(pgError('23505', 'some_unique'))).toBe(
+            false
+        );
+        expect(isForeignKeyViolation(new Error('boom'))).toBe(false);
+        expect(isForeignKeyViolation(null)).toBe(false);
+        expect(isForeignKeyViolation(undefined)).toBe(false);
     });
 });

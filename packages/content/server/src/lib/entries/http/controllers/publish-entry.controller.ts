@@ -14,6 +14,7 @@ import {
     RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { PublishEntryUseCase } from '../../application/use-cases/publish-entry.use-case';
@@ -36,7 +37,7 @@ function toActor(
  * missing live row. `OriginGuard` defends the writes; `WorkspaceGuard` scopes
  * them to a workspace the caller belongs to; `content:publish` gates them.
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
 @Controller('content')
 export class PublishEntryController {

@@ -14,6 +14,7 @@ import {
     RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../../../entries/http/guards/content-grant.guard';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../../../entries/entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -37,7 +38,7 @@ import { REVISIONS_PAGE_SIZE } from '../../revisions.constants';
  * belongs to and gated on `content:read`; a 404 on an unknown type or an
  * absent version.
  */
-@UseGuards(PermissionsGuard, WorkspaceGuard)
+@UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class RevisionsController {
@@ -56,8 +57,9 @@ export class RevisionsController {
         @Query('page') page?: string,
         @Query('pageSize') pageSize?: string
     ): Promise<RevisionListView> {
-        resolveType(this.registry, typeName);
+        const type = resolveType(this.registry, typeName);
         return this.revisions.list(
+            type.name,
             id,
             workspaceId,
             clampInt(page, 1, 1, Number.MAX_SAFE_INTEGER),
@@ -73,7 +75,7 @@ export class RevisionsController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<RevisionDetail> {
         const type = resolveType(this.registry, typeName);
-        const detail = await this.revisions.get(id, workspaceId, number);
+        const detail = await this.revisions.get(type.name, id, workspaceId, number);
         if (!detail) {
             throw new NotFoundException(
                 `No revision #${number} for entry "${id}".`

@@ -32,10 +32,12 @@ const UUID_ARRAY_SCHEMA = {
  * transaction** without ever transmitting a huge relation whole.
  *
  * Reserved envelope columns (`status`/`published_at`/`deleted_at`) are owned by
- * the service and can't be set from here: `toColumns` projects only keys
- * declared on the type, so a reserved (or otherwise unknown) key in the bag is
- * silently dropped before storage; on a non-publishable type
- * `EntryValidationService` additionally flags unknown keys as a 422. The bag's
+ * the service and can't be set from here: `coerceValues`/`toColumns` project
+ * only keys declared on the type, so a reserved (or otherwise unknown) key in
+ * the bag is **silently dropped** — including before validation, which runs on
+ * the coerced bag, so an unknown key is never a 422 on either kind of type.
+ * (That is what keeps an old revision snapshot restorable after its field was
+ * removed from the type.) The bag's
  * *contents* are validated against the type's field specs by that same service
  * (a dynamic, per-type contract class-validator can't express); the relation
  * deltas' ids are validated as existing workspace entries by

@@ -24,6 +24,7 @@ import {
     testArticleTags,
     testArticles,
     testAuthors,
+    testContentTypes,
     testLandingPage,
     testPages,
     testTags
@@ -248,6 +249,43 @@ export async function seedContentGrants(
     await getDatabase()
         .insert(workspaceContent)
         .values(slugs.map((slug) => ({ workspaceId, kind, slug })));
+}
+
+/**
+ * Grant a workspace **every** harness-registered content type, each with its
+ * real kind.
+ *
+ * The default for any spec whose subject isn't the grant rule itself: since
+ * `ContentGrantGuard` landed, a workspace reaches only the types it was granted
+ * — `/api/content/:typeName` and `/api/content-schema/:name` answer `404` for
+ * the rest — so a spec that seeds a bare workspace and then posts an entry is
+ * testing an empty grant set, not the endpoint it named. Grant-scoping specs
+ * call {@link seedContentGrants} with an explicit list instead.
+ */
+export async function seedAllContentGrants(workspaceId: string): Promise<void> {
+    await getDatabase()
+        .insert(workspaceContent)
+        .values(
+            testContentTypes.map((type) => ({
+                workspaceId,
+                kind: type.kind,
+                slug: type.name
+            }))
+        );
+}
+
+/**
+ * Revoke every content grant a workspace holds.
+ *
+ * The API refuses a revoke while entries of that type still exist, so a spec
+ * that wants the *post*-revoke state (a workspace that has content but no
+ * longer has the grant) has to write it directly — which is also the state a
+ * revoke performed between two deployments leaves behind.
+ */
+export async function revokeContentGrants(workspaceId: string): Promise<void> {
+    await getDatabase()
+        .delete(workspaceContent)
+        .where(eq(workspaceContent.workspaceId, workspaceId));
 }
 
 /** Add a user to a workspace (the `memberships` join). */
@@ -775,6 +813,46 @@ export async function seedPages(
         ids.push(inserted.id);
     }
     return ids;
+}
+
+/** The envelope columns of one `test_article` row — the write assertions' oracle. */
+export interface ArticleEnvelope {
+    id: string;
+    status: string;
+    deletedAt: Date | null;
+    workspaceId: string | null;
+}
+
+/**
+ * Read the envelope of `test_article` rows straight from the table.
+ *
+ * The point is asserting what a request did **not** do: a bulk action given an
+ * id from another workspace must leave that row exactly as it was, and the
+ * response body alone cannot show it. Raw parameterized SQL, like
+ * {@link softDeleteAuthors} — the generated table's columns aren't statically
+ * typed.
+ */
+export async function getArticleRows(
+    ids: string[]
+): Promise<ArticleEnvelope[]> {
+    if (ids.length === 0) return [];
+    const { rows } = await getPool().query(
+        'SELECT id, status, deleted_at, workspace_id FROM content_test_article WHERE id = ANY($1::uuid[])',
+        [ids]
+    );
+    return (
+        rows as {
+            id: string;
+            status: string;
+            deleted_at: Date | null;
+            workspace_id: string | null;
+        }[]
+    ).map((row) => ({
+        id: row.id,
+        status: row.status,
+        deletedAt: row.deleted_at,
+        workspaceId: row.workspace_id
+    }));
 }
 
 /**

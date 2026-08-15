@@ -7,6 +7,9 @@
 /** Postgres error code for a unique constraint/index violation. */
 const UNIQUE_VIOLATION = '23505';
 
+/** Postgres error code for a foreign-key constraint violation. */
+const FOREIGN_KEY_VIOLATION = '23503';
+
 /**
  * Whether an error (or its `cause`, where a driver/ORM wraps it) is a
  * Postgres unique violation (`23505`). Drivers surface the SQLSTATE on a
@@ -50,4 +53,34 @@ export function violatedConstraint(error: unknown): string | undefined {
                 : undefined;
     }
     return undefined;
+}
+
+/**
+ * Whether an error (or its `cause`, where a driver/ORM wraps it) is a Postgres
+ * **foreign-key** violation (`23503`).
+ *
+ * The counterpart of {@link isUniqueViolation} for the other constraint a write
+ * can lose to. A row that something else still references under
+ * `ON DELETE RESTRICT` is a legitimate refusal the caller can act on ("detach
+ * the referring records first") — leaking it as a 500 tells them the server
+ * broke instead. Deliberately a boolean and not a constraint name: unlike the
+ * several unique indexes on one localized content table, the answer here does
+ * not vary by which FK tripped.
+ */
+export function isForeignKeyViolation(error: unknown): boolean {
+    let current: unknown = error;
+    for (let depth = 0; current && depth < 5; depth += 1) {
+        if (
+            typeof current === 'object' &&
+            'code' in current &&
+            (current as { code?: unknown }).code === FOREIGN_KEY_VIOLATION
+        ) {
+            return true;
+        }
+        current =
+            typeof current === 'object' && 'cause' in current
+                ? (current as { cause?: unknown }).cause
+                : undefined;
+    }
+    return false;
 }

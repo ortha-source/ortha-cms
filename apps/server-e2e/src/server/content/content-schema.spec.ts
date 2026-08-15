@@ -7,7 +7,10 @@ import {
 import {
     resetDb,
     seedActiveUser,
-    seedUserWithEmptyRole
+    seedAllContentGrants,
+    seedMembership,
+    seedUserWithEmptyRole,
+    seedWorkspace
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'content-admin@example.com';
@@ -35,6 +38,8 @@ interface SerializedField {
  */
 describe('Content schema (GET /api/content-schema)', () => {
     let harness: TestApp;
+    /** Granted every harness type — the detail route is workspace-scoped. */
+    let workspaceId: string;
 
     beforeAll(async () => {
         harness = await createTestApp();
@@ -46,19 +51,30 @@ describe('Content schema (GET /api/content-schema)', () => {
 
     beforeEach(async () => {
         await resetDb();
-        await seedActiveUser(harness.app, {
+        const admin = await seedActiveUser(harness.app, {
             email: ADMIN_EMAIL,
             password: PASSWORD,
             role: 'admin'
         });
+        const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
+        workspaceId = ws.id;
+        await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
     });
 
+    /**
+     * `GET /api/content-schema` (the catalogue) is global and carries no
+     * workspace header; `/:name` and `/:name/filter-fields` are
+     * workspace-scoped, so the agent sends one by default. Grant-scoping
+     * itself is covered by `content-grants.spec.ts`.
+     */
     async function login(email: string) {
         const agent = request.agent(harness.server);
         await agent
             .post('/api/auth/login')
             .send({ email, password: PASSWORD })
             .expect(201);
+        agent.set('X-Workspace-Id', workspaceId);
         return agent;
     }
 

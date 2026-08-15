@@ -7,6 +7,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedArticles,
     seedLanding,
     seedMembership,
@@ -60,6 +61,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
         const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
         await seedArticles(
             [
                 { text: 'Alpha', select: 'article', status: 'published' },
@@ -212,6 +214,7 @@ describe('Content entries (GET /api/content/:typeName)', () => {
             // by the request's workspace, never bleed rows across workspaces.
             const wsB = await seedWorkspace({ name: 'WS Two', slug: 'ws-two' });
             await seedMembership(admin.id, wsB.id);
+            await seedAllContentGrants(wsB.id);
             await seedArticles(
                 [{ text: 'Delta', select: 'article', status: 'published' }],
                 wsB.id

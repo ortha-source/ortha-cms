@@ -5,8 +5,11 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    getArticleRows,
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
+    seedArticles,
     seedMembership,
     seedWorkspace,
     type SeededUser
@@ -51,6 +54,7 @@ describe('Content entry writes (/api/content/:type)', () => {
         const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
     });
 
     /**
@@ -208,6 +212,7 @@ describe('Content entry writes (/api/content/:type)', () => {
                 name: 'WS Two',
                 slug: 'ws-two'
             });
+            await seedAllContentGrants(other.id);
             const foreignAuthor = await seedAuthorIn(other.id, 'Foreign Grace');
 
             const agent = await login(ADMIN_EMAIL);
@@ -356,6 +361,7 @@ describe('Content entry writes (/api/content/:type)', () => {
                 name: 'WS Two',
                 slug: 'ws-two'
             });
+            await seedAllContentGrants(other.id);
             const foreignTag = await seedTagIn(other.id, 'foreign');
 
             const agent = await login(ADMIN_EMAIL);
@@ -538,6 +544,7 @@ describe('Content entry writes (/api/content/:type)', () => {
                 name: 'WS Two',
                 slug: 'ws-two'
             });
+            await seedAllContentGrants(other.id);
             const foreignTag = await seedTagIn(other.id, 'foreign');
             const agent = await login(ADMIN_EMAIL);
             const id = await createArticle(agent);
@@ -794,6 +801,145 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .send({ ids })
                 .expect(200);
             expect(res.body.count).toBe(2);
+        });
+
+        it('skips an id from another workspace, and does not report it as done', async () => {
+            // A bulk verdict list is an oracle if it distinguishes "exists but
+            // you may not touch it" from "no such id": the foreign id has to
+            // come back with exactly the verdict an invented uuid gets, and
+            // must never appear as published.
+            const other = await seedWorkspace({
+                name: 'WS Two',
+                slug: 'ws-two-bulk'
+            });
+            await seedMembership(admin.id, other.id);
+            await seedAllContentGrants(other.id);
+            const [foreignId] = await seedArticles(
+                [{ text: 'Foreign', select: 'article' }],
+                other.id
+            );
+            const invented = '11111111-1111-4111-8111-111111111111';
+
+            const agent = await login(ADMIN_EMAIL);
+            const mine = await createArticle(agent);
+
+            const res = await agent
+                .post('/api/content/test_article/bulk/publish')
+                .send({ ids: [mine, foreignId, invented] })
+                .expect(200);
+
+            expect(res.body.published).toEqual([mine]);
+            const byId = Object.fromEntries(
+                res.body.skipped.map(
+                    (row: { id: string; reason: string }) => [row.id, row.reason]
+                )
+            );
+            expect(byId[foreignId]).toBe(byId[invented]);
+            expect(res.body.published).not.toContain(foreignId);
+
+            // …and the foreign row is untouched in the database.
+            const [row] = await getArticleRows([foreignId]);
+            expect(row.status).toBe('draft');
+        });
+
+        it('skips a foreign id on bulk delete too, leaving its row alive', async () => {
+            const other = await seedWorkspace({
+                name: 'WS Three',
+                slug: 'ws-three-bulk'
+            });
+            await seedMembership(admin.id, other.id);
+            await seedAllContentGrants(other.id);
+            const [foreignId] = await seedArticles(
+                [{ text: 'Foreign', select: 'article' }],
+                other.id
+            );
+
+            const agent = await login(ADMIN_EMAIL);
+            const mine = await createArticle(agent);
+            const res = await agent
+                .post('/api/content/test_article/bulk/delete')
+                .send({ ids: [mine, foreignId] })
+                .expect(200);
+            expect(res.body.count).toBe(1);
+
+            const [row] = await getArticleRows([foreignId]);
+            expect(row.deletedAt).toBeNull();
+        });
+    });
+
+    describe('a delete refused by the database', () => {
+        /**
+         * `test_comment.seoNote` declares `onDelete: 'restrict'`, so deleting a
+         * referenced `test_seo` row is refused by Postgres. `test_seo` is the
+         * only non-paranoid collection here, which is the point: a soft delete
+         * just stamps `deleted_at` and never reaches the constraint, so only a
+         * hard `DELETE` can produce this failure at all.
+         */
+        async function seoWithComment(
+            agent: request.Agent
+        ): Promise<{ seoId: string; commentId: string }> {
+            const seo = await agent
+                .post('/api/content/test_seo')
+                .send({ values: { metaTitle: 'Referenced' } })
+                .expect(201);
+            const article = await createArticle(agent);
+            const comment = await agent
+                .post('/api/content/test_comment')
+                .send({
+                    values: {
+                        author: 'Grace',
+                        body: 'Nice piece',
+                        article,
+                        seoNote: seo.body.id
+                    }
+                })
+                .expect(201);
+            return {
+                seoId: seo.body.id as string,
+                commentId: comment.body.id as string
+            };
+        }
+
+        it('409s when an ON DELETE RESTRICT reference still points at the row', async () => {
+            // The refusal is actionable — detach the comment first — and used
+            // to reach the caller as a raw 500.
+            const agent = await login(ADMIN_EMAIL);
+            const { seoId } = await seoWithComment(agent);
+
+            await agent.delete(`/api/content/test_seo/${seoId}`).expect(409);
+
+            // …and the row is still there: a refused delete deletes nothing.
+            await agent.get(`/api/content/test_seo/${seoId}`).expect(200);
+        });
+
+        it('409s the bulk variant too', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const { seoId } = await seoWithComment(agent);
+
+            await agent
+                .post('/api/content/test_seo/bulk/delete')
+                .send({ ids: [seoId] })
+                .expect(409);
+            await agent.get(`/api/content/test_seo/${seoId}`).expect(200);
+        });
+
+        it('deletes normally once the reference is detached', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const { seoId, commentId } = await seoWithComment(agent);
+            const article = await createArticle(agent);
+            await agent
+                .patch(`/api/content/test_comment/${commentId}`)
+                .send({
+                    values: {
+                        author: 'Grace',
+                        body: 'Nice piece',
+                        article,
+                        seoNote: null
+                    }
+                })
+                .expect(200);
+
+            await agent.delete(`/api/content/test_seo/${seoId}`).expect(204);
         });
     });
 

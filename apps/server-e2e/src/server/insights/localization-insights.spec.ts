@@ -7,6 +7,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace,
     type SeededUser
@@ -56,9 +57,12 @@ describe('Localization insights (/api/insights/i18n)', () => {
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
 
+        await seedAllContentGrants(workspaceId);
+
         const other = await seedWorkspace({ name: 'Other', slug: 'l10n-oth' });
         otherWorkspaceId = other.id;
         await seedMembership(admin.id, otherWorkspaceId);
+        await seedAllContentGrants(otherWorkspaceId);
     });
 
     async function login(scopeTo = workspaceId) {

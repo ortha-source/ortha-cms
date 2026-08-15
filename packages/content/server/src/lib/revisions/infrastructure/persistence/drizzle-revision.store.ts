@@ -140,15 +140,13 @@ export class DrizzleRevisionStore implements RevisionStore {
     }
 
     async list(
+        contentType: string,
         entryId: string,
         workspaceId: string,
         page: number,
         pageSize: number
     ): Promise<RevisionListView> {
-        const where = and(
-            eq(revisions.entryId, entryId),
-            eq(revisions.workspaceId, workspaceId)
-        );
+        const where = this.scope(contentType, entryId, workspaceId);
         const offset = (page - 1) * pageSize;
         const [rows, [{ total }], latestNumber] = await Promise.all([
             this.db
@@ -159,7 +157,7 @@ export class DrizzleRevisionStore implements RevisionStore {
                 .limit(pageSize)
                 .offset(offset),
             this.db.select({ total: count() }).from(revisions).where(where),
-            this.latestNumber(entryId, workspaceId)
+            this.latestNumber(contentType, entryId, workspaceId)
         ]);
         return {
             items: (rows as RevisionRow[]).map((row) =>
@@ -170,6 +168,7 @@ export class DrizzleRevisionStore implements RevisionStore {
     }
 
     async get(
+        contentType: string,
         entryId: string,
         workspaceId: string,
         number: number
@@ -180,14 +179,13 @@ export class DrizzleRevisionStore implements RevisionStore {
                 .from(revisions)
                 .where(
                     and(
-                        eq(revisions.entryId, entryId),
-                        eq(revisions.workspaceId, workspaceId),
+                        this.scope(contentType, entryId, workspaceId),
                         eq(revisions.revisionNumber, number)
                     )
                 )
                 .limit(1)
                 .then((r) => r[0] as RevisionRow | undefined),
-            this.latestNumber(entryId, workspaceId)
+            this.latestNumber(contentType, entryId, workspaceId)
         ]);
         if (!row) return undefined;
         return {
@@ -198,19 +196,30 @@ export class DrizzleRevisionStore implements RevisionStore {
 
     /** The highest version number for an entry, or 0 if it has no revisions. */
     private async latestNumber(
+        contentType: string,
         entryId: string,
         workspaceId: string
     ): Promise<number> {
         const [row] = await this.db
             .select({ max: max(revisions.revisionNumber) })
             .from(revisions)
-            .where(
-                and(
-                    eq(revisions.entryId, entryId),
-                    eq(revisions.workspaceId, workspaceId)
-                )
-            );
+            .where(this.scope(contentType, entryId, workspaceId));
         return row?.max == null ? 0 : Number(row.max);
+    }
+
+    /**
+     * The read scope every timeline query shares: one entry, in one workspace,
+     * **of one content type**. All types share `content_entry_revisions`, and
+     * the routes address an entry as `:typeName/:id` — so leaving the type out
+     * means the `:typeName` in the URL is never checked against the revision it
+     * returns, and any registered type name serves any entry's history.
+     */
+    private scope(contentType: string, entryId: string, workspaceId: string) {
+        return and(
+            eq(revisions.contentType, contentType),
+            eq(revisions.entryId, entryId),
+            eq(revisions.workspaceId, workspaceId)
+        );
     }
 
     /** Map a row to the metadata view, deriving the `isLatest`/`isPublished` flags. */

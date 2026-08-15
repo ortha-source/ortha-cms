@@ -10,6 +10,7 @@ import { ListContentSchemaController } from './content-types/controllers/list-co
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
+import { ContentGrantGuard } from './entries/http/guards/content-grant.guard';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
 import { CreateEntryController } from './entries/http/controllers/create-entry.controller';
@@ -154,6 +155,9 @@ export class ContentModule {
                 },
                 EntryValidationService,
                 WorkspaceGrantsQuery,
+                // Every registry-driven `content/:typeName` route is guarded by
+                // it, so it is resolved from this module's context.
+                ContentGrantGuard,
                 EntriesService,
                 ContentInsightsQuery,
                 // Resolves media field ids → display refs (thumbnails); injected
