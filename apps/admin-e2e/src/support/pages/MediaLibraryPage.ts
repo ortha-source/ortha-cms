@@ -37,6 +37,82 @@ export class MediaLibraryPage extends BasePage {
         return this.page.getByText(/permission to view the media library/);
     }
 
+    /** A toast by its text (sonner posts into the shell's live region). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
+    /**
+     * The focusable region wrapping the folder/asset grid. A destructive action
+     * hands focus here, since the ⋯ trigger it was restored to no longer exists.
+     */
+    assetsRegion(): Locator {
+        return this.page.getByRole('region', { name: 'Assets' });
+    }
+
+    // --- asset actions ---
+
+    /**
+     * The per-asset "⋯" menu trigger, named after its file — a grid of tiles
+     * would otherwise offer N buttons all called "Asset actions".
+     */
+    assetActions(name: string): Locator {
+        return this.page.getByRole('button', { name: `Actions for ${name}` });
+    }
+
+    /** Open an asset's menu and choose an item. */
+    async assetAction(name: string, item: string) {
+        await this.assetActions(name).click();
+        await this.page.getByRole('menuitem', { name: item }).click();
+    }
+
+    /** Rename an asset through its ⋯ menu. */
+    async renameAsset(name: string, to: string) {
+        await this.assetAction(name, 'Rename');
+        // `getByLabel('Name')` also matches the dialog itself, whose accessible
+        // name is "Rename". Anchor on the textbox role.
+        await this.page.getByRole('textbox', { name: 'Name' }).fill(to);
+        await this.page.getByRole('button', { name: 'Save' }).click();
+    }
+
+    /** Delete an asset through its ⋯ menu, confirming the dialog. */
+    async deleteAsset(name: string) {
+        await this.assetAction(name, 'Delete');
+        await this.confirmDelete();
+    }
+
+    // --- detail drawer ---
+
+    /** Open an asset's detail drawer from its tile. */
+    async openDetail(name: string) {
+        await this.assetTile(name).click();
+    }
+
+    /** The drawer's alt-text input (present for an image with `media:update`). */
+    altInput(): Locator {
+        return this.page.getByRole('textbox', { name: 'Alt text' });
+    }
+
+    /** Save the drawer's alt text. */
+    async saveAlt(text: string) {
+        await this.altInput().fill(text);
+        await this.page.getByRole('button', { name: 'Save alt text' }).click();
+    }
+
+    // --- upload banner ---
+
+    /** The upload progress banner. */
+    uploadBanner(): Locator {
+        return this.page.getByRole('region', { name: 'Uploads' });
+    }
+
+    /** The alt input on a staged file in the upload dialog. */
+    stagedAltInput(fileName: string): Locator {
+        return this.page.getByRole('textbox', {
+            name: `Alt text for ${fileName}`
+        });
+    }
+
     // --- upload ---
 
     /** The hidden file input inside the upload dialog. */
@@ -49,9 +125,13 @@ export class MediaLibraryPage extends BasePage {
         await this.page.getByRole('button', { name: 'Upload' }).first().click();
     }
 
-    /** Stage a file and confirm the upload. */
-    async uploadFile(file: { name: string; mimeType: string; buffer: Buffer }) {
+    /** Stage a file and confirm the upload, optionally describing it first. */
+    async uploadFile(
+        file: { name: string; mimeType: string; buffer: Buffer },
+        alt?: string
+    ) {
         await this.fileInput().setInputFiles(file);
+        if (alt !== undefined) await this.stagedAltInput(file.name).fill(alt);
         await this.page
             .getByRole('button', { name: /^Upload \d+ file/ })
             .click();
