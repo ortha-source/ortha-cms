@@ -13,7 +13,6 @@ import {
     isNull,
     ne,
     notExists,
-    notInArray,
     or,
     sql,
     type AnyColumn,
@@ -45,6 +44,7 @@ import {
 import { CONTENT_FIELD_TYPE, ENTRY_STATUS } from '@ortha-cms/content-server';
 import { LOCALE_FALLBACK_DEFAULT } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
+import { lockLocaleGroup } from '../locale-group-lock';
 
 /** A generated content table seen as a bag of columns by property name. */
 type ContentTable = Record<string, AnyColumn>;
@@ -56,14 +56,21 @@ const MISSING_LOCALE = 'missingLocale';
 /** Virtual filter field: how many locale rows the group holds. */
 const LOCALE_COUNT = 'localeCount';
 
-/** Operators each virtual field admits (anything else is a 400). */
+/**
+ * Operators each virtual field admits (anything else is a 400).
+ *
+ * **`hasLocale` takes `eq` / `in` only, deliberately.** `ne` and `nin` were
+ * permitted and read as the negation of "has this locale" — they are not. They
+ * quantify *inside* the EXISTS, so `hasLocale ne "de"` renders
+ * `EXISTS(sibling WHERE locale <> 'de')`: "the group holds some locale other
+ * than German", which a fully-translated record satisfies. Asked for "records
+ * without a German translation" it returned the German ones. `missingLocale` is
+ * the field that expresses absence, so the negations are refused here rather
+ * than silently answering a different question — a 400 naming the field is a
+ * failure the caller can see and correct, a wrong row set is not.
+ */
 const LOCALE_FIELD_OPS: Record<string, ReadonlySet<string>> = {
-    [HAS_LOCALE]: new Set<string>([
-        FilterOperator.Eq,
-        FilterOperator.Ne,
-        FilterOperator.In,
-        FilterOperator.Nin
-    ]),
+    [HAS_LOCALE]: new Set<string>([FilterOperator.Eq, FilterOperator.In]),
     [MISSING_LOCALE]: new Set<string>([FilterOperator.Eq, FilterOperator.In]),
     [LOCALE_COUNT]: new Set<string>([
         FilterOperator.Eq,
@@ -210,6 +217,28 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         }
     }
 
+    /**
+     * @inheritdoc
+     *
+     * Takes the translation group's advisory lock, ahead of every row lock the
+     * write will acquire. See {@link lockLocaleGroup} for why ordering the
+     * sibling `FOR UPDATE` cannot replace this: the edited row is already
+     * locked by the pipeline's own `UPDATE` before any i18n code runs, so two
+     * saves in one group invert their lock order no matter how the sync sorts
+     * its siblings.
+     *
+     * No group id means a create starting a fresh group — nothing to contend
+     * on, so nothing to lock.
+     */
+    async beforeWrite(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        params: EntryScopeParams
+    ): Promise<void> {
+        if (!type.i18n || !params.localeGroupId) return;
+        await lockLocaleGroup(tx, params.localeGroupId);
+    }
+
     /** @inheritdoc */
     async afterUpdate(
         tx: EntryTransaction,
@@ -295,6 +324,14 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         // siblings are included, so a later restore comes back consistent with
         // the group. The lock also serializes two concurrent saves in different
         // locales of the same record, which would otherwise interleave.
+        //
+        // Ordered by id so the rows are locked in one canonical sequence. That
+        // is a determinism guard, **not** the deadlock fix: the entry the
+        // caller edited was already locked by the pipeline's own `UPDATE`
+        // before this hook ran, so ordering the siblings alone still leaves two
+        // savers each holding the row the other wants. `beforeWrite`'s group
+        // advisory lock is what makes the inversion unreachable — see
+        // {@link lockLocaleGroup}.
         const siblings = (await tx
             .select()
             .from(type.table)
@@ -305,6 +342,7 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
                     eq(table['workspaceId'], workspaceId)
                 )
             )
+            .orderBy(sql`${table['id']}`)
             .for('update')) as Record<string, unknown>[];
         if (!siblings.length) return [];
 
@@ -650,7 +688,23 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
     /**
      * Translate one virtual locale rule into SQL. All three fields quantify
      * over the row's translation group via a self-EXISTS/count subquery,
-     * workspace-scoped and (on paranoid types) live-rows-only.
+     * workspace-scoped, (on paranoid types) live-rows-only, and **restricted to
+     * the configured locale set** — the same restriction the coverage query
+     * applies (`configuredScope`).
+     *
+     * That last one is what keeps the records table and the Translation
+     * coverage card telling the same story. A row in a slug the host has since
+     * dropped is not coverage of anything: coverage filters it out, so leaving
+     * it in here made `localeCount` count higher than the number of configured
+     * locales, and a record the card reported as fully localized answered
+     * neither `localeCount eq 3` (the configured total) nor any `hasLocale`
+     * question consistent with it. Two views of one record, disagreeing.
+     *
+     * `missingLocale in [a, b]` is a `notExists` over the union, so it means
+     * "missing **all** of these", not "missing any" — the union has no matching
+     * sibling only when every named locale is absent. It is the useful reading
+     * for the records table ("show me what has none of my target languages");
+     * "missing any" is expressed as an `or` of `missingLocale eq` rules.
      */
     private async resolveLocaleRule(
         rule: ParsedRule,
@@ -670,6 +724,13 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         const groupScope = and(
             eq(s['localeGroupId'], table['localeGroupId']),
             eq(s['workspaceId'], workspaceId),
+            // Only rows in a **configured** locale count as a translation —
+            // mirrors the coverage query's `configuredScope`, so the two
+            // cannot disagree about the same record.
+            inArray(
+                s['locale'],
+                this.locales.all().map((locale) => locale.slug)
+            ),
             ...(type.paranoid ? [isNull(s['deletedAt'])] : [])
         );
 
@@ -696,15 +757,13 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         }
 
         // hasLocale / missingLocale: EXISTS (or its negation) of a sibling row
-        // in the named locale(s).
+        // in the named locale(s). Only `eq` and `in` reach here — the negating
+        // operators are refused above, because negating *inside* the EXISTS is
+        // not the negation of the EXISTS (see LOCALE_FIELD_OPS).
         const localePredicate =
-            rule.op === FilterOperator.In || rule.op === FilterOperator.Nin
-                ? rule.op === FilterOperator.Nin
-                    ? notInArray(s['locale'], rule.value as string[])
-                    : inArray(s['locale'], rule.value as string[])
-                : rule.op === FilterOperator.Ne
-                  ? ne(s['locale'], rule.value as string)
-                  : eq(s['locale'], rule.value as string);
+            rule.op === FilterOperator.In
+                ? inArray(s['locale'], rule.value as string[])
+                : eq(s['locale'], rule.value as string);
         const siblingInLocale = this.db
             .select({ one: sql`1` })
             .from(sibling)

@@ -6,6 +6,7 @@ import {
 } from '../../support/test-app';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
+    ageInviteTokens,
     countUserSessions,
     expireInviteTokens,
     getInviteConsumedAt,
@@ -337,6 +338,12 @@ describe('accept an invite', () => {
 
         it('stops working once the invite is resent (the link rotated)', async () => {
             const { id, token } = await invite();
+
+            // `POST /:id/invites/resend` refuses to rotate a link minted
+            // moments ago (`INVITE_RECENTLY_SENT`, a 60s cooldown), so age the
+            // token past it — this case is about the rotation, not the
+            // cooldown, which `users/invite-resend.spec.ts` owns.
+            await ageInviteTokens(id);
 
             const agent = await loginAsAdmin();
             const resent = await agent

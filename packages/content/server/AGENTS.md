@@ -205,9 +205,25 @@ and `EntryWriterService` inject it with `@Optional()` and call it
 Methods: `listScope` (extra list `WHERE`), `filterExtension` (virtual filter
 fields resolved via the engine's `extensionFields` + `resolveExtension` seam),
 `createColumns` (extra envelope columns on INSERT — may be **async**, e.g. to
-validate a group id against the DB), `afterUpdate` (in-tx side-effects after a
+validate a group id against the DB), `beforeWrite` (**optional**; the first
+statement in the write transaction), `afterUpdate` (in-tx side-effects after a
 save — runs on **both create and update**, e.g. syncing shared fields and
 relation links to locale siblings; must no-op when nothing applies).
+
+**`beforeWrite` exists so an extension can order its locks, and nothing else
+can.** By the time `afterUpdate` runs, the transaction already holds a row lock
+on the entry being saved — taken by this service's own `UPDATE`, outside any
+ordering the extension controls. An extension that then locks a wider set (i18n
+locks the translation group's siblings `FOR UPDATE`) therefore cannot make the
+acquisition deterministic from `afterUpdate`: two concurrent saves on two
+members of one set each hold the row the other is about to request, whatever
+order the extension's own select uses, and Postgres aborts one with
+`deadlock detected`. `beforeWrite` runs **ahead of the row lock**, so a lock
+taken there imposes a total order on the set (i18n takes a transaction-scoped
+advisory lock on the `locale_group_id`) and the second saver waits instead. The
+hook is handed the write's **stored** extension scope — on an update the row's
+own `localeGroupId`, not the request's — since that is the set the write
+actually contends on.
 
 `afterUpdate` receives an **`EntryWriteContext`** (`{ created }`) because the two
 writes are not symmetric. On an **update** the edited row is the authority and its

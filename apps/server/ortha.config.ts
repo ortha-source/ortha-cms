@@ -197,7 +197,15 @@ const config: OrthaConfig = {
                 { slug: 'en', name: 'English', isDefault: true },
                 { slug: 'de', name: 'Deutsch' },
                 { slug: 'fr', name: 'Français' }
-            ]
+            ],
+            // What to do at boot when entry rows exist in a locale no longer
+            // listed above. Removing a locale does not remove its rows, and
+            // from that moment they are invisible to every read path — intact
+            // and unreachable, which is the worst shape for a silent failure.
+            // Failing the boot puts the choice (migrate the rows, or restore
+            // the locale) in front of whoever edited this array. `warn` for a
+            // deployment knowingly mid-migration.
+            orphanedLocales: 'fail'
         },
         media: {
             // The provider the resolver falls back to when no custom handler is

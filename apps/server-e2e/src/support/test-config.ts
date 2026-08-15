@@ -4,6 +4,7 @@ import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig
 } from '@ortha-cms/identity-server';
+import type { LocaleDef, OrphanedLocalePolicy } from '@ortha-cms/i18n-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
 /**
@@ -63,6 +64,22 @@ export interface TestConfigOverrides {
      * unmounts it. Enabled by default so the suites can drive it.
      */
     mcpEnabled?: boolean;
+    /**
+     * Replace the configured content locales. Defaults to the host's
+     * en/de/fr. A suite pins a **single** locale to prove the coverage rule
+     * that `notLocalized` is then forced to `0` — with nowhere to translate
+     * to, every record would otherwise be reported as both fully localized and
+     * not localized at all, and no combination of seeded data can produce that
+     * situation while three locales are configured.
+     */
+    locales?: LocaleDef[];
+    /**
+     * How the plugin reacts at boot to rows in an unconfigured locale.
+     * `'warn'` here by default rather than the shipped `'fail'`: a suite that
+     * seeds such a row on purpose is testing that the rest of the system
+     * excludes it, and the app it seeds into has already booted.
+     */
+    orphanedLocales?: OrphanedLocalePolicy;
 }
 
 export function buildTestConfig(
@@ -102,11 +119,12 @@ export function buildTestConfig(
             // `test_landing`) are i18n, so the i18n plugin must be configured to
             // boot — mirrors the host's en (default) / de / fr locales.
             i18n: {
-                locales: [
+                locales: overrides.locales ?? [
                     { slug: 'en', name: 'English', isDefault: true },
                     { slug: 'de', name: 'Deutsch' },
                     { slug: 'fr', name: 'Français' }
-                ]
+                ],
+                orphanedLocales: overrides.orphanedLocales ?? 'warn'
             },
             // The copilot boots ENABLED in tests. Production defaults it off
             // (ADR-0005 §10) because enabling a hosted provider ships content

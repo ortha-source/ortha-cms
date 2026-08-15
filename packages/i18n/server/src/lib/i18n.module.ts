@@ -4,6 +4,7 @@ import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
 import { I18N_CONFIG } from './i18n.constants';
 import type { I18nPluginConfig } from './types/locale';
 import { LocaleRegistryService } from './locales/services/locale-registry.service';
+import { OrphanedLocaleChecker } from './locales/services/orphaned-locale.checker';
 import { ListLocalesController } from './locales/controllers/list-locales.controller';
 import { EntryLocaleExtensionService } from './content/services/entry-locale-extension.service';
 import { LocaleGroupService } from './content/services/locale-group.service';
@@ -46,6 +47,10 @@ export class I18nModule {
             providers: [
                 { provide: I18N_CONFIG, useValue: config },
                 LocaleRegistryService,
+                // Boot-time diff of the configured locale set against what the
+                // data actually holds — the one locale change (a removal) that
+                // otherwise fails silently.
+                OrphanedLocaleChecker,
                 LocaleGroupService,
                 LocalizationCoverageQuery,
                 EntryLocaleExtensionService,

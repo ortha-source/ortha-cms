@@ -138,6 +138,36 @@ export interface ContentEntryExtension {
     ): Record<string, unknown> | Promise<Record<string, unknown>>;
 
     /**
+     * Runs as the **first statement inside the create and update
+     * transactions**, before the row itself is touched — the seam for taking a
+     * deterministic, transaction-scoped lock over the wider set the extension
+     * will write in {@link afterUpdate}.
+     *
+     * It exists because ordering the extension's own locks is not enough. By
+     * the time {@link afterUpdate} runs, this transaction already holds a row
+     * lock on the entry being saved (the pipeline's `UPDATE … RETURNING`), and
+     * that lock was taken outside any ordering the extension controls. Two
+     * concurrent saves on two members of the same extension-defined set (two
+     * locales of one translation group) therefore each hold a row the other is
+     * about to request — a textbook lock-order inversion that Postgres resolves
+     * by aborting one with `deadlock detected` (SQLSTATE 40P01), surfacing as a
+     * 500. A lock taken *here* precedes every row lock, so it imposes a total
+     * order on the set and the inversion becomes unreachable.
+     *
+     * Optional: an extension that writes only the row it was handed needs
+     * nothing. `params` carries the extension-owned scope of the write
+     * ({@link EntryScopeParams}) — on an update the pipeline fills in the
+     * **stored** row's values, not the request's, since that is the set the
+     * write actually contends on.
+     */
+    beforeWrite?(
+        tx: EntryTransaction,
+        type: AnyContentType,
+        params: EntryScopeParams,
+        workspaceId: string
+    ): Promise<void>;
+
+    /**
      * Runs inside the **create and update** transactions, after the row's
      * columns and relation deltas are written — e.g. to propagate shared values
      * to sibling rows (so a newly-created sibling lands consistent with its

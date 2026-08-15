@@ -128,22 +128,93 @@ The extension owns all locale _behavior_:
     nulled rather than left pointing at the _previous_ record's translation, which
     would be silently wrong data.
 
+- **`beforeWrite`** — the **first** statement in the create and update
+  transactions: a transaction-scoped advisory lock on the row's
+  `locale_group_id` (`lockLocaleGroup`, class `LG`). This is the deadlock fix,
+  and the reason it is a *new port hook* rather than an `ORDER BY` is worth
+  reading before touching either. By the time `afterUpdate` runs, the
+  transaction already holds a row lock on the entry being saved — taken by
+  content's own `UPDATE`, before any i18n code — so two concurrent saves on two
+  locales of one record each hold the row the other is about to `FOR UPDATE`,
+  **whatever order the sibling select uses**. Ordering the siblings makes the
+  set deterministic; it does not remove the inversion, because the first lock is
+  not in the set. Measured before the fix: 19 of 60 interleaved cross-locale
+  saves returned 500 (`deadlock detected`, SQLSTATE 40P01); after, 0. A lock
+  taken here precedes every row lock, so the second saver waits — which is the
+  correct outcome for two edits to one record.
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the
   `(locale_group_id, locale)` unique index). Wired through the filter engine's
   `extensionFields` + `resolveExtension` seam.
 
+    The group subquery restricts to the **configured** locale set, exactly as
+    the coverage query's `configuredScope` does. Without that the two views of
+    one record disagreed: a row in a slug the host had dropped pushed
+    `localeCount` past the configured total, so a record the coverage card
+    reported as fully localized answered neither `localeCount eq 3` nor any
+    `hasLocale` question consistent with it.
+
+    **`hasLocale` admits `eq` and `in` only.** `ne` / `nin` were permitted and
+    read as the negation of "has this locale" — they are not, because they
+    negate *inside* the EXISTS: `hasLocale ne "de"` renders
+    `EXISTS(sibling WHERE locale <> 'de')`, "the group holds some locale other
+    than German", which a fully-translated record satisfies. Asked for records
+    without a German translation it returned the German ones. `missingLocale` is
+    the field that expresses absence, so the negations are a 400 naming the
+    field rather than a silently different answer. `missingLocale in [a, b]` is
+    a `notExists` over the union and therefore means "missing **all** of these";
+    "missing any" is an `or` of `missingLocale eq` rules.
+
 ## Config — the single source of truth for locales
 
-`I18nServerPlugin({ locales: [{ slug, name, isDefault }] })` validates
+`I18nServerPlugin({ locales: [{ slug, name, isDefault, dir? }] })` validates
 **eagerly at construction** (like `ContentPlugin`'s registry): ≥1 locale;
 unique, well-formed slugs (`^[a-z]{2,3}(-[a-z0-9]+)*$`); **exactly one**
-default. A misconfigured host fails before boot. `LocaleRegistryService`
-exposes `all()` / `get(slug)` / `default()` / `resolve(slug?)` (the uniform
-unknown-→400 gate). Register it in `apps/server/ortha.config.ts` under
-`plugins.i18n` and in `buildPlugins` **after** `ContentPlugin` (it binds
-content's port and reads its `CONTENT_REGISTRY`).
+default; a `dir` that is `ltr` or `rtl` if given. A misconfigured host fails
+before boot. `LocaleRegistryService` exposes `all()` / `get(slug)` /
+`default()` / `resolve(slug?)` (the uniform unknown-→400 gate). Register it in
+`apps/server/ortha.config.ts` under `plugins.i18n` and in `buildPlugins`
+**after** `ContentPlugin` (it binds content's port and reads its
+`CONTENT_REGISTRY`).
+
+### A locale carries its language and its direction
+
+A slug **is** a BCP-47 language tag — that is a contract, not a coincidence, and
+it is why nothing here uppercases a region subtag. Every `locale` the plugin
+returns (on `GET /api/i18n/locales`, on `EntryLocaleItem`, on an entry
+payload's `locale` column) may be used verbatim as an HTML `lang`, so the admin
+sets `lang={entry.locale}` on the field region, the preview and the published
+page without a mapping table — and a screen reader stops announcing German with
+English pronunciation (WCAG 3.1.2).
+
+`dir` is the other half. It is **optional in config and always present on the
+wire**: omitted, it is inferred from the slug (`ar`, `he`, `fa`, `ur`, … →
+`rtl`, with an explicit script subtag winning, so `az-arab` is RTL and
+`ku-latn` is LTR), so configuring an RTL language is one line rather than a
+silent accessibility failure. Declare it to override the inference. Without it
+an RTL locale was *configurable* and nothing anywhere recorded that it was RTL,
+so no consumer could set `dir` on anything (WCAG 1.3.2, 1.4.10).
+
+### Removing a locale is the change that fails silently
+
+Adding a locale is safe and self-announcing — groups gain a missing slot,
+coverage reports `translated: 0`, the panel shows `entry: null`. **Removing one
+is neither.** Nothing deletes or migrates the rows, and from that moment every
+read path hides them: `?locale=de` becomes a 400, the panel iterates the
+configured set, coverage and the virtual filters restrict to it, the batched
+summary drops them. The content is intact, reachable only by `psql`, and the
+product never mentions it again — including to whoever made the change.
+`LocaleSet.remove` guards the *default* against this class of mistake but the
+plugin never calls it: the config is a literal array, so there is no removal
+operation to guard, only a diff nobody computes.
+
+`OrphanedLocaleChecker` computes it at boot — per localized type, the distinct
+unconfigured slugs present with row counts (one `GROUP BY locale` per type).
+`plugins.i18n.orphanedLocales` decides what happens next: `'fail'` (the
+default) aborts the boot, putting the choice in front of whoever changed the
+config while it is still their change; `'warn'` logs the same report and
+continues, for a deployment knowingly mid-migration.
 
 ## HTTP surface (`/api/i18n`)
 
@@ -163,8 +234,21 @@ and permission-gated; a `:typeName` that isn't localized is a **400**
   the section below.
 - `POST /api/i18n/content/:typeName/locale-summary` — the records table's
   **batched** per-page read: `{ groupIds }` (cap 100) → per-group live members
-  with status **+ publishedAt**. A POST because a page of uuids outgrows a query string; it reads,
-  so no `OriginGuard` (`content:read`).
+  in a **configured** locale, with status **+ publishedAt** (`content:read`). A
+  POST because a page of uuids outgrows a query string, answering **200** rather
+  than a 201 that would claim it created something.
+
+    It **does** carry `OriginGuard`, unlike the reads that are shaped like
+    reads. The guard keys off the verb a browser sees, not off what the handler
+    happens to do with it: `POST` is the shape every cross-site form and `fetch`
+    uses, the route is reachable with nothing but the session cookie, and "it
+    only reads" is a property of today's handler that no test pinned and a later
+    edit could quietly retract. It is free for every legitimate caller (the
+    admin sends its `Origin`, non-browser clients send none), so exempting it
+    bought nothing and left the contract disagreeing with the code. The
+    response's keys are exactly the request's — every requested id is seeded to
+    `[]` and the rows are workspace-scoped, so a foreign group id and one that
+    names nothing come back identical.
 
 ## Insights read-model (`/api/insights/i18n/coverage`, `src/lib/insights/`)
 

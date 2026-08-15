@@ -370,6 +370,20 @@ export class EntryWriterService {
             () =>
                 this.db.transaction(async (tx) => {
                     await lockWorkspaceShared(tx, workspaceId);
+                    // Same seam as the update path: the extension locks the
+                    // set it will rewrite in `afterUpdate` before any row of
+                    // that set is touched, so a create joining a group orders
+                    // itself against concurrent saves on the group's members.
+                    await this.extension?.beforeWrite?.(
+                        tx,
+                        type,
+                        {
+                            localeGroupId: extensionColumns['localeGroupId'] as
+                                | string
+                                | undefined
+                        },
+                        workspaceId
+                    );
                     const [inserted] = await tx
                         .insert(type.table)
                         .values({
@@ -620,6 +634,17 @@ export class EntryWriterService {
         // many-relation submitted in `values`, and apply the staged relation
         // deltas — so a save is all-or-nothing.
         const row = await this.db.transaction(async (tx) => {
+            // Before the row is locked by the UPDATE below: the extension's
+            // chance to take a deterministic lock over the wider set it will
+            // rewrite in `afterUpdate` (the i18n plugin locks the translation
+            // group). Taken first, so two concurrent saves on two members of
+            // one group queue instead of deadlocking on each other's row locks.
+            await this.extension?.beforeWrite?.(
+                tx,
+                type,
+                { localeGroupId: rowGroup ?? undefined },
+                workspaceId
+            );
             const [updated] = await tx
                 .update(type.table)
                 .set({
