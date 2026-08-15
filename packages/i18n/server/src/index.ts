@@ -2,7 +2,15 @@
 
 export { I18nServerPlugin } from './lib/utils/i18n-plugin';
 export type { I18nServerPluginType } from './lib/utils/i18n-plugin';
-export type { I18nPluginConfig, LocaleDef } from './lib/types/locale';
+export type {
+    I18nPluginConfig,
+    LocaleDef,
+    LocaleDir,
+    OrphanedLocalePolicy
+} from './lib/types/locale';
+export { LOCALE_DIR, inferLocaleDir } from './lib/i18n.constants';
+export { OrphanedLocaleChecker } from './lib/locales/services/orphaned-locale.checker';
+export type { OrphanedLocaleReport } from './lib/locales/services/orphaned-locale.checker';
 
 export { I18nModule } from './lib/i18n.module';
 export { LocaleRegistryService } from './lib/locales/services/locale-registry.service';

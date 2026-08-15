@@ -11,7 +11,10 @@ function toDef(locale: Locale): LocaleDef {
     return {
         slug: locale.slug,
         name: locale.name,
-        isDefault: locale.isDefault
+        isDefault: locale.isDefault,
+        // Always resolved by the value object (declared or inferred), so every
+        // caller gets a direction rather than having to decide for itself.
+        dir: locale.dir
     };
 }
 

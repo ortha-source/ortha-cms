@@ -1,4 +1,10 @@
-import { LOCALE_SLUG_MAX_LENGTH, LOCALE_SLUG_RE } from '../../i18n.constants';
+import {
+    inferLocaleDir,
+    LOCALE_DIR,
+    LOCALE_SLUG_MAX_LENGTH,
+    LOCALE_SLUG_RE,
+    type LocaleDir
+} from '../../i18n.constants';
 import { InvalidLocaleError } from '../errors';
 
 /** The primitive shape a {@link Locale} is built from (the plugin's config). */
@@ -9,6 +15,13 @@ export interface LocaleInput {
     name: string;
     /** Whether this is the default locale. */
     isDefault?: boolean;
+    /**
+     * Text direction of content written in this locale. Optional in config —
+     * omitted, it is **inferred from the slug** (`ar`, `he`, `fa`, … → `rtl`),
+     * so a host adding an RTL language gets the right answer without saying so.
+     * Declare it to override the inference (a transliterated variant, say).
+     */
+    dir?: LocaleDir;
 }
 
 /**
@@ -22,16 +35,20 @@ export class Locale {
     private constructor(
         private readonly _slug: string,
         private readonly _name: string,
-        private readonly _isDefault: boolean
+        private readonly _isDefault: boolean,
+        private readonly _dir: LocaleDir
     ) {}
 
     /**
-     * Builds a {@link Locale}, rejecting a malformed slug or a blank name with
-     * {@link InvalidLocaleError} (the plugin factory surfaces it at
-     * construction, request paths as HTTP 400).
+     * Builds a {@link Locale}, rejecting a malformed slug, a blank name, or a
+     * `dir` that is neither `ltr` nor `rtl` with {@link InvalidLocaleError}
+     * (the plugin factory surfaces it at construction, request paths as HTTP
+     * 400). An omitted `dir` is inferred from the slug rather than assumed
+     * `ltr`, so configuring an RTL language is one line and not a silent
+     * accessibility failure.
      */
     static create(input: LocaleInput): Locale {
-        const { slug, name, isDefault } = input;
+        const { slug, name, isDefault, dir } = input;
         if (
             !LOCALE_SLUG_RE.test(slug) ||
             slug.length > LOCALE_SLUG_MAX_LENGTH
@@ -44,7 +61,18 @@ export class Locale {
         if (!name.trim()) {
             throw new InvalidLocaleError(`Locale "${slug}" has an empty name.`);
         }
-        return new Locale(slug, name, isDefault ?? false);
+        if (dir !== undefined && !LOCALE_DIR.includes(dir)) {
+            throw new InvalidLocaleError(
+                `Locale "${slug}" has an invalid dir "${dir}" — ` +
+                    `expected ${LOCALE_DIR.map((d) => `"${d}"`).join(' or ')}.`
+            );
+        }
+        return new Locale(
+            slug,
+            name,
+            isDefault ?? false,
+            dir ?? inferLocaleDir(slug)
+        );
     }
 
     /** The validated locale slug. */
@@ -60,6 +88,15 @@ export class Locale {
     /** Whether this is the default locale. */
     get isDefault(): boolean {
         return this._isDefault;
+    }
+
+    /**
+     * Text direction of content in this locale — always resolved (declared or
+     * inferred), never undefined, so a consumer can set `dir` unconditionally
+     * instead of guessing.
+     */
+    get dir(): LocaleDir {
+        return this._dir;
     }
 
     /** Structural equality on the slug. */

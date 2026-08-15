@@ -1143,7 +1143,9 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             const res = await agent
                 .post('/api/i18n/content/test_article/locale-summary')
                 .send({ groupIds: [en.localeGroupId] })
-                .expect(201);
+                // 200, not 201: a POST because a page of uuids outgrows a
+                // query string, but a read, so it claims nothing was created.
+                .expect(200);
             const members = res.body.groups[en.localeGroupId] as {
                 locale: string;
             }[];

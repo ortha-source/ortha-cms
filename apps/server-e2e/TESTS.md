@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_935 test cases across 57 spec files._
+_986 test cases across 60 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1435,6 +1435,72 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_
 | --- |
 | ignores ?locale= on a non-localized type |
 
+<!-- source: apps/server-e2e/src/server/i18n/i18n-locale-integrity.spec.ts -->
+_<sub>apps/server-e2e/src/server/i18n/i18n-locale-integrity.spec.ts</sub>_
+
+## i18n locale integrity (/api/content + /api/i18n + /api/insights)
+
+### concurrent saves across a translation group
+
+| Test case |
+| --- |
+| serializes two locales of one record instead of deadlocking |
+| still lets a save with nothing to propagate through untouched |
+
+### POST …/locale-summary is guarded like the POST it is
+
+| Test case |
+| --- |
+| rejects a disallowed Origin |
+| allows the app origin and a client that sends none, answering 200 |
+| echoes back only the keys the caller supplied |
+
+### rows in an unconfigured locale
+
+| Test case |
+| --- |
+| is reported by the boot-time checker, with type, slug and count |
+| finds nothing when every row is in a configured locale |
+| is excluded from the panel, the summary and the list |
+| is filtered out of the coverage aggregate (F26) |
+| drops a group made only of unconfigured rows |
+
+### virtual locale filters
+
+| Test case |
+| --- |
+| counts only configured locales, so localeCount agrees with coverage (EC-25) |
+| refuses hasLocale %s, which negates inside the EXISTS (EC-26) |
+| rejects an operator the field does not admit (F19) |
+| reads missingLocale in [...] as missing ALL of them (EC-27) |
+| still answers the operators it does admit |
+
+### authorization on the panel and the summary
+
+| Test case |
+| --- |
+| lets a viewer read both — they hold content:read (EC-37) |
+| rejects a non-member of the named workspace (EC-38) |
+| 404s an entry id from another workspace, with no enumeration signal (EC-39) |
+
+### language and direction on the wire
+
+| Test case |
+| --- |
+| returns a resolved dir for every configured locale |
+| carries locale + dir on the entry locale panel |
+| returns the locale on the entry payload the editor reads |
+
+<!-- source: apps/server-e2e/src/server/i18n/i18n-single-locale-coverage.spec.ts -->
+_<sub>apps/server-e2e/src/server/i18n/i18n-single-locale-coverage.spec.ts</sub>_
+
+## i18n coverage with one configured locale (/api/insights/i18n)
+
+| Test case |
+| --- |
+| forces notLocalized to 0 — there is nowhere to translate to (F27) |
+| lists only the one configured locale |
+
 <!-- source: apps/server-e2e/src/server/insights/content-insights.spec.ts -->
 _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 
@@ -1813,6 +1879,8 @@ _<sub>apps/server-e2e/src/server/users/invite-user.spec.ts</sub>_
 | rejects an unknown role with 400 |
 | rejects an unknown extra field with 400 |
 | forbids a contributor (lacks users:create) with 403 |
+| rejects a whitespace-only name with 400 |
+| trims surrounding whitespace from the name |
 
 <!-- source: apps/server-e2e/src/server/users/list-users-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/list-users-filter.spec.ts</sub>_
@@ -1877,6 +1945,78 @@ _<sub>apps/server-e2e/src/server/users/manage-invites.spec.ts</sub>_
 | returns 404 for an unknown id |
 | forbids a contributor (lacks users:delete) with 403 |
 
+### resend cooldown (INVITE_RECENTLY_SENT)
+
+| Test case |
+| --- |
+| refuses a resend issued moments ago, with a machine code |
+| allows the resend once the window has passed |
+| does not apply to the first invite |
+| keeps one live token when two resends race |
+
+### conflict bodies carry a stable machine code
+
+| Test case |
+| --- |
+| tags a resend to an active member as INVALID_MEMBER_STATE |
+| tags a duplicate invite as EMAIL_TAKEN |
+
+<!-- source: apps/server-e2e/src/server/users/origin-guard.spec.ts -->
+_<sub>apps/server-e2e/src/server/users/origin-guard.spec.ts</sub>_
+
+## OriginGuard — users-server state-changing routes
+
+### PATCH /api/users/:id
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured app origin |
+| allows a request with no Origin (non-browser client) |
+| does not escalate a role from a hostile Origin |
+
+### POST /api/users/invites
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured app origin |
+| allows a request with no Origin (non-browser client) |
+
+### POST /api/users/:id/disable
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403, leaving the account active |
+| allows the configured app origin |
+
+### POST /api/users/:id/enable
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+
+### POST /api/users/:id/invites/resend
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403 |
+| allows the configured app origin |
+
+### DELETE /api/users/:id/invites
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403, leaving the row in place |
+| allows the configured app origin |
+
+### reads are unaffected
+
+| Test case |
+| --- |
+| allows GET /api/users from any Origin |
+| allows GET /api/users/:id from any Origin |
+
 <!-- source: apps/server-e2e/src/server/users/set-user-status.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/set-user-status.spec.ts</sub>_
 
@@ -1911,6 +2051,20 @@ _<sub>apps/server-e2e/src/server/users/update-user.spec.ts</sub>_
 | returns 404 for an unknown id |
 | returns 400 for a non-uuid id |
 | forbids a viewer (lacks users:update) with 403 |
+
+### display name is trimmed, and may not be blank
+
+| Test case |
+| --- |
+| rejects a whitespace-only name with 400 |
+| trims surrounding whitespace from a real name |
+
+### conflict bodies carry a stable machine code
+
+| Test case |
+| --- |
+| tags a self role change as SELF_ACTION |
+| tags demoting the last admin as LAST_ADMIN_PROTECTED |
 
 <!-- source: apps/server-e2e/src/server/users/user-sessions.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/user-sessions.spec.ts</sub>_

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import type { AnyContentType, EntryStatus } from '@ortha-cms/content-server';
+import type { LocaleDir } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
 
 /** A generated content table seen as a bag of columns by property name. */
@@ -9,8 +10,16 @@ type ContentTable = Record<string, AnyColumn>;
 
 /** One locale's slot in a translation group — the row, or null if missing. */
 export interface EntryLocaleItem {
-    /** The configured locale slug. */
+    /**
+     * The configured locale slug — a BCP-47 language tag, usable verbatim as
+     * the HTML `lang` of this translation's editor surface and preview.
+     */
     locale: string;
+    /**
+     * This locale's text direction, so the editor can set `dir` alongside
+     * `lang` without a second call to `GET /api/i18n/locales`.
+     */
+    dir: LocaleDir;
     /** Whether it's the configured default locale. */
     isDefault: boolean;
     /** The group's row in this locale, or null when not yet translated. */
@@ -107,6 +116,9 @@ export class LocaleGroupService {
                 const sibling = byLocale.get(locale.slug);
                 return {
                     locale: locale.slug,
+                    // Always resolved by the registry; the fallback is for
+                    // type flow only.
+                    dir: locale.dir ?? 'ltr',
                     isDefault: locale.isDefault ?? false,
                     entry: sibling
                         ? {
@@ -131,8 +143,13 @@ export class LocaleGroupService {
 
     /**
      * Batched group summary for the records table's Locales column: for each
-     * requested group id, its live members with per-row status — one query
-     * for the whole page. Unknown/foreign group ids simply come back empty.
+     * requested group id, its live members **in a configured locale**, with
+     * per-row status — one query for the whole page.
+     *
+     * The response's keys are exactly the request's: every requested id is
+     * seeded to `[]` up front and the rows are workspace-scoped, so a group id
+     * from another workspace and one that names nothing at all come back
+     * identical. A caller learns nothing it did not already supply.
      */
     async summaries(
         type: AnyContentType,
@@ -155,12 +172,19 @@ export class LocaleGroupService {
                 )
             )) as Record<string, unknown>[];
 
-        // Config order within each group, so badge order is stable.
+        // Config order within each group, so badge order is stable. The map
+        // doubles as the **configured-set filter**: a row in a slug the host no
+        // longer declares is not a translation the UI can offer, and reporting
+        // it here made this endpoint the one place an orphaned locale stayed
+        // visible — the locale panel iterates the configured set, coverage
+        // filters it out, and `?locale=` 400s it, so the records table's badges
+        // contradicted every other view of the same record.
         const order = new Map(
             this.locales.all().map((locale, index) => [locale.slug, index])
         );
         for (const row of rows) {
             const groupId = row['localeGroupId'] as string;
+            if (!order.has(row['locale'] as string)) continue;
             groups[groupId]?.push({
                 locale: row['locale'] as string,
                 entryId: row['id'] as string,
@@ -173,10 +197,11 @@ export class LocaleGroupService {
             });
         }
         for (const members of Object.values(groups)) {
+            // Every surviving member is configured, so the lookup always hits.
             members.sort(
                 (a, b) =>
-                    (order.get(a.locale) ?? Infinity) -
-                    (order.get(b.locale) ?? Infinity)
+                    (order.get(a.locale) as number) -
+                    (order.get(b.locale) as number)
             );
         }
         return { groups };
