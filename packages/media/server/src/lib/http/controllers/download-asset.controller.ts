@@ -5,9 +5,11 @@ import {
     Param,
     ParseUUIDPipe,
     Query,
+    Res,
     StreamableFile,
     UseGuards
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
     CurrentUser,
     PERMISSIONS,
@@ -17,6 +19,7 @@ import {
 } from '@ortha-cms/identity-server';
 import { MembershipCheckQuery } from '@ortha-cms/workspaces-server';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
+import { downloadHeadersFor } from '../download-headers';
 
 /**
  * `GET /api/media/assets/:id/raw` — streams an asset's bytes from the provider
@@ -42,13 +45,19 @@ export class DownloadAssetController {
     ) {}
 
     /**
-     * Streams one asset's bytes inline. `?variant=thumb|preview` serves a
-     * generated derivative when present, else the original.
+     * Streams one asset's bytes. `?variant=thumb|preview` serves a generated
+     * derivative when present, else the original.
+     *
+     * The stored MIME type is the uploader's own claim — nothing sniffs the
+     * bytes — so the response is hardened by {@link downloadHeadersFor}: always
+     * `nosniff` + a no-capability CSP, and `inline` only for types a browser
+     * renders without executing them. See `http/download-headers.ts`.
      */
     @Get('assets/:id/raw')
     async raw(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: PublicUser,
+        @Res({ passthrough: true }) response: Response,
         @Query('variant') variant?: string
     ): Promise<StreamableFile> {
         const location = await this.query.locate(id, variant);
@@ -59,9 +68,14 @@ export class DownloadAssetController {
         }
 
         const stream = await this.query.open(location);
+        const { disposition, headers } = downloadHeadersFor(
+            location.mimeType,
+            location.name
+        );
+        response.set(headers);
         return new StreamableFile(stream, {
             type: location.mimeType,
-            disposition: `inline; filename="${encodeURIComponent(location.name)}"`,
+            disposition,
             length: location.size
         });
     }

@@ -65,6 +65,15 @@ export interface TestConfigOverrides {
      */
     mcpEnabled?: boolean;
     /**
+     * Lower the media upload cap, so a suite can prove the 413 without
+     * shipping a 50 MB fixture — and, more to the point, prove the cap is read
+     * from **this config** at all. It used to be a module-level
+     * `process.env['MEDIA_MAX_UPLOAD_BYTES']` read inside the upload
+     * controllers, which made `plugins.media.maxUploadBytes` inert: an override
+     * here changed nothing.
+     */
+    maxUploadBytes?: number;
+    /**
      * Replace the configured content locales. Defaults to the host's
      * en/de/fr. A suite pins a **single** locale to prove the coverage rule
      * that `notLocalized` is then forced to `0` — with nowhere to translate
@@ -153,7 +162,7 @@ export function buildTestConfig(
                     publicBasePath: '/api/media/assets'
                 },
                 s3: { bucket: '', region: '' },
-                maxUploadBytes: 52_428_800
+                maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults
             // so the limit suite asserts the real numbers rather than

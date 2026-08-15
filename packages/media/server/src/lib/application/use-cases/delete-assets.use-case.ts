@@ -10,7 +10,7 @@ import {
     STORAGE_REGISTRY,
     type StorageRegistry
 } from '../../domain/storage-provider';
-import { reclaimAssetBlobs } from '../reclaim-asset-blobs';
+import { reclaimManyAssetBlobs } from '../reclaim-asset-blobs';
 
 /**
  * Bulk-deletes assets. The rows and their `media.asset.deleted` events commit
@@ -50,9 +50,9 @@ export class DeleteAssetsUseCase {
             return found;
         });
 
-        await Promise.all(
-            removed.map((asset) => reclaimAssetBlobs(this.registry, asset))
-        );
+        // Bounded fan-out: 100 ids is 300+ blobs, which is a lot of concurrent
+        // provider calls to open in one tick for work nobody is waiting on.
+        await reclaimManyAssetBlobs(this.registry, removed);
         return removed.length;
     }
 }

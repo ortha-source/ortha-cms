@@ -2,12 +2,57 @@ import { Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, isNull, sql, type SQL } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset, mediaKind } from '../schema/media-asset';
+import { InvalidAssetFilterError } from '../../domain/errors/invalid-asset-filter.error';
 import type { AssetListView } from '../../types/asset-view';
 import { toAssetView } from './to-asset-view';
 import { resolveUploaderNames, UNKNOWN_UPLOADER } from './uploader-names';
 
 /** A valid `media_kind` enum value. */
 type MediaKindColumn = (typeof mediaKind.enumValues)[number];
+
+/** Matches a canonical (hyphenated, 8-4-4-4-12) uuid. */
+const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Escapes the `LIKE` metacharacters in a user's search term so `%` and `_` match
+ * themselves. Without this, `?search=_` matched every asset with a name of at
+ * least one character and `?search=%` matched the whole library — a filter that
+ * silently ignores what it was given. The pattern is `ESCAPE '\'` (Postgres's
+ * default), so the backslash itself has to be escaped first.
+ */
+function escapeLikePattern(term: string): string {
+    return term.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Rejects filter values the columns cannot hold, before they reach Postgres.
+ * `folder_id` is a `uuid` and `kind` is the `media_kind` enum, so a bad value
+ * used to surface as a driver error — a **500** for a plainly bad request.
+ */
+function assertValidFilters(folderId: unknown, kind: string | undefined): void {
+    if (
+        typeof folderId === 'string' &&
+        folderId.length > 0 &&
+        !UUID_PATTERN.test(folderId)
+    ) {
+        throw new InvalidAssetFilterError(
+            'folderId',
+            'folderId must be a UUID'
+        );
+    }
+    if (kind && kind !== 'all' && !isMediaKind(kind)) {
+        throw new InvalidAssetFilterError(
+            'kind',
+            `kind must be one of: ${['all', ...mediaKind.enumValues].join(', ')}`
+        );
+    }
+}
+
+/** Narrows a raw string to a `media_kind` enum value. */
+function isMediaKind(value: string): value is MediaKindColumn {
+    return (mediaKind.enumValues as readonly string[]).includes(value);
+}
 
 /** Parameters for a paginated asset listing. */
 export interface ListAssetsParams {
@@ -42,6 +87,7 @@ export class ListAssetsQuery {
 
     /** Runs the listing. */
     async execute(params: ListAssetsParams): Promise<AssetListView> {
+        assertValidFilters(params.folderId, params.kind);
         const conditions: SQL[] = [
             eq(mediaAsset.workspaceId, params.workspaceId)
         ];
@@ -54,14 +100,17 @@ export class ListAssetsQuery {
                     : isNull(mediaAsset.folderId)
             );
         }
-        if (params.kind && params.kind !== 'all') {
-            conditions.push(
-                eq(mediaAsset.kind, params.kind as MediaKindColumn)
-            );
+        if (params.kind && params.kind !== 'all' && isMediaKind(params.kind)) {
+            conditions.push(eq(mediaAsset.kind, params.kind));
         }
         const search = params.search?.trim();
         if (search) {
-            conditions.push(ilike(mediaAsset.name, `%${search}%`));
+            // Escaped, so `%` and `_` in the term are literals — every other
+            // search in the codebase treats them that way and a user typing an
+            // underscore means an underscore.
+            conditions.push(
+                ilike(mediaAsset.name, `%${escapeLikePattern(search)}%`)
+            );
         }
         const where = and(...conditions);
         const offset = (params.page - 1) * params.pageSize;

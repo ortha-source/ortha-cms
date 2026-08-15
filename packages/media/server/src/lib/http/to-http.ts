@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
     AssetNotFoundError,
     FolderNotFoundError,
+    InvalidAssetFilterError,
     InvalidFileNameError,
     InvalidFolderNameError,
     InvalidMediaIdError
@@ -22,7 +23,8 @@ export function toHttp(error: unknown): never {
     if (
         error instanceof InvalidMediaIdError ||
         error instanceof InvalidFileNameError ||
-        error instanceof InvalidFolderNameError
+        error instanceof InvalidFolderNameError ||
+        error instanceof InvalidAssetFilterError
     ) {
         throw new BadRequestException(error.message);
     }

@@ -7,6 +7,7 @@ import {
     ParseUUIDPipe,
     Post,
     Query,
+    Res,
     StreamableFile,
     UploadedFile,
     UseFilters,
@@ -15,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiHeader, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { Readable } from 'node:stream';
 import {
     PERMISSIONS,
@@ -33,14 +35,8 @@ import { AssetViewQuery } from '../../infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import type { AssetView } from '../../types/asset-view';
 import { MulterUploadFilter } from '../multer-upload.filter';
+import { downloadHeadersFor } from '../download-headers';
 import { toHttp } from '../to-http';
-
-/**
- * Hard ceiling on a single upload, in bytes — the same env the session upload
- * route reads, so the two cannot diverge on what they accept.
- */
-const MAX_UPLOAD_BYTES =
-    Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800;
 
 /** The subset of a multer file the controller reads. */
 interface UploadedMediaFile {
@@ -101,16 +97,20 @@ export class PublicMediaController {
     @ApiOperation({
         summary: 'Upload a media asset',
         description:
-            'Multipart upload — the bytes arrive as the `file` part, with an optional `folderId` text field (omit for the workspace root). Returns the stored asset, whose `id` is what a content type’s media field takes: `POST /v1/content/:type` with `{ "values": { "coverImage": "<id>" } }`. Raster images get their derivatives generated here, exactly as an admin upload does. Requires a `full`-scope token.'
+            'Multipart upload — the bytes arrive as the `file` part, with optional `?folderId=` (omit for the workspace root) and `?alt=` (a text alternative; supply it for images, since nothing else in an unattended import ever will). Returns the stored asset, whose `id` is what a content type’s media field takes: `POST /v1/content/:type` with `{ "values": { "coverImage": "<id>" } }`. Raster images get their derivatives generated here, exactly as an admin upload does. Requires a `full`-scope token.'
     })
-    @UseInterceptors(
-        FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } })
-    )
+    // No local options, so the cap comes from the `MulterModule` options
+    // `MediaModule.forRoot` registers — the same `maxUploadBytes` the session
+    // upload route enforces, from config rather than a module-level env read.
+    @UseInterceptors(FileInterceptor('file'))
     async create(
         @UploadedFile() file: UploadedMediaFile | undefined,
         @CurrentWorkspace() workspaceId: string,
         @CurrentApiToken() token: PublicApiToken,
-        @Query('folderId') folderId?: string
+        @Query('folderId') folderId?: string,
+        // Alt text at creation, so a token-driven import can describe what it
+        // uploads instead of leaving a library of images nothing ever names.
+        @Query('alt') alt?: string
     ): Promise<AssetView> {
         if (!file) {
             throw new BadRequestException('file is required');
@@ -134,7 +134,8 @@ export class PublicMediaController {
                     fileName: file.originalname,
                     contentType: file.mimetype,
                     size: file.size,
-                    body: Readable.from(file.buffer)
+                    body: Readable.from(file.buffer),
+                    alt: alt ?? null
                 },
                 { id: token.createdBy, email: null }
             );
@@ -163,6 +164,7 @@ export class PublicMediaController {
     async raw(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentWorkspace() workspaceId: string,
+        @Res({ passthrough: true }) response: Response,
         @Query('variant') variant?: string
     ): Promise<StreamableFile> {
         const location = await this.download.locate(id, variant);
@@ -174,9 +176,17 @@ export class PublicMediaController {
             throw new NotFoundException();
         }
         const stream = await this.download.open(location);
+        // Same hardening as the session route: the stored MIME type is the
+        // uploader's claim, so nosniff + a no-capability CSP always, and
+        // `inline` only for types a browser renders without executing them.
+        const { disposition, headers } = downloadHeadersFor(
+            location.mimeType,
+            location.name
+        );
+        response.set(headers);
         return new StreamableFile(stream, {
             type: location.mimeType,
-            disposition: `inline; filename="${encodeURIComponent(location.name)}"`,
+            disposition,
             length: location.size
         });
     }

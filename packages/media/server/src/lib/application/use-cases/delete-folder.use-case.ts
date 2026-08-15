@@ -16,7 +16,7 @@ import {
     STORAGE_REGISTRY,
     type StorageRegistry
 } from '../../domain/storage-provider';
-import { reclaimAssetBlobs } from '../reclaim-asset-blobs';
+import { reclaimManyAssetBlobs } from '../reclaim-asset-blobs';
 
 /** What a cascading folder delete removed. */
 export interface DeletedFolderTree {
@@ -102,10 +102,12 @@ export class DeleteFolderUseCase {
         return { folders: folderCount, assets: removedAssets.length };
     }
 
-    /** Best-effort blob reclamation for every asset the cascade removed. */
+    /**
+     * Best-effort blob reclamation for every asset the cascade removed, with a
+     * bounded number of provider calls in flight — a folder holding thousands
+     * of assets must not open one file descriptor per blob at once.
+     */
     private async reclaimAll(assets: Asset[]): Promise<void> {
-        await Promise.all(
-            assets.map((asset) => reclaimAssetBlobs(this.registry, asset))
-        );
+        await reclaimManyAssetBlobs(this.registry, assets);
     }
 }

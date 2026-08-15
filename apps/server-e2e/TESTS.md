@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_1016 test cases across 62 spec files._
+_1032 test cases across 65 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1894,6 +1894,56 @@ _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
 | lets a viewer read folders (200) |
 | rejects a disallowed Origin on create (403) |
 | allows the configured Origin on create |
+
+<!-- source: apps/server-e2e/src/server/media/media-hardening.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-hardening.spec.ts</sub>_
+
+## media hardening
+
+### download hardening
+
+| Test case |
+| --- |
+| serves an uploaded HTML file as an inert attachment |
+| serves a scripted SVG as an attachment too |
+| keeps a raster image inline, still with nosniff + CSP |
+| hardens the token-authenticated /v1 download the same way |
+
+### list filters
+
+| Test case |
+| --- |
+| rejects a non-uuid folderId with 400, not 500 |
+| rejects an unknown kind with 400, not 500 |
+| still accepts the sentinel filter values |
+| treats % and _ in ?search= as literal characters |
+
+| Test case |
+| --- |
+| duplicates to a 400 when " copy" overflows the name limit |
+| lets two sibling folders share a name |
+
+<!-- source: apps/server-e2e/src/server/media/media-token-scope.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-token-scope.spec.ts</sub>_
+
+## media token download scope
+
+| Test case |
+| --- |
+| serves the bytes when the header names the owning workspace |
+| 404s when the header names another workspace in the same bucket |
+| 400s a multi-workspace token that names no workspace at all |
+
+<!-- source: apps/server-e2e/src/server/media/media-upload-cap.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-upload-cap.spec.ts</sub>_
+
+## media upload cap (config-driven)
+
+| Test case |
+| --- |
+| accepts a file of exactly the cap |
+| rejects one byte over the cap with a 413 that names the limit |
+| applies the same cap to the token upload route |
 
 <!-- source: apps/server-e2e/src/server/preferences/preferences.spec.ts -->
 _<sub>apps/server-e2e/src/server/preferences/preferences.spec.ts</sub>_

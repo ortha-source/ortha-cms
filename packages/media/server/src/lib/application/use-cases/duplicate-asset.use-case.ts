@@ -54,13 +54,18 @@ export class DuplicateAssetUseCase {
             throw new AssetNotFoundError(assetId);
         }
 
-        const copyName = duplicateName(source.name.value);
+        // Built as a `FileName` **before** anything touches storage: `" copy"`
+        // can push a 255-char name over the limit, and the value object is the
+        // only thing that says so. Left until the transaction, the over-long
+        // name reached the provider first and blew up as an unmapped
+        // `ENAMETOOLONG` — a 500 for what is a 400.
+        const copyName = FileName.create(duplicateName(source.name.value));
         const newId = AssetId.generate();
         const providerName = this.resolve(
             {
                 workspaceId,
                 folderId: source.folderId?.value ?? null,
-                fileName: copyName,
+                fileName: copyName.value,
                 contentType: source.mimeType,
                 kind: source.kind.value,
                 size: source.size
@@ -80,7 +85,7 @@ export class DuplicateAssetUseCase {
             const stored = await provider.put({
                 workspaceId,
                 assetId: newId.value,
-                fileName: copyName,
+                fileName: copyName.value,
                 contentType: source.mimeType,
                 body: sourceStream
             });
@@ -112,7 +117,7 @@ export class DuplicateAssetUseCase {
                     id: newId,
                     workspaceId,
                     folderId: source.folderId,
-                    name: FileName.create(copyName),
+                    name: copyName,
                     storageKey: StorageKey.create(stored.storageKey),
                     storageProvider: providerName,
                     kind: source.kind,

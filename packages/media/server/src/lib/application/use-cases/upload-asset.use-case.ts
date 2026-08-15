@@ -38,6 +38,12 @@ export interface UploadAssetCommand {
     contentType: string;
     size: number;
     body: Readable;
+    /**
+     * Alternative text supplied with the upload. Optional, and normalized to
+     * `null` when blank — it exists so a text alternative can be given when the
+     * asset is created, rather than only by a later PATCH nobody makes.
+     */
+    alt?: string | null;
 }
 
 /** Buffers a readable fully into memory (bounded by the upload size cap). */
@@ -103,8 +109,15 @@ export class UploadAssetUseCase {
         const provider = this.registry.get(providerName);
 
         // Images are buffered once so both the original write and the processor
-        // can read the same bytes (a stream is single-use); other kinds stream
-        // straight through without ever buffering fully in memory.
+        // can read the same bytes (a stream is single-use); other kinds are
+        // passed straight through.
+        //
+        // Note this is *not* the whole story today: both HTTP upload routes use
+        // multer's `memoryStorage` and hand us a `Readable.from(file.buffer)`,
+        // so every upload is already fully in memory by the time it gets here,
+        // whatever its kind. The cap (`maxUploadBytes`) is what bounds that.
+        // Streaming end-to-end means moving the routes off `memoryStorage`,
+        // which is a bigger change than this use case.
         const buffered =
             kind.value === 'image' ? await collect(command.body) : null;
 
@@ -159,7 +172,8 @@ export class UploadAssetUseCase {
                     checksum: original.checksum,
                     uploadedBy: actor.id,
                     media,
-                    variants
+                    variants,
+                    alt: command.alt ?? null
                 });
                 await this.assets.save(asset);
                 await this.outbox.append(
