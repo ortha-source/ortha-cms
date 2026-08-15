@@ -29,6 +29,16 @@ type ConfirmDialogProps = {
     confirmVariant?: ButtonProps['variant'];
     /** Disables dismissal and shows a spinner on confirm while the act is in flight. */
     busy?: boolean;
+    /**
+     * Radix's close-focus hook, forwarded to the underlying `DialogContent`.
+     *
+     * On close, focus returns to whatever opened the dialog — right in the
+     * common case, and wrong for the one this component exists for: a confirmed
+     * **delete** often removes the very control that opened it, so restoration
+     * targets a detached node and focus lands on `<body>`. Call
+     * `event.preventDefault()` here and focus somewhere that still exists.
+     */
+    onCloseAutoFocus?: (event: Event) => void;
     /** Runs the confirmed action. */
     onConfirm: () => void;
 };
@@ -49,6 +59,7 @@ function ConfirmDialog({
     cancelLabel = 'Cancel',
     confirmVariant = 'default',
     busy = false,
+    onCloseAutoFocus,
     onConfirm
 }: ConfirmDialogProps) {
     return (
@@ -58,7 +69,7 @@ function ConfirmDialog({
                 if (!busy) onOpenChange(next);
             }}
         >
-            <DialogContent>
+            <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>

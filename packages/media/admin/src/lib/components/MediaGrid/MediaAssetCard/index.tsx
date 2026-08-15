@@ -3,10 +3,7 @@ import { Checkbox, cn } from '@ortha-cms/design-system';
 import type { MediaAsset } from '../../../types/mediaAsset';
 import { formatBytes } from '../../../utils/formatBytes';
 import { buildAssetHandlers } from '../../../utils/assetHandlers';
-import {
-    AssetActionsMenu,
-    type AssetActionKind
-} from '../../AssetActionsMenu';
+import { AssetActionsMenu, type AssetActionKind } from '../../AssetActionsMenu';
 import { MediaThumbnail } from '../../MediaThumbnail';
 
 /** Intl descriptors for {@link MediaAssetCard}, co-located. */
@@ -81,6 +78,7 @@ export function MediaAssetCard({
                 <div className="absolute right-2 top-2 rounded-md bg-background/80 shadow-sm backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100 sm:opacity-0">
                     <AssetActionsMenu
                         handlers={handlers}
+                        assetName={asset.name}
                         canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}

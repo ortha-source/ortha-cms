@@ -129,6 +129,12 @@ const segments = (url: string): string[] => new URL(url).pathname.split('/');
 /** Tracks upload calls so a test can assert an upload was submitted. */
 export interface MediaUploadSpy {
     readonly count: number;
+    /**
+     * The `alt` part of each upload, in order — `null` when the request carried
+     * none. Lets a spec prove a description typed at staging actually reached
+     * the wire, rather than only that an input existed.
+     */
+    readonly alts: (string | null)[];
 }
 
 /** Knobs for the upload route, so a spec can drive its slow and failed paths. */
@@ -171,6 +177,7 @@ export async function mockMediaApi(
 ): Promise<MediaUploadSpy> {
     const folders = MEDIA_SEED.folders.map((f) => ({ ...f }));
     const assets = MEDIA_SEED.assets.map((a) => ({ ...a }));
+    const uploadAlts: (string | null)[] = [];
     let uploads = 0;
     let seq = 0;
     const nextId = (prefix: string) => `${prefix}_${(seq += 1)}`;
@@ -279,6 +286,10 @@ export async function mockMediaApi(
         }
         if (method === 'POST') {
             uploads += 1;
+            const submitted = request.postData() ?? '';
+            uploadAlts.push(
+                submitted.match(/name="alt"\r?\n\r?\n([^\r\n]*)/)?.[1] ?? null
+            );
             if (options.uploadDelayMs) {
                 await new Promise((resolve) =>
                     setTimeout(resolve, options.uploadDelayMs)
@@ -380,6 +391,33 @@ export async function mockMediaApi(
     return {
         get count() {
             return uploads;
+        },
+        get alts() {
+            return [...uploadAlts];
         }
     };
+}
+
+/**
+ * Fail every single-asset `PATCH` (rename / move / alt) with `status` and a
+ * server-worded body. Register **after** {@link mockMediaApi} so it wins the
+ * match — for asserting that the API's own sentence reaches the user, and that
+ * no success confirmation fires alongside it.
+ */
+export async function failAssetPatch(
+    page: Page,
+    { status = 400, message = 'Invalid file name: a/b.txt' } = {}
+): Promise<void> {
+    await page.route(
+        /\/api\/media\/assets\/([^/?]+)(\?.*)?$/,
+        async (route) => {
+            if (route.request().method() !== 'PATCH') return route.fallback();
+            await route.fulfill(
+                json(
+                    { message, error: 'Bad Request', statusCode: status },
+                    status
+                )
+            );
+        }
+    );
 }

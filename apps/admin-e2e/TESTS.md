@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_529 test cases across 55 spec files._
+_543 test cases across 57 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -873,6 +873,36 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | hides content widgets from a user without content:read |
 | shows the empty page when no widget is visible |
 | offers a table view for the chart whose values are hover-only |
+
+<!-- source: apps/admin-e2e/src/media/media-alt-text.spec.ts -->
+_<sub>apps/admin-e2e/src/media/media-alt-text.spec.ts</sub>_
+
+## Media alt text
+
+| Test case |
+| --- |
+| sends alt written at upload with the file |
+| leaves alt off the request when the author skips it |
+| offers no alt input for a non-image |
+| edits an existing asset’s alt text from its drawer |
+| shows alt read-only without media:update |
+| has no accessibility violations with the drawer open |
+| has no accessibility violations with a file staged for upload |
+
+<!-- source: apps/admin-e2e/src/media/media-feedback.spec.ts -->
+_<sub>apps/admin-e2e/src/media/media-feedback.spec.ts</sub>_
+
+## Media Library feedback
+
+| Test case |
+| --- |
+| shows the API’s own message when a rename is rejected |
+| does not confirm a rename the server refused |
+| confirms a rename the server accepted |
+| puts the server’s reason on a failed upload row |
+| announces which file failed, not just the batch count |
+| moves focus to the grid after deleting the tile that opened the menu |
+| names each asset’s ⋯ trigger after its file |
 
 <!-- source: apps/admin-e2e/src/media/media-library.spec.ts -->
 _<sub>apps/admin-e2e/src/media/media-library.spec.ts</sub>_

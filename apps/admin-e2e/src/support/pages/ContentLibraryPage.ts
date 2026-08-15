@@ -606,14 +606,30 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByText('No content types yet');
     }
 
-    /** The load-error title. */
+    /**
+     * The load-error title, in the **pane**.
+     *
+     * A failed `GET /content-schema` now also puts a `ContentSidebarError` alert
+     * beside it carrying the same sentence, so a bare `getByText` matches two
+     * nodes and fails Playwright's strict mode. The pane's copy is the `<h5>`
+     * heading; the sidebar's is a `<span>`.
+     */
     get errorTitle(): Locator {
-        return this.page.getByText('Couldn’t load content types');
+        return this.page.getByRole('heading', {
+            name: 'Couldn’t load content types'
+        });
     }
 
-    /** The error state's retry button. */
+    /**
+     * The **pane** error state's retry button. Scoped through the alert that
+     * carries the heading, because the sidebar's error alert offers a "Try
+     * again" of its own.
+     */
     get retry(): Locator {
-        return this.page.getByRole('button', { name: 'Try again' });
+        return this.page
+            .getByRole('alert')
+            .filter({ has: this.errorTitle })
+            .getByRole('button', { name: 'Try again' });
     }
 
     // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---

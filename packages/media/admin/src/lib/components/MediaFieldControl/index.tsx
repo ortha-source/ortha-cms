@@ -43,9 +43,24 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, one {# file uploads on save} other {# files upload on save}}'
     },
+    // No size is quoted: the cap is server config the admin cannot read, and
+    // the old "Up to 250 MB each" was five times the shipped 50 MB default.
     uploadHintAccept: {
         id: 'media.field.uploadHintAccept',
-        defaultMessage: 'This field accepts {what}. Up to 250 MB each.'
+        defaultMessage: 'This field accepts {what}.'
+    },
+    /**
+     * Names the panel so its drop affordance isn't sighted-mouse-only. The
+     * Upload button remains the keyboard route; this just says the drop exists.
+     */
+    dropZone: {
+        id: 'media.field.dropZone',
+        defaultMessage:
+            'Attached assets. Drop files here to attach them, or use the Upload button.'
+    },
+    dropZoneReadOnly: {
+        id: 'media.field.dropZoneReadOnly',
+        defaultMessage: 'Attached assets'
     },
     libraryRoot: { id: 'media.field.libraryRoot', defaultMessage: 'All media' },
     emptySingle: {
@@ -385,6 +400,10 @@ export function MediaFieldControl({
     return (
         <div className="flex flex-col gap-3">
             <div
+                role="group"
+                aria-label={intl.formatMessage(
+                    canStage ? messages.dropZone : messages.dropZoneReadOnly
+                )}
                 onDragEnter={(event) => {
                     if (!dragHasFiles(event.dataTransfer) || !canStage) return;
                     dragDepth.current += 1;
@@ -582,26 +601,30 @@ export function MediaFieldControl({
                 all in preview: nothing can open it, and neither the Upload
                 button nor the drop zone exists to. */}
             {readOnly ? null : (
-            <UploadDialog
-                open={uploadOpen}
-                onOpenChange={setUploadOpen}
-                locationLabel={intl.formatMessage(messages.libraryRoot)}
-                description={intl.formatMessage(messages.uploadTo, {
-                    location: intl.formatMessage(messages.libraryRoot)
-                })}
-                hint={
-                    acceptHint
-                        ? intl.formatMessage(messages.uploadHintAccept, {
-                              what: acceptHint
-                          })
-                        : undefined
-                }
-                accept={acceptAttr}
-                multiple={multiple}
-                confirmLabel={intl.formatMessage(messages.attach)}
-                initialFiles={dropped}
-                onUpload={onStaged}
-            />
+                <UploadDialog
+                    open={uploadOpen}
+                    onOpenChange={setUploadOpen}
+                    locationLabel={intl.formatMessage(messages.libraryRoot)}
+                    description={intl.formatMessage(messages.uploadTo, {
+                        location: intl.formatMessage(messages.libraryRoot)
+                    })}
+                    hint={
+                        acceptHint
+                            ? intl.formatMessage(messages.uploadHintAccept, {
+                                  what: acceptHint
+                              })
+                            : undefined
+                    }
+                    accept={acceptAttr}
+                    multiple={multiple}
+                    confirmLabel={intl.formatMessage(messages.attach)}
+                    initialFiles={dropped}
+                    // No `collectAlt`: a field's files upload with the record, and
+                    // this control has nowhere to carry a description that far.
+                    onUpload={(uploads) =>
+                        onStaged(uploads.map((upload) => upload.file))
+                    }
+                />
             )}
         </div>
     );

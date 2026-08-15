@@ -40,10 +40,31 @@ export type AssetActionKind =
 
 /** Intl descriptors for {@link AssetActionsMenu}, co-located. */
 const messages = defineMessages({
-    trigger: { id: 'media.asset.actions.trigger', defaultMessage: 'Asset actions' },
-    download: { id: 'media.asset.actions.download', defaultMessage: 'Download' },
-    copyLink: { id: 'media.asset.actions.copyLink', defaultMessage: 'Copy link' },
-    duplicate: { id: 'media.asset.actions.duplicate', defaultMessage: 'Duplicate' },
+    trigger: {
+        id: 'media.asset.actions.trigger',
+        defaultMessage: 'Asset actions'
+    },
+    /**
+     * The trigger's name when the caller knows which asset it belongs to. A
+     * grid of twenty tiles otherwise offers twenty buttons all called "Asset
+     * actions", which is the same defect the folder cards already fixed.
+     */
+    triggerFor: {
+        id: 'media.asset.actions.triggerFor',
+        defaultMessage: 'Actions for {name}'
+    },
+    download: {
+        id: 'media.asset.actions.download',
+        defaultMessage: 'Download'
+    },
+    copyLink: {
+        id: 'media.asset.actions.copyLink',
+        defaultMessage: 'Copy link'
+    },
+    duplicate: {
+        id: 'media.asset.actions.duplicate',
+        defaultMessage: 'Duplicate'
+    },
     rename: { id: 'media.asset.actions.rename', defaultMessage: 'Rename' },
     move: { id: 'media.asset.actions.move', defaultMessage: 'Move to…' },
     delete: { id: 'media.asset.actions.delete', defaultMessage: 'Delete' }
@@ -65,6 +86,7 @@ const messages = defineMessages({
  */
 export function AssetActionsMenu({
     handlers,
+    assetName,
     canCreate,
     canUpdate,
     canDelete,
@@ -72,6 +94,8 @@ export function AssetActionsMenu({
     align = 'end'
 }: {
     handlers: AssetActionHandlers;
+    /** Names the default trigger ("Actions for hero.png"); omit in a drawer. */
+    assetName?: string;
     canCreate: boolean;
     canUpdate: boolean;
     canDelete: boolean;
@@ -88,7 +112,13 @@ export function AssetActionsMenu({
                         variant="ghost"
                         size="icon"
                         className="size-8 shadow-none"
-                        aria-label={intl.formatMessage(messages.trigger)}
+                        aria-label={
+                            assetName
+                                ? intl.formatMessage(messages.triggerFor, {
+                                      name: assetName
+                                  })
+                                : intl.formatMessage(messages.trigger)
+                        }
                     >
                         <MoreVertical aria-hidden />
                     </Button>
