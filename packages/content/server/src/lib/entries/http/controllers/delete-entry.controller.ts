@@ -18,6 +18,7 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
@@ -36,7 +37,7 @@ import { resolveType } from './resolve-type';
  * `OriginGuard` defends these state-changing writes; `WorkspaceGuard` scopes them
  * to a workspace the caller belongs to.
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
 @Controller('content')
 export class DeleteEntryController {

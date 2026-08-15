@@ -9,6 +9,7 @@ import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedArticles,
     seedMembership,
     seedWorkspace,
@@ -69,9 +70,11 @@ describe('i18n locale integrity (/api/content + /api/i18n + /api/insights)', () 
         const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
         const other = await seedWorkspace({ name: 'WS Two', slug: 'ws-two' });
         otherWorkspaceId = other.id;
         await seedMembership(admin.id, otherWorkspaceId);
+        await seedAllContentGrants(otherWorkspaceId);
     });
 
     async function login(email = ADMIN_EMAIL, wsId = workspaceId) {

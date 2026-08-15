@@ -120,7 +120,10 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                     page?: number;
                     pageSize?: number;
                 };
-                await this.resolveGranted(args.typeName, ctx.workspaceId);
+                const type = await this.resolveGranted(
+                    args.typeName,
+                    ctx.workspaceId
+                );
 
                 // Clamped in `run` as well as declared: the schema validator is
                 // defence in depth, not the boundary.
@@ -129,6 +132,7 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                     MAX_REVISION_PAGE_SIZE
                 );
                 const result = await this.revisions.list(
+                    type.name,
                     args.id,
                     ctx.workspaceId,
                     Math.max(args.page ?? 1, 1),
@@ -201,8 +205,18 @@ export class RevisionCopilotToolProvider implements ToolProvider, OnModuleInit {
                 );
 
                 const [before, after] = await Promise.all([
-                    this.revisions.get(args.id, ctx.workspaceId, args.from),
-                    this.revisions.get(args.id, ctx.workspaceId, args.to)
+                    this.revisions.get(
+                        type.name,
+                        args.id,
+                        ctx.workspaceId,
+                        args.from
+                    ),
+                    this.revisions.get(
+                        type.name,
+                        args.id,
+                        ctx.workspaceId,
+                        args.to
+                    )
                 ]);
                 // Naming the missing one matters: "version 7 does not exist"
                 // is recoverable by re-reading the timeline, "not found" is

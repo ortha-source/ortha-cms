@@ -8,6 +8,7 @@ import {
     RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
@@ -24,7 +25,7 @@ import { resolveType } from './resolve-type';
  * synchronous CSRF + permission guards run before `WorkspaceGuard` so a rejected
  * request never incurs its membership DB probe.
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_CREATE)
 @Controller('content')
 export class CreateEntryController {

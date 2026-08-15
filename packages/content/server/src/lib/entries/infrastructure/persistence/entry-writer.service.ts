@@ -20,7 +20,10 @@ import {
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
-import { violatedConstraint } from '@ortha-cms/utils-server';
+import {
+    isForeignKeyViolation,
+    violatedConstraint
+} from '@ortha-cms/utils-server';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
@@ -941,19 +944,29 @@ export class EntryWriterService {
     ): Promise<void> {
         const t = this.columns(type);
         const scope = this.scope(type, workspaceId);
-        const [row] = type.paranoid
-            ? await this.db
-                  .update(type.table)
-                  .set({
-                      deletedAt: new Date(),
-                      updatedAt: new Date()
-                  } as never)
-                  .where(and(eq(t['id'], id), scope, isNull(t['deletedAt'])))
-                  .returning()
-            : await this.db
-                  .delete(type.table)
-                  .where(and(eq(t['id'], id), scope))
-                  .returning();
+        const [row] = await this.restrictGuarded(
+            () =>
+                type.paranoid
+                    ? this.db
+                          .update(type.table)
+                          .set({
+                              deletedAt: new Date(),
+                              updatedAt: new Date()
+                          } as never)
+                          .where(
+                              and(
+                                  eq(t['id'], id),
+                                  scope,
+                                  isNull(t['deletedAt'])
+                              )
+                          )
+                          .returning()
+                    : this.db
+                          .delete(type.table)
+                          .where(and(eq(t['id'], id), scope))
+                          .returning(),
+            type
+        );
         if (!row) throw this.notFound(type, id);
     }
 
@@ -997,16 +1010,20 @@ export class EntryWriterService {
     ): Promise<void> {
         this.assertParanoid(type);
         const t = this.columns(type);
-        const [row] = await this.db
-            .delete(type.table)
-            .where(
-                and(
-                    eq(t['id'], id),
-                    this.scope(type, workspaceId),
-                    isNotNull(t['deletedAt'])
-                )
-            )
-            .returning();
+        const [row] = await this.restrictGuarded(
+            () =>
+                this.db
+                    .delete(type.table)
+                    .where(
+                        and(
+                            eq(t['id'], id),
+                            this.scope(type, workspaceId),
+                            isNotNull(t['deletedAt'])
+                        )
+                    )
+                    .returning(),
+            type
+        );
         if (!row) throw this.notFound(type, id);
     }
 
@@ -1019,21 +1036,29 @@ export class EntryWriterService {
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
         const scope = this.scope(type, workspaceId);
-        const rows = type.paranoid
-            ? await this.db
-                  .update(type.table)
-                  .set({
-                      deletedAt: new Date(),
-                      updatedAt: new Date()
-                  } as never)
-                  .where(
-                      and(inArray(t['id'], ids), scope, isNull(t['deletedAt']))
-                  )
-                  .returning()
-            : await this.db
-                  .delete(type.table)
-                  .where(and(inArray(t['id'], ids), scope))
-                  .returning();
+        const rows = await this.restrictGuarded(
+            () =>
+                type.paranoid
+                    ? this.db
+                          .update(type.table)
+                          .set({
+                              deletedAt: new Date(),
+                              updatedAt: new Date()
+                          } as never)
+                          .where(
+                              and(
+                                  inArray(t['id'], ids),
+                                  scope,
+                                  isNull(t['deletedAt'])
+                              )
+                          )
+                          .returning()
+                    : this.db
+                          .delete(type.table)
+                          .where(and(inArray(t['id'], ids), scope))
+                          .returning(),
+            type
+        );
         return { count: rows.length };
     }
 
@@ -1046,16 +1071,20 @@ export class EntryWriterService {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
-        const rows = await this.db
-            .delete(type.table)
-            .where(
-                and(
-                    inArray(t['id'], ids),
-                    this.scope(type, workspaceId),
-                    isNotNull(t['deletedAt'])
-                )
-            )
-            .returning();
+        const rows = await this.restrictGuarded(
+            () =>
+                this.db
+                    .delete(type.table)
+                    .where(
+                        and(
+                            inArray(t['id'], ids),
+                            this.scope(type, workspaceId),
+                            isNotNull(t['deletedAt'])
+                        )
+                    )
+                    .returning(),
+            type
+        );
         return { count: rows.length };
     }
 
@@ -1097,6 +1126,35 @@ export class EntryWriterService {
      * `(locale_group_id, locale)` one — so the mapping is scoped to them and
      * any other type's violation still surfaces as the bug it is.
      */
+    /**
+     * Run a delete and translate a Postgres **foreign-key** violation into a
+     * `409`.
+     *
+     * A required single relation declares `onDelete: 'restrict'` (a NOT NULL FK
+     * cannot be nulled on delete), so deleting a row something still points at
+     * is refused by the database. That refusal is legitimate and actionable —
+     * "detach the referring records first" — but it surfaced as a raw `500`,
+     * which tells the caller the server broke and gives them nothing to do. The
+     * symmetric counterpart of {@link uniqueGuarded}.
+     *
+     * Deliberately does not name the referring rows: finding them means a query
+     * per inbound relation across every type in the registry, and the caller
+     * cannot be told about records in workspaces they cannot see.
+     */
+    private async restrictGuarded<T>(
+        write: () => Promise<T>,
+        type: AnyContentType
+    ): Promise<T> {
+        try {
+            return await write();
+        } catch (error) {
+            if (!isForeignKeyViolation(error)) throw error;
+            throw new ConflictException(
+                `This "${type.name}" entry is still referenced by other entries and cannot be deleted.`
+            );
+        }
+    }
+
     private async uniqueGuarded<T>(
         write: () => Promise<T>,
         type: AnyContentType

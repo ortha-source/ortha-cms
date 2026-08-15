@@ -7,6 +7,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace,
     type SeededUser
@@ -47,6 +48,7 @@ describe('Content entry revisions (/api/content/:type/:id/revisions)', () => {
         const ws = await seedWorkspace({ name: 'WS One', slug: 'ws-one' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
     });
 
     async function login(email: string) {

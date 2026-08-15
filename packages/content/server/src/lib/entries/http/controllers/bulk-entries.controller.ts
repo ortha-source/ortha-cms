@@ -17,6 +17,7 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
@@ -40,7 +41,7 @@ import { resolveType } from './resolve-type';
  * workspace the caller belongs to. Per-route permissions: publish/unpublish need
  * `content:publish`, delete/restore need `content:delete`.
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @Controller('content')
 export class BulkEntriesController {
     constructor(

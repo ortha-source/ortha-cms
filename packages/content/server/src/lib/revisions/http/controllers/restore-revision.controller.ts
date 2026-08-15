@@ -15,6 +15,7 @@ import {
     RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../../../entries/http/guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { resolveType } from '../../../entries/http/controllers/resolve-type';
@@ -27,7 +28,7 @@ import { RestoreRevisionUseCase } from '../../application/use-cases/restore-revi
  * itself saved as a new revision. `OriginGuard` defends the write;
  * `WorkspaceGuard` scopes it; `content:update` gates it (restoring is an edit).
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_UPDATE)
 @Controller('content')
 export class RestoreRevisionController {

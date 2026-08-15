@@ -39,6 +39,17 @@ export class EntryCounterService implements ContentEntryCounter {
      * Every stored row the workspace holds across **all** content types —
      * summed over each type's table. Backs the workspace-delete guard (delete is
      * refused until this is zero). The per-type counts run concurrently.
+     *
+     * Deliberately **not** narrowed to the workspace's `workspace_content`
+     * grants, even though every read/write surface now is
+     * (`ContentGrantGuard`). This is a data-safety guard, not an access-control
+     * surface, and the two want opposite defaults: counting only granted types
+     * would let a workspace be deleted while rows of an ungranted type still
+     * sat in its slice — exactly the orphaned records the guard exists to
+     * prevent. Such rows are no longer *creatable* through the API, but a grant
+     * revoked between two deployments, or data written before the grant check
+     * landed, still has to hold the delete. Counting everything can only ever
+     * refuse a delete too often, which is the safe direction to be wrong in.
      */
     async countWorkspaceEntries(workspaceId: string): Promise<number> {
         const counts = await Promise.all(

@@ -70,8 +70,18 @@ export interface RevisionStore {
         workspaceId: string
     ): Promise<void>;
 
-    /** One page of an entry's revisions, newest first, scoped to the workspace. */
+    /**
+     * One page of an entry's revisions, newest first, scoped to the content
+     * type + entry + workspace.
+     *
+     * `contentType` is part of the key, not decoration: every content type's
+     * rows live in one shared `content_entry_revisions` table, so without it a
+     * caller who names a *different* registered type in the route
+     * (`GET /api/content/author/:articleId/revisions`) reads the entry's real
+     * history anyway — the route param would be checked against nothing.
+     */
     list(
+        contentType: string,
         entryId: string,
         workspaceId: string,
         page: number,
@@ -79,10 +89,12 @@ export interface RevisionStore {
     ): Promise<RevisionListView>;
 
     /**
-     * One revision (with its snapshot) by version number, scoped to the entry +
-     * workspace — or undefined if absent.
+     * One revision (with its snapshot) by version number, scoped to the content
+     * type + entry + workspace — or undefined if absent. See {@link list} for
+     * why `contentType` is part of the key.
      */
     get(
+        contentType: string,
         entryId: string,
         workspaceId: string,
         number: number

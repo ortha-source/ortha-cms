@@ -8,6 +8,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace,
     type SeededUser
@@ -56,6 +57,8 @@ describe('Content media fields (/api/content/:type)', () => {
         otherWorkspaceId = other.id;
         await seedMembership(admin.id, workspaceId);
         await seedMembership(admin.id, otherWorkspaceId);
+        await seedAllContentGrants(workspaceId);
+        await seedAllContentGrants(otherWorkspaceId);
     });
 
     async function login(workspace = workspaceId) {

@@ -9,6 +9,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace,
     type SeededUser
@@ -54,9 +55,12 @@ describe('Content insights (/api/insights/content)', () => {
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
 
+        await seedAllContentGrants(workspaceId);
+
         const other = await seedWorkspace({ name: 'Other WS', slug: 'oth-ws' });
         otherWorkspaceId = other.id;
         await seedMembership(admin.id, otherWorkspaceId);
+        await seedAllContentGrants(otherWorkspaceId);
     });
 
     /** Logs in and scopes every request to `workspaceId` by default. */
@@ -256,6 +260,24 @@ describe('Content insights (/api/insights/content)', () => {
                 .expect(200);
             expect(res.body.total).toBe(0);
         });
+
+        it('counts only the workspace named by the header', async () => {
+            // The predicate has to be in the SQL, not merely in the guard: the
+            // guard proves the caller may see *a* workspace, not that the
+            // aggregate stopped at its rows.
+            const other = await login(ADMIN_EMAIL, otherWorkspaceId);
+            const foreign = await createEntry(other);
+            await other
+                .post(`/api/content/test_article/${foreign}/publish`)
+                .expect(201);
+            await ageEntry(foreign, 400);
+
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/insights/content/stale')
+                .expect(200);
+            expect(res.body.total).toBe(0);
+        });
     });
 
     describe('GET /pipeline', () => {
@@ -287,6 +309,27 @@ describe('Content insights (/api/insights/content)', () => {
             const names = res.body.types.map((t: { name: string }) => t.name);
             expect(names).toContain('test_article');
             expect(names).not.toContain('test_author');
+        });
+
+        it('counts only the workspace named by the header', async () => {
+            const other = await login(ADMIN_EMAIL, otherWorkspaceId);
+            const foreign = await createEntry(other);
+            await other
+                .post(`/api/content/test_article/${foreign}/publish`)
+                .expect(201);
+
+            const agent = await login(ADMIN_EMAIL);
+            await createEntry(agent);
+
+            const res = await agent
+                .get('/api/insights/content/pipeline')
+                .expect(200);
+            const article = res.body.types.find(
+                (t: { name: string }) => t.name === 'test_article'
+            );
+            // One local draft only — the other workspace's published entry is
+            // not folded in.
+            expect(article).toMatchObject({ published: 0, drafts: 1 });
         });
     });
 
@@ -462,6 +505,24 @@ describe('Content insights (/api/insights/content)', () => {
             );
             expect(total).toBe(3);
             expect(res.body.points.length).toBeGreaterThan(1);
+        });
+
+        it('counts only the workspace named by the header', async () => {
+            const other = await login(ADMIN_EMAIL, otherWorkspaceId);
+            const foreign = await createEntry(other);
+            await other
+                .post(`/api/content/test_article/${foreign}/publish`)
+                .expect(201);
+
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .get('/api/insights/content/velocity?days=30')
+                .expect(200);
+            const total = res.body.points.reduce(
+                (sum: number, p: { value: number }) => sum + p.value,
+                0
+            );
+            expect(total).toBe(0);
         });
 
         it('widens the bucket for a longer window', async () => {

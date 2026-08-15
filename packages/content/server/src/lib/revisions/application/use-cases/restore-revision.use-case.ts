@@ -41,7 +41,7 @@ export class RestoreRevisionUseCase {
             appendRevision?: boolean;
         }
     ): Promise<EntryRecord> {
-        const detail = await this.store.get(id, workspaceId, number);
+        const detail = await this.store.get(type.name, id, workspaceId, number);
         if (!detail) {
             throw new NotFoundException(
                 `No revision #${number} for entry "${id}" on "${type.name}".`

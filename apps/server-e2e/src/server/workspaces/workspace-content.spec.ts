@@ -235,6 +235,13 @@ describe('Workspace content grants', () => {
                 .expect(200);
             expect(empty.body).toEqual({ count: 0 });
 
+            // The grant is a precondition of the write, not decoration:
+            // `ContentGrantGuard` 404s a create of a type the workspace was
+            // never granted.
+            await agent
+                .post(`/api/workspaces/${id}/content`)
+                .send({ slug: 'test_article' })
+                .expect(201);
             await agent
                 .post('/api/content/test_article')
                 .set('X-Workspace-Id', id)

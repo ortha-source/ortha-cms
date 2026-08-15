@@ -1,0 +1,3 @@
+ALTER TABLE "content_test_comment" ADD COLUMN "seo_note_id" uuid;--> statement-breakpoint
+ALTER TABLE "content_test_comment" ADD CONSTRAINT "content_test_comment_seo_note_id_content_test_seo_id_fk" FOREIGN KEY ("seo_note_id") REFERENCES "public"."content_test_seo"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "content_test_comment_seo_note_id_idx" ON "content_test_comment" USING btree ("seo_note_id");

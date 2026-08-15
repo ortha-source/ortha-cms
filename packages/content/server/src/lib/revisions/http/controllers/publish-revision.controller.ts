@@ -15,6 +15,7 @@ import {
     RequirePermissions
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../../../entries/http/guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { resolveType } from '../../../entries/http/controllers/resolve-type';
@@ -29,7 +30,7 @@ import { PublishRevisionUseCase } from '../../application/use-cases/publish-revi
  * `content:publish` gates it. `400` on a non-publishable type, `404` on an
  * absent version, `422 { issues }` when the version fails the publish gate.
  */
-@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
+@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
 @Controller('content')
 export class PublishRevisionController {

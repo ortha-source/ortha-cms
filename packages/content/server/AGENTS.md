@@ -122,8 +122,18 @@ columns:
 published" / "not deleted"; the service layer stamps them). `status`,
 `published_at`, `deleted_at`, `locale`, and `locale_group_id` are
 **reserved unconditionally** — an author cannot define a field that maps to them
-(rejected by `assertFields`), and a client cannot set them (they aren't in
-`type.fields`, so `EntryValidationService` rejects them as unknown keys). The
+(rejected by `assertFields`), and a client cannot set them: they aren't in
+`type.fields`, so `coerceValues` **drops them from the bag** before storage or
+validation ever sees them (`toColumns` projects declared fields only). Note the
+consequence, which is easy to misread from `EntryValidationService`'s
+`rejectUnknownKeys: true`: the writer validates the **coerced** bag, so an
+unknown key — reserved or simply misspelt — is silently ignored rather than
+answered with a 422, on publishable and non-publishable types alike. That is
+deliberate in one direction (a **stored revision snapshot** that outlived a
+removed field is still restorable) and a rough edge in the other (a client
+typo writes nothing and says nothing). The public API's `?fields=` and the
+copilot's propose tools *do* reject unknown names, because there the caller is
+naming something they expect back. The
 flags are carried on `ContentType` and serialized in the schema summary
 (`i18n` on the summary, `localized` per field).
 
@@ -438,13 +448,37 @@ the `X-Workspace-Id` header (400 if missing/malformed), 403s a caller who isn't 
 member of that workspace, and exposes the id via `@CurrentWorkspace()`. The
 entries services thread it through — `create` stamps `workspace_id`, and the
 list + every read/write/bulk op filters by it — so an entry never leaks across
-workspaces and an id from another workspace reads as a 404. The
-`/content-schema` routes are **not** scoped (content types are code-defined and
-global).
+workspaces and an id from another workspace reads as a 404.
 
-- `GET /content-schema` — summaries of every type (wizard-compatible).
+**Every `/content/:typeName…` route is also grant-scoped.** `ContentGrantGuard`
+(`entries/http/guards/content-grant.guard.ts`, listed right after
+`WorkspaceGuard` so it can read `request.workspaceId`) refuses a `:typeName`
+the open workspace was never granted in `workspace_content`, with the **same
+404 an unknown type gets** — grants read before any registry decision, same
+status, same message, so the routes disclose nothing about the content model
+outside the caller's workspace. Membership is not access: the grant set is the
+workspace's declared content surface, the nav renders from it, and revoking a
+grant is refused while entries still exist. Every other surface over this
+content already applied the rule (the public REST API's `resolveGrantedType`,
+the GraphQL adapter, the MCP tools, the copilot's read/propose tools); the
+session-side admin API used to be the one exception, so a member of a workspace
+granted only `article` could list, read, create, edit, publish, delete and read
+the revision history of any other registered type in it.
+
+The **catalogue** route `GET /content-schema` stays unscoped — content types
+are code-defined and global, and the admin's ⌘K palette reads it with no
+workspace open, then intersects it per workspace client-side. `:name` and
+`:name/filter-fields` are both workspace-scoped and grant-checked.
+
+`EntryCounterService.countWorkspaceEntries` deliberately keeps counting **every**
+registered type, granted or not — it backs the workspace-delete guard, where
+missing a row means deleting a workspace that still holds data (see its JSDoc).
+
+- `GET /content-schema` — summaries of every type (wizard-compatible). The one
+  route here with no workspace scope.
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
-  props); 404 if unknown.
+  props). **Workspace-scoped + grant-checked**: an unknown *and* an ungranted
+  name are the same 404.
 - `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
   every scalar path the records-table query builder may filter on, including
   **recursive relation paths** (`author.name`, `author.company.name`, to a
@@ -1124,7 +1158,13 @@ a browsable version history and can be restored. Layered per ADR-0003
   `src/content/index.ts` for drizzle-kit — like every `content_<name>` table).
   One mechanism for all types, matching the generic `EntryWriterService`. Keyed
   **per-locale** (`entry_id` = the live row), so each translation has its own
-  timeline. `snapshot` (jsonb) is `{ values, relations }`: the field values bag
+  timeline. Because every content type shares that one table, **every read is
+  keyed on `(content_type, entry_id, workspace_id)`** — `DrizzleRevisionStore.scope()`.
+  The `content_type` leg is not decoration: the routes address an entry as
+  `:typeName/:id`, so leaving it out meant the `:typeName` in the URL was never
+  checked against the revision returned, and any registered type name served any
+  entry's history (including its full snapshot). The same key applies to the
+  copilot's `_revisions` / `_diff` tools. `snapshot` (jsonb) is `{ values, relations }`: the field values bag
   (scalars, localized + shared, single-relation FKs) plus the **full ordered
   link sets** of every join-backed relation (`RelationLinkService.snapshotLinks`).
 - **Snapshot-on-save.** `EntryWriterService.create`/`update` append a **draft**

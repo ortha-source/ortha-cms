@@ -236,8 +236,13 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 .expect(200);
             expect(empty.body).toEqual({ count: 0 });
 
-            // Create a real article entry (the creator is a member of the
-            // workspace it was created in, so the write is allowed).
+            // Create a real article entry. Membership alone is not access —
+            // the workspace has to be granted the type as well
+            // (`ContentGrantGuard`), so grant it first.
+            await agent
+                .post(`/api/workspaces/${id}/content`)
+                .send({ slug: 'test_article' })
+                .expect(201);
             await agent
                 .post('/api/content/test_article')
                 .set('X-Workspace-Id', id)

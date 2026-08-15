@@ -7,6 +7,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace
 } from '../../support/seed';
@@ -55,6 +56,7 @@ describe('i18n coverage with one configured locale (/api/insights/i18n)', () => 
         const ws = await seedWorkspace({ name: 'WS Solo', slug: 'ws-solo' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
     });
 
     it('forces notLocalized to 0 — there is nowhere to translate to (F27)', async () => {

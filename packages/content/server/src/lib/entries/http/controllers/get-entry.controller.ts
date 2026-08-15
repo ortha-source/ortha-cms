@@ -15,6 +15,7 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../../entries.constants';
 import { InjectContentRegistry } from '../../../content.tokens';
@@ -36,7 +37,7 @@ import { resolveType } from './resolve-type';
  * the records-list cache. `WorkspaceGuard` scopes it to a workspace the caller
  * belongs to; gated on `content:read`.
  */
-@UseGuards(PermissionsGuard, WorkspaceGuard)
+@UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class GetEntryController {

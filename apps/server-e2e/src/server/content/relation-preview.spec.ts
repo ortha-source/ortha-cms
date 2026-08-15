@@ -8,6 +8,7 @@ import {
 import {
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedArticleTags,
     seedArticles,
     seedAuthors,
@@ -29,6 +30,8 @@ interface RelationRef {
     title: string;
     slug?: string;
     status?: string;
+    /** Set when the id resolved to no visible row — its `title` is the raw id. */
+    missing?: boolean;
 }
 
 /** One relation field's preview: a capped page plus the true total. */
@@ -80,6 +83,7 @@ describe('Content relation preview (GET /api/content/:typeName?relations=preview
         const ws = await seedWorkspace({ name: 'WS Rel', slug: 'ws-rel' });
         workspaceId = ws.id;
         await seedMembership(admin.id, workspaceId);
+        await seedAllContentGrants(workspaceId);
 
         [authorId] = await seedAuthors(
             [{ name: 'Ada Lovelace' }],
@@ -272,6 +276,48 @@ describe('Content relation preview (GET /api/content/:typeName?relations=preview
             expect(
                 (res.body.items as RelationRef[]).map((item) => item.title)
             ).toEqual([`Tag ${RELATION_PAGE_SIZE}`, `Tag ${RELATION_PAGE_SIZE + 1}`]);
+        });
+    });
+
+    describe('workspace scoping', () => {
+        it('never surfaces the title of a target that lives in another workspace', async () => {
+            // The link rows are workspace-agnostic — only the target row
+            // carries a `workspace_id` — so the preview's own target lookup has
+            // to AND it. Two tags, one seeded into a foreign workspace, both
+            // linked to the same article (a state the write path refuses to
+            // create, but a moved or legacy row can leave behind).
+            //
+            // The contract is *not* that the link vanishes: `items` and `total`
+            // stay consistent, so the foreign id comes back as a `missing` ref
+            // whose `title` is only the raw id standing in — no title, no
+            // content, and a flag the UI keys off so it never prints it.
+            const foreign = await seedWorkspace({
+                name: 'WS Foreign',
+                slug: 'ws-foreign'
+            });
+            const [localTag] = await seedTags([{ name: 'Local' }], workspaceId);
+            const [foreignTag] = await seedTags(
+                [{ name: 'Foreign' }],
+                foreign.id
+            );
+            await seedArticleTags(articleId, [localTag, foreignTag]);
+
+            const items = await listArticles({
+                relations: 'preview',
+                relationFields: 'tags'
+            });
+            const alpha = items.find((item) => item.values.text === 'Alpha');
+            const refs = alpha?.relations?.tags?.items ?? [];
+            expect(refs).toHaveLength(2);
+
+            const local = refs.find((ref) => ref.id === localTag);
+            expect(local).toMatchObject({ title: 'Local' });
+            expect(local?.missing).toBeUndefined();
+
+            const hidden = refs.find((ref) => ref.id === foreignTag);
+            expect(hidden).toMatchObject({ missing: true, title: foreignTag });
+            // The foreign tag's own name is nowhere in the response.
+            expect(JSON.stringify(refs)).not.toContain('Foreign');
         });
     });
 

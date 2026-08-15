@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_986 test cases across 60 spec files._
+_1016 test cases across 62 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -763,6 +763,16 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | --- |
 | previews then publishes only the valid drafts (and hits the bulk route, not :id) |
 | bulk soft-deletes a set of entries |
+| skips an id from another workspace, and does not report it as done |
+| skips a foreign id on bulk delete too, leaving its row alive |
+
+### a delete refused by the database
+
+| Test case |
+| --- |
+| 409s when an ON DELETE RESTRICT reference still points at the row |
+| 409s the bulk variant too |
+| deletes normally once the reference is detached |
 
 ### authorization
 
@@ -771,6 +781,46 @@ _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
 | 401s unauthenticated writes |
 | 403s a viewer on create and delete |
 | lets a contributor create but not delete |
+
+<!-- source: apps/server-e2e/src/server/content/content-grants.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/content-grants.spec.ts</sub>_
+
+## Content grants on the admin API (workspace_content)
+
+### an ungranted type answers exactly as an unknown one
+
+| Test case |
+| --- |
+| 404s the schema of an ungranted type with the unknown-type body |
+| 404s the entries list of an ungranted type with the same body |
+| serves the granted type unchanged |
+
+### reads
+
+| Test case |
+| --- |
+| 404s every read route of an ungranted type |
+| keeps the global /api/content-schema catalogue unscoped |
+
+### writes
+
+| Test case |
+| --- |
+| 404s a create of an ungranted type and writes no row |
+| 404s update / publish / delete / bulk on an ungranted type |
+| lets the granted type through unchanged |
+
+### a workspace granted nothing
+
+| Test case |
+| --- |
+| 404s every type, including ones other workspaces hold |
+
+### a revoked grant
+
+| Test case |
+| --- |
+| stops accepting creates as soon as the grant row is gone |
 
 <!-- source: apps/server-e2e/src/server/content/content-media-fields.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-media-fields.spec.ts</sub>_
@@ -977,11 +1027,53 @@ _<sub>apps/server-e2e/src/server/content/relation-preview.spec.ts</sub>_
 | caps items at one page but reports the true total |
 | continues from the preview on the paginated per-field route |
 
+### workspace scoping
+
+| Test case |
+| --- |
+| never surfaces the title of a target that lives in another workspace |
+
 ### batching
 
 | Test case |
 | --- |
 | issues the same number of queries for a 1-row and a 5-row page |
+
+<!-- source: apps/server-e2e/src/server/content/revision-scope.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/revision-scope.spec.ts</sub>_
+
+## Revision scoping and permissions (/api/content/:type/:id/revisions)
+
+### the :typeName is checked against the revision’s content_type
+
+| Test case |
+| --- |
+| does not serve an article’s timeline under another type’s name |
+| does not serve an article’s snapshot under another type’s name |
+| refuses restore and publish of a version under another type’s name |
+
+### workspace scoping
+
+| Test case |
+| --- |
+| shows no history for an entry that lives in another workspace |
+
+### restore is tolerant of a snapshot the type has outgrown
+
+| Test case |
+| --- |
+| drops a stored key whose field no longer exists instead of 422ing |
+
+### permissions by role
+
+| Test case |
+| --- |
+| 401s every revision route without a session |
+| lets a viewer read the timeline but not restore or publish a version |
+| lets a contributor restore a version — restore is an edit (content:update) |
+| lets a contributor publish a version — the role holds content:publish |
+| separates the two gates: content:update alone restores but cannot publish |
+| 403s a disallowed Origin on both write routes (CSRF) |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-chat.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
@@ -1523,6 +1615,7 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | files each entry in the bucket its last edit falls in |
 | places a boundary entry in exactly one bucket |
 | counts only published entries — a draft is not neglected content |
+| counts only the workspace named by the header |
 
 ### GET /pipeline
 
@@ -1530,6 +1623,7 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | --- |
 | splits each type into published and draft |
 | omits a type the workspace has never used |
+| counts only the workspace named by the header |
 
 ### GET /unshipped
 
@@ -1548,6 +1642,7 @@ _<sub>apps/server-e2e/src/server/insights/content-insights.spec.ts</sub>_
 | Test case |
 | --- |
 | buckets entries by when they were published |
+| counts only the workspace named by the header |
 | widens the bucket for a longer window |
 
 ### GET /punchcard

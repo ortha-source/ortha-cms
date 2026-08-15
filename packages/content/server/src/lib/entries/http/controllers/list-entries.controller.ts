@@ -15,6 +15,7 @@ import {
     CurrentWorkspace,
     WorkspaceGuard
 } from '@ortha-cms/workspaces-server';
+import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntriesService } from '../../infrastructure/queries/entries.service';
@@ -30,7 +31,7 @@ import type { EntryListView } from '../../types/entry-list-view';
  * app-wide AuthGuard; `WorkspaceGuard` scopes the request to a workspace the
  * caller belongs to; read access is gated on `content:read`.
  */
-@UseGuards(PermissionsGuard, WorkspaceGuard)
+@UseGuards(PermissionsGuard, WorkspaceGuard, ContentGrantGuard)
 @RequirePermissions(PERMISSIONS.CONTENT_READ)
 @Controller('content')
 export class ListEntriesController {
