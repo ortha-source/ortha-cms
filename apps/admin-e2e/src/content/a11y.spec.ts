@@ -58,4 +58,38 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await contentLibraryPage.openSearch();
         await expectNoA11yViolations(makeAxe());
     });
+
+    test('sidebar error state', async ({
+        page,
+        contentLibraryPage,
+        makeAxe
+    }) => {
+        // The failed-catalogue state used to be "render nothing", so it had no
+        // markup to scan; now that it is an alert with a retry, scan it.
+        await mockContentSchema(page, { status: 500 });
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+        await contentLibraryPage.sidebarError.waitFor({ timeout: 15_000 });
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('entry editor — publish gate showing a refusal', async ({
+        page,
+        contentLibraryPage,
+        makeAxe
+    }) => {
+        // The gate's per-row state words and the invalid field's paired
+        // description/error only exist once a submit has been refused.
+        await page.goto(
+            `/workspaces/${LIBRARY_WORKSPACE.id}/content/blog_post/new`
+        );
+        await contentLibraryPage.editorSave.first().click();
+        await page.getByText('Needs attention:').first().waitFor();
+        // Let the refusal toast expire first: sonner's own surface fails
+        // contrast (a design-system issue, not this page's), and it would mask
+        // the persistent state this case exists to scan.
+        await page
+            .locator('[data-sonner-toast]')
+            .waitFor({ state: 'detached', timeout: 15_000 });
+        await expectNoA11yViolations(makeAxe());
+    });
 });

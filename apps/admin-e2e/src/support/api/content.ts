@@ -1629,3 +1629,160 @@ export async function spyEntrySave(page: Page): Promise<EntrySaveSpy> {
         }
     };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Resilience fixtures: a shrinking list, a hidden required field, a 422.      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A collection whose row set actually **shrinks** when a row is deleted.
+ *
+ * The standard {@link mockContentEntries} serves a fixed set, so a delete leaves
+ * the list the same length — which is exactly the condition the stranded-pager
+ * bug needs to *not* be reproducible. This owns a mutable array, serves it
+ * through the same search/sort/paginate path, and removes the row on `DELETE`,
+ * so `total` genuinely falls and the view's clamp has something to clamp.
+ *
+ * Registered **after** the shared mocks so its narrower routes win (Playwright
+ * matches the most recently added handler first).
+ */
+export async function mockShrinkingEntries(
+    page: Page,
+    {
+        typeName = 'blog_post',
+        count = 21
+    }: { typeName?: string; count?: number } = {}
+): Promise<void> {
+    const detail = CONTENT_DETAIL_SEED[typeName];
+    const rows: EntryRecord[] = Array.from({ length: count }, (_, i) => {
+        const values: Record<string, unknown> = {};
+        for (const field of detail.fields)
+            values[field.name] = valueFor(field, i);
+        const day = new Date(Date.UTC(2026, 0, 1 + (i % 27))).toISOString();
+        return {
+            id: `${typeName}-${String(i + 1).padStart(2, '0')}`,
+            ...(detail.publishable ? { status: 'draft' as const } : {}),
+            createdAt: day,
+            updatedAt: day,
+            values
+        };
+    });
+
+    // Delete first: the id route is also claimed by `mockContentEntryWrites`.
+    await page.route(
+        new RegExp(`/api/content/${typeName}/[^/?]+$`),
+        async (route) => {
+            if (route.request().method() !== 'DELETE') return route.fallback();
+            const id = decodeURIComponent(
+                new URL(route.request().url()).pathname.split('/').pop() ?? ''
+            );
+            const at = rows.findIndex((row) => row.id === id);
+            if (at >= 0) rows.splice(at, 1);
+            await route.fulfill({ status: 204, body: '' });
+        }
+    );
+
+    await page.route(
+        new RegExp(`/api/content/${typeName}(\\?.*)?$`),
+        async (route) => {
+            if (route.request().method() !== 'GET') return route.fallback();
+            const url = new URL(route.request().url());
+            const pageNum = Number(url.searchParams.get('page') ?? '1');
+            const pageSize = Number(
+                url.searchParams.get('pageSize') ?? String(ENTRY_PAGE_SIZE)
+            );
+            // Mirror the server: a page size above the cap is a 400, not a clamp.
+            if (pageSize > 100) {
+                await route.fulfill({
+                    status: 400,
+                    contentType: 'application/json',
+                    body: JSON.stringify({
+                        message: ['pageSize must not be greater than 100']
+                    })
+                });
+                return;
+            }
+            const start = (pageNum - 1) * pageSize;
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    items: rows.slice(start, start + pageSize),
+                    total: rows.length,
+                    page: pageNum,
+                    pageSize
+                })
+            });
+        }
+    );
+}
+
+/** The catalogue for the hidden-required-field fixture. */
+export const HIDDEN_FIELD_SCHEMA_SEED: ContentTypeSummary[] = [
+    { name: 'gadget', kind: 'collection', label: 'Gadgets', publishable: true }
+];
+
+/**
+ * A publishable collection with a **required field the editor renders nowhere**
+ * (`admin.hidden`). It is a schema-authoring mistake rather than a normal shape,
+ * and it used to pin the form shut: the publish gate is built from the visible
+ * fields and read "ready", while validation still counted the hidden one and the
+ * toast named it — a control the user could never find.
+ */
+export const HIDDEN_FIELD_DETAIL_SEED: Record<string, ContentTypeDetail> = {
+    gadget: {
+        name: 'gadget',
+        kind: 'collection',
+        label: 'Gadgets',
+        publishable: true,
+        fields: [
+            {
+                name: 'title',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Title', description: 'Shown in listings.' }
+            },
+            {
+                name: 'internalCode',
+                type: 'text',
+                required: true,
+                validation: {},
+                admin: { label: 'Internal code', hidden: true }
+            }
+        ]
+    }
+};
+
+/** A workspace granted only the hidden-field fixture type. */
+export const HIDDEN_FIELD_WORKSPACE: WorkspaceView = {
+    ...LIBRARY_WORKSPACE,
+    id: 'ws_hidden',
+    name: 'Hidden field demo',
+    slug: 'hidden-field-demo',
+    content: ['gadget']
+};
+
+/**
+ * Reject the publish step with the 422 shape the write API uses, naming a field
+ * the editor renders no control for. Registered after the write mocks so it
+ * claims the publish route ahead of them.
+ */
+export async function mockPublishRejection(
+    page: Page,
+    { field, message = 'is required' }: { field: string; message?: string }
+): Promise<void> {
+    await page.route(
+        /\/api\/content\/[^/?]+\/[^/?]+\/publish$/,
+        async (route) => {
+            await route.fulfill({
+                status: 422,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    message: 'Entry validation failed',
+                    issues: [{ field, message }]
+                })
+            });
+        }
+    );
+}

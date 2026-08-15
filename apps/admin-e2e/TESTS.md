@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_511 test cases across 53 spec files._
+_529 test cases across 55 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -293,6 +293,8 @@ _<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_
 | expanded group + selected type |
 | column picker — open |
 | search palette — open |
+| sidebar error state |
+| entry editor — publish gate showing a refusal |
 
 <!-- source: apps/admin-e2e/src/content/content-library.spec.ts -->
 _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
@@ -383,6 +385,26 @@ _<sub>apps/admin-e2e/src/content/entry-revisions.spec.ts</sub>_
 | --- |
 | saving a draft keeps the published version live |
 | publishing a version from history makes it live |
+
+<!-- source: apps/admin-e2e/src/content/entry-validation.spec.ts -->
+_<sub>apps/admin-e2e/src/content/entry-validation.spec.ts</sub>_
+
+## Entry editor validation
+
+### a required field the editor renders nowhere
+
+| Test case |
+| --- |
+| is left out of the publish gate and out of client validation alike |
+| surfaces the server 422 as a toast when it names an unrendered field |
+| a field keeps announcing its hint once it is showing an error |
+
+### refused submits and field hints
+
+| Test case |
+| --- |
+| a refused publish moves focus to the first invalid control |
+| the publish gate states each row pass or fail in words |
 
 <!-- source: apps/admin-e2e/src/content/i18n-resilience.spec.ts -->
 _<sub>apps/admin-e2e/src/content/i18n-resilience.spec.ts</sub>_
@@ -500,6 +522,25 @@ _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
 | --- |
 | shows an error state instead of an empty picker |
 | the table itself still loads |
+
+<!-- source: apps/admin-e2e/src/content/records-resilience.spec.ts -->
+_<sub>apps/admin-e2e/src/content/records-resilience.spec.ts</sub>_
+
+## Records resilience
+
+| Test case |
+| --- |
+| deleting the only row on the last page pulls the pager back instead of stranding it |
+| a page deep-linked past the end is clamped to the last real page |
+| a pageSize the server would reject falls back to the default rather than an error card |
+| deleting a selected row drops it from the selection |
+| focus lands on the records table after a row is deleted |
+| every row-actions trigger is named for its own record |
+| the live region restates the page and the sort, not just the total |
+| boolean and money cells read as answers, not wire values |
+| a failed content-type catalogue leaves the sidebar an error, not an absence |
+| the sidebar recovers when its retry succeeds |
+| the search palette announces how many types match |
 
 <!-- source: apps/admin-e2e/src/content/relation-cells.spec.ts -->
 _<sub>apps/admin-e2e/src/content/relation-cells.spec.ts</sub>_

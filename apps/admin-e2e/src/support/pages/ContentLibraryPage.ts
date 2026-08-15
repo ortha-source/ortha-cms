@@ -535,11 +535,50 @@ export class ContentLibraryPage extends BasePage {
         return this.recordRows(table).nth(index).getByRole('checkbox');
     }
 
-    /** The row-actions menu trigger (kebab) in a given data row. */
+    /**
+     * The row-actions menu trigger (kebab) in a given data row. Its accessible
+     * name carries the row's own title ("Actions for {title}"), so that ten
+     * rows don't offer ten identically-named buttons — matched by prefix here
+     * so the handle works whatever the row is called.
+     */
     rowActions(table: string, index: number): Locator {
         return this.recordRows(table)
             .nth(index)
-            .getByRole('button', { name: 'Actions for this record' });
+            .getByRole('button', { name: /^Actions for / });
+    }
+
+    /** Every row-actions trigger in the table, for name-uniqueness assertions. */
+    rowActionTriggers(table: string): Locator {
+        return this.recordsTable(table).getByRole('button', {
+            name: /^Actions for /
+        });
+    }
+
+    /** The rows-per-page select trigger in the records footer. */
+    get rowsPerPage(): Locator {
+        return this.page.getByRole('combobox', { name: 'Rows per page' });
+    }
+
+    /** The records table's live status region text (result count + view + sort). */
+    get recordsStatus(): Locator {
+        return this.page.locator('p[role="status"]').first();
+    }
+
+    /** The records "Page X of Y" readout. */
+    get pageReadout(): Locator {
+        return this.page.getByText(/^Page \d+ of \d+$/);
+    }
+
+    /**
+     * The Content **sidebar's** own error state. The work-area pane raises an
+     * alert with the same title, so this is narrowed by the body copy only the
+     * pane carries — the sidebar's is deliberately terse.
+     */
+    get sidebarError(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: 'Couldn’t load content types' })
+            .filter({ hasNotText: 'Something went wrong' });
     }
 
     /** A row-actions menu item by its label (the menu must be open). */
