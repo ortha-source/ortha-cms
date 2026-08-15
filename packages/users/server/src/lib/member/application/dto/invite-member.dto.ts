@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
     ArrayUnique,
     IsArray,
@@ -45,8 +46,19 @@ export class InviteMemberDto {
         description:
             'Display name to pre-fill on the pending account; the invitee can change it.'
     })
+    /**
+     * Trimmed before validation, so a whitespace-only name is a `400` rather
+     * than a stored blank. `@IsNotEmpty` alone rejects `''` but accepts
+     * `'   '` — and this row is the only source of that person's human
+     * identifier, so a blank one leaves every downstream surface (table row
+     * header, avatar initials, an action's accessible name, the audit log's
+     * actor column) with nothing to render.
+     */
     @IsOptional()
     @IsString()
+    @Transform(({ value }) =>
+        typeof value === 'string' ? value.trim() : value
+    )
     @IsNotEmpty()
     name?: string;
 

@@ -7,6 +7,7 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
@@ -21,7 +22,7 @@ import type { MemberView } from '../../application/queries/member.view';
  * the read surface is open to every signed-in member anyway.
  */
 @UseGuards(PermissionsGuard)
-@RequirePermissions('users:read')
+@RequirePermissions(PERMISSIONS.USERS_READ)
 @Controller('users')
 export class GetMemberController {
     constructor(private readonly views: MemberViewQuery) {}

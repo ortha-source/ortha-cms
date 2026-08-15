@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import {
     ASSIGNABLE_ROLE_KEYS,
@@ -18,8 +19,19 @@ export class UpdateMemberDto {
         example: 'Grace Hopper',
         description: 'New display name. Omit to leave it unchanged.'
     })
+    /**
+     * Trimmed before validation, so a whitespace-only name is a `400` rather
+     * than a stored blank. `@IsNotEmpty` alone rejects `''` but accepts
+     * `'   '` — and this row is the only source of that person's human
+     * identifier, so a blank one leaves every downstream surface (table row
+     * header, avatar initials, an action's accessible name, the audit log's
+     * actor column) with nothing to render.
+     */
     @IsOptional()
     @IsString()
+    @Transform(({ value }) =>
+        typeof value === 'string' ? value.trim() : value
+    )
     @IsNotEmpty()
     name?: string;
 

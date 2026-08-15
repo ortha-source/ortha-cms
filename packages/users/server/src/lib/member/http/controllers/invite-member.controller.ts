@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import {
     CurrentUser,
+    OriginGuard,
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
@@ -25,8 +27,8 @@ import type { InvitedMemberView } from '../../application/queries/member.view';
  * "Invited" status, plus the raw `inviteToken` — the admin's only chance to
  * capture the link, since no mailer sends it yet (identity epic #11).
  */
-@UseGuards(PermissionsGuard)
-@RequirePermissions('users:create')
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.USERS_CREATE)
 @Controller('users')
 export class InviteMemberController {
     constructor(
