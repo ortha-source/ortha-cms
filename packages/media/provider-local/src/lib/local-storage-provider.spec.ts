@@ -127,7 +127,13 @@ describe('createLocalStorageProvider', () => {
             ['логотип.png', '_.png'],
             ['a<b>c.png', 'a_b_c.png'],
             ['a\0b.png', 'a_b.png'],
-            ['...', '...']
+            ['...', '...'],
+            // `FileName` rejects these upstream, so they should be unreachable
+            // — but "unreachable" is a property of today's callers, and the
+            // port is public. A separator must never survive into the path.
+            ['../../etc/passwd', '.._.._etc_passwd'],
+            ['....//....//etc/passwd', '...._...._etc_passwd'],
+            ['a\\b.png', 'a_b.png']
         ])('sanitizes %j to %j', async (fileName, expected) => {
             const stored = await put({ fileName });
 
