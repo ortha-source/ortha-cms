@@ -4,6 +4,8 @@ import { getDatabase, getPool } from '@ortha-cms/database';
 import {
     RootAdminService,
     apiTokens,
+    permissions as permissionsTable,
+    rolePermissions,
     roles,
     sessions,
     tokens,
@@ -119,6 +121,55 @@ export async function seedUserWithEmptyRole(
         .insert(roles)
         .values({ key: opts.roleKey, name: opts.roleKey, isSystem: false })
         .returning();
+    const passwordHash = await app
+        .get(HashingService)
+        .hashPassword(opts.password);
+    const [user] = await db
+        .insert(users)
+        .values({
+            email: opts.email,
+            passwordHash,
+            roleId: role.id,
+            status: 'active'
+        })
+        .returning();
+    return { id: user.id, email: user.email };
+}
+
+/**
+ * Insert an active user under a fresh role granted exactly `permissions`.
+ *
+ * The point is a principal who holds a capability **without** being an admin —
+ * the only way to reach the last-admin guards, since an admin looking at the
+ * sole remaining admin is looking at themselves and trips the self-action guard
+ * first. `roleKey` must be unique across a run (`roles` survives `resetDb`).
+ */
+export async function seedUserWithPermissions(
+    app: INestApplication,
+    opts: {
+        email: string;
+        password: string;
+        roleKey: string;
+        permissions: string[];
+    }
+): Promise<SeededUser> {
+    const db = getDatabase();
+    const [role] = await db
+        .insert(roles)
+        .values({ key: opts.roleKey, name: opts.roleKey, isSystem: false })
+        .returning();
+    const rows = await db
+        .select({ id: permissionsTable.id, key: permissionsTable.key })
+        .from(permissionsTable);
+    const wanted = rows.filter((row) => opts.permissions.includes(row.key));
+    if (wanted.length !== opts.permissions.length) {
+        throw new Error(
+            `seedUserWithPermissions: unknown permission key in ${JSON.stringify(opts.permissions)}`
+        );
+    }
+    await db
+        .insert(rolePermissions)
+        .values(wanted.map((p) => ({ roleId: role.id, permissionId: p.id })));
     const passwordHash = await app
         .get(HashingService)
         .hashPassword(opts.password);
@@ -394,6 +445,23 @@ export async function getInviteTokenHashes(userId: string): Promise<string[]> {
     return rows
         .filter((row) => row.type === 'invite')
         .map((row) => row.tokenHash);
+}
+
+/**
+ * Back-date a user's invite token issue time — steps past the resend cooldown
+ * without making the suite sleep for it. `POST /:id/invites/resend` refuses to
+ * rotate a link minted moments ago (it would destroy one the admin is still
+ * holding), so a spec that resends right after inviting has to age the token
+ * first or assert the `INVITE_RECENTLY_SENT` conflict deliberately.
+ */
+export async function ageInviteTokens(
+    userId: string,
+    seconds = 3600
+): Promise<void> {
+    await getDatabase()
+        .update(tokens)
+        .set({ createdAt: new Date(Date.now() - seconds * 1000) })
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'invite')));
 }
 
 /**

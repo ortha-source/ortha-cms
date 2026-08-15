@@ -7,6 +7,7 @@ import {
     tokens,
     type IdentityPluginConfig
 } from '@ortha-cms/identity-server';
+import { InviteRecentlySentError } from '../../domain/errors';
 
 /**
  * Namespace for the per-user advisory lock that serializes {@link
@@ -44,12 +45,21 @@ export class InviteTokenService {
      * concurrent resends can each take their `DELETE` snapshot before the
      * other's `INSERT` commits, leaving **two** live links where the contract
      * promises one.
+     *
+     * Pass `minIntervalSeconds` to refuse a rotation that would destroy a link
+     * issued moments ago ({@link InviteRecentlySentError}). The invite path
+     * omits it — there is nothing to protect on a first issue.
      */
-    async rotate(userId: string, executor?: TokenExecutor): Promise<string> {
+    async rotate(
+        userId: string,
+        executor?: TokenExecutor,
+        options?: RotateOptions
+    ): Promise<string> {
         const raw = randomBytes(32).toString('hex');
         const expiresAt = new Date(
             Date.now() + this.identityConfig.token.inviteTtlSeconds * 1000
         );
+        const cooldownMs = (options?.minIntervalSeconds ?? 0) * 1000;
 
         const run = async (db: TokenExecutor): Promise<void> => {
             // Transaction-scoped: released at commit/rollback, so there is
@@ -57,6 +67,32 @@ export class InviteTokenService {
             await db.execute(
                 sql`select pg_advisory_xact_lock(${INVITE_LOCK_NAMESPACE}, hashtext(${userId}))`
             );
+
+            // The cooldown is checked *inside* the lock, so two concurrent
+            // resends cannot both read "no recent token" and both rotate —
+            // which is the very race this lock exists for.
+            if (cooldownMs > 0) {
+                const [current] = await db
+                    .select({ createdAt: tokens.createdAt })
+                    .from(tokens)
+                    .where(
+                        and(
+                            eq(tokens.userId, userId),
+                            eq(tokens.type, 'invite')
+                        )
+                    )
+                    .limit(1);
+                if (current) {
+                    const elapsedMs = Date.now() - current.createdAt.getTime();
+                    if (elapsedMs < cooldownMs) {
+                        throw new InviteRecentlySentError(
+                            userId,
+                            Math.ceil((cooldownMs - elapsedMs) / 1000)
+                        );
+                    }
+                }
+            }
+
             await db
                 .delete(tokens)
                 .where(
@@ -90,6 +126,16 @@ export class InviteTokenService {
  * The executor `rotate` accepts: the root client or an open transaction. Lets a
  * caller hand in its `tx` so the token swap commits in-band with the invite.
  * `execute` is part of the shape because the advisory lock has to be taken on
- * the **same** transaction as the swap it guards.
+ * the **same** transaction as the swap it guards, and `select` because the
+ * resend cooldown reads the current token under that same lock.
  */
-type TokenExecutor = Pick<Database, 'delete' | 'insert' | 'execute'>;
+type TokenExecutor = Pick<Database, 'delete' | 'insert' | 'execute' | 'select'>;
+
+/** Options for {@link InviteTokenService.rotate}. */
+export type RotateOptions = {
+    /**
+     * Refuse the rotation when the current invite token is younger than this.
+     * Omit (or `0`) to always rotate — the first-issue behaviour.
+     */
+    minIntervalSeconds?: number;
+};

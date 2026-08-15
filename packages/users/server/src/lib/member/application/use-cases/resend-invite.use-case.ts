@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { PublicUser } from '@ortha-cms/identity-server';
+import { INVITE_RESEND_COOLDOWN_SECONDS } from '../../member.constants';
 import { MemberId } from '../../domain/value-objects/member-id';
 import { MemberNotFoundError } from '../../domain/errors';
 import {
@@ -47,9 +48,13 @@ export class ResendInviteUseCase {
 
             // TODO(users-email): send this link instead of returning it, once a
             // mailer exists (identity epic #11).
+            // Refuse a rotation that would destroy a link handed over moments
+            // ago: the raw token is unrecoverable, so a double-clicked resend
+            // can otherwise leave the admin holding the dead first response.
             const inviteToken = await this.inviteTokens.rotate(
                 member.id.value,
-                this.uow.current()
+                this.uow.current(),
+                { minIntervalSeconds: INVITE_RESEND_COOLDOWN_SECONDS }
             );
 
             await this.outbox.append(
