@@ -118,6 +118,51 @@ every member edit in the deployment behind one lock. `enable` is unlocked for
 the same reason, stated positively: enabling only ever *increases* the count, so
 it cannot violate the invariant.
 
+## Conflict bodies carry a machine code
+
+Every `409` from this package is `{ statusCode, error, message, code }`, where
+`code` is one of `MEMBER_ERROR_CODES` (`domain/errors/error-codes.ts`) and the
+HTTP layer builds it through the `conflict()` helper (`http/conflict.ts`).
+
+The domain already distinguishes these precisely — `SelfActionError` is not
+`LastAdminProtectedError` — but HTTP used to flatten all of them to a 409 whose
+only distinguishing feature was an English sentence. A client that wants to say
+"promote another admin first" could then only string-match prose, so
+`users-admin` showed one generic message for every conflict and the actionable
+reason never reached the user in any language (WCAG 3.3.1 / 3.3.3).
+
+Two rules:
+
+- **`code` is a wire contract — append, never rename.** The English `message`
+  stays alongside as a developer-facing fallback, and `statusCode` / `error` are
+  repeated deliberately: Nest replaces the whole body when given an object, so
+  adding `code` must not remove fields clients already read.
+- Add a new code by adding to `MEMBER_ERROR_CODES` and giving the domain error a
+  `readonly code: MemberErrorCode`. Typing it as the union (not `string`) is
+  what makes `conflict()` reject a code that isn't in the catalogue.
+
+## The resend cooldown
+
+`POST /:id/invites/resend` refuses to rotate a token issued in the last
+`INVITE_RESEND_COOLDOWN_SECONDS` (60), answering `409 INVITE_RECENTLY_SENT` with
+a `retryAfterSeconds`.
+
+This is **not** the obvious fix, so the reasoning matters: rotation is
+unconditionally destructive, and the raw token is *unrecoverable* — only its
+SHA-256 is stored. The server therefore **cannot** "return the existing link
+instead" when a resend arrives too soon. Refusing the second call is the only
+way a double-clicked Resend doesn't leave the admin holding the dead first
+response, which is exactly what it did before.
+
+The check runs **inside** the per-user advisory lock in `InviteTokenService`,
+not in the use case — otherwise two concurrent resends both read "no recent
+token" and both rotate, which is the race the lock exists for. The invite path
+passes no `minIntervalSeconds`: a first issue has nothing to protect.
+
+A spec that resends right after inviting must age the token first
+(`ageInviteTokens` in `apps/server-e2e/src/support/seed.ts`) or assert the
+conflict deliberately.
+
 ## Unit of work + outbox
 
 Each state-changing use case runs inside `UnitOfWork.run` (one transaction),

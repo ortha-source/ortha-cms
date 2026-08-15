@@ -1,5 +1,4 @@
 import {
-    ConflictException,
     Controller,
     NotFoundException,
     Param,
@@ -17,11 +16,13 @@ import {
 } from '@ortha-cms/identity-server';
 import { SetMemberStatusUseCase } from '../../application/use-cases/set-member-status.use-case';
 import {
+    MEMBER_ERROR_CODES,
     InvalidMemberStateError,
     LastAdminProtectedError,
     MemberNotFoundError,
     SelfActionError
 } from '../../domain/errors';
+import { conflict } from '../conflict';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
 import type { MemberView } from '../../application/queries/member.view';
 
@@ -86,15 +87,19 @@ function mapStatusError(error: unknown): Error {
         return new NotFoundException();
     }
     if (error instanceof SelfActionError) {
-        return new ConflictException('You cannot disable your own account');
+        return conflict(
+            MEMBER_ERROR_CODES.SELF_ACTION,
+            'You cannot disable your own account'
+        );
     }
     if (error instanceof LastAdminProtectedError) {
-        return new ConflictException(
+        return conflict(
+            MEMBER_ERROR_CODES.LAST_ADMIN_PROTECTED,
             'The last remaining admin cannot be disabled'
         );
     }
     if (error instanceof InvalidMemberStateError) {
-        return new ConflictException(error.message);
+        return conflict(error.code, error.message);
     }
     return error instanceof Error ? error : new Error(String(error));
 }

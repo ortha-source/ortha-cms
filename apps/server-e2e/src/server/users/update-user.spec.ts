@@ -9,6 +9,7 @@ import {
     resetDb,
     seedActiveUser,
     seedUser,
+    seedUserWithPermissions,
     type SeededUser
 } from '../../support/seed';
 
@@ -205,6 +206,44 @@ describe('PATCH /api/users/:id', () => {
                 .send({ name: '  Grace Hopper  ' })
                 .expect(200);
             expect(res.body.name).toBe('Grace Hopper');
+        });
+    });
+
+    describe('conflict bodies carry a stable machine code', () => {
+        it('tags a self role change as SELF_ACTION', async () => {
+            await seedActiveUser(harness.app, {
+                email: 'other-admin@example.com',
+                password: PASSWORD,
+                role: 'admin'
+            });
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .patch(`/api/users/${admin.id}`)
+                .send({ role: 'viewer' })
+                .expect(409);
+
+            expect(res.body.code).toBe('SELF_ACTION');
+            // Additive: the fields clients already read are untouched.
+            expect(res.body.statusCode).toBe(409);
+            expect(res.body.error).toBe('Conflict');
+        });
+
+        it('tags demoting the last admin as LAST_ADMIN_PROTECTED', async () => {
+            // Needs a non-admin holding users:update — an admin looking at the
+            // sole admin is looking at themselves, so SELF_ACTION fires first.
+            await seedUserWithPermissions(harness.app, {
+                email: 'ops@example.com',
+                password: PASSWORD,
+                roleKey: 'update-user-ops',
+                permissions: ['users:read', 'users:update']
+            });
+            const agent = await login('ops@example.com');
+            const res = await agent
+                .patch(`/api/users/${admin.id}`)
+                .send({ role: 'viewer' })
+                .expect(409);
+
+            expect(res.body.code).toBe('LAST_ADMIN_PROTECTED');
         });
     });
 });

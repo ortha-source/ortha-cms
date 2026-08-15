@@ -5,6 +5,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    ageInviteTokens,
     getInviteTokenHashes,
     getUserByEmail,
     resetDb,
@@ -60,6 +61,9 @@ describe('manage pending invites', () => {
             const id = await invite('pending@example.com');
             const before = await getInviteTokenHashes(id);
             expect(before).toHaveLength(1);
+            // Step past the resend cooldown — this spec is about rotation, not
+            // about the window (which has its own cases below).
+            await ageInviteTokens(id);
 
             const agent = await login(ADMIN_EMAIL);
             await agent.post(`/api/users/${id}/invites/resend`).expect(201);
@@ -143,6 +147,99 @@ describe('manage pending invites', () => {
             });
             const agent = await login('contributor@example.com');
             await agent.delete(`/api/users/${id}/invites`).expect(403);
+        });
+    });
+
+    describe('resend cooldown (INVITE_RECENTLY_SENT)', () => {
+        // Rotation is destructive and the raw token is unrecoverable — only its
+        // hash is stored — so the server cannot hand back the link it just
+        // minted. Refusing the second call is the only way a double-clicked
+        // Resend doesn't leave the admin holding a dead token.
+        it('refuses a resend issued moments ago, with a machine code', async () => {
+            const id = await invite('cooldown@example.com');
+            const before = await getInviteTokenHashes(id);
+
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post(`/api/users/${id}/invites/resend`)
+                .expect(409);
+
+            expect(res.body.code).toBe('INVITE_RECENTLY_SENT');
+            expect(res.body.retryAfterSeconds).toBeGreaterThan(0);
+            // The crucial part: the link the admin already holds still works.
+            expect(await getInviteTokenHashes(id)).toEqual(before);
+        });
+
+        it('allows the resend once the window has passed', async () => {
+            const id = await invite('cooldown-ok@example.com');
+            const before = await getInviteTokenHashes(id);
+            await ageInviteTokens(id);
+
+            const agent = await login(ADMIN_EMAIL);
+            await agent.post(`/api/users/${id}/invites/resend`).expect(201);
+
+            const after = await getInviteTokenHashes(id);
+            expect(after).toHaveLength(1);
+            expect(after[0]).not.toBe(before[0]);
+        });
+
+        it('does not apply to the first invite', async () => {
+            // A brand-new invite has nothing to protect; only resend is gated.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/users/invites')
+                .send({ email: 'first-invite@example.com', role: 'viewer' })
+                .expect(201);
+        });
+
+        it('keeps one live token when two resends race', async () => {
+            const id = await invite('race@example.com');
+            await ageInviteTokens(id);
+
+            const agent = await login(ADMIN_EMAIL);
+            const [a, b] = await Promise.all([
+                agent.post(`/api/users/${id}/invites/resend`),
+                agent.post(`/api/users/${id}/invites/resend`)
+            ]);
+
+            // Whichever loses is refused rather than silently destroying the
+            // winner's link; either way exactly one token survives.
+            expect([a.status, b.status].sort()).toEqual([201, 409]);
+            expect(await getInviteTokenHashes(id)).toHaveLength(1);
+        });
+    });
+
+    describe('conflict bodies carry a stable machine code', () => {
+        // The domain distinguishes these precisely; flattening them all to a
+        // 409 with only an English sentence left clients string-matching prose,
+        // so the actionable reason never reached the user (WCAG 3.3.1 / 3.3.3).
+        it('tags a resend to an active member as INVALID_MEMBER_STATE', async () => {
+            const member = await seedActiveUser(harness.app, {
+                email: 'already-active@example.com',
+                password: PASSWORD,
+                role: 'viewer'
+            });
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post(`/api/users/${member.id}/invites/resend`)
+                .expect(409);
+
+            expect(res.body.code).toBe('INVALID_MEMBER_STATE');
+            // Additive, not a replacement: the old fields are still there.
+            expect(res.body.statusCode).toBe(409);
+            expect(res.body.error).toBe('Conflict');
+            expect(typeof res.body.message).toBe('string');
+        });
+
+        it('tags a duplicate invite as EMAIL_TAKEN', async () => {
+            await invite('dupe@example.com');
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post('/api/users/invites')
+                .send({ email: 'dupe@example.com', role: 'viewer' })
+                .expect(409);
+
+            expect(res.body.code).toBe('EMAIL_TAKEN');
         });
     });
 });

@@ -1,5 +1,4 @@
 import {
-    ConflictException,
     Controller,
     NotFoundException,
     Param,
@@ -18,8 +17,10 @@ import {
 import { ResendInviteUseCase } from '../../application/use-cases/resend-invite.use-case';
 import {
     InvalidMemberStateError,
-    MemberNotFoundError
+    MemberNotFoundError,
+    InviteRecentlySentError
 } from '../../domain/errors';
+import { conflict } from '../conflict';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
 import type { InvitedMemberView } from '../../application/queries/member.view';
 
@@ -56,7 +57,14 @@ export class ResendInviteController {
                 throw new NotFoundException();
             }
             if (error instanceof InvalidMemberStateError) {
-                throw new ConflictException(error.message);
+                throw conflict(error.code, error.message);
+            }
+            if (error instanceof InviteRecentlySentError) {
+                // Carry the wait so a client can say "try again in 42s"
+                // rather than only that something conflicted.
+                throw conflict(error.code, error.message, {
+                    retryAfterSeconds: error.retryAfterSeconds
+                });
             }
             throw error;
         }

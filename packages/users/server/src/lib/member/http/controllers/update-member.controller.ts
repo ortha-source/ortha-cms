@@ -1,6 +1,5 @@
 import {
     Body,
-    ConflictException,
     Controller,
     NotFoundException,
     Param,
@@ -19,10 +18,12 @@ import {
 import { UpdateMemberDto } from '../../application/dto/update-member.dto';
 import { UpdateMemberUseCase } from '../../application/use-cases/update-member.use-case';
 import {
+    MEMBER_ERROR_CODES,
     LastAdminProtectedError,
     MemberNotFoundError,
     SelfActionError
 } from '../../domain/errors';
+import { conflict } from '../conflict';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
 import type { MemberView } from '../../application/queries/member.view';
 
@@ -59,10 +60,14 @@ export class UpdateMemberController {
                 throw new NotFoundException();
             }
             if (error instanceof SelfActionError) {
-                throw new ConflictException('You cannot change your own role');
+                throw conflict(
+                    MEMBER_ERROR_CODES.SELF_ACTION,
+                    'You cannot change your own role'
+                );
             }
             if (error instanceof LastAdminProtectedError) {
-                throw new ConflictException(
+                throw conflict(
+                    MEMBER_ERROR_CODES.LAST_ADMIN_PROTECTED,
                     'The last remaining admin cannot be demoted'
                 );
             }

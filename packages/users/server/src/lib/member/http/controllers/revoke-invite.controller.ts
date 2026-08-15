@@ -1,5 +1,4 @@
 import {
-    ConflictException,
     Controller,
     Delete,
     HttpCode,
@@ -17,6 +16,7 @@ import {
     RequirePermissions,
     type PublicUser
 } from '@ortha-cms/identity-server';
+import { conflict } from '../conflict';
 import { RevokeInviteUseCase } from '../../application/use-cases/revoke-invite.use-case';
 import {
     InvalidMemberStateError,
@@ -48,7 +48,7 @@ export class RevokeInviteController {
                 throw new NotFoundException();
             }
             if (error instanceof InvalidMemberStateError) {
-                throw new ConflictException(error.message);
+                throw conflict(error.code, error.message);
             }
             throw error;
         }

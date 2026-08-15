@@ -1,6 +1,5 @@
 import {
     Body,
-    ConflictException,
     Controller,
     NotFoundException,
     Post,
@@ -16,7 +15,8 @@ import {
 } from '@ortha-cms/identity-server';
 import { InviteMemberDto } from '../../application/dto/invite-member.dto';
 import { InviteMemberUseCase } from '../../application/use-cases/invite-member.use-case';
-import { EmailTakenError } from '../../domain/errors';
+import { MEMBER_ERROR_CODES, EmailTakenError } from '../../domain/errors';
+import { conflict } from '../conflict';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
 import type { InvitedMemberView } from '../../application/queries/member.view';
 
@@ -53,7 +53,8 @@ export class InviteMemberController {
             return { ...view, inviteToken };
         } catch (error) {
             if (error instanceof EmailTakenError) {
-                throw new ConflictException(
+                throw conflict(
+                    MEMBER_ERROR_CODES.EMAIL_TAKEN,
                     'A user with this email already exists'
                 );
             }
