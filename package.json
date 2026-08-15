@@ -5,6 +5,7 @@
     "scripts": {
         "prepare": "lefthook install",
         "dev": "nx run-many -t dev,dev:build,dev:run,dev:typecheck -p server admin",
+        "worktree": "node tools/worktree/slot.mjs",
         "start:server": "nx serve server",
         "start:admin": "nx serve admin",
         "release": "node tools/release/release.mjs",

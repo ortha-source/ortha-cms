@@ -134,6 +134,16 @@ package; the admin app's Vite transpiles the design-system source directly.
     fires that task's _exit_ callbacks, so it is reported as "continuous but
     exited with code 0" and the whole run fails.
 
+- **Parallel stacks** — `npm run dev` is not limited to one checkout. A **slot**
+  fixes a worktree's ports and database (slot _n_: API `:300n`, admin `:420n`,
+  database `ortha_cms_an`), so several tickets can each hold a live app to
+  verify against. `npm run worktree -- provision <slot> --path <worktree>`
+  creates the database and writes the port-adjusted `.env`; `-- list` shows who
+  holds what; `-- release <slot> --yes` drops the database. Slots share **one**
+  Postgres container — `CREATE DATABASE` already isolates the data, and five
+  containers do not fit in memory. Two concurrent stacks is the realistic
+  ceiling on a 4-core / 8 GB machine. See
+  [`docs/parallel-stacks.md`](docs/parallel-stacks.md)
 - **API reference** — a running server serves the generated OpenAPI document as
   a Scalar reference on `http://localhost:3000/reference` (raw JSON at
   `/reference/json`). On outside production; `API_DOCS=true|false` overrides.
