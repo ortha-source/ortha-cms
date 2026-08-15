@@ -8,6 +8,7 @@ import { DatabasePlugin } from '@ortha-cms/database';
 import { I18nServerPlugin } from '@ortha-cms/i18n-server';
 import { IdentityPlugin } from '@ortha-cms/identity-server';
 import { McpPlugin } from '@ortha-cms/mcp-server';
+import { createLocalStorageProvider } from '@ortha-cms/media-provider-local';
 import { MediaServerPlugin } from '@ortha-cms/media-server';
 import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
@@ -65,8 +66,15 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
         }),
         // Media ships its own migrations (picked up by the migrate loop) and
         // registers an in-memory storage provider so uploads never touch disk.
+        // The real filesystem adapter is registered beside it under `local`,
+        // unused unless a suite sets `localMediaRoot` — the claims about what
+        // lands on disk, and about a `storage_key` that tries to walk out of
+        // the root, can only be checked against a real directory.
         MediaServerPlugin({
-            providers: { memory: createInMemoryStorageProvider() },
+            providers: {
+                memory: createInMemoryStorageProvider(),
+                local: createLocalStorageProvider(config.plugins.media.local)
+            },
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),

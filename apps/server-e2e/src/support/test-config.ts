@@ -74,6 +74,18 @@ export interface TestConfigOverrides {
      */
     maxUploadBytes?: number;
     /**
+     * Route uploads through the **real** filesystem provider, rooted here,
+     * instead of the in-memory one.
+     *
+     * The harness stores blobs in a `Map` on purpose — no suite should need a
+     * disk to test an HTTP contract. The exception is the handful of claims
+     * that are *about* the disk: that a blob lands where its key says, that a
+     * delete reclaims the directory as well as the file, and that a
+     * `storage_key` read back from the database cannot walk out of the storage
+     * root. None of those can be observed through a `Map`.
+     */
+    localMediaRoot?: string;
+    /**
      * Replace the configured content locales. Defaults to the host's
      * en/de/fr. A suite pins a **single** locale to prove the coverage rule
      * that `notLocalized` is then forced to `0` — with nowhere to translate
@@ -153,12 +165,14 @@ export function buildTestConfig(
                 }
             },
             // The media plugin registers an in-memory `memory` provider in
-            // `buildTestPlugins`, so uploads never touch disk. `defaultProvider`
-            // names it; local/s3 settings are unused in tests.
+            // `buildTestPlugins`, so uploads never touch disk — unless a suite
+            // asks for the real filesystem adapter with `localMediaRoot`, which
+            // flips `defaultProvider` to the `local` one registered beside it.
             media: {
-                defaultProvider: 'memory',
+                defaultProvider: overrides.localMediaRoot ? 'local' : 'memory',
                 local: {
-                    rootDir: './.storage/test-media',
+                    rootDir:
+                        overrides.localMediaRoot ?? './.storage/test-media',
                     publicBasePath: '/api/media/assets'
                 },
                 s3: { bucket: '', region: '' },
