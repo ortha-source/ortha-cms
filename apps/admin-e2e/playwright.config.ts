@@ -2,8 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
 
+// Which admin this run drives. `ADMIN_PORT` is the per-checkout dev port, so
+// parallel worktrees each test their own stack instead of racing on one
+// (`docs/parallel-stacks.md`); Nx exports it from the workspace `.env`.
+const adminPort = Number(process.env['ADMIN_PORT']) || 4200;
+const adminUrl = `http://localhost:${adminPort}`;
+
 // For CI, you may want to set BASE_URL to the deployed application.
-const baseURL = process.env['BASE_URL'] || 'http://localhost:4200';
+const baseURL = process.env['BASE_URL'] || adminUrl;
 
 /**
  * Read environment variables from file.
@@ -26,7 +32,7 @@ export default defineConfig({
        at the network layer, so no backend (or the dev proxy) is needed. */
     webServer: {
         command: 'npx nx run admin:serve',
-        url: 'http://localhost:4200',
+        url: adminUrl,
         reuseExistingServer: true,
         cwd: workspaceRoot
     },

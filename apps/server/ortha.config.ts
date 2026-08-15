@@ -109,6 +109,14 @@ function readTrustProxy(): TrustProxySetting | undefined {
     return raw;
 }
 
+/**
+ * The admin dev origin this checkout's stack serves from — `ADMIN_PORT` is the
+ * per-worktree Vite port (`docs/parallel-stacks.md`), 4200 when unset.
+ */
+function defaultAdminOrigin(): string {
+    return `http://localhost:${Number(process.env['ADMIN_PORT']) || 4200}`;
+}
+
 const config: OrthaConfig = {
     port: Number(process.env['PORT']) || 3000,
     globalPrefix: 'api',
@@ -145,9 +153,11 @@ const config: OrthaConfig = {
             sessionSecret: process.env['SESSION_SECRET'] ?? '',
             tokenSecret: process.env['TOKEN_SECRET'] ?? '',
             // Origins allowed to call state-changing endpoints (login-CSRF
-            // defense). Comma-separated; defaults to the dev admin origin.
+            // defense). Comma-separated; defaults to the dev admin origin —
+            // which follows `ADMIN_PORT`, so a parallel worktree stack on
+            // :4201 is not rejected by a default pinned to :4200.
             allowedOrigins: (
-                process.env['ALLOWED_ORIGINS'] ?? 'http://localhost:4200'
+                process.env['ALLOWED_ORIGINS'] ?? defaultAdminOrigin()
             )
                 .split(',')
                 .map((origin) => origin.trim())
