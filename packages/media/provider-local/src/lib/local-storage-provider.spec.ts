@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, statSync, symlinkSync } from 'node:fs';
+import { chmodSync, existsSync, statSync, symlinkSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -204,6 +204,30 @@ describe('createLocalStorageProvider', () => {
                 'boom'
             );
             expect(await readdir(root)).toEqual([]);
+        });
+
+        // The other half of the failure surface: the *destination* rejects
+        // rather than the source. Shape-identical to a full disk (`ENOSPC`),
+        // which is the case that actually happens in production and the one a
+        // temp directory cannot manufacture.
+        it('leaves nothing behind when the destination refuses the write', async () => {
+            const assetDirectory = join(root, WORKSPACE, ASSET);
+            await mkdir(assetDirectory, { recursive: true });
+            chmodSync(assetDirectory, 0o500);
+            try {
+                await expect(put()).rejects.toMatchObject({ code: 'EACCES' });
+
+                // Nothing survives — not the temporary file, and not the empty
+                // directories either. Pruning an empty directory the write did
+                // not itself create is deliberate: an empty directory in this
+                // store carries no information, and the next `put` recreates
+                // whatever chain it needs.
+                expect(await readdir(root)).toEqual([]);
+            } finally {
+                if (existsSync(assetDirectory)) {
+                    chmodSync(assetDirectory, 0o700);
+                }
+            }
         });
 
         it('leaves no temporary file behind on a successful write', async () => {
