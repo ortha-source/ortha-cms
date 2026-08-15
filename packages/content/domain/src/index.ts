@@ -15,7 +15,11 @@ export {
 } from './lib/status/entry-status';
 export type { EntryStatus } from './lib/status/entry-status';
 
-export { CONTENT_FIELD_TYPE, isEmptyFieldValue } from './lib/fields/field-type';
+export {
+    CONTENT_FIELD_TYPE,
+    countCharacters,
+    isEmptyFieldValue
+} from './lib/fields/field-type';
 export type { FieldType } from './lib/fields/field-type';
 export type {
     EntryFieldSpec,

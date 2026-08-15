@@ -78,6 +78,14 @@ const messages = defineMessages({
     mediaIds: {
         id: 'content.form.error.mediaIds',
         defaultMessage: 'Must be a list of valid media assets'
+    },
+    moneyScale: {
+        id: 'content.form.error.moneyScale',
+        defaultMessage: 'Must have at most 2 decimal places'
+    },
+    patternRule: {
+        id: 'content.form.error.patternRule',
+        defaultMessage: "This field's pattern rule can't be applied"
     }
 });
 
@@ -111,15 +119,30 @@ function localizeIssue(
     if (m.startsWith('must be at most'))
         return t(messages.maxLength, { max: rule(field, 'maxLength') ?? 0 });
     if (m.startsWith('must match pattern')) return t(messages.pattern);
-    if (m === 'must be a number') return t(messages.number);
+    // A pattern rule the kernel refuses to apply (uncompilable, or at risk of
+    // catastrophic backtracking) is a *schema* fault, not the author's typing —
+    // say so rather than blaming the value's format.
+    if (
+        m === 'has an invalid pattern rule' ||
+        m === 'has an unsafe pattern rule'
+    )
+        return t(messages.patternRule);
+    if (m === 'must be a number' || m === 'must be a finite number')
+        return t(messages.number);
     if (m === 'must be a whole number') return t(messages.integer);
+    if (m.startsWith('must have at most') && m.endsWith('decimal places'))
+        return t(messages.moneyScale);
     if (m.startsWith('must be ≥'))
         return t(messages.min, { min: rule(field, 'min') ?? 0 });
     if (m.startsWith('must be ≤'))
         return t(messages.max, { max: rule(field, 'max') ?? 0 });
     // date-time is checked before date: its reason is a prefix-superset.
     if (m.includes('date-time')) return t(messages.datetime);
-    if (m.startsWith('must be an ISO date')) return t(messages.date);
+    if (
+        m.startsWith('must be an ISO date') ||
+        m === 'must be a real calendar date'
+    )
+        return t(messages.date);
     if (m.startsWith('must be one of')) return t(messages.option);
     if (m.startsWith('must be a subset')) return t(messages.options);
     if (m === 'must be an array of entry ids') return t(messages.entryIds);
