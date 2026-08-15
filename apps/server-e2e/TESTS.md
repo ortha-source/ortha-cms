@@ -4,7 +4,7 @@
 > `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
 > and fails if this file has drifted from the specs.
 
-_1032 test cases across 65 spec files._
+_1037 test cases across 66 spec files._
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -1922,6 +1922,19 @@ _<sub>apps/server-e2e/src/server/media/media-hardening.spec.ts</sub>_
 | --- |
 | duplicates to a 400 when " copy" overflows the name limit |
 | lets two sibling folders share a name |
+
+<!-- source: apps/server-e2e/src/server/media/media-local-storage.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-local-storage.spec.ts</sub>_
+
+## media assets on the local filesystem provider
+
+| Test case |
+| --- |
+| writes the blob to <root>/<workspace>/<asset>/<name> and serves those exact bytes |
+| leaves no file and no empty directory behind when the asset is deleted |
+| refuses to serve a file outside the storage root when the stored key traverses |
+| refuses to delete a file outside the storage root when the stored key traverses |
+| fails the download before the response starts when the blob is missing from disk |
 
 <!-- source: apps/server-e2e/src/server/media/media-token-scope.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-token-scope.spec.ts</sub>_
