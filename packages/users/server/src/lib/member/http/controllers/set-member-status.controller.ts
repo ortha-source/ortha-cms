@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import {
     CurrentUser,
+    OriginGuard,
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
@@ -30,8 +32,8 @@ import type { MemberView } from '../../application/queries/member.view';
  * every dependency, and mirror each other's error mapping. Self-disable and
  * disabling the last active admin are rejected with a 409.
  */
-@UseGuards(PermissionsGuard)
-@RequirePermissions('users:update')
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.USERS_UPDATE)
 @Controller('users')
 export class SetMemberStatusController {
     constructor(

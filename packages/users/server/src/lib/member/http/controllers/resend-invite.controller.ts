@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import {
     CurrentUser,
+    OriginGuard,
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
@@ -28,8 +30,8 @@ import type { InvitedMemberView } from '../../application/queries/member.view';
  * pending. Returns the member row plus the fresh raw `inviteToken`, so the
  * admin can hand over the new link (the old one is already dead).
  */
-@UseGuards(PermissionsGuard)
-@RequirePermissions('users:create')
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.USERS_CREATE)
 @Controller('users')
 export class ResendInviteController {
     constructor(

@@ -169,4 +169,31 @@ describe('POST /api/users/invites', () => {
             .send({ email: 'x@example.com', role: 'viewer' })
             .expect(403);
     });
+
+    it('rejects a whitespace-only name with 400', async () => {
+        // Same blank-accessible-name guard as PATCH; the invite path is the
+        // other way a member row is first written.
+        const agent = await login(ADMIN_EMAIL);
+        await agent
+            .post('/api/users/invites')
+            .send({
+                email: 'blank-invite@example.com',
+                role: 'viewer',
+                name: '   '
+            })
+            .expect(400);
+    });
+
+    it('trims surrounding whitespace from the name', async () => {
+        const agent = await login(ADMIN_EMAIL);
+        const res = await agent
+            .post('/api/users/invites')
+            .send({
+                email: 'padded-invite@example.com',
+                role: 'viewer',
+                name: '  Grace Hopper  '
+            })
+            .expect(201);
+        expect(res.body.name).toBe('Grace Hopper');
+    });
 });

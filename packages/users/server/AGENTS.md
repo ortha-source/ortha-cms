@@ -103,11 +103,20 @@ application enforces it (`SelfActionError`).
 
 ## Last-admin race-safety
 
-Preserved exactly as before: the write path takes `pg_advisory_xact_lock` at the
-guarded load (`findByIdForAdminGuard`), then reads the admin count under it, so
-two concurrent demotes/disables cannot both pass and drop the active-admin count
+The write path takes `pg_advisory_xact_lock` at the guarded load
+(`findByIdForAdminGuard`), then reads the admin count under it, so two
+concurrent demotes/disables cannot both pass and drop the active-admin count
 below one. The read model's `isLastAdmin` flag is advisory (UI hint) and needs
 no lock.
+
+**Take the lock only when the patch can move the count.** The lock is a single
+global key, so everything that takes it serialises deployment-wide.
+`UpdateMemberUseCase` therefore branches: a patch that touches `role` loads via
+`findByIdForAdminGuard` (locked), and a **pure rename** loads via `findById`
+(unlocked) — a rename cannot change the admin count, and making it wait put
+every member edit in the deployment behind one lock. `enable` is unlocked for
+the same reason, stated positively: enabling only ever *increases* the count, so
+it cannot violate the invariant.
 
 ## Unit of work + outbox
 
@@ -158,9 +167,24 @@ same permission. No invite tokens, no session data.
   `sessions`, `tokens`) is owned and migrated by `@ortha-cms/identity-server`
   (and, for `workspaces`/`memberships`, `@ortha-cms/workspaces-server`).
 - Authorization: identity's `PermissionsGuard` bound per controller with
-  `@RequirePermissions('users:read' | 'users:create' | 'users:update' |
-'users:delete')`. Authentication is identity's global `AuthGuard`.
+  `@RequirePermissions(PERMISSIONS.USERS_READ | USERS_CREATE | USERS_UPDATE |
+  USERS_DELETE)` — the shared constants, never inline strings (`.cursor/BUGBOT.md`
+  §Server). Authentication is identity's global `AuthGuard`.
+- **CSRF:** every *state-changing* controller also carries `OriginGuard`, ahead
+  of `PermissionsGuard` — `@UseGuards(OriginGuard, PermissionsGuard)` — matching
+  `workspaces/server` and the `ARCHITECTURE.md §5.3` request-flow invariant. The
+  two read controllers (`list-members`, `get-member`) deliberately do not: a GET
+  changes nothing and a browser can read it cross-origin anyway. This package
+  shipped without the guard on any route, which is only latent because the
+  session cookie is `SameSite=Lax`; `apps/server-e2e/src/server/users/origin-guard.spec.ts`
+  pins all five mutations so it cannot regress on a cookie-policy change.
 - Module is **not** global and exports nothing; every provider is private.
+- **`name` is trimmed before validation** on both write DTOs
+  (`@Transform` → `@IsNotEmpty`). `@IsNotEmpty` alone rejects `''` but accepts
+  `'   '`, and this row is the only source of a person's human identifier — a
+  blank one leaves the members table, the avatar initials and the audit log's
+  actor column with no accessible name to render, which no client can recover
+  (508 §504.2). A whitespace-only name is a `400`.
 - `InviteTokenService` mirrors identity's hashing convention: only the SHA-256
   of an invite token is stored; rotation keeps at most one live invite per user.
   Two properties are load-bearing:

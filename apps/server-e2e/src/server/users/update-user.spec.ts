@@ -174,4 +174,37 @@ describe('PATCH /api/users/:id', () => {
             .send({ role: 'contributor' })
             .expect(403);
     });
+
+    describe('display name is trimmed, and may not be blank', () => {
+        // `@IsNotEmpty` rejects '' but accepts '   ', and this row is the only
+        // source of that person's human identifier — a blank one leaves the
+        // members table, the avatar initials and the audit log's actor column
+        // with nothing to render (508 §504.2).
+        it('rejects a whitespace-only name with 400', async () => {
+            const target = await seedUser(harness.app, {
+                email: 'blank-name@example.com',
+                role: 'viewer',
+                status: 'active'
+            });
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .patch(`/api/users/${target.id}`)
+                .send({ name: '   ' })
+                .expect(400);
+        });
+
+        it('trims surrounding whitespace from a real name', async () => {
+            const target = await seedUser(harness.app, {
+                email: 'padded-name@example.com',
+                role: 'viewer',
+                status: 'active'
+            });
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .patch(`/api/users/${target.id}`)
+                .send({ name: '  Grace Hopper  ' })
+                .expect(200);
+            expect(res.body.name).toBe('Grace Hopper');
+        });
+    });
 });

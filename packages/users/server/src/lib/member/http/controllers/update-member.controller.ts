@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import {
     CurrentUser,
+    OriginGuard,
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
@@ -30,8 +32,8 @@ import type { MemberView } from '../../application/queries/member.view';
  * remaining active admin, are each rejected with a 409 (the UI disables the
  * control with the same rationale).
  */
-@UseGuards(PermissionsGuard)
-@RequirePermissions('users:update')
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.USERS_UPDATE)
 @Controller('users')
 export class UpdateMemberController {
     constructor(

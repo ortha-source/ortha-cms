@@ -23,10 +23,13 @@ import type { UpdateMemberDto } from '../dto/update-member.dto';
  * Partial update of a member's display name and/or role. A member cannot change
  * their own role ({@link SelfActionError}, mirroring the self-disable guard).
  *
- * The member is loaded under the active-admin lock
- * ({@link MemberRepository.findByIdForAdminGuard}); demoting the last active
- * admin is rejected inside the aggregate against a count read under that lock,
- * so two simultaneous demotions cannot both pass. Drains `member.role_changed`
+ * When the patch **touches the role**, the member is loaded under the global
+ * active-admin lock ({@link MemberRepository.findByIdForAdminGuard}); demoting
+ * the last active admin is rejected inside the aggregate against a count read
+ * under that lock, so two simultaneous demotions cannot both pass. A patch that
+ * only renames takes no lock — it cannot change the admin count, and making it
+ * wait serialised every member update in the deployment behind one global lock.
+ * Drains `member.role_changed`
  * (from the aggregate) on a role change and mints `member.profile_updated` on a
  * rename — distinct facts the activity subscriber turns into the
  * `user.role_changed` / `user.profile_updated` audit rows. 404s an unknown
@@ -49,8 +52,16 @@ export class UpdateMemberUseCase {
     ): Promise<void> {
         const memberId = MemberId.create(id);
 
+        // Only a role change can violate the last-admin invariant, so only a
+        // role change needs the global active-admin lock. A pure rename took it
+        // too, which serialised *every* member update in the deployment behind
+        // one lock — including edits that cannot affect the admin count.
+        const touchesRole = dto.role !== undefined;
+
         await this.uow.run(async () => {
-            const member = await this.members.findByIdForAdminGuard(memberId);
+            const member = touchesRole
+                ? await this.members.findByIdForAdminGuard(memberId)
+                : await this.members.findById(memberId);
             if (!member) {
                 throw new MemberNotFoundError(id);
             }

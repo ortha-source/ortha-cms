@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import {
     CurrentUser,
+    OriginGuard,
+    PERMISSIONS,
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
@@ -27,8 +29,8 @@ import {
  * requires `users:delete`. Real accounts are never deleted this way — a
  * non-pending target 409s.
  */
-@UseGuards(PermissionsGuard)
-@RequirePermissions('users:delete')
+@UseGuards(OriginGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.USERS_DELETE)
 @Controller('users')
 export class RevokeInviteController {
     constructor(private readonly revokeInvite: RevokeInviteUseCase) {}
