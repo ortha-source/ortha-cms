@@ -5,8 +5,13 @@ import { useWorkspaces } from '@ortha-cms/workspaces-admin';
 import { useContentTypes } from '../../../application/useContentTypes';
 import { useContentFavorites } from '../../hooks/useContentFavorites';
 import { ContentSidebar } from '../ContentSidebar';
+import { ContentSidebarError } from '../ContentSidebarError';
 import { ContentSearchDialog } from '../ContentSearchDialog';
-import { CONTENT_READ, CONTENT_SEGMENT, SEARCH_SHORTCUT_KEY } from '../../../domain/constants';
+import {
+    CONTENT_READ,
+    CONTENT_SEGMENT,
+    SEARCH_SHORTCUT_KEY
+} from '../../../domain/constants';
 
 /**
  * The Content Library's "Content" section of the workspace sidebar — the
@@ -26,9 +31,12 @@ export function ContentNavSection() {
     const workspaceId = match?.params.id;
     const canRead = useHasPermission(CONTENT_READ);
     const { data: workspaces } = useWorkspaces();
-    const { data: types, isPending } = useContentTypes(
-        canRead && Boolean(workspaceId)
-    );
+    const {
+        data: types,
+        isPending,
+        isError,
+        refetch
+    } = useContentTypes(canRead && Boolean(workspaceId));
     const favorites = useContentFavorites(workspaceId ?? '');
     const [searchOpen, setSearchOpen] = useState(false);
 
@@ -53,6 +61,21 @@ export function ContentNavSection() {
     // query is fast and shared with the library page's cache).
     if (!workspaceId || !canRead || !workspace || isPending) {
         return null;
+    }
+
+    // A **failed** catalogue is not an empty one. Falling through to the
+    // scoping below would leave `scopedTypes` empty and take the "nothing
+    // granted" exit, so the whole Content section would disappear with no
+    // error and no retry while the pane next to it showed a proper error card.
+    if (isError) {
+        return (
+            <ContentSidebarError
+                className="h-auto w-full overflow-visible"
+                onRetry={() => {
+                    void refetch();
+                }}
+            />
+        );
     }
 
     // Scope the global content-type catalogue to the workspace's granted slugs.

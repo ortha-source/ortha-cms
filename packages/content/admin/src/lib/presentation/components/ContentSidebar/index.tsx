@@ -6,6 +6,10 @@ import type { ContentType } from '../../../domain/types/contentType';
 import type { ContentFavorites } from '../../hooks/useContentFavorites';
 import { CONTENT_TYPE_KIND, TYPE_PARAM } from '../../../domain/constants';
 import { groupContentTypes } from '../../../domain/groupContentTypes';
+import {
+    SEARCH_KEY_SHORTCUTS,
+    shortcutModifierGlyph
+} from '../../../domain/shortcutModifier';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContentSidebarItem } from './ContentSidebarItem';
 
@@ -69,6 +73,7 @@ export function ContentSidebar({
     className
 }: ContentSidebarProps) {
     const intl = useIntl();
+    const modifier = shortcutModifierGlyph();
     const { collections, pages } = groupContentTypes(types);
 
     // Open the group that holds the currently-selected type by default, so
@@ -113,14 +118,23 @@ export function ContentSidebar({
                 <button
                     type="button"
                     onClick={onOpenSearch}
+                    aria-keyshortcuts={SEARCH_KEY_SHORTCUTS}
                     className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 py-1.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
                 >
                     <Search className="size-4 shrink-0" />
                     <span className="truncate">
                         {intl.formatMessage(messages.search)}
                     </span>
-                    <kbd className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 font-sans text-[10px] text-sidebar-foreground/70">
-                        ⌘K
+                    {/* The chord is carried by `aria-keyshortcuts` above, so the
+                        glyph is decorative: announced literally it reads
+                        "place of interest sign K". It also follows the platform
+                        rather than hard-coding macOS, since the handler takes
+                        Ctrl too and most readers are not on a Mac. */}
+                    <kbd
+                        aria-hidden
+                        className="ml-auto rounded border border-sidebar-border bg-sidebar px-1.5 font-sans text-[10px] text-sidebar-foreground/70"
+                    >
+                        {modifier}K
                     </kbd>
                 </button>
             </div>

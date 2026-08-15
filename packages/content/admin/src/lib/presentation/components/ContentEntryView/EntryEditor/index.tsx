@@ -25,7 +25,8 @@ import {
     CONTENT_CREATE,
     CONTENT_FIELD_TYPE,
     CONTENT_UPDATE,
-    ENTRY_TAB
+    ENTRY_TAB,
+    ENTRY_TAB_SLUGS
 } from '../../../../domain/constants';
 import { useEntryForm } from '../../../hooks/useEntryForm';
 import { useEntrySlotContext } from '../../../hooks/useEntrySlotContext';
@@ -107,6 +108,11 @@ const messages = defineMessages({
         id: 'content.editor.saveBlocked',
         defaultMessage:
             'Can’t save — {count, plural, one {# field needs} other {# fields need}} attention. Start with “{field}”.'
+    },
+    serverBlocked: {
+        id: 'content.editor.serverBlocked',
+        defaultMessage:
+            'The server refused “{field}”: {message}. That field isn’t editable in this form — ask an administrator to change the content type.'
     }
 });
 
@@ -306,11 +312,32 @@ export function EntryEditor({
         return names;
     }, [schema]);
 
+    // Fields the schema marks `admin.hidden`. The editor renders no control for
+    // them, so a *required* one used to pin the form shut: the publish gate is
+    // built from `visible` and therefore read "ready", while validation still
+    // counted the field and the toast named it — two surfaces flatly
+    // contradicting each other over a control that exists nowhere on screen.
+    // Excluding them here is the same rule the ungranted-relation case above
+    // already applies; the server stays the authority and answers with a 422
+    // (surfaced by `submitWith`) if the value genuinely was required.
+    const hiddenFieldNames = useMemo(() => {
+        const names = new Set<string>();
+        for (const field of schema.fields)
+            if (isHidden(field)) names.add(field.name);
+        return names;
+    }, [schema]);
+
     // Fields excluded from client validation + the gate: ungranted relations
-    // (hidden) plus every link-managed relation (not a form value).
+    // (hidden) plus every link-managed relation (not a form value) plus every
+    // `admin.hidden` field.
     const validationIgnored = useMemo(
-        () => new Set([...ignoredFields, ...managedRelationNames]),
-        [ignoredFields, managedRelationNames]
+        () =>
+            new Set([
+                ...ignoredFields,
+                ...managedRelationNames,
+                ...hiddenFieldNames
+            ]),
+        [ignoredFields, managedRelationNames, hiddenFieldNames]
     );
 
     const form = useEntryForm(schema, initialValues, {
@@ -330,6 +357,14 @@ export function EntryEditor({
             field.type === CONTENT_FIELD_TYPE.Relation &&
             !ignoredFields.has(field.name)
     );
+    // Every field with a control somewhere in this editor — General, the Media
+    // tab, or Relations. A server issue naming anything else has nowhere inline
+    // to land, so `submitWith` promotes it to a toast rather than dropping it.
+    const renderedFieldNames = new Set(
+        visible
+            .filter((field) => !ignoredFields.has(field.name))
+            .map((field) => field.name)
+    );
 
     // Contributed editor tabs (e.g. media-admin's Media tab), applicable to this
     // type, ordered. Rendered between the built-in Relations and History tabs.
@@ -337,6 +372,23 @@ export function EntryEditor({
         () =>
             ENTRY_TAB_SLOT.getItems()
                 .filter((item) => item.appliesTo(schema))
+                // The tab slugs the router knows are a **closed set**
+                // (`ENTRY_TAB_SLUGS`) — a contribution naming anything else
+                // renders a trigger whose segment `entryTabFromPath` can't
+                // resolve, so clicking it navigates and then shows *General*
+                // under a URL that says otherwise, with the contributed tab
+                // never selected. Drop it (loudly, in dev) rather than shipping
+                // a tab that cannot be opened.
+                .filter((item) => {
+                    const known = ENTRY_TAB_SLUGS.some(
+                        (slug) => slug === item.slug
+                    );
+                    if (!known)
+                        console.error(
+                            `[content-admin] ENTRY_TAB_SLOT item "${item.id}" declares slug "${item.slug}", which is not one of ${ENTRY_TAB_SLUGS.join(', ')}. The tab is not rendered, because no route can select it.`
+                        );
+                    return known;
+                })
                 .sort((a, b) => a.order - b.order),
         [schema]
     );
@@ -464,7 +516,24 @@ export function EntryEditor({
             })
                 .then(() => setRelationDeltas({}))
                 .catch((error) => {
-                    form.setServerErrors(entryIssuesFrom(error));
+                    const issues = entryIssuesFrom(error);
+                    form.setServerErrors(issues);
+                    // An issue on a field the editor renders no control for
+                    // (`admin.hidden`, or a relation target this workspace
+                    // isn't granted) has nowhere inline to land, so the busy
+                    // cover would simply lift and nothing would appear. Say it
+                    // in a toast instead — the same shape `announceBlocked`
+                    // uses for the client-side refusal.
+                    const orphan = issues.find(
+                        (issue) => !renderedFieldNames.has(issue.field)
+                    );
+                    if (orphan)
+                        toast.error(
+                            intl.formatMessage(messages.serverBlocked, {
+                                field: orphan.field,
+                                message: orphan.message
+                            })
+                        );
                 });
 
     // A **draft** of a publishable type can be saved incomplete, so it uses the
@@ -497,6 +566,18 @@ export function EntryEditor({
                 }
             )
         );
+        // The toast says "start with X"; without this the user has to *find* X
+        // by hand — Shift+Tab out of the top bar, past the breadcrumb, into a
+        // panel that may have just been swapped underneath them. Move focus
+        // there instead. Deferred one frame because the tab switch above is a
+        // route change: the destination control does not exist yet in this tick.
+        // `EntryFieldInput` ids every control `entry-field-<name>`; a relation
+        // or media field has no such control, so nothing is focused and the
+        // toast remains the only cue — the same as before this change.
+        const focusName = first?.name ?? names[0];
+        requestAnimationFrame(() => {
+            document.getElementById(`entry-field-${focusName}`)?.focus();
+        });
     };
 
     const runSave = (publish: boolean) => {

@@ -174,13 +174,32 @@ export function EntryFieldInput({
     // switch below uses `disabled` — see the component JSDoc.
     const readOnlyProps = readOnly ? { readOnly: true } : {};
     const admin = adminProps(field);
-    // The error message takes the description's place, so suppress the hint
-    // (and any type-specific fallback hint below) whenever the field is invalid.
-    const description = error ? undefined : admin.description;
-    // Associate the error with the control so a screen reader reads it on focus,
-    // not only when it first appears. (InputField wires its own id internally.)
+    // The author's hint and the validation error are **both** worth hearing, so
+    // they are both rendered and both referenced. Previously the error replaced
+    // the description outright — so a reader who tripped a rule lost the very
+    // instruction that would have kept them out of it.
+    // Two branches carry a built-in hint of their own when the schema supplies
+    // none — the JSON textarea's "Raw JSON." and the many-relation box's
+    // id-format note. They are instructions like any other, so they go through
+    // the same id and the same `aria-describedby` rather than being visual-only.
+    const builtInHint =
+        field.type === CONTENT_FIELD_TYPE.Json
+            ? intl.formatMessage(messages.jsonHint)
+            : field.type === CONTENT_FIELD_TYPE.Relation && field.relation?.many
+              ? intl.formatMessage(messages.relationManyHint)
+              : undefined;
+    const description = admin.description ?? builtInHint;
+    // Associate the error *and* the description with the control so a screen
+    // reader reads them on focus, not only when they first appear. (`InputField`
+    // wires its own description id internally, which is why the text/number
+    // branches announced their hint and every other branch — segmented control,
+    // select, multiselect, textarea, relation — announced nothing at all.)
     const errorId = `${id}-error`;
-    const describedBy = error ? errorId : undefined;
+    const descriptionId = `${id}-description`;
+    const describedBy =
+        [description ? descriptionId : null, error ? errorId : null]
+            .filter(Boolean)
+            .join(' ') || undefined;
 
     // A plugin may own this field's control (ENTRY_FIELD_CONTROL_SLOT — the
     // WYSIWYG plugin claims `richtext`). Only the *input* is handed over: the
@@ -224,7 +243,9 @@ export function EntryFieldInput({
                     }}
                 />
                 {description && (
-                    <FieldDescription>{description}</FieldDescription>
+                    <FieldDescription id={descriptionId}>
+                        {description}
+                    </FieldDescription>
                 )}
                 {error && <FieldError id={errorId}>{error}</FieldError>}
             </Field>
@@ -266,7 +287,9 @@ export function EntryFieldInput({
                         </SegmentedControlItem>
                     </SegmentedControl>
                     {description && (
-                        <FieldDescription>{description}</FieldDescription>
+                        <FieldDescription id={descriptionId}>
+                            {description}
+                        </FieldDescription>
                     )}
                     {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
@@ -312,7 +335,9 @@ export function EntryFieldInput({
                         </SelectContent>
                     </Select>
                     {description && (
-                        <FieldDescription>{description}</FieldDescription>
+                        <FieldDescription id={descriptionId}>
+                            {description}
+                        </FieldDescription>
                     )}
                     {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
@@ -354,7 +379,9 @@ export function EntryFieldInput({
                         emptyText={intl.formatMessage(messages.noResults)}
                     />
                     {description && (
-                        <FieldDescription>{description}</FieldDescription>
+                        <FieldDescription id={descriptionId}>
+                            {description}
+                        </FieldDescription>
                     )}
                     {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>
@@ -391,12 +418,9 @@ export function EntryFieldInput({
                         onChange={(event) => onChange(event.target.value)}
                         onBlur={onBlur}
                     />
-                    {!error && (description || isJson) && (
-                        <FieldDescription>
-                            {description ??
-                                (isJson
-                                    ? intl.formatMessage(messages.jsonHint)
-                                    : null)}
+                    {description && (
+                        <FieldDescription id={descriptionId}>
+                            {description}
                         </FieldDescription>
                     )}
                     {error && <FieldError id={errorId}>{error}</FieldError>}
@@ -435,12 +459,9 @@ export function EntryFieldInput({
                             }
                             onBlur={onBlur}
                         />
-                        {!error && (
-                            <FieldDescription>
-                                {description ??
-                                    intl.formatMessage(
-                                        messages.relationManyHint
-                                    )}
+                        {description && (
+                            <FieldDescription id={descriptionId}>
+                                {description}
                             </FieldDescription>
                         )}
                         {error && <FieldError id={errorId}>{error}</FieldError>}
@@ -492,7 +513,9 @@ export function EntryFieldInput({
                         aria-describedby={describedBy}
                     />
                     {description && (
-                        <FieldDescription>{description}</FieldDescription>
+                        <FieldDescription id={descriptionId}>
+                            {description}
+                        </FieldDescription>
                     )}
                     {error && <FieldError id={errorId}>{error}</FieldError>}
                 </Field>

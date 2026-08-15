@@ -847,6 +847,53 @@ under `/workspaces/:id/content`. The page reads the open workspace via
 `useCurrentWorkspace()` from
 `@ortha-cms/workspaces-admin`.
 
+## Refusal, absence, and failure are three different states
+
+The recurring defect in this package was collapsing them. Four rules, each
+pinned by `apps/admin-e2e/src/content/records-resilience.spec.ts` or
+`entry-validation.spec.ts`:
+
+- **A failed catalogue is not an empty one.** `ContentNavSection` renders
+  `ContentSidebarError` (an `alert` + retry) on `useContentTypes().isError`. It
+  used to fall through to the "nothing granted" exit and `return null`, so the
+  whole Content nav disappeared with no error and no retry while the pane beside
+  it showed a proper error card. Its Retry button is the **primary** variant, not
+  the pane's `outline` — an outline button's card background does not carry
+  enough contrast against the sidebar's own surface.
+- **A URL parameter the server would reject must degrade, not strand.** `page`
+  is clamped to `pageCount` once a fetch settles (guarded on `!isPlaceholderData`
+  so it reads the fresh total), and `pageSize` is narrowed to `PAGE_SIZE_OPTIONS`
+  before it is ever sent — the server answers **400** above its cap rather than
+  clamping, and the resulting error card had no way out, because Retry re-sends
+  the same parameter and the rows-per-page control lives in a footer that needs
+  rows to render.
+- **A mutation that removes a row must tell the view.** Row actions call
+  `onRowGone(id)` after a delete / purge / restore; `LoadedRecordsView` drops the
+  id from the selection (which is keyed by id and spans pages, so nothing else
+  would) and `CollectionRecordsTable` moves focus to its own labelled container
+  — Radix would otherwise try to restore focus into a menu that has unmounted
+  and drop it on `<body>`.
+- **A field the editor renders nowhere must not gate the form.** `admin.hidden`
+  fields join ungranted relations and link-managed relations in
+  `validationIgnored`. The publish gate is built from the *visible* fields, so a
+  hidden required field made the rail read "ready" while validation still counted
+  it and the toast named it — a control the user could never find. The server
+  stays the authority; `submitWith` promotes a 422 issue naming an unrendered
+  field to a toast, since it has nowhere inline to land.
+
+**Contributed tab slugs are a closed set.** `ENTRY_TAB_SLOT` items whose `slug`
+is not in `ENTRY_TAB_SLUGS` are dropped (with a console error): the route table
+would match the segment, but `entryTabFromPath` cannot resolve it, so the tab
+rendered a trigger that navigated and then showed *General* under a URL saying
+otherwise.
+
+**Cells state values, they do not echo them.** A `boolean` cell reads
+localized Yes/No rather than `String(value)`, and a `money` cell is formatted as
+a **number** at the kernel's fixed scale of 2 — the field spec carries no
+currency member, so the old `currency: 'USD'` was the admin inventing one. Bare
+`select` / `multiselect` option strings are still printed raw because the DSL
+offers no per-option label to use instead.
+
 ## Conventions
 
 Follows the workspaces-admin conventions: `type` over `interface`; JSDoc on

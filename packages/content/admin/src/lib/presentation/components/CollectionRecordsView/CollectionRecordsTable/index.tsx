@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
@@ -13,10 +13,7 @@ import {
 } from '@ortha-cms/design-system';
 import type { EntryRecord } from '../../../../domain/types/contentType';
 import type { EntryColumn } from '../../../../domain/entryColumns';
-import {
-    COLUMN_KIND,
-    CONTENT_FIELD_TYPE
-} from '../../../../domain/constants';
+import { COLUMN_KIND, CONTENT_FIELD_TYPE } from '../../../../domain/constants';
 import { EntryStatusBadge } from '../../EntryStatusBadge';
 import { renderCell } from './renderCell';
 import { RelationCell } from './RelationCell';
@@ -189,6 +186,7 @@ export function CollectionRecordsTable({
     selectedIds,
     onToggleRow,
     onTogglePage,
+    onRowGone,
     sort,
     onSort,
     relationsPending = false
@@ -225,6 +223,12 @@ export function CollectionRecordsTable({
     onToggleRow: (id: string) => void;
     /** Select or clear every row on the current page. */
     onTogglePage: (ids: string[], select: boolean) => void;
+    /**
+     * A row left this view (deleted, purged, restored from trash). The parent
+     * drops the id from its selection and takes over focus placement — Radix
+     * would otherwise try to restore focus into a menu that has unmounted.
+     */
+    onRowGone?: (id: string) => void;
     /** The active sort column + direction, or null for default order. */
     sort: TableSort;
     /** Cycle the sort on a column (asc → desc → off). */
@@ -272,8 +276,24 @@ export function CollectionRecordsTable({
           ? 'indeterminate'
           : false;
 
+    const containerRef = useRef<HTMLDivElement>(null);
+    // The row's menu — and the confirm dialog opened from it — are gone by the
+    // time the mutation settles, so Radix has no live element to restore focus
+    // to and drops it on `<body>`: the next Tab restarts above the app sidebar,
+    // and a screen-reader user hears the toast and then silence. Land it on the
+    // table itself instead, which is labelled and still on screen.
+    const handleRowGone = (id: string) => {
+        onRowGone?.(id);
+        containerRef.current?.focus();
+    };
+
     return (
-        <div className="w-full overflow-hidden rounded-xl border bg-card shadow-xs">
+        <div
+            ref={containerRef}
+            tabIndex={-1}
+            aria-label={intl.formatMessage(messages.caption, { label })}
+            className="w-full overflow-hidden rounded-xl border bg-card shadow-xs focus-visible:outline-none"
+        >
             <Table aria-label={intl.formatMessage(messages.caption, { label })}>
                 <TableHeader>
                     <TableRow>
@@ -471,6 +491,8 @@ export function CollectionRecordsTable({
                                         publishable={publishable}
                                         paranoid={paranoid}
                                         trashed={trashed}
+                                        rowTitle={rowLabel(record, columns)}
+                                        onRowGone={handleRowGone}
                                     />
                                 </TableCell>
                             </TableRow>

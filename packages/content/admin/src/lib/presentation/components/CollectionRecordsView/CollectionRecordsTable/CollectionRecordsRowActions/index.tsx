@@ -36,6 +36,10 @@ const messages = defineMessages({
         id: 'content.records.actions.open',
         defaultMessage: 'Actions for this record'
     },
+    openNamed: {
+        id: 'content.records.actions.openNamed',
+        defaultMessage: 'Actions for {title}'
+    },
     edit: { id: 'content.records.actions.edit', defaultMessage: 'Edit' },
     view: { id: 'content.records.actions.view', defaultMessage: 'View' },
     publish: {
@@ -140,7 +144,9 @@ export function CollectionRecordsRowActions({
     typeName,
     publishable,
     paranoid,
-    trashed = false
+    trashed = false,
+    rowTitle,
+    onRowGone
 }: {
     /** The record this menu acts on. */
     record: EntryRecord;
@@ -156,6 +162,22 @@ export function CollectionRecordsRowActions({
     paranoid: boolean;
     /** Whether this row is shown in the trash view (Restore / Delete forever). */
     trashed?: boolean;
+    /**
+     * The row's human title (the same string the row checkbox is named with).
+     * Interpolated into the trigger's accessible name so a screen-reader user
+     * listing the page's buttons can tell ten menus apart — without it every
+     * row offered an identically-named "Actions for this record".
+     */
+    rowTitle?: string;
+    /**
+     * Called with the record's id once an action has taken the row out of this
+     * view (delete, purge, restore-from-trash). The parent uses it to drop the
+     * id from the selection — otherwise a later bulk action still targets a
+     * record that is no longer there — and to place focus, which Radix would
+     * otherwise return to a menu item inside a `DropdownMenuContent` that has
+     * since unmounted, dropping it to `<body>`.
+     */
+    onRowGone?: (id: string) => void;
 }) {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -181,10 +203,15 @@ export function CollectionRecordsRowActions({
     const run = (
         mutateAsync: (id: string) => Promise<unknown>,
         successId: keyof typeof messages,
-        onBlocked?: () => void
+        onBlocked?: () => void,
+        /** True for the actions that take the row out of the current view. */
+        removesRow = false
     ) => {
         mutateAsync(record.id)
-            .then(() => toast.success(intl.formatMessage(messages[successId])))
+            .then(() => {
+                toast.success(intl.formatMessage(messages[successId]));
+                if (removesRow) onRowGone?.(record.id);
+            })
             .catch((error) => {
                 const status = (error as { status?: number })?.status;
                 if (onBlocked && status === 422) onBlocked();
@@ -200,7 +227,13 @@ export function CollectionRecordsRowActions({
                         variant="ghost"
                         size="icon"
                         className="size-8"
-                        aria-label={intl.formatMessage(messages.open)}
+                        aria-label={
+                            rowTitle
+                                ? intl.formatMessage(messages.openNamed, {
+                                      title: rowTitle
+                                  })
+                                : intl.formatMessage(messages.open)
+                        }
                     >
                         <MoreHorizontal aria-hidden />
                     </Button>
@@ -213,7 +246,9 @@ export function CollectionRecordsRowActions({
                                     onSelect={() =>
                                         run(
                                             actions.restore.mutateAsync,
-                                            'restored'
+                                            'restored',
+                                            undefined,
+                                            true
                                         )
                                     }
                                 >
@@ -334,7 +369,9 @@ export function CollectionRecordsRowActions({
                 onConfirm={() => {
                     run(
                         actions.remove.mutateAsync,
-                        paranoid ? 'softDeleted' : 'deleted'
+                        paranoid ? 'softDeleted' : 'deleted',
+                        undefined,
+                        true
                     );
                     setConfirmDelete(false);
                 }}
@@ -349,7 +386,7 @@ export function CollectionRecordsRowActions({
                 confirmVariant="destructive"
                 busy={actions.purge.isPending}
                 onConfirm={() => {
-                    run(actions.purge.mutateAsync, 'deleted');
+                    run(actions.purge.mutateAsync, 'deleted', undefined, true);
                     setConfirmPurge(false);
                 }}
             />

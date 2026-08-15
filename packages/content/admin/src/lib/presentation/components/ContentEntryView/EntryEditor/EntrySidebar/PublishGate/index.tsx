@@ -40,6 +40,14 @@ const messages = defineMessages({
         id: 'content.sidebar.gateFailing',
         defaultMessage: 'failing'
     },
+    gatePasses: {
+        id: 'content.sidebar.gatePasses',
+        defaultMessage: 'Passes:'
+    },
+    gateNeedsAttention: {
+        id: 'content.sidebar.gateNeedsAttention',
+        defaultMessage: 'Needs attention:'
+    },
     gateAllClear: {
         id: 'content.sidebar.gateAllClear',
         defaultMessage: 'Every check passes — ready to publish.'
@@ -107,9 +115,12 @@ export function PublishGate({
                     </p>
                 ) : (
                     <ul className="flex flex-col gap-2">
-                        {items.map((item) => (
+                        {items.map((item, index) => (
                             <li
-                                key={item.label}
+                                // `label` alone collides when two fields share
+                                // an `admin.label`; the index disambiguates the
+                                // pair without changing the render order.
+                                key={`${item.label}-${index}`}
                                 className="flex items-start gap-2 text-sm"
                             >
                                 {item.ok ? (
@@ -123,6 +134,20 @@ export function PublishGate({
                                         aria-hidden
                                     />
                                 )}
+                                {/* Pass/fail was carried by the icon (which is
+                                    `aria-hidden`) and its colour alone, so a
+                                    passing row read as a bare field label — one
+                                    more outstanding item, to a screen reader,
+                                    and indistinguishable under Windows High
+                                    Contrast (WCAG 1.4.1, 1.3.1). State it in
+                                    words, first, for assistive tech only. */}
+                                <span className="sr-only">
+                                    {intl.formatMessage(
+                                        item.ok
+                                            ? messages.gatePasses
+                                            : messages.gateNeedsAttention
+                                    )}
+                                </span>
                                 <span className="min-w-0 flex-1">
                                     {item.label}
                                 </span>
