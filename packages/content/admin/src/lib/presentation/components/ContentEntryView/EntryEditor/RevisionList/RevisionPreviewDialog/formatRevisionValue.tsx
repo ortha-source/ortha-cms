@@ -66,9 +66,12 @@ export function formatRevisionValue(
                 timeStyle: 'short'
             });
         case CONTENT_FIELD_TYPE.Money:
+            // Same rule as the records table's `renderCell`: a `money` field
+            // carries no currency, so the amount is shown at the kernel's
+            // scale of 2 without inventing a symbol for it.
             return intl.formatNumber(Number(value) / 100, {
-                style: 'currency',
-                currency: 'USD'
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
         case CONTENT_FIELD_TYPE.Number:
             return intl.formatNumber(Number(value));

@@ -47,6 +47,7 @@ import {
 } from '../../../../domain/constants';
 import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
+import { useColumnLabel } from '../../../hooks/useColumnLabel';
 import { useSlotListParams } from '../../../hooks/useSlotListParams';
 import { entryColumns } from '../../../../domain/entryColumns';
 import { listParamsQuery } from '../../../../domain/listParamsQuery';
@@ -59,7 +60,10 @@ import {
 } from '../../../slots/contentSlots';
 import { CollectionRecordsTable } from '../CollectionRecordsTable';
 import { CollectionRecordsColumnPicker } from '../CollectionRecordsColumnPicker';
-import { CollectionRecordsPagination } from '../CollectionRecordsPagination';
+import {
+    CollectionRecordsPagination,
+    PAGE_SIZE_OPTIONS
+} from '../CollectionRecordsPagination';
 import { CollectionRecordsEmpty } from '../CollectionRecordsEmpty';
 import { CollectionRecordsSkeleton } from '../CollectionRecordsSkeleton';
 import { CollectionRecordsSelectionBar } from '../CollectionRecordsSelectionBar';
@@ -117,6 +121,20 @@ const messages = defineMessages({
         id: 'content.records.selection.status',
         defaultMessage:
             '{count, plural, =0 {No rows selected.} one {# row selected.} other {# rows selected.}}'
+    },
+    viewStatus: {
+        id: 'content.records.viewStatus',
+        defaultMessage:
+            'Showing {from}–{to} of {total}, page {page} of {pageCount}.'
+    },
+    sortStatus: {
+        id: 'content.records.sortStatus',
+        defaultMessage:
+            'Sorted by {column}, {direction, select, desc {descending} other {ascending}}.'
+    },
+    sortNone: {
+        id: 'content.records.sortNone',
+        defaultMessage: 'Not sorted.'
     }
 });
 
@@ -150,7 +168,7 @@ export function LoadedRecordsView({
         searchParam,
         filterParam,
         page,
-        pageSize,
+        pageSize: pageSizeParam,
         searchInput,
         searchPending,
         setSearchInput,
@@ -159,6 +177,17 @@ export function LoadedRecordsView({
         searchKey: SEARCH_PARAM,
         defaultPageSize: DEFAULT_PAGE_SIZE
     });
+
+    // `pageSize` comes from the URL, so it can be anything — and the server
+    // rejects anything over its own cap with a **400**, not a clamp. Left
+    // unchecked, `?pageSize=999` rendered the collection's error card with no
+    // way back: Retry re-sends the same parameter, and the rows-per-page select
+    // only exists inside a footer that needs rows to render. Narrow it to the
+    // sizes this table actually offers, so a hand-edited or stale link
+    // degrades to the default instead of stranding the reader.
+    const pageSize = PAGE_SIZE_OPTIONS.includes(pageSizeParam)
+        ? pageSizeParam
+        : DEFAULT_PAGE_SIZE;
 
     // Sort lives in the URL too (`?sort=<columnId>` asc, `?sort=-<columnId>`
     // desc), beside the table state above. Clicking a header cycles
@@ -246,6 +275,19 @@ export function LoadedRecordsView({
         });
     }, []);
     const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+    // A single-row delete/purge/restore takes the row out of this view, but the
+    // selection is keyed by id and spans pages, so nothing was dropping it: the
+    // bar kept counting a record that no longer exists, and a later bulk action
+    // still submitted its id (the server's dry run answered "No longer
+    // available" beside a raw uuid). Drop it at the source instead.
+    const forgetRow = useCallback((id: string) => {
+        setSelectedIds((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+    }, []);
 
     // Server-derived filter surface (scalar fields + recursive relation paths),
     // replacing the old client-side `filterFieldsFromSchema` mirror. Its load
@@ -323,6 +365,29 @@ export function LoadedRecordsView({
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? pageSize;
     const pageCount = Math.max(1, Math.ceil(total / effectivePageSize));
+
+    // Sorting and paging used to change the table in total silence: the live
+    // region's only content was the **total**, which is exactly what neither
+    // action changes (WCAG 4.1.3). Restate the view instead — which slice is on
+    // screen, and what it is ordered by — so a header click or a Next press is
+    // distinguishable from a click that did nothing.
+    const viewStatus = intl.formatMessage(messages.viewStatus, {
+        from: total === 0 ? 0 : (page - 1) * effectivePageSize + 1,
+        to: Math.min(page * effectivePageSize, total),
+        total,
+        page,
+        pageCount
+    });
+    const columnLabel = useColumnLabel();
+    const sortedColumn = sort
+        ? visibleColumns.find((column) => column.id === sort.key)
+        : undefined;
+    const sortStatus = sortedColumn
+        ? intl.formatMessage(messages.sortStatus, {
+              column: columnLabel(sortedColumn),
+              direction: sort?.dir ?? 'asc'
+          })
+        : intl.formatMessage(messages.sortNone);
 
     // A narrowing search/filter can leave fewer pages than the current one; pull
     // `page` back so we never strand the user past the end (copied from
@@ -539,7 +604,9 @@ export function LoadedRecordsView({
                     ? intl.formatMessage(messages.loading)
                     : isError
                       ? ''
-                      : intl.formatMessage(messages.results, { count: total })}
+                      : `${intl.formatMessage(messages.results, {
+                            count: total
+                        })} ${viewStatus} ${sortStatus}`}
             </p>
 
             {/* Persistent selection announcer — present from first render so the
@@ -608,6 +675,7 @@ export function LoadedRecordsView({
                         selectedIds={selectedIds}
                         onToggleRow={toggleRow}
                         onTogglePage={setPageSelection}
+                        onRowGone={forgetRow}
                         sort={sort}
                         onSort={handleSort}
                         relationsPending={isPlaceholderData}

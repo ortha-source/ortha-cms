@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
-import type { IntlShape } from 'react-intl';
+import { defineMessages, type IntlShape } from 'react-intl';
 import { FileText } from 'lucide-react';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../domain/constants';
 import { richTextExcerpt } from '../../../../domain/richTextExcerpt';
+
+/** Intl descriptors for the value renderings that are the cell's own words. */
+const messages = defineMessages({
+    booleanTrue: { id: 'content.cell.booleanTrue', defaultMessage: 'Yes' },
+    booleanFalse: { id: 'content.cell.booleanFalse', defaultMessage: 'No' }
+});
 
 /** The em-dash placeholder for an empty cell. */
 const EMPTY = '—';
@@ -34,9 +40,16 @@ export function renderCell(
 
     switch (field.type) {
         case CONTENT_FIELD_TYPE.Boolean:
+            // `String(value)` printed the literal English `true`/`false` — the
+            // one place in the package a user-visible string bypassed intl, and
+            // it read as a wire value rather than an answer. The editor's own
+            // control already says Enabled/Disabled; a *cell* is a statement
+            // about the record, so it says Yes/No.
             return (
                 <Badge variant={value ? 'default' : 'secondary'}>
-                    {String(value)}
+                    {intl.formatMessage(
+                        value ? messages.booleanTrue : messages.booleanFalse
+                    )}
                 </Badge>
             );
         case CONTENT_FIELD_TYPE.Select:
@@ -69,9 +82,16 @@ export function renderCell(
                 </span>
             );
         case CONTENT_FIELD_TYPE.Money:
+            // Minor units → major, at the kernel's fixed scale of 2. Rendered
+            // as a **number**, not a currency: a `money` field carries no
+            // currency member (see `content-domain`'s validate-entry-values),
+            // so `style: 'currency', currency: 'USD'` was the admin inventing
+            // one — every non-USD deployment read its own prices with a dollar
+            // sign in front. An unlabelled amount is honest; a wrong label is
+            // not. Restoring the symbol needs a currency on the field spec.
             return intl.formatNumber(Number(value) / 100, {
-                style: 'currency',
-                currency: 'USD'
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
         case CONTENT_FIELD_TYPE.Number:
             return intl.formatNumber(Number(value));
