@@ -11,6 +11,7 @@ import {
     cn
 } from '@ortha-cms/design-system';
 import { UploadCloud } from 'lucide-react';
+import type { StagedUpload } from '../../infrastructure/mediaGateway';
 import { StagedFileRow } from './StagedFileRow';
 
 /** Stable default for `initialFiles`, so the seeding effect isn't re-run. */
@@ -29,9 +30,25 @@ const messages = defineMessages({
     },
     or: { id: 'media.upload.or', defaultMessage: 'or' },
     browse: { id: 'media.upload.browse', defaultMessage: 'Browse files' },
+    /**
+     * The `sr-only` input is still a tab stop, so it needs a name of its own —
+     * axe flagged it as an unlabelled form element the moment the dialog's
+     * staged state was scanned. Distinct from the visible "Browse files" button
+     * that clicks it, so the two don't read as duplicates.
+     */
+    fileInput: {
+        id: 'media.upload.fileInput',
+        defaultMessage: 'Choose files to upload'
+    },
+    /**
+     * No size is quoted. The cap is `config.plugins.media.maxUploadBytes`
+     * (50 MB by default) and the admin has no route that reports it, so the old
+     * "up to 250 MB each" was a number nothing checked — a 52 MB file staged
+     * happily and then 413'd after transferring in full.
+     */
     hint: {
         id: 'media.upload.hint',
-        defaultMessage: 'Images, video, audio, and documents up to 250 MB each.'
+        defaultMessage: 'Images, video, audio, and documents.'
     },
     staged: {
         id: 'media.upload.staged',
@@ -72,6 +89,7 @@ export function UploadDialog({
     accept,
     multiple = true,
     initialFiles = NO_FILES,
+    collectAlt = false,
     onUpload
 }: {
     open: boolean;
@@ -93,23 +111,32 @@ export function UploadDialog({
     multiple?: boolean;
     /** Files to stage as the dialog opens (e.g. dropped onto a media field). */
     initialFiles?: File[];
-    onUpload: (files: File[]) => void;
+    /**
+     * Offers an **Alt text** input on each staged image, sent with the upload.
+     *
+     * Off by default, and deliberately: only the library's queue forwards the
+     * description to the API. A caller that would drop it (a media field, whose
+     * files upload later with the record) must not ask for it — prompting for a
+     * description and then discarding it is worse than never asking.
+     */
+    collectAlt?: boolean;
+    onUpload: (uploads: StagedUpload[]) => void;
 }) {
     const intl = useIntl();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [staged, setStaged] = useState<File[]>([]);
+    const [staged, setStaged] = useState<StagedUpload[]>([]);
     const [dragging, setDragging] = useState(false);
 
     useEffect(() => {
         if (open) {
-            setStaged(initialFiles);
+            setStaged(initialFiles.map((file) => ({ file })));
             setDragging(false);
         }
     }, [open, initialFiles]);
 
     const addFiles = (files: FileList | null) => {
         if (!files) return;
-        const picked = Array.from(files);
+        const picked = Array.from(files).map((file) => ({ file }));
         // A single-asset field holds one file: the newest pick replaces the last.
         setStaged((prev) =>
             multiple ? [...prev, ...picked] : picked.slice(0, 1)
@@ -118,6 +145,12 @@ export function UploadDialog({
 
     const removeAt = (index: number) => {
         setStaged((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const setAltAt = (index: number, alt: string) => {
+        setStaged((prev) =>
+            prev.map((item, i) => (i === index ? { ...item, alt } : item))
+        );
     };
 
     const submit = () => {
@@ -185,6 +218,7 @@ export function UploadDialog({
                         type="file"
                         accept={accept}
                         multiple={multiple}
+                        aria-label={intl.formatMessage(messages.fileInput)}
                         className="sr-only"
                         onChange={(event) => {
                             addFiles(event.target.files);
@@ -201,10 +235,15 @@ export function UploadDialog({
                             })}
                         </p>
                         <ul className="flex max-h-56 flex-col gap-1 overflow-auto">
-                            {staged.map((file, index) => (
+                            {staged.map((item, index) => (
                                 <StagedFileRow
-                                    key={`${file.name}-${file.lastModified}-${index}`}
-                                    file={file}
+                                    key={`${item.file.name}-${item.file.lastModified}-${index}`}
+                                    file={item.file}
+                                    alt={item.alt ?? ''}
+                                    collectAlt={collectAlt}
+                                    onAltChange={(value) =>
+                                        setAltAt(index, value)
+                                    }
                                     onRemove={() => removeAt(index)}
                                 />
                             ))}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Button,
@@ -137,8 +137,29 @@ const messages = defineMessages({
     tCopied: {
         id: 'media.page.toast.copied',
         defaultMessage: 'Link copied to clipboard'
-    }
+    },
+    tCopyFailed: {
+        id: 'media.page.toast.copyFailed',
+        defaultMessage: 'Couldn’t copy the link'
+    },
+    tAltSaved: {
+        id: 'media.page.toast.altSaved',
+        defaultMessage: 'Alt text saved'
+    },
+    assetsRegion: { id: 'media.page.assetsRegion', defaultMessage: 'Assets' }
 });
+
+/**
+ * How long a confirmed delete keeps trying to hold focus on the grid.
+ *
+ * Two overlays unwind after a delete and each restores focus to its own
+ * trigger, both of which sat on the tile that just went away — so whichever
+ * settles last can drop focus on `<body>` well after the dialog closed. The
+ * window is generous because that timing moves with machine load; nothing is
+ * taken from a control the user actually focused, so a long window costs
+ * nothing.
+ */
+const FOCUS_RECLAIM_MS = 1_000;
 
 /** A pending rename, tagged by whether it targets an asset or a folder. */
 type RenameTarget =
@@ -180,12 +201,46 @@ export function MediaLibraryPage() {
     const canDelete = useHasPermission(MEDIA_DELETE);
     const store = useMediaLibrary(canRead);
 
+    /** Focus target after a delete removes the tile whose menu opened it. */
+    const gridRef = useRef<HTMLElement>(null);
+    /** Set by a confirmed delete, read once by the dialog's close-focus hook. */
+    const focusGridOnCloseRef = useRef(false);
+
     const [navOpen, setNavOpen] = useState(false);
     const [newFolderOpen, setNewFolderOpen] = useState(false);
     const [uploadOpen, setUploadOpen] = useState(false);
     const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null);
     const [moveIds, setMoveIds] = useState<string[] | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+    /**
+     * Puts focus on the grid and **keeps** it there for a few frames.
+     *
+     * A delete travels through two overlays — the tile's ⋯ menu and the confirm
+     * dialog — and each restores focus to its own trigger when it closes, on its
+     * own schedule. Both triggers live on the tile the delete just removed, so
+     * whichever lands last drops focus on `<body>`. Claiming the dialog's
+     * `onCloseAutoFocus` handles one of them; this reclaims from the other,
+     * bounded so it can never fight a focus the user chose themselves (it only
+     * acts while nothing at all is focused).
+     */
+    const focusGrid = () => {
+        const deadline = Date.now() + FOCUS_RECLAIM_MS;
+        const reclaim = () => {
+            // Re-read the ref every tick: a refetch can re-render the region.
+            const grid = gridRef.current;
+            if (!grid || document.activeElement === grid) return;
+            const active = document.activeElement;
+            // Only step in when nothing holds focus: `<body>` after a layer
+            // gave up, or a node that has since left the document. A control
+            // the user actually moved to is left alone.
+            if (!active || active === document.body || !active.isConnected) {
+                grid.focus();
+            }
+            if (Date.now() < deadline) window.setTimeout(reclaim, 32);
+        };
+        reclaim();
+    };
 
     const locationLabel = store.currentFolder
         ? store.currentFolder.name
@@ -228,16 +283,29 @@ export function MediaLibraryPage() {
                 break;
             }
             case 'copyLink':
+                // Confirm only once the clipboard actually took it — a denied
+                // permission used to still say "Link copied".
                 void navigator.clipboard
                     ?.writeText(new URL(asset.url, window.location.origin).href)
-                    .catch(() => undefined);
-                toast.success(intl.formatMessage(messages.tCopied));
+                    .then(
+                        () =>
+                            toast.success(intl.formatMessage(messages.tCopied)),
+                        () =>
+                            toast.error(
+                                intl.formatMessage(messages.tCopyFailed)
+                            )
+                    );
                 break;
             case 'duplicate': {
-                store.duplicateAssets([asset.id]);
-                toast.success(
-                    intl.formatMessage(messages.tDuplicated, { count: 1 })
-                );
+                void store.duplicateAssets([asset.id]).then((ok) => {
+                    if (ok) {
+                        toast.success(
+                            intl.formatMessage(messages.tDuplicated, {
+                                count: 1
+                            })
+                        );
+                    }
+                });
                 break;
             }
             case 'rename':
@@ -264,41 +332,55 @@ export function MediaLibraryPage() {
 
     const submitRename = (name: string) => {
         if (!renameTarget) return;
-        if (renameTarget.kind === 'asset') {
-            store.renameAsset(renameTarget.id, name);
-        } else {
-            store.renameFolder(renameTarget.id, name);
-        }
-        toast.success(intl.formatMessage(messages.tRenamed, { name }));
+        const done =
+            renameTarget.kind === 'asset'
+                ? store.renameAsset(renameTarget.id, name)
+                : store.renameFolder(renameTarget.id, name);
+        void done.then((ok) => {
+            if (ok) {
+                toast.success(intl.formatMessage(messages.tRenamed, { name }));
+            }
+        });
     };
 
     const submitMove = (folderId: string) => {
         if (!moveIds) return;
-        store.moveAssets(moveIds, folderId);
-        toast.success(
-            intl.formatMessage(messages.tMoved, { count: moveIds.length })
-        );
+        const count = moveIds.length;
+        void store.moveAssets(moveIds, folderId).then((ok) => {
+            if (ok) {
+                toast.success(intl.formatMessage(messages.tMoved, { count }));
+            }
+        });
         store.clearSelection();
     };
 
     const confirmDelete = () => {
         if (!deleteTarget) return;
         if (deleteTarget.kind === 'assets') {
-            store.deleteAssets(deleteTarget.ids);
-            toast.success(
-                intl.formatMessage(messages.tDeletedAssets, {
-                    count: deleteTarget.ids.length
-                })
-            );
+            const count = deleteTarget.ids.length;
+            void store.deleteAssets(deleteTarget.ids).then((ok) => {
+                if (ok) {
+                    toast.success(
+                        intl.formatMessage(messages.tDeletedAssets, { count })
+                    );
+                }
+            });
         } else {
-            store.deleteFolder(deleteTarget.folder.id);
-            toast.success(
-                intl.formatMessage(messages.tDeletedFolder, {
-                    name: deleteTarget.folder.name
-                })
-            );
+            const name = deleteTarget.folder.name;
+            void store.deleteFolder(deleteTarget.folder.id).then((ok) => {
+                if (ok) {
+                    toast.success(
+                        intl.formatMessage(messages.tDeletedFolder, { name })
+                    );
+                }
+            });
         }
         setDeleteTarget(null);
+        // The dialog restores focus to whatever opened it — a tile's ⋯ trigger
+        // the delete is about to remove from the DOM, leaving focus on `<body>`.
+        // Claim the close so it lands on the grid instead. Cancelling leaves the
+        // flag false, so the trigger (which still exists) keeps focus.
+        focusGridOnCloseRef.current = true;
     };
 
     // What the pending folder delete would take with it, so the confirmation
@@ -429,15 +511,19 @@ export function MediaLibraryPage() {
                                     );
                                 }}
                                 onDuplicate={() => {
-                                    store.duplicateAssets(selectedIds);
-                                    toast.success(
-                                        intl.formatMessage(
-                                            messages.tDuplicated,
-                                            {
-                                                count: selectedIds.length
+                                    const count = selectedIds.length;
+                                    void store
+                                        .duplicateAssets(selectedIds)
+                                        .then((ok) => {
+                                            if (ok) {
+                                                toast.success(
+                                                    intl.formatMessage(
+                                                        messages.tDuplicated,
+                                                        { count }
+                                                    )
+                                                );
                                             }
-                                        )
-                                    );
+                                        });
                                 }}
                                 onMove={() => setMoveIds(selectedIds)}
                                 onDelete={() =>
@@ -465,32 +551,43 @@ export function MediaLibraryPage() {
                             </p>
                         ) : null}
 
-                        {isEmpty ? (
-                            <MediaEmptyState
-                                hasFilters={hasFilters}
-                                canCreate={canCreate}
-                                onUpload={() => setUploadOpen(true)}
-                                onClearFilters={() => {
-                                    store.setSearch('');
-                                    store.setKindFilter('all');
-                                }}
-                            />
-                        ) : (
-                            <MediaGrid
-                                folders={store.childFolders}
-                                assets={store.visibleAssets}
-                                folderCounts={store.folderCounts}
-                                selectedIds={store.selectedIds}
-                                onOpenFolder={store.navigateTo}
-                                onRenameFolder={handleRenameFolder}
-                                onDeleteFolder={handleDeleteFolder}
-                                onToggleSelect={store.toggleSelect}
-                                onAssetAction={handleAssetAction}
-                                canCreate={canCreate}
-                                canUpdate={canUpdate}
-                                canDelete={canDelete}
-                            />
-                        )}
+                        {/* Focusable (but not tab-stop) so a destructive action
+                            can hand focus back to the content it changed. */}
+                        <section
+                            ref={gridRef}
+                            tabIndex={-1}
+                            aria-label={intl.formatMessage(
+                                messages.assetsRegion
+                            )}
+                            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                            {isEmpty ? (
+                                <MediaEmptyState
+                                    hasFilters={hasFilters}
+                                    canCreate={canCreate}
+                                    onUpload={() => setUploadOpen(true)}
+                                    onClearFilters={() => {
+                                        store.setSearch('');
+                                        store.setKindFilter('all');
+                                    }}
+                                />
+                            ) : (
+                                <MediaGrid
+                                    folders={store.childFolders}
+                                    assets={store.visibleAssets}
+                                    folderCounts={store.folderCounts}
+                                    selectedIds={store.selectedIds}
+                                    onOpenFolder={store.navigateTo}
+                                    onRenameFolder={handleRenameFolder}
+                                    onDeleteFolder={handleDeleteFolder}
+                                    onToggleSelect={store.toggleSelect}
+                                    onAssetAction={handleAssetAction}
+                                    canCreate={canCreate}
+                                    canUpdate={canUpdate}
+                                    canDelete={canDelete}
+                                />
+                            )}
+                        </section>
                     </div>
                 </main>
             </div>
@@ -532,6 +629,16 @@ export function MediaLibraryPage() {
                     if (!open) store.closeDetail();
                 }}
                 onAction={handleAssetAction}
+                onSaveAlt={(id, alt) =>
+                    store.setAssetAlt(id, alt).then((ok) => {
+                        if (ok) {
+                            toast.success(
+                                intl.formatMessage(messages.tAltSaved)
+                            );
+                        }
+                        return ok;
+                    })
+                }
                 canCreate={canCreate}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
@@ -542,10 +649,13 @@ export function MediaLibraryPage() {
                 onOpenChange={setNewFolderOpen}
                 locationLabel={locationLabel}
                 onCreate={(name) => {
-                    store.createFolder(name);
-                    toast.success(
-                        intl.formatMessage(messages.tCreated, { name })
-                    );
+                    void store.createFolder(name).then((ok) => {
+                        if (ok) {
+                            toast.success(
+                                intl.formatMessage(messages.tCreated, { name })
+                            );
+                        }
+                    });
                 }}
             />
 
@@ -557,6 +667,9 @@ export function MediaLibraryPage() {
                 // the per-file outcome are the banner's job — a success toast
                 // fired at submit time would claim a result nobody has yet.
                 onUpload={store.uploadFiles}
+                // The library's queue forwards alt to the API, so this is the
+                // one caller that may ask the author to describe the image.
+                collectAlt
             />
 
             <RenameDialog
@@ -614,6 +727,12 @@ export function MediaLibraryPage() {
                 }
                 confirmLabel={intl.formatMessage(messages.confirmDelete)}
                 confirmVariant="destructive"
+                onCloseAutoFocus={(event) => {
+                    if (!focusGridOnCloseRef.current) return;
+                    focusGridOnCloseRef.current = false;
+                    event.preventDefault();
+                    focusGrid();
+                }}
                 onConfirm={confirmDelete}
             />
         </div>

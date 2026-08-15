@@ -7,7 +7,6 @@ import {
     useQueryClient
 } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
-import { ApiError } from '@ortha-cms/utils-admin';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import {
     KIND_FILTER_ALL,
@@ -19,10 +18,27 @@ import {
 import type { MediaFolder } from '../../types/mediaFolder';
 import { mediaKeys } from '../../infrastructure/mediaKeys';
 import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
+import { apiMessage } from '../../infrastructure/apiMessage';
 import { useUploadQueue } from '../useUploadQueue';
 
 /** The selected kind filter — a {@link MediaKind} or the "all" sentinel. */
 export type KindFilter = MediaKind | typeof KIND_FILTER_ALL;
+
+/**
+ * Resolves a mutation to whether it **succeeded**, so a caller can hold its
+ * confirmation until the server has agreed.
+ *
+ * Every action below returns this. Firing a success toast at dispatch time is
+ * what produced "Renamed to “a/b.txt”" beside "Request failed with status code
+ * 400" on the same screen: the rejection is already handled by `onError`, so
+ * the failure branch here only has to swallow it.
+ */
+function settle(promise: Promise<unknown>): Promise<boolean> {
+    return promise.then(
+        () => true,
+        () => false
+    );
+}
 
 /** Intl descriptor for a failed media mutation. */
 const messages = defineMessages({
@@ -82,14 +98,17 @@ export function useMediaLibrary(enabled = true) {
         queryClient.invalidateQueries({ queryKey: mediaKeys.all(workspaceId) });
     }, [queryClient, workspaceId]);
 
-    /** Surfaces a mutation failure and resyncs from the server. */
+    /**
+     * Surfaces a mutation failure and resyncs from the server. The API's own
+     * sentence wins over our generic copy — `apiMessage` reads it off the
+     * response body, because `ApiError.message` is only the transport's
+     * "Request failed with status code 400".
+     */
     const onError = useCallback(
         (error: unknown) => {
-            const message =
-                error instanceof ApiError && error.message
-                    ? error.message
-                    : intl.formatMessage(messages.error);
-            toast.error(message);
+            toast.error(
+                apiMessage(error) ?? intl.formatMessage(messages.error)
+            );
             invalidate();
         },
         [intl, invalidate]
@@ -232,41 +251,51 @@ export function useMediaLibrary(enabled = true) {
         onSuccess: invalidate,
         onError
     });
+    const updateAssetM = useMutation({
+        mutationFn: httpMediaGateway.updateAsset,
+        onSuccess: invalidate,
+        onError
+    });
     // Uploads don't go through `useMutation`: the banner needs per-file progress
     // and independent per-file failure, which a single mutation can't express.
     const uploads = useUploadQueue(currentFolderId, invalidate);
 
     const createFolder = useCallback(
-        (name: string, parentId: string = currentFolderId) => {
-            createFolderM.mutate({ name, parentId });
-        },
+        (name: string, parentId: string = currentFolderId) =>
+            settle(createFolderM.mutateAsync({ name, parentId })),
         [createFolderM, currentFolderId]
     );
     const renameFolder = useCallback(
-        (id: string, name: string) => renameFolderM.mutate({ id, name }),
+        (id: string, name: string) =>
+            settle(renameFolderM.mutateAsync({ id, name })),
         [renameFolderM]
     );
     const deleteFolder = useCallback(
-        (id: string) => deleteFolderM.mutate(id),
+        (id: string) => settle(deleteFolderM.mutateAsync(id)),
         [deleteFolderM]
     );
     const renameAsset = useCallback(
-        (id: string, name: string) => renameAssetM.mutate({ id, name }),
+        (id: string, name: string) =>
+            settle(renameAssetM.mutateAsync({ id, name })),
         [renameAssetM]
     );
+    const setAssetAlt = useCallback(
+        (id: string, alt: string) =>
+            settle(updateAssetM.mutateAsync({ id, alt })),
+        [updateAssetM]
+    );
     const moveAssets = useCallback(
-        (ids: string[], folderId: string) => {
-            moveAssetsM.mutate({ ids, folderId });
-        },
+        (ids: string[], folderId: string) =>
+            settle(moveAssetsM.mutateAsync({ ids, folderId })),
         [moveAssetsM]
     );
     const duplicateAssets = useCallback(
-        (ids: string[]) => duplicateAssetsM.mutate(ids),
+        (ids: string[]) => settle(duplicateAssetsM.mutateAsync(ids)),
         [duplicateAssetsM]
     );
     const deleteAssets = useCallback(
         (ids: string[]) => {
-            deleteAssetsM.mutate(ids);
+            const done = settle(deleteAssetsM.mutateAsync(ids));
             // Drop them from the selection; the drawer closes on its own once the
             // refetch removes the row (detailAsset derives to null).
             setSelectedIds((prev) => {
@@ -274,6 +303,7 @@ export function useMediaLibrary(enabled = true) {
                 ids.forEach((id) => next.delete(id));
                 return next;
             });
+            return done;
         },
         [deleteAssetsM]
     );
@@ -315,6 +345,7 @@ export function useMediaLibrary(enabled = true) {
         createFolder,
         renameFolder,
         renameAsset,
+        setAssetAlt,
         deleteAssets,
         deleteFolder,
         duplicateAssets,

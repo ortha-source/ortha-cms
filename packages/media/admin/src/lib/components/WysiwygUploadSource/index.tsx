@@ -125,7 +125,9 @@ export function WysiwygUploadSource({
             confirmLabel={intl.formatMessage(messages.confirm)}
             accept={FILE_ACCEPT}
             multiple
-            onUpload={(files) => void upload(files)}
+            onUpload={(uploads) =>
+                void upload(uploads.map((staged) => staged.file))
+            }
         />
     );
 }

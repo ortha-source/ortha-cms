@@ -13,6 +13,7 @@ import type {
     MediaGateway,
     MoveAssetsInput,
     RenameInput,
+    UpdateAssetInput,
     UploadOptions
 } from '../mediaGateway';
 import type { MediaAsset } from '../../types/mediaAsset';
@@ -34,9 +35,8 @@ function folderParam(folderId: string): string | undefined {
 export const httpMediaGateway: MediaGateway = {
     async listFolders(): Promise<MediaFoldersResult> {
         try {
-            const { data } = await apiClient.get<FoldersResponse>(
-                '/media/folders'
-            );
+            const { data } =
+                await apiClient.get<FoldersResponse>('/media/folders');
             const folderCounts = new Map<string, number>();
             for (const folder of data.folders) {
                 folderCounts.set(folder.id, folder.assetCount);
@@ -52,7 +52,12 @@ export const httpMediaGateway: MediaGateway = {
         try {
             const { data } = await apiClient.get<AssetListResponse>(
                 '/media/assets',
-                { params: { folderId: folderParam(folderId), pageSize: ASSETS_PAGE_SIZE } }
+                {
+                    params: {
+                        folderId: folderParam(folderId),
+                        pageSize: ASSETS_PAGE_SIZE
+                    }
+                }
             );
             return data.items.map(toMediaAsset);
         } catch (error) {
@@ -96,6 +101,12 @@ export const httpMediaGateway: MediaGateway = {
         const form = new FormData();
         form.append('file', file);
         if (target) form.append('folderId', target);
+        // Only sent when the author wrote one — an empty part would be a blank
+        // description, which the server normalizes away but which would still
+        // read as "described" to anyone auditing the request.
+        if (options?.alt && options.alt.trim() !== '') {
+            form.append('alt', options.alt);
+        }
         try {
             const { data } = await apiClient.post<AssetResponse>(
                 '/media/assets',
@@ -122,6 +133,14 @@ export const httpMediaGateway: MediaGateway = {
     async renameAsset({ id, name }: RenameInput): Promise<void> {
         try {
             await apiClient.patch(`/media/assets/${id}`, { name });
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async updateAsset({ id, alt }: UpdateAssetInput): Promise<void> {
+        try {
+            await apiClient.patch(`/media/assets/${id}`, { alt });
         } catch (error) {
             throw toApiError(error);
         }

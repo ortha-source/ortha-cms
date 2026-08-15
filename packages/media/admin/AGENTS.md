@@ -104,7 +104,39 @@ of the server's RBAC, which is the real enforcer).
   invalidated once per settled batch. The **dialog** is shared with the content
   editor's media field (below); the queue and banner are the library's own, since
   a field defers its uploads to the record's save.
-- Every other action fires a **toast**; failures surface a toast + resync.
+- Every other action fires a **toast** — **on success, not on submit**. Every
+  store action returns `Promise<boolean>` (`settle` in `useMediaLibrary`), and
+  the page chains its confirmation on it. Firing at dispatch time is what put
+  "Renamed to “a/b.png”" on screen beside "Request failed with status code 400";
+  the rejection is already handled by `onError`, so the page only has to hold
+  its own sentence back. Failures surface a toast + resync.
+- **Failures speak the API's words.** `toApiError` puts the *transport's*
+  description in `ApiError.message` and the parsed body in `details`, so a call
+  site reading `.message` shows a status code where media-server sent a sentence
+  ("File exceeds the maximum upload size.", "Invalid file name: a/b.png").
+  Everything user-facing goes through **`infrastructure/apiMessage`**, which
+  reads the body and falls back to local copy — the upload rows included.
+- **Alt text is writable in two places, and nowhere else.** `media_asset.alt` is
+  a per-asset column the server has always had; the admin used to *render* it
+  (read-only, and only when already set) without ever offering to write it, so
+  an image that landed undescribed stayed that way while the Insights
+  alt-coverage card counted it. Now: an optional **Alt text** input per staged
+  **image** in `UploadDialog` (opt-in via `collectAlt` — a caller that would drop
+  the value, like a media field, must not ask for one), sent as the `alt` part of
+  the upload; and an editable field in `AssetDetailDrawer` behind `media:update`,
+  through the gateway's `updateAsset`. Neither blocks anything: skipping alt
+  uploads exactly as before, and a blank value is never sent.
+- **No size is quoted in the upload copy.** The cap is
+  `config.plugins.media.maxUploadBytes` (50 MB by default) and no route reports
+  it to the admin, so the old "up to 250 MB each" was a number nothing enforced —
+  a 52 MB file staged happily and 413'd after transferring in full. Until the
+  cap is readable, the hint says what kinds are accepted and not how big.
+- **A confirmed delete hands focus to the grid.** The ⋯ menu and the confirm
+  dialog each restore focus to their own trigger, both of which sit on the tile
+  the delete just removed, so focus ended on `<body>`. The page claims
+  `ConfirmDialog`'s `onCloseAutoFocus` and focuses a labelled, `tabIndex={-1}`
+  "Assets" section, reclaiming it for a few frames if another layer's restore
+  lands later. Cancelling is untouched — its trigger still exists.
 
 ## The content editor's Media tab
 

@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Button, Progress } from '@ortha-cms/design-system';
 import { UploadCloud, X } from 'lucide-react';
+import { UPLOAD_STATUS } from '../../constants';
 import type { UploadItem, UploadSummary } from '../../types/upload';
 import { MediaUploadRow } from './MediaUploadRow';
 
@@ -13,21 +15,29 @@ const messages = defineMessages({
     },
     complete: {
         id: 'media.uploadBanner.complete',
-        defaultMessage: '{count, plural, one {# file uploaded} other {# files uploaded}}'
+        defaultMessage:
+            '{count, plural, one {# file uploaded} other {# files uploaded}}'
     },
     someFailed: {
         id: 'media.uploadBanner.someFailed',
-        defaultMessage: '{done, plural, one {# file uploaded} other {# files uploaded}}, {failed} failed'
+        defaultMessage:
+            '{done, plural, one {# file uploaded} other {# files uploaded}}, {failed} failed'
     },
     allFailed: {
         id: 'media.uploadBanner.allFailed',
-        defaultMessage: '{failed, plural, one {# upload failed} other {# uploads failed}}'
+        defaultMessage:
+            '{failed, plural, one {# upload failed} other {# uploads failed}}'
     },
     overall: {
         id: 'media.uploadBanner.overall',
         defaultMessage: 'Overall upload progress'
     },
-    dismiss: { id: 'media.uploadBanner.dismiss', defaultMessage: 'Dismiss' }
+    dismiss: { id: 'media.uploadBanner.dismiss', defaultMessage: 'Dismiss' },
+    /** Announced when one file in a batch fails — the row itself is silent. */
+    failureAnnouncement: {
+        id: 'media.uploadBanner.failureAnnouncement',
+        defaultMessage: '{name} failed to upload. {reason}'
+    }
 });
 
 /**
@@ -59,6 +69,39 @@ export function MediaUploadBanner({
     onDismiss: () => void;
 }) {
     const intl = useIntl();
+
+    // Failures are announced from their own region. The headline's counts move
+    // when a file fails, but "3 of 5" never says *which* file or why — and the
+    // rows carrying that sentence sit outside the live region on purpose (a
+    // polite region over the list would re-read all N rows on every progress
+    // tick). One line per newly-failed file is the middle ground.
+    const announcedRef = useRef(new Set<string>());
+    const [failureNotice, setFailureNotice] = useState('');
+    useEffect(() => {
+        const announced = announcedRef.current;
+        const fresh = items.filter(
+            (item) =>
+                item.status === UPLOAD_STATUS.Failed && !announced.has(item.id)
+        );
+        // A retry can fail again, so a row leaving `Failed` becomes announceable
+        // once more.
+        for (const item of items) {
+            if (item.status !== UPLOAD_STATUS.Failed) announced.delete(item.id);
+        }
+        if (fresh.length === 0) return;
+        for (const item of fresh) announced.add(item.id);
+        setFailureNotice(
+            fresh
+                .map((item) =>
+                    intl.formatMessage(messages.failureAnnouncement, {
+                        name: item.name,
+                        reason: item.error ?? ''
+                    })
+                )
+                .join(' ')
+        );
+    }, [items, intl]);
+
     if (items.length === 0) return null;
 
     const headline = summary.active
@@ -111,6 +154,10 @@ export function MediaUploadBanner({
                     aria-label={intl.formatMessage(messages.overall)}
                 />
             ) : null}
+
+            <p className="sr-only" role="status">
+                {failureNotice}
+            </p>
 
             <ul className="mt-1 max-h-48 divide-y overflow-auto">
                 {items.map((item) => (

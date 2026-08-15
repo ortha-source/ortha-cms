@@ -14,11 +14,35 @@ export type CreateFolderInput = { name: string; parentId: string };
 /** Rename input for a folder or an asset. */
 export type RenameInput = { id: string; name: string };
 
+/**
+ * Partial update of an asset's descriptive metadata. `alt` is sent verbatim —
+ * the server normalizes a blank string back to "no alt", so clearing the field
+ * clears the description rather than storing whitespace that would count as
+ * covered in the alt-coverage insight.
+ */
+export type UpdateAssetInput = { id: string; alt: string };
+
 /** Move input — the target folder is an admin id or the root sentinel. */
 export type MoveAssetsInput = { ids: string[]; folderId: string };
 
+/**
+ * One file queued for upload, with the description its author wrote for it.
+ *
+ * Alt text rides along with the bytes rather than waiting for a later edit:
+ * the moment the author is looking at the image is the only moment they can
+ * describe it cheaply, and an asset that lands with `alt: null` is one nothing
+ * in the product will ever ask about again.
+ */
+export type StagedUpload = {
+    file: File;
+    /** Alt text for an image; omitted or blank means "not described". */
+    alt?: string;
+};
+
 /** Per-request upload options — progress reporting and caller cancellation. */
 export type UploadOptions = {
+    /** Alt text stored on the created asset (blank/absent → no description). */
+    alt?: string;
     /**
      * Called as the request body is written, with the whole-number percentage
      * of bytes sent (0–100). Axios only reports this while the browser is
@@ -54,6 +78,8 @@ export type MediaGateway = {
         options?: UploadOptions
     ): Promise<MediaAsset>;
     renameAsset(input: RenameInput): Promise<void>;
+    /** Updates an asset's descriptive metadata (today: its alt text). */
+    updateAsset(input: UpdateAssetInput): Promise<void>;
     moveAssets(input: MoveAssetsInput): Promise<void>;
     duplicateAssets(ids: string[]): Promise<void>;
     deleteAssets(ids: string[]): Promise<void>;

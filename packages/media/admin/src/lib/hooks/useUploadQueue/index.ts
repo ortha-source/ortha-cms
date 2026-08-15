@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { ApiError } from '@ortha-cms/utils-admin';
 import { UPLOAD_CONCURRENCY, UPLOAD_STATUS } from '../../constants';
 import type { UploadItem, UploadSummary } from '../../types/upload';
 import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
+import { apiMessage } from '../../infrastructure/apiMessage';
+import type { StagedUpload } from '../../infrastructure/mediaGateway';
 
 /** Intl descriptor for an upload failure with no server-supplied reason. */
 const messages = defineMessages({
@@ -37,16 +38,20 @@ const SETTLED: readonly string[] = [
  * @param folderId - destination folder, captured **per file at enqueue time**
  *   so navigating away mid-upload can't redirect in-flight files to a folder
  *   the user merely happens to be looking at.
- * @param onUploaded - called once per settled batch that produced at least one
- *   success (the caller invalidates its queries there — once, not per file).
+ * @param onUploaded - called once per settled batch that may have changed the
+ *   library (the caller invalidates its queries there — once, not per file).
+ *   That includes a **cancelled** file: an abort only stops the client, so a
+ *   body the server already finished reading is committed either way.
  */
 export function useUploadQueue(folderId: string, onUploaded: () => void) {
     const intl = useIntl();
     const [items, setItems] = useState<UploadItem[]>([]);
 
     // --- Runner bookkeeping (refs: mutated mid-flight, never rendered) --------
-    /** id → the file to send and the folder it was queued for. */
-    const filesRef = useRef(new Map<string, { file: File; folderId: string }>());
+    /** id → the file to send, its description, and the folder it was queued for. */
+    const filesRef = useRef(
+        new Map<string, { file: File; alt?: string; folderId: string }>()
+    );
     /** id → abort handle, present only while that file is on the wire. */
     const abortsRef = useRef(new Map<string, AbortController>());
     /** Ids waiting for a slot, oldest first. */
@@ -101,6 +106,7 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
 
             void httpMediaGateway
                 .uploadFile(entry.folderId, entry.file, {
+                    alt: entry.alt,
                     signal: controller.signal,
                     onProgress: (percent) => patch(id, { progress: percent })
                 })
@@ -115,15 +121,25 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
                 .catch((error: unknown) => {
                     if (controller.signal.aborted) {
                         patch(id, { status: UPLOAD_STATUS.Cancelled });
+                        // Cancelling aborts the *client*. If the server had
+                        // already received the whole body it commits anyway, so
+                        // the asset exists — it was simply never fetched, and
+                        // stayed invisible until a manual reload. Refetch on a
+                        // cancel too, so the grid tells the truth. (Deleting the
+                        // committed asset isn't possible from here: the response
+                        // that carries its id is what the abort threw away.)
+                        successRef.current = true;
                         return;
                     }
                     patch(id, {
                         status: UPLOAD_STATUS.Failed,
                         progress: 0,
+                        // The API's own sentence ("File exceeds the maximum
+                        // upload size.") rather than the transport's status
+                        // line, which told the author nothing actionable.
                         error:
-                            error instanceof ApiError && error.message
-                                ? error.message
-                                : intl.formatMessage(messages.failed)
+                            apiMessage(error) ??
+                            intl.formatMessage(messages.failed)
                     });
                 })
                 .finally(() => {
@@ -140,11 +156,11 @@ export function useUploadQueue(folderId: string, onUploaded: () => void) {
 
     /** Queues files for the folder open **now** and starts uploading. */
     const enqueue = useCallback(
-        (files: File[]) => {
-            if (files.length === 0) return;
-            const queued: UploadItem[] = files.map((file) => {
+        (uploads: StagedUpload[]) => {
+            if (uploads.length === 0) return;
+            const queued: UploadItem[] = uploads.map(({ file, alt }) => {
                 const id = `upload-${nextIdRef.current++}`;
-                filesRef.current.set(id, { file, folderId });
+                filesRef.current.set(id, { file, alt, folderId });
                 waitingRef.current.push(id);
                 return {
                     id,
