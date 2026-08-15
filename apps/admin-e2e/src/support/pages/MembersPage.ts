@@ -99,9 +99,13 @@ export class MembersPage extends BasePage {
         return this.confirmDialog().getByRole('button', { name: label });
     }
 
-    /** The roster's focus anchor — where focus lands after a row is removed. */
-    tableAnchor(): Locator {
-        return this.page.locator('#members-table');
+    /**
+     * The roster's focus anchor — where focus lands after a row is removed. It
+     * wraps every result state, so it survives the table being swapped for the
+     * empty state when the last row goes.
+     */
+    resultsAnchor(): Locator {
+        return this.page.locator('#members-results');
     }
 
     // --- invite wizard (/users/invite) ---

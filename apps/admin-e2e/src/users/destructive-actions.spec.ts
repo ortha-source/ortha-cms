@@ -101,7 +101,33 @@ test.describe('Destructive member actions', () => {
         // The kebab that opened the dialog unmounts with its row, so Radix has
         // nothing to restore to and focus falls to `<body>` — restarting a
         // keyboard user at the top of the document (WCAG 2.4.3).
-        await expect(membersPage.tableAnchor()).toBeFocused();
+        await expect(membersPage.resultsAnchor()).toBeFocused();
+        await expect(page.locator('body:focus')).toHaveCount(0);
+    });
+
+    test('keeps focus when revoking the last row empties the table', async ({
+        membersPage,
+        page
+    }) => {
+        // Narrow the roster to exactly the pending invite, so confirming swaps
+        // the table for the empty state. An anchor that lived on the table would
+        // unmount at precisely the moment focus needed somewhere to land — which
+        // is how this slipped through the first fix, whose spec always left
+        // other rows behind.
+        const roster = [{ ...PENDING_MEMBER }];
+        await mockMembers(page, roster);
+        await spyRevokeInvite(page, roster);
+        await page.goto(`/users?search=${PENDING_MEMBER.email}`);
+        await expect(membersPage.row(PENDING_MEMBER.email)).toBeVisible();
+
+        await membersPage.openActions(PENDING_MEMBER.email);
+        await membersPage.menuItem('Revoke invite').click();
+        await membersPage.confirmAction('Delete invite').click();
+        await expect(membersPage.confirmDialog()).toHaveCount(0);
+
+        // The table is gone; the anchor is not.
+        await expect(page.locator('table')).toHaveCount(0);
+        await expect(membersPage.resultsAnchor()).toBeFocused();
         await expect(page.locator('body:focus')).toHaveCount(0);
     });
 

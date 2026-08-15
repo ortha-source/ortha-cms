@@ -24,6 +24,7 @@ import { MembersTableSkeleton } from '../../components/MembersSkeleton';
 import { MembersEmpty } from '../../components/MembersEmpty';
 import { MembersNoAccess } from '../../components/MembersNoAccess';
 import { MembersPagination } from '../../components/MembersPagination';
+import { MEMBERS_RESULTS_ANCHOR_ID } from '../../membersResultsAnchor';
 import { MembersTable } from '../../components/MembersTable';
 import { MembersToolbar } from '../../components/MembersToolbar';
 import { MEMBERS_FILTER_FIELDS } from '../../membersFilterFields';
@@ -246,45 +247,62 @@ export function MembersPage() {
                     </p>
                 )}
 
-                {isPending ? (
-                    <MembersTableSkeleton />
-                ) : isError ? (
-                    <Alert variant="destructive" role="alert" className="mt-4">
-                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                            <span>{intl.formatMessage(messages.error)}</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="shadow-none"
-                                onClick={() => refetch()}
-                            >
-                                {intl.formatMessage(messages.retry)}
-                            </Button>
-                        </AlertDescription>
-                    </Alert>
-                ) : members.length === 0 ? (
-                    <MembersEmpty
-                        filtered={hasFilters}
-                        onClear={clearFilters}
-                        onInvite={canInvite ? openInvite : undefined}
-                    />
-                ) : (
-                    <>
-                        <MembersTable members={members} />
-                        <MembersPagination
-                            page={page}
-                            pageCount={pageCount}
-                            pageSize={effectivePageSize}
-                            total={total}
-                            onPageChange={(next) =>
-                                updateParams({ page: String(next) }, false)
-                            }
-                            onPageSizeChange={(next) =>
-                                updateParams({ pageSize: String(next) })
-                            }
+                {/* The focus anchor wraps every result state, not just the
+                table: revoking the last row on screen swaps the table for the
+                empty state, so an anchor on the table would unmount at exactly
+                the moment focus needed somewhere to land. `tabIndex={-1}` keeps
+                it focusable programmatically without adding a tab stop. */}
+                <div
+                    id={MEMBERS_RESULTS_ANCHOR_ID}
+                    tabIndex={-1}
+                    className="outline-none"
+                >
+                    {isPending ? (
+                        <MembersTableSkeleton />
+                    ) : isError ? (
+                        <Alert
+                            variant="destructive"
+                            role="alert"
+                            className="mt-4"
+                        >
+                            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                <span>
+                                    {intl.formatMessage(messages.error)}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="shadow-none"
+                                    onClick={() => refetch()}
+                                >
+                                    {intl.formatMessage(messages.retry)}
+                                </Button>
+                            </AlertDescription>
+                        </Alert>
+                    ) : members.length === 0 ? (
+                        <MembersEmpty
+                            filtered={hasFilters}
+                            onClear={clearFilters}
+                            onInvite={canInvite ? openInvite : undefined}
                         />
-                    </>
-                )}
+                    ) : (
+                        <>
+                            <MembersTable members={members} />
+                            <MembersPagination
+                                page={page}
+                                pageCount={pageCount}
+                                pageSize={effectivePageSize}
+                                total={total}
+                                onPageChange={(next) =>
+                                    updateParams({ page: String(next) }, false)
+                                }
+                                onPageSizeChange={(next) =>
+                                    updateParams({ pageSize: String(next) })
+                                }
+                            />
+                        </>
+                    )}
+                </div>
             </Container>
         </>
     );

@@ -9,7 +9,6 @@ import {
     TableRow
 } from '@ortha-cms/design-system';
 import { MemberAvatar } from '../MemberAvatar';
-import { MEMBERS_TABLE_ANCHOR_ID } from './membersTableAnchor';
 import { MemberRoleChip } from './MemberRoleChip';
 import { MemberRowActions } from './MemberRowActions';
 import { MemberStatusBadge } from './MemberStatusBadge';
@@ -60,14 +59,7 @@ export function MembersTable({ members }: { members: Member[] }) {
     const navigate = useNavigate();
 
     return (
-        // `tabIndex={-1}` makes this focusable programmatically but not a tab
-        // stop: it's where focus lands after a mutation removes the row whose
-        // kebab opened the overlay, instead of falling to `<body>`.
-        <div
-            id={MEMBERS_TABLE_ANCHOR_ID}
-            tabIndex={-1}
-            className="overflow-hidden rounded-xl border bg-card shadow-xs outline-none"
-        >
+        <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>

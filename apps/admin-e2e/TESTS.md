@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_496 test cases across 52 spec files._
+_497 test cases across 52 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -875,6 +875,7 @@ _<sub>apps/admin-e2e/src/users/destructive-actions.spec.ts</sub>_
 | sends nothing when the revoke confirmation is cancelled |
 | sends exactly one request when the revoke is confirmed |
 | moves focus to a stable anchor after the row is removed |
+| keeps focus when revoking the last row empties the table |
 | confirms before disabling a member, naming them |
 | returns focus to the row’s own kebab when the row survives |
 | warns before discarding an uncopied invite link |

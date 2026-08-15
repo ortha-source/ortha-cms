@@ -308,7 +308,8 @@ export async function spyResendInvite(
  * prove a cancelled confirmation sent nothing.
  */
 export async function spyRevokeInvite(
-    page: Page
+    page: Page,
+    roster?: MemberSeed[]
 ): Promise<{ readonly count: number }> {
     let count = 0;
     await page.route('**/api/users/*/invites', async (route) => {
@@ -317,6 +318,18 @@ export async function spyRevokeInvite(
             return;
         }
         count += 1;
+        // Pass the same array `mockMembers` was seeded with to make the deletion
+        // stick: the roster refetches straight after, so without this the row
+        // reappears and a test can't observe the list actually shrinking.
+        if (roster) {
+            const id = new URL(route.request().url()).pathname
+                .split('/')
+                .at(-2);
+            const index = roster.findIndex((member) => member.id === id);
+            if (index !== -1) {
+                roster.splice(index, 1);
+            }
+        }
         await route.fulfill({ status: 204, body: '' });
     });
     return {

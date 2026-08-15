@@ -33,7 +33,7 @@ import {
 } from '@ortha-cms/design-system';
 import { inviteLinkFor } from '../../../../infrastructure/inviteLink';
 import { InviteLinkDialog } from '../../InviteLinkDialog';
-import { MEMBERS_TABLE_ANCHOR_ID } from '../membersTableAnchor';
+import { MEMBERS_RESULTS_ANCHOR_ID } from '../../../membersResultsAnchor';
 import { useResendInvite } from '../../../../application/useResendInvite';
 import { useRevokeInvite } from '../../../../application/useRevokeInvite';
 import { useSetMemberStatus } from '../../../../application/useSetMemberStatus';
@@ -206,8 +206,12 @@ export function MemberRowActions({ member }: { member: Member }) {
     /** The row survives this action, so focus belongs back on its own kebab. */
     const focusKebab = () => restoreFocusTo(`#${CSS.escape(kebabId)}`);
 
-    /** The row is gone; fall back to the table itself (see {@link MembersTable}). */
-    const focusTable = () => restoreFocusTo(`#${MEMBERS_TABLE_ANCHOR_ID}`);
+    /**
+     * The row is gone; fall back to the roster's results region. It wraps every
+     * result state, so it is still mounted even when removing this row emptied
+     * the table and swapped it for the empty state.
+     */
+    const focusResults = () => restoreFocusTo(`#${MEMBERS_RESULTS_ANCHOR_ID}`);
 
     /** A navigation item that routes to one of the member's detail tabs. */
     const navItem = (
@@ -318,7 +322,7 @@ export function MemberRowActions({ member }: { member: Member }) {
         revokeInvite.mutate(member.id, {
             onSuccess: () => {
                 setConfirming(null);
-                focusTable();
+                focusResults();
                 toast.success(
                     intl.formatMessage(messages.revoked, {
                         email: member.email
