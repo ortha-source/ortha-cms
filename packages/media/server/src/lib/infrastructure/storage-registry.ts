@@ -13,14 +13,19 @@ export function buildRegistry(
 ): StorageRegistry {
     return {
         get(name: string): StorageProvider {
-            const provider = providers[name];
-            if (!provider) {
+            // `hasOwn`, not a bare index — matching `has` below. A bare
+            // `providers['constructor']` resolves a prototype member, which is
+            // truthy and would be returned as if it were a provider; the name
+            // comes from a DB column or the host's resolver, so that is a
+            // corrupt-row away rather than user input, but the two accessors
+            // disagreeing is a trap either way.
+            if (!Object.hasOwn(providers, name)) {
                 throw new Error(`Unknown storage provider: ${name}`);
             }
-            return provider;
+            return providers[name] as StorageProvider;
         },
         has(name: string): boolean {
-            return Object.prototype.hasOwnProperty.call(providers, name);
+            return Object.hasOwn(providers, name);
         },
         names(): string[] {
             return Object.keys(providers);

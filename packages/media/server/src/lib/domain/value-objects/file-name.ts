@@ -1,4 +1,5 @@
 import { InvalidFileNameError } from '../errors/invalid-file-name.error';
+import { hasControlCharacters } from './control-characters';
 
 /** Upper bound on a stored file name's length. */
 const MAX_LENGTH = 255;
@@ -6,7 +7,8 @@ const MAX_LENGTH = 255;
 /**
  * A non-empty, length-bounded file name (extension included). A value object:
  * it is always a leaf name, never a path — path separators are rejected so a
- * name can't smuggle traversal into a storage key.
+ * name can't smuggle traversal into a storage key, and control characters are
+ * rejected because the name reaches a `text` column, a header and a file path.
  */
 export class FileName {
     private constructor(private readonly name: string) {}
@@ -18,7 +20,8 @@ export class FileName {
             trimmed.length === 0 ||
             trimmed.length > MAX_LENGTH ||
             trimmed.includes('/') ||
-            trimmed.includes('\\')
+            trimmed.includes('\\') ||
+            hasControlCharacters(trimmed)
         ) {
             throw new InvalidFileNameError(raw);
         }

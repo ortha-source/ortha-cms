@@ -35,7 +35,15 @@ export interface PutObject {
  * interface — never on a concrete backend.
  */
 export interface StorageProvider {
-    /** Writes one object and returns its key + verified size/checksum. */
+    /**
+     * Writes one object and returns its key + verified size/checksum.
+     *
+     * **Must be all-or-nothing.** The core reclaims blobs by key, and a `put`
+     * that rejects never handed one back — so anything a failed write leaves
+     * behind is unreachable garbage no caller can clean up. Implementations
+     * write to a temporary key and move it into place, or remove the partial
+     * object before rejecting.
+     */
     put(object: PutObject): Promise<StoredObject>;
     /** Opens a read stream for download. Rejects if the key is gone. */
     get(storageKey: string): Promise<Readable>;

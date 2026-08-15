@@ -1,4 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
 import { MEDIA_ASSET_RESOLVER } from '@ortha-cms/content-server';
 import {
     STORAGE_REGISTRY,
@@ -58,6 +59,26 @@ export interface MediaModuleOptions {
     resolve?: StorageResolver;
     /** Provider name used when no `resolve` handler is supplied. */
     defaultProvider: string;
+    /**
+     * Hard ceiling on a single upload, in bytes — the host's
+     * `config.plugins.media.maxUploadBytes`. Bounds the memory multer buffers
+     * per request (it stops reading past the cap and errors), so an oversized
+     * POST cannot exhaust the heap.
+     */
+    maxUploadBytes: number;
+}
+
+/**
+ * Translates the plugin's **inclusive** cap into multer's limit.
+ *
+ * busboy raises `LIMIT_FILE_SIZE` the moment the file reaches `limits.fileSize`
+ * (`fileSize === fileSizeLimit`, not `>`), so passing the cap verbatim rejects a
+ * file of *exactly* the documented maximum. One more byte of headroom makes
+ * "maximum upload size" mean what it says: `maxUploadBytes` is accepted,
+ * `maxUploadBytes + 1` is a 413.
+ */
+function multerFileSizeFor(maxUploadBytes: number): number {
+    return maxUploadBytes + 1;
 }
 
 /**
@@ -77,6 +98,18 @@ export class MediaModule {
         return {
             module: MediaModule,
             global: true,
+            imports: [
+                // The upload cap, from config. `FileInterceptor('file')` takes
+                // no local options in either upload controller, so it injects
+                // these `MULTER_MODULE_OPTIONS` instead — which is what lets
+                // `maxUploadBytes` be host config rather than a module-level
+                // `process.env` read the host could not override.
+                MulterModule.register({
+                    limits: {
+                        fileSize: multerFileSizeFor(options.maxUploadBytes)
+                    }
+                })
+            ],
             controllers: [
                 // Insights read-model. Its `insights` first segment can't
                 // collide with the `media/...` routes below.

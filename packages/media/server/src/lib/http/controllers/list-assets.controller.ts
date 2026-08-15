@@ -7,6 +7,7 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ListAssetsQuery } from '../../infrastructure/queries/list-assets.query';
 import type { AssetListView } from '../../types/asset-view';
+import { toHttp } from '../to-http';
 
 /** Default page size when the client omits `pageSize`. */
 const DEFAULT_PAGE_SIZE = 24;
@@ -29,9 +30,16 @@ function toPositiveInt(raw: string | undefined, fallback: number): number {
 export class ListAssetsController {
     constructor(private readonly query: ListAssetsQuery) {}
 
-    /** Lists one page of assets. */
+    /**
+     * Lists one page of assets.
+     *
+     * `folderId` and `kind` land in a `WHERE` against typed columns (`uuid` and
+     * the `media_kind` enum), so an unparseable value used to reach Postgres and
+     * come back as a **500**. The query now rejects them up front with a domain
+     * error, which `toHttp` maps to the `400` a client typo deserves.
+     */
     @Get('assets')
-    list(
+    async list(
         @CurrentWorkspace() workspaceId: string,
         @Query('folderId') folderId?: string,
         @Query('search') search?: string,
@@ -40,17 +48,21 @@ export class ListAssetsController {
         @Query('page') page?: string,
         @Query('pageSize') pageSize?: string
     ): Promise<AssetListView> {
-        return this.query.execute({
-            workspaceId,
-            folderId: folderId ?? null,
-            search,
-            kind,
-            sort,
-            page: toPositiveInt(page, 1),
-            pageSize: Math.min(
-                toPositiveInt(pageSize, DEFAULT_PAGE_SIZE),
-                MAX_PAGE_SIZE
-            )
-        });
+        try {
+            return await this.query.execute({
+                workspaceId,
+                folderId: folderId ?? null,
+                search,
+                kind,
+                sort,
+                page: toPositiveInt(page, 1),
+                pageSize: Math.min(
+                    toPositiveInt(pageSize, DEFAULT_PAGE_SIZE),
+                    MAX_PAGE_SIZE
+                )
+            });
+        } catch (error) {
+            toHttp(error);
+        }
     }
 }

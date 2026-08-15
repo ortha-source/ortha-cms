@@ -1,5 +1,6 @@
 import type { DomainEvent } from '@ortha-cms/database';
 import { FolderId } from './value-objects/folder-id';
+import { hasControlCharacters } from './value-objects/control-characters';
 import { InvalidFolderNameError } from './errors/invalid-folder-name.error';
 import { folderEvent, MEDIA_EVENT_KINDS } from './events/media-events';
 
@@ -72,7 +73,11 @@ export class Folder {
 
     private static normalizeName(raw: string): string {
         const trimmed = raw.trim();
-        if (trimmed.length === 0 || trimmed.length > MAX_NAME_LENGTH) {
+        if (
+            trimmed.length === 0 ||
+            trimmed.length > MAX_NAME_LENGTH ||
+            hasControlCharacters(trimmed)
+        ) {
             throw new InvalidFolderNameError(raw);
         }
         return trimmed;

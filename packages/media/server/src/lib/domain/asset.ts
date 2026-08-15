@@ -45,6 +45,12 @@ export interface NewAssetProps {
     media?: Partial<AssetMedia>;
     /** Generated derivatives keyed by variant name (`thumb`/`preview`). */
     variants?: AssetVariants;
+    /**
+     * Alternative text supplied at upload. Normalized like `setAlt` — a blank
+     * or whitespace-only value is stored as `null`, so it never counts as
+     * covered in the alt-coverage aggregate.
+     */
+    alt?: string | null;
 }
 
 /** The persisted shape used to rehydrate a loaded asset. */
@@ -118,7 +124,7 @@ export class Asset {
             },
             props.variants ?? {},
             [],
-            null,
+            normalizeAlt(props.alt),
             props.uploadedBy,
             true
         );
@@ -261,7 +267,7 @@ export class Asset {
 
     /** Sets or clears alt text (idempotent). */
     setAlt(alt: string | null): void {
-        const next = alt && alt.trim().length > 0 ? alt.trim() : null;
+        const next = normalizeAlt(alt);
         if (next === this._alt) return;
         this._alt = next;
         this.raise(MEDIA_EVENT_KINDS.ASSET_UPDATED, { alt: next });
@@ -286,4 +292,14 @@ export class Asset {
     private raise(kind: string, payload: Record<string, unknown>): void {
         this.events.push(assetEvent(kind, this._id.value, payload));
     }
+}
+
+/**
+ * Trims alt text and collapses "blank" to `null`. A whitespace-only string is
+ * not a description, and the insights aggregate refuses to count one as
+ * covered — so the two places alt can be set (upload and update) normalize it
+ * identically rather than letting the column hold `'   '`.
+ */
+function normalizeAlt(alt: string | null | undefined): string | null {
+    return alt && alt.trim().length > 0 ? alt.trim() : null;
 }

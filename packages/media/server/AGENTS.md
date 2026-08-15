@@ -81,6 +81,44 @@ whose URL the browser loads directly needs this treatment, not the header guard.
   `POST /media/assets` (multipart) · `GET /media/assets/:id/raw` ·
   `PATCH /media/assets/:id` · `DELETE /media/assets` (bulk `{ ids }`)
 
+### A download is treated as hostile bytes
+
+`media_asset.mime_type` is whatever the uploader's multipart part **claimed** —
+nothing sniffs the body — and `/api/media/...` is same-origin with the admin. So
+both raw routes (session and `/v1`) go through `http/download-headers.ts`:
+
+- `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: default-src 'none'; sandbox; …` on **every**
+  response, so a document that does get rendered runs no script and loads no
+  subresource;
+- `Content-Disposition: inline` only for an allowlist of types a browser renders
+  without executing (raster images, audio, video, PDF, `text/plain`); everything
+  else — HTML, XML, **SVG**, unknown types — is `attachment`.
+
+SVG is excluded from the inline set on purpose: `MediaKind` files it as an image,
+but it is a scriptable document when navigated to. `<img src>` ignores
+`Content-Disposition`, so the library's tiles are unaffected. Without this, an
+uploaded `.html` was stored XSS on the app's own origin.
+
+### Filters are validated before they reach Postgres
+
+`?folderId=` is a `uuid` column and `?kind=` is the `media_kind` enum, so
+`ListAssetsQuery` rejects an unparseable value with `InvalidAssetFilterError`
+(→ 400) rather than letting the driver raise `invalid input syntax` (→ 500).
+`?search=` escapes `%` and `_` so they match themselves, like every other search
+in the codebase. The guard lives in the **query**, not the controller, because
+the agent tool `media_assets_search` is a second caller.
+
+### The upload cap is config, not env
+
+`config.plugins.media.maxUploadBytes` reaches multer through
+`MulterModule.register` in `MediaModule.forRoot`; both upload controllers call
+`FileInterceptor('file')` with **no local options** so they inherit it. Don't
+re-add a `limits` argument at the route — a module-level `process.env` read is
+what made the host's config value inert. The registered limit is `cap + 1`
+because busboy trips at `fileSize === limit`, so the documented maximum is
+**inclusive**: exactly `maxUploadBytes` is accepted, one more byte is a 413.
+
 ## The token-authenticated pair (`/api/v1/media`)
 
 `PublicMediaController` adds two **bearer-token** routes beside the session ones,
@@ -434,3 +472,20 @@ Three details in `MediaInsightsQuery`:
 - **A blank `alt` does not count as covered.** An empty string is the markup for
   "decorative", so `withAlt` requires `length(trim(alt)) > 0` — counting it
   would report accessibility work as done that nobody has done.
+
+## Alt text is stored per **asset**, and settable at upload
+
+`media_asset.alt` is a nullable `text` column, surfaced on `AssetView`, on the
+`MEDIA_ASSET_RESOLVER` ref content reads, and in the alt-coverage insight; it is
+carried onto a duplicate. Both upload routes accept it at creation —
+`UploadAssetDto.alt` on the session route, `?alt=` on `/api/v1/media/assets` —
+because the only other way to set it was a second `PATCH`, which an unattended
+import never makes, and 508 504.3 asks an authoring tool to prompt when the
+non-text content is *created*. `Asset` normalizes it identically on both paths
+(trim, blank → `null`), so whitespace can never masquerade as coverage.
+
+What the model still does **not** have: a `caption`, a `long_description`, or
+any **per-usage** override — a `field.media` value is a bare uuid, so the same
+asset reused decoratively in one entry and as a hero in another carries one
+description in both. That is ORT-83 / ORT-91, a cross-package model change.
+Video captions have no representation at all: ORT-92.

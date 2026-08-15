@@ -44,7 +44,8 @@ export function MediaServerPlugin(
         module: MediaModule.forRoot({
             providers: options.providers,
             resolve: options.resolve,
-            defaultProvider: options.config.defaultProvider
+            defaultProvider: options.config.defaultProvider,
+            maxUploadBytes: options.config.maxUploadBytes
         }),
         mediaConfig: options.config,
         migrations: {

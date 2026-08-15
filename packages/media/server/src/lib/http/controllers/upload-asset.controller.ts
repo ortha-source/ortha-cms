@@ -27,16 +27,6 @@ import type { AssetView } from '../../types/asset-view';
 import { MulterUploadFilter } from '../multer-upload.filter';
 import { toHttp } from '../to-http';
 
-/**
- * Hard ceiling on a single upload, in bytes. Bounds the memory multer buffers
- * per request (it stops reading at the cap and errors), so an oversized POST
- * can't exhaust the heap. Sourced from the same `MEDIA_MAX_UPLOAD_BYTES` env as
- * `config.plugins.media.maxUploadBytes`, so the two stay in lockstep; the
- * interceptor can't read DI config, hence the module-level read here.
- */
-const MAX_UPLOAD_BYTES =
-    Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800;
-
 /** The subset of a multer file the controller reads (avoids an @types/multer dep). */
 interface UploadedMediaFile {
     originalname: string;
@@ -47,8 +37,8 @@ interface UploadedMediaFile {
 
 /**
  * `POST /api/media/assets` — multipart upload. The file arrives as the `file`
- * part; `folderId` is an optional text field. Gated on `media:create`, scoped
- * to the caller's workspace.
+ * part; `folderId` and `alt` are optional text fields. Gated on `media:create`,
+ * scoped to the caller's workspace.
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @UseFilters(MulterUploadFilter)
@@ -60,11 +50,16 @@ export class UploadAssetController {
         private readonly views: AssetViewQuery
     ) {}
 
-    /** Uploads one file and returns its asset view. */
+    /**
+     * Uploads one file and returns its asset view.
+     *
+     * `FileInterceptor` is given **no** local options on purpose: it then falls
+     * back to the `MulterModule` options `MediaModule.forRoot` registers from
+     * `config.plugins.media.maxUploadBytes`. The cap used to be a module-level
+     * `process.env` read here, which made the host's config value inert.
+     */
     @Post('assets')
-    @UseInterceptors(
-        FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } })
-    )
+    @UseInterceptors(FileInterceptor('file'))
     async create(
         @UploadedFile() file: UploadedMediaFile | undefined,
         @Body() body: UploadAssetDto,
@@ -82,7 +77,8 @@ export class UploadAssetController {
                     fileName: file.originalname,
                     contentType: file.mimetype,
                     size: file.size,
-                    body: Readable.from(file.buffer)
+                    body: Readable.from(file.buffer),
+                    alt: body.alt ?? null
                 },
                 user
             );
