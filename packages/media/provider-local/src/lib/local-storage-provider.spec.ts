@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, statSync, symlinkSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+    mkdir,
+    mkdtemp,
+    readdir,
+    readFile,
+    rm,
+    writeFile
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -137,9 +144,7 @@ describe('createLocalStorageProvider', () => {
         ])('sanitizes %j to %j', async (fileName, expected) => {
             const stored = await put({ fileName });
 
-            expect(stored.storageKey).toBe(
-                `${WORKSPACE}/${ASSET}/${expected}`
-            );
+            expect(stored.storageKey).toBe(`${WORKSPACE}/${ASSET}/${expected}`);
         });
 
         // Regression: `sanitize` used to pass `..` and `.` through untouched
@@ -422,11 +427,48 @@ describe('createLocalStorageProvider', () => {
                 process.chdir(second);
 
                 expect(
-                    (await drain(await relative.get(stored.storageKey))).toString()
+                    (
+                        await drain(await relative.get(stored.storageKey))
+                    ).toString()
                 ).toBe('written in first');
                 expect(existsSync(join(second, 'store'))).toBe(false);
             } finally {
                 process.chdir(previous);
+            }
+        });
+
+        // Pointing `rootDir` at a symlink is the normal way to put blobs on a
+        // mounted volume, and the containment check must not read that as an
+        // escape — `resolve` is textual, so the link is never followed and the
+        // key still lands "inside" the root it was given.
+        it('works when rootDir is itself a symlink to another volume', async () => {
+            const volume = await mkdtemp(join(tmpdir(), 'ortha-volume-'));
+            const link = join(root, 'blobs');
+            symlinkSync(volume, link);
+            const linked = createLocalStorageProvider({
+                rootDir: link,
+                publicBasePath: '/api/media'
+            });
+            try {
+                const stored = await linked.put({
+                    workspaceId: WORKSPACE,
+                    assetId: ASSET,
+                    fileName: 'logo.png',
+                    contentType: 'image/png',
+                    body: Readable.from(Buffer.from('on the volume'))
+                });
+
+                expect(
+                    (
+                        await drain(await linked.get(stored.storageKey))
+                    ).toString()
+                ).toBe('on the volume');
+                expect(existsSync(join(volume, stored.storageKey))).toBe(true);
+                await expect(
+                    linked.remove(stored.storageKey)
+                ).resolves.toBeUndefined();
+            } finally {
+                await rm(volume, { recursive: true, force: true });
             }
         });
 
@@ -453,7 +495,9 @@ describe('createLocalStorageProvider', () => {
 
     describe('url', () => {
         it('builds <publicBasePath>/blob/<encoded key>', async () => {
-            await expect(provider.url(`${WORKSPACE}/${ASSET}/logo.png`)).resolves.toBe(
+            await expect(
+                provider.url(`${WORKSPACE}/${ASSET}/logo.png`)
+            ).resolves.toBe(
                 `/api/media/blob/${WORKSPACE}%2F${ASSET}%2Flogo.png`
             );
         });
