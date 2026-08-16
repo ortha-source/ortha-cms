@@ -64,19 +64,6 @@ export interface RunToolResultEvent {
 }
 
 /**
- * A `propose` tool produced a reviewable change, and it has been persisted.
- *
- * Emitted **after** the tool's own {@link RunToolResultEvent}, because the two
- * answer different questions: the tool result is what the model was told, and
- * this is what the human is being asked to decide. A client renders the step
- * list from one and the proposal card from the other.
- *
- * {@link status} is `pending` normally and `accepted` when the workspace opted
- * this tool into auto-apply — in which case the change is already live and the
- * card is a receipt rather than a prompt. There is no third possibility here:
- * a proposal is never born rejected.
- */
-/**
  * The run has stopped and is waiting for the user to allow one tool call.
  *
  * **Emitted before the call runs, not after** — which is the whole difference
@@ -120,6 +107,20 @@ export type ToolPermissionDecision =
     /** Refuse it. The model is told, and carries on. */
     | 'deny';
 
+/**
+ * A `propose` tool produced a change, and it has been persisted.
+ *
+ * Emitted **after** the tool's own {@link RunToolResultEvent}, because the two
+ * answer different questions: the tool result is what the model was told, and
+ * this is the receipt for what was done. A client renders the step list from
+ * one and the change card from the other.
+ *
+ * Since [ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md)
+ * there is no per-workspace auto-apply opt-in and nothing waits on a human, so
+ * {@link status} is `accepted` — the change is live — or `pending`, meaning the
+ * apply **failed** and {@link error} says why. A proposal is never born
+ * `rejected`.
+ */
 export interface RunProposalEvent {
     type: 'proposal';
     /** The persisted proposal's id — the receipt's key. */

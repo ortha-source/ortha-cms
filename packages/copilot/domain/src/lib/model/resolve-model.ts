@@ -1,3 +1,4 @@
+import { NoModelsConfiguredError } from '../errors/no-models-configured.error';
 import { UnknownModelError } from '../errors/unknown-model.error';
 
 /**
@@ -12,15 +13,16 @@ import { UnknownModelError } from '../errors/unknown-model.error';
  * @throws {UnknownModelError} when the request names a model this provider
  *   does not offer. Falling back to the default instead would answer on a
  *   different model than the caller asked for, and bill it silently.
+ * @throws {NoModelsConfiguredError} when the provider declares none at all —
+ *   an operator misconfiguration, and typed so the transport can tell it apart
+ *   from a fault.
  */
 export function resolveModel(
     requested: string | undefined,
     available: readonly string[]
 ): string {
     if (available.length === 0) {
-        throw new Error(
-            'This model provider declares no models. Configure at least one.'
-        );
+        throw new NoModelsConfiguredError();
     }
     if (requested === undefined) {
         return available[0];
