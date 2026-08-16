@@ -312,7 +312,20 @@ const config: OrthaConfig = {
             // Stable product configuration, so literals: this is the identity
             // MCP clients display in their connector lists.
             name: 'ortha-cms',
-            version: '1.0.0'
+            version: '1.0.0',
+            // A request/response transport owes its caller an answer. The
+            // registry has no deadline of its own, so without this the only
+            // bound on a `tools/call` is the query underneath it — and a
+            // blocked pool turns one call into a socket held until the client
+            // gives up. 30s is generous for every shipped tool and far short of
+            // the load balancer idle timeouts these deployments sit behind.
+            callTimeoutMs: Number(process.env['MCP_CALL_TIMEOUT_MS']) || 30_000,
+            // Deliberately generous: nothing in the catalogue returns this much
+            // today, so the ceiling exists to keep a pathological result from
+            // being serialised three times over rather than to shape normal
+            // use. A result this large does not fit a model's context either.
+            maxResultBytes:
+                Number(process.env['MCP_MAX_RESULT_BYTES']) || 4_194_304
         }
     }
 };

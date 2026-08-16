@@ -77,6 +77,16 @@ export interface TestConfigOverrides {
      */
     mcpEnabled?: boolean;
     /**
+     * Shorten the MCP per-call deadline, so a suite can prove a hung tool is
+     * abandoned without waiting the production 30 seconds for it.
+     */
+    mcpCallTimeoutMs?: number;
+    /**
+     * Lower the MCP result ceiling, so a suite can prove the `result_too_large`
+     * refusal without producing four megabytes of content to trip it.
+     */
+    mcpMaxResultBytes?: number;
+    /**
      * Lower the media upload cap, so a suite can prove the 413 without
      * shipping a 50 MB fixture — and, more to the point, prove the cap is read
      * from **this config** at all. It used to be a module-level
@@ -225,7 +235,9 @@ export function buildTestConfig(
             mcp: {
                 enabled: overrides.mcpEnabled ?? true,
                 name: 'ortha-cms-test',
-                version: '0.0.0-test'
+                version: '0.0.0-test',
+                callTimeoutMs: overrides.mcpCallTimeoutMs ?? 30_000,
+                maxResultBytes: overrides.mcpMaxResultBytes ?? 4_194_304
             }
         }
     };

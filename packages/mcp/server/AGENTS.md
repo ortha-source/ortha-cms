@@ -133,8 +133,16 @@ rather than silently resolving by registration order.
 `POST /api/v1/mcp` — **stateless** Streamable HTTP with `enableJsonResponse`.
 Every request authenticates from scratch, so there is no session store and no
 sticky routing; the per-request protocol server is also what lets `tools/list`
-reflect _this_ caller's scope. `GET` and `DELETE` get the transport's 405, which
-is correct — both serve a persistent session, and there isn't one.
+reflect _this_ caller's scope.
+
+`GET` and `DELETE` are answered **by the controller** with a 405, which is the
+answer the specification reserves for a server that offers no server-initiated
+stream and no sessions. The transport is deliberately not asked: handed a `GET`
+in stateless mode it opens a standalone SSE stream and holds it **open forever**
+— nothing here ever pushes a server-initiated message — so a client that probes
+`GET`, which several do, would hang instead of learning the endpoint is
+POST-only. Authentication still runs first, so an unauthenticated `GET` is a
+401, not a 405.
 
 **Authentication** is the existing bearer API tokens, verified through identity's
 `ApiTokenService.verify`, with permissions from `scopePermissions` — the same
@@ -154,7 +162,53 @@ along ambiently and would make this CSRF-able, and this endpoint writes content.
 endpoint URL — the second spelling exists because MCP client configs are URL-
 shaped and several clients make custom headers awkward. The header wins when
 both are present, and both go through the identical bucket check. A
-single-workspace token needs neither.
+single-workspace token needs neither. Naming **more than one** workspace — a
+repeated `?workspaceId=`, or a repeated `X-Workspace-Id` (which Node joins into
+one comma-separated value) — is a 400 rather than a silent pick.
+
+## What one exchange is allowed to cost
+
+Three ceilings bound a request, none of which the tool registry can supply —
+it is transport-neutral, and a request/response exchange has obligations an
+in-process loop does not:
+
+| Bound                                                                 | Where                               | Over it                                                                                       |
+| --------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Request body**, 100 KB                                              | the host's express `json()` default | `413`, as a plain Nest body — this is above the JSON-RPC layer, so it is not a JSON-RPC frame |
+| **One `tools/call`**, `callTimeoutMs` (30s; `MCP_CALL_TIMEOUT_MS`)    | `build-mcp-server.ts`               | an `isError` result, `504` / `timeout`                                                        |
+| **One tool result**, `maxResultBytes` (4 MiB; `MCP_MAX_RESULT_BYTES`) | `build-mcp-server.ts`               | an `isError` result, `413` / `result_too_large`, naming both sizes                            |
+
+The deadline **abandons, it does not cancel**: the handler is handed a signal
+that aborts on expiry (and on the caller hanging up — the SDK's `extra.signal`,
+relayed into `ToolContext.signal`), but a tool that ignores it runs to
+completion with nobody reading the answer. Bounding the caller's wait is the
+guarantee; ending the work is not one this layer can make.
+
+The result ceiling exists because a result is serialised **twice** here — the
+pretty-printed text block a model reads, and `structuredContent` for clients
+that parse it — and the transport serialises the whole response again. A payload
+that does not fit under the ceiling does not fit in a model's context either, so
+the refusal tells it to ask for less.
+
+## Two ways a failure leaves
+
+A `tools/call` failure rides out as an **`isError` result**; a `resources/*`
+failure rides out as a **JSON-RPC error**. That is the protocol's asymmetry, not
+an accident, and it is worth knowing before "fixing" either half:
+
+- a **tool** failure is an outcome the _model_ is meant to read and act on
+  ("title must be at most 200 characters"), so MCP models it as a successful
+  call carrying `isError`;
+- a **resource** read has no model in the loop — a client asked for bytes at a
+  URI and either gets them or does not — so MCP models its failures as protocol
+  errors, with `-32002` reserved for a URI that is not there.
+
+Both paths go through `toToolError` first, so the flattened
+`{ status, code, message, issues }` is identical either way (it rides as the
+JSON-RPC error's `data` on the resource path) and an unexpected throw is opaque
+on both. A refusal and an absence share `-32002` deliberately: for _data_ the
+answer is uniform, and `data.code` still distinguishes them for a client that
+cares.
 
 **Excluded from the OpenAPI document** (`@ApiExcludeController`): JSON-RPC over
 one route is not describable as REST operations, and a lone `POST /v1/mcp` entry
@@ -163,7 +217,15 @@ would tell a reader nothing.
 ## Configuration
 
 ```typescript
-McpPlugin({ config: { enabled: true, name: 'ortha-cms', version: '1.0.0' } });
+McpPlugin({
+    config: {
+        enabled: true,
+        name: 'ortha-cms',
+        version: '1.0.0',
+        callTimeoutMs: 30_000,
+        maxResultBytes: 4_194_304
+    }
+});
 ```
 
 **Off by default** (`MCP_ENABLED=true` to turn it on). Enabling it lets any

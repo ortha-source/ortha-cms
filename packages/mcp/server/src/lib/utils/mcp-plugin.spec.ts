@@ -1,6 +1,12 @@
 import { McpPlugin } from './mcp-plugin';
 
-const CONFIG = { enabled: true, name: 'ortha-cms', version: '1.0.0' };
+const CONFIG = {
+    enabled: true,
+    name: 'ortha-cms',
+    version: '1.0.0',
+    callTimeoutMs: 30_000,
+    maxResultBytes: 4_194_304
+};
 
 describe('McpPlugin', () => {
     it('builds a named plugin carrying its config', () => {
@@ -35,5 +41,22 @@ describe('McpPlugin', () => {
         expect(() => McpPlugin({ config: { ...CONFIG, version: '' } })).toThrow(
             /config\.version/
         );
+    });
+
+    // `Number(process.env[…]) || default` hides a typo behind the default, so
+    // the only shapes that reach here are ones someone wrote on purpose — and
+    // a zero deadline would fail every call with nothing to explain it.
+    it.each([
+        ['callTimeoutMs', 0],
+        ['callTimeoutMs', -1],
+        ['callTimeoutMs', Number.NaN],
+        ['callTimeoutMs', 1.5],
+        ['maxResultBytes', 0],
+        ['maxResultBytes', -1],
+        ['maxResultBytes', Number.NaN]
+    ])('rejects a non-positive %s (%p) at construction', (field, value) => {
+        expect(() =>
+            McpPlugin({ config: { ...CONFIG, [field]: value } })
+        ).toThrow(new RegExp(`config\\.${field}`));
     });
 });

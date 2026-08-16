@@ -1,5 +1,6 @@
 import {
     All,
+    BadRequestException,
     Controller,
     Inject,
     Logger,
@@ -36,10 +37,18 @@ type McpHttpRequest = IncomingMessage & {
  * caller's scope.
  *
  * `GET` (the server-initiated SSE stream) and `DELETE` (session teardown) are
- * answered by the transport with a 405 in stateless mode. That is correct: both
- * exist to serve a persistent session, and there isn't one. `@All()` routes
- * them here so the answer comes from the protocol layer rather than Nest's
- * generic 404, which a client cannot interpret.
+ * answered **here** with a 405. Both exist to serve a persistent session, and
+ * there isn't one, which is exactly the case the specification reserves 405
+ * for. `@All()` routes them to this controller so the answer comes from the
+ * protocol layer rather than Nest's generic 404, which a client cannot
+ * interpret.
+ *
+ * The transport is deliberately not asked. Handed a `GET` in stateless mode it
+ * opens a standalone SSE stream and holds it **forever** — nothing on this
+ * endpoint ever pushes a server-initiated message, so the client waits on a
+ * connection that will never carry anything while a socket, a transport and a
+ * protocol server stay pinned per attempt. Answering 405 turns the commonest
+ * first-connection mistake into a sentence a client can act on.
  *
  * `@Public()` opts out of the session `AuthGuard`, exactly as the `/api/v1`
  * controllers do — {@link McpAuthService} is the whole authentication story,
@@ -86,6 +95,13 @@ export class McpController {
             workspaceQuery(request)
         );
 
+        // After authentication, so a verb answer is never reachable without a
+        // credential — an unauthenticated probe learns 401 and nothing else.
+        if (request.method !== 'POST') {
+            methodNotAllowed(response);
+            return;
+        }
+
         const transport = new StreamableHTTPServerTransport({
             // Stateless: no session id is issued, and none is validated.
             sessionIdGenerator: undefined,
@@ -94,10 +110,15 @@ export class McpController {
             // JSON response is what every client and every proxy handles best.
             enableJsonResponse: true
         });
-        const server = buildMcpServer(this.registry, context, {
-            name: this.config.name,
-            version: this.config.version
-        });
+        const server = buildMcpServer(
+            this.registry,
+            context,
+            { name: this.config.name, version: this.config.version },
+            {
+                callTimeoutMs: this.config.callTimeoutMs,
+                maxResultBytes: this.config.maxResultBytes
+            }
+        );
 
         // Tear both down when the exchange ends, however it ends. Without this
         // every request leaks a protocol server and its handler closures.
@@ -130,13 +151,55 @@ export class McpController {
                         id: null
                     })
                 );
+            } else {
+                // The transport had already started writing, so there is no
+                // status left to set — but an unterminated response is a client
+                // waiting on a body that will never arrive until its socket
+                // times out. End it; a truncated answer is diagnosable and a
+                // hang is not.
+                response.end();
             }
         }
     }
 }
 
-/** The optional `?workspaceId=` on the endpoint URL. */
+/** 405 for the verbs a stateless, non-streaming endpoint does not serve. */
+function methodNotAllowed(response: ServerResponse): void {
+    response.writeHead(405, {
+        'content-type': 'application/json',
+        allow: 'POST'
+    });
+    response.end(
+        JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+                code: -32000,
+                message:
+                    'Method Not Allowed: this MCP endpoint is stateless and serves POST only. There is no server-initiated stream to open (GET) and no session to end (DELETE).'
+            },
+            id: null
+        })
+    );
+}
+
+/**
+ * The optional `?workspaceId=` on the endpoint URL.
+ *
+ * Repeating it — `?workspaceId=a&workspaceId=b`, or the `?workspaceId[]=a`
+ * spelling — parses to an array, and treating that as "unnamed" made a
+ * single-workspace token quietly succeed against its own workspace while the
+ * caller had named two others. A request that names more than one workspace has
+ * no answer that is not a guess, so it is refused.
+ */
 function workspaceQuery(request: McpHttpRequest): string | undefined {
     const raw = request.query?.['workspaceId'];
-    return typeof raw === 'string' ? raw : undefined;
+    if (raw === undefined) {
+        return undefined;
+    }
+    if (typeof raw !== 'string') {
+        throw new BadRequestException(
+            'Repeat `?workspaceId=` names more than one workspace. Pass it exactly once, or use the x-workspace-id header.'
+        );
+    }
+    return raw;
 }

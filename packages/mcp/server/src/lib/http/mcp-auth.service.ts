@@ -144,15 +144,21 @@ function headerValue(raw: string | string[] | undefined): string | undefined {
 /**
  * The raw token out of an `Authorization` header, or `undefined` when the
  * header is absent, uses another scheme, or carries no value.
+ *
+ * Surrounding and repeated whitespace around the scheme is tolerated, because
+ * RFC 9110 allows it and clients emit it. Whitespace *inside* the value is not:
+ * a credential never contains any, so joining the pieces back together would
+ * invent a token the caller never sent — and then report the reinvention as
+ * `Invalid API token`, which reads as a wrong secret rather than a malformed
+ * header. Exactly one value after the scheme, or nothing.
  */
 function bearerFrom(header: string | undefined): string | undefined {
     if (!header) {
         return undefined;
     }
     const [scheme, ...rest] = header.trim().split(/\s+/);
-    if (scheme.toLowerCase() !== BEARER) {
+    if (scheme.toLowerCase() !== BEARER || rest.length !== 1) {
         return undefined;
     }
-    const value = rest.join(' ');
-    return value.length > 0 ? value : undefined;
+    return rest[0].length > 0 ? rest[0] : undefined;
 }
