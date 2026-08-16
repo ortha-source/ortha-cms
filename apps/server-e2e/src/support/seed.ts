@@ -34,6 +34,8 @@ import {
 // seeded password hashes are produced by the exact code login verifies against
 // — no re-implemented bcrypt to drift.
 import { HashingService } from '../../../../packages/identity/server/src/lib/auth/services/hashing.service';
+import { withDatabaseDiagnostics } from './infra-error';
+import { resetBlobStore } from './media-storage';
 
 /** A system role key seeded by `SystemRolesSeeder` at app boot. */
 export type SystemRoleKey = 'admin' | 'contributor' | 'viewer';
@@ -109,9 +111,9 @@ export async function seedActiveUser(
 /**
  * Insert an active user under a freshly-created, **permission-less** role —
  * the principal that proves a route requires a specific permission rather than
- * mere authentication. `roleKey` must be unique across a run (`roles` is not
- * truncated by `resetDb`), so callers pass a suite-specific key and create it
- * once.
+ * mere authentication. `roleKey` need only be unique *within a test*: `resetDb`
+ * deletes non-system roles, so the same key can be reused by the next test, by
+ * a retry, and by another suite.
  */
 export async function seedUserWithEmptyRole(
     app: INestApplication,
@@ -143,7 +145,8 @@ export async function seedUserWithEmptyRole(
  * The point is a principal who holds a capability **without** being an admin —
  * the only way to reach the last-admin guards, since an admin looking at the
  * sole remaining admin is looking at themselves and trips the self-action guard
- * first. `roleKey` must be unique across a run (`roles` survives `resetDb`).
+ * first. `roleKey` need only be unique within a test — `resetDb` deletes
+ * non-system roles.
  */
 export async function seedUserWithPermissions(
     app: INestApplication,
@@ -576,16 +579,41 @@ export async function countActivityRows(): Promise<number> {
  * `content_entry_revisions` is truncated explicitly for the same reason as
  * `activity_events`: it keys entries by plain uuid with no FK, so no cascade
  * reaches it and every save's snapshot would otherwise outlive its test.
+ *
+ * `outbox_events` is likewise truncated explicitly, and it is the one that bit:
+ * it declares no foreign keys at all, so nothing cascades to it. A row whose
+ * subscriber threw stays `dispatched_at IS NULL`, and the dispatcher's 5-second
+ * poll backstop retries it **inside a later test** — after this TRUNCATE has
+ * removed the rows it refers to. The symptom is an `activity_events` count that
+ * is one too high in a test that created nothing, with the explanatory log line
+ * suppressed because `createTestApp` boots with `logger: false`.
+ *
+ * Non-system `roles` go too. System roles must survive (users FK them and the
+ * bootstrap seeder only runs once per app), but `seedUserWithEmptyRole` /
+ * `seedUserWithPermissions` insert *non-system* roles, and those surviving is
+ * what made those helpers retry-hostile: a second attempt at the same test —
+ * a `jest.retryTimes` policy, `--repeat-each`, or simply two tests in one file
+ * using the same `roleKey` — died on a unique violation on `roles.key` rather
+ * than on whatever it was actually asserting.
  */
 export async function resetDb(): Promise<void> {
-    await getPool().query(
-        'TRUNCATE TABLE users, workspaces, activity_events, ' +
-            'content_test_article, content_test_author, content_test_tag, ' +
-            'content_test_seo, content_test_comment, content_test_landing, ' +
-            'content_test_page, content_entry_revisions, ' +
-            'media_asset, media_folder ' +
-            'RESTART IDENTITY CASCADE'
-    );
+    await withDatabaseDiagnostics('resetting the test database', async () => {
+        await getPool().query(
+            'TRUNCATE TABLE users, workspaces, activity_events, ' +
+                'content_test_article, content_test_author, content_test_tag, ' +
+                'content_test_seo, content_test_comment, content_test_landing, ' +
+                'content_test_page, content_entry_revisions, ' +
+                'media_asset, media_folder, outbox_events ' +
+                'RESTART IDENTITY CASCADE'
+        );
+        // After the TRUNCATE: `users` is gone, so nothing references these any
+        // more. `role_permissions` is ON DELETE CASCADE.
+        await getPool().query('DELETE FROM roles WHERE is_system = false');
+        // The bytes, too. `media_asset` is truncated above, so a surviving blob
+        // is one no row names — able to satisfy a download for a `storage_key`
+        // a later test happens to reproduce.
+        resetBlobStore();
+    });
 }
 
 /** A seeded media folder row. */

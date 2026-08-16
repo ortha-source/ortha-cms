@@ -13,6 +13,9 @@ export default {
     preset: '../../jest.preset.js',
     globalSetup: '<rootDir>/src/support/global-setup.ts',
     globalTeardown: '<rootDir>/src/support/global-teardown.ts',
+    // Per-test harness state that lives in memory rather than in the database,
+    // and so is not reached by `resetDb`.
+    setupFilesAfterEnv: ['<rootDir>/src/support/jest.setup.ts'],
     testEnvironment: 'node',
     // Key matches the Nx preset's transform pattern **exactly**, so this
     // overrides it rather than sitting alongside it. Otherwise the preset's

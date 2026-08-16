@@ -54,6 +54,20 @@ export function scriptCopilot(...turns: FakeTurn[]): void {
 }
 
 /**
+ * Drop the current script and call log. Registered as a global `afterEach` by
+ * `jest.setup.ts`, so no test can inherit another's.
+ *
+ * Without it a test that *forgot* to script — a deleted nested `beforeEach`, a
+ * new case pasted into an existing block — silently ran against the previous
+ * test's turns and asserted against the previous test's call log. It passed, and
+ * it proved nothing. With the reset, the empty script makes the fake throw on
+ * the first model call, which is the loud failure the fake is designed for.
+ */
+export function resetCopilot(): void {
+    current = createFakeProvider({ script: [], models: [...MODELS] });
+}
+
+/**
  * Every `ModelRequest` served since the last {@link scriptCopilot}.
  *
  * This is the assertion target for the negative path ADR-0005 makes mandatory:
