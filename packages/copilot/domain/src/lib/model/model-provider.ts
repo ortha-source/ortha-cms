@@ -111,9 +111,22 @@ export interface ModelProvider {
      */
     capabilities(model?: string): Promise<ModelCapabilities>;
     /**
-     * Runs one model call, yielding normalised events. Aborting `signal` must
-     * end the iteration promptly; a provider that observes the abort emits a
-     * `done` event with `stopReason: 'aborted'` rather than throwing.
+     * Runs one model call, yielding normalised events.
+     *
+     * Three clauses bind every adapter, and an adapter that breaks one
+     * produces figures the engine has no way to detect as wrong:
+     *
+     * 1. **Exactly one `done` ends the stream.** A stream that ends without
+     *    one is read as `stopReason: 'end'` with zero usage, which silently
+     *    under-counts the run; a second one overwrites the first.
+     * 2. **An abort ends the stream, it does not throw out of it.** Aborting
+     *    `signal` must stop the iteration promptly with a `done` carrying
+     *    `stopReason: 'aborted'`.
+     * 3. **An aborted call reports zero usage** — `inputTokens: 0`,
+     *    `outputTokens: 0`, including when text had already streamed. A
+     *    cancelled call never reaches a usage record the provider can trust,
+     *    and a partial estimate is a guess entering cost accounting as a fact.
+     *    Emit {@link abortedEvent} rather than restating it.
      */
     stream(
         request: ModelRequest,

@@ -88,9 +88,22 @@ export function isProposalDraft(value: unknown): value is ProposalDraft {
         typeof draft.kind === 'string' &&
         draft.kind.length > 0 &&
         typeof draft.summary === 'string' &&
-        !!draft.target &&
-        typeof draft.target === 'object' &&
-        !!draft.patch &&
-        typeof draft.patch === 'object'
+        isJsonObject(draft.target) &&
+        isJsonObject(draft.patch)
     );
+}
+
+/**
+ * A non-null, non-array object — what `target` and `patch` are declared as.
+ *
+ * `typeof [] === 'object'` in JavaScript, so a bare `typeof` check lets an
+ * array through: a binder returning `target: []` would write a
+ * `copilot_proposals` row whose target addresses nothing, into an append-only
+ * table, and the applier would then be handed a shape its `kind` never
+ * described. Arrays are excluded here so that stays an ordinary tool error.
+ */
+function isJsonObject(
+    value: unknown
+): value is Readonly<Record<string, unknown>> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

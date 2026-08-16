@@ -34,8 +34,34 @@ describe('isProposalDraft', () => {
         ['a draft with no summary', { ...valid, summary: undefined }],
         ['a draft with no target', { ...valid, target: undefined }],
         ['a draft with no patch', { ...valid, patch: undefined }],
-        ['a draft whose patch is a string', { ...valid, patch: 'values' }]
+        ['a draft whose patch is a string', { ...valid, patch: 'values' }],
+        // `typeof [] === 'object'`, so a bare typeof check let these through:
+        // the row landed in an append-only table with a target addressing
+        // nothing, and the applier was handed a shape its `kind` never
+        // described.
+        ['a draft whose target is an array', { ...valid, target: [] }],
+        ['a draft whose patch is an array', { ...valid, patch: [] }],
+        [
+            'a draft whose target is a non-empty array',
+            { ...valid, target: [{ entryId: 'e1' }] }
+        ],
+        ['a draft whose patch is a non-empty array', { ...valid, patch: [1] }]
     ])('rejects %s', (_label, value) => {
         expect(isProposalDraft(value)).toBe(false);
+    });
+
+    // The guard is the whole of what stops a `propose` binder widening its own
+    // authority: a draft carries only `kind`/`target`/`patch`/`summary`, and
+    // the actor a `ProposalApplier` runs as is supplied by the engine. Nothing
+    // a tool returns can name a user, a role or a permission.
+    it('ignores anything a draft adds beyond its declared fields', () => {
+        expect(
+            isProposalDraft({
+                ...valid,
+                userId: 'someone-else',
+                grantedPermissions: ['content:publish'],
+                actorEmail: 'root@example.com'
+            })
+        ).toBe(true);
     });
 });

@@ -33,6 +33,7 @@ export { isAbortError, abortedEvent } from './lib/model/abort';
 export { resolveModel } from './lib/model/resolve-model';
 export { UnknownModelProviderError } from './lib/errors/unknown-model-provider.error';
 export { UnknownModelError } from './lib/errors/unknown-model.error';
+export { NoModelsConfiguredError } from './lib/errors/no-models-configured.error';
 
 // --- the tool seam ---
 //
@@ -73,7 +74,11 @@ export type {
     RunDoneEvent,
     RunErrorEvent
 } from './lib/run/run-event';
-export { fenceUntrusted, UNTRUSTED_DATA_RULE } from './lib/run/untrusted';
+export {
+    fenceUntrusted,
+    MAX_UNTRUSTED_PAYLOAD_CHARS,
+    UNTRUSTED_DATA_RULE
+} from './lib/run/untrusted';
 
 // --- proposals (phase 3) ---
 export { isProposalDraft } from './lib/proposals/proposal';
