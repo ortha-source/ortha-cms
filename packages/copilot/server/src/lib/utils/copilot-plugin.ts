@@ -82,6 +82,21 @@ function assertOptions(options: CopilotPluginOptions): void {
             `CopilotPlugin's maxOutputTokens must be a positive number (got ${options.config.maxOutputTokens}).`
         );
     }
+    // The ceilings, on the same terms. `maxSteps` is the one an operator
+    // reaches for (`COPILOT_MAX_STEPS`), and it was the only number in this
+    // config that could be set to something meaningless and still boot:
+    // `maxSteps: 0` makes `for (step = 0; step < 0; …)` skip the loop entirely,
+    // so the run yields `run-started` and then `done` with `max-steps` — no
+    // model call, no answer, and no assistant row at all, leaving a thread
+    // showing a question and silence. A typo'd env var should not be able to
+    // turn the copilot into that.
+    for (const [key, value] of Object.entries(options.config.limits ?? {})) {
+        if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+            throw new Error(
+                `CopilotPlugin's limits.${key} must be a positive number (got ${value}).`
+            );
+        }
+    }
     // Built here and thrown away: the module builds its own from the same list.
     // The point is *when* — a malformed or duplicated skill fails at
     // construction, like a mistyped provider name, rather than on the first

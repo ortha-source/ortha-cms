@@ -400,6 +400,7 @@ export class RunEngine {
             });
 
             const results: ToolResultBlock[] = [];
+            let ranOutOfTime = false;
             for (const call of turn.toolUses) {
                 yield {
                     type: 'tool-call',
@@ -407,6 +408,29 @@ export class RunEngine {
                     name: call.name,
                     input: call.input
                 };
+
+                // The ceilings above are checked once per **step**, and one
+                // step may ask for any number of tools — each of which can
+                // park for a human answer. A turn requesting thirty writes
+                // therefore ran all thirty however long they took, and only
+                // reported `timeout` afterwards, at the top of a step it was
+                // never going to reach. Checked per call, the ceiling bounds
+                // what it says it bounds.
+                //
+                // Refused rather than dropped: every `tool_use` block needs a
+                // matching `tool_result` or the turn we just pushed is
+                // malformed for both wire formats.
+                if (Date.now() - ctx.startedAt > this.limits.wallClockMs) {
+                    ranOutOfTime = true;
+                    const refusal = await this.toolFailure(
+                        ctx,
+                        call,
+                        `"${call.name}" was not run: this run reached its time limit.`
+                    );
+                    results.push(refusal.block);
+                    for (const event of refusal.events) yield event;
+                    continue;
+                }
 
                 // **Ask before running, not after.** This is the one place a
                 // call the model was talked into by poisoned content can still
@@ -430,14 +454,18 @@ export class RunEngine {
                 );
                 results.push(outcome.block);
                 // More than one event when the call produced a proposal: the
-                // tool result is what the model was told, the proposal is what
-                // the human is being asked to decide.
+                // tool result is what the model was told, the proposal is the
+                // receipt the card draws. (It used to say "what the human is
+                // being asked to decide" — ADR-0009 removed the deciding.)
                 for (const event of outcome.events) {
                     yield event;
                 }
             }
 
             ctx.assistantBlocks.push(...results);
+            if (ranOutOfTime) {
+                return 'timeout';
+            }
             messages.push({ role: 'user', content: results });
         }
 
@@ -573,6 +601,13 @@ export class RunEngine {
                 const outcome = await this.permissions.ask(
                     ctx.runId,
                     call.id,
+                    // Who may answer. Recorded when the run parks rather than
+                    // checked on the way in, because by then the answering
+                    // request has only a `runId` — which is not a secret.
+                    {
+                        userId: ctx.input.userId,
+                        workspaceId: ctx.input.workspaceId
+                    },
                     ctx.input.signal
                 );
                 if (outcome.decision === 'chat') {
@@ -633,34 +668,8 @@ export class RunEngine {
         alreadyCalled: Set<string>
     ): Promise<{ block: ToolResultBlock; events: CopilotRunEvent[] }> {
         const startedAt = Date.now();
-        const fail = async (message: string) => {
-            const durationMs = Date.now() - startedAt;
-            await this.audit(ctx, call, {
-                ok: false,
-                error: message,
-                durationMs,
-                outputSummary: null
-            });
-            return {
-                block: {
-                    type: 'tool_result' as const,
-                    toolUseId: call.id,
-                    content: message,
-                    isError: true
-                },
-                events: [
-                    {
-                        type: 'tool-result' as const,
-                        id: call.id,
-                        name: call.name,
-                        ok: false,
-                        durationMs,
-                        summary: 'failed',
-                        error: message
-                    }
-                ]
-            };
-        };
+        const fail = (message: string) =>
+            this.toolFailure(ctx, call, message, Date.now() - startedAt);
 
         const tool = ctx.authority.profile.tools.find(
             (entry) => entry.name === call.name
@@ -739,13 +748,26 @@ export class RunEngine {
             );
 
             // A `propose` tool's return value IS the change. The engine
-            // persists it and (when the workspace opted this tool in) applies
-            // it, so ADR-0005 §5's guarantees live in one place instead of
-            // once per binder — every proposal is recorded whether or not a
-            // human clicks, which is what makes an auto-applied change
-            // "undoable, never invisible".
+            // persists it and then applies it — every one of them, since
+            // ADR-0009; the per-workspace opt-in this comment used to name is
+            // gone. So ADR-0005 §5's guarantees live in one place instead of
+            // once per binder, and the row written *before* the write is the
+            // whole of what makes a change "undoable, never invisible".
             if (tool.effect === 'propose') {
                 return await this.recordProposal(ctx, call, output, startedAt);
+            }
+            // An `apply` tool writes for itself. ADR-0009 §5 keeps offering one
+            // exactly as it would a read tool, and §2 keeps the row as "the
+            // whole paper trail" — so the receipt has to be written here, or an
+            // apply tool is precisely the "change with no receipt" §2 forbids.
+            if (tool.effect === 'apply') {
+                return await this.recordApplied(
+                    ctx,
+                    call,
+                    tool,
+                    output,
+                    startedAt
+                );
             }
 
             const durationMs = Date.now() - startedAt;
@@ -788,16 +810,22 @@ export class RunEngine {
     }
 
     /**
-     * Persists a `propose` tool's draft, applies it if the workspace opted the
-     * tool into auto-apply, and produces both the model's receipt and the
-     * client's proposal card.
+     * Persists a `propose` tool's draft, applies it, and produces both the
+     * model's receipt and the client's proposal card.
      *
-     * **The model is told about the proposal, not handed the patch back.** It
+     * Applies it **always** — the per-workspace auto-apply opt-in this doc used
+     * to name was deleted with the policy table
+     * ([ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * §4). The row is still written first, and that ordering is now the only
+     * thing carrying "undoable, never invisible".
+     *
+     * **The model is told what happened, not handed the patch back.** It
      * already knows what it asked for; echoing the whole change would spend the
-     * tokens twice and invite the model to "confirm" by proposing again. What it
-     * needs is the id, the summary, and whether a human still has to accept —
-     * which is exactly what makes it say "I've drafted this, accept it below"
-     * rather than claiming the edit is done.
+     * tokens twice and invite the model to "confirm" by proposing again. What
+     * it needs is the id, the summary, and whether the write landed — which is
+     * what makes it say "I've fixed the headline" or "that did not save",
+     * rather than the pre-ADR-0009 "I've drafted this, accept it below" for a
+     * change that has already happened.
      */
     private async recordProposal(
         ctx: {
@@ -819,32 +847,12 @@ export class RunEngine {
                 `Run ${ctx.runId}: propose tool "${call.name}" returned a value ` +
                     'that is not a ProposalDraft; nothing was recorded.'
             );
-            const durationMs = Date.now() - startedAt;
-            await this.audit(ctx, call, {
-                ok: false,
-                error: message,
-                durationMs,
-                outputSummary: null
-            });
-            return {
-                block: {
-                    type: 'tool_result',
-                    toolUseId: call.id,
-                    content: message,
-                    isError: true
-                },
-                events: [
-                    {
-                        type: 'tool-result',
-                        id: call.id,
-                        name: call.name,
-                        ok: false,
-                        durationMs,
-                        summary: 'failed',
-                        error: message
-                    }
-                ]
-            };
+            return this.toolFailure(
+                ctx,
+                call,
+                message,
+                Date.now() - startedAt
+            );
         }
 
         const draft: ProposalDraft = output;
@@ -892,7 +900,13 @@ export class RunEngine {
         const summary = applied ? 'applied' : 'failed';
 
         await this.audit(ctx, call, {
-            ok: true,
+            // The audit row is the security-review surface, so it has to agree
+            // with the outcome rather than with the dispatch. It read `ok:
+            // true` beside `output_summary: "failed: …"` and a non-null
+            // `error` — a reviewer filtering for `ok = false` would find no
+            // trace of a write that never landed, which is exactly the row
+            // they were looking for.
+            ok: !applyError,
             error: applyError ?? null,
             durationMs,
             outputSummary: `${summary}: ${draft.summary}`
@@ -946,6 +960,152 @@ export class RunEngine {
                     // happen, and this frame is its only chance — there is no
                     // review queue to go and look it up in.
                     ...(applyError ? { error: applyError } : {})
+                }
+            ]
+        };
+    }
+
+    /**
+     * Records the receipt for an `effect: 'apply'` tool — one that does its own
+     * writing instead of handing back a draft for the engine to apply.
+     *
+     * The registry has always allowed the effect and
+     * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * §5 still offers such a tool "exactly when a `read` one with the same
+     * `requires` would be", while §2 keeps the `copilot_proposals` row as "the
+     * whole paper trail" and names a binder that writes directly as the failure
+     * the split exists to prevent. Both were true at once: an `apply` tool
+     * parked for permission like a write, ran like a write, and left nothing
+     * behind. Nothing shipped declares the effect today, which is why it went
+     * unnoticed — and is exactly why the next binder to reach for it must not
+     * have to know this.
+     *
+     * Two differences from {@link recordProposal}, both forced by the effect:
+     *
+     * - **The row is written after the fact.** The write has already happened
+     *   by the time the handler returns; there was never a moment this engine
+     *   could have stopped it. The permission prompt is what does that.
+     * - **`kind` is `tool.<name>` and has no applier.** There is nothing left
+     *   to carry out. The row exists to be read — which is the whole of what
+     *   "undoable, never invisible" asks of it here.
+     *
+     * The model still gets the handler's own return value: for an `apply` tool
+     * the return value is a *result*, not a change (`ToolEffect`).
+     */
+    private async recordApplied(
+        ctx: {
+            input: StartRunInput;
+            runId: string;
+            conversationId: string;
+        },
+        call: ToolUseBlock,
+        tool: ToolDefinition,
+        output: unknown,
+        startedAt: number
+    ): Promise<{ block: ToolResultBlock; events: CopilotRunEvent[] }> {
+        const summary = `${tool.title || call.name} ran.`;
+        const created = await this.proposals.create({
+            conversationId: ctx.conversationId,
+            runId: ctx.runId,
+            toolCallId: call.id,
+            toolName: call.name,
+            kind: `tool.${call.name}`,
+            workspaceId: ctx.input.workspaceId,
+            createdBy: ctx.input.userId,
+            target: { tool: call.name },
+            // The arguments are the change, as far as anything here can know:
+            // the shape of what the handler wrote belongs to the handler.
+            patch: (call.input ?? {}) as Record<string, unknown>,
+            summary
+        });
+        const outputSummary = summarizeToolOutput(output);
+        // Accepted in the same breath, because it already happened. `decide`
+        // rather than a second insert so the row carries `decidedBy`/`decidedAt`
+        // like every other applied change.
+        const proposal =
+            (await this.proposals.decide(
+                created.id,
+                ctx.input.workspaceId,
+                'accepted',
+                ctx.input.userId,
+                { detail: outputSummary }
+            )) ?? created;
+
+        const durationMs = Date.now() - startedAt;
+        await this.audit(ctx, call, {
+            ok: true,
+            error: null,
+            durationMs,
+            outputSummary
+        });
+
+        return {
+            block: {
+                type: 'tool_result',
+                toolUseId: call.id,
+                content: fenceUntrusted(call.name, output)
+            },
+            events: [
+                {
+                    type: 'tool-result',
+                    id: call.id,
+                    name: call.name,
+                    ok: true,
+                    durationMs,
+                    summary: outputSummary,
+                    output
+                },
+                {
+                    type: 'proposal',
+                    id: proposal.id,
+                    toolCallId: call.id,
+                    toolName: call.name,
+                    kind: proposal.kind,
+                    summary: proposal.summary,
+                    target: proposal.target,
+                    status: proposal.status
+                }
+            ]
+        };
+    }
+
+    /**
+     * One tool call that did not happen: the audit row, the block the model is
+     * told, and the frame the UI draws.
+     *
+     * Shared by `executeTool`'s own refusals and by the loop's time-limit
+     * check, so a call refused before it was ever dispatched is recorded
+     * exactly like one refused after — a reviewer reading `copilot_tool_calls`
+     * should not have to know which stage said no.
+     */
+    private async toolFailure(
+        ctx: { runId: string; conversationId: string },
+        call: ToolUseBlock,
+        message: string,
+        durationMs = 0
+    ): Promise<{ block: ToolResultBlock; events: CopilotRunEvent[] }> {
+        await this.audit(ctx, call, {
+            ok: false,
+            error: message,
+            durationMs,
+            outputSummary: null
+        });
+        return {
+            block: {
+                type: 'tool_result' as const,
+                toolUseId: call.id,
+                content: message,
+                isError: true
+            },
+            events: [
+                {
+                    type: 'tool-result' as const,
+                    id: call.id,
+                    name: call.name,
+                    ok: false,
+                    durationMs,
+                    summary: 'failed',
+                    error: message
                 }
             ]
         };

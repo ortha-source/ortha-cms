@@ -39,4 +39,30 @@ describe('deriveTitle', () => {
 
         expect(title).toBe(`short ${'x'.repeat(54)}…`);
     });
+
+    it('keeps a message of exactly the limit whole, with no ellipsis', () => {
+        const exact = 'a'.repeat(60);
+
+        expect(deriveTitle(exact)).toBe(exact);
+        // One over is the first character that truncates.
+        expect(deriveTitle('a'.repeat(61))).toBe(`${'a'.repeat(60)}…`);
+    });
+
+    // The word-boundary rule is `lastSpace > MAX * 0.6`, i.e. > 36. Both sides
+    // of that threshold are worth pinning: it is the whole of what stops a long
+    // first word from truncating the title to nothing, and it is an inequality
+    // one refactor away from being an off-by-one.
+    it('cuts at a space past 36 characters, and hard-cuts one at 36', () => {
+        // The 61-character message's only space sits at index 37 — past the
+        // threshold, so the cut happens there and the tail is dropped.
+        const late = `${'a'.repeat(37)} ${'b'.repeat(23)}`;
+        expect(deriveTitle(late)).toBe(`${'a'.repeat(37)}…`);
+
+        // Move it one character earlier, to index 36, and it is no longer
+        // "most of the budget" — the clip is hard at 60 instead.
+        const early = `${'a'.repeat(36)} ${'b'.repeat(24)}`;
+        expect(deriveTitle(early)).toBe(
+            `${'a'.repeat(36)} ${'b'.repeat(23)}…`
+        );
+    });
 });

@@ -9,15 +9,18 @@ import {
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import {
+    CurrentUser,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@ortha-cms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import {
     ProposalRepository,
     type ProposalView
 } from '../../infrastructure/persistence/proposal.repository';
+import { ConversationRepository } from '../../infrastructure/persistence/conversation.repository';
 import { ListProposalsQueryDto } from '../../application/dto/list-proposals-query.dto';
 
 /**
@@ -43,14 +46,40 @@ import { ListProposalsQueryDto } from '../../application/dto/list-proposals-quer
 @RequirePermissions(PERMISSIONS.COPILOT_USE)
 @Controller('copilot')
 export class ProposalsController {
-    constructor(private readonly proposals: ProposalRepository) {}
+    constructor(
+        private readonly proposals: ProposalRepository,
+        private readonly conversations: ConversationRepository
+    ) {}
 
+    /**
+     * The list is **workspace**-scoped, not user-scoped, and that is the right
+     * shape: a proposal is the receipt for a change to the workspace's content,
+     * and every member can already read that content. What it must not become
+     * is a way to learn about someone else's *thread* — `GET
+     * /conversations/:id` 404s a thread that is not yours, and a filter that
+     * answered "yes, that id is in this workspace" would undo it from the other
+     * side. So the filter is only honoured for a conversation the caller owns;
+     * anything else is the same 404 the conversation route gives.
+     */
     @Get('proposals')
     @ApiOperation({ summary: 'List the workspace’s copilot changes' })
     async list(
         @Query() query: ListProposalsQueryDto,
+        @CurrentUser() user: PublicUser,
         @CurrentWorkspace() workspaceId: string
     ): Promise<{ items: ProposalView[] }> {
+        if (query.conversationId) {
+            const thread = await this.conversations.find(
+                query.conversationId,
+                user.id,
+                workspaceId
+            );
+            if (!thread) {
+                throw new NotFoundException(
+                    `No conversation "${query.conversationId}".`
+                );
+            }
+        }
         return {
             items: await this.proposals.list(workspaceId, {
                 ...(query.status ? { status: query.status } : {}),

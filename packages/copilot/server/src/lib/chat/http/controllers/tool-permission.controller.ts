@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@ortha-cms/identity-server';
-import { WorkspaceGuard } from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ToolPermissionBroker } from '../../application/tool-permission.broker';
 import { DecideToolPermissionDto } from '../../application/dto/decide-tool-permission.dto';
 
@@ -34,11 +36,20 @@ import { DecideToolPermissionDto } from '../../application/dto/decide-tool-permi
  * different question from whether they are allowed to make it — and answering
  * "yes" to a tool their role has since lost still ends in a refusal downstream.
  *
- * The 404 is load-bearing rather than cosmetic. Nothing waiting means the
- * decision arrived after the five-minute timeout, or the run is parked on
- * another instance (the broker is in-memory — see its notes). Both are worth
- * telling the client about, because in both cases the answer it just gave had
- * no effect.
+ * It very much **does** check whose run it is, and the guards above cannot do
+ * it for us. `copilot:use` is held by every role including viewers, and
+ * `WorkspaceGuard` proves the caller belongs to *the workspace they named* —
+ * neither says anything about the run. Without the owner check a colleague
+ * could allow (or refuse) a write in someone else's chat, and a member of an
+ * unrelated workspace could do it by naming their own: the `runId` is not a
+ * secret, it is handed to the client in the `run-started` frame.
+ *
+ * The 404 is load-bearing rather than cosmetic, and it is deliberately the same
+ * answer for "nothing is waiting" and "not yours". Nothing waiting means the
+ * decision arrived after the timeout, or the run is parked on another instance
+ * (the broker is in-memory — see its notes). Both are worth telling the client
+ * about, because in both cases the answer it just gave had no effect — and
+ * whether someone else's run exists is not information this route hands out.
  */
 @UseGuards(PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.COPILOT_USE)
@@ -54,9 +65,14 @@ export class ToolPermissionController {
     })
     decide(
         @Param('runId', ParseUUIDPipe) runId: string,
-        @Body() body: DecideToolPermissionDto
+        @Body() body: DecideToolPermissionDto,
+        @CurrentUser() user: PublicUser,
+        @CurrentWorkspace() workspaceId: string
     ): void {
-        const delivered = this.broker.decide(runId, body.callId, body.decision);
+        const delivered = this.broker.decide(runId, body.callId, body.decision, {
+            userId: user.id,
+            workspaceId
+        });
         if (!delivered) {
             throw new NotFoundException(
                 'That request is no longer waiting for an answer.'
