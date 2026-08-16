@@ -454,8 +454,9 @@ export class RunEngine {
                 );
                 results.push(outcome.block);
                 // More than one event when the call produced a proposal: the
-                // tool result is what the model was told, the proposal is what
-                // the human is being asked to decide.
+                // tool result is what the model was told, the proposal is the
+                // receipt the card draws. (It used to say "what the human is
+                // being asked to decide" — ADR-0009 removed the deciding.)
                 for (const event of outcome.events) {
                     yield event;
                 }
@@ -747,11 +748,11 @@ export class RunEngine {
             );
 
             // A `propose` tool's return value IS the change. The engine
-            // persists it and (when the workspace opted this tool in) applies
-            // it, so ADR-0005 §5's guarantees live in one place instead of
-            // once per binder — every proposal is recorded whether or not a
-            // human clicks, which is what makes an auto-applied change
-            // "undoable, never invisible".
+            // persists it and then applies it — every one of them, since
+            // ADR-0009; the per-workspace opt-in this comment used to name is
+            // gone. So ADR-0005 §5's guarantees live in one place instead of
+            // once per binder, and the row written *before* the write is the
+            // whole of what makes a change "undoable, never invisible".
             if (tool.effect === 'propose') {
                 return await this.recordProposal(ctx, call, output, startedAt);
             }
@@ -809,16 +810,22 @@ export class RunEngine {
     }
 
     /**
-     * Persists a `propose` tool's draft, applies it if the workspace opted the
-     * tool into auto-apply, and produces both the model's receipt and the
-     * client's proposal card.
+     * Persists a `propose` tool's draft, applies it, and produces both the
+     * model's receipt and the client's proposal card.
      *
-     * **The model is told about the proposal, not handed the patch back.** It
+     * Applies it **always** — the per-workspace auto-apply opt-in this doc used
+     * to name was deleted with the policy table
+     * ([ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * §4). The row is still written first, and that ordering is now the only
+     * thing carrying "undoable, never invisible".
+     *
+     * **The model is told what happened, not handed the patch back.** It
      * already knows what it asked for; echoing the whole change would spend the
-     * tokens twice and invite the model to "confirm" by proposing again. What it
-     * needs is the id, the summary, and whether a human still has to accept —
-     * which is exactly what makes it say "I've drafted this, accept it below"
-     * rather than claiming the edit is done.
+     * tokens twice and invite the model to "confirm" by proposing again. What
+     * it needs is the id, the summary, and whether the write landed — which is
+     * what makes it say "I've fixed the headline" or "that did not save",
+     * rather than the pre-ADR-0009 "I've drafted this, accept it below" for a
+     * change that has already happened.
      */
     private async recordProposal(
         ctx: {
