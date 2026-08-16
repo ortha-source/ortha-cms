@@ -100,7 +100,12 @@ export interface ToolContext {
  * `read` runs freely. `propose` produces a reviewable change a human accepts
  * ([ADR-0005](../../../../docs/adr/0005-copilot-authority-model.md) §5) — its
  * handler writes nothing, returning the change for its consumer to record.
- * `apply` writes directly and is off unless a workspace policy enables it (§6).
+ * `apply` writes directly, gated only by the caller's own permissions
+ * ([ADR-0009](../../../../docs/adr/0009-copilot-applies-directly.md) §5 — it is
+ * offered exactly when a `read` tool with the same `requires` would be). It
+ * used to be off behind a workspace policy; ADR-0009 §4 deleted that policy,
+ * and an `apply` tool is now something a run performs, not something an
+ * operator opts into.
  *
  * Two vocabularies rather than one because they answer different questions.
  * `readOnly` tells an MCP client what is safe to auto-approve; `effect` tells
@@ -204,6 +209,18 @@ export interface ResourceDefinition {
     description: string;
     /** MIME type of the contents, e.g. `application/json`. */
     mimeType: string;
+    /**
+     * Permissions the actor must hold to list **or read** this resource — all
+     * of them, exactly as {@link ToolDefinition.requires}. Enforced centrally by
+     * {@link ToolRegistry}, so a resource cannot forget its own gate.
+     *
+     * Omitted means "no gate beyond reaching the endpoint", which is what every
+     * resource shipped today means: the content-type schemas are already
+     * narrowed to the workspace's own grants by the provider that builds them,
+     * and a resource that needs more than the workspace scope says so here
+     * rather than re-implementing the check.
+     */
+    requires?: readonly PermissionKey[];
 }
 
 /** The body of a resource read. */

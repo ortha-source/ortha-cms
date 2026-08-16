@@ -1,4 +1,4 @@
-import type { JsonSchema } from '../model/model-message';
+import type { JsonSchema } from './tool';
 
 /** The outcome of checking one tool's arguments against its schema. */
 export interface ToolInputValidation {
@@ -9,24 +9,30 @@ export interface ToolInputValidation {
 }
 
 /**
- * Validates a model's tool arguments against the tool's declared JSON Schema.
+ * Validates a caller's tool arguments against the tool's declared JSON Schema.
+ *
+ * It lives beside {@link ToolDefinition} because that is the type whose
+ * `inputSchema` it interprets. It used to sit in the copilot's framework-free
+ * core, where only the copilot's run loop reached it — which is exactly why the
+ * MCP endpoint spent its whole life dispatching unvalidated arguments while the
+ * copilot refused them. Owned here, {@link ToolRegistry.call} applies it to
+ * **every** consumer, and a third one gets it without remembering to ask.
  *
  * **A deliberate subset, not a JSON Schema implementation.** It covers exactly
  * what the generated tool schemas use — `type`, `properties`, `required`,
  * `enum`, `items`, `additionalProperties`, and the numeric/length bounds — and
- * *ignores* keywords it doesn't know rather than guessing at them. Two reasons
- * to keep it here instead of taking a dependency:
+ * *ignores* keywords it doesn't know (`anyOf`, `oneOf`, `$ref`, `format`,
+ * `pattern`) rather than guessing at them. A rule nested inside an `anyOf` is
+ * therefore **not** checked at all, which is the one thing a tool author must
+ * not read this as promising.
  *
- * - `domain/` imports nothing, which is what makes the tool contracts testable
- *   without a framework. A validator is the last place worth breaking that for.
- * - This is a **defence-in-depth** check, not the security boundary. The
- *   capability profile is what stops a tool being reachable; this stops a
- *   malformed call reaching a tool's `run` and turning a model mistake into a
- *   500. Every error it produces is fed back to the model as a tool error so
- *   the run continues.
- *
- * An unknown keyword being ignored is therefore a bounded failure: the tool's
- * own code still sees the value. Anything stricter belongs in the tool.
+ * That is tolerable because it is a **defence-in-depth** check, not a security
+ * boundary: `requires` is what decides whether a tool may run at all, and a
+ * handler still owns every rule about its own values. What this stops is a
+ * malformed call reaching a handler and turning a caller's mistake into an
+ * opaque 500. Every error it produces goes back to the caller as a
+ * `validation_failed` tool error naming the field, so a model can fix it and
+ * retry.
  */
 export function validateToolInput(
     input: unknown,

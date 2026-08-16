@@ -41,6 +41,46 @@ consumers are one route carrying many operations.
 `requires` is therefore a **security-critical field** that no type checker
 validates. A new tool needs an authorization test.
 
+**Resources go through the same gate.** `ResourceDefinition.requires` is
+optional and every shipped resource omits it (the content-type schemas are
+already narrowed to the workspace's grants by the provider that builds them),
+but when one is declared, `resources()` hides the resource **and**
+`readResource()` refuses it — because a client may read a URI it was never
+listed, exactly as it may call a tool it was never shown.
+
+**A refusal names the permission it wanted.** `"content_delete" requires
+content:delete, which this token does not hold.` goes back to a third-party
+model verbatim. That is deliberate ([ADR-0007](../../../docs/adr/0007-one-tool-registry-two-surfaces.md)
+§6): the tool set is derived from the caller's own scope and reveals nothing
+about anyone else, and an undiagnosable permission problem costs more than the
+key name. Be aware it leaks the *shape* of the permission model — so keep the
+message to `requires` and never let a handler's own reason join it.
+
+## Validation
+
+Two checks the registry owns, so no consumer has to remember them:
+
+- **At boot.** `onApplicationBootstrap` walks the assembled catalogue once and
+  refuses to start on a duplicate name, a name that is not `snake_case`, an
+  empty `surfaces` array (offered to neither consumer — dead on arrival), an
+  `inputSchema` that is not an object schema, or a `requires` entry that is not
+  a permission this deployment defines. That last one is what catches a raw
+  `'content:delete'` literal gone stale or a stray space: `can()` is exact-match
+  set membership, so such a tool is silently uncallable by everyone. Every
+  problem is reported at once, and the throw aborts `app.init()` — a wiring bug
+  belongs to the deploy, not to the first caller who trips over it.
+- **Per call.** `call()` checks the arguments against the tool's own
+  `inputSchema` (`validateToolInput`) after authorizing and before dispatch, and
+  answers a `validation_failed` naming each field. It is **not** a boundary —
+  `requires` is — and its JSON Schema subset ignores `anyOf`/`oneOf`/`$ref`/
+  `format`/`pattern`, so a rule nested inside a combinator is not checked at
+  all. Do not read it as one: a handler still owns every rule about its own
+  values.
+
+`register()` is **idempotent per provider instance**, so a plugin that
+registers twice is a no-op rather than a catalogue where every tool collides
+with itself.
+
 ## Surfaces
 
 `surfaces?: readonly ('mcp' | 'copilot')[]`, and **omitted means both**.
@@ -91,7 +131,9 @@ that answers "no" to all five belongs to both.
    → `['copilot']`. A `propose` handler writes nothing and hands back a draft
    for the run engine to record and apply; MCP has no engine, so the call would
    look like a success and change nothing at all. A direct `apply` tool is worse
-   — it is gated on a workspace policy MCP cannot evaluate.
+   — its receipt is a `copilot_proposals` row the run engine writes
+   ([ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md)), so over MCP
+   it would write with nothing recording that it had.
 2. **Does it expose unpublished content on `content:read` alone?** Drafts,
    revision snapshots, sibling translations, anything derived from the admin's
    services rather than `public-api/`. → `['copilot']`. A **token's**

@@ -100,11 +100,12 @@ genuinely belongs to a framework-free core:
   type** (`AuthorizableTool`: `name`, `requires`, `effect`) rather than
   importing `ToolDefinition`, so this package still imports nothing and the
   server still passes the real registry's tools straight in.
-- `validateToolInput(input, schema)` — a **deliberate JSON Schema subset**
-  covering what the generated tool schemas use, ignoring keywords it doesn't
-  know. Sound because it is defence in depth behind the profile, not the
-  boundary: `ToolRegistry.call` is the boundary. Its job is stopping a
-  malformed model call from becoming a 500.
+- `validateToolInput(input, schema)` **has moved to `@ortha-cms/tools-server`**,
+  next to the `ToolDefinition.inputSchema` it interprets. Living here meant only
+  the copilot's run loop applied it, while the MCP endpoint dispatched
+  unvalidated arguments to the very same tools; `ToolRegistry.call` now applies
+  it for every consumer. Still a deliberate JSON Schema subset and still
+  defence in depth behind the profile — the boundary is `requires`.
 
 ### Proposals (phase 3)
 

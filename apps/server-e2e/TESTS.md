@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1118 test cases across 75 spec files._
+_1126 test cases across 76 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2005,6 +2005,15 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | refuses draft visibility to a read token |
 | reports an unknown tool as not_found |
 
+### argument validation
+
+| Test case |
+| --- |
+| refuses arguments the tool’s inputSchema rejects |
+| refuses a call missing a required argument |
+| still answers a permission refusal before it reads the arguments |
+| lets a well-formed call through untouched |
+
 ### discovery
 
 | Test case |
@@ -2226,6 +2235,30 @@ _<sub>apps/server-e2e/src/server/server.spec.ts</sub>_
 | Test case |
 | --- |
 | responds 404 on an unknown route under the global prefix |
+
+<!-- source: apps/server-e2e/src/server/tools/tool-registry.spec.ts -->
+_<sub>apps/server-e2e/src/server/tools/tool-registry.spec.ts</sub>_
+
+## Tool registry (one registry, two surfaces)
+
+### both consumers mounted
+
+| Test case |
+| --- |
+| shows one shared tool to both surfaces of one running app |
+| keeps each surface’s narrowed tools to itself |
+
+### the MCP endpoint unmounted
+
+| Test case |
+| --- |
+| leaves the copilot a full catalogue |
+
+### the copilot unmounted
+
+| Test case |
+| --- |
+| leaves the MCP endpoint a full catalogue |
 
 <!-- source: apps/server-e2e/src/server/users/get-user.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/get-user.spec.ts</sub>_

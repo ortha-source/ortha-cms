@@ -598,6 +598,77 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         });
     });
 
+    // `ToolRegistry.call` checks a call's arguments against the tool's own
+    // `inputSchema` before dispatch. The copilot's run engine always did; MCP
+    // did not, so a shared tool answered a malformed call by running anyway —
+    // `pageSize: "lots"` came back as `"pageSize": null`, an unknown property
+    // was silently dropped despite `additionalProperties: false`, and an
+    // invalid enum reached a query that threw a bare `Error` and became an
+    // opaque 500. One registry, one answer.
+    describe('argument validation', () => {
+        it('refuses arguments the tool’s inputSchema rejects', async () => {
+            const { secret } = await mintToken();
+
+            const { isError, data } = await callTool(
+                secret,
+                'media_assets_search',
+                { pageSize: 'lots', kind: '../etc/passwd', nope: 1 }
+            );
+
+            expect(isError).toBe(true);
+            expect(data['status']).toBe(422);
+            expect(data['code']).toBe('validation_failed');
+            // Per field, so the model can fix exactly what it got wrong.
+            expect(data['issues']).toEqual([
+                { field: 'pageSize', message: 'expected integer' },
+                {
+                    field: 'kind',
+                    message:
+                        'must be one of image, video, audio, document, archive'
+                },
+                { field: 'nope', message: 'unexpected property' }
+            ]);
+        });
+
+        it('refuses a call missing a required argument', async () => {
+            const { secret } = await mintToken();
+
+            const { isError, data } = await callTool(secret, 'content_list');
+
+            expect(isError).toBe(true);
+            expect(data['code']).toBe('validation_failed');
+            expect(data['issues']).toEqual([
+                { field: 'typeName', message: 'required' }
+            ]);
+        });
+
+        it('still answers a permission refusal before it reads the arguments', async () => {
+            const { secret } = await mintToken({ scope: 'read' });
+
+            const { isError, data } = await callTool(secret, 'content_delete', {
+                nonsense: true
+            });
+
+            // Forbidden, not validation_failed: an actor who may not call the
+            // tool must not be able to probe its argument shape.
+            expect(isError).toBe(true);
+            expect(data['code']).toBe('forbidden');
+        });
+
+        it('lets a well-formed call through untouched', async () => {
+            const { secret } = await mintToken();
+
+            const { isError, data } = await callTool(
+                secret,
+                'media_assets_search',
+                { pageSize: 5, kind: 'image' }
+            );
+
+            expect(isError).toBe(false);
+            expect(data['pageSize']).toBe(5);
+        });
+    });
+
     describe('discovery', () => {
         it('lists only the workspace’s granted types', async () => {
             const { secret } = await mintToken();
@@ -742,7 +813,15 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             });
 
             expect(isError).toBe(true);
-            expect(data['code']).toBe('bad_request');
+            // The registry's schema check now catches this before the DTO
+            // layer does, so a mistyped argument answers `validation_failed`
+            // (422) rather than the `bad_request` (400) the strict DTO used to
+            // produce. Same refusal, one layer earlier, and now identical for
+            // the shared tools that have no DTO behind them at all.
+            expect(data['code']).toBe('validation_failed');
+            expect(data['issues']).toEqual([
+                { field: 'pagesize', message: 'unexpected property' }
+            ]);
         });
 
         it('requires a locator on a single-entry read', async () => {

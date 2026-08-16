@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+    ForbiddenException,
+    NotFoundException,
+    UnprocessableEntityException
+} from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import { createToolContext } from './tool-context';
 import type { ToolContext, ToolDefinition } from './tool';
@@ -177,6 +181,273 @@ describe('ToolRegistry', () => {
         });
     });
 
+    // Not the security boundary — `requires` is — but the difference between a
+    // caller's mistake coming back as a fixable `validation_failed` and as the
+    // opaque 500 a handler produces when it is handed a string where the schema
+    // promised an integer. The copilot's run engine validated all along; the MCP
+    // endpoint did not, and one registry means one answer.
+    describe('argument validation', () => {
+        /** A tool whose schema closes the object and bounds its one field. */
+        function searchTool(ran = { value: false }): ToolDefinition {
+            return {
+                ...tool('media_assets_search', [], ran),
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        kind: { type: 'string', enum: ['image', 'video'] },
+                        pageSize: { type: 'integer', minimum: 1, maximum: 25 }
+                    },
+                    additionalProperties: false
+                }
+            };
+        }
+
+        it('refuses arguments the tool’s own inputSchema rejects', async () => {
+            const ran = { value: false };
+            registry.register(provider(searchTool(ran)));
+
+            await expect(
+                registry.call(
+                    'media_assets_search',
+                    { pageSize: 'lots', kind: '../etc/passwd', nope: 1 },
+                    contextWith(),
+                    'mcp'
+                )
+            ).rejects.toBeInstanceOf(UnprocessableEntityException);
+            expect(ran.value).toBe(false);
+        });
+
+        it('names every problem per field, so a model can fix and retry', async () => {
+            registry.register(provider(searchTool()));
+
+            const refusal = await registry
+                .call(
+                    'media_assets_search',
+                    { pageSize: 'lots', kind: '../etc/passwd', nope: 1 },
+                    contextWith(),
+                    'mcp'
+                )
+                .catch((error: UnprocessableEntityException) => error);
+
+            expect(
+                (refusal as UnprocessableEntityException).getResponse()
+            ).toEqual({
+                message: 'Invalid arguments for "media_assets_search".',
+                issues: [
+                    { field: 'pageSize', message: 'expected integer' },
+                    { field: 'kind', message: 'must be one of image, video' },
+                    { field: 'nope', message: 'unexpected property' }
+                ]
+            });
+        });
+
+        it('accepts arguments the schema allows', async () => {
+            const ran = { value: false };
+            registry.register(provider(searchTool(ran)));
+
+            await expect(
+                registry.call(
+                    'media_assets_search',
+                    { pageSize: 5, kind: 'image' },
+                    contextWith(),
+                    'mcp'
+                )
+            ).resolves.toEqual({ ok: true });
+            expect(ran.value).toBe(true);
+        });
+
+        // Otherwise a `read` token could probe a write tool's argument shape by
+        // reading the refusals back, and two callers would get two different
+        // answers to the same unauthorized call.
+        it('refuses on permissions before it looks at the arguments', async () => {
+            registry.register(
+                provider({
+                    ...searchTool(),
+                    name: 'content_delete',
+                    requires: [PERMISSIONS.CONTENT_DELETE]
+                })
+            );
+
+            await expect(
+                registry.call(
+                    'content_delete',
+                    { nope: 1 },
+                    contextWith(PERMISSIONS.CONTENT_READ),
+                    'mcp'
+                )
+            ).rejects.toBeInstanceOf(ForbiddenException);
+        });
+
+        // Both consumers defended against this themselves (`args ?? {}` in the
+        // MCP adapter, `call.input ?? {}` in the run engine). A third would have
+        // had to remember; now it does not.
+        it('treats missing arguments as an empty object', async () => {
+            registry.register(
+                provider({
+                    ...tool('media_folders_list', []),
+                    inputSchema: { type: 'object', properties: {} }
+                })
+            );
+
+            await expect(
+                registry.call(
+                    'media_folders_list',
+                    undefined,
+                    contextWith(),
+                    'mcp'
+                )
+            ).resolves.toEqual({ ok: true });
+        });
+    });
+
+    // A resource is the other thing a client can pull out of this registry, and
+    // until now it was the one the authorization point never saw: no `requires`
+    // on the contract, no check on either path. The gate exists now; nothing
+    // shipped declares one yet, which is exactly why it had to be centralized
+    // before the first resource needs it.
+    describe('resource authorization', () => {
+        /** A provider serving one gated resource. */
+        function gated(requires: readonly string[]): ToolProvider {
+            const definition = {
+                uri: 'ortha://secret',
+                name: 'secret',
+                description: 'secret',
+                mimeType: 'application/json',
+                requires: requires as ToolDefinition['requires']
+            };
+            return {
+                tools: () => [],
+                resources: async () => [definition],
+                readResource: async (uri) =>
+                    uri === definition.uri
+                        ? {
+                              uri,
+                              mimeType: 'application/json',
+                              text: '{"secret":true}'
+                          }
+                        : undefined
+            };
+        }
+
+        it('hides a resource the actor lacks the permission for', async () => {
+            registry.register(gated([PERMISSIONS.USERS_READ]));
+
+            await expect(
+                registry.resources(contextWith(PERMISSIONS.CONTENT_READ))
+            ).resolves.toEqual([]);
+        });
+
+        it('refuses to read it even when the uri is named directly', async () => {
+            registry.register(gated([PERMISSIONS.USERS_READ]));
+
+            await expect(
+                registry.readResource(
+                    'ortha://secret',
+                    contextWith(PERMISSIONS.CONTENT_READ)
+                )
+            ).rejects.toBeInstanceOf(ForbiddenException);
+        });
+
+        it('lists and reads it for an actor who holds the permission', async () => {
+            registry.register(gated([PERMISSIONS.USERS_READ]));
+            const permitted = contextWith(PERMISSIONS.USERS_READ);
+
+            await expect(registry.resources(permitted)).resolves.toHaveLength(1);
+            await expect(
+                registry.readResource('ortha://secret', permitted)
+            ).resolves.toMatchObject({ text: '{"secret":true}' });
+        });
+
+        it('leaves an ungated resource open to anyone who reached the endpoint', async () => {
+            registry.register(gated([]));
+
+            await expect(
+                registry.readResource('ortha://secret', contextWith())
+            ).resolves.toMatchObject({ text: '{"secret":true}' });
+        });
+    });
+
+    // Every one of these used to surface at the first `tools/list` — or not at
+    // all. A wiring bug belongs to the deploy, not to the first caller.
+    describe('boot-time catalogue validation', () => {
+        it('boots on the shape a correct catalogue has', () => {
+            registry.register(
+                provider(
+                    tool('content_list', [PERMISSIONS.CONTENT_READ]),
+                    tool('i18n_locales_list', [])
+                )
+            );
+
+            expect(() => registry.onApplicationBootstrap()).not.toThrow();
+        });
+
+        it('refuses to boot when two providers claim one name', () => {
+            registry.register(provider(tool('content_list', [])));
+            registry.register(provider(tool('content_list', [])));
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /duplicate tool name "content_list"/
+            );
+        });
+
+        // `can()` is exact-match set membership, so a permission key that is not
+        // one of ours is a tool nobody can ever call — the fail-closed direction,
+        // and silent until someone asks why the tool never appears.
+        it('refuses to boot on a requires the deployment does not define', () => {
+            registry.register(
+                provider(tool('content_list', ['content:read ' as never]))
+            );
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /is not a permission this deployment defines/
+            );
+        });
+
+        it('refuses to boot on a name that is not snake_case', () => {
+            registry.register(provider(tool(' Content_List ', [])));
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /is not a valid tool name/
+            );
+        });
+
+        // `!tool.surfaces` is false for `[]` and `[].includes(x)` is false, so
+        // an empty array is a tool offered to neither consumer — dead on arrival
+        // and impossible to tell from a typo.
+        it('refuses to boot on an empty surfaces array', () => {
+            registry.register(
+                provider({ ...tool('content_list', []), surfaces: [] })
+            );
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /offered to neither consumer/
+            );
+        });
+
+        it('refuses to boot on an inputSchema that is not an object schema', () => {
+            registry.register(
+                provider({
+                    ...tool('content_list', []),
+                    inputSchema: { type: 'string' }
+                })
+            );
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /tool arguments are always an object/
+            );
+        });
+
+        it('reports every problem at once, not just the first', () => {
+            registry.register(
+                provider(tool('BadName', ['not:a:permission' as never]))
+            );
+
+            expect(() => registry.onApplicationBootstrap()).toThrow(
+                /is not a valid tool name[\s\S]*is not a permission/
+            );
+        });
+    });
+
     // The other half of the boundary `requires` guards. A tool declares who it
     // is for, and both the listing AND the dispatch have to honour it — a
     // caller may name a tool it was never shown, which for a cross-surface tool
@@ -282,6 +553,21 @@ describe('ToolRegistry', () => {
             registry.register(provider(tool('content_list', [])));
 
             expect(() => registry.all()).toThrow(/Duplicate tool name/);
+        });
+
+        // The same provider twice changes nothing about what the catalogue
+        // holds, so it must not brick it: every tool would collide with itself
+        // and `all()` would throw for the rest of the process, taking both
+        // surfaces down over a duplicated wiring line.
+        it('ignores a provider instance registered twice', () => {
+            const twice = provider(tool('content_list', []));
+            registry.register(twice);
+            registry.register(twice);
+
+            expect(registry.all().map((entry) => entry.name)).toEqual([
+                'content_list'
+            ]);
+            expect(() => registry.onApplicationBootstrap()).not.toThrow();
         });
     });
 

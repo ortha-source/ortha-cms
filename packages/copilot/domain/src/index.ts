@@ -40,11 +40,11 @@ export { NoModelsConfiguredError } from './lib/errors/no-models-configured.error
 // `ToolSpec` / `ToolContext` / `COPILOT_TOOL_PROVIDER` are gone: the tool
 // contract and its registry are shared with the MCP endpoint and live in
 // `@ortha-cms/tools-server` (ADR-0006 §2, and the amendment to ADR-0005 §3).
-// What stays here is what genuinely belongs to a *framework-free core* — the
-// offer-time policy and the input validator, neither of which needs Nest, a
-// registry, or a permission enum to be correct.
-export { validateToolInput } from './lib/tools/validate-tool-input';
-export type { ToolInputValidation } from './lib/tools/validate-tool-input';
+// `validateToolInput` followed them there: it interprets a `ToolDefinition`'s
+// `inputSchema`, and keeping it here meant only the copilot's run loop applied
+// it while the MCP endpoint dispatched unvalidated arguments. What stays is the
+// **offer-time policy**, which is genuinely the copilot's own and needs neither
+// Nest nor a registry to be correct.
 export { resolveCapabilityProfile } from './lib/tools/capability-profile';
 export type {
     AuthorizableTool,

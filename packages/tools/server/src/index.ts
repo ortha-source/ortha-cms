@@ -36,3 +36,10 @@ export { createToolContext } from './lib/tool-context';
 
 export { toToolError } from './lib/tool-error';
 export type { ToolError } from './lib/tool-error';
+
+// The argument check `ToolRegistry.call` applies before dispatch. Exported
+// because a consumer may want to reject a malformed call earlier than the
+// registry does — the copilot's run engine validates at the point it decides
+// what to tell the model, so the run continues instead of throwing.
+export { validateToolInput } from './lib/validate-tool-input';
+export type { ToolInputValidation } from './lib/validate-tool-input';
