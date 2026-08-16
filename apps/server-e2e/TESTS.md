@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1106 test cases across 74 spec files._
+_1118 test cases across 75 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1517,6 +1517,48 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | --- |
 | lists this workspace’s members with their roles |
 | does not list accounts that are not members of this workspace |
+
+<!-- source: apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts -->
+_<sub>apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts</sub>_
+
+## Copilot run authority
+
+### ADR-0005 §7 — the copilot cannot publish
+
+| Test case |
+| --- |
+| refuses a `status` smuggled into a propose tool’s values bag |
+| refuses a `status` smuggled in as a top-level tool argument |
+| leaves an edited entry a draft, whatever the model asked for |
+| offers no tool with a `status` parameter or a publish in its name |
+
+### a parked run may only be answered by the user it belongs to
+
+| Test case |
+| --- |
+| refuses another member of the same workspace |
+| refuses a member of another workspace naming their own |
+| lets the owner answer their own run |
+
+### an apply-effect tool leaves a receipt
+
+| Test case |
+| --- |
+| records a `copilot_proposals` row and a proposal frame |
+| audits a failed apply as a failed tool call |
+
+### the system prompt
+
+| Test case |
+| --- |
+| states the untrusted-data rule exactly once |
+| cannot be given new sections by the client |
+
+### GET /copilot/proposals
+
+| Test case |
+| --- |
+| will not confirm another user’s conversation id |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-skills.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-skills.spec.ts</sub>_

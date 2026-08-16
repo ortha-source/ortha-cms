@@ -103,6 +103,29 @@ describe('CopilotPlugin config validation', () => {
         ).toThrow(/must be a positive number/);
     });
 
+    it.each([
+        ['maxSteps', 0],
+        ['maxSteps', -1],
+        ['wallClockMs', 0],
+        ['maxTotalTokens', Number.NaN]
+    ])('rejects a non-positive limits.%s (%p)', (key, value) => {
+        expect(() =>
+            CopilotPlugin(
+                options({ config: config({ limits: { [key]: value } }) })
+            )
+        ).toThrow(
+            new RegExp(`limits\\.${key} must be a positive number`)
+        );
+    });
+
+    it('accepts a raised maxSteps — the one an operator actually sets', () => {
+        expect(() =>
+            CopilotPlugin(
+                options({ config: config({ limits: { maxSteps: 20 } }) })
+            )
+        ).not.toThrow();
+    });
+
     it('stays constructible while disabled — the kill switch is not a wiring error', () => {
         expect(() =>
             CopilotPlugin(options({ config: config({ enabled: false }) }))

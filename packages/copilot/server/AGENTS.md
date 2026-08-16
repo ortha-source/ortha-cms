@@ -213,6 +213,22 @@ through them).
   it is worth the machinery: an injected call shows the user its arguments and
   is stopped with nothing having happened. A refusal is fed back as an ordinary
   tool error, so the model reports it and the answer still lands.
+- **Only the run's own user may answer it**, and no guard on the route can say
+  so. `copilot:use` is held by every role including viewers, and
+  `WorkspaceGuard` proves the caller belongs to _the workspace they named_ —
+  neither has anything to say about the run. The `runId` is not a secret either:
+  it goes to the client in `run-started`. So the broker records
+  `{ userId, workspaceId }` when the run parks and refuses a mismatch with the
+  same `false` — hence the same **404** — as "nothing is waiting", because
+  whether someone else's run exists is not something this route answers.
+- **The five-minute wait is a budget for the whole run**, not five fresh minutes
+  per call. One step may ask for any number of tools and each of them can park;
+  charging each its own timeout let a single turn requesting thirty writes hold
+  the connection, the generator and the model context for two and a half hours.
+  "They went to look at the entry and came back" is one absence, not thirty.
+  The engine also checks the wall clock **per call** rather than only at the top
+  of a step, and a call refused on the ceiling is fed back as an ordinary tool
+  error — every `tool_use` still needs its `tool_result`.
 - **"Allow for this chat" lives on `copilot_conversations.allowed_tools`** and
   dies with the thread. Read **per call**, never per run — two calls in one turn
   can both be answered while the run is parked, and the second must see the
@@ -263,6 +279,18 @@ Three rules in `DecideProposalService` worth knowing before touching it:
 
 Rows carry `toolCallId`, so a change joins to its `copilot_tool_calls` row and
 the UI attaches the card to the step that produced it.
+
+**An `effect: 'apply'` tool leaves a receipt too.** Nothing shipped declares the
+effect — every write tool is `propose` — but the registry allows it and ADR-0009
+§5 offers such a tool exactly as it would a read one, so the engine has to
+answer for it: it parks for permission like a write and runs like a write, and
+until it recorded a row it was precisely the "change with no receipt" §2 names
+as the failure the split exists to prevent. The row is written **after** the
+fact (the handler has already written by the time it returns; the permission
+prompt is what could have stopped it), its `kind` is `tool.<name>` and has no
+applier — there is nothing left to carry out — and the model still gets the
+handler's return value, because for an `apply` tool that value is a _result_,
+not a change.
 
 The model is told what happened, not handed the patch back — it already knows
 what it asked for, and echoing the change invites it to "confirm" by calling
@@ -356,7 +384,13 @@ An **async generator**, not a service that writes to a response — the transpor
 stays in the controller, and the loop is testable by draining the generator.
 
 - **Bounded three ways** (`RunLimits`): max steps, wall clock, total tokens.
-  Exceeding any one ends the run with a reason the UI shows.
+  Exceeding any one ends the run with a reason the UI shows. Two caveats worth
+  knowing before you rely on a number here: the wall clock is checked at the top
+  of a step **and before each tool call** (a step may ask for any number of
+  tools, and a parked one waits on a human), while the token ceiling is checked
+  only between steps — so a run can overshoot `maxTotalTokens` by a whole model
+  call, and measurably does: a 100-token ceiling ended a run at 10 000. Bounding
+  that would mean predicting a turn's size before making it.
 - **The user's message is persisted before the model is called**, so a dropped
   connection never loses what someone typed.
 - **The capability profile is recomputed per run and re-checked per tool call**
@@ -417,9 +451,22 @@ the first query against a table nobody generated a migration for.
 drizzle-kit can emit the cross-context FKs without pulling another plugin's Nest
 providers into its esbuild pass. Same pattern as `workspaces/server`.
 
-**Every repository method takes the owning `userId` and `workspaceId` and filters
-on both.** `WorkspaceGuard` proves the caller belongs to the workspace they
-named; nothing upstream proves a _conversation id_ belongs to them.
+**Every repository method a route reaches takes the owning `userId` and
+`workspaceId` and filters on both.** `WorkspaceGuard` proves the caller belongs
+to the workspace they named; nothing upstream proves a _conversation id_ belongs
+to them. Four methods take neither, and the distinction is worth stating rather
+than reading as a gap: `allowedTools`, `allowTool` and `messages` are called by
+the engine with an id `findOrFail`/`create` has already proved is the caller's,
+and `toolCalls(runId)` is a test seam. They are **not** reachable from a route,
+and a new caller for one of them is a new place to prove ownership.
+
+`GET /proposals` is the deliberate exception to the *user* half: it is
+workspace-scoped, because a proposal is the receipt for a change to the
+workspace's content and every member can already read that content. Its
+`?conversationId=` filter is not, though — `GET /conversations/:id` 404s a
+thread that is not yours, and a filter that answered "yes, that id is here"
+would undo it from the other side, so the filter is honoured only for a
+conversation the caller owns.
 
 ## The model seam
 
@@ -469,9 +516,17 @@ the second issue — worth fixing there too.)
 
 `CopilotPlugin` validates at **construction**, like `I18nServerPlugin`'s locales
 and `ContentPlugin`'s registry: at least one provider registered, every provider
-declaring at least one model, a `defaultProvider` that names one of them, and a
-positive `maxOutputTokens`. A host that mistypes a provider name fails before
-boot rather than on the first chat message.
+declaring at least one model, a `defaultProvider` that names one of them, a
+positive `maxOutputTokens`, and every ceiling in `limits` a positive number. A
+host that mistypes a provider name fails before boot rather than on the first
+chat message.
+
+`limits` is on that list because `maxSteps: 0` used to construct fine and
+produce a run that answers nothing at all: `for (step = 0; step < 0; …)` skips
+the loop, so the engine yields `run-started` and then `done` with `max-steps` —
+no model call, no answer, and (because `assistantBlocks` is empty) **no
+assistant row**, leaving a thread showing a question and silence for good.
+`COPILOT_MAX_STEPS` is env-exposed, so a typo reached it.
 
 Being **disabled is not a wiring error**: `config.enabled: false` is the default
 and constructs fine. That switch is the operator's kill switch (ADR-0005 §10),
