@@ -974,6 +974,278 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
         });
     });
 
+    /**
+     * The transport contract, as opposed to the tool contract: which verbs the
+     * endpoint answers, what a malformed frame gets back, and the ceilings one
+     * exchange runs under. Everything here must be a well-formed answer — never
+     * a 500, and never a hang.
+     */
+    describe('transport', () => {
+        // A stateless endpoint has no server-initiated stream to open. Handed
+        // the GET, the SDK transport opens an SSE stream and holds it forever,
+        // so the controller answers before it gets there.
+        it('405s a GET rather than opening a stream nothing will ever write to', async () => {
+            const { secret } = await mintToken();
+
+            const res = await request(harness.server)
+                .get(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', 'text/event-stream')
+                .expect(405);
+
+            expect(res.headers['allow']).toBe('POST');
+            expect((res.body as RpcResponse).error?.message).toContain(
+                'stateless'
+            );
+        });
+
+        it('405s a DELETE — there is no session to end', async () => {
+            const { secret } = await mintToken();
+
+            await request(harness.server)
+                .delete(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(405);
+        });
+
+        // Authentication runs before the protocol layer, so the verb answer is
+        // not reachable without a credential.
+        it('401s an unauthenticated GET, before the verb is considered', async () => {
+            await request(harness.server).get(MCP_PATH).expect(401);
+        });
+
+        it('401s a bearer value carrying internal whitespace', async () => {
+            const { secret } = await mintToken();
+
+            await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret} extra`)
+                .set('Accept', ACCEPT)
+                .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+                .expect(401);
+        });
+
+        // Express parses a repeated query parameter into an array. Reading that
+        // as "unnamed" let a single-workspace token quietly succeed against its
+        // own workspace while the caller had named two others.
+        it('400s a repeated ?workspaceId= instead of ignoring it', async () => {
+            const { secret } = await mintToken();
+
+            const res = await rpc(secret, 'tools/list', undefined, {
+                query: `workspaceId=${workspaceId}&workspaceId=${otherWorkspaceId}`
+            }).expect(400);
+
+            expect(res.body.message).toContain('more than one workspace');
+        });
+
+        it('answers an unknown method with -32601, not a 500', async () => {
+            const { secret } = await mintToken();
+
+            const res = await rpc(secret, 'prompts/list').expect(200);
+
+            expect((res.body as RpcResponse).error?.code).toBe(-32601);
+        });
+
+        // A notification carries no id, so there is nothing to respond to.
+        it('202s a notification with an empty body', async () => {
+            const { secret } = await mintToken();
+
+            const res = await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', ACCEPT)
+                .send({ jsonrpc: '2.0', method: 'notifications/initialized' })
+                .expect(202);
+
+            expect(res.text).toBe('');
+        });
+
+        // One bearer check, many operations — the reason this endpoint is one
+        // route rather than a route per tool.
+        it('answers a batch with one result per request', async () => {
+            const { secret } = await mintToken();
+
+            const res = await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', ACCEPT)
+                .send([
+                    { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+                    { jsonrpc: '2.0', id: 2, method: 'resources/list' }
+                ])
+                .expect(200);
+
+            const body = res.body as RpcResponse[];
+            expect(body).toHaveLength(2);
+            expect(body.map((entry) => entry.id).sort()).toEqual([1, 2]);
+            expect(body.every((entry) => entry.result !== undefined)).toBe(
+                true
+            );
+        });
+
+        it.each([
+            ['an empty body', ''],
+            ['a frame with no method', { jsonrpc: '2.0', id: 1 }],
+            [
+                'a frame claiming JSON-RPC 1.0',
+                { jsonrpc: '1.0', id: 1, method: 'tools/list' }
+            ]
+        ])('answers %s with a JSON-RPC error, not a 500', async (_l, body) => {
+            const { secret } = await mintToken();
+
+            const res = await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', ACCEPT)
+                .set('Content-Type', 'application/json')
+                .send(body as never)
+                .expect(400);
+
+            expect((res.body as RpcResponse).error?.code).toBeLessThan(0);
+        });
+
+        // The single most common first-connection failure, so the message has
+        // to name the fix.
+        it('406s a POST that does not accept both content types', async () => {
+            const { secret } = await mintToken();
+
+            const res = await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', 'application/json')
+                .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+                .expect(406);
+
+            expect((res.body as RpcResponse).error?.message).toContain(
+                'text/event-stream'
+            );
+        });
+
+        it('ignores an Mcp-Session-Id from a client that thinks it has one', async () => {
+            const { secret } = await mintToken();
+
+            await request(harness.server)
+                .post(MCP_PATH)
+                .set('Authorization', `Bearer ${secret}`)
+                .set('Accept', ACCEPT)
+                .set('Mcp-Session-Id', 'a-session-that-never-existed')
+                .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+                .expect(200);
+        });
+
+        // The asymmetry, pinned on the wire: a tool failure is a result, a
+        // resource failure is a protocol error — and it carries the same
+        // flattened payload either way.
+        it('answers an unreadable resource URI with -32002 and structured data', async () => {
+            const { secret } = await mintToken();
+
+            const res = await rpc(secret, 'resources/read', {
+                uri: 'ortha://content-type/never_granted'
+            }).expect(200);
+
+            const body = res.body as RpcResponse & {
+                error?: { data?: Record<string, unknown> };
+            };
+            expect(body.result).toBeUndefined();
+            expect(body.error?.code).toBe(-32002);
+            expect(body.error?.data).toMatchObject({ code: 'not_found' });
+        });
+
+        it('refuses a tool result over the endpoint ceiling', async () => {
+            const tiny = await createTestApp({ mcpMaxResultBytes: 200 });
+            try {
+                const agent = request.agent(tiny.server);
+                await agent
+                    .post('/api/auth/login')
+                    .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                    .expect(201);
+                const minted = await agent
+                    .post('/api/api-tokens')
+                    .send({
+                        name: 'mcp-ceiling',
+                        workspaceIds: [workspaceId],
+                        scope: 'read'
+                    })
+                    .expect(201);
+
+                const res = await request(tiny.server)
+                    .post(MCP_PATH)
+                    .set('Authorization', `Bearer ${minted.body.secret}`)
+                    .set('Accept', ACCEPT)
+                    .send({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: {
+                            name: 'content_types_list',
+                            arguments: {}
+                        }
+                    })
+                    .expect(200);
+
+                const result = (res.body as RpcResponse).result as {
+                    isError?: boolean;
+                    structuredContent?: unknown;
+                    content: { text: string }[];
+                };
+                expect(result.isError).toBe(true);
+                expect(result.structuredContent).toBeUndefined();
+                expect(JSON.parse(result.content[0].text)['code']).toBe(
+                    'result_too_large'
+                );
+            } finally {
+                await tiny.app.close();
+            }
+        });
+
+        it('abandons a tool call that outlives the endpoint deadline', async () => {
+            // 1ms is shorter than any real query, so whichever tool runs, the
+            // deadline wins — this pins that the caller always gets an answer.
+            const impatient = await createTestApp({ mcpCallTimeoutMs: 1 });
+            try {
+                const agent = request.agent(impatient.server);
+                await agent
+                    .post('/api/auth/login')
+                    .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                    .expect(201);
+                const minted = await agent
+                    .post('/api/api-tokens')
+                    .send({
+                        name: 'mcp-deadline',
+                        workspaceIds: [workspaceId],
+                        scope: 'read'
+                    })
+                    .expect(201);
+
+                const res = await request(impatient.server)
+                    .post(MCP_PATH)
+                    .set('Authorization', `Bearer ${minted.body.secret}`)
+                    .set('Accept', ACCEPT)
+                    .send({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: {
+                            name: 'content_list',
+                            arguments: { typeName: 'test_article' }
+                        }
+                    })
+                    .expect(200);
+
+                const result = (res.body as RpcResponse).result as {
+                    isError?: boolean;
+                    content: { text: string }[];
+                };
+                expect(result.isError).toBe(true);
+                const failure = JSON.parse(result.content[0].text);
+                expect(failure['status']).toBe(504);
+                expect(failure['code']).toBe('timeout');
+            } finally {
+                await impatient.app.close();
+            }
+        });
+    });
+
     describe('kill switch', () => {
         it('unmounts the endpoint when disabled', async () => {
             const disabled = await createTestApp({ mcpEnabled: false });

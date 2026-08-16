@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1126 test cases across 76 spec files._
+_1140 test cases across 76 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2043,6 +2043,25 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | clears a field with an explicit null but leaves omitted ones |
 | reports publish-time validation failures with per-field issues |
 | cannot write into a workspace outside the bucket |
+
+### transport
+
+| Test case |
+| --- |
+| 405s a GET rather than opening a stream nothing will ever write to |
+| 405s a DELETE — there is no session to end |
+| 401s an unauthenticated GET, before the verb is considered |
+| 401s a bearer value carrying internal whitespace |
+| 400s a repeated ?workspaceId= instead of ignoring it |
+| answers an unknown method with -32601, not a 500 |
+| 202s a notification with an empty body |
+| answers a batch with one result per request |
+| answers %s with a JSON-RPC error, not a 500 |
+| 406s a POST that does not accept both content types |
+| ignores an Mcp-Session-Id from a client that thinks it has one |
+| answers an unreadable resource URI with -32002 and structured data |
+| refuses a tool result over the endpoint ceiling |
+| abandons a tool call that outlives the endpoint deadline |
 
 ### kill switch
 

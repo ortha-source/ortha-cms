@@ -28,6 +28,24 @@ function assertOptions(options: McpPluginOptions): void {
     if (!options.config.version) {
         throw new Error('McpPlugin requires a non-empty `config.version`.');
     }
+    assertPositiveInteger(options.config.callTimeoutMs, 'callTimeoutMs');
+    assertPositiveInteger(options.config.maxResultBytes, 'maxResultBytes');
+}
+
+/**
+ * A ceiling that is `0`, negative or `NaN` is worse than no ceiling: a zero
+ * timeout fails every call, and `Number(process.env[…]) || default` turns a
+ * typo into a silent default. Fail at construction, where the misconfiguration
+ * is one line away.
+ */
+function assertPositiveInteger(value: number, field: string): void {
+    if (!Number.isInteger(value) || value <= 0) {
+        throw new Error(
+            `McpPlugin requires \`config.${field}\` to be a positive integer, got ${String(
+                value
+            )}.`
+        );
+    }
 }
 
 /**

@@ -63,6 +63,25 @@ describe('McpAuthService', () => {
             ).resolves.toMatchObject({ workspaceId: WORKSPACE_A });
         });
 
+        it('tolerates repeated whitespace around the scheme', async () => {
+            const auth = new McpAuthService(tokens(tokenRecord()));
+
+            await expect(
+                auth.authenticate({ authorization: '  bearer   good-secret ' })
+            ).resolves.toMatchObject({ workspaceId: WORKSPACE_A });
+        });
+
+        // A credential contains no whitespace, so a header carrying two words
+        // is malformed. Rejoining them would invent a secret the caller never
+        // sent and then blame them for it.
+        it('rejects whitespace inside the credential', async () => {
+            const auth = new McpAuthService(tokens(tokenRecord()));
+
+            await expect(
+                auth.authenticate({ authorization: 'Bearer good secret' })
+            ).rejects.toBeInstanceOf(UnauthorizedException);
+        });
+
         // Unknown, revoked and expired all resolve to null in `verify`, so a
         // flat 401 is what keeps the endpoint from being a token oracle.
         it('rejects an unrecognised token with a bare 401', async () => {
