@@ -289,8 +289,14 @@ const SUMMARY_PROPOSALS = [
     }
 ];
 
-/** One SSE frame, as the run route writes it. */
-const frame = (event: Record<string, unknown>) =>
+/**
+ * One SSE frame, as the run route writes it.
+ *
+ * Exported so a test can script a run the default one does not cover — a
+ * truncating stop reason, a failed tool call, a table in the answer — without a
+ * new boolean option on {@link CopilotMockOptions} per case.
+ */
+export const frame = (event: Record<string, unknown>) =>
     `data: ${JSON.stringify(event)}\n\n`;
 
 /**
@@ -366,6 +372,11 @@ export interface CopilotMockOptions {
     skillWriteMessage?: string;
     /** Hold the run open this long before answering. */
     runDelayMs?: number;
+    /**
+     * Replaces the scripted run body. Compose one with {@link frame}; the
+     * default is prose → tool call → change card → prose, ending `end`.
+     */
+    runBody?(conversationId: string): string;
 }
 
 /**
@@ -527,7 +538,7 @@ export async function mockCopilotApi(
             await route.fulfill({
                 status: 200,
                 contentType: 'text/event-stream',
-                body: runBody('c_new')
+                body: (options.runBody ?? runBody)('c_new')
             });
         } catch {
             // Stop cancels the `fetch` while a delayed run is still being held

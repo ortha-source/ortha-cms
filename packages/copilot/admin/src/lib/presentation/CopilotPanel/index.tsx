@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     GripVertical,
@@ -17,6 +17,8 @@ import {
     type PanelFrameControls
 } from '../../application/usePanelFrame';
 import { Composer } from '../Composer';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import { MEDIA_CREATE } from '../../domain/agentsRoute';
 import { useComposerAttachments } from '../../application/useComposerAttachments';
 import { useComposerSkills } from '../../application/useComposerSkills';
 import { MessageList } from '../MessageList';
@@ -145,6 +147,21 @@ export interface CopilotPanelProps {
     /** Starts another chat alongside this one. */
     onNewChat(): void;
     /**
+     * Asks the surface above whether this window may take `conversationId`,
+     * before the history dropdown loads it.
+     *
+     * The sessions reducer's `open` already refuses to put one thread in two
+     * windows, and the Agents rail goes through it — but this dropdown loads
+     * straight into the chat, so it bypassed the guard entirely. Two windows on
+     * one thread is two transcripts of one server-side conversation that
+     * disagree from the next turn on. False means another window holds it and
+     * has been focused instead, so this one leaves its own transcript alone.
+     */
+    onAdoptConversation?(
+        conversationId: string,
+        title: string | null
+    ): boolean;
+    /**
      * Which backend the next turn runs on, or `null` for the host's resolver.
      *
      * A **prop, from the session** — it used to be `useState` in this file's
@@ -197,6 +214,7 @@ export function CopilotPanel({
     onMinimize,
     onClose,
     onNewChat,
+    onAdoptConversation,
     choice,
     onChoiceChange,
     skills,
@@ -204,6 +222,9 @@ export function CopilotPanel({
     returnFocusRef
 }: CopilotPanelProps) {
     const intl = useIntl();
+    // Per instance, so three open windows do not collide on one id — the same
+    // discipline the honeycomb backdrop uses for its pattern ids.
+    const headingId = useId();
     const [size, setSize] = useState<PanelSize>('docked');
     // Where the user dragged it to, if they have. `null` until then, which is
     // what keeps the docked/expanded classes below meaningful.
@@ -245,10 +266,13 @@ export function CopilotPanel({
         }
 
         setVisible(false);
-        const timer = setTimeout(() => {
-            setRendered(false);
-            returnFocusRef?.current?.focus();
-        }, MOTION_MS);
+        // **Before** the exit transition, not after it. The window is already
+        // non-interactive the moment it starts leaving, and waiting `MOTION_MS`
+        // to hand focus back leaves a keyboard user on `<body>` — pressing Tab
+        // in that gap restarts from the top of the document, which is the whole
+        // failure this exists to prevent.
+        returnFocusRef?.current?.focus();
+        const timer = setTimeout(() => setRendered(false), MOTION_MS);
         return () => clearTimeout(timer);
     }, [open, returnFocusRef]);
 
@@ -281,7 +305,13 @@ export function CopilotPanel({
             // Deliberately no `aria-modal`: it defaults to false, which is
             // exactly right here. Setting it true would tell a screen reader
             // the rest of the page is inert when it isn't.
-            aria-label={intl.formatMessage(messages.title)}
+            //
+            // Named by its own `<h2>`, which already carries the thread title.
+            // A constant "Ortha AI" made all three windows one indistinguishable
+            // name in a screen reader's dialog list, while the *visible* name
+            // told them apart — the ambiguity this package already fixed for
+            // dock pills ("Untitled chat", never "New chat").
+            aria-labelledby={headingId}
             onKeyDown={onKeyDown}
             ref={frame.ref}
             // Only once the user has placed it. Until then the classes below
@@ -357,7 +387,10 @@ export function CopilotPanel({
             >
                 <MoveHandle controls={frame} />
 
-                <h2 className="flex-1 truncate text-sm font-semibold">
+                <h2
+                    id={headingId}
+                    className="flex-1 truncate text-sm font-semibold"
+                >
                     {title ?? intl.formatMessage(messages.title)}
                 </h2>
 
@@ -400,6 +433,7 @@ export function CopilotPanel({
                     onChoiceChange={onChoiceChange}
                     skills={skills}
                     onSkillsChange={onSkillsChange}
+                    {...(onAdoptConversation ? { onAdoptConversation } : {})}
                 />
             </div>
         </div>
@@ -475,7 +509,8 @@ function PanelBody({
     choice,
     onChoiceChange,
     skills: stagedSkills,
-    onSkillsChange
+    onSkillsChange,
+    onAdoptConversation
 }: {
     chat: CopilotChat;
     workspaceId: string;
@@ -484,6 +519,10 @@ function PanelBody({
     onChoiceChange(choice: CopilotModelChoice | null): void;
     skills: readonly string[];
     onSkillsChange(names: readonly string[]): void;
+    onAdoptConversation?(
+        conversationId: string,
+        title: string | null
+    ): boolean;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
@@ -493,6 +532,14 @@ function PanelBody({
     // the window collapses to the dock — deliberately: a half-written turn's
     // attachments are part of that draft, and the draft text goes with it too.
     const files = useComposerAttachments();
+    // Attaching a file is an ordinary `POST /api/media/assets` on the user's
+    // own session, so the permission that matters is `media:create` — which
+    // `viewer` does not hold. Without the gate the paperclip is offered to
+    // someone whose every upload 403s, against the composer's own rule that a
+    // surface with no library "renders no attach control at all … rather than
+    // offering a button that fails".
+    const canAttach = useHasPermission(MEDIA_CREATE);
+
     // Skills, unlike files, come from the session — collapsing the window must
     // not silently change what the next turn runs under.
     const skills = useComposerSkills(workspaceId, stagedSkills, onSkillsChange);
@@ -508,9 +555,20 @@ function PanelBody({
                 <ModelPicker value={choice} onChange={onChoiceChange} />
                 <ConversationPicker
                     workspaceId={workspaceId}
-                    onOpen={(conversationId, loaded) =>
-                        chat.load(conversationId, loaded)
-                    }
+                    onOpen={(conversationId, threadTitle, loaded) => {
+                        // Refused when another window already holds this
+                        // thread; that one is focused instead of a second copy
+                        // appearing here.
+                        if (
+                            onAdoptConversation?.(
+                                conversationId,
+                                threadTitle
+                            ) === false
+                        ) {
+                            return;
+                        }
+                        chat.load(conversationId, loaded);
+                    }}
                 />
             </div>
 
@@ -561,7 +619,7 @@ function PanelBody({
                     files.clear();
                 }}
                 onStop={chat.stop}
-                attachments={files}
+                {...(canAttach ? { attachments: files } : {})}
                 skills={skills}
             />
         </>

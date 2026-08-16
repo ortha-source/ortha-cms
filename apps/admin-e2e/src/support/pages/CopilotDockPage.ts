@@ -23,18 +23,28 @@ export class CopilotDockPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        this.dock = page.getByRole('toolbar', { name: 'Ortha AI chats' });
+        // A `group`, not a `toolbar`: the role was downgraded once it was clear
+        // the dock implements none of the composite-widget keyboard model a
+        // toolbar promises (no roving tabindex, no arrow keys). Every pill is
+        // its own tab stop, which is what `group` describes.
+        this.dock = page.getByRole('group', { name: 'Ortha AI chats' });
     }
 
     // --- the dock ---------------------------------------------------------
 
     /**
      * The dock's start control. With no chats open it is a labelled Ortha AI
-     * button carrying the `⌘J` hint; once there are pills it shrinks to a `+`.
-     * Its accessible name is "New chat" throughout, which is what this matches.
+     * button carrying the platform's shortcut hint; once there are pills it
+     * shrinks to a `+`.
+     *
+     * Its accessible name is "Ortha AI — new chat" while it shows that label and
+     * "New chat" once it is a bare `+`. Matched by substring (Playwright's
+     * default, case-insensitively), so one locator covers both — and the empty
+     * form deliberately *contains* its visible text, which is the 2.5.3 property
+     * the earlier constant "New chat" broke.
      */
     newChat(): Locator {
-        return this.dock.getByRole('button', { name: 'New chat' });
+        return this.dock.getByRole('button', { name: 'new chat' });
     }
 
     /** Start a chat from the dock. */
@@ -70,9 +80,22 @@ export class CopilotDockPage extends BasePage {
 
     // --- the windows ------------------------------------------------------
 
-    /** Every open window, in the order they were opened. */
+    /**
+     * Every open window, in the order they were opened.
+     *
+     * Resolved by the move grip rather than by name: a window is now named by
+     * its own `<h2>` — the thread's title — so that three open windows are
+     * distinguishable in a screen reader's dialog list instead of being three
+     * identical "Ortha AI"s. That means the name is no longer a constant to
+     * match on, and the grip is the one control every panel has and nothing
+     * else does.
+     */
     windows(): Locator {
-        return this.page.getByRole('dialog', { name: 'Ortha AI' });
+        return this.page
+            .getByRole('dialog')
+            .filter({
+                has: this.page.getByRole('button', { name: 'Move Ortha AI' })
+            });
     }
 
     /** One window by index. */

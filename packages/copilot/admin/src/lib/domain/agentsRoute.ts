@@ -40,6 +40,18 @@ export const COPILOT_USE = 'copilot:use';
  */
 export const COPILOT_SKILLS_MANAGE = 'copilot:skills:manage';
 
+/**
+ * The permission attaching a file to a turn is gated on.
+ *
+ * An attachment is **not** a copilot authority: the composer uploads to the
+ * media library on the user's own session, so the request that matters is the
+ * ordinary `POST /api/media/assets` and the permission it needs is `media:create`
+ * — which `viewer` does not hold. Without this gate the paperclip is offered to
+ * a viewer whose every upload 403s, against the composer's own rule that it
+ * "renders no attach control at all … rather than offering a button that fails".
+ */
+export const MEDIA_CREATE = 'media:create';
+
 /** The Agents view's base path — an unsaved new chat. */
 export function agentsPath(workspaceId: string): string {
     return `/workspaces/${workspaceId}/${AGENTS_SEGMENT}`;

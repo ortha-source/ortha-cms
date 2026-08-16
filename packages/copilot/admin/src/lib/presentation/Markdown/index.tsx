@@ -1,5 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { parseBlocks, type Block } from './parseBlocks';
+import { renderInline } from './renderInline';
+import { MarkdownTable } from './MarkdownTable';
 
 /**
  * A deliberately small Markdown renderer for assistant answers.
@@ -52,62 +54,18 @@ function renderBlock(block: Block): ReactNode {
         }
         case 'code':
             return (
-                <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">
+                // `tabIndex` because it scrolls: a scroll container a
+                // keyboard-only user cannot move is code they can only read
+                // half of (2.1.1).
+                <pre
+                    tabIndex={0}
+                    className="bg-muted focus-visible:ring-ring overflow-x-auto rounded-md p-3 text-xs focus-visible:ring-2 focus-visible:outline-none"
+                >
                     <code>{block.code}</code>
                 </pre>
             );
         case 'table':
-            return (
-                // The panel is narrow and a content-type table is wide, so the
-                // table scrolls inside its own container rather than making the
-                // whole transcript scroll sideways.
-                <div className="border-border overflow-x-auto rounded-md border">
-                    <table className="w-full border-collapse text-xs">
-                        {/* A tinted header and a rule beneath it, matching the
-                            design system's own `Table`. Type is `text-xs` but
-                            full-strength `text-foreground`, not muted: this is
-                            data the user asked for, and small text is exactly
-                            where a dimmed colour stops being readable. */}
-                        <thead className="bg-muted/50">
-                            <tr className="border-border border-b">
-                                {block.header.map((cell, index) => (
-                                    <th
-                                        key={index}
-                                        className="px-2.5 py-1.5 font-semibold whitespace-nowrap"
-                                        style={{
-                                            textAlign:
-                                                block.align[index] ?? 'left'
-                                        }}
-                                    >
-                                        {renderInline(cell)}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {block.rows.map((row, rowIndex) => (
-                                <tr
-                                    key={rowIndex}
-                                    className="border-border/60 border-b last:border-0"
-                                >
-                                    {row.map((cell, index) => (
-                                        <td
-                                            key={index}
-                                            className="px-2.5 py-1.5 align-top"
-                                            style={{
-                                                textAlign:
-                                                    block.align[index] ?? 'left'
-                                            }}
-                                        >
-                                            {renderInline(cell)}
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            );
+            return <MarkdownTable block={block} />;
         case 'list': {
             const Tag = block.ordered ? 'ol' : 'ul';
             return (
@@ -128,70 +86,4 @@ function renderBlock(block: Block): ReactNode {
         default:
             return <p>{renderInline(block.text)}</p>;
     }
-}
-
-/** Matches the inline forms, longest-delimiter first so `**` beats `*`. */
-const INLINE = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
-
-/** Inline emphasis, code and links, as React nodes. */
-function renderInline(text: string): ReactNode[] {
-    return text.split(INLINE).map((token, index) => {
-        if (!token) {
-            return null;
-        }
-
-        const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
-        if (link) {
-            const href = safeHref(link[2]);
-            // A rejected scheme still shows its label — dropping the text
-            // would silently delete part of the answer.
-            return href ? (
-                <a
-                    key={index}
-                    href={href}
-                    className="underline underline-offset-2"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    {link[1]}
-                </a>
-            ) : (
-                <Fragment key={index}>{link[1]}</Fragment>
-            );
-        }
-        if (token.startsWith('**') && token.endsWith('**')) {
-            return (
-                <strong key={index} className="font-semibold">
-                    {token.slice(2, -2)}
-                </strong>
-            );
-        }
-        if (token.startsWith('`') && token.endsWith('`')) {
-            return (
-                <code
-                    key={index}
-                    className="bg-muted rounded px-1 py-0.5 text-xs"
-                >
-                    {token.slice(1, -1)}
-                </code>
-            );
-        }
-        if (token.startsWith('*') && token.endsWith('*')) {
-            return <em key={index}>{token.slice(1, -1)}</em>;
-        }
-        return <Fragment key={index}>{token}</Fragment>;
-    });
-}
-
-/**
- * A link target, or `null` if its scheme isn't safe to navigate to.
- *
- * Escaping protects text but not URLs: `[click](javascript:…)` is well-formed
- * Markdown, and the model's answer is derived from content an attacker may
- * have authored. Allow-list rather than deny-list — `javascript:` has enough
- * encodings to make blocking it by pattern a losing game.
- */
-function safeHref(href: string): string | null {
-    const trimmed = href.trim();
-    return /^(https?:\/\/|mailto:|\/)/i.test(trimmed) ? trimmed : null;
 }

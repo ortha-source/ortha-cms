@@ -31,10 +31,12 @@ test.describe('Ortha AI dock', () => {
     test('is the entry point, and opens a window focused on the composer', async ({
         copilotDockPage
     }) => {
-        // With nothing open the dock *is* the button, carrying the ⌘J hint —
-        // which is where that shortcut is discoverable at all.
+        // With nothing open the dock *is* the button, carrying the shortcut
+        // hint — which is where that shortcut is discoverable at all. The
+        // glyph is platform-derived; which one is right for *this* browser is
+        // asserted on its own below.
         await expect(copilotDockPage.dock).toContainText('Ortha AI');
-        await expect(copilotDockPage.dock).toContainText('⌘J');
+        await expect(copilotDockPage.dock).toContainText(/(⌘|Ctrl)J/);
 
         await copilotDockPage.startChat();
 
@@ -296,6 +298,186 @@ test.describe('Ortha AI dock', () => {
  * purpose** — `aria-modal` is deliberately absent, because the rest of the page
  * is not inert and saying otherwise would be a lie to a screen reader.
  */
+/**
+ * The four defects a QA pass found in the dock and its windows, each pinned by
+ * the smallest case that fails without the fix. Three are about **who a control
+ * announces itself as**, and one is about a chat existing twice.
+ */
+test.describe('Ortha AI dock — regressions', () => {
+    test.beforeEach(async ({ page, contentLibraryPage }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+        await mockCopilotApi(page);
+        await contentLibraryPage.goto(WORKSPACE_ID);
+    });
+
+    test('the history dropdown will not open a thread a second window already holds', async ({
+        copilotDockPage
+    }) => {
+        const THREAD = 'Which articles are missing a summary?';
+
+        await copilotDockPage.startChat();
+        await copilotDockPage.openFromHistory(THREAD);
+        await expect(copilotDockPage.panelTitle(0)).toHaveText(THREAD);
+
+        // A second window, and the same thread picked from *its* history. The
+        // Agents rail's path goes through the sessions reducer, which refuses
+        // this; the dropdown loaded straight into the chat and bypassed it.
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.windows()).toHaveCount(2);
+        await copilotDockPage.openFromHistory(THREAD, 1);
+
+        // Still exactly one window on that conversation, and it is the one that
+        // already had it — the second is left on its own empty chat rather than
+        // becoming a second, immediately-diverging view of one server-side
+        // transcript.
+        await expect(copilotDockPage.panelTitle(0)).toHaveText(THREAD);
+        await expect(copilotDockPage.panelTitle(1)).toHaveText('Ortha AI');
+        await expect(copilotDockPage.pill(THREAD)).toHaveCount(1);
+    });
+
+    test('collapsing a window hands focus back to the dock, by button and by Escape', async ({
+        page,
+        copilotDockPage
+    }) => {
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.composer()).toBeFocused();
+
+        // Escape collapses to the dock. The panel has always had a
+        // return-focus mechanism; it was never handed the ref, so focus fell to
+        // `<body>` and the next Tab restarted from the top of the document.
+        await page.keyboard.press('Escape');
+        await expect(copilotDockPage.windows()).toHaveCount(0);
+        await expect(copilotDockPage.newChat()).toBeFocused();
+
+        // The Minimize button is the same path and was equally broken — worse,
+        // because the button that had focus unmounts under the pointer.
+        await copilotDockPage.pills().first().click();
+        await expect(copilotDockPage.composer()).toBeVisible();
+        await copilotDockPage.headerButton('Minimize').click();
+        await expect(copilotDockPage.windows()).toHaveCount(0);
+        await expect(copilotDockPage.newChat()).toBeFocused();
+    });
+
+    test('the start button announces the label it shows, and the shortcut its platform accepts', async ({
+        page,
+        copilotDockPage
+    }) => {
+        const start = copilotDockPage.newChat();
+
+        // 2.5.3 Label in Name: the visible text is "Ortha AI" and the
+        // accessible name was the constant "New chat", so the two had nothing
+        // in common — "click Ortha AI" did not work by voice.
+        await expect(start).toHaveText(/Ortha AI/);
+        await expect(start).toHaveAccessibleName(/Ortha AI/);
+
+        // Both accepted chords are advertised, so assistive tech announces the
+        // one its user can press rather than whichever glyph is drawn.
+        await expect(start).toHaveAttribute(
+            'aria-keyshortcuts',
+            'Meta+J Control+J'
+        );
+
+        // And the drawn glyph follows the platform. It was the literal `⌘J` on
+        // every OS, telling every Windows and Linux reader to press a key they
+        // do not have — on the one affordance whose whole job is to teach the
+        // shortcut.
+        const isApple = await page.evaluate(() =>
+            /mac|iphone|ipad|ipod/i.test(
+                (
+                    navigator as Navigator & {
+                        userAgentData?: { platform?: string };
+                    }
+                ).userAgentData?.platform ??
+                    navigator.platform ??
+                    ''
+            )
+        );
+        await expect(start).toContainText(isApple ? '⌘J' : 'CtrlJ');
+    });
+
+    test('the transcript stops yanking a reader who has scrolled up', async ({
+        page,
+        contentLibraryPage,
+        copilotDockPage
+    }) => {
+        // A held-open run, so the reader has a window in which to scroll away
+        // while the answer is still coming.
+        await mockCopilotApi(page, { runDelayMs: 1_500 });
+        await contentLibraryPage.goto(WORKSPACE_ID);
+
+        await copilotDockPage.startChat();
+        await copilotDockPage.openFromHistory(
+            'Which articles are missing a summary?'
+        );
+        await expect(copilotDockPage.transcript()).toBeVisible();
+
+        // Guard against a vacuous pass: a transcript that does not overflow
+        // cannot be scrolled away from, so "it did not scroll" would be true
+        // for the wrong reason. The docked panel is deliberately small, which
+        // is why this case lives here rather than on the full-page view.
+        const overflow = await copilotDockPage
+            .transcript()
+            .evaluate((el) => el.scrollHeight - el.clientHeight);
+        expect(overflow).toBeGreaterThan(100);
+
+        await copilotDockPage.ask('Set the summary please');
+        await expect(copilotDockPage.headerButton('Minimize')).toBeVisible();
+
+        // Mid-run, the reader goes back to re-read the top of the thread. The
+        // scroll effect fired on every `turns` change unconditionally — and a
+        // run dispatches one per frame — so this used to be undone by the very
+        // next frame to land, with no way to stay put but to stop the run.
+        await copilotDockPage.transcript().evaluate((el) => {
+            el.scrollTop = 0;
+        });
+
+        // The answer really did arrive — the other way this could pass for the
+        // wrong reason.
+        await expect(
+            copilotDockPage
+                .transcript()
+                .getByText('Afterwards: the change is saved.')
+        ).toBeVisible({ timeout: 15_000 });
+
+        // …and the reader is still where they put themselves.
+        expect(
+            await copilotDockPage.transcript().evaluate((el) => el.scrollTop)
+        ).toBeLessThan(40);
+    });
+
+    test('the dock is a group, and two windows have two names', async ({
+        copilotDockPage
+    }) => {
+        // `toolbar` is a composite widget in the APG — one tab stop, arrow keys
+        // inside it. The dock implements neither, so the role told a
+        // screen-reader user to press arrows that do nothing. The POM resolving
+        // it as a `group` at all is half the assertion.
+        await expect(copilotDockPage.dock).toBeVisible();
+
+        await copilotDockPage.startChat();
+        await copilotDockPage.openFromHistory(
+            'Which articles are missing a summary?'
+        );
+        await copilotDockPage.startChat();
+        await copilotDockPage.openFromHistory(
+            'Rewrite the pricing page intro',
+            1
+        );
+
+        // Both windows used to answer to the accessible name "Ortha AI", so a
+        // screen-reader user enumerating dialogs heard one name for every open
+        // chat — while the visible headings told them apart.
+        await expect(copilotDockPage.panel(0)).toHaveAccessibleName(
+            'Which articles are missing a summary?'
+        );
+        await expect(copilotDockPage.panel(1)).toHaveAccessibleName(
+            'Rewrite the pricing page intro'
+        );
+    });
+});
+
 test.describe('Ortha AI dock accessibility (axe, WCAG 2.1 A/AA)', () => {
     test.beforeEach(async ({ page, contentLibraryPage }) => {
         await mockSignedIn(page);

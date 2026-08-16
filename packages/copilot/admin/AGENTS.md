@@ -115,9 +115,15 @@ presentation/
   button, and then the sidebar row went too. A round button could only ever mean
   "the panel", singular; a sidebar row duplicated what the dock already says
   while spending a permanent navigation slot on it. With no chats open the dock
-  _is_ a labelled Ortha AI button in the corner — carrying the `⌘J` hint, which
-  is where the shortcut is now discoverable — and as soon as there are chats it
-  becomes the bar listing them. The Agents view is reached the other way, through
+  _is_ a labelled Ortha AI button in the corner — carrying the shortcut hint,
+  which is where the shortcut is now discoverable — and as soon as there are
+  chats it becomes the bar listing them. The hint's glyph is **derived from the
+  platform** (`domain/shortcut.ts`): it was the literal `⌘J` everywhere, telling
+  every Windows and Linux reader to press a key they do not have, on the one
+  affordance whose whole job is to teach the shortcut. That button's accessible
+  name also **contains its visible label** ("Ortha AI — new chat"): it was the
+  constant "New chat", so the two had nothing in common and "click Ortha AI" did
+  not work by voice (2.5.3). The Agents view is reached the other way, through
   the sidebar's `ViewSwitcher`, and the dock's button stands down while you are
   on it.
 - **The window is non-modal, not a `Sheet`.** A modal drawer
@@ -125,7 +131,12 @@ presentation/
   thing to do with an answer is act on it, which would mean closing the
   conversation first. Consequences, all deliberate: no focus trap (Tab leaves
   the panel, because the page is live), no overlay, focus still _managed_
-  (composer on open, the dock's new-chat button when a window closes).
+  (composer on open, the dock's new-chat button when a window **closes or
+  collapses** — the panel always had the return-focus machinery and was never
+  handed the ref, so minimizing dropped focus on `<body>` and the next Tab
+  restarted from the top of the document). The window is named by its own
+  `<h2>`, i.e. the thread's title: a constant `aria-label` made every open
+  window one indistinguishable "Ortha AI" in a screen reader's dialog list.
   **Escape collapses to the dock rather than closing** — discarding a chat and
   cancelling its run is too much to hang off the key people press to dismiss
   things, and the chat keeps streaming as a pill.
@@ -415,12 +426,29 @@ That is the feature; everything below is what it costs.
   colour-only signal is no signal, and this one is the entire point of the
   feature.
 - **An untitled pill is "Untitled chat", never "New chat".** That is the name of
-  the button beside it, and two controls in one toolbar answering to the same
+  the button beside it, and two controls in one group answering to the same
   name is ambiguous by voice and in a screen reader's control list. (Caught by
   the browser harness, not by review.)
-- **Reopening a thread focuses the window already on it.** Two windows on one
-  `conversationId` would hold two transcripts that immediately disagree — and
-  the match is on the id, so two _unsaved_ chats (both `null`) stay separate.
+- **The bar is a `group`, not a `toolbar`.** It was a toolbar, for the good
+  reason that a screen reader then announces one control group rather than a
+  loose row of buttons floating over the page — but per the WAI-ARIA APG a
+  toolbar is a _composite_ widget: one tab stop, arrow keys inside it. This has
+  neither a roving tabindex nor an arrow-key handler, so the role promised a
+  keyboard model that does not exist and told a screen-reader user to press keys
+  that do nothing. Every pill is its own tab stop (`2N + 1` for N chats), which
+  is what `group` describes. Implementing the roving tabindex instead would be a
+  fine future change; declaring the role without it is not.
+- **Reopening a thread focuses the window already on it — from _both_ paths.**
+  Two windows on one `conversationId` hold two transcripts of one server-side
+  conversation, and they disagree from the next turn onwards: the one that sent
+  it grows, the other silently goes stale while still offering a composer that
+  appends to the same thread. The sessions reducer's `open` has always refused
+  it and the Agents rail goes through it; **the panel's history dropdown did
+  not** — it called `chat.load` directly. It now asks first (`onAdoptConversation`),
+  and carries the thread's **stored title** while it is there, which is why a
+  thread opened from the dropdown used to be labelled with its opening question
+  rather than the name the rail shows for it. The match is on the id, so two
+  _unsaved_ chats (both `null`) stay separate.
 - **A window's remembered geometry is keyed by slot, not by chat.** A chat is
   ephemeral; "the leftmost window" is a place on the screen the user arranged.
   `usePanelFrame` reads its key through a ref so a window changing slot cannot
@@ -434,6 +462,16 @@ purpose (you act on answers while reading them), and a dialog demanding an
 answer would block the very page you need in order to decide, often the entry
 the change is about.
 
+- **Focus moves to the prompt's primary button when it appears.** The panel
+  stays non-modal — nothing is trapped and Tab still leaves — but this is the
+  one control that stops a prompt-injected write before anything happens
+  (ADR-0009 §1b), and it was reachable only by tabbing _backwards_ from the
+  composer, past the model picker and the paperclip, into a scroller that is
+  still moving. Its only announcement path was the transcript's `role="log"`,
+  which is saturated by the answer still streaming. A consent control the user
+  cannot find is one that gets answered blind or not at all. The arguments
+  `<pre>` is the group's `aria-describedby` and is itself focusable, because it
+  scrolls.
 - **Three buttons, no "always".** Once / this chat / don't allow. "For this
   chat" is the escape hatch, and having it _in the prompt_ is the whole
   difference from the settings page ADR-0009 deleted — you decide where you
@@ -589,7 +627,11 @@ Three presentations, chosen by what the user can actually see and do:
   the answer above is real, just cut short. This used to be muted 12px text
   under the answer, which is exactly where "this is incomplete" goes unread. A
   deliberate cancel is neither, and gets a quiet line instead of a banner
-  telling the user about their own action.
+  telling the user about their own action. **The reason fragment is a message
+  descriptor per stop reason**, not a bare string in a lookup map: it completes
+  a translated sentence, so leaving it as a literal meant no extractor could see
+  it and no catalogue could ever translate it — the frame localized and the half
+  carrying the meaning did not.
 - **Stop is the one ending the _client_ has to write for itself.** Every other
   one arrives as a frame; cancelling closes the connection, so the server's
   matching `stopReason: 'aborted'` is recorded on its side and can never reach
@@ -750,7 +792,27 @@ once sent and two components would be two chances for staged and sent to drift.
 - Paste is intercepted **only when the clipboard carries files** — a normal text
   paste has an empty `files` and must not be swallowed.
 - The composer renders no attach control at all when the surface passes no
-  `attachments` prop, rather than offering a button that fails.
+  `attachments` prop, rather than offering a button that fails — and **both
+  surfaces gate that prop on `media:create`** for the same reason. An attachment
+  is not a copilot authority: the upload is an ordinary `POST /api/media/assets`
+  on the user's own session, and `viewer` holds `copilot:use` but not
+  `media:create`, so the paperclip was offered to someone whose every upload
+  403s. The skills picker is _not_ gated the same way and must not be: using a
+  skill needs nothing beyond `copilot:use`, which every role holds.
+
+**A send refused because a run is still in flight says so.** It used to do
+nothing at all — the box correctly kept the text (losing it would be worse) and
+nothing said why it had not gone, so someone who had not noticed the button
+become Stop read it as a dropped keystroke and pressed Enter again. The notice
+goes through the same hint line and clears when the run ends.
+
+**The transcript follows the answer only while the reader is at the bottom.**
+The scroll effect fired on every `turns` change unconditionally, and `turns`
+changes on every `text-delta` — so scrolling up to re-read an earlier turn while
+an answer was arriving yanked you back down on the next token, over and over,
+with no way to stay put but to stop the run. Scrolling away is the reader saying
+they are reading something else; scrolling back within `FOLLOW_SLACK` of the
+bottom is them saying they are done.
 
 The hint line under the box doubles as the live region for this: the count
 refusal and the "waiting for uploads" state are both reasons a send did not

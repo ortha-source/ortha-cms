@@ -38,6 +38,17 @@ const messages = defineMessages({
     offline: {
         id: 'copilot.chat.error.offline',
         defaultMessage: 'Could not reach the server. Check your connection.'
+    },
+    // The only string in this file that was ever a bare literal. It is very
+    // nearly dead code — `abortRun` drops the controller synchronously, so the
+    // run loop's `catch` bails on the `runController` guard before `describe`
+    // is reached, and Stop's own line comes from `chatReducer`'s `cancelled`.
+    // Kept because `describe` is the classifier for *any* abort reaching here,
+    // and a classifier with one untranslatable branch is a trap for whoever
+    // adds the second caller.
+    aborted: {
+        id: 'copilot.chat.error.aborted',
+        defaultMessage: 'Stopped.'
     }
 });
 
@@ -387,7 +398,10 @@ interface Failure {
  */
 function describe(error: unknown, intl: IntlShape): Failure {
     if (error instanceof DOMException && error.name === 'AbortError') {
-        return { message: 'Stopped.', systemic: false };
+        return {
+            message: intl.formatMessage(messages.aborted),
+            systemic: false
+        };
     }
     if (error instanceof CopilotRunError) {
         // 401 is the one worth rewording: the server's "Unauthorized" is

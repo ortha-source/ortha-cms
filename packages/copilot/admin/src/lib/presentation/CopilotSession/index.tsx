@@ -29,6 +29,8 @@ export function CopilotSession({
     onMinimize,
     onClose,
     onNewChat,
+    onAdoptConversation,
+    returnFocusRef,
     onDescribe,
     onActivity,
     onAwaiting,
@@ -43,6 +45,17 @@ export function CopilotSession({
     onMinimize(): void;
     onClose(): void;
     onNewChat(): void;
+    /**
+     * Asks whether this window may take `conversationId`. False means another
+     * window already holds that thread and has been focused instead — see
+     * {@link CopilotPanelProps.onAdoptConversation}.
+     */
+    onAdoptConversation?(
+        conversationId: string,
+        title: string | null
+    ): boolean;
+    /** Focused when this window goes away, so focus never falls to `<body>`. */
+    returnFocusRef?: React.RefObject<HTMLElement | null>;
     onDescribe(meta: { conversationId?: string | null; title?: string }): void;
     onActivity(): void;
     onAwaiting(value: boolean): void;
@@ -112,6 +125,8 @@ export function CopilotSession({
             onMinimize={onMinimize}
             onClose={onClose}
             onNewChat={onNewChat}
+            {...(onAdoptConversation ? { onAdoptConversation } : {})}
+            {...(returnFocusRef ? { returnFocusRef } : {})}
             // From the session, so collapsing this chat to the dock and
             // reopening it does not quietly put it back on the default model.
             choice={session.choice}
