@@ -2,21 +2,57 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 
 /**
- * How long a parked run waits for an answer before giving up.
+ * How long a parked run waits for an answer before giving up — **for the whole
+ * run**, not per call.
  *
  * The SSE stream heartbeats every 15s, so the connection itself will survive
- * far longer than this — the limit is about the user, not the socket. Five
- * minutes is "they went to look at the entry and came back"; beyond that they
- * have walked away, and a generator holding a model context open for an answer
- * nobody is coming back to give is just cost.
+ * far longer than this; the limit is about the user, not the socket. Five
+ * minutes is "they went to look at the entry and came back".
+ *
+ * Per **run** rather than per **call** because a turn may ask about several
+ * calls, and the ceilings in `RunLimits` cannot bound any of it: the wall clock
+ * is checked at the top of a step and a park happens inside one. Charging each
+ * call its own five minutes made a single turn requesting thirty writes hold
+ * the connection, the generator and the model context for two and a half
+ * hours — while "they went to look and came back" is one absence, not thirty.
  */
-const DECISION_TIMEOUT_MS = 5 * 60_000;
+const RUN_DECISION_BUDGET_MS = 5 * 60_000;
+
+/**
+ * How long a run's spent budget is remembered after its last park.
+ *
+ * There is no "run ended" signal to clean up on — the generator simply stops
+ * asking — so entries are pruned opportunistically, on the next `ask`. Anything
+ * older than the budget can no longer constrain a live run, because a run that
+ * parked that long ago has already exhausted it.
+ */
+const BUDGET_TTL_MS = RUN_DECISION_BUDGET_MS;
 
 /** A decision, plus how it was reached — the timeout is not a user's `deny`. */
 export interface PermissionOutcome {
     decision: ToolPermissionDecision;
     /** True when nobody answered in time. */
     timedOut: boolean;
+}
+
+/**
+ * Who a parked run belongs to. Only they may answer it.
+ *
+ * Both halves are load-bearing and neither is redundant. `WorkspaceGuard` on
+ * the answering route proves the caller belongs to *the workspace they named*,
+ * which says nothing about the run: a member of workspace B naming B passes it
+ * while answering a run parked in A. And `copilot:use` is held by every role,
+ * so a colleague in the same workspace passes every guard on the route.
+ */
+export interface RunOwner {
+    userId: string;
+    workspaceId: string;
+}
+
+/** A run parked on one call, and who is allowed to answer for it. */
+interface Waiter {
+    owner: RunOwner;
+    settle: (outcome: PermissionOutcome) => void;
 }
 
 /**
@@ -29,26 +65,30 @@ export interface PermissionOutcome {
  * routing by `runId`, or this registry moved behind a shared channel. Say so in
  * the deployment notes rather than discovering it as an occasional hang.
  *
- * Three things it has to get right, all of which are ways a run could otherwise
- * be stranded forever:
+ * Four things it has to get right. The first three are ways a run could
+ * otherwise be stranded forever; the fourth is who is allowed to end the wait.
  *
- * - **A timeout.** Documented above. It resolves as a refusal rather than
- *   throwing, so the model is told and the answer still lands.
+ * - **A timeout.** Documented above, and spent against a per-run budget. It
+ *   resolves as a refusal rather than throwing, so the model is told and the
+ *   answer still lands.
  * - **Abort.** The user closing the window is the common case, and the engine's
  *   `signal` fires; the waiter has to reject then, or the generator never
  *   unwinds and the run leaks.
  * - **Cleanup.** Every exit path clears the entry. A registry that only deletes
  *   on the happy path grows one dangling promise per abandoned run.
+ * - **Ownership.** A `runId` is not a secret — it is handed to the client in
+ *   the `run-started` frame — and it is the *only* thing the answering route
+ *   used to key on. See {@link RunOwner}.
  */
 @Injectable()
 export class ToolPermissionBroker {
     private readonly logger = new Logger(ToolPermissionBroker.name);
 
     /** Waiters by `runId:callId`. */
-    private readonly waiting = new Map<
-        string,
-        (outcome: PermissionOutcome) => void
-    >();
+    private readonly waiting = new Map<string, Waiter>();
+
+    /** Milliseconds each run has already spent parked, and when it last did. */
+    private readonly spent = new Map<string, { ms: number; at: number }>();
 
     /**
      * Waits for the user's answer to one call.
@@ -61,9 +101,22 @@ export class ToolPermissionBroker {
     async ask(
         runId: string,
         callId: string,
+        owner: RunOwner,
         signal: AbortSignal
     ): Promise<PermissionOutcome> {
         const key = `${runId}:${callId}`;
+        const remaining = this.remainingBudget(runId);
+        if (remaining <= 0) {
+            // The run has already spent its whole waiting budget on earlier
+            // calls in this turn. Refusing straight away is the same outcome a
+            // timeout produces, without holding the connection for it.
+            this.logger.warn(
+                `Run ${runId}: the waiting budget is exhausted; call ${callId} was refused without asking.`
+            );
+            return { decision: 'deny', timedOut: true };
+        }
+
+        const askedAt = Date.now();
         return new Promise<PermissionOutcome>((resolve, reject) => {
             const settle = (outcome: PermissionOutcome) => {
                 cleanup();
@@ -72,10 +125,10 @@ export class ToolPermissionBroker {
             const timer = setTimeout(() => {
                 this.logger.warn(
                     `Run ${runId}: nobody answered the permission request for ` +
-                        `call ${callId} within ${DECISION_TIMEOUT_MS}ms; refusing.`
+                        `call ${callId} within ${remaining}ms; refusing.`
                 );
                 settle({ decision: 'deny', timedOut: true });
-            }, DECISION_TIMEOUT_MS);
+            }, remaining);
             const onAbort = () => {
                 cleanup();
                 reject(signal.reason ?? new Error('aborted'));
@@ -84,6 +137,7 @@ export class ToolPermissionBroker {
                 clearTimeout(timer);
                 signal.removeEventListener('abort', onAbort);
                 this.waiting.delete(key);
+                this.charge(runId, Date.now() - askedAt);
             };
 
             if (signal.aborted) {
@@ -91,26 +145,61 @@ export class ToolPermissionBroker {
                 return;
             }
             signal.addEventListener('abort', onAbort, { once: true });
-            this.waiting.set(key, settle);
+            this.waiting.set(key, { owner, settle });
         });
     }
 
     /**
-     * Delivers a decision. Returns false when nothing was waiting — an answer
-     * that arrived after the timeout, or for a run on another instance, and the
-     * route turns that into a 404 rather than pretending it landed.
+     * Delivers a decision. Returns false when nothing was waiting, or when the
+     * caller does not own the parked run.
+     *
+     * **Both answer false, hence the same 404**, deliberately: whether a run
+     * exists is not something a caller who does not own it may learn, and the
+     * route's message ("no longer waiting for an answer") is true either way
+     * from where they stand.
      */
     decide(
         runId: string,
         callId: string,
-        decision: ToolPermissionDecision
+        decision: ToolPermissionDecision,
+        by: RunOwner
     ): boolean {
         const key = `${runId}:${callId}`;
-        const settle = this.waiting.get(key);
-        if (!settle) {
+        const waiter = this.waiting.get(key);
+        if (!waiter) {
             return false;
         }
-        settle({ decision, timedOut: false });
+        if (
+            waiter.owner.userId !== by.userId ||
+            waiter.owner.workspaceId !== by.workspaceId
+        ) {
+            this.logger.warn(
+                `Run ${runId}: user ${by.userId} tried to answer a permission ` +
+                    'request for a run they do not own; refused.'
+            );
+            return false;
+        }
+        waiter.settle({ decision, timedOut: false });
         return true;
+    }
+
+    /** What is left of `runId`'s waiting budget, pruning stale entries first. */
+    private remainingBudget(runId: string): number {
+        const now = Date.now();
+        for (const [id, entry] of this.spent) {
+            if (now - entry.at > BUDGET_TTL_MS) {
+                this.spent.delete(id);
+            }
+        }
+        return RUN_DECISION_BUDGET_MS - (this.spent.get(runId)?.ms ?? 0);
+    }
+
+    /** Charges `ms` of waiting to `runId`. */
+    private charge(runId: string, ms: number): void {
+        const entry = this.spent.get(runId);
+        this.spent.set(runId, {
+            ms: (entry?.ms ?? 0) + Math.max(0, ms),
+            at: Date.now()
+        });
     }
 }

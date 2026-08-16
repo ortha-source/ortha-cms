@@ -5,6 +5,7 @@ import type {
     IdentityRootAdminConfig,
     IdentitySessionConfig
 } from '@ortha-cms/identity-server';
+import type { RunLimits } from '@ortha-cms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@ortha-cms/i18n-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
@@ -106,6 +107,21 @@ export interface TestConfigOverrides {
      */
     locales?: LocaleDef[];
     /**
+     * Override the copilot's kill switch and run ceilings.
+     *
+     * The ceilings are the reason this exists: `RunLimits` bounds a run three
+     * ways and the defaults (8 steps, two minutes, 120 k tokens) are all far
+     * out of reach of a scripted fake, so a suite that wants to see a ceiling
+     * trip has to lower it. `enabled` is here for the other half of the same
+     * argument — the disabled path answers with an error frame rather than a
+     * 403, and that shape has no other way to be reached.
+     */
+    copilot?: {
+        enabled?: boolean;
+        maxOutputTokens?: number;
+        limits?: Partial<RunLimits>;
+    };
+    /**
      * How the plugin reacts at boot to rows in an unconfigured locale.
      * `'warn'` here by default rather than the shipped `'fail'`: a suite that
      * seeds such a row on purpose is testing that the rest of the system
@@ -164,9 +180,12 @@ export function buildTestConfig(
             // scripted fake, which makes no network call, so there is nothing
             // to opt into and everything to cover.
             copilot: {
-                enabled: true,
+                enabled: overrides.copilot?.enabled ?? true,
                 defaultProvider: 'fake',
-                maxOutputTokens: 1024,
+                maxOutputTokens: overrides.copilot?.maxOutputTokens ?? 1024,
+                ...(overrides.copilot?.limits
+                    ? { limits: overrides.copilot.limits }
+                    : {}),
                 providers: {
                     claude: { apiKey: '', models: ['unused'] },
                     ollama: {
