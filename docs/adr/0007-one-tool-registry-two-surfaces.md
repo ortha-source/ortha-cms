@@ -22,6 +22,25 @@
 > varying authority. The revision tools and `i18n_translations_get` were
 > considered and declined; the reasons are recorded there as worked examples.
 
+> **Update (2026-08-17).** Two amendments, neither of which reverses a decision
+> here.
+>
+> §4 credits `resolveCapabilityProfile` with "the auto-apply gate on `apply`
+> tools". [ADR-0009](0009-copilot-applies-directly.md) §4–5 deleted that gate
+> along with `copilot_workspace_policies`, the settings page and the
+> `apply-not-enabled` withheld reason: an `apply` tool is now offered exactly
+> when a `read` tool with the same `requires` would be. The rest of §4 stands —
+> `resolveCapabilityProfile` is still the offer-time policy and still produces
+> the surviving `withheld` reasons, and `ToolRegistry.call` is still the
+> boundary.
+>
+> §4's last sentence is also now narrower than the truth: `call()` re-checks
+> `requires` **and** validates the arguments against the tool's own
+> `inputSchema` before dispatch. That is not a second boundary — `requires` is
+> the boundary — but it closed the asymmetry where the copilot's run engine
+> validated a call and the MCP endpoint, holding the same registry and the same
+> tools, did not.
+
 ## Context
 
 ADR-0006 §2 said the MCP endpoint would be one adapter over a shared

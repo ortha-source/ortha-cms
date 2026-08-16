@@ -10,7 +10,6 @@ import {
     isProposalDraft,
     resolveModel,
     toSkillRef,
-    validateToolInput,
     type AttachmentRef,
     type AttachmentResolver,
     type CopilotRunEvent,
@@ -28,7 +27,11 @@ import {
     type ToolResultBlock,
     type ToolUseBlock
 } from '@ortha-cms/copilot-domain';
-import { ToolRegistry, type ToolDefinition } from '@ortha-cms/tools-server';
+import {
+    ToolRegistry,
+    validateToolInput,
+    type ToolDefinition
+} from '@ortha-cms/tools-server';
 import { COPILOT_RUN_LIMITS, InjectCopilotConfig } from '../../copilot.tokens';
 import type { CopilotPluginConfig } from '../../types/copilot-config';
 import { ConversationRepository } from '../infrastructure/persistence/conversation.repository';

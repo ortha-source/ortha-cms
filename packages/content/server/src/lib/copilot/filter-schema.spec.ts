@@ -1,4 +1,4 @@
-import { validateToolInput } from '@ortha-cms/copilot-domain';
+import { validateToolInput } from '@ortha-cms/tools-server';
 import type { WireFilterField } from '../entries/types/filter-surface';
 import {
     FILTER_OPERATORS,
