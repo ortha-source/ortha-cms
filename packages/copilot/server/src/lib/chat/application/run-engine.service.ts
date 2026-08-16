@@ -847,32 +847,12 @@ export class RunEngine {
                 `Run ${ctx.runId}: propose tool "${call.name}" returned a value ` +
                     'that is not a ProposalDraft; nothing was recorded.'
             );
-            const durationMs = Date.now() - startedAt;
-            await this.audit(ctx, call, {
-                ok: false,
-                error: message,
-                durationMs,
-                outputSummary: null
-            });
-            return {
-                block: {
-                    type: 'tool_result',
-                    toolUseId: call.id,
-                    content: message,
-                    isError: true
-                },
-                events: [
-                    {
-                        type: 'tool-result',
-                        id: call.id,
-                        name: call.name,
-                        ok: false,
-                        durationMs,
-                        summary: 'failed',
-                        error: message
-                    }
-                ]
-            };
+            return this.toolFailure(
+                ctx,
+                call,
+                message,
+                Date.now() - startedAt
+            );
         }
 
         const draft: ProposalDraft = output;
