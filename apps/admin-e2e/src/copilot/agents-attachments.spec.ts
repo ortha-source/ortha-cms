@@ -330,3 +330,55 @@ test.describe('Agents view — attaching files', () => {
         });
     });
 });
+
+/**
+ * Who is offered the paperclip at all.
+ *
+ * An attachment is **not** a copilot authority: the composer uploads to the
+ * media library on the user's own session, so what gates it is the ordinary
+ * `media:create` — which `viewer` does not hold, though every role holds
+ * `copilot:use`. Offering the control anyway put a viewer one click from a 403.
+ */
+test.describe('Agents view — who may attach', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+    });
+
+    test('a viewer is not offered a control whose every upload would 403', async ({
+        page,
+        agentsPage
+    }) => {
+        // The viewer grant set: reads, and the copilot, and no `media:create`.
+        await mockSignedIn(page, {
+            permissions: [
+                'workspaces:read',
+                'users:read',
+                'content:read',
+                'media:read',
+                'copilot:use'
+            ]
+        });
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        // The chat itself is theirs — a viewer's copilot is read-only
+        // server-side, not absent — and so is the skills picker, which needs
+        // nothing beyond `copilot:use`. Only the paperclip is gone.
+        await expect(agentsPage.composer()).toBeVisible();
+        await expect(agentsPage.attachButton()).toHaveCount(0);
+    });
+
+    test('a role holding media:create still gets it', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockSignedIn(page);
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await expect(agentsPage.attachButton()).toBeVisible();
+    });
+});

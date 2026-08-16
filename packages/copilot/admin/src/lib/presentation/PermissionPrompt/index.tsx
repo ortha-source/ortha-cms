@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, ShieldQuestion, X } from 'lucide-react';
 import {
@@ -13,6 +14,10 @@ const messages = defineMessages({
     asks: {
         id: 'copilot.permission.asks',
         defaultMessage: 'Ortha AI wants to change your content'
+    },
+    deciding: {
+        id: 'copilot.permission.deciding',
+        defaultMessage: 'Sending your answer…'
     },
     nothingYet: {
         id: 'copilot.permission.nothingYet',
@@ -68,14 +73,39 @@ export function PermissionPrompt({
 }) {
     const intl = useIntl();
     const busy = request.deciding === true;
+    const primaryRef = useRef<HTMLButtonElement>(null);
+    const describedById = useId();
+
+    // **Move focus here when the prompt appears.** This is the one control that
+    // stops a prompt-injected write before anything happens (ADR-0009 §1b), and
+    // it was reachable only by tabbing *backwards* from the composer, past the
+    // model picker and the paperclip, into a scroller that is still moving —
+    // while its only announcement path was the transcript's `role="log"`, which
+    // is saturated by the answer that is still streaming. A decision the user
+    // cannot find is a decision that gets answered blind or not at all.
+    //
+    // The panel stays non-modal: nothing is trapped, and Tab still leaves. This
+    // is focus *placement*, which is what a decision the run is blocked on
+    // warrants.
+    useEffect(() => {
+        primaryRef.current?.focus();
+    }, []);
 
     return (
         <section
             className="border-border bg-card rounded-lg border shadow-sm"
+            // `group` rather than a bare region: the buttons and the arguments
+            // they are about are one thing, and `aria-describedby` ties the
+            // decision to the payload it is a decision about.
+            role="group"
             aria-label={intl.formatMessage(messages.asks)}
+            aria-describedby={describedById}
         >
             <header className="flex items-start gap-2 px-3 pt-3">
-                <ShieldQuestion className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+                <ShieldQuestion
+                    aria-hidden
+                    className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                />
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
                         {intl.formatMessage(messages.asks)}
@@ -90,7 +120,14 @@ export function PermissionPrompt({
                 decides whether a write may happen, so what they are shown must
                 be impossible to render as anything but characters — same rule
                 as the tool step's payload, for a stronger reason. */}
-            <pre className="text-muted-foreground mt-2 max-h-40 overflow-auto px-3 text-[11px] break-words whitespace-pre-wrap">
+            <pre
+                id={describedById}
+                // Keyboard-reachable because it scrolls: a decision whose
+                // arguments a keyboard-only user cannot scroll through is one
+                // they have to make on the visible half (2.1.1).
+                tabIndex={0}
+                className="text-muted-foreground focus-visible:ring-ring mt-2 max-h-40 overflow-auto px-3 text-[11px] break-words whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+            >
                 {stringify(request.input)}
             </pre>
 
@@ -114,7 +151,7 @@ export function PermissionPrompt({
                     disabled={busy}
                     onClick={() => onDecide('deny')}
                 >
-                    <X className="size-3.5" />
+                    <X aria-hidden className="size-3.5" />
                     {intl.formatMessage(messages.deny)}
                 </Button>
                 <Button
@@ -126,14 +163,28 @@ export function PermissionPrompt({
                     {intl.formatMessage(messages.chat)}
                 </Button>
                 <Button
+                    ref={primaryRef}
                     size="sm"
                     disabled={busy}
                     onClick={() => onDecide('once')}
                 >
                     {busy ? (
-                        <Spinner className="size-3.5" />
+                        <>
+                            <Spinner
+                                aria-hidden
+                                role="presentation"
+                                className="size-3.5 motion-reduce:animate-none"
+                            />
+                            {/* Clicking disables all three buttons and swaps
+                                the tick for a spinner; without this a screen
+                                reader announces only that the controls became
+                                unavailable. */}
+                            <span className="sr-only">
+                                {intl.formatMessage(messages.deciding)}
+                            </span>
+                        </>
                     ) : (
-                        <Check className="size-3.5" />
+                        <Check aria-hidden className="size-3.5" />
                     )}
                     {intl.formatMessage(messages.once)}
                 </Button>

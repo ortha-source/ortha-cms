@@ -31,7 +31,9 @@ export class AgentsPage extends BasePage {
         super(page);
         this.main = page.getByRole('main');
         this.rail = page.getByRole('complementary', { name: 'Chats' });
-        this.dock = page.getByRole('toolbar', { name: 'Ortha AI chats' });
+        // A `group`, not a `toolbar` — see `CopilotDockPage` for why the role
+        // was downgraded.
+        this.dock = page.getByRole('group', { name: 'Ortha AI chats' });
     }
 
     // --- navigation -------------------------------------------------------

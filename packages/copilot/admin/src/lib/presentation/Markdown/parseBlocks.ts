@@ -12,7 +12,15 @@ export type Block =
     | { kind: 'heading'; level: number; text: string }
     | { kind: 'code'; language: string; code: string }
     | { kind: 'list'; ordered: boolean; items: string[] }
-    | { kind: 'table'; header: string[]; align: Align[]; rows: string[][] };
+    | TableBlock;
+
+/** A pipe table, split out so `MarkdownTable` can take it by name. */
+export type TableBlock = {
+    kind: 'table';
+    header: string[];
+    align: Align[];
+    rows: string[][];
+};
 
 /** A `|---|:--:|---:|` separator, which is what makes the line above a header. */
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$/;

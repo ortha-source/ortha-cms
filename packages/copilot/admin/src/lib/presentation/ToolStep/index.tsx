@@ -29,6 +29,22 @@ const messages = defineMessages({
         id: 'copilot.step.failed',
         defaultMessage: 'Failed'
     },
+    // The status is otherwise carried by icon shape and colour alone — a red
+    // ring vs a green tick — which is nothing at all to a screen reader and
+    // 1.4.1 to anyone who cannot tell the two apart. Visually hidden, because
+    // the icon is the design and the word is the same information in text.
+    statusRunning: {
+        id: 'copilot.step.status.running',
+        defaultMessage: 'Running'
+    },
+    statusSucceeded: {
+        id: 'copilot.step.status.succeeded',
+        defaultMessage: 'Succeeded'
+    },
+    statusFailed: {
+        id: 'copilot.step.status.failed',
+        defaultMessage: 'Failed'
+    },
     input: {
         id: 'copilot.step.input',
         defaultMessage: 'Input'
@@ -76,18 +92,38 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
     return (
         <Collapsible className="border-border/60 bg-muted/40 rounded-md border">
             <CollapsibleTrigger className="group flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs">
-                <ChevronRight className="text-muted-foreground size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-90" />
+                <ChevronRight
+                    aria-hidden
+                    className="text-muted-foreground size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-90 motion-reduce:transition-none"
+                />
                 <StatusIcon status={step.status} />
+                {/* The status in words, for anyone the icon's shape and colour
+                    do not reach. */}
+                <span className="sr-only">
+                    {intl.formatMessage(
+                        running
+                            ? messages.statusRunning
+                            : step.status === 'error'
+                              ? messages.statusFailed
+                              : messages.statusSucceeded
+                    )}
+                </span>
                 <span className="shrink-0">{label}</span>
                 {/* The tool's own one-liner — "12 results", "applied" — after
-                    the phrase rather than instead of it. A failed step says so
-                    even when the tool returned no summary. */}
-                {!running && (
+                    the phrase rather than instead of it.
+
+                    **"Failed" is no longer conditional on there being no
+                    summary.** It was `summary ?? 'Failed'`, so a step that
+                    failed *and* returned a summary printed only the summary —
+                    and the server writes one for the failure path too
+                    ("failed: set the number"), which is the case most likely to
+                    reach a user. The word came from the branch that could not
+                    happen. Now the failure is stated by the `sr-only` status
+                    above and by the icon, and the summary is what it always
+                    was: extra detail after it. */}
+                {!running && (step.summary || step.status === 'error') && (
                     <span className="text-muted-foreground truncate">
-                        {step.summary ??
-                            (step.status === 'error'
-                                ? intl.formatMessage(messages.failed)
-                                : '')}
+                        {step.summary ?? intl.formatMessage(messages.failed)}
                     </span>
                 )}
                 {step.durationMs !== undefined && (
@@ -126,14 +162,40 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
     );
 }
 
+/**
+ * The status glyph. Every branch is `aria-hidden`: the word beside it in the
+ * trigger is the accessible version, and a bare `Spinner` would otherwise mount
+ * an **unnamed `role="status"` live region per running step** inside a
+ * transcript that is already a live region.
+ *
+ * `motion-reduce:animate-none` on the spinner because 503.2 asks software with a
+ * corresponding feature to respect the platform setting, and this one spins for
+ * as long as the tool runs.
+ */
 function StatusIcon({ status }: { status: ChatToolStep['status'] }) {
     if (status === 'running') {
-        return <Spinner className="size-3.5 shrink-0" />;
+        return (
+            <Spinner
+                aria-hidden
+                role="presentation"
+                className="size-3.5 shrink-0 motion-reduce:animate-none"
+            />
+        );
     }
     if (status === 'error') {
-        return <CircleAlert className="text-destructive size-3.5 shrink-0" />;
+        return (
+            <CircleAlert
+                aria-hidden
+                className="text-destructive size-3.5 shrink-0"
+            />
+        );
     }
-    return <CircleCheck className="size-3.5 shrink-0 text-emerald-600" />;
+    return (
+        <CircleCheck
+            aria-hidden
+            className="size-3.5 shrink-0 text-emerald-600"
+        />
+    );
 }
 
 /**

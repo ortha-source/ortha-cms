@@ -34,8 +34,20 @@ const messages = defineMessages({
 export interface ConversationPickerProps {
     /** The workspace whose threads are listed. */
     workspaceId: string;
-    /** Called with the loaded transcript when a thread is picked. */
-    onOpen(conversationId: string, messages: ChatMessage[]): void;
+    /**
+     * Called with the loaded transcript when a thread is picked.
+     *
+     * The **stored title** rides along: without it the window that adopts the
+     * thread has no name until `CopilotSession` derives one from the first
+     * message, so the pill and the header showed the opening question rather
+     * than the thread's actual name — the rail's `openThread` has always passed
+     * it, and this path is the one that did not.
+     */
+    onOpen(
+        conversationId: string,
+        title: string | null,
+        messages: ChatMessage[]
+    ): void;
 }
 
 /**
@@ -94,7 +106,11 @@ export function ConversationPicker({
                             onSelect={() => {
                                 open.mutate(conversation.id, {
                                     onSuccess: (detail) =>
-                                        onOpen(conversation.id, detail.messages)
+                                        onOpen(
+                                            conversation.id,
+                                            conversation.title,
+                                            detail.messages
+                                        )
                                 });
                             }}
                         >

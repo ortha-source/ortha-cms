@@ -9,6 +9,8 @@ import {
     Skeleton
 } from '@ortha-cms/design-system';
 import { useAgentThread } from '../../../application/useAgentThread';
+import { useHasPermission } from '@ortha-cms/identity-admin';
+import { MEDIA_CREATE } from '../../../domain/agentsRoute';
 import { useComposerAttachments } from '../../../application/useComposerAttachments';
 import { useComposerSkills } from '../../../application/useComposerSkills';
 import type { RouteContext } from '../../../application/readRouteContext';
@@ -76,6 +78,14 @@ export function AgentsThread({
     // Files staged for the next turn. Held here rather than inside `Composer`
     // so `send` can read what was staged and clear it once the turn is away.
     const files = useComposerAttachments();
+    // Attaching a file is an ordinary `POST /api/media/assets` on the user's
+    // own session, so the permission that matters is `media:create` — which
+    // `viewer` does not hold. Without the gate the paperclip is offered to
+    // someone whose every upload 403s, against the composer's own rule that a
+    // surface with no library "renders no attach control at all … rather than
+    // offering a button that fails".
+    const canAttach = useHasPermission(MEDIA_CREATE);
+
     // Skills, likewise — except the selection lives on the chat rather than in
     // this component, so it survives leaving the page.
     const skills = useComposerSkills(workspaceId, stagedSkills, setSkills);
@@ -182,7 +192,7 @@ export function AgentsThread({
                     className="border-t-0 p-0"
                     onSend={send}
                     onStop={chat.stop}
-                    attachments={files}
+                    {...(canAttach ? { attachments: files } : {})}
                     skills={skills}
                 />
             </div>

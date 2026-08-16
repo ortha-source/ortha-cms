@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
+import {
+    defineMessages,
+    useIntl,
+    type MessageDescriptor
+} from 'react-intl';
 import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
@@ -45,6 +49,31 @@ const messages = defineMessages({
         id: 'copilot.chat.stoppedFor',
         defaultMessage: 'Stopped because it {reason}.'
     },
+    // One descriptor per reason rather than one map of bare English strings.
+    // They complete the sentence above, so they used to be plain literals
+    // interpolated into a translated frame — which meant no extractor could
+    // see them and no catalogue could ever translate them: the sentence
+    // localized and the half that carries its meaning did not.
+    stopMaxSteps: {
+        id: 'copilot.chat.stop.maxSteps',
+        defaultMessage: 'reached the maximum number of steps'
+    },
+    stopMaxTokens: {
+        id: 'copilot.chat.stop.maxTokens',
+        defaultMessage: 'reached this run’s token budget'
+    },
+    stopTimeout: {
+        id: 'copilot.chat.stop.timeout',
+        defaultMessage: 'took too long'
+    },
+    stopMaxOutputTokens: {
+        id: 'copilot.chat.stop.maxOutputTokens',
+        defaultMessage: 'hit the response length limit'
+    },
+    stopRefusal: {
+        id: 'copilot.chat.stop.refusal',
+        defaultMessage: 'declined to answer'
+    },
     cancelled: {
         id: 'copilot.chat.cancelled',
         defaultMessage: 'You stopped this answer.'
@@ -56,16 +85,25 @@ const messages = defineMessages({
 });
 
 /**
+ * How far from the bottom still counts as "following the answer", in px.
+ *
+ * Generous on purpose: a reader who has nudged the scroller by a few pixels has
+ * not stopped following, and a threshold tight enough to be exact would flip to
+ * "not following" on the last block's own growth.
+ */
+const FOLLOW_SLACK = 48;
+
+/**
  * Stop reasons that mean the answer above is **truncated**, phrased to complete
  * "Stopped because it …". `end` is the normal case and says nothing; `aborted`
  * is deliberate and handled separately below.
  */
-const TRUNCATING_STOP_REASONS: Record<string, string> = {
-    'max-steps': 'reached the maximum number of steps',
-    'max-tokens': 'reached this run’s token budget',
-    timeout: 'took too long',
-    'max-output-tokens': 'hit the response length limit',
-    refusal: 'declined to answer'
+const TRUNCATING_STOP_REASONS: Record<string, MessageDescriptor> = {
+    'max-steps': messages.stopMaxSteps,
+    'max-tokens': messages.stopMaxTokens,
+    timeout: messages.stopTimeout,
+    'max-output-tokens': messages.stopMaxOutputTokens,
+    refusal: messages.stopRefusal
 };
 
 /**
@@ -87,12 +125,35 @@ export function MessageList({
 }) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
+    // Whether the reader is still following the bottom. Starts true — a
+    // transcript you have just opened is one you are at the end of.
+    const following = useRef(true);
 
-    // Follow the answer as it streams. `block: 'end'` keeps the newest line in
-    // view without yanking the whole panel when a tool step expands.
+    // Follow the answer as it streams — **but only while the reader is still at
+    // the bottom.** This used to fire on every `turns` change unconditionally,
+    // and `turns` changes on every `text-delta`: scrolling up to re-read an
+    // earlier turn while an answer was still arriving yanked you back down on
+    // the next token, over and over, with no way to stay put but to stop the
+    // run. Scrolling away is the reader saying they are reading something else,
+    // and scrolling back to the bottom is them saying they are done.
     useEffect(() => {
-        endRef.current?.scrollIntoView({ block: 'end' });
+        if (following.current) {
+            endRef.current?.scrollIntoView({ block: 'end' });
+        }
     }, [turns]);
+
+    // A tolerance rather than an exact match: sub-pixel layout, a growing last
+    // block and the scroller's own padding all mean "at the bottom" is never
+    // `scrollTop === scrollHeight - clientHeight` on the nose.
+    const onScroll = () => {
+        const el = scrollerRef.current;
+        if (!el) {
+            return;
+        }
+        following.current =
+            el.scrollHeight - el.clientHeight - el.scrollTop <= FOLLOW_SLACK;
+    };
 
     if (turns.length === 0) {
         return (
@@ -107,6 +168,8 @@ export function MessageList({
 
     return (
         <div
+            ref={scrollerRef}
+            onScroll={onScroll}
             className="flex-1 overflow-y-auto px-4 py-4"
             role="log"
             aria-label={intl.formatMessage(messages.transcript)}
@@ -253,7 +316,10 @@ function Turn({
                     (block) =>
                         block.kind === 'step' && block.step.status === 'running'
                 ) && (
-                    <p className="text-muted-foreground animate-pulse text-sm">
+                    // `motion-reduce:animate-none` because this pulses for the
+                    // whole time the model is thinking — the longest-lived
+                    // animation in the package, and the one 503.2 is about.
+                    <p className="text-muted-foreground animate-pulse text-sm motion-reduce:animate-none">
                         {intl.formatMessage(messages.thinking)}
                     </p>
                 )}
@@ -288,7 +354,9 @@ function Turn({
                         {intl.formatMessage(messages.incompleteTitle)}
                     </AlertTitle>
                     <AlertDescription>
-                        {intl.formatMessage(messages.stoppedFor, { reason })}
+                        {intl.formatMessage(messages.stoppedFor, {
+                            reason: intl.formatMessage(reason)
+                        })}
                     </AlertDescription>
                 </Alert>
             )}

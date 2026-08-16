@@ -1,5 +1,6 @@
 import {
     useCallback,
+    useEffect,
     useLayoutEffect,
     useRef,
     useState,
@@ -59,6 +60,15 @@ const messages = defineMessages({
     uploadingHint: {
         id: 'copilot.composer.uploadingHint',
         defaultMessage: 'Waiting for uploads to finish…'
+    },
+    // Pressing Enter mid-answer used to do nothing at all: the box kept the
+    // text (correctly — losing it would be worse) and nothing said why it had
+    // not gone. Someone who did not notice the button had become Stop reads
+    // that as the app having missed the keystroke, and presses Enter again.
+    busyHint: {
+        id: 'copilot.composer.busyHint',
+        defaultMessage:
+            'Still answering — wait for it to finish, or press Stop to send this now.'
     }
 });
 
@@ -180,6 +190,16 @@ export function Composer({
         field.style.height = `${Math.min(field.scrollHeight, MAX_HEIGHT)}px`;
     }, [value]);
 
+    // Set when the last Enter/Send was refused because a run was still in
+    // flight. Cleared by the run ending, so the notice never outlives the state
+    // that caused it.
+    const [refused, setRefused] = useState(false);
+    useEffect(() => {
+        if (!busy) {
+            setRefused(false);
+        }
+    }, [busy]);
+
     // Blocked while an upload is in flight: sending now would drop the file
     // from the turn silently, and the person has no way to know the difference
     // between "attached" and "still uploading" once the message is gone.
@@ -187,9 +207,19 @@ export function Composer({
 
     const submit = () => {
         const text = value.trim();
-        if (!text || blocked) {
+        if (!text) {
             return;
         }
+        if (blocked) {
+            // Say so rather than swallow it. The hint line below is already the
+            // live region for "the reason your send did not happen" — the
+            // upload wait and the attachment-count refusal both speak through
+            // it — so a run in flight belongs there too. `uploading` keeps its
+            // own more specific line.
+            setRefused(busy);
+            return;
+        }
+        setRefused(false);
         onSend(text);
         setValue('');
     };
@@ -391,7 +421,7 @@ export function Composer({
             <p
                 className={cn(
                     'mt-1.5 text-[11px]',
-                    attachments?.error
+                    attachments?.error || refused
                         ? 'text-destructive'
                         : 'text-muted-foreground'
                 )}
@@ -404,7 +434,9 @@ export function Composer({
                 {attachments?.error ??
                     (attachments?.uploading
                         ? intl.formatMessage(messages.uploadingHint)
-                        : intl.formatMessage(messages.hint))}
+                        : refused
+                          ? intl.formatMessage(messages.busyHint)
+                          : intl.formatMessage(messages.hint))}
             </p>
         </div>
     );

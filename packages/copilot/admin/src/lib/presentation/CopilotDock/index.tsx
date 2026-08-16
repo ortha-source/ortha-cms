@@ -2,6 +2,10 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Plus, Sparkles, X } from 'lucide-react';
 import { cn, Kbd } from '@ortha-cms/design-system';
 import type { CopilotSession } from '../../application/sessions';
+import {
+    NEW_CHAT_KEY_SHORTCUTS,
+    shortcutModifierGlyph
+} from '../../domain/shortcut';
 
 // The product is **Ortha AI**; the code keeps `copilot`. See the naming note in
 // `docs/design/copilot.md`.
@@ -17,6 +21,14 @@ const messages = defineMessages({
     start: {
         id: 'copilot.dock.start',
         defaultMessage: 'Ortha AI'
+    },
+    // With nothing open this button *reads* "Ortha AI" and used to *announce*
+    // "New chat", so its visible label was not in its accessible name at all —
+    // WCAG 2.5.3, and the exact thing that stops "click Ortha AI" working for
+    // anyone driving the admin by voice. Now the name contains the visible text.
+    startFull: {
+        id: 'copilot.dock.startFull',
+        defaultMessage: 'Ortha AI — new chat'
     },
     // Deliberately not "New chat": that is the name of the button beside it,
     // and two controls in one toolbar answering to the same name is ambiguous
@@ -87,12 +99,18 @@ export function CopilotDock({
 
     return (
         <div
-            // `toolbar`, so a screen reader announces it as one control group
-            // and arrow-key conventions apply, rather than reading a loose row
-            // of buttons floating over the page.
-            role="toolbar"
+            // A **group**, not a `toolbar`. It was a toolbar, for the good
+            // reason that a screen reader then announces one control group
+            // rather than a loose row of buttons floating over the page — but
+            // per the WAI-ARIA APG a toolbar is a *composite* widget: one tab
+            // stop, arrow keys inside it. This has neither a roving tabindex
+            // nor an `ArrowLeft`/`ArrowRight` handler, so the role promised a
+            // keyboard model that does not exist, and a screen-reader user was
+            // told to press arrows that do nothing. `group` is what it actually
+            // is: every pill is its own tab stop, in DOM order, which is also
+            // what the dock's own docs and e2e suite describe.
+            role="group"
             aria-label={intl.formatMessage(messages.label)}
-            aria-orientation="horizontal"
             className={cn(
                 'bg-background text-foreground fixed right-4 bottom-3 z-40',
                 'flex max-w-[calc(100vw-2rem)] items-center gap-1 overflow-x-auto',
@@ -170,8 +188,15 @@ export function CopilotDock({
                 ref={newChatRef}
                 type="button"
                 onClick={onNewChat}
-                aria-label={intl.formatMessage(messages.newChat)}
-                title={intl.formatMessage(messages.newChat)}
+                aria-label={intl.formatMessage(
+                    empty ? messages.startFull : messages.newChat
+                )}
+                title={intl.formatMessage(
+                    empty ? messages.startFull : messages.newChat
+                )}
+                // Both accepted chords, so assistive tech announces the one its
+                // user can actually press rather than the glyph on the chip.
+                aria-keyshortcuts={NEW_CHAT_KEY_SHORTCUTS}
                 className={cn(
                     'bg-primary text-primary-foreground focus-visible:ring-ring flex shrink-0 items-center gap-1.5 rounded-full text-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none',
                     // With no chats open this is the only thing on screen, so it
@@ -185,7 +210,9 @@ export function CopilotDock({
                     <>
                         <Sparkles className="size-3.5" />
                         {intl.formatMessage(messages.start)}
-                        <Kbd className="hidden sm:inline-flex">⌘J</Kbd>
+                        <Kbd className="hidden sm:inline-flex">
+                            {`${shortcutModifierGlyph()}J`}
+                        </Kbd>
                     </>
                 ) : (
                     <Plus className="size-4" />

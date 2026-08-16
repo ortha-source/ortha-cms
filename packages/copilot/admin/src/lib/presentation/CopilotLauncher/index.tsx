@@ -80,15 +80,47 @@ export function CopilotLauncher() {
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [available, start]);
 
-    // Focus has to land somewhere when a window closes, and the dock's new-chat
-    // button is the one control guaranteed to still be there. Without this it
-    // falls to `<body>`, which strands keyboard users at the top of the page.
-    const returnFocusRef = useRef<HTMLElement | null>(null);
-    returnFocusRef.current = newChatRef.current;
-
     const slotOf = useCallback(
         (id: string) => visible.findIndex((s) => s.id === id),
         [visible]
+    );
+
+    // The panel's history dropdown loads a thread into the window it was opened
+    // from, and — unlike the Agents rail, which goes through the sessions
+    // reducer's `open` guard — nothing stopped it landing on a thread another
+    // window already holds. Two windows on one `conversationId` is two
+    // transcripts of one server-side conversation, and they disagree from the
+    // next turn onwards: the one that sent it grows, the other silently goes
+    // stale while still offering a composer that appends to the same thread.
+    //
+    // Returns false when the pick was adopted elsewhere, so the calling window
+    // leaves its own transcript alone.
+    const { all, describe, focus } = sessions;
+    const adoptConversation = useCallback(
+        (sessionId: string, conversationId: string, title: string | null) => {
+            const existing = all.find(
+                (s) =>
+                    s.conversationId === conversationId && s.id !== sessionId
+            );
+            if (existing) {
+                focus(existing.id);
+                return false;
+            }
+            // The thread's own name, recorded before the transcript lands.
+            // `CopilotSession` derives a title from the first message only when
+            // the session has none, so this wins — which is why a thread opened
+            // from the dropdown used to be labelled with its opening question
+            // instead of the name the rail shows for it.
+            // Only when there is one: an untitled thread must fall through to
+            // the derived title, and writing `''` here would leave the pill
+            // with a blank name instead of "Untitled chat".
+            describe(sessionId, {
+                conversationId,
+                ...(title ? { title } : {})
+            });
+            return true;
+        },
+        [all, describe, focus]
     );
 
     if (!available) {
@@ -124,11 +156,26 @@ export function CopilotLauncher() {
                             workspaceId={workspaceId}
                             routeContext={routeContext}
                             slot={slotOf(session.id)}
+                            // Focus has to land somewhere when a window goes
+                            // away, and the dock's new-chat button is the one
+                            // control guaranteed to still be there. The panel
+                            // has always had the machinery; it was never handed
+                            // the ref, so collapsing a window (with the button
+                            // or with Escape) dropped focus on `<body>` and
+                            // sent a keyboard user back to the top of the page.
+                            returnFocusRef={newChatRef}
                             onMinimize={() => sessions.minimize(session.id)}
                             onClose={() => {
                                 sessions.close(session.id);
                                 newChatRef.current?.focus();
                             }}
+                            onAdoptConversation={(conversationId, title) =>
+                                adoptConversation(
+                                    session.id,
+                                    conversationId,
+                                    title
+                                )
+                            }
                             onNewChat={() => sessions.start()}
                             onDescribe={(meta) =>
                                 sessions.describe(session.id, meta)

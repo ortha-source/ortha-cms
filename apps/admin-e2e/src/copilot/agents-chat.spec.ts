@@ -2,7 +2,7 @@ import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
-import { mockCopilotApi } from '../support/api/copilot';
+import { frame, mockCopilotApi } from '../support/api/copilot';
 
 const WORKSPACE_ID = 'ws_marketing';
 
@@ -176,5 +176,191 @@ test.describe('Agents view — asking', () => {
             agentsPage.transcript().getByText('You stopped this answer.')
         ).toBeVisible();
         await expect(agentsPage.sendButton()).toBeVisible();
+    });
+});
+
+/**
+ * The five defects a QA pass found in the transcript and the composer.
+ *
+ * Note what is **not** here: the streaming experience. `page.route` delivers the
+ * SSE body in one read, so every assertion below is about a run's frames landing
+ * — which is enough for all five, because each is a rule about what the app does
+ * *when the transcript changes*, not about how fast the changes arrive.
+ */
+test.describe('Agents view — regressions', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+    });
+
+    test('sending while a run is in flight says why, instead of silence', async ({
+        page,
+        agentsPage
+    }) => {
+        const spy = await mockCopilotApi(page, { runDelayMs: 4_000 });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Set the summary please');
+        await expect(agentsPage.stopButton()).toBeVisible();
+
+        // A second question, mid-answer. The send is correctly refused — one
+        // run per chat — and the typed text is correctly kept. What was missing
+        // is any indication of either, so someone who had not noticed the
+        // button become Stop read it as a dropped keystroke.
+        await agentsPage.composer().fill('And the headline too');
+        await agentsPage.composer().press('Enter');
+
+        await expect(agentsPage.composerHint()).toContainText(
+            /Still answering/
+        );
+        // Kept, not sent: the text is still in the box and no second run went.
+        await expect(agentsPage.composer()).toHaveValue('And the headline too');
+        expect(spy.runs).toHaveLength(1);
+
+        // And the notice does not outlive the state that caused it.
+        await expect(agentsPage.sendButton()).toBeVisible({ timeout: 15_000 });
+        await expect(agentsPage.composerHint()).toContainText(/Enter to send/);
+    });
+
+    test('a truncated run explains itself in a translatable sentence', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, {
+            runBody: (conversationId) =>
+                [
+                    frame({
+                        type: 'run-started',
+                        runId: 'r_t',
+                        conversationId
+                    }),
+                    frame({ type: 'text-delta', text: 'Halfway through…' }),
+                    frame({
+                        type: 'done',
+                        messageId: 'm_t',
+                        stopReason: 'max-steps'
+                    })
+                ].join('')
+        });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Do something long');
+
+        // A warning, not a destructive alert: the answer is real, just short.
+        // The reason fragment used to be a bare English literal interpolated
+        // into the translated frame around it, so no extractor could see it and
+        // no catalogue could ever translate it — the sentence localized and the
+        // half carrying its meaning did not.
+        await expect(
+            agentsPage
+                .transcript()
+                .getByText(
+                    'Stopped because it reached the maximum number of steps.'
+                )
+        ).toBeVisible();
+        // The partial answer is kept beside it.
+        await expect(agentsPage.transcript()).toContainText('Halfway through');
+    });
+
+    test('a failed step says it failed, even when the tool returned a summary', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, {
+            runBody: (conversationId) =>
+                [
+                    frame({
+                        type: 'run-started',
+                        runId: 'r_f',
+                        conversationId
+                    }),
+                    frame({
+                        type: 'tool-call',
+                        id: 'call_f',
+                        name: 'content_propose_update',
+                        input: { contentType: 'article', id: 'e42' }
+                    }),
+                    // The shape a failed apply actually arrives in since the
+                    // server pass: `ok: false`, **with** a summary. The step's
+                    // "Failed" used to be the `??` fallback for having no
+                    // summary at all, so the one case most likely to reach a
+                    // user was the one that never said so.
+                    frame({
+                        type: 'tool-result',
+                        id: 'call_f',
+                        ok: false,
+                        summary: 'failed: set the number',
+                        error: 'value out of range',
+                        durationMs: 12
+                    }),
+                    frame({
+                        type: 'done',
+                        messageId: 'm_f',
+                        stopReason: 'end'
+                    })
+                ].join('')
+        });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Set the number');
+
+        // The status is in the step's accessible name, not only in a red ring
+        // and a colour — which is nothing at all to a screen reader (1.4.1).
+        const step = agentsPage.toolStep(/Updated an entry/);
+        await expect(step).toBeVisible();
+        await expect(step).toHaveAccessibleName(/Failed/);
+        // The tool's own line still shows, after the status rather than
+        // instead of it.
+        await expect(step).toContainText('failed: set the number');
+    });
+
+    test('a table in an answer has headers, a name, and a scroll region a keyboard can reach', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, {
+            runBody: (conversationId) =>
+                [
+                    frame({
+                        type: 'run-started',
+                        runId: 'r_x',
+                        conversationId
+                    }),
+                    frame({
+                        type: 'text-delta',
+                        text: '| Type | Entries |\n| --- | --- |\n| Article | 12 |\n'
+                    }),
+                    frame({
+                        type: 'done',
+                        messageId: 'm_x',
+                        stopReason: 'end'
+                    })
+                ].join('')
+        });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('List the content types');
+
+        const table = agentsPage.transcript().getByRole('table');
+        await expect(table).toBeVisible();
+        // Named, so it is not announced as an anonymous "table with 2 columns".
+        await expect(table).toHaveAccessibleName('Table in this answer');
+        // `scope="col"`, without which cell navigation announces bare values.
+        await expect(
+            table.getByRole('columnheader', { name: 'Type' })
+        ).toHaveAttribute('scope', 'col');
+        // The wrapper scrolls sideways, so it has to be focusable — a scroll
+        // container with no tab stop hides its right-hand columns from anyone
+        // without a mouse (2.1.1).
+        await expect(
+            agentsPage
+                .transcript()
+                .getByRole('region', { name: 'Table in this answer' })
+        ).toHaveAttribute('tabindex', '0');
     });
 });

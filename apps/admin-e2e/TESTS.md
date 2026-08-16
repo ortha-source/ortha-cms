@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_543 test cases across 57 spec files._
+_554 test cases across 57 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -694,6 +694,13 @@ _<sub>apps/admin-e2e/src/copilot/agents-attachments.spec.ts</sub>_
 | names the paperclip and each chip’s remove control |
 | has no axe violations with files staged |
 
+## Agents view — who may attach
+
+| Test case |
+| --- |
+| a viewer is not offered a control whose every upload would 403 |
+| a role holding media:create still gets it |
+
 <!-- source: apps/admin-e2e/src/copilot/agents-chat.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/agents-chat.spec.ts</sub>_
 
@@ -707,6 +714,15 @@ _<sub>apps/admin-e2e/src/copilot/agents-chat.spec.ts</sub>_
 | the composer grows with what you type, up to a ceiling |
 | a run outlives the page it started on, and says so |
 | stopping a run leaves a note rather than an error |
+
+## Agents view — regressions
+
+| Test case |
+| --- |
+| sending while a run is in flight says why, instead of silence |
+| a truncated run explains itself in a translatable sentence |
+| a failed step says it failed, even when the tool returned a summary |
+| a table in an answer has headers, a name, and a scroll region a keyboard can reach |
 
 <!-- source: apps/admin-e2e/src/copilot/agents-manage.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/agents-manage.spec.ts</sub>_
@@ -781,6 +797,16 @@ _<sub>apps/admin-e2e/src/copilot/dock.spec.ts</sub>_
 | Expand is the way out of a bad drag |
 | the arrow keys move a focused window |
 | the model choice survives collapsing and reopening |
+
+## Ortha AI dock — regressions
+
+| Test case |
+| --- |
+| the history dropdown will not open a thread a second window already holds |
+| collapsing a window hands focus back to the dock, by button and by Escape |
+| the start button announces the label it shows, and the shortcut its platform accepts |
+| the transcript stops yanking a reader who has scrolled up |
+| the dock is a group, and two windows have two names |
 
 ## Ortha AI dock accessibility (axe, WCAG 2.1 A/AA)
 
