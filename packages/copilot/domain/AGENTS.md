@@ -42,7 +42,9 @@ something here needs a dependency, it belongs in a layer above.
 - `resolveModel(requested, available)` — the one rule every adapter applies:
   the named model, or the first as default, and `UnknownModelError` for
   anything else. Falling back to the default would answer on a different model
-  than the caller asked for, and bill it silently.
+  than the caller asked for, and bill it silently. A provider declaring no
+  models at all raises `NoModelsConfiguredError` — typed, not a bare `Error`,
+  so the SSE controller can tell an operator misconfiguration from a fault.
 - `ModelRequest` — model id (optional; the provider's configured default wins),
   system prompt, messages, tools, output ceiling. **No sampling parameters**:
   current frontier models reject `temperature`/`top_p`/`top_k` outright, so the
@@ -69,11 +71,18 @@ something here needs a dependency, it belongs in a layer above.
 
 - `isAbortError(error, signal?)` and `abortedEvent()` (`lib/model/abort.ts`).
 
-The port says an abort **ends** the stream with `stopReason: 'aborted'` rather
-than throwing out of it, and that a cancelled call reports zero usage. Every
-adapter has to implement that clause, so it lives here as two functions instead
-of as prose copy-pasted into each one. Both are pure, so this costs the layer
-nothing.
+`ModelProvider.stream` states three clauses normatively, because an adapter
+that breaks one produces figures the engine cannot detect as wrong: exactly one
+`done` ends a stream; an abort **ends** it with `stopReason: 'aborted'` rather
+than throwing out of it; and a cancelled call reports **zero** usage even when
+text had already streamed, because a partial estimate is a guess entering cost
+accounting as a fact. Every adapter has to implement that, so it lives here as
+two functions instead of as prose copy-pasted into each one. Both are pure, so
+this costs the layer nothing.
+
+Nothing _enforces_ the clauses — there is no exported conformance test-kit, and
+`provider-fake` currently reports partial usage on a mid-stream abort. Adding a
+kit the three adapters run is tracked separately.
 
 ### The offer-time gate
 
@@ -166,11 +175,22 @@ genuinely belongs to a framework-free core:
   (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
   of `ModelStopReason`: the model reports why _it_ stopped, this reports why the
   _run_ did, including limits the model never sees.
-- `fenceUntrusted(source, payload)` + `UNTRUSTED_DATA_RULE` — ADR-0005 §8's
-  structural defence. Two properties carry it: the payload is JSON (so no field
-  can introduce a line that reads as a new turn) and `<` is escaped (so the
-  closing delimiter is unforgeable from inside). Unit-tested against a forged
-  fence.
+- `fenceUntrusted(source, payload, maxChars?)` + `UNTRUSTED_DATA_RULE` +
+  `MAX_UNTRUSTED_PAYLOAD_CHARS` — ADR-0005 §8's structural defence. Two
+  properties carry it: the payload is JSON (so no field can introduce a line
+  that reads as a new turn) and `<` is escaped (so the closing delimiter is
+  unforgeable from inside). Unit-tested against a forged fence.
+
+  It is also **size-bounded**, and that bound lives here rather than in the
+  engine for a reason: `RunLimits.maxTotalTokens` is checked _between_ steps,
+  so it cannot stop a single oversized tool result — by the time it is
+  consulted the payload is already in `messages` and already billed. Over the
+  ceiling the payload is replaced by an envelope that **states** the
+  truncation, so the model reports the gap instead of answering confidently
+  from a result it cannot know was clipped. The preview is re-encoded with
+  `JSON.stringify` rather than spliced out of the original, so a cut can never
+  leave half an escape sequence or a lone surrogate in the prompt, and the
+  closing delimiter stays unforgeable across the truncation.
 
 ### The baseline
 
@@ -181,6 +201,13 @@ and a context window big enough for a workspace's type summaries — and to
 saying so in words when a model falls below it. `baselineShortfalls` returns
 _every_ dimension that falls short, not the first, because the settings UI has
 to name which capability is missing. Unit-tested; the test is the specification.
+
+**Nothing consumes it yet.** No caller outside this package reads any of the
+three, and no caller outside a spec calls `ModelProvider.capabilities()` — so
+the explicit degradation ADR-0004 §4 commits to does not currently happen: a
+model that cannot call tools is still sent tools, and the UI says nothing.
+The API is the right shape; wiring it into the run engine is tracked separately.
+Do not delete it to satisfy a dead-code sweep.
 
 ## Conventions
 
