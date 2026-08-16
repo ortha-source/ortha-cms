@@ -70,4 +70,18 @@ export class UnitOfWork {
     current(): Database {
         return this.als.getStore()?.tx ?? this.db;
     }
+
+    /**
+     * Whether a unit of work is active on this async call tree — i.e. whether
+     * {@link current} would return a transaction rather than the base pool.
+     *
+     * `current()` falling back to the base connection is deliberate: a read
+     * outside a unit of work is ordinary and should not have to opt in. It is
+     * only a *write* that must not be silently detached from the transaction it
+     * belongs to, so the check is offered here and enforced by the caller that
+     * needs it (`OutboxWriter.append`) rather than by `current()` itself.
+     */
+    isActive(): boolean {
+        return this.als.getStore() !== undefined;
+    }
 }

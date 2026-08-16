@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1087 test cases across 71 spec files._
+_1106 test cases across 74 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1558,6 +1558,49 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-skills.spec.ts</sub>_
 | refuses more skills than one turn may carry |
 | refuses instruction text in the request body |
 | orders the skills sections after AUTHORITY and before ANSWERING |
+
+<!-- source: apps/server-e2e/src/server/database/connection-pool.spec.ts -->
+_<sub>apps/server-e2e/src/server/database/connection-pool.spec.ts</sub>_
+
+## database connection pool limits
+
+| Test case |
+| --- |
+| opens the pool with an explicit ceiling and an explicit wait |
+| fails a checkout it cannot serve instead of waiting forever |
+| serves the queue again as soon as a client comes back |
+
+<!-- source: apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts -->
+_<sub>apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts</sub>_
+
+## OutboxDispatcher (drain, retry ceiling, concurrency)
+
+| Test case |
+| --- |
+| claims the oldest batch, delivers it, and stamps what it delivered |
+| delivers only to subscribers whose kinds match, once per registration |
+| increments attempts and leaves the row pending when a subscriber throws |
+| spaces retries out instead of burning the ceiling at commit rate |
+| stops claiming a row once it has failed MAX_DELIVERY_ATTEMPTS times |
+| does not let a full batch of poison rows starve the events behind them |
+| collapses concurrent drains instead of running one per caller |
+| keeps the pool usable when many units of work commit over a backlog |
+| picks up a row nothing asked it to, once the poll backstop is running |
+
+<!-- source: apps/server-e2e/src/server/database/unit-of-work.spec.ts -->
+_<sub>apps/server-e2e/src/server/database/unit-of-work.spec.ts</sub>_
+
+## UnitOfWork + OutboxWriter (transaction boundary)
+
+| Test case |
+| --- |
+| runs the callback in one transaction, and a nested run joins it |
+| rolls the appended events back with the state change that produced them |
+| commits the events with the state change that produced them |
+| is a no-op for an empty event array |
+| rejects the whole unit of work when one append repeats an eventId |
+| refuses an append outside a unit of work instead of committing it alone |
+| reports whether a unit of work is active, and hands out the base connection outside one |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-content.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-content.spec.ts</sub>_

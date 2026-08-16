@@ -62,13 +62,40 @@ injects them without importing the module.
   `current()` to get the executor, so every query in the tree joins the active
   transaction implicitly (via `AsyncLocalStorage`) — no `tx` threading. After
   the outermost transaction commits, the outbox is drained best-effort.
+  `isActive()` answers "is there an ambient transaction"; `current()` still
+  falls back to the pool outside a `run`, because a read outside a unit of work
+  is ordinary.
 - **Outbox** — `OutboxWriter.append(events)` inserts rows using `uow.current()`,
-  so the events commit **atomically** with the state change. `OutboxDispatcher`
-  drains undispatched rows (`FOR UPDATE SKIP LOCKED`, oldest first), delivers to
+  so the events commit **atomically** with the state change. Calling it
+  **outside** a `run` throws: on the base pool the insert would auto-commit on
+  its own connection, and an event that outlives a rolled-back state change is
+  the one thing the pattern exists to prevent. `OutboxDispatcher` drains
+  undispatched rows (`FOR UPDATE SKIP LOCKED`, oldest first), delivers to
   matching subscribers, and stamps `dispatchedAt`; a failing subscriber bumps
-  `attempts` and the row is retried. A 5s poll backstop covers a lost
-  post-commit drain. **Delivery is at-least-once → subscribers must be
-  idempotent.**
+  `attempts` and schedules `nextAttemptAt`, and the row is retried until
+  `MAX_DELIVERY_ATTEMPTS`. A 5s poll backstop covers a lost post-commit drain.
+  **Delivery is at-least-once → subscribers must be idempotent.**
+
+### Two things the outbox deliberately bounds
+
+- **Retries back off, then stop.** Each failure schedules the row's
+  `next_attempt_at` — one second, doubling, plateauing at five minutes — and a
+  row that has failed `MAX_DELIVERY_ATTEMPTS` (15, so roughly half an hour) is
+  no longer claimed at all. Without the ceiling, `attempts` was written and
+  never read: the claim is `ORDER BY occurred_at LIMIT 100`, so a batch's worth
+  of permanently-failing rows sat at the head of the queue forever and nothing
+  newer was ever delivered again. Without the backoff the ceiling would mean
+  nothing either — drains are triggered by commits, so on a busy server fifteen
+  attempts is milliseconds. Parked rows stay in the table:
+  `dispatched_at IS NULL AND attempts >= 15` is the dead-letter query, and
+  clearing `attempts` replays one.
+- **One drain at a time per process.** `drain()` collapses concurrent callers
+  onto the drain in flight plus a single queued one. A drain holds a pool client
+  for its whole batch while every subscriber it calls acquires a client of its
+  own, so a drain per committing request is a pool deadlock — reproducibly, from
+  a dozen concurrent requests over a backlog, with no timeout and no recovery.
+  Cross-process concurrency is unaffected: `SKIP LOCKED` is what makes that
+  safe.
 
 ### Registering a subscriber
 
@@ -99,6 +126,12 @@ co-located subscribers, and is merged with the runtime-registered ones.
 - **Singleton connection.** `db.ts` holds module-level `pool` + `database`.
   `initDatabase` is idempotent; `getDatabase`/`getPool` throw if called first.
   The pool connects lazily (on first query), so booting needs no live DB.
+- **Bounded pool.** `initDatabase` sets `max` (10) and, crucially,
+  `connectionTimeoutMillis` (10 s) explicitly. `pg` defaults the latter to `0` —
+  *wait forever* — which turns exhaustion into a process that has silently
+  stopped answering rather than one failing request anyone can see. Both, plus
+  an optional `statement_timeout`, are overridable through
+  `DatabasePluginConfig`.
 - **Lifecycle.** The connection is opened in the plugin's `onPluginInit`, which
   [`createServer`](../bootstrap/server/src/lib/create-server.ts) runs **in array
   order before** the Nest app is created. List `DatabasePlugin(...)` **first** in
@@ -169,3 +202,8 @@ The `db:generate` target is inferred from `drizzle.config.ts` by
 
 - `npm exec nx typecheck @ortha-cms/database`
 - `npm exec nx build @ortha-cms/database`
+- `npm exec nx test @ortha-cms/database` — the framework-free unit specs (the
+  event envelope, the connection singleton and its pool limits). Everything that
+  needs a real transaction, a real pool or a real drain lives in
+  `apps/server-e2e/src/server/database/` instead, because mocking a deadlock
+  proves nothing.
