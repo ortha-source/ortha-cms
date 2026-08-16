@@ -135,7 +135,15 @@ version is an N+1.
 query per level** — a plain `PublicEntriesQuery.list` with a
 `{ field: 'id', op: 'in' }` filter, so the load runs through the same
 `readableWhere` as every other public read and needs no new query code and no
-new visibility rule. Two known costs, both deliberate:
+new visibility rule. It carries the **visibility of the entry in hand**: a
+mutation hands back a draft (a create always does, an update sends a published
+entry back to draft), and re-reading that row through the published-only default
+matched nothing — so `createArticle(…, relations: { tags: { link: […] } }) {
+tags { total } }` answered `0` for links the same call had just written, and a
+required `author` answered `null`. Widening is safe because holding a draft
+already implies the right to see one: `assertVisibility` gates `status:
+DRAFT|ANY` on every read, and a mutation result required the write permission its
+resolver asserted. Two known costs, both deliberate:
 
 - The batch does not narrow `?fields=`, so it reads every value column of the
   level's parents. There is no spelling for "no values" (an empty `?fields=`
@@ -193,6 +201,13 @@ wrong:
   `validateSync` on the assembled `PublicSaveEntryDto`, so the delta caps
   (`MAX_DELTA_FIELDS`, `MAX_DELTA_IDS`) still bound a single write.
 
+The same applies to **reads**, for the same reason: `selection.ts` validates the
+assembled `PublicListEntriesQueryDto` / `PublicEntryQueryDto`. Without it a
+token reached further over GraphQL than over REST — `pageSize: -1` is a clean
+400 over there and reached `.limit(-1)` here (an opaque 500), `pageSize: 500`
+ignored `MAX_PAGE_SIZE`, and a 100 KB `search` needle sailed past a cap the REST
+DTO enforces. Both protocols now refuse the same input with the same message.
+
 ## Cost limits
 
 REST bounded a request structurally — one route, one page, `MAX_PAGE_SIZE`. A
@@ -203,18 +218,48 @@ parsing and before execution**, cheapest check first:
 | ------------------ | ------- | ----------------------------------------------------- |
 | `maxQueryLength`   | 16384   | an enormous document, before it is parsed             |
 | `maxDepth`         | 8       | deep nesting (one loader batch per level)             |
-| `maxAliases`       | 30      | aliasing one expensive field N times                  |
+| `maxFields`        | 500     | aliasing one expensive field N times                  |
 | `maxComplexity`    | 1000    | shallow-but-wide — `Σ pageSize` down the nesting path |
 | operations/request | 1       | multiplying every other budget                        |
+
+`maxFields` is a **total field count**, aliases and plain selections alike —
+there is no way to tell them apart and no reason to. It was called `maxAliases`
+and defaulted to 30, which read as a promise it did not keep: a plain read of a
+thirty-field content type is 36 selections and was refused, with no alias in
+sight. The name now matches what it counts and the default clears an ordinary
+document.
 
 Two things the complexity estimator does on purpose: it assumes every list comes
 back full (the point is to refuse shapes that _can_ be enormous), and it does
 **not** count `items` as a list of its own — that is the page its parent already
 sized, and counting it again squares every list and rejects ordinary documents.
+A `pageSize` passed as a variable is read from the values sent **and from the
+variable's declared default**, because `query Q($n: Int = 500)` executes at 500
+whether or not the caller sends one. A field carrying `id:` or `localeGroupId:`
+counts as **one** record: it addresses a single row, and charging it a full page
+made `article(id:) { author tags translations }` cost 1220 against a budget of
+1000 — an ordinary single read refused for a query that can touch 61 rows.
+Naming a locator on a field that has none is a validation error a step later, so
+it cannot buy a cheaper estimate for a document that will actually run.
 
-Introspection stays **enabled**: the endpoint is authenticated, the schema is
-already pruned to the caller's grants, and disabling it removes most of the
-reason to offer GraphQL.
+### The cost walk is linear in the document, not in its expansion
+
+Each of the three walks is memoised per fragment name, so a fragment spread ten
+times is visited once. That is not an optimisation. Nine fragments each
+spreading the next ten times is a **788-byte** document that expands to 10⁹
+selections: un-memoised, costing it blocked the event loop — measured at 10 s
+for the 618-byte version, and an unrelated unauthenticated request queued behind
+it for 9 of those seconds. A cyclic document skips the cost check entirely and
+goes straight to `validate`, whose `NoFragmentCycles` rule rejects it with a
+better message than anything invented here — which is also what lets the memo
+be a plain name → number map with nothing to say about broken-off cycles.
+
+Introspection stays **enabled**, and is **exempt from the budget**: the endpoint
+is authenticated, the schema is already pruned to the caller's grants, and
+`__schema`/`__type` are answered from the schema object already in memory — no
+resolver, no database. The exemption is what makes "enabled" true: the standard
+introspection query is 15 levels deep and selects 220 fields, so costing it as
+content refused GraphiQL and every codegen tool at the defaults.
 
 **Rate limiting is absent** — and so it is on the REST public API, which has no
 throttle either (only login does). Worth its own issue; `request.apiToken.id` is
@@ -225,6 +270,13 @@ the natural key.
 GraphiQL, the GraphQL counterpart of the Scalar reference at `/reference` — and
 gated by the same switch. Three things about it are deliberate:
 
+- **Rendered into one slot, not a map.** A deployment has one endpoint, but the
+  key is derived from the request URL and Express matches a route
+  case-insensitively — `/api/v1/GraphQL/playground` and its two thousand
+  siblings are all 200s deriving a distinct key. Memoising per key retained
+  ~17 MB of heap each and never released it (measured: sixteen spellings of
+  `graphql` grew RSS by 269 MB), on a route that is deliberately
+  unauthenticated. One slot bounds the page at its own size.
 - **Registered only when the host enables it.** `ContentGraphqlModule.forRoot`
   leaves the controller out entirely when `playground` is false, so a deployment
   with tooling off has no such route rather than a live handler that refuses.

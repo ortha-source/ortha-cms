@@ -4,6 +4,7 @@ import {
     resolveGrantedType,
     type AnyContentType,
     type EntryLocator,
+    type EntryVisibility,
     type GrantedType,
     type PublicEntry,
     type PublicMediaRef,
@@ -182,7 +183,8 @@ async function loadRelationView(
             {
                 relationFields: [fieldName],
                 limit: pageSize ?? DEFAULT_EXPANSION_ITEMS,
-                ...(entry.locale ? { locale: entry.locale } : {})
+                ...(entry.locale ? { locale: entry.locale } : {}),
+                ...visibilityOf(entry)
             },
             granted
         );
@@ -232,7 +234,8 @@ export function mediaResolver(
             {
                 mediaFields: [fieldName],
                 limit: limit ?? DEFAULT_EXPANSION_ITEMS,
-                ...(entry.locale ? { locale: entry.locale } : {})
+                ...(entry.locale ? { locale: entry.locale } : {}),
+                ...visibilityOf(entry)
             },
             granted
         );
@@ -259,7 +262,8 @@ export function translationsResolver(
             {
                 translations: true,
                 limit: DEFAULT_EXPANSION_ITEMS,
-                ...(entry.locale ? { locale: entry.locale } : {})
+                ...(entry.locale ? { locale: entry.locale } : {}),
+                ...visibilityOf(entry)
             },
             granted
         );
@@ -369,3 +373,30 @@ function sliceRefs(
 function numberArg(raw: unknown): number | undefined {
     return typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
 }
+
+/**
+ * The publish states a **re-read of this same entry** may return.
+ *
+ * The loader's default — published only — is right for a linked target and
+ * wrong for the entry already in hand. A mutation hands back a draft (a create
+ * always does, an update sends a published entry back to draft), and re-reading
+ * that row through the published-only rule matches nothing, so `tags { total }`
+ * on a just-created entry answered `0` and a required `author` answered `null`:
+ * a wrong number presented as a fact, on the very links the same call had just
+ * written.
+ *
+ * Widening is safe because holding a draft already implies the right to see
+ * one: `assertVisibility` gates `status: DRAFT|ANY` on every read, and a
+ * mutation result required the write permission its resolver asserted. The
+ * re-read runs through the same `readableWhere` either way — this only stops it
+ * asking a narrower question than the caller was granted.
+ */
+function visibilityOf(entry: PublicEntry): { status?: EntryVisibility } {
+    return entry.status === DRAFT ? { status: ANY } : {};
+}
+
+/** The stored publish state of an entry that has not been taken live. */
+const DRAFT = 'draft';
+
+/** The visibility that spans both publish states. @see ENTRY_VISIBILITY */
+const ANY = 'any';

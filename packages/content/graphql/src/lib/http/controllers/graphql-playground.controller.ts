@@ -35,10 +35,18 @@ export class GraphqlPlaygroundController {
      * `renderGraphiQL` inlines the whole GraphiQL bundle, so the result is ~9 MB
      * of self-contained HTML — no CDN, which is what makes this work in an
      * air-gapped install. Rendering it per request would burn that on every
-     * reload for a byte-identical result, so it is memoised per endpoint URL
-     * (the URL varies only if the host changes its global prefix).
+     * reload for a byte-identical result, so it is memoised.
+     *
+     * **One slot, not a map.** A deployment has exactly one endpoint, but the
+     * key is derived from the request URL and Express matches a route
+     * case-insensitively, so `/api/v1/GraphQL/playground` and its two thousand
+     * siblings are all 200s deriving a distinct key. Memoising per key retained
+     * ~17 MB of heap for each one and never released it: measured, sixteen
+     * spellings of `graphql` grew RSS by 269 MB, on a route that is deliberately
+     * unauthenticated. One slot bounds the page at its own size, and the only
+     * cost of a hostile spelling is re-rendering the page it asked for.
      */
-    private readonly rendered = new Map<string, string>();
+    private rendered?: { endpoint: string; html: string };
 
     /** `GET /api/v1/graphql/playground` — the GraphiQL page. */
     @Get('playground')
@@ -48,16 +56,17 @@ export class GraphqlPlaygroundController {
     @ApiExcludeEndpoint()
     playground(@Req() request: Request): string {
         const endpoint = endpointFor(request);
-        let html = this.rendered.get(endpoint);
-        if (!html) {
-            html = renderGraphiQL({
+        if (this.rendered?.endpoint !== endpoint) {
+            this.rendered = {
                 endpoint,
-                title: 'Ortha CMS — content API',
-                defaultQuery: DEFAULT_QUERY
-            });
-            this.rendered.set(endpoint, html);
+                html: renderGraphiQL({
+                    endpoint,
+                    title: 'Ortha CMS — content API',
+                    defaultQuery: DEFAULT_QUERY
+                })
+            };
         }
-        return html;
+        return this.rendered.html;
     }
 }
 
@@ -69,9 +78,16 @@ export class GraphqlPlaygroundController {
  * global prefix — `createServer` owns that, and a deployment may change it. The
  * page and the endpoint are siblings by construction, so the request's own path
  * is the one source that cannot be wrong.
+ *
+ * A trailing slash is dropped first: Express serves `…/playground/` from the
+ * same route, and without this it fell through to the hard-coded default and
+ * quietly handed the page a wrong endpoint on any host with a non-default
+ * global prefix.
  */
 function endpointFor(request: Request): string {
-    const url = (request.originalUrl || request.url || '').split('?')[0];
+    const url = (request.originalUrl || request.url || '')
+        .split('?')[0]
+        .replace(/\/+$/, '');
     return url.endsWith('/playground')
         ? url.slice(0, -'/playground'.length)
         : '/api/v1/graphql';

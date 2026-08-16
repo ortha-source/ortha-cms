@@ -1,6 +1,7 @@
 import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import type { ContentServerPlugin } from '@ortha-cms/content-server';
 import { ContentGraphqlModule } from '../content-graphql.module';
+import { assertNoEnvelopeCollisions } from '../schema/build-schema';
 import { assertNoNameCollisions } from '../schema/naming';
 import {
     resolveConfig,
@@ -69,7 +70,13 @@ export function ContentGraphqlPlugin(
     // two content types is a modelling bug, and finding it only when some
     // workspace happens to be granted both would turn it into a production
     // surprise instead of a failed boot.
-    assertNoNameCollisions(content.registry.all().map((type) => type.name));
+    const types = content.registry.all();
+    assertNoNameCollisions(types.map((type) => type.name));
+    // Same argument one level down: a content field named `status` or
+    // `translations` collides with the entry envelope, and the schema builder
+    // that discovers it runs lazily, per grant set — so without this the boot
+    // succeeds and the first request from a workspace granted that type throws.
+    assertNoEnvelopeCollisions(types);
     const resolved = resolveConfig(config);
     return {
         name: 'content-graphql',

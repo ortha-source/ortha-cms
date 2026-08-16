@@ -21,17 +21,26 @@ export interface ContentGraphqlLimits {
     maxDepth: number;
     /**
      * Ceiling on the estimated rows an operation can touch — each list field's
-     * page size multiplied down its nesting path (see `estimateComplexity`).
+     * page size multiplied down its nesting path (see `CostMemo.complexity`).
      * The one limit that catches a shallow-but-enormous query, which a depth
      * cap alone lets straight through.
      */
     maxComplexity: number;
     /**
      * Field selections allowed per operation, counted across the whole
-     * document. Aliasing one expensive field a hundred times is how a caller
-     * multiplies cost without ever nesting.
+     * document — **every** field, not only the aliased ones. Aliasing one
+     * expensive field a hundred times is how a caller multiplies cost without
+     * ever nesting, and an alias is indistinguishable from a plain selection
+     * here by design.
+     *
+     * Because it is a total, the ceiling has to clear what a legitimate client
+     * asks for: a content type with thirty fields is ordinary, and selecting
+     * all of them on a list plus a relation is a perfectly normal document.
+     * Introspection meta-fields (`__schema`, `__type`) are excluded — they are
+     * answered from the in-memory schema and the standard introspection query
+     * alone selects 220 fields.
      */
-    maxAliases: number;
+    maxFields: number;
     /** Longest accepted query document, in characters. Checked before parsing. */
     maxQueryLength: number;
 }
@@ -66,7 +75,7 @@ export interface ContentGraphqlPluginConfig {
 export const DEFAULT_GRAPHQL_LIMITS: ContentGraphqlLimits = {
     maxDepth: 8,
     maxComplexity: 1000,
-    maxAliases: 30,
+    maxFields: 500,
     maxQueryLength: 16_384
 };
 

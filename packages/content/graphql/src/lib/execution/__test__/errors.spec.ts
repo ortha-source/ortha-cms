@@ -1,7 +1,9 @@
 import {
     ForbiddenException,
+    InternalServerErrorException,
     Logger,
     NotFoundException,
+    ServiceUnavailableException,
     UnprocessableEntityException
 } from '@nestjs/common';
 import { GraphQLError } from 'graphql';
@@ -76,6 +78,37 @@ describe('toGraphQLError', () => {
         expect(mapped?.message).toBe('Internal server error.');
         expect(mapped?.message).not.toMatch(/content_article/);
         expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('masks a 5xx HttpException, which is a bug wearing a status', () => {
+        // The mask keys on the status, not on the exception class: wrapping a
+        // driver error in an InternalServerErrorException is an ordinary thing
+        // to write, and relaying its message turns a token into a
+        // reconnaissance tool.
+        const mapped = toGraphQLError(
+            new InternalServerErrorException(
+                'relation "content_article" does not exist'
+            ),
+            logger
+        );
+
+        expect(mapped?.message).toBe('Internal server error.');
+        expect(mapped?.message).not.toMatch(/content_article/);
+        expect(mapped?.extensions).toMatchObject({
+            code: 'INTERNAL_SERVER_ERROR',
+            status: 500
+        });
+        expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('masks any 5xx, not only 500', () => {
+        const mapped = toGraphQLError(
+            new ServiceUnavailableException('pgbouncer pool exhausted'),
+            logger
+        );
+
+        expect(mapped?.message).toBe('Internal server error.');
+        expect(mapped?.extensions).toMatchObject({ status: 503 });
     });
 
     it('unwraps an HttpException a resolver threw inside a GraphQLError', () => {

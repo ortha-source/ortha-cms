@@ -834,6 +834,132 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
             );
 
             expect(linked.errors).toBeUndefined();
+            // Asserting the COUNT, not just the absence of an error: a create
+            // and an update both hand back a draft, and the nested re-read used
+            // to run through the published-only rule — so this answered `0` for
+            // links the same call had just written.
+            expect(linked.data?.['updateTestArticle']).toEqual({
+                tags: { total: 1 }
+            });
+        });
+
+        it('reads back a relation written by the same create', async () => {
+            const secret = await mintToken({
+                workspaceIds: [workspaceId],
+                scope: 'full'
+            });
+            const tagIds = await seedTags(
+                [
+                    {
+                        name: 'fresh',
+                        status: 'published',
+                        publishedAt: new Date()
+                    }
+                ],
+                workspaceId
+            );
+
+            const created = await gql(
+                secret,
+                `mutation M($tag: ID!) {
+                    createTestArticle(
+                        input: { text: "Fresh", select: article }
+                        relations: { tags: { link: [$tag] } }
+                    ) { status tags { total items { name } } }
+                }`,
+                { variables: { tag: tagIds[0] } }
+            );
+
+            expect(created.errors).toBeUndefined();
+            expect(created.data?.['createTestArticle']).toMatchObject({
+                status: 'DRAFT',
+                tags: { total: 1, items: [{ name: 'fresh' }] }
+            });
+        });
+
+        it('does not widen draft visibility for a read-only token', async () => {
+            // The counterpart to the two above: the nested re-read carries the
+            // visibility of the entry in hand, and a read-only token can never
+            // be holding a draft in the first place.
+            const full = await mintToken({
+                workspaceIds: [workspaceId],
+                scope: 'full'
+            });
+            const created = await gql(
+                full,
+                'mutation { createTestArticle(input: { text: "Hidden", select: article }) { id } }'
+            );
+            const id = (created.data?.['createTestArticle'] as { id: string })
+                .id;
+
+            const readOnly = await mintToken({ workspaceIds: [workspaceId] });
+            const body = await gql(
+                readOnly,
+                `query Q($id: ID!) { testArticle(id: $id) { id tags { total } } }`,
+                { variables: { id } }
+            );
+
+            expect(body.data?.['testArticle']).toBeNull();
+            expect(body.errors?.[0]?.extensions?.['status']).toBe(404);
+        });
+    });
+
+    // ---- read-argument parity ---------------------------------------------
+    //
+    // ADR-0008's premise is that a token cannot reach further over GraphQL than
+    // over REST. A REST query string meets the host's global `ValidationPipe`;
+    // a GraphQL argument never does, so the read DTO is validated in the
+    // resolver — without it `pageSize: -1` reached `.limit(-1)` and came back
+    // as an opaque 500 where REST returns a clean 400.
+
+    describe('read arguments are bounded exactly as REST bounds them', () => {
+        it.each([
+            ['pageSize below the minimum', 'pageSize: -1', 'pageSize=-1'],
+            ['a page below the minimum', 'page: 0', 'page=0'],
+            ['pageSize past MAX_PAGE_SIZE', 'pageSize: 500', 'pageSize=500']
+        ])('refuses %s over both protocols', async (_name, arg, query) => {
+            const secret = await mintToken({ workspaceIds: [workspaceId] });
+
+            const rest = await request(harness.server)
+                .get(`/api/v1/content/test_article?${query}`)
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(400);
+            const graphql = await gql(
+                secret,
+                `{ testArticles(${arg}) { total } }`
+            );
+
+            expect(graphql.errors?.[0]?.extensions?.['status']).toBe(400);
+            expect(graphql.errors?.[0]?.extensions?.['code']).toBe(
+                'BAD_REQUEST'
+            );
+            // Same words, from the same decorators — one rule, two protocols.
+            expect(graphql.errors?.[0]?.message).toBe(
+                (rest.body.message as string[]).join('; ')
+            );
+        });
+
+        it('caps a search needle passed as a variable', async () => {
+            // The document stays short, so `maxQueryLength` never sees it —
+            // the DTO's own `@MaxLength` is the only thing standing there.
+            const secret = await mintToken({ workspaceIds: [workspaceId] });
+            const body = await gql(
+                secret,
+                'query Q($s: String) { testArticles(search: $s) { total } }',
+                { variables: { s: 'x'.repeat(10_000) } }
+            );
+
+            expect(body.errors?.[0]?.extensions?.['status']).toBe(400);
+            expect(body.errors?.[0]?.message).toMatch(/search must be shorter/);
+        });
+
+        it('still accepts the boundary values REST accepts', async () => {
+            const secret = await mintToken({ workspaceIds: [workspaceId] });
+
+            expect(
+                (await gql(secret, '{ testArticles(page: 1, pageSize: 100) { total } }'))
+                    .errors
+            ).toBeUndefined();
         });
     });
 
