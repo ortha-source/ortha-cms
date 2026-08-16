@@ -23,6 +23,19 @@ export class OutboxWriter {
             return;
         }
 
+        if (!this.uow.isActive()) {
+            // Outside a unit of work `uow.current()` is the base pool, so this
+            // insert would auto-commit on its own connection — the event would
+            // survive a state change that rolled back, which is the exact
+            // failure the outbox pattern exists to prevent. It used to happen
+            // silently; there is no case where it is what the caller meant.
+            throw new Error(
+                'OutboxWriter.append must be called inside UnitOfWork.run(...) — ' +
+                    'appending outside a unit of work commits the events on their own ' +
+                    'connection, so they can outlive a rolled-back state change.'
+            );
+        }
+
         await this.uow
             .current()
             .insert(outboxEvents)

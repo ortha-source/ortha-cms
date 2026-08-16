@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
     index,
     integer,
@@ -37,11 +38,26 @@ export const outboxEvents = pgTable(
         /** When the event was delivered to all subscribers; null until then. */
         dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
         /** Failed delivery attempts, for observability and backoff. */
-        attempts: integer('attempts').notNull().default(0)
+        attempts: integer('attempts').notNull().default(0),
+        /**
+         * Earliest time a failed row may be claimed again; null means "now".
+         * Set on every failure so the retry ceiling is a window of wall-clock
+         * time rather than a burst — without it, drains run as fast as traffic
+         * commits and a transient subscriber failure would exhaust every
+         * attempt in milliseconds.
+         */
+        nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true })
     },
     (table) => [
-        // The drain query filters on `dispatched_at IS NULL`; index it so
-        // scanning for pending rows stays cheap as delivered rows accumulate.
-        index('outbox_events_dispatched_at_idx').on(table.dispatchedAt)
+        // The drain claims `WHERE dispatched_at IS NULL ORDER BY occurred_at
+        // LIMIT 100`. A plain index on `dispatched_at` serves the filter and
+        // then leaves Postgres to sort the matches; a **partial** index keyed
+        // on `occurred_at` over exactly the pending rows serves the filter,
+        // the order and the limit together, and stays small because delivered
+        // rows drop out of it as they are stamped — which is what keeps the
+        // drain cheap on a table nothing prunes.
+        index('outbox_events_pending_idx')
+            .on(table.occurredAt)
+            .where(sql`${table.dispatchedAt} is null`)
     ]
 );
