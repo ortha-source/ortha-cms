@@ -1,10 +1,121 @@
 # Server E2E test catalog
 
 > **Generated file — do not edit by hand.** Regenerate with
-> `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`
-> and fails if this file has drifted from the specs.
+> `npx nx catalog server-e2e` after adding, renaming or removing a test.
+> `npx nx catalog:check server-e2e` fails if this file has drifted from the
+> specs — run it locally; **no CI pipeline runs it today**, and none runs the
+> suite itself either.
 
-_1037 test cases across 66 spec files._
+_1087 test cases across 71 spec files._
+
+<!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
+_<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
+
+## media blob store
+
+| Test case |
+| --- |
+| holds the bytes after an upload and drops them on delete |
+| starts every test with no blobs left over from the last one |
+
+<!-- source: apps/server-e2e/src/harness/harness-guards.spec.ts -->
+_<sub>apps/server-e2e/src/harness/harness-guards.spec.ts</sub>_
+
+## harness guards
+
+### serial execution (assertSerialExecution)
+
+| Test case |
+| --- |
+| permits the pinned single worker |
+| permits an unknown worker count rather than guessing |
+| refuses two workers, naming the flag and the reason |
+| refuses any count above one |
+| yields to an explicit opt-in, for whoever implements the scheme |
+
+### memory advisory (warnOnLowMemory)
+
+| Test case |
+| --- |
+| says nothing when there is headroom |
+| names memory as the suspect when there is not |
+| reports a plausible amount for this machine |
+
+### external database safety (assertDisposableExternalDatabase)
+
+| Test case |
+| --- |
+| accepts a database whose name reads as disposable |
+| refuses the exact database DATABASE_URL names |
+| refuses it even when the two URLs are spelled differently |
+| refuses a name that does not read as disposable |
+| yields to an explicit opt-in for an oddly-named scratch database |
+| never yields the DATABASE_URL check to that opt-in |
+
+### infrastructure diagnostics (isDatabaseUnreachable)
+
+| Test case |
+| --- |
+| recognises the pg-pool AggregateError seen in the wild |
+| recognises a socket errno, however deeply wrapped |
+| recognises `write EINVAL` from a socket that went away mid-write |
+| recognises a Postgres admin-shutdown SQLSTATE |
+| does NOT claim an assertion failure is infrastructure |
+| does NOT claim a constraint violation is infrastructure |
+
+### infrastructure diagnostics (withDatabaseDiagnostics)
+
+| Test case |
+| --- |
+| re-labels a real pool failure as infrastructure, not a test failure |
+| passes an assertion failure through untouched |
+| returns the value when nothing goes wrong |
+
+### SSE parsing (parseSse)
+
+| Test case |
+| --- |
+| reads a frame written the way the server writes it |
+| reads a frame written without the optional space |
+| still skips comment frames |
+
+<!-- source: apps/server-e2e/src/harness/harness-isolation.spec.ts -->
+_<sub>apps/server-e2e/src/harness/harness-isolation.spec.ts</sub>_
+
+## harness isolation (resetDb)
+
+| Test case |
+| --- |
+| clears outbox_events, so an undispatched row cannot be retried inside a later test |
+| clears non-system roles, so a seeded role key can be reused |
+| leaves the system roles alone, because users FK them |
+| leaves no workspace behind |
+
+## harness lifecycle (a second app in one file)
+
+| Test case |
+| --- |
+| boots a usable app after a previous one was closed |
+
+<!-- source: apps/server-e2e/src/harness/production-parity.spec.ts -->
+_<sub>apps/server-e2e/src/harness/production-parity.spec.ts</sub>_
+
+## production parity
+
+### the API reference rides the docs flag (setupApiDocs)
+
+| Test case |
+| --- |
+| is not mounted with docs disabled (the production default) |
+| is mounted, and describes the prefixed routes, with docs enabled |
+| sits outside every guard, as an unauthenticated request proves |
+
+### session cookie attributes follow the configured shape
+
+| Test case |
+| --- |
+| emits Secure + SameSite=None when the deployment configures them |
+| emits neither when the deployment does not (the test default) |
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
@@ -365,6 +476,16 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-graphql-api.spec.ts</sub>_
 | clears a field with an explicit null but not by omission |
 | reports a failed publish as a 422 with its per-field issues |
 | applies a relation delta |
+| reads back a relation written by the same create |
+| does not widen draft visibility for a read-only token |
+
+### read arguments are bounded exactly as REST bounds them
+
+| Test case |
+| --- |
+| refuses %s over both protocols |
+| caps a search needle passed as a variable |
+| still accepts the boundary values REST accepts |
 
 ### cost limits
 
@@ -398,6 +519,9 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-graphql-limits.spec.ts</sub>_
 | refuses a document longer than the length limit |
 | refuses a document that aliases past the field limit |
 | refuses a shallow but expensive query on complexity |
+| costs a fragment bomb in linear time instead of hanging |
+| costs a page size that comes from a variable default |
+| lets the standard introspection query through |
 | refuses the query before executing it |
 
 <!-- source: apps/server-e2e/src/server/api-tokens/public-graphql-playground.spec.ts -->
@@ -413,6 +537,8 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-graphql-playground.spec.ts</s
 | points the editor at the API endpoint under the global prefix |
 | loads no external assets, so an air-gapped install works |
 | serves a byte-identical page on a second request |
+| serves every casing of the route, from one rendered page |
+| derives the endpoint through a trailing slash |
 
 <!-- source: apps/server-e2e/src/server/auth/accept-invite.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/accept-invite.spec.ts</sub>_
@@ -1582,6 +1708,16 @@ _<sub>apps/server-e2e/src/server/i18n/i18n-locale-integrity.spec.ts</sub>_
 | returns a resolved dir for every configured locale |
 | carries locale + dir on the entry locale panel |
 | returns the locale on the entry payload the editor reads |
+
+<!-- source: apps/server-e2e/src/server/i18n/i18n-rtl-locales.spec.ts -->
+_<sub>apps/server-e2e/src/server/i18n/i18n-rtl-locales.spec.ts</sub>_
+
+## i18n locales (RTL)
+
+| Test case |
+| --- |
+| infers rtl from the language subtag, and from a script subtag |
+| lets an explicit dir override the inference |
 
 <!-- source: apps/server-e2e/src/server/i18n/i18n-single-locale-coverage.spec.ts -->
 _<sub>apps/server-e2e/src/server/i18n/i18n-single-locale-coverage.spec.ts</sub>_

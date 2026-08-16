@@ -187,8 +187,10 @@ function render(specs) {
         '# Server E2E test catalog',
         '',
         '> **Generated file — do not edit by hand.** Regenerate with',
-        '> `npx nx catalog server-e2e`. CI runs `npx nx catalog:check server-e2e`',
-        '> and fails if this file has drifted from the specs.',
+        '> `npx nx catalog server-e2e` after adding, renaming or removing a test.',
+        '> `npx nx catalog:check server-e2e` fails if this file has drifted from the',
+        '> specs — run it locally; **no CI pipeline runs it today**, and none runs the',
+        '> suite itself either.',
         ''
     ];
     const bodyStart = lines.length;

@@ -48,9 +48,10 @@ export async function drainOutbox(app: INestApplication): Promise<void> {
 /**
  * Every outbox row for one aggregate, oldest first.
  *
- * Scoped by aggregate rather than read wholesale because `resetDb` does **not**
- * truncate `outbox_events` — rows from earlier tests in the file are still
- * there, dispatched.
+ * Scoped by aggregate rather than read wholesale so an assertion says what it
+ * means — "this mutation wrote these events" — independently of anything else
+ * the same test did. (`resetDb` does truncate `outbox_events`, so rows never
+ * cross a test boundary; the scoping is about clarity, not isolation.)
  */
 export async function getOutboxRows(aggregateId: string): Promise<OutboxRow[]> {
     const { rows } = await getPool().query<OutboxRow>(

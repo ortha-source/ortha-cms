@@ -16,6 +16,30 @@ async function drain(stream: Readable): Promise<Buffer> {
 }
 
 /**
+ * The store backing the most recently built provider.
+ *
+ * `buildTestPlugins` constructs the provider, so a spec has no reference to the
+ * `Map` it closes over — which left "delete removed the bytes" unassertable, and
+ * left the bytes themselves outliving the `media_asset` rows `resetDb`
+ * truncates. Jest isolates module registries per spec file, so this is per-file,
+ * exactly like the app it belongs to.
+ */
+let latestStore: Map<string, Buffer> | undefined;
+
+/** The keys currently held in memory — the assertion surface for delete. */
+export function blobStoreKeys(): string[] {
+    return [...(latestStore?.keys() ?? [])];
+}
+
+/**
+ * Drop every stored blob. Called by `resetDb`, so a blob cannot outlive the row
+ * that named it and satisfy a download the database says was deleted.
+ */
+export function resetBlobStore(): void {
+    latestStore?.clear();
+}
+
+/**
  * An in-memory {@link StorageProvider} for the e2e harness — a `Map<key, bytes>`
  * so upload/download/delete round-trip without touching the disk or a real
  * object store. Registered under the name `memory` (the media config's
@@ -24,6 +48,7 @@ async function drain(stream: Readable): Promise<Buffer> {
  */
 export function createInMemoryStorageProvider(): StorageProvider {
     const store = new Map<string, Buffer>();
+    latestStore = store;
     return {
         async put(object: PutObject): Promise<StoredObject> {
             const buffer = await drain(object.body);

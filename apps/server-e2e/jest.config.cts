@@ -13,6 +13,9 @@ export default {
     preset: '../../jest.preset.js',
     globalSetup: '<rootDir>/src/support/global-setup.ts',
     globalTeardown: '<rootDir>/src/support/global-teardown.ts',
+    // Per-test harness state that lives in memory rather than in the database,
+    // and so is not reached by `resetDb`.
+    setupFilesAfterEnv: ['<rootDir>/src/support/jest.setup.ts'],
     testEnvironment: 'node',
     // Key matches the Nx preset's transform pattern **exactly**, so this
     // overrides it rather than sitting alongside it. Otherwise the preset's
@@ -43,5 +46,17 @@ export default {
     testTimeout: 30000,
     // One shared testcontainer; serial suites avoid racing on `resetDb`.
     // Parallelism can come later via a DB-per-worker scheme.
+    //
+    // Load-bearing, and **enforced** in `global-setup` rather than merely set
+    // here: a CLI `--maxWorkers` overrides this file, and the corruption that
+    // follows presents as unique-constraint violations inside unrelated tests.
     maxWorkers: 1
+    // NOT set: `workerIdleMemoryLimit`. The worker's RSS does climb across a run
+    // — measured 1.3 GB at 12 minutes and 2.0 GB at 25 on the 70-file suite,
+    // each file booting its own Nest app — and recycling the worker does hold it
+    // near 500 MB. But it was measured on the machine that has the problem, and
+    // it made things worse: 1894 s against 1030 s for the same suite, because a
+    // restart discards the whole `node_modules` require cache and re-reading it
+    // is exactly what a memory-starved box is worst at. The growth is real and
+    // worth fixing at the source; this particular lever is not the fix.
 };

@@ -2,7 +2,8 @@ import type { TrustProxySetting } from '@ortha-cms/bootstrap-server';
 import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
 import type {
     IdentityRateLimitConfig,
-    IdentityRootAdminConfig
+    IdentityRootAdminConfig,
+    IdentitySessionConfig
 } from '@ortha-cms/identity-server';
 import type { LocaleDef, OrphanedLocalePolicy } from '@ortha-cms/i18n-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
@@ -42,6 +43,16 @@ export interface TestConfigOverrides {
     /** Replace the allow-listed origins. */
     allowedOrigins?: string[];
     /**
+     * Override the session-cookie attributes.
+     *
+     * The default is the plain-HTTP shape supertest needs (`cookieSecure:
+     * false`), and for a long time that was the *only* shape reachable — which
+     * left the production configuration, where `Secure` is the whole point,
+     * asserted nowhere. A suite can now boot the deployed shape and check the
+     * `Set-Cookie` header really carries it.
+     */
+    session?: Partial<IdentitySessionConfig>;
+    /**
      * Configure the root-admin bootstrap. Omitted by default, so the seeder
      * is a no-op and a freshly booted app has no users (matching production
      * with no `ORTHA_ROOT_ADMIN_EMAIL` set).
@@ -53,10 +64,10 @@ export interface TestConfigOverrides {
      */
     graphqlLimits?: Partial<ContentGraphqlLimits>;
     /**
-     * Turn developer tooling on. `createTestApp` never mounts the Scalar
-     * reference, so this exists for the one thing that reads the same flag: the
-     * GraphiQL playground, whose whole security story is that it is off unless
-     * a deployment asks.
+     * Turn developer tooling on. Two things ride this one flag, and both have
+     * the same security story — off unless a deployment asks: the Scalar API
+     * reference (`setupApiDocs`, mounted by `createTestApp` exactly as
+     * `createServer` mounts it) and the GraphiQL playground.
      */
     docsEnabled?: boolean;
     /**
@@ -112,10 +123,9 @@ export function buildTestConfig(
         globalPrefix: 'api',
         trustProxy: overrides.trustProxy,
         database: { url: connectionString },
-        // `createTestApp` builds the app itself and never calls `setupApiDocs`,
-        // so this mounts no Scalar reference. It is NOT inert, though: the
-        // GraphQL plugin reads the same flag to decide whether to register the
-        // GraphiQL playground, which is what `docsEnabled` exists to flip.
+        // Read twice: `createTestApp` passes it to `setupApiDocs` (the Scalar
+        // reference), and the GraphQL plugin reads it to decide whether to
+        // register the GraphiQL playground. Off by default, as in production.
         docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
@@ -127,7 +137,8 @@ export function buildTestConfig(
                 session: {
                     ttlSeconds: 60 * 60 * 24 * 7,
                     cookieSecure: false,
-                    cookieSameSite: 'lax'
+                    cookieSameSite: 'lax',
+                    ...overrides.session
                 },
                 token: {
                     inviteTtlSeconds: 60 * 60 * 24 * 7,

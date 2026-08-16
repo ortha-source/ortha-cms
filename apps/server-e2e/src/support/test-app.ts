@@ -1,12 +1,16 @@
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { ServerModule } from '@ortha-cms/bootstrap-server';
-import { getPool } from '@ortha-cms/database';
+import { ServerModule, setupApiDocs } from '@ortha-cms/bootstrap-server';
+import { closeDatabase } from '@ortha-cms/database';
 import type { Server } from 'node:http';
 import { buildTestPlugins } from './plugins';
 import { buildTestConfig, type TestConfigOverrides } from './test-config';
 import { resolveDatabaseUrl } from './db-url';
+import {
+    assertDatabaseReachable,
+    withDatabaseDiagnostics
+} from './infra-error';
 
 export interface TestApp {
     app: INestApplication;
@@ -18,9 +22,10 @@ export interface TestApp {
  * Boots the real server in-process against the e2e testcontainer and returns
  * it without listening on a fixed port — supertest drives `getHttpServer()`
  * directly. This mirrors `createServer` (same plugins via `buildTestPlugins`,
- * same global prefix and `ValidationPipe`) but stops at `app.init()`, so the only
- * difference from production is "init, don't listen". `app.init()` also runs
- * the `OnApplicationBootstrap` seeders (system roles), exactly as a real boot.
+ * same global prefix, `ValidationPipe` and `setupApiDocs`) but stops at
+ * `app.init()`, so the only differences from production are "init, don't
+ * listen" and the silenced logger. `app.init()` also runs the
+ * `OnApplicationBootstrap` seeders (system roles), exactly as a real boot.
  *
  * Migrations are NOT run here — `global-setup` already migrated the shared
  * container once.
@@ -31,11 +36,26 @@ export async function createTestApp(
     const config = buildTestConfig(resolveDatabaseUrl(), overrides);
     const plugins = buildTestPlugins(config);
 
+    return withDatabaseDiagnostics('booting the test app', () =>
+        bootTestApp(config, plugins)
+    );
+}
+
+async function bootTestApp(
+    config: ReturnType<typeof buildTestConfig>,
+    plugins: ReturnType<typeof buildTestPlugins>
+): Promise<TestApp> {
     // Mirror createServer: plugin init hooks run before the app is created so
     // the database connection is open before any provider is instantiated.
     for (const plugin of plugins) {
         await plugin.onPluginInit?.();
     }
+
+    // One `SELECT 1` before Nest instantiates a single provider. If the shared
+    // container has died, this is where the run says so — rather than whichever
+    // bootstrap seeder happened to notice first, reported as that suite's own
+    // failure.
+    await assertDatabaseReachable();
 
     const app = await NestFactory.create<NestExpressApplication>(
         ServerModule.forRoot(plugins),
@@ -55,6 +75,14 @@ export async function createTestApp(
             transform: true
         })
     );
+
+    // After the prefix + pipe, exactly as `createServer` does it, so a suite can
+    // assert the reference is mounted when `docsEnabled` is on and absent when
+    // it is off — the production-parity claim that used to be untestable
+    // because the harness skipped this call entirely. A no-op (returns `null`)
+    // for every suite that leaves docs disabled, which is all but one.
+    setupApiDocs(app, plugins, config.docs, 'api');
+
     await app.init();
 
     return { app, server: app.getHttpServer() as Server };
@@ -65,8 +93,13 @@ export async function createTestApp(
  * isolates module registries per spec file, so the `@ortha-cms/database`
  * singleton pool is per-file — closing it here keeps the worker free of
  * open handles between files.
+ *
+ * `closeDatabase` rather than `getPool().end()`: ending the pool alone leaves
+ * `initDatabase`'s memo populated, so a *second* `createTestApp` in the same
+ * file would silently reuse the ended pool and every query would throw "Cannot
+ * use a pool after calling end on the pool".
  */
 export async function closeTestApp(harness: TestApp): Promise<void> {
     await harness.app.close();
-    await getPool().end();
+    await closeDatabase();
 }

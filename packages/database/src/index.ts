@@ -1,5 +1,10 @@
 export type { Database, DatabasePluginConfig } from './lib/types';
-export { initDatabase, getDatabase, getPool } from './lib/utils/db';
+export {
+    initDatabase,
+    closeDatabase,
+    getDatabase,
+    getPool
+} from './lib/utils/db';
 export { DatabasePlugin } from './lib/utils/database-plugin';
 export type { DatabaseServerPlugin } from './lib/utils/database-plugin';
 export {

@@ -6,13 +6,23 @@ import type { Test } from 'supertest';
  *
  * Comment frames (`: open`, `: ping`) yield nothing: they carry no data and
  * exist only to flush headers and keep an idle connection alive.
+ *
+ * The prefix match is `data:` with the space **optional**, matching both the
+ * SSE grammar (a single leading space after the colon is stripped, and is not
+ * required) and the admin client's own parser
+ * (`packages/copilot/admin/src/lib/application/runStream.ts`). Requiring the
+ * space would make this harness blind to a frame the shipped client reads
+ * perfectly well: `find` would return `undefined`, the frame would be dropped
+ * silently, and the failure would present as a missing event rather than as a
+ * parser disagreement.
  */
 function parseBlock(block: string): CopilotRunEvent | undefined {
     const trimmed = block.trim();
     if (trimmed.length === 0 || trimmed.startsWith(':')) return undefined;
-    const data = trimmed.split('\n').find((line) => line.startsWith('data: '));
+    const data = trimmed.split('\n').find((line) => line.startsWith('data:'));
+    // `JSON.parse` tolerates the leading space, so one slice serves both forms.
     return data
-        ? (JSON.parse(data.slice('data: '.length)) as CopilotRunEvent)
+        ? (JSON.parse(data.slice('data:'.length)) as CopilotRunEvent)
         : undefined;
 }
 
