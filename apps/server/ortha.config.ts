@@ -235,7 +235,7 @@ const config: OrthaConfig = {
                 maxDepth: Number(process.env['GRAPHQL_MAX_DEPTH']) || 8,
                 maxComplexity:
                     Number(process.env['GRAPHQL_MAX_COMPLEXITY']) || 1000,
-                maxAliases: Number(process.env['GRAPHQL_MAX_FIELDS']) || 30,
+                maxFields: Number(process.env['GRAPHQL_MAX_FIELDS']) || 500,
                 maxQueryLength:
                     Number(process.env['GRAPHQL_MAX_QUERY_LENGTH']) || 16_384
             },

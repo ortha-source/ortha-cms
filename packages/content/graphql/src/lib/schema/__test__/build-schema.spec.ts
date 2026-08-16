@@ -1,7 +1,10 @@
 import { ContentTypeRegistry } from '@ortha-cms/content-server';
 import { collection, field } from '@ortha-cms/content-server/define';
 import { printSchema } from 'graphql';
-import { buildContentSchema } from '../build-schema';
+import {
+    assertNoEnvelopeCollisions,
+    buildContentSchema
+} from '../build-schema';
 import {
     GRANTED_ALL,
     GRANTED_WITHOUT_VAULT,
@@ -180,6 +183,42 @@ describe('buildContentSchema', () => {
                     new Set(['clashing'])
                 )
             ).toThrow(/collides with the GraphQL entry envelope/);
+        });
+
+        it('catches an envelope collision without building a schema', () => {
+            // The build-time throw fires inside a lazy field thunk, per grant
+            // set — so on its own the host boots and the FIRST request from the
+            // one workspace granted that type 500s. This is the check the
+            // plugin factory runs at composition time instead.
+            // `translations` is the reachable case: every other envelope name
+            // maps to a reserved *column*, which `define()` already refuses, so
+            // this is the one collision that gets as far as a schema build.
+            const clashing = collection('clashing', {
+                i18n: true,
+                fields: { translations: field.text() }
+            });
+
+            expect(() => assertNoEnvelopeCollisions([clashing])).toThrow(
+                /"translations".*collides with the GraphQL entry envelope/
+            );
+        });
+
+        it('flags an envelope name even on a type whose flags hide it', () => {
+            // `translations` only appears on an i18n type today, but flipping
+            // `i18n` later must not be what makes a schema unbuildable.
+            const clashing = collection('clashing', {
+                fields: { translations: field.text() }
+            });
+
+            expect(() => assertNoEnvelopeCollisions([clashing])).toThrow(
+                /collides with the GraphQL entry envelope/
+            );
+        });
+
+        it('passes a model with no envelope collision', () => {
+            expect(() =>
+                assertNoEnvelopeCollisions(fixtureRegistry().all())
+            ).not.toThrow();
         });
 
         it('refuses a content type that shadows a shared schema type', () => {

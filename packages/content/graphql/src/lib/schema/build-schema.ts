@@ -204,6 +204,38 @@ function describeType(type: AnyContentType): string {
     return notes.join(' ');
 }
 
+/**
+ * Fails when any content type declares a field the GraphQL entry envelope
+ * already owns.
+ *
+ * Called from the plugin factory at **composition time**, for the same reason
+ * `assertNoNameCollisions` is: a field named `status` is a modelling bug, and
+ * discovering it when the first request arrives from the one workspace granted
+ * that type turns it into a production surprise — a 500 on a live endpoint —
+ * instead of a failed boot. The check inside {@link entryFields} stays as the
+ * backstop for a registry assembled some other way.
+ *
+ * Checked against the whole envelope regardless of the type's flags: `status`
+ * only appears on a publishable type, but flipping `publishable` later must not
+ * be what turns a schema unbuildable.
+ */
+export function assertNoEnvelopeCollisions(
+    types: readonly AnyContentType[]
+): void {
+    for (const type of types) {
+        for (const fieldName of Object.keys(type.fields)) {
+            if (ENVELOPE_FIELDS.includes(fieldName)) {
+                throw new Error(envelopeCollision(type.name, fieldName));
+            }
+        }
+    }
+}
+
+/** The one message both the boot check and the build-time backstop raise. */
+function envelopeCollision(typeName: string, fieldName: string): string {
+    return `Content type "${typeName}" defines a field named "${fieldName}", which collides with the GraphQL entry envelope. Rename it.`;
+}
+
 /** Envelope field names an entry object always carries. */
 const ENVELOPE_FIELDS = [
     'id',
@@ -273,9 +305,7 @@ function entryFields(
 
     for (const [fieldName, spec] of Object.entries(type.fields)) {
         if (ENVELOPE_FIELDS.includes(fieldName)) {
-            throw new Error(
-                `Content type "${type.name}" defines a field named "${fieldName}", which collides with the GraphQL entry envelope. Rename it.`
-            );
+            throw new Error(envelopeCollision(type.name, fieldName));
         }
         if (spec.type === CONTENT_FIELD_TYPE.Relation) {
             const target = spec.relation?.to();

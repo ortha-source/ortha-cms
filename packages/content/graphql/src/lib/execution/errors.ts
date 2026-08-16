@@ -27,6 +27,12 @@ import { GraphQLError } from 'graphql';
  * request. It is logged server-side with its stack and replaced with a fixed
  * message: a Postgres error text or a stack trace is exactly the sort of thing
  * that turns a token into a reconnaissance tool.
+ *
+ * **So is a 5xx `HttpException`.** The mask keys on the status, not on the
+ * exception class: `throw new InternalServerErrorException(driverError.message)`
+ * is an ordinary thing to write and would otherwise be relayed word for word.
+ * A client can only branch on statuses it is meant to see, and 500 is not one
+ * of them.
  */
 export function toGraphQLError(
     error: unknown,
@@ -54,6 +60,24 @@ export function toGraphQLError(
     if (error instanceof HttpException) {
         const status = error.getStatus();
         const response = error.getResponse();
+        if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+            // A 5xx `HttpException` is still a bug, and its message is whatever
+            // the throw site happened to wrap — a driver error, a constraint
+            // name, a path. Masking on the exception *class* alone would relay
+            // it verbatim the moment someone writes
+            // `new InternalServerErrorException(pgError.message)`, so the mask
+            // keys on the status the client is about to be told.
+            logger.error(
+                'A 5xx HttpException surfaced from a GraphQL operation',
+                error.stack ?? String(error)
+            );
+            return new GraphQLError('Internal server error.', {
+                extensions: {
+                    code: codeFor(status),
+                    status
+                }
+            });
+        }
         return new GraphQLError(messageOf(response, error.message), {
             extensions: {
                 code: codeFor(status),

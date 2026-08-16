@@ -77,5 +77,32 @@ describe('Public GraphQL playground (/api/v1/graphql/playground)', () => {
 
             expect(second.text).toEqual(first.text);
         });
+
+        it('serves every casing of the route, from one rendered page', async () => {
+            // Express matches the route case-insensitively, so each of these is
+            // a 200 deriving a distinct endpoint. They used to be memoised per
+            // key, retaining ~17 MB of heap each and never releasing it — an
+            // unauthenticated OOM in a few dozen requests. The memo is one slot
+            // now; the unit suite pins that, this pins that they all still work.
+            for (const url of [
+                '/api/v1/graphql/playground',
+                '/API/v1/GRAPHQL/playground',
+                '/api/v1/GraphQL/playground'
+            ]) {
+                const res = await request(harness.server).get(url).expect(200);
+                expect(res.text).toContain('graphiql');
+            }
+        });
+
+        it('derives the endpoint through a trailing slash', async () => {
+            // `…/playground/` is the same route to Express. Without trimming it
+            // the derivation missed and fell back to a hard-coded default,
+            // which is wrong on any host with a non-default global prefix.
+            const res = await request(harness.server)
+                .get('/api/v1/graphql/playground/')
+                .expect(200);
+
+            expect(res.text).toContain('"endpoint":"/api/v1/graphql"');
+        });
     });
 });

@@ -1,3 +1,4 @@
+import { getIntrospectionQuery } from 'graphql';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -36,8 +37,10 @@ describe('Public GraphQL API cost limits (/api/v1/graphql)', () => {
             graphqlLimits: {
                 maxDepth: 3,
                 maxComplexity: 50,
-                maxAliases: 8,
-                maxQueryLength: 200
+                maxFields: 8,
+                // Roomy enough for the standard introspection query (~1.9 KB)
+                // and the fragment-bomb fixture; the length test pads past it.
+                maxQueryLength: 4096
             }
         });
         await resetDb();
@@ -102,10 +105,10 @@ describe('Public GraphQL API cost limits (/api/v1/graphql)', () => {
         // length check runs first precisely so an enormous document is refused
         // before it is parsed.
         const errors = await errorsFor(
-            `{ testArticles { total } }\n# ${'x'.repeat(250)}`
+            `{ testArticles { total } }\n# ${'x'.repeat(4100)}`
         );
 
-        expect(errors[0]?.message).toMatch(/characters; the limit is 200/);
+        expect(errors[0]?.message).toMatch(/characters; the limit is 4096/);
     });
 
     it('refuses a document that aliases past the field limit', async () => {
@@ -130,6 +133,66 @@ describe('Public GraphQL API cost limits (/api/v1/graphql)', () => {
         expect(errors.map((error) => error.message)).toContainEqual(
             expect.stringMatching(/may touch about/)
         );
+    });
+
+    it('costs a fragment bomb in linear time instead of hanging', async () => {
+        // `{ ...F0 }` with F0…F8 each spreading the next ten times: 10^9
+        // expansions in under 800 bytes, well inside any length limit. Costing
+        // that un-memoised blocked the event loop for minutes — every request
+        // on the process, not just this one — so the assertion that matters is
+        // that the answer arrives at all.
+        const width = 10;
+        const spread = (name: string) =>
+            Array.from({ length: width }, () => `...${name}`).join(' ');
+        let query = `{ ${spread('F0')} }\n`;
+        for (let level = 0; level < 9; level++) {
+            query +=
+                `fragment F${level} on Query { ` +
+                (level === 8
+                    ? 'testArticles { total }'
+                    : spread(`F${level + 1}`)) +
+                ' }\n';
+        }
+
+        const started = Date.now();
+        const errors = await errorsFor(query);
+
+        expect(Date.now() - started).toBeLessThan(2000);
+        expect(errors[0]?.extensions?.code).toBe('GRAPHQL_LIMIT_EXCEEDED');
+    });
+
+    it('costs a page size that comes from a variable default', async () => {
+        // The value graphql-js substitutes when the caller sends nothing.
+        // Reading only the supplied variables let the whole budget be defeated
+        // by moving the number one token to the left.
+        const res = await request(harness.server)
+            .post('/api/v1/graphql')
+            .set('Authorization', `Bearer ${secret}`)
+            .send({
+                query: 'query Q($n: Int = 100) { testArticles(pageSize: $n) { items { text } } }'
+            })
+            .expect(200);
+
+        expect(
+            (res.body.errors ?? []).map(
+                (error: { message: string }) => error.message
+            )
+        ).toContainEqual(expect.stringMatching(/may touch about/));
+    });
+
+    it('lets the standard introspection query through', async () => {
+        // Introspection is deliberately enabled and is answered from the schema
+        // already in memory. Costing it as content refused it outright at these
+        // limits — and at the shipped defaults — which is GraphiQL and every
+        // codegen tool locked out of an endpoint that advertises them.
+        const res = await request(harness.server)
+            .post('/api/v1/graphql')
+            .set('Authorization', `Bearer ${secret}`)
+            .send({ query: getIntrospectionQuery() })
+            .expect(200);
+
+        expect(res.body.errors).toBeUndefined();
+        expect(res.body.data.__schema.types.length).toBeGreaterThan(0);
     });
 
     it('refuses the query before executing it', async () => {

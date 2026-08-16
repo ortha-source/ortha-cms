@@ -2,6 +2,7 @@ import {
     MAX_PAGE_SIZE,
     PREVIEW,
     type AnyContentType,
+    type EntryVisibility,
     type PublicEntriesQuery,
     type PublicEntry,
     type PublicListEntriesQueryDto
@@ -70,7 +71,8 @@ export class EntryLoader {
             type.name,
             request.locale ?? '',
             request.limit,
-            request.translations ? 't' : ''
+            request.translations ? 't' : '',
+            request.status ?? ''
         ].join('|');
         let batch = this.pending.get(key);
         if (!batch) {
@@ -132,6 +134,9 @@ export class EntryLoader {
             if (request.locale) {
                 dto.locale = request.locale;
             }
+            if (request.status) {
+                dto.status = request.status;
+            }
             if (batch.relationFields.size > 0) {
                 dto.relations = PREVIEW;
                 dto.relationFields = [...batch.relationFields].join(',');
@@ -171,6 +176,21 @@ export interface ExpansionRequest {
     limit: number;
     /** Locale to read in — the requesting entry's own, on a localized type. */
     locale?: string;
+    /**
+     * Publish states the re-read may return. Absent means `published`, which is
+     * right for a linked target and **wrong for the parent the caller already
+     * holds**: a mutation returns a draft, and re-reading it through the
+     * published-only rule finds nothing, so every relation, media field and
+     * `translations` selection on a freshly-created entry came back empty.
+     *
+     * Widened only when the entry in hand is itself a draft, which the caller
+     * could not be holding unless they were already authorized for drafts —
+     * `assertVisibility` gates `status: DRAFT|ANY` on reads, and a mutation
+     * result required the write permission it asserted. So this never shows a
+     * row `readableWhere` would have hidden; it asks the same question with the
+     * visibility the caller already had.
+     */
+    status?: EntryVisibility;
 }
 
 /** A batch accumulating requests until the tick ends. */

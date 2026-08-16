@@ -1,12 +1,14 @@
+import { BadRequestException } from '@nestjs/common';
 import {
     CONTENT_FIELD_TYPE,
     DEFAULT_EXPANSION_LIMIT,
     MAX_PAGE_SIZE,
     PREVIEW,
-    type AnyContentType,
-    type PublicEntryQueryDto,
-    type PublicListEntriesQueryDto
+    PublicEntryQueryDto,
+    PublicListEntriesQueryDto,
+    type AnyContentType
 } from '@ortha-cms/content-server';
+import { validateSync } from 'class-validator';
 import {
     Kind,
     type FieldNode,
@@ -233,12 +235,24 @@ export function readSingleSelection(
     );
 }
 
-/** Builds a list DTO from resolved arguments plus the caller's selection. */
+/**
+ * Builds a list DTO from resolved arguments plus the caller's selection.
+ *
+ * The DTO is **validated**, for the same reason `mutation-resolvers.ts`
+ * validates the write body: a REST query string meets the host's global
+ * `ValidationPipe` and a GraphQL argument never does. Without this the
+ * `@Min(1)`/`@Max(MAX_PAGE_SIZE)` on `page`/`pageSize` and the `@MaxLength` on
+ * `search`/`locale` simply are not applied over this protocol, so `pageSize:
+ * -1` — a clean 400 over REST — reaches `.limit(-1)` and comes back as an
+ * opaque 500, and a 100 KB `search` needle sails past a cap the REST route
+ * enforces. ADR-0008's premise is that a token cannot reach further over
+ * GraphQL than over REST; this is what makes that true of read arguments.
+ */
 export function listDtoFrom(
     args: Record<string, unknown>,
     selection: EntrySelection
 ): PublicListEntriesQueryDto {
-    const dto = {} as PublicListEntriesQueryDto;
+    const dto = new PublicListEntriesQueryDto();
     if (typeof args['page'] === 'number') dto.page = args['page'];
     if (typeof args['pageSize'] === 'number') dto.pageSize = args['pageSize'];
     if (typeof args['sort'] === 'string') dto.sort = args['sort'];
@@ -256,6 +270,7 @@ export function listDtoFrom(
         dto.filter = JSON.stringify(args['filter']);
     }
     applySelection(dto, selection);
+    assertValidQuery(dto);
     return dto;
 }
 
@@ -264,13 +279,33 @@ export function entryDtoFrom(
     args: Record<string, unknown>,
     selection: EntrySelection
 ): PublicEntryQueryDto {
-    const dto = {} as PublicEntryQueryDto;
+    const dto = new PublicEntryQueryDto();
     if (typeof args['locale'] === 'string') dto.locale = args['locale'];
     if (typeof args['status'] === 'string') {
         dto.status = args['status'] as PublicEntryQueryDto['status'];
     }
     applySelection(dto, selection);
+    assertValidQuery(dto);
     return dto;
+}
+
+/**
+ * Runs a read DTO's own validators — the ones the host's `ValidationPipe`
+ * applies to a REST query string. A failure is a 400 naming the offending
+ * argument, so the two protocols refuse the same input the same way.
+ */
+function assertValidQuery(dto: PublicEntryQueryDto): void {
+    const errors = validateSync(dto, {
+        whitelist: true,
+        forbidNonWhitelisted: true
+    });
+    if (errors.length > 0) {
+        throw new BadRequestException(
+            errors.flatMap((error) =>
+                Object.values(error.constraints ?? { error: error.toString() })
+            )
+        );
+    }
 }
 
 /** One field node as a {@link SelectedField}, with its arguments resolved. */
