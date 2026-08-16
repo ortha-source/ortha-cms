@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1084 test cases across 71 spec files._
+_1087 test cases across 71 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -32,6 +32,14 @@ _<sub>apps/server-e2e/src/harness/harness-guards.spec.ts</sub>_
 | refuses two workers, naming the flag and the reason |
 | refuses any count above one |
 | yields to an explicit opt-in, for whoever implements the scheme |
+
+### memory advisory (warnOnLowMemory)
+
+| Test case |
+| --- |
+| says nothing when there is headroom |
+| names memory as the suspect when there is not |
+| reports a plausible amount for this machine |
 
 ### external database safety (assertDisposableExternalDatabase)
 

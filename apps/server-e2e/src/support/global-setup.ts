@@ -8,7 +8,9 @@ import { buildTestConfig } from './test-config';
 import { publishDatabaseUrl } from './db-url';
 import {
     assertDisposableExternalDatabase,
-    assertSerialExecution
+    assertSerialExecution,
+    availableMemoryBytes,
+    warnOnLowMemory
 } from './preflight';
 
 /**
@@ -27,6 +29,10 @@ module.exports = async function (globalConfig?: { maxWorkers?: number }) {
     // config that pins that is overridable from the CLI. Fail here, loudly,
     // rather than 20 minutes later as cross-suite data corruption.
     assertSerialExecution(globalConfig?.maxWorkers);
+
+    // Advisory, not a gate. If the run goes red in its back half, this line is
+    // the difference between "memory" and a 20-minute misdiagnosis.
+    warnOnLowMemory(availableMemoryBytes());
 
     // `E2E_DATABASE_URL` points the run at an already-running Postgres instead
     // of starting a container. Deliberately its OWN variable rather than

@@ -1,11 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { freemem } from 'node:os';
+
 /**
  * Checks `global-setup` makes **before** it starts a container or touches a
  * database. Each one turns a failure that would otherwise present as a wall of
  * unrelated test failures into a single sentence naming the cause.
  *
  * Kept out of `global-setup.ts` so they can be exercised directly by
- * `harness-preflight.spec.ts` — a guard nothing tests is a guard that quietly
- * stops working.
+ * `src/harness/harness-guards.spec.ts` — a guard nothing tests is a guard that
+ * quietly stops working.
  */
 
 /**
@@ -40,6 +43,57 @@ export function assertSerialExecution(maxWorkers: number | undefined): void {
             'Parallelism needs a database-per-worker scheme first (apps/server-e2e/AGENTS.md).\n' +
             'Override with E2E_ALLOW_PARALLEL=true only once that exists.'
     );
+}
+
+/**
+ * Headroom a full run wants, in bytes.
+ *
+ * The worker's RSS climbs across the run (70+ files, each booting its own Nest
+ * app), and Postgres, Docker and the container want their share beside it. Below
+ * roughly this, the back half of the run starves — 30-second hook timeouts
+ * first, then pool failures, then the container going away.
+ */
+const RECOMMENDED_FREE_BYTES = 2.5 * 1024 * 1024 * 1024;
+
+/**
+ * Memory a process could actually get, in bytes.
+ *
+ * `os.freemem()` is the wrong number on Linux: it reports `MemFree`, which
+ * excludes reclaimable page cache, so a perfectly healthy box reads as nearly
+ * out of memory (measured here: 204 MB "free" against 1.5 GB available). Prefer
+ * `MemAvailable` from `/proc/meminfo`, which is the kernel's own estimate, and
+ * fall back to `os.freemem()` where that file does not exist.
+ */
+export function availableMemoryBytes(): number {
+    try {
+        const meminfo = readFileSync('/proc/meminfo', 'utf8');
+        const match = /^MemAvailable:\s+(\d+) kB$/m.exec(meminfo);
+        if (match) return Number(match[1]) * 1024;
+    } catch {
+        // Not Linux, or /proc is not mounted — fall through.
+    }
+    return freemem();
+}
+
+/**
+ * Warn — do not refuse — when the machine is short of memory.
+ *
+ * A warning rather than a hard failure because the threshold is a heuristic and
+ * a targeted single-suite run needs far less. What matters is that the *first*
+ * line of a starved run says memory, so the ~650 failures that follow are read
+ * as one cause rather than 650 regressions. Returns the message it printed, or
+ * `undefined`, so a test can assert the boundary.
+ */
+export function warnOnLowMemory(availableBytes: number): string | undefined {
+    if (availableBytes >= RECOMMENDED_FREE_BYTES) return undefined;
+    const gib = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
+    const message =
+        `[e2e] WARNING: only ${gib(availableBytes)} of memory is available; a full run wants about ${gib(RECOMMENDED_FREE_BYTES)}.\n` +
+        '[e2e] A starved run fails in ways that look like product regressions — hook\n' +
+        '[e2e] timeouts, then pg-pool connection failures, then the testcontainer being\n' +
+        '[e2e] killed. If this run goes red in its back half, suspect memory first.';
+    console.warn(message);
+    return message;
 }
 
 /** The database name from a Postgres connection string, or `''`. */

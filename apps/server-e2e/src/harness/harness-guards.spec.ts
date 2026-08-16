@@ -1,7 +1,9 @@
 import { Pool } from 'pg';
 import {
     assertDisposableExternalDatabase,
-    assertSerialExecution
+    assertSerialExecution,
+    availableMemoryBytes,
+    warnOnLowMemory
 } from '../support/preflight';
 import {
     E2eInfrastructureError,
@@ -58,6 +60,42 @@ describe('harness guards', () => {
             } finally {
                 delete process.env['E2E_ALLOW_PARALLEL'];
             }
+        });
+    });
+
+    describe('memory advisory (warnOnLowMemory)', () => {
+        const GIB = 1024 ** 3;
+        let warn: jest.SpyInstance;
+
+        beforeEach(() => {
+            warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+                /* keep the suite's output clean */
+            });
+        });
+        afterEach(() => warn.mockRestore());
+
+        it('says nothing when there is headroom', () => {
+            expect(warnOnLowMemory(8 * GIB)).toBeUndefined();
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('names memory as the suspect when there is not', () => {
+            // The point is the *first* line of a starved run, so the hundreds of
+            // failures after it are read as one cause rather than as hundreds of
+            // regressions.
+            const message = warnOnLowMemory(1.5 * GIB);
+            expect(message).toContain('1.5 GiB');
+            expect(message).toContain('suspect memory first');
+            expect(warn).toHaveBeenCalled();
+        });
+
+        it('reports a plausible amount for this machine', () => {
+            // Guards the Linux reading specifically: `os.freemem()` reports
+            // MemFree, which excludes reclaimable page cache and can read an
+            // order of magnitude low. A number below 32 MiB means we are reading
+            // the wrong field, not that the box is out of memory — it is running
+            // this test.
+            expect(availableMemoryBytes()).toBeGreaterThan(32 * 1024 * 1024);
         });
     });
 
