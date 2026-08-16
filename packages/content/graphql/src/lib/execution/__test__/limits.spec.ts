@@ -160,6 +160,38 @@ describe('checkLimits', () => {
         });
     });
 
+    describe('single-record locators', () => {
+        it('costs a field addressed by id as one record', () => {
+            // `article(id:) { author tags translations }` costs
+            // 20 + 3 × (20 × 20) = 1220 if the parent counts as a full page —
+            // refused at the default 1000 for a read that can touch 61 rows.
+            expect(
+                check(
+                    '{ article(id: "x") { author { name } tags { items { name } } translations { locale } } }'
+                )
+            ).toEqual([]);
+        });
+
+        it('still costs the list form of the same read', () => {
+            const errors = check(
+                '{ articles { author { name } tags { items { name } } translations { locale } } }'
+            );
+
+            expect(errors.map((error) => error.message)).toContainEqual(
+                expect.stringMatching(/may touch about 1220 records/)
+            );
+        });
+
+        it('counts a localeGroupId locator the same way', () => {
+            expect(
+                check(
+                    '{ article(localeGroupId: "g", locale: "de") { tags { items { name } } } }',
+                    { maxComplexity: 25 }
+                )
+            ).toEqual([]);
+        });
+    });
+
     describe('variable defaults', () => {
         it('costs a page size that comes from the variable default', () => {
             // The value graphql-js will actually substitute. Reading only the

@@ -235,7 +235,12 @@ back full (the point is to refuse shapes that _can_ be enormous), and it does
 sized, and counting it again squares every list and rejects ordinary documents.
 A `pageSize` passed as a variable is read from the values sent **and from the
 variable's declared default**, because `query Q($n: Int = 500)` executes at 500
-whether or not the caller sends one.
+whether or not the caller sends one. A field carrying `id:` or `localeGroupId:`
+counts as **one** record: it addresses a single row, and charging it a full page
+made `article(id:) { author tags translations }` cost 1220 against a budget of
+1000 — an ordinary single read refused for a query that can touch 61 rows.
+Naming a locator on a field that has none is a validation error a step later, so
+it cannot buy a cheaper estimate for a document that will actually run.
 
 ### The cost walk is linear in the document, not in its expansion
 

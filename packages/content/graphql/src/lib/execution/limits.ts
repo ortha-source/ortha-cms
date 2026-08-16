@@ -416,6 +416,26 @@ function numericLiteral(
     return undefined;
 }
 
+/**
+ * Arguments that address **one** record. A field carrying either returns at
+ * most a single entry however large a page it would otherwise imply, so
+ * counting it as a full list over-charges a single read by the assumed page
+ * size — and then again for every expansion hanging off it.
+ *
+ * That is not a theoretical over-charge: `article(id:) { author tags
+ * translations }` costs 20 + 3 × (20 × 20) = 1220 against a budget of 1000, so
+ * reading one record with its relations was refused while it can touch at most
+ * 61 rows.
+ *
+ * Naming one of these on a field that has no such argument is a validation
+ * error a step later, so a caller cannot use it to buy a cheaper estimate for
+ * a document that will actually run.
+ */
+const LOCATOR_ARGUMENTS: ReadonlySet<string> = new Set([
+    'id',
+    'localeGroupId'
+]);
+
 /** A field's declared page size, from a literal or a variable. */
 function pageSizeOf(
     selection: {
@@ -423,6 +443,11 @@ function pageSizeOf(
     },
     sizes: PageSizes
 ): number {
+    for (const argument of selection.arguments ?? []) {
+        if (LOCATOR_ARGUMENTS.has(argument.name.value)) {
+            return 1;
+        }
+    }
     for (const argument of selection.arguments ?? []) {
         const name = argument.name.value;
         if (name !== 'pageSize' && name !== 'limit') {
