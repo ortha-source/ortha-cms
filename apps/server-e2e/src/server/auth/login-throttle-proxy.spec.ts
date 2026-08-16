@@ -20,10 +20,14 @@ const PASSWORD = 'SecurePass123!';
  * are what tells the two postures apart: distinct forwarded clients get
  * distinct buckets, and exhausting one leaves the others untouched.
  *
- * A separate file from `login-throttle.spec.ts` because `closeTestApp` ends the
- * per-file database pool — two apps in one file would have the first one's
- * teardown pull the connection out from under the second. Jest isolates module
- * registries per file, so each gets its own pool.
+ * A separate file from `login-throttle.spec.ts` because the two postures are
+ * separate claims, not because one file cannot hold two apps — `closeTestApp`
+ * clears the database memo as well as ending the pool, so a later
+ * `createTestApp` opens a fresh one.
+ *
+ * One app for the whole file is safe *here*, unlike in its sibling: every test
+ * uses forwarded addresses no other test touches, so no test inherits a bucket
+ * another consumed.
  */
 describe('POST /api/auth/login (rate limit behind a trusted proxy)', () => {
     let harness: TestApp;

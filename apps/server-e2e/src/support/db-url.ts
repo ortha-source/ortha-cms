@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -10,8 +11,21 @@ import { tmpdir } from 'node:os';
  * via `DATABASE_URL`. We also persist it to a temp file as a fallback for
  * runners/modes where that inheritance doesn't hold, and read whichever is
  * present. One source of truth, two delivery paths.
+ *
+ * The filename is keyed by this checkout's path so two worktrees running the
+ * suite at once (the parallel-stack workflow in `docs/parallel-stacks.md`)
+ * cannot hand each other the wrong container's URI — and teardown removes only
+ * the file it wrote, never the shared directory, so finishing first cannot
+ * delete another run's handoff out from under it.
  */
-const URL_FILE = join(tmpdir(), 'ortha-server-e2e', 'database-url');
+const URL_DIR = join(tmpdir(), 'ortha-server-e2e');
+const URL_FILE = join(
+    URL_DIR,
+    `database-url-${createHash('sha256')
+        .update(join(__dirname, '..', '..'))
+        .digest('hex')
+        .slice(0, 12)}`
+);
 
 /** Publish the connection string for workers to pick up. Called by setup. */
 export function publishDatabaseUrl(connectionString: string): void {
@@ -35,7 +49,7 @@ export function resolveDatabaseUrl(): string {
     }
 }
 
-/** Remove the temp handoff file. Called by teardown. */
+/** Remove this run's handoff file. Called by teardown. */
 export function clearDatabaseUrl(): void {
-    rmSync(dirname(URL_FILE), { recursive: true, force: true });
+    rmSync(URL_FILE, { force: true });
 }

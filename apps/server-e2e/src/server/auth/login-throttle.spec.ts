@@ -17,14 +17,21 @@ const PASSWORD = 'SecurePass123!';
  * doesn't bleed into them.
  *
  * Its sibling `login-throttle-proxy.spec.ts` boots the same limit with
- * `trustProxy` set. They are separate files on purpose: `closeTestApp` ends the
- * per-file `@ortha-cms/database` pool, so two apps in one file would have the
- * first one's teardown pull the connection out from under the second.
+ * `trustProxy` set. They are separate files for readability; a second app in one
+ * file is safe now that `closeTestApp` clears the database memo as well as
+ * ending the pool.
+ *
+ * A **fresh app per test**, not per file: the throttler's bucket is in-memory
+ * per app, so a `beforeAll` boot leaves the second test running against a bucket
+ * the first one consumed. That made each test's expected status depend on the
+ * one before it — the suite passed as a whole and failed under `-t`, which is
+ * the shape of order-dependence that is hardest to diagnose and easiest to
+ * mistake for a product bug.
  */
 describe('POST /api/auth/login (rate limit)', () => {
     let harness: TestApp;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
         harness = await createTestApp({
             rateLimit: { ttlSeconds: 60, limit: 3 }
         });
@@ -36,7 +43,7 @@ describe('POST /api/auth/login (rate limit)', () => {
         });
     });
 
-    afterAll(async () => {
+    afterEach(async () => {
         await closeTestApp(harness);
     });
 
@@ -60,6 +67,12 @@ describe('POST /api/auth/login (rate limit)', () => {
         // the header entirely until `trust proxy` is set — which is the safe
         // half of BUG-identity-server-02, and why the fix is opt-in per
         // deployment rather than on by default.
+        //
+        // The bucket is exhausted here rather than inherited from the test
+        // above, so this asserts what it claims to on its own.
+        await attempt().expect(401);
+        await attempt().expect(401);
+        await attempt().expect(401);
         await attempt().set('X-Forwarded-For', '203.0.113.7').expect(429);
     });
 });
