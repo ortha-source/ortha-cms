@@ -54,11 +54,11 @@ states.
   axe-core 4.12's 105 rules, 29% of the catalogue, were dark, and nothing said so
   because no rule had been *disabled*. A route with no `<h1>`, no `<main>` and a
   nameless dialog scanned green. If you are ever tempted to trim that tag list,
-  read `src/host/a11y-harness.spec.ts` first — it exists to stop exactly this.
+  read `src/harness/axe-fixture.spec.ts` first — it exists to stop exactly this.
 - **Five rules are excluded, in one place, with tickets.** `AXE_KNOWN_GAPS` in
   `support/fixtures.ts` names each, its measured node count and the surfaces it
   fires on. They are real product debt, not rules the project disagrees with, and
-  deleting an entry is the last step of the fix. `a11y-harness.spec.ts` pins the
+  deleting an entry is the last step of the fix. `harness/axe-fixture.spec.ts` pins the
   list so it cannot quietly grow. Never exclude a rule anywhere else.
 - **`incomplete` is not a pass.** `expectNoA11yViolations` records axe's
   "could not decide" bucket as a test annotation (visible per case in the HTML
@@ -76,7 +76,13 @@ states.
 case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`) — it
 never runs Playwright, so it needs no browser. **Don't edit it by hand.** After
 adding, renaming, or removing a test, run `npx nx catalog admin-e2e` and commit
-the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
+the result; `npx nx catalog:check admin-e2e` fails if it has drifted, and the
+`admin-e2e-test-catalog` pre-commit hook regenerates and re-stages it for you.
+
+**Nothing in CI runs any of this** — `.github/workflows/` holds `release.yml`
+alone, with no `e2e`, `lint`, `typecheck` or `catalog:check`. That hook and
+whatever you run locally are the entire gate for this suite. Run the full thing
+before merging and never merge red.
 
 ## Conventions
 

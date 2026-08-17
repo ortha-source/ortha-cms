@@ -48,7 +48,8 @@ page, add a suite here that exercises it — including an axe scan.
 // fixtures.ts — import { test, expect } from this, not @playwright/test
 test.extend<{ loginPage; homePage; makeAxe }>
 //   loginPage / homePage  → page objects (support/pages/)
-//   makeAxe()             → a fresh AxeBuilder, tagged WCAG 2.1 A/AA
+//   makeAxe()             → a fresh AxeBuilder: WCAG 2.1 A/AA + best-practice,
+//                           minus AXE_KNOWN_GAPS (the tracked, ticketed debt)
 
 // pages/LoginPage.ts
 loginPage.goto() / login(email, password)
@@ -124,7 +125,7 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
   dialog open).
 - Exclusions live in **one** place — `AXE_KNOWN_GAPS` in `support/fixtures.ts` —
   each with its node count, its surfaces and its ticket, and
-  `src/host/a11y-harness.spec.ts` pins the list so it cannot grow quietly.
+  `src/harness/axe-fixture.spec.ts` pins the list so it cannot grow quietly.
   Never `disableRules` in a spec.
 - `expectNoA11yViolations` fails on `violations` and **records `incomplete`** as
   a test annotation. Treat "axe could not decide" as work, not as a pass —
@@ -166,11 +167,20 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
 Regenerate the catalog when you add/rename/remove a suite or case:
 
 ```bash
-npx nx e2e admin-e2e -- --project=chromium   # faster locally; CI runs all 3
+npx nx e2e admin-e2e                          # chromium is the only project
 npx nx run-many -t typecheck lint -p admin-e2e
-npx nx catalog admin-e2e                      # regenerate TESTS.md, then commit
-npx nx format:write
+npx nx catalog admin-e2e                      # regenerate TESTS.md (the pre-commit
+                                              # hook does this too), then commit
+npx nx format:write -- --uncommitted          # never bare: it reformats the repo
 ```
 
+**There is no CI.** `.github/workflows/` holds `release.yml` and nothing else —
+no `e2e`, no `lint`, no `typecheck`, no `catalog:check`. Whatever you run
+locally *is* the gate for this suite and `server-e2e` both, so run the whole
+thing before you merge and never merge red. `chromium` is likewise the only
+declared project; the mobile and branded entries in `playwright.config.ts` are
+commented out, so `--project=firefox` errors rather than doing anything.
+
 `TESTS.md` is generated from the spec AST (`tools/generate-test-catalog.mjs`);
-`npx nx catalog:check admin-e2e` fails on drift. Don't hand-edit it.
+`npx nx catalog:check admin-e2e` fails on drift, and the `admin-e2e-test-catalog`
+pre-commit hook regenerates and re-stages it. Don't hand-edit it.

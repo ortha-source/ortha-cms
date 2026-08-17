@@ -68,7 +68,7 @@ export const AXE_TAGS = [
  *   workspace directory-results popup are `role="dialog"` with no accessible
  *   name; a screen reader announces a bare "dialog". `ORT-169`
  *
- * **Deleting an entry here is the fix's last step**, and `host/a11y-harness.spec.ts`
+ * **Deleting an entry here is the fix's last step**, and `harness/axe-fixture.spec.ts`
  * pins the list so it cannot quietly grow.
  */
 export const AXE_KNOWN_GAPS = [
