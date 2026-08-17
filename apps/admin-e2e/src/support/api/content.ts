@@ -17,6 +17,13 @@ interface ContentFieldSchema {
     name: string;
     type: string;
     required: boolean;
+    /**
+     * The field holds a different value per locale. The editor splits the form
+     * into Translated / Shared groups on it, and puts the row's language on the
+     * translated run — a shared field holds one value for every locale, so
+     * claiming a language for it would be a worse assertion than making none.
+     */
+    localized?: boolean;
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: string[];
@@ -270,13 +277,27 @@ export const WYSIWYG_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 name: 'title',
                 type: 'text',
                 required: true,
+                localized: true,
                 validation: {},
                 admin: { label: 'Title' }
             },
             {
+                // The prose fields are `localized`, so the suite can prove the
+                // row's language reaches the *body* — where it matters most, and
+                // the one place the chain used to break. The flag also splits
+                // the form into Translated / Shared groups, which is the layout
+                // every localized type actually renders, so the rest of the
+                // suite exercises the realistic one.
+                //
+                // Keep every field a save-from-an-**existing**-record test
+                // touches on this side of the split: editing a *shared* field on
+                // a saved row raises the "this also changes the other locales"
+                // confirmation, which swallows the save before validation ever
+                // runs.
                 name: 'body',
                 type: 'richtext',
                 required: false,
+                localized: true,
                 validation: {},
                 admin: { label: 'Body', placeholder: 'Tell the story…' }
             },
@@ -284,6 +305,7 @@ export const WYSIWYG_DETAIL_SEED: Record<string, ContentTypeDetail> = {
                 name: 'summary',
                 type: 'richtext',
                 required: true,
+                localized: true,
                 validation: {},
                 admin: { label: 'Summary' }
             },
@@ -308,6 +330,21 @@ export const WYSIWYG_ENTRY_ID = 'article-rich';
  */
 export const WYSIWYG_ENTRY_BODY =
     '<h2>Release notes</h2><p>Shipped <strong>faster</strong> builds.</p><ul><li>Cold start</li><li>Watch mode</li></ul>';
+
+/**
+ * A **German** article. The admin hardcodes `<html lang="en">`, so a body that
+ * does not claim its own language is read out by a screen reader with English
+ * pronunciation rules — which is the most audible failure a localization tool
+ * can have. This row is what a spec points at to prove the body claims `de`.
+ */
+export const WYSIWYG_GERMAN_ENTRY_ID = 'article-de';
+
+/** The German article's locale, as the read-one endpoint reports it. */
+export const WYSIWYG_GERMAN_LOCALE = 'de';
+
+/** The stored HTML {@link WYSIWYG_GERMAN_ENTRY_ID} comes back with. */
+export const WYSIWYG_GERMAN_BODY =
+    '<h2>Überschrift</h2><p>Der Fußgängerübergang wurde gestrichen.</p>';
 
 /** An article whose `body` already embeds a picture. */
 export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';
@@ -1285,6 +1322,14 @@ interface ContentEntryReadOptions {
      * else about the record is fabricated (timestamps, draft status).
      */
     records: Record<string, Record<string, unknown>>;
+    /**
+     * The row's **locale** per `"<type>/<id>"` — a BCP-47 tag, as the i18n
+     * plugin's wire contract sends it. The editor puts it on the localized
+     * fields as `lang`, so any spec about how a translated body is *announced*
+     * needs a record that actually claims a language. Omitted keys read as a
+     * type with no locales, which is what most of the suite wants.
+     */
+    locales?: Record<string, string>;
 }
 
 /**
@@ -1297,7 +1342,7 @@ interface ContentEntryReadOptions {
  */
 export async function mockContentEntryRead(
     page: Page,
-    { records }: ContentEntryReadOptions
+    { records, locales = {} }: ContentEntryReadOptions
 ): Promise<void> {
     const now = '2026-01-01T00:00:00.000Z';
     await page.route(
@@ -1311,6 +1356,7 @@ export async function mockContentEntryRead(
             const id = decodeURIComponent(parts[3] ?? '');
             const values = records[`${name}/${id}`];
             if (!values) return route.fallback();
+            const locale = locales[`${name}/${id}`];
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -1319,6 +1365,7 @@ export async function mockContentEntryRead(
                     status: 'draft',
                     createdAt: now,
                     updatedAt: now,
+                    ...(locale ? { locale } : {}),
                     values
                 })
             });
