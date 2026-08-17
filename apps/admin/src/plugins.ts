@@ -1,0 +1,77 @@
+import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
+import { IdentityPlugin } from '@ortha-cms/identity-admin';
+import { ShellPlugin } from '@ortha-cms/shell-admin';
+import { WorkspacesPlugin } from '@ortha-cms/workspaces-admin';
+import { ContentPlugin } from '@ortha-cms/content-admin';
+import { I18nPlugin } from '@ortha-cms/i18n-admin';
+import { WysiwygPlugin } from '@ortha-cms/wysiwyg-admin';
+import { MediaPlugin } from '@ortha-cms/media-admin';
+import { InsightsPlugin } from '@ortha-cms/insights-admin';
+import { UsersPlugin } from '@ortha-cms/users-admin';
+import { ActivityPlugin } from '@ortha-cms/activity-admin';
+import { ApiTokensPlugin } from '@ortha-cms/api-tokens-admin';
+import { CopilotPlugin } from '@ortha-cms/copilot-admin';
+
+/**
+ * Builds the admin's plugin list — the app's whole composition, mirroring
+ * `apps/server/src/plugins.ts` on the API side.
+ *
+ * A function in its own module rather than an array literal inside the
+ * `createAdmin` call, because the one property of this list that is genuinely
+ * dangerous cannot be asserted from a browser: **which plugin's `layout` the
+ * host mounts.** `createAdmin` takes the first `layout` it finds
+ * (`plugins.map(p => p.layout).find(Boolean)`), the shell's layout is what
+ * composes identity's `RequireAuth`, and a layout registered ahead of the
+ * shell's would therefore render every private route **ungated** — with the
+ * sidebar, the skip link and the `<main>` landmark gone with it, which is what
+ * makes it look like a styling accident rather than an authorization one. The
+ * host now warns when two plugins contribute a layout; `plugins.spec.ts` asserts
+ * that in this app exactly one does, and that it is the shell.
+ *
+ * **What the order does and does not decide.** Slot registration is *not*
+ * order-sensitive: slots are module-level singletons and `createAdmin` registers
+ * every plugin's contributions before the first render, so a filler registered
+ * ahead of the plugin that defines its slot still lands. Only two things follow
+ * from position — the order of items *within* a slot (`byOrder`, then
+ * registration order), and which plugin wins an id collision in a merge that
+ * takes the last writer, which is why Insights goes first among the interior
+ * features.
+ */
+export function buildPlugins(): AdminPlugin[] {
+    return [
+        // First, and the only plugin contributing public routes: the sign-in and
+        // accept-invite screens, which must render outside the gated layout.
+        IdentityPlugin(),
+        // The one `layout` contributor — the app chrome, wrapping every
+        // non-public route in identity's auth gate. Anything contributing a
+        // layout ahead of this would silently replace it (see above).
+        ShellPlugin(),
+        WorkspacesPlugin(),
+        // Insights goes first among the workspace-interior features: it
+        // registers the dashboard's default sections, and section
+        // contributions merge by id with the LAST one winning — so a plugin
+        // that renames or reorders a band has to come after this. Its widget
+        // slot is order-independent, so nothing else here is affected.
+        InsightsPlugin(),
+        // Workspace-interior features. They contribute to the workspace shell's
+        // rail/route slots; reading them after WorkspacesPlugin() is intent, not
+        // a requirement — the slots are module singletons.
+        ContentPlugin(),
+        // Fills the Content Library's extension slots, so it reads after
+        // ContentPlugin().
+        I18nPlugin(),
+        // Also a Content Library slot filler — it owns the control every
+        // `richtext` field renders — so it likewise reads after ContentPlugin().
+        WysiwygPlugin(),
+        MediaPlugin(),
+        // The docked chat panel plus the full-page Agents view. Belongs with the
+        // workspace-interior features: the panel mounts into the workspace
+        // shell's sidebar footer.
+        CopilotPlugin(),
+        UsersPlugin(),
+        ActivityPlugin(),
+        // Global token-management page in the main sidebar (no workspace
+        // context); backs the external content API.
+        ApiTokensPlugin()
+    ];
+}

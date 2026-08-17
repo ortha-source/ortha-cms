@@ -7,11 +7,24 @@ point: it holds almost no logic. It assembles the product by handing a list of
 ## What's here
 
 - `src/plugins.ts` — the **plugin registry**. Adding a feature to the API means
-  registering its `ServerPlugin` here, in order (the `database` plugin must come
-  first — it opens the connection in `onPluginInit`). This is the file you edit
-  most.
-- `ortha.config.ts` — host config. This project is the migration host: the
-  inferred `db:migrate` target applies every plugin's pending migrations.
+  registering its `ServerPlugin` here. This is the file you edit most.
+  **What the order decides is migrations, not DI**: `applyPluginMigrations` walks
+  the array with no transaction spanning plugins, so a plugin whose tables
+  reference another's must come after it (`workspaces` after `identity`). DI is
+  order-independent — every module is global and every `onPluginInit` runs before
+  `NestFactory.create` — so `DatabasePlugin` is listed first as a convention, for
+  the day a second plugin opens a resource in that hook, not because anything
+  breaks today. `src/plugins.spec.ts` asserts the membership and the migration
+  order, because a plugin dropped from the array degrades **silently**: the ports
+  other plugins bind are `@Optional()`, so removing e.g. `ActivityPlugin` boots
+  clean and just stops writing audit rows.
+- `ortha.config.ts` — host config, and the single place that reads
+  `process.env`. Values are **validated at import**: a missing `DATABASE_URL`, a
+  numeric setting that is not a plain positive integer, or a `NODE_ENV` that is
+  not one of `development` / `test` / `production` refuses to load rather than
+  booting a deployment that looks configured (`src/ortha.config.spec.ts`). This
+  project is also the migration host: the inferred `db:migrate` target applies
+  every plugin's pending migrations.
 - `src/content/` — the host's **code-defined content types** (see below).
 
 ## Content types (`src/content/`)
@@ -32,6 +45,12 @@ table not re-exported from `index.ts` is silently absent from migrations
 (many-relation join tables via `joinTableOf` included). Then
 `npx nx run server:db:generate --name=<change>` and commit the SQL —
 `drizzle.config.ts` points `schema` at `src/content/index.ts`.
+
+`src/content/index.spec.ts` guards exactly that: it derives the complete set of
+generated tables from `contentTypes` (each type is `{ table, joinTables }`) and
+fails if any of them is not a top-level export here — so the forgotten join table
+is a red test instead of a `relation … does not exist` on a production write. The
+generic version of this problem, for any plugin's schema barrel, is ORT-130.
 
 ## How it fits
 

@@ -272,3 +272,50 @@ test.describe('bypass blocks', () => {
         await expect(hostPage.main).toBeFocused();
     });
 });
+
+test.describe('the app-wide scrollport', () => {
+    test('is a tab stop, because a scrolling region must be reachable by keyboard', async ({
+        page,
+        hostPage,
+        homePage
+    }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        // Not asserted by tabbing to it: it sits after the whole sidebar (stop
+        // 18 of 32 on a signed-in page, measured), and the count changes with
+        // every plugin registered. What matters is that it *can* hold focus.
+        await hostPage.insetScroll.focus();
+
+        await expect(hostPage.insetScroll).toBeFocused();
+    });
+
+    test('shows a focus indicator when it holds focus', async ({
+        page,
+        hostPage,
+        homePage
+    }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        // Keyboard-driven rather than `focus()`, because `:focus-visible` is the
+        // selector the indicator hangs off and it deliberately does not match a
+        // programmatic focus.
+        await hostPage.tabUntilFocused(hostPage.insetScroll);
+        await expect(hostPage.insetScroll).toBeFocused();
+
+        const indicator = await hostPage.focusIndicatorOf(hostPage.insetScroll);
+
+        // The regression: `focus-visible:outline-none` with no replacement. It
+        // renders on every private route in the admin, so a keyboard user met one
+        // press of Tab where nothing appeared to happen, followed by arrow keys
+        // scrolling instead of moving — which reads as the app having lost focus,
+        // and is answered by pressing Tab again, skipping the scrollport. WCAG
+        // 2.4.7, and the repo's own rule against `outline: none` with no
+        // replacement.
+        expect(indicator.matchesFocusVisible).toBe(true);
+        expect(indicator.hasIndicator).toBe(true);
+    });
+});

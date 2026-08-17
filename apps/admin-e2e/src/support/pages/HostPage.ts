@@ -45,6 +45,13 @@ export class HostPage extends BasePage {
     /** The `<main>` landmark the skip link targets. */
     readonly main: Locator;
     /**
+     * The app-wide scrollport inside `<main>` — a deliberate tab stop, because a
+     * region that scrolls has to be reachable by keyboard (WCAG 2.1.1) and every
+     * page is a wall of skeletons while it loads. Located by `data-slot` because
+     * it declines both a role and a landmark on purpose: `<main>` is already one.
+     */
+    readonly insetScroll: Locator;
+    /**
      * Sonner's toast list. It is created on the first toast, not at boot, so
      * assert against it only once a toast is visible. Its `data-{x,y}-position`
      * attributes are where the resolved corner is observable.
@@ -64,7 +71,69 @@ export class HostPage extends BasePage {
             name: 'Skip to main content'
         });
         this.main = page.getByRole('main');
+        this.insetScroll = page.locator('[data-slot="sidebar-inset-scroll"]');
         this.toastHost = page.locator('[data-sonner-toaster]');
+    }
+
+    /**
+     * Presses `Tab` until `locator` holds focus, up to `maxPresses`.
+     *
+     * Here rather than in a spec because the distance is neither interesting nor
+     * stable: the app-wide scrollport sits after the entire sidebar (stop 18 of 32
+     * on a signed-in page, measured) and every plugin registered moves it. What
+     * the spec cares about is that keyboard navigation *reaches* it, which is why
+     * this drives the real keyboard rather than calling `focus()` —
+     * `:focus-visible`, the selector every focus indicator hangs off,
+     * deliberately does not match a programmatic focus.
+     */
+    async tabUntilFocused(locator: Locator, maxPresses = 60): Promise<void> {
+        for (let press = 0; press < maxPresses; press += 1) {
+            const focused = await locator.evaluate(
+                (node: unknown) =>
+                    (
+                        globalThis as unknown as {
+                            document: { activeElement: unknown };
+                        }
+                    ).document.activeElement === node
+            );
+            if (focused) {
+                return;
+            }
+            await this.page.keyboard.press('Tab');
+        }
+    }
+
+    /**
+     * Whether `locator` paints any focus indicator while focused, and whether it
+     * is matching `:focus-visible` at all.
+     *
+     * Both an outline and a box shadow count, because a design system may draw
+     * the indicator with either and "no indicator" has to mean neither is
+     * present. `outline: none` on its own is not a failure if a ring replaced it
+     * — which is precisely the distinction that went wrong here, where
+     * `focus-visible:outline-none` was applied with nothing put back. Runs in the
+     * page, so it stays self-contained (this project's tsconfig ships no DOM lib).
+     */
+    async focusIndicatorOf(locator: Locator): Promise<{
+        hasIndicator: boolean;
+        matchesFocusVisible: boolean;
+    }> {
+        return locator.evaluate((node: unknown) => {
+            const element = node as { matches(selector: string): boolean };
+            const style = (
+                globalThis as unknown as {
+                    getComputedStyle(node: unknown): {
+                        outlineStyle: string;
+                        boxShadow: string;
+                    };
+                }
+            ).getComputedStyle(node);
+            return {
+                hasIndicator:
+                    style.outlineStyle !== 'none' || style.boxShadow !== 'none',
+                matchesFocusVisible: element.matches(':focus-visible')
+            };
+        });
     }
 
     /**

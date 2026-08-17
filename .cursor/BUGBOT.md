@@ -25,6 +25,50 @@ companion to it.
 - **Schema/migration drift.** After editing a plugin's Drizzle schema, generate
   its migration (`nx run <plugin>:db:generate`) and commit the SQL. Never hand-
   edit applied migrations.
+- **A table not re-exported from the schema barrel.** drizzle-kit diffs
+  **top-level table exports only**, so a table the barrel does not export is
+  absent from every migration it emits — silently. Nothing else changes: the app
+  boots, the type appears in the admin, and the first read or write fails on a
+  table that was never created. Many-relation join tables are the ones to forget.
+  `apps/server/src/content/index.spec.ts` derives the expected set from the
+  registry and fails naming any table that is missing; do the same for any new
+  barrel (ORT-130).
+- **Plugin order in `plugins.ts` decides migrations, not DI.** Every plugin module
+  is global and every `onPluginInit` runs before `NestFactory.create`, so array
+  position cannot break injection. It *can* break `db:migrate`, which walks the
+  array with no transaction spanning plugins: a plugin whose tables reference
+  another's must come after it. The failure is invisible on an already-migrated
+  database and only appears on a fresh one, so it ships (ORT-131).
+- **`Number(process.env[x]) || default`.** Wrong in three directions at once and
+  silent in all of them: `0` is falsy so it becomes the default, a negative is
+  truthy so it is accepted, and `1e9` parses. Read env numbers through a
+  validating helper that names the variable — `apps/server/ortha.config.ts`'s
+  `readPositiveInt` is the pattern.
+- **A `defaultProvider` a plugin never checks.** A named-provider plugin
+  (`media`, `copilot`) must validate its config's default against the registry it
+  was handed, at construction. Otherwise a typo boots clean and fails per
+  request, with a bare `500` naming neither the provider nor the variable.
+
+## Composition roots & their test harnesses
+
+- **The harness exercising a mirror instead of the thing.** `apps/server-e2e`
+  builds its own `buildPlugins`, its own config and its own content types on
+  purpose — that decoupling is right — and the consequence is that nothing in it
+  ever reads `apps/server`. The same held for `apps/admin-e2e`, which drives the
+  assembled app over mocked HTTP. Four of five `bootstrap-server` findings and
+  every `app-server` config finding lived exactly there. When you add a mirror,
+  ask what now has no coverage at all, and assert the real artefact directly
+  (`apps/server/src/plugins.spec.ts`, `apps/admin/src/plugins.spec.ts`).
+- **A plugin dropped from the registry degrades silently.** Cross-plugin ports are
+  injected `@Optional()`, so removing a plugin boots clean with no warning and
+  merely stops working — removing `ActivityPlugin` logs nothing, `/api/activity`
+  404s, and audit rows stop being written. Pin the shipped list.
+- **Which plugin's `layout` the admin host mounts.** `createAdmin` takes the
+  **first** `layout` it finds, and the shell's is what composes identity's
+  `RequireAuth` — so a layout contributed ahead of the shell renders every
+  private route **ungated**. It reads as a styling accident and is an
+  authorization one. Exactly one plugin contributes a layout today; keep it that
+  way, or the host's warning is all that stands between you and a fail-open.
 
 ## Admin (React plugins)
 

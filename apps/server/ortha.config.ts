@@ -90,6 +90,107 @@ export interface OrthaConfig {
 }
 
 /**
+ * Reads a deploy value the server cannot run without, failing at load rather
+ * than several seconds into boot.
+ *
+ * Left to default to `''`, a missing `DATABASE_URL` reaches `pg` as "use the
+ * libpq defaults", and the first thing that touches the database — identity's
+ * role seeder, during `onApplicationBootstrap` — fails with whatever the local
+ * libpq environment happens to produce (measured: `SASL:
+ * SCRAM-SERVER-FIRST-MESSAGE: client password must be a string`). The server
+ * does fail closed, which is the important half, but nothing in that message
+ * names the variable that was never set.
+ */
+function requireEnv(name: string): string {
+    const raw = process.env[name]?.trim();
+    if (!raw) {
+        throw new Error(
+            `Missing required environment variable ${name}. ` +
+                'Copy `.env.example` to `.env` and set it (see `README.md`); ' +
+                'the server has no usable default for this value.'
+        );
+    }
+    return raw;
+}
+
+/**
+ * Reads a numeric setting: the default when unset or empty, the value when it is
+ * a plain positive decimal integer, and an error otherwise.
+ *
+ * This replaces `Number(process.env[x]) || default`, which was wrong in three
+ * directions at once and silent in all of them. `0` is falsy, so it became the
+ * default — `LOGIN_RATE_LIMIT=0` ("block every login") quietly meant 10. A
+ * negative is truthy, so it was accepted — `SESSION_TTL_SECONDS=-1` issued every
+ * session already expired, login answering `201` and the very next request
+ * `401`. And exponent notation parsed, so `GRAPHQL_MAX_DEPTH=1e9` removed the
+ * cost budget that ADR-0008 calls GraphQL's replacement for REST's structural
+ * bound. Refusing to boot names the variable; the alternative was a deployment
+ * that looked configured and was not.
+ *
+ * Empty is deliberately *not* an error: `.env.example` ships several keys with
+ * no value, and a fresh clone must boot from it unchanged.
+ */
+function readPositiveInt(name: string, fallback: number): number {
+    const value = readOptionalPositiveInt(name);
+    return value ?? fallback;
+}
+
+/** As {@link readPositiveInt}, but `undefined` when unset — no default to fall back to. */
+function readOptionalPositiveInt(name: string): number | undefined {
+    const raw = process.env[name]?.trim();
+    if (!raw) {
+        return undefined;
+    }
+    // Plain decimal digits only. `Number` would also take `1e9`, `0x20` and
+    // `Infinity`, none of which anyone means to write in a `.env`.
+    if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
+        throw new Error(
+            `Environment variable ${name} must be a positive whole number ` +
+                `(got "${raw}").`
+        );
+    }
+    return Number(raw);
+}
+
+/** The deployment modes this app recognises. */
+const NODE_ENVS = ['development', 'test', 'production'] as const;
+
+/**
+ * Reads `NODE_ENV`, rejecting a value that is neither recognised nor empty.
+ *
+ * `NODE_ENV !== 'production'` is the switch behind **two** protections at once —
+ * whether the API reference and GraphiQL are published, and whether the session
+ * cookie carries `Secure` — so any value that is not exactly `production` turns
+ * both off. Unset is a legitimate, and the common, local state; a *typo* is not,
+ * and it is indistinguishable from correct configuration until you read a
+ * `Set-Cookie` header. Measured on this app: `NODE_ENV=produciton` serves
+ * `/reference/json` to an unauthenticated caller and drops `Secure` from the
+ * session cookie, exactly as if nothing had been set (ORT-137).
+ *
+ * Rejecting the typo costs a deployment that spells it right nothing, and turns
+ * a silent downgrade into a refusal to start.
+ */
+function readNodeEnv(): (typeof NODE_ENVS)[number] | undefined {
+    const raw = process.env['NODE_ENV']?.trim();
+    if (!raw) {
+        return undefined;
+    }
+    if (!(NODE_ENVS as readonly string[]).includes(raw)) {
+        throw new Error(
+            `NODE_ENV is "${raw}", which this app does not recognise — expected ` +
+                `one of ${NODE_ENVS.join(', ')}, or nothing at all for local ` +
+                'development. Anything else reads as "not production", which ' +
+                'publishes the API reference and drops `Secure` from the session ' +
+                'cookie.'
+        );
+    }
+    return raw as (typeof NODE_ENVS)[number];
+}
+
+/** True only in a deployment that said so, with the spelling checked. */
+const isProduction = readNodeEnv() === 'production';
+
+/**
  * Reads `TRUST_PROXY` into Express's `trust proxy` setting.
  *
  * Three accepted shapes, in the order they are checked: a hop count (`'1'` —
@@ -119,11 +220,24 @@ function readTrustProxy(): TrustProxySetting | undefined {
  * per-worktree Vite port (`docs/parallel-stacks.md`), 4200 when unset.
  */
 function defaultAdminOrigin(): string {
-    return `http://localhost:${Number(process.env['ADMIN_PORT']) || 4200}`;
+    return `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`;
 }
 
+/**
+ * The copilot's step ceiling, or `undefined` to leave the plugin's own default
+ * in place.
+ *
+ * Read out here because the key is *conditionally spread* below: the plugin's
+ * `RunLimits` default (8) has to survive an unset variable, and spreading
+ * `limits: { maxSteps: undefined }` would overwrite it with nothing. Zero is
+ * rejected rather than silently ignored — `maxSteps: 0` skips the run loop
+ * entirely, yielding a thread that shows a question and then silence, which is
+ * why `CopilotPlugin` refuses it at construction too.
+ */
+const maxSteps = readOptionalPositiveInt('COPILOT_MAX_STEPS');
+
 const config: OrthaConfig = {
-    port: Number(process.env['PORT']) || 3000,
+    port: readPositiveInt('PORT', 3000),
     globalPrefix: 'api',
     // Unset by default: a directly-exposed server must not believe a
     // client-supplied `X-Forwarded-For`. Deployments behind a load balancer set
@@ -138,7 +252,7 @@ const config: OrthaConfig = {
     // larger; they are multipart, capped by `plugins.media.maxUploadBytes`.
     bodyLimit: process.env['MAX_REQUEST_BODY'] || '1mb',
     database: {
-        url: process.env['DATABASE_URL'] ?? ''
+        url: requireEnv('DATABASE_URL')
     },
     docs: {
         // On outside production, where the reference is a development tool.
@@ -146,7 +260,7 @@ const config: OrthaConfig = {
         // reference from a deployed instance.
         enabled: process.env['API_DOCS']
             ? process.env['API_DOCS'] === 'true'
-            : process.env['NODE_ENV'] !== 'production',
+            : !isProduction,
         title: 'Ortha CMS API',
         version: '1.0.0',
         description: [
@@ -176,24 +290,27 @@ const config: OrthaConfig = {
                 .map((origin) => origin.trim())
                 .filter(Boolean),
             session: {
-                ttlSeconds:
-                    Number(process.env['SESSION_TTL_SECONDS']) ||
-                    60 * 60 * 24 * 7,
-                cookieSecure: process.env['NODE_ENV'] === 'production',
+                ttlSeconds: readPositiveInt(
+                    'SESSION_TTL_SECONDS',
+                    60 * 60 * 24 * 7
+                ),
+                cookieSecure: isProduction,
                 cookieSameSite: 'lax'
             },
             token: {
-                inviteTtlSeconds:
-                    Number(process.env['INVITE_TTL_SECONDS']) ||
-                    60 * 60 * 24 * 7,
-                resetTtlSeconds:
-                    Number(process.env['RESET_TTL_SECONDS']) || 60 * 60
+                inviteTtlSeconds: readPositiveInt(
+                    'INVITE_TTL_SECONDS',
+                    60 * 60 * 24 * 7
+                ),
+                resetTtlSeconds: readPositiveInt('RESET_TTL_SECONDS', 60 * 60)
             },
             // Login rate limit. Defaults preserve the historical 10 req / 60s.
             rateLimit: {
-                ttlSeconds:
-                    Number(process.env['LOGIN_RATE_LIMIT_TTL_SECONDS']) || 60,
-                limit: Number(process.env['LOGIN_RATE_LIMIT']) || 10
+                ttlSeconds: readPositiveInt(
+                    'LOGIN_RATE_LIMIT_TTL_SECONDS',
+                    60
+                ),
+                limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
             },
             rootAdmin: {
                 email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
@@ -235,8 +352,10 @@ const config: OrthaConfig = {
                 region: process.env['MEDIA_S3_REGION'] ?? ''
             },
             // Upload cap — 50 MB by default.
-            maxUploadBytes:
-                Number(process.env['MEDIA_MAX_UPLOAD_BYTES']) || 52_428_800
+            maxUploadBytes: readPositiveInt(
+                'MEDIA_MAX_UPLOAD_BYTES',
+                52_428_800
+            )
         },
         contentGraphql: {
             // The cost budget one GraphQL operation may spend. REST bounded a
@@ -245,18 +364,24 @@ const config: OrthaConfig = {
             // tuning, hence literals, with env overrides for an operator who
             // needs to loosen or tighten them without a redeploy.
             limits: {
-                maxDepth: Number(process.env['GRAPHQL_MAX_DEPTH']) || 8,
-                maxComplexity:
-                    Number(process.env['GRAPHQL_MAX_COMPLEXITY']) || 1000,
-                maxFields: Number(process.env['GRAPHQL_MAX_FIELDS']) || 500,
-                maxQueryLength:
-                    Number(process.env['GRAPHQL_MAX_QUERY_LENGTH']) || 16_384
+                maxDepth: readPositiveInt('GRAPHQL_MAX_DEPTH', 8),
+                maxComplexity: readPositiveInt(
+                    'GRAPHQL_MAX_COMPLEXITY',
+                    1000
+                ),
+                maxFields: readPositiveInt('GRAPHQL_MAX_FIELDS', 500),
+                maxQueryLength: readPositiveInt(
+                    'GRAPHQL_MAX_QUERY_LENGTH',
+                    16_384
+                )
             },
             // How long a built schema is reused before it is derived again from
             // the workspace's content grants. Freshness only — every read is
             // authorized against the live grants regardless.
-            schemaCacheTtlMs:
-                Number(process.env['GRAPHQL_SCHEMA_CACHE_TTL_MS']) || 60_000
+            schemaCacheTtlMs: readPositiveInt(
+                'GRAPHQL_SCHEMA_CACHE_TTL_MS',
+                60_000
+            )
         },
         copilot: {
             // Off by default (ADR-0005 §10). Enabling a hosted provider sends
@@ -266,8 +391,10 @@ const config: OrthaConfig = {
             // no custom `resolve` handler. `fake` needs no key and no network,
             // so a fresh clone and CI both boot without configuration.
             defaultProvider: process.env['COPILOT_PROVIDER'] ?? 'fake',
-            maxOutputTokens:
-                Number(process.env['COPILOT_MAX_OUTPUT_TOKENS']) || 8_192,
+            maxOutputTokens: readPositiveInt(
+                'COPILOT_MAX_OUTPUT_TOKENS',
+                8_192
+            ),
             // Run ceilings. Only `maxSteps` is env-exposed, because it is the
             // one an operator actually reaches for: a smaller local model often
             // needs more tool round trips than a frontier one to answer the
@@ -275,13 +402,7 @@ const config: OrthaConfig = {
             // of steps" is usually asking for a higher number here. Raising it
             // costs tokens rather than safety — every step is still authorized,
             // audited, and bounded by the wall-clock and token ceilings.
-            ...(Number(process.env['COPILOT_MAX_STEPS'])
-                ? {
-                      limits: {
-                          maxSteps: Number(process.env['COPILOT_MAX_STEPS'])
-                      }
-                  }
-                : {}),
+            ...(maxSteps !== undefined ? { limits: { maxSteps } } : {}),
             providers: {
                 claude: {
                     apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',
@@ -332,13 +453,15 @@ const config: OrthaConfig = {
             // blocked pool turns one call into a socket held until the client
             // gives up. 30s is generous for every shipped tool and far short of
             // the load balancer idle timeouts these deployments sit behind.
-            callTimeoutMs: Number(process.env['MCP_CALL_TIMEOUT_MS']) || 30_000,
+            callTimeoutMs: readPositiveInt('MCP_CALL_TIMEOUT_MS', 30_000),
             // Deliberately generous: nothing in the catalogue returns this much
             // today, so the ceiling exists to keep a pathological result from
             // being serialised three times over rather than to shape normal
             // use. A result this large does not fit a model's context either.
-            maxResultBytes:
-                Number(process.env['MCP_MAX_RESULT_BYTES']) || 4_194_304
+            maxResultBytes: readPositiveInt(
+                'MCP_MAX_RESULT_BYTES',
+                4_194_304
+            )
         }
     }
 };

@@ -100,13 +100,23 @@ WCAG issues — they guard against regressions, they don't prove conformance.
   (`packages/shell/admin/src/lib/components/AppShell/index.tsx`). Don't re-add
   it — and note that `#main-content` being focusable is what lets a route move
   focus there after a gated redirect (see `useRedirectNotice` in
-  `workspaces-admin`). No test pins the link yet, so a refactor could drop it
-  silently.
+  `workspaces-admin`). It **is** pinned now:
+  `apps/admin-e2e/src/host/host.spec.ts` ("bypass blocks") asserts the first
+  `Tab` reaches it, that it becomes visible when focused, and that activating it
+  lands focus on `<main>`; `src/host/reflow.spec.ts` re-checks it at 320 px,
+  because a skip link the narrow layout pushes off screen is not one.
 
 ## Focus management
 
 - **Visible focus** on every interactive element (don't `outline: none` without a
-  replacement).
+  replacement). The rule holds for anything you make focusable, not just
+  controls: the app-wide scrollport (`sidebar-inset-scroll`) carries
+  `tabIndex={0}` so a scrolling region is keyboard-reachable, and it shipped with
+  `focus-visible:outline-none` and nothing put back — one press of `Tab` on every
+  private route where nothing appeared to happen. Use the design system's
+  convention, `focus-visible:ring-2 focus-visible:ring-ring`, adding
+  `focus-visible:ring-inset` when an ancestor clips overflow (an outset ring is
+  drawn outside its own box and never seen).
 - **Logical order** follows DOM order — avoid positive `tabindex`. Remember a
   label-row action (e.g. "Forgot password?") sits **before** its input in the DOM,
   so it tabs first.
