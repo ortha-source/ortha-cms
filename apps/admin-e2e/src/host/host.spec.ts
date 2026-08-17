@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockMembers } from '../support/api/members';
+import { mockWorkspaces } from '../support/api/workspaces';
 import { mockApiTokensApi } from '../support/api/apiTokens';
 
 /**
@@ -117,6 +118,62 @@ test.describe('client-side navigation is announced', () => {
         // stays on the nav link, the tab title never changes, and `<Routes>`
         // swaps the view with nothing to report — the archetypal SPA failure of
         // WCAG 4.1.3.
+        await expect(hostPage.routeAnnouncer).toHaveText('Members');
+    });
+
+    test('a second navigation names the new page, not the one just left', async ({
+        page,
+        hostPage,
+        homePage,
+        membersPage,
+        workspacesPage
+    }) => {
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await mockWorkspaces(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        await homePage.nav.getByRole('link', { name: 'Members' }).click();
+        await expect(membersPage.heading).toBeVisible();
+        await expect(hostPage.routeAnnouncer).toHaveText('Members');
+
+        // The regression: the incoming route is a lazy chunk behind a skeleton,
+        // so for the first frames of a cold navigation the only `<h1>` in the DOM
+        // still belongs to the page being left. Reading it announced "Members"
+        // on arrival at Workspaces — telling a screen-reader user they are
+        // somewhere they have just left, which is worse than saying nothing.
+        await homePage.nav.getByRole('link', { name: 'Workspaces' }).click();
+        await expect(workspacesPage.heading).toBeVisible();
+
+        await expect(hostPage.routeAnnouncer).toHaveText('Workspaces');
+    });
+
+    test('returning to a page announces it again', async ({
+        page,
+        hostPage,
+        homePage,
+        membersPage,
+        workspacesPage
+    }) => {
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await mockWorkspaces(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        await homePage.nav.getByRole('link', { name: 'Members' }).click();
+        await expect(membersPage.heading).toBeVisible();
+        await expect(hostPage.routeAnnouncer).toHaveText('Members');
+
+        await homePage.nav.getByRole('link', { name: 'Workspaces' }).click();
+        await expect(workspacesPage.heading).toBeVisible();
+        await expect(hostPage.routeAnnouncer).toHaveText('Workspaces');
+
+        // Coming back is a change of view too, so the region has to be cleared
+        // and rewritten — an unchanged live region is never re-read.
+        await homePage.nav.getByRole('link', { name: 'Members' }).click();
+        await expect(membersPage.heading).toBeVisible();
         await expect(hostPage.routeAnnouncer).toHaveText('Members');
     });
 

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_627 test cases across 63 spec files._
+_629 test cases across 63 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -986,6 +986,8 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 | --- |
 | the live region is mounted, and empty, before anything happens |
 | moving to another page speaks that page name |
+| a second navigation names the new page, not the one just left |
+| returning to a page announces it again |
 | the announcement takes up no space on screen |
 
 ## the toast host
