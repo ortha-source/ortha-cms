@@ -16,13 +16,23 @@ function isToastBodyClick(target: EventTarget | null): boolean {
 }
 
 /**
- * App-wide toast host, pinned to the **top-right**. Typed toasts
+ * App-wide toast host, pinned to the **bottom-right**. Typed toasts
  * (`toast.success` / `.error` / `.warning` / `.info`) render on the matching
  * soft semantic surface with same-hue text and icon; each toast carries a
  * close button, and clicking a toast's body dismisses it too. The toast surface
  * follows the app theme — the resolved `light`/`dark` from `useAppearance` is
  * handed to Sonner so its own chrome matches the admin. Mounted once by the host
  * in `createAdmin`; call `toast()` from anywhere to surface a notification.
+ *
+ * The corner is settled **here**, not at the call site. It used to be declared
+ * in both places and disagree — this doc said top-right while the host passed
+ * `position="bottom-right"`, and `{...props}` is spread last, so the host won
+ * and the documentation was simply wrong. Bottom-right is the real answer:
+ * `copilot-admin` reasons about it (it suppresses a toast while its bottom-right
+ * dock is open, because one would cover the composer to announce something
+ * already on screen), so moving the toasts would silently invalidate that.
+ * Overriding `position` from a consumer is therefore a change to a shared
+ * decision, not a local one.
  */
 const Toaster = ({ ...props }: ToasterProps) => {
     const { resolvedTheme } = useAppearance();
@@ -38,7 +48,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         >
             <Sonner
                 theme={resolvedTheme}
-                position="top-right"
+                position="bottom-right"
                 closeButton
                 className="toaster group"
                 toastOptions={{

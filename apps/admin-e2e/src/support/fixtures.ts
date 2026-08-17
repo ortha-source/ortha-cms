@@ -19,6 +19,7 @@ import { CopilotDockPage } from './pages/CopilotDockPage';
 import { CopilotSkillsPage } from './pages/CopilotSkillsPage';
 import { InsightsPage } from './pages/InsightsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
+import { HostPage } from './pages/HostPage';
 
 interface Fixtures {
     loginPage: LoginPage;
@@ -40,6 +41,7 @@ interface Fixtures {
     copilotSkillsPage: CopilotSkillsPage;
     insightsPage: InsightsPage;
     apiTokensPage: ApiTokensPage;
+    hostPage: HostPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, pre-tagged for
      * WCAG 2.1 A/AA (the team's best-practice target). Call it per assertion so
@@ -109,6 +111,9 @@ export const test = base.extend<Fixtures>({
     },
     apiTokensPage: async ({ page }, use) => {
         await use(new ApiTokensPage(page));
+    },
+    hostPage: async ({ page }, use) => {
+        await use(new HostPage(page));
     },
     makeAxe: async ({ page }, use) => {
         await use(() =>
