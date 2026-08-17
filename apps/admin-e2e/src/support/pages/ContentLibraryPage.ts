@@ -366,6 +366,19 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
+     * The rule between the General tab's translated and shared field groups.
+     *
+     * Anchored on a testid rather than a role because it is **decorative** by
+     * design — the design-system `Separator` renders `role="none"`, so there is
+     * no accessible node to locate, and giving it one to make it testable would
+     * be the bug this asserts against. Same escape hatch the widget skeletons
+     * use.
+     */
+    get fieldGroupDivider(): Locator {
+        return this.page.getByTestId('entry-field-group-divider');
+    }
+
+    /**
      * The locale-sync mark on a relation section header. Its accessible name is
      * the mode — "Shared across locales" / "Follows translations" / "This
      * locale only" — so the name is also the assertion.
