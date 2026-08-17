@@ -13,6 +13,9 @@ module.exports = {
     displayName: 'server',
     preset: '../../jest.preset.js',
     testEnvironment: 'node',
+    // Runs before any spec module is loaded, which is what it has to do: the
+    // config module validates its environment at import time.
+    setupFiles: ['<rootDir>/jest.setup.ts'],
     transform: {
         '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig]
     },

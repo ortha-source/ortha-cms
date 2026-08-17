@@ -7,6 +7,8 @@
         "@ortha-cms/api-tokens-admin": "*",
         "@ortha-cms/bootstrap-admin": "*",
         "@ortha-cms/content-admin": "*",
+        "@ortha-cms/copilot-admin": "*",
+        "@ortha-cms/i18n-admin": "*",
         "@ortha-cms/identity-admin": "*",
         "@ortha-cms/insights-admin": "*",
         "@ortha-cms/media-admin": "*",

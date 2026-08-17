@@ -402,11 +402,23 @@ function SidebarInset({
                     — every page is a wall of skeletons while it loads, and
                     without this a keyboard user cannot scroll it at all. Not a
                     landmark role: `<main>` above already is one, and a second
-                    would just add noise to the landmark list. */}
+                    would just add noise to the landmark list.
+
+                    A tab stop has to be *visible* when it is reached (WCAG
+                    2.4.7), and for a long time this one was not: it carried
+                    `focus-visible:outline-none` with no replacement, so on every
+                    private route in the admin there was one press of Tab — stop
+                    18 of 32 on the Workspaces page, measured — where nothing
+                    appeared to happen, and arrow keys then scrolled instead of
+                    moving. Sighted keyboard users read that as the app having
+                    lost focus and press Tab again, skipping the scrollport they
+                    were being handed. The ring is `inset` because the parent
+                    `<main>` clips overflow, so an outset one is drawn outside its
+                    own box and never seen. */}
                 <div
                     data-slot="sidebar-inset-scroll"
                     tabIndex={0}
-                    className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:outline-none"
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
                 >
                     {children}
                 </div>

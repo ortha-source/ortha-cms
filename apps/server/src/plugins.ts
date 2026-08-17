@@ -23,21 +23,35 @@ import { contentTypes } from './content';
  * `db:migrate` target (which reads each plugin's `migrations` descriptor),
  * so both see exactly the same plugins, in the same order.
  *
- * Order matters: `DatabasePlugin` must come first — it opens the connection
- * every other plugin assumes. `WorkspacesPlugin` follows identity (its
- * `memberships` table FK-references identity's `users`, so `users` must be
- * migrated first, and its services read identity's `users`/`roles`); it must
- * also precede `ContentPlugin`, which scopes routes with its `WorkspaceGuard`
- * and binds its `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER` ports. `ActivityPlugin`
- * follows (its read API is gated by identity's guard + `activity:read`
- * permission, and workspaces records audit events through the globally-bound
- * recorder). `UsersPlugin` reads identity's and workspaces' tables and records
- * through the activity plugin. `ContentPlugin`'s generated
- * collection tables are host-owned migrations, independent of the other
- * plugins (all modules are global, so DI is order-independent — the order
- * here just keeps migrations and intent legible). `I18nServerPlugin` follows
- * `ContentPlugin`: it binds content's `CONTENT_ENTRY_EXTENSION` port and
- * reads its registry.
+ * **What the order actually decides.** Not dependency injection: every plugin
+ * module is global, and `createServer` runs every `onPluginInit` before
+ * `NestFactory.create`, so no provider can be constructed before the database
+ * connection is open regardless of position. Measured: moving `IdentityPlugin`
+ * above `DatabasePlugin` boots and serves normally. `DatabasePlugin` is
+ * nonetheless listed first because it is the only plugin that opens a resource
+ * in `onPluginInit`, and the moment a second one does, that hook order — which
+ * *is* array order — becomes load-bearing with nothing to catch a mistake.
+ *
+ * What the order does decide is **migration order**: `applyPluginMigrations`
+ * walks this array, with no transaction spanning plugins, so a plugin whose
+ * tables reference another's must come after it. `WorkspacesPlugin` follows
+ * identity because `memberships` FK-references identity's `users`; moving it
+ * above fails a *fresh* migrate with `relation "users" does not exist` and
+ * migrates an already-migrated database happily — so the mistake ships and bites
+ * the next clean install. `apps/server/src/plugins.spec.ts` asserts the
+ * ordering; ORT-131 tracks making it a declaration rather than a comment.
+ *
+ * The rest is intent, and reads in dependency order for that reason:
+ * `WorkspacesPlugin` precedes `ContentPlugin`, which scopes routes with its
+ * `WorkspaceGuard` and binds its `CONTENT_CATALOG` / `CONTENT_ENTRY_COUNTER`
+ * ports; `ActivityPlugin`'s read API is gated by identity's guard plus
+ * `activity:read`, and workspaces records audit events through the globally-bound
+ * recorder; `UsersPlugin` reads identity's and workspaces' tables and records
+ * through activity; `I18nServerPlugin` follows `ContentPlugin` because it binds
+ * content's `CONTENT_ENTRY_EXTENSION` port and reads its registry. Those ports
+ * are injected `@Optional()`, so **removing** one of these plugins degrades
+ * silently rather than failing boot — which is what `plugins.spec.ts` pins the
+ * membership of this list for.
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     const content = ContentPlugin({

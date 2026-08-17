@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_629 test cases across 63 spec files._
+_634 test cases across 64 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1002,6 +1002,24 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 | --- |
 | the first Tab reaches a visible skip link |
 | activating it puts focus inside main, past the sidebar |
+
+## the app-wide scrollport
+
+| Test case |
+| --- |
+| is a tab stop, because a scrolling region must be reachable by keyboard |
+| shows a focus indicator when it holds focus |
+
+<!-- source: apps/admin-e2e/src/host/reflow.spec.ts -->
+_<sub>apps/admin-e2e/src/host/reflow.spec.ts</sub>_
+
+## the shell reflows at 320px
+
+| Test case |
+| --- |
+| the home dashboard does not scroll sideways |
+| a table page keeps its controls reachable, and its table scrolls in its own box |
+| the sidebar collapses rather than pushing the page sideways |
 
 <!-- source: apps/admin-e2e/src/insights/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/insights/a11y.spec.ts</sub>_
