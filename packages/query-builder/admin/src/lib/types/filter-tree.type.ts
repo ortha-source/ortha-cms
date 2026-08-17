@@ -45,6 +45,15 @@ export const WITHIN_UNIT = {
 /** One of the {@link WITHIN_UNIT} values. */
 export type WithinUnit = (typeof WITHIN_UNIT)[keyof typeof WITHIN_UNIT];
 
+/**
+ * Largest count a `within_last` rule may carry. 100,000 days reaches back
+ * about 274 years — far past any real content — while staying inside the
+ * instants `Date` can represent, so the serialiser can never be handed a
+ * window it cannot express. Without a ceiling a user still typing a long
+ * number produced an unrepresentable cutoff on every keystroke.
+ */
+export const MAX_WITHIN_LAST = 100_000;
+
 /** Concrete value shape per operator. Discriminated by `op` at the call site. */
 export type RuleValue =
     | string

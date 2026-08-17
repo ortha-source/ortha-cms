@@ -14,19 +14,40 @@ const messages = defineMessages({
     label: {
         id: 'insights.range.label',
         defaultMessage: 'Time range'
-    },
-    '7d': { id: 'insights.range.7d', defaultMessage: '7 days' },
-    '30d': { id: 'insights.range.30d', defaultMessage: '30 days' },
-    '90d': { id: 'insights.range.90d', defaultMessage: '90 days' },
-    '12m': { id: 'insights.range.12m', defaultMessage: '12 months' }
+    }
 });
 
-/** Compact labels — the control is narrow, the long form is the accessible name. */
+/** The unit each short label abbreviates, read only by assistive tech. */
+const unitMessages = defineMessages({
+    days: { id: 'insights.range.unit.days', defaultMessage: 'days' },
+    months: { id: 'insights.range.unit.months', defaultMessage: 'months' }
+});
+
+/** Compact visible labels — the control is narrow. */
 const SHORT_LABEL: Record<InsightsRange, string> = {
     '7d': '7d',
     '30d': '30d',
     '90d': '90d',
     '12m': '12m'
+};
+
+/**
+ * The unit the short label abbreviates, added as `sr-only` text rather than an
+ * `aria-label`.
+ *
+ * `2.5.3 Label in Name` requires the accessible name to **contain** the
+ * visible one. An `aria-label` of "90 days" replaced the visible "90d"
+ * outright, so a speech-input user saying "click 90d" matched nothing — and
+ * the rule that would have caught it (`label-content-name-mismatch`) is
+ * best-practice, excluded from the harness's WCAG tag set. Composing the name
+ * out of the visible text plus a hidden suffix gives "90d days": still spoken
+ * in full, and still containing what is on screen.
+ */
+const UNIT_SUFFIX: Record<InsightsRange, keyof typeof unitMessages> = {
+    '7d': 'days',
+    '30d': 'days',
+    '90d': 'days',
+    '12m': 'months'
 };
 
 /**
@@ -50,12 +71,12 @@ export function InsightsRangePicker() {
             aria-label={intl.formatMessage(messages.label)}
         >
             {INSIGHTS_RANGES.map((option) => (
-                <SegmentedControlItem
-                    key={option}
-                    value={option}
-                    aria-label={intl.formatMessage(messages[option])}
-                >
+                <SegmentedControlItem key={option} value={option}>
                     {SHORT_LABEL[option]}
+                    <span className="sr-only">
+                        {' '}
+                        {intl.formatMessage(unitMessages[UNIT_SUFFIX[option]])}
+                    </span>
                 </SegmentedControlItem>
             ))}
         </SegmentedControl>

@@ -105,6 +105,13 @@ function walk(
 }
 
 function wireOpToUiOp(wireOp: string): OpId | null {
+    // `Object.hasOwn`, not a bare lookup: `WIRE_TO_UI` is a plain object
+    // literal, so `WIRE_TO_UI['constructor']` is `Object` — truthy — and the
+    // `?? null` never fires. `wireOp` comes straight off a `?filter=` URL
+    // param, so a crafted link produced a rule whose `op` was a function,
+    // which then crashed `OP_LABELS[op]` / `UI_TO_WIRE[op]` downstream instead
+    // of being dropped the way this deserialiser promises.
+    if (!Object.hasOwn(WIRE_TO_UI, wireOp)) return null;
     return WIRE_TO_UI[wireOp as WireOp] ?? null;
 }
 

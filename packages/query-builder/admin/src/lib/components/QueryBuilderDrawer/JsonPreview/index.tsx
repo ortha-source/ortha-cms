@@ -41,7 +41,18 @@ export function JsonPreview({ tree }: JsonPreviewProps) {
     const [copied, setCopied] = useState(false);
     const onCopy = async () => {
         if (!json) return;
-        await navigator.clipboard.writeText(json);
+        // Guarded: `writeText` rejects over plain HTTP, in a cross-origin
+        // iframe, and whenever clipboard permission is denied. Unguarded, the
+        // click handler's promise rejected with nothing listening — an
+        // unhandled rejection in the console and a button that silently did
+        // not flip to "Copied". Swallowing the rejection leaves the button in
+        // its resting state, which is the honest signal that nothing was
+        // copied.
+        try {
+            await navigator.clipboard.writeText(json);
+        } catch {
+            return;
+        }
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1500);
     };

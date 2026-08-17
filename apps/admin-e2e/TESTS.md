@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_647 test cases across 65 spec files._
+_659 test cases across 67 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -600,6 +600,20 @@ _<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_
 | disables library picking without media:read |
 | has no accessibility violations, picker included |
 
+<!-- source: apps/admin-e2e/src/content/records-filter-url.spec.ts -->
+_<sub>apps/admin-e2e/src/content/records-filter-url.spec.ts</sub>_
+
+## Records filter — hand-edited ?filter=
+
+| Test case |
+| --- |
+| an "${…}" operator is dropped, not rendered |
+| an operator the field does not offer is reported without pressing Apply |
+| the Apply gate refuses a substring operator on a date field |
+| the Apply gate refuses a non-boolean value on a boolean field |
+| a legal hand-written rule still restores and commits |
+| a huge "within the last" count is clamped instead of crashing the panel |
+
 <!-- source: apps/admin-e2e/src/content/records-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/content/records-filter.spec.ts</sub>_
 
@@ -1033,6 +1047,20 @@ _<sub>apps/admin-e2e/src/insights/a11y.spec.ts</sub>_
 | has no axe violations with a failed widget on the page |
 | the range picker is reachable and operable by keyboard |
 | every chart carries a text alternative |
+
+<!-- source: apps/admin-e2e/src/insights/announcements.spec.ts -->
+_<sub>apps/admin-e2e/src/insights/announcements.spec.ts</sub>_
+
+## Insights announcements and outline
+
+| Test case |
+| --- |
+| a loading widget announces itself, named by its title |
+| an empty widget announces politely, as the failed one does assertively |
+| a failed stat tile says its value is unavailable |
+| the document outline has no skipped heading level |
+| a range option is addressable by the label printed on it |
+| the heat grid exposes its values as a real table |
 
 <!-- source: apps/admin-e2e/src/insights/insights.spec.ts -->
 _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_

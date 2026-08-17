@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react';
+import { defineMessages, FormattedMessage } from 'react-intl';
 import { Card, CardContent, Skeleton, cn } from '@ortha-cms/design-system';
 import { Sparkline } from '../Sparkline';
+
+/** Intl descriptors for the stat tile, co-located here. */
+const messages = defineMessages({
+    unavailable: {
+        id: 'insights.stat.unavailable',
+        defaultMessage: 'Unavailable —'
+    }
+});
 
 /** Props for {@link StatWidget}. */
 export type StatWidgetProps = {
@@ -61,6 +70,17 @@ export function StatWidget({
                             —
                         </span>
                         <span className="text-xs text-muted-foreground">
+                            {/* The em dash is `aria-hidden` (a screen reader
+                                reads "—" as nothing or as "dash"), so without
+                                this the tile announced its label and no value
+                                at all — indistinguishable from a card that
+                                simply has none. The distinction the em dash
+                                exists to draw has to be drawn in text too. */}
+                            <span className="sr-only">
+                                <FormattedMessage
+                                    {...messages.unavailable}
+                                />{' '}
+                            </span>
                             {label}
                         </span>
                     </>

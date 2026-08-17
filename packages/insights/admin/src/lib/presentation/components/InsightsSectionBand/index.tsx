@@ -2,6 +2,7 @@ import { useIntl } from 'react-intl';
 import { cn } from '@ortha-cms/design-system';
 import type { InsightsWidgetSize } from '../../slots/insightsSlots';
 import type { InsightsBand } from '../../../utils/resolveInsightsLayout';
+import { useInsightsRange } from '../../../hooks/useInsightsRange';
 import { WidgetBoundary } from '../WidgetBoundary';
 
 /**
@@ -22,6 +23,25 @@ const SIZE_SPAN: Record<InsightsWidgetSize, string> = {
     full: 'col-span-12'
 };
 
+/** The span a widget with no declared size gets — half a row. */
+const DEFAULT_SIZE: InsightsWidgetSize = 'md';
+
+/**
+ * Column span for a contributed widget's `size`, falling back to the default
+ * for anything not in the table.
+ *
+ * A bare `SIZE_SPAN[size]` yielded `undefined` for a typo'd size, `cn` dropped
+ * it, and the widget landed in one column of twelve — a sliver, with no error
+ * anywhere. `Object.hasOwn` also keeps a size naming an `Object.prototype`
+ * member (`constructor`, `toString`) from reading back a truthy non-string.
+ * The type says this can't happen; the contributor writing it is in another
+ * package and may not be compiling against that type.
+ */
+function spanFor(size: InsightsWidgetSize | undefined): string {
+    if (size && Object.hasOwn(SIZE_SPAN, size)) return SIZE_SPAN[size];
+    return SIZE_SPAN[DEFAULT_SIZE];
+}
+
 /** Props for {@link InsightsSectionBand}. */
 export type InsightsSectionBandProps = {
     /** The section and its visible widgets. */
@@ -38,6 +58,7 @@ export type InsightsSectionBandProps = {
  */
 export function InsightsSectionBand({ band }: InsightsSectionBandProps) {
     const intl = useIntl();
+    const { range } = useInsightsRange();
     const { section } = band;
     const Icon = section.icon;
 
@@ -75,13 +96,18 @@ export function InsightsSectionBand({ band }: InsightsSectionBandProps) {
                     <div
                         key={widget.id}
                         data-widget-id={widget.id}
-                        className={cn(SIZE_SPAN[widget.size ?? 'md'])}
+                        className={cn(spanFor(widget.size))}
                     >
                         <WidgetBoundary
                             title={intl.formatMessage({
                                 id: widget.titleId,
                                 defaultMessage: widget.defaultTitle
                             })}
+                            // The range is the page's one "ask again" action,
+                            // so a widget that threw on one window's data gets
+                            // another chance on the next rather than staying
+                            // broken until the page is remounted.
+                            resetKey={range}
                         >
                             <widget.Component />
                         </WidgetBoundary>

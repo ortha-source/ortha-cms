@@ -60,7 +60,7 @@ export class InsightsPage extends BasePage {
     /** A widget card by its visible title. */
     card(title: string): Locator {
         return this.page
-            .getByRole('heading', { name: title, level: 4 })
+            .getByRole('heading', { name: title, level: 3 })
             .locator('xpath=ancestor::*[contains(@class,"rounded-xl")][1]');
     }
 
@@ -137,14 +137,24 @@ export class InsightsPage extends BasePage {
         return this.page.getByRole('radiogroup', { name: 'Time range' });
     }
 
-    /** One range option, by its accessible name (e.g. "7 days"). */
-    rangeOption(name: string): Locator {
-        return this.rangePicker().getByRole('radio', { name });
+    /**
+     * One range option, by its **visible** label (e.g. `7d`).
+     *
+     * Located loosely on purpose. The accessible name is the visible label
+     * plus an `sr-only` unit — "90d days" — because `2.5.3 Label in Name`
+     * requires the name to contain what is on screen, and an `aria-label` of
+     * "90 days" replaced it instead. Keying the locator on the visible label
+     * means the test asserts the half a speech-input user actually says.
+     */
+    rangeOption(label: string): Locator {
+        return this.rangePicker().getByRole('radio', {
+            name: new RegExp(`^${label}\\b`)
+        });
     }
 
-    /** Select a range window. */
-    async selectRange(name: string) {
-        await this.rangeOption(name).click();
+    /** Select a range window, by its visible label (e.g. `90d`). */
+    async selectRange(label: string) {
+        await this.rangeOption(label).click();
     }
 
     /** The "no widgets registered" copy shown when nothing contributes. */

@@ -481,7 +481,7 @@ test.describe('Insights', () => {
 
         expect(spy.days['content/velocity']).toBe('30');
 
-        await insightsPage.selectRange('90 days');
+        await insightsPage.selectRange('90d');
 
         await expect.poll(() => spy.days['content/velocity']).toBe('90');
         await expect.poll(() => spy.days['media/uploads']).toBe('90');

@@ -123,12 +123,18 @@ function ruleToJson(rule: FilterRule, now: Date): JsonFilterNode {
         case OP.WithinLast: {
             const v = rule.value as { n: number; unit: WithinUnit };
             const cutoff = new Date(
-                now.getTime() - msFor(v.n, v.unit)
+                cutoffMs(now.getTime(), v.n, v.unit)
             ).toISOString();
             return { field: f, op: WIRE_OP.Gte, value: cutoff };
         }
         default: {
-            const wire = UI_TO_WIRE[rule.op];
+            // `Object.hasOwn`, not a bare lookup: `UI_TO_WIRE` is a plain
+            // object literal, so an `op` that named an `Object.prototype`
+            // member would read back as a truthy inherited value and ship a
+            // function as the wire operator.
+            const wire = Object.hasOwn(UI_TO_WIRE, rule.op)
+                ? UI_TO_WIRE[rule.op]
+                : undefined;
             if (!wire) {
                 // Unreachable: every OpId is either a compound op handled
                 // above or has a UI_TO_WIRE entry. The throw exists so a
@@ -157,6 +163,30 @@ const MS_PER_UNIT: Record<WithinUnit, number> = {
     [WITHIN_UNIT.Days]: 24 * 60 * 60_000
 };
 
-function msFor(n: number, unit: WithinUnit): number {
-    return MS_PER_UNIT[unit] * n;
+/**
+ * Widest instant `Date` can represent, per ECMA-262 (±8.64e15 ms from the
+ * epoch). Anything beyond it makes `new Date(...)` invalid and
+ * `toISOString()` throw `RangeError`.
+ */
+const MAX_TIME_VALUE = 8.64e15;
+
+/**
+ * Milliseconds a `within_last` window reaches back, **clamped to a
+ * representable instant**.
+ *
+ * The cutoff is computed on every keystroke (the JSON preview serialises the
+ * live draft), so an unclamped `n` — a user still typing `99999999999`, or a
+ * unit missing from the table — produced `new Date(NaN).toISOString()`, a
+ * `RangeError` thrown during render with no boundary between it and the page.
+ * Clamping keeps the serialiser total: a nonsensical window degrades to the
+ * widest representable one, and the Apply gate is what refuses it.
+ */
+function cutoffMs(nowMs: number, n: number, unit: WithinUnit): number {
+    const perUnit = Object.hasOwn(MS_PER_UNIT, unit)
+        ? MS_PER_UNIT[unit]
+        : MS_PER_UNIT[WITHIN_UNIT.Days];
+    const span = Number.isFinite(n) ? perUnit * n : 0;
+    const cutoff = nowMs - span;
+    if (!Number.isFinite(cutoff)) return -MAX_TIME_VALUE;
+    return Math.min(MAX_TIME_VALUE, Math.max(-MAX_TIME_VALUE, cutoff));
 }
