@@ -52,11 +52,44 @@ three layers plus a shared type kernel:
 select + actor-email search), the **When · Actor · Action · Subject** table with
 **expandable rows** (a leading toggle reveals a details panel — subject, actor,
 exact time, raw metadata — animated via a grid-rows `0fr↔1fr` transition,
-`inert` when collapsed, reduced-motion aware), pagination, and a loading
-**skeleton** (`ActivityLogSkeleton`, used for both the lazy fallback and
-`isPending`) plus empty/error/no-access states. The **URL query string is the
-source of truth** for every filter and page (deep-linkable); `page` is clamped
-to `pageCount` after a filter narrows the result.
+`aria-hidden` + `inert` on the whole detail `<tr>` when collapsed, reduced-motion
+aware), pagination, and a loading **skeleton** (`ActivityLogSkeleton`, used for
+both the lazy fallback and `isPending`) plus empty/error/no-access states. The
+**URL query string is the source of truth** for every filter and page
+(deep-linkable); `page` is clamped to `pageCount` after a filter narrows the
+result, and `pageSize` is clamped to the largest option the server accepts.
+
+## Three things about this page that are load-bearing
+
+**The log is deployment-wide, not workspace-scoped, and the copy must say so.**
+`activity_events` has no workspace column and this page sends no workspace
+context — that is deliberate (see `activity/server`'s `AGENTS.md`). The subtitle
+and the empty state used to read "across the workspace", which told an admin of
+a multi-workspace deployment that the figure was scoped when it never was, on the
+page whose whole job is being the record of record. **Do not add a workspace
+filter** — there is no column to filter on. Fix the copy, not the query.
+
+**`ACTIVITY_KINDS` must stay in step with the server, and nothing enforces it at
+runtime.** The admin restates the kind strings locally because it cannot import
+the server plugins. A kind the server writes and this list omits is not a type
+error and not a runtime error: the mapper casts `dto.kind as ActivityKind`,
+`formatActivityAction` finds no descriptor, and the Action column silently prints
+the raw dotted wire token. Six `workspace.*` kinds, `user.activated` and all
+seven `media.*` kinds shipped that way. Inside the package `ACTION_MESSAGES` is
+typed `Record<ActivityKind, …>`, so a kind added to the list without a label is
+a compile error; the cross-repo half is pinned by
+`apps/admin-e2e/src/activity/activity-kinds.spec.ts` — **update its
+`ALL_KINDS_ACTIVITY` seed when the server gains a kind.** The same applies to
+`ACTIVITY_SUBJECT_TYPES`.
+
+**`at` may be an `Invalid Date`, on purpose.** `toActivityEvent` will not
+substitute an instant for a timestamp the wire got wrong — inventing one for an
+audit row is exactly the silently-rewriting mapper fallback to avoid. The cost is
+that `Date.prototype.toISOString` **throws** on the result, and calling it
+unguarded in render once blanked the entire SPA (there is no error boundary above
+the home slots). Every `<time datetime>` in this plugin therefore goes through
+`presentation/activityDateTime`, and every visible date through
+`intl.formatDate`, which is total.
 
 ## Conventions
 
@@ -78,10 +111,14 @@ to `pageCount` after a filter narrows the result.
   `httpActivityGateway` behind the `ActivityGateway` port (the sole `apiClient`
   user), never `apiClient` directly; wire→view mapping lives in
   `infrastructure/activityMapper`.
-- `types/activityKinds` restates the kind strings locally (the admin can't
-  import the server plugins), driving the kind filter; `presentation/activityMessages`
-  maps a kind → an "Action" label and `meta` → a "Details" string — **no
-  hardcoded action strings**, no central contract package.
+- `types/activityKinds` restates the kind strings **and** the subject types
+  locally (the admin can't import the server plugins);
+  `presentation/activityMessages` maps a kind → an "Action" label, a subject type
+  → a readable name, and `meta` → a "Details" string — **no hardcoded action
+  strings**, no central contract package. Details summaries read **one**
+  descriptive field per kind rather than assuming a shared `meta` shape: media's
+  payloads differ per kind by design, and the expanded row's Metadata line always
+  shows the whole record anyway.
 - Co-located `defineMessages` (ids `activity.<area>.<key>`); `type` over
   `interface`; design-system primitives only; a11y per the `accessibility` skill.
 
