@@ -158,6 +158,53 @@ describe('parseFilterTree', () => {
         });
     });
 
+    describe('non-object input', () => {
+        // Asserted directly rather than incidentally: `InvalidShape` is the
+        // gate between "a filter" and "some other JSON value", and an array
+        // slipping past it would reach `walkNode` as a node.
+        const captureCode = (filter: unknown): string => {
+            try {
+                parseFilterTree(filter, schema);
+            } catch (err) {
+                return (err as { code: string }).code;
+            }
+            throw new Error('expected parseFilterTree to throw');
+        };
+
+        it('rejects an array, a JSON string and a JSON number', () => {
+            expect(
+                captureCode('[{"field":"email","op":"eq","value":"x"}]')
+            ).toBe(FilterErrorCode.InvalidShape);
+            expect(captureCode('"hello"')).toBe(FilterErrorCode.InvalidShape);
+            expect(captureCode('42')).toBe(FilterErrorCode.InvalidShape);
+            expect(captureCode('true')).toBe(FilterErrorCode.InvalidShape);
+            expect(captureCode([])).toBe(FilterErrorCode.InvalidShape);
+        });
+
+        it('distinguishes the JS value `null` from the JSON text "null"', () => {
+            // Only the former short-circuits at the top of the function. Over
+            // HTTP `?filter=null` arrives as the four-character STRING, which
+            // JSON-parses to `null` and then fails the shape check — a 400,
+            // not the "200, unfiltered" a reader of the `rawFilter === null`
+            // guard would predict. Pinned because the two look identical at
+            // the call site and only one of them is reachable from a URL.
+            expect(parseFilterTree(null, schema)).toBeNull();
+            expect(captureCode('null')).toBe(FilterErrorCode.InvalidShape);
+        });
+
+        it('rejects a path-traversal-shaped field name', () => {
+            // `'../../x'.split('.')` is `['','','/','/x']` — four segments, so
+            // the depth cap catches it before the whitelist even runs. Either
+            // way it is a 400; there is no filesystem semantics to escape into.
+            expect(
+                captureCode({ field: '../../x', op: 'eq', value: 'y' })
+            ).toBe(FilterErrorCode.DepthExceeded);
+            expect(captureCode({ field: '../x', op: 'eq', value: 'y' })).toBe(
+                FilterErrorCode.UnknownRelation
+            );
+        });
+    });
+
     describe('object input — empty + bracket-shaped legacy payloads', () => {
         it('returns null for an empty object', () => {
             expect(parseFilterTree({}, schema)).toBeNull();
@@ -280,16 +327,16 @@ describe('parseFilterTree', () => {
         it('rejects an empty `in` list (would match no rows)', () => {
             // An empty array reaches inArray(col, []) which Drizzle emits as
             // SQL `false`; reject it as a clean 400 instead.
-            expect(
-                captureCode({ field: 'status', op: 'in', value: [] })
-            ).toBe(FilterErrorCode.EmptyInList);
+            expect(captureCode({ field: 'status', op: 'in', value: [] })).toBe(
+                FilterErrorCode.EmptyInList
+            );
         });
 
         it('rejects an empty `nin` list (would match every row)', () => {
             // notInArray(col, []) emits SQL `true` — a silent inverted filter.
-            expect(
-                captureCode({ field: 'status', op: 'nin', value: [] })
-            ).toBe(FilterErrorCode.EmptyInList);
+            expect(captureCode({ field: 'status', op: 'nin', value: [] })).toBe(
+                FilterErrorCode.EmptyInList
+            );
         });
 
         it('caps the `in` value list length', () => {
@@ -328,6 +375,91 @@ describe('parseFilterTree', () => {
                 op: 'in',
                 value: ['active', 'pending']
             });
+        });
+    });
+
+    describe('at-limit boundaries', () => {
+        // Each cap had only its reject side covered, so an off-by-one that
+        // rejected the last legal filter would have passed the suite.
+        const rule = { field: 'email', op: 'eq', value: 'a@b.com' };
+
+        const captureCode = (filter: unknown, s: FilterSchema): string => {
+            try {
+                parseFilterTree(filter, s);
+            } catch (err) {
+                return (err as { code: string }).code;
+            }
+            throw new Error('expected parseFilterTree to throw');
+        };
+
+        it('accepts exactly `maxNodes` nodes and rejects one more', () => {
+            // The group itself counts as a node, so `maxNodes: 5` admits four
+            // children.
+            const tinySchema: FilterSchema = { ...schema, maxNodes: 5 };
+            expect(
+                parseFilterTree(
+                    { and: Array.from({ length: 4 }, () => rule) },
+                    tinySchema
+                )
+            ).toMatchObject({ kind: 'group', combinator: 'and' });
+            expect(
+                captureCode(
+                    { and: Array.from({ length: 5 }, () => rule) },
+                    tinySchema
+                )
+            ).toBe(FilterErrorCode.MaxNodesExceeded);
+        });
+
+        it('accepts exactly `maxGroupDepth` nested groups and rejects one more', () => {
+            // The check is `depth >= maxGroupDepth` counting from 0 at the
+            // root, so five nested groups are the maximum.
+            const nest = (n: number) => {
+                let inner: unknown = rule;
+                for (let i = 0; i < n; i++) inner = { and: [inner] };
+                return inner;
+            };
+            const schemaWithRoom: FilterSchema = { ...schema, maxNodes: 100 };
+            expect(parseFilterTree(nest(5), schemaWithRoom)).toBeTruthy();
+            expect(captureCode(nest(6), schemaWithRoom)).toBe(
+                FilterErrorCode.GroupDepthExceeded
+            );
+        });
+
+        it('accepts exactly `maxDepth` path segments and rejects one more', () => {
+            // `path.length > maxDepth`, so `a.b.c` passes at the default 3.
+            const deepSchema: FilterSchema = {
+                maxDepth: 2,
+                relations: {
+                    workspaces: {
+                        kind: 'many-to-many',
+                        through: {} as never,
+                        fk: {} as never,
+                        targetFk: {} as never,
+                        table: {} as never,
+                        fields: { name: { type: 'string' } },
+                        relations: {
+                            owner: {
+                                kind: 'many-to-one',
+                                table: {} as never,
+                                fk: {} as never,
+                                fields: { name: { type: 'string' } }
+                            }
+                        }
+                    }
+                }
+            };
+            expect(
+                parseFilterTree(
+                    { field: 'workspaces.name', op: 'eq', value: 'x' },
+                    deepSchema
+                )
+            ).toMatchObject({ path: ['workspaces', 'name'] });
+            expect(
+                captureCode(
+                    { field: 'workspaces.owner.name', op: 'eq', value: 'x' },
+                    deepSchema
+                )
+            ).toBe(FilterErrorCode.DepthExceeded);
         });
     });
 });

@@ -92,8 +92,12 @@ function walkNode(
     }
 
     const node = raw as Record<string, unknown>;
-    const isAnd = 'and' in node;
-    const isOr = 'or' in node;
+    // `Object.hasOwn`, not `in`: `parseFilterTree` also accepts an
+    // already-parsed object, which a caller could hand over with a prototype
+    // that carries these names. Shape detection must read what the payload
+    // itself declares.
+    const isAnd = Object.hasOwn(node, 'and');
+    const isOr = Object.hasOwn(node, 'or');
 
     if (isAnd && isOr) {
         throw new FilterException(
@@ -131,7 +135,7 @@ function walkNode(
         };
     }
 
-    if ('field' in node && 'op' in node) {
+    if (Object.hasOwn(node, 'field') && Object.hasOwn(node, 'op')) {
         const field = node.field;
         const op = node.op;
         if (typeof field !== 'string' || field.length === 0) {

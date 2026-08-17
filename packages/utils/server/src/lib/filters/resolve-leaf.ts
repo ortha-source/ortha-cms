@@ -1,4 +1,9 @@
-import { FilterErrorCode, FilterException } from './filter-exceptions';
+import {
+    FilterErrorCode,
+    FilterException,
+    FilterSchemaException
+} from './filter-exceptions';
+import { own } from './own-property';
 import { FilterOperator, ScalarFieldType } from './types';
 import type { FilterSchema, ParsedFilter, ScalarFieldSchema } from './types';
 
@@ -49,7 +54,7 @@ export function resolveLeaf(
         const seg = path[i];
         const last = i === path.length - 1;
         if (last) {
-            const field = fields[seg];
+            const field = own(fields, seg);
             if (!field) {
                 throw new FilterException(
                     FilterErrorCode.UnknownField,
@@ -69,7 +74,7 @@ export function resolveLeaf(
                 )
             };
         }
-        const rel = relations[seg];
+        const rel = own(relations, seg);
         if (!rel) {
             throw new FilterException(
                 FilterErrorCode.UnknownRelation,
@@ -140,6 +145,28 @@ function scalarOf(
     field: ScalarFieldSchema,
     pathStr: string
 ): unknown {
+    // A filter value has to be a scalar. `String(v)` on anything else produces
+    // a plausible-looking string that is then MATCHED AGAINST rather than
+    // rejected: `null` → `"null"`, a missing `value` key → `"undefined"`,
+    // `{}` → `"[object Object]"`, `[1,2]` → `"1,2"`, and (for a number field)
+    // `[]` → `""` → `0`. Each returns 200 with a wrong, usually empty, result
+    // set that the client reads as "no matches" instead of "bad request" —
+    // the one silent failure mode in a library that 400s every other bad
+    // value. A JSON client meaning "is null" wants the `null` operator.
+    if (
+        v === null ||
+        (typeof v !== 'string' &&
+            typeof v !== 'number' &&
+            typeof v !== 'boolean')
+    ) {
+        throw new FilterException(
+            FilterErrorCode.InvalidValue,
+            v === undefined
+                ? 'value is required'
+                : 'value must be a string, number or boolean',
+            { path: pathStr, expectedType: field.type }
+        );
+    }
     const s = typeof v === 'string' ? v : String(v);
     switch (field.type) {
         case ScalarFieldType.String:
@@ -200,5 +227,14 @@ function scalarOf(
                 );
             }
             return s;
+        default:
+            // Not reachable through the type system, but a schema built at
+            // runtime (the content plugin derives one per content type) can
+            // land here with an unrecognised `type`. Falling out of the switch
+            // returned `undefined`, which drizzle renders as the same broken
+            // `$1 = ` fragment an inherited field name used to produce.
+            throw new FilterSchemaException(
+                `field "${pathStr}" declares unknown type "${String(field.type)}"`
+            );
     }
 }

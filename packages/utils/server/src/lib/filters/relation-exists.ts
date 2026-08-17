@@ -1,6 +1,8 @@
 import { and, eq, exists, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { PgTable } from 'drizzle-orm/pg-core';
+import { FilterSchemaException } from './filter-exceptions';
+import { own } from './own-property';
 import { scalar } from './scalar-op';
 import {
     columnOf,
@@ -119,7 +121,7 @@ export function relationExists(
                 );
             }
             if (!rel.table) {
-                throw new Error(
+                throw new FilterSchemaException(
                     'many-to-many filter on target field requires `table`'
                 );
             }
@@ -138,6 +140,17 @@ export function relationExists(
                     )
             );
         }
+        default:
+            // Unreachable through the `RelationSchema` union, but a schema
+            // assembled at runtime can carry an unrecognised `kind`. Falling
+            // out of the switch returned `undefined`, and an `undefined`
+            // predicate is dropped by drizzle's `and()`/`or()` — the filter
+            // would silently widen instead of failing.
+            throw new FilterSchemaException(
+                `relation declares unknown kind "${String(
+                    (rel as { kind?: unknown }).kind
+                )}"`
+            );
     }
 }
 
@@ -155,8 +168,11 @@ export function descend(
     if (f.path.length === 1) {
         return scalar(columnOf(currentTable, f.path[0]), f.op, f.value);
     }
-    const next = rel.relations?.[f.path[0]];
-    if (!next) throw new Error(`nested relation missing: ${f.path[0]}`);
+    const next = own(rel.relations, f.path[0]);
+    if (!next)
+        throw new FilterSchemaException(
+            `nested relation missing: ${f.path[0]}`
+        );
     return relationExists(
         next,
         currentTable,

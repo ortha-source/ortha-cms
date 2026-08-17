@@ -16,6 +16,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
+import { FilterSchemaException } from './filter-exceptions';
 import { FilterOperator } from './types';
 
 /**
@@ -73,5 +74,15 @@ export function scalar(
             return negative(col, notIlike(col, String(value)));
         case FilterOperator.Null:
             return value === true ? isNull(col) : isNotNull(col);
+        default:
+            // The parser validates `op` against the vocabulary, so this is
+            // unreachable — but falling out of the switch returned `undefined`,
+            // and drizzle's `and()`/`or()` drop an undefined member, so a
+            // future operator added to `FilterOperator` without a case here
+            // would silently widen the filter instead of failing the build's
+            // intent. Fail loudly instead.
+            throw new FilterSchemaException(
+                `no translation for operator "${String(op)}"`
+            );
     }
 }

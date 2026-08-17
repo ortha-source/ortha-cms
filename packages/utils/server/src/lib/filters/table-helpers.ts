@@ -1,4 +1,5 @@
 import { getTableColumns, type AnyColumn, type SQLWrapper } from 'drizzle-orm';
+import { FilterSchemaException } from './filter-exceptions';
 
 /**
  * A minimal Drizzle-like table shape.
@@ -33,12 +34,20 @@ export type DbLike = {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Resolve a column on a table by name, or throw if absent. */
+/**
+ * Resolve a column on a table by name, or throw if absent.
+ *
+ * The lookup is `Object.hasOwn`-guarded: drizzle's column map is a plain
+ * object, so `cols['constructor']` would otherwise return `Object` itself and
+ * this function would hand a `Function` to drizzle as a `Column`. The parser's
+ * whitelist is the primary guard, but this is the site where an escaped name
+ * turns into malformed SQL rather than an error, so it guards itself too.
+ */
 export function columnOf(table: TableLike, name: string): AnyColumn {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cols = getTableColumns(table as any) as Record<string, AnyColumn>;
-    const col = cols[name];
-    if (!col) throw new Error(`column "${name}" not on table`);
+    const col = Object.hasOwn(cols, name) ? cols[name] : undefined;
+    if (!col) throw new FilterSchemaException(`column "${name}" not on table`);
     return col;
 }
 
@@ -81,8 +90,8 @@ export function rebind(column: AnyColumn, table: TableLike): AnyColumn {
 export function primaryKey(table: TableLike): AnyColumn {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cols = getTableColumns(table as any) as Record<string, AnyColumn>;
-    if (cols['id']) return cols['id'];
-    throw new Error(
+    if (Object.hasOwn(cols, 'id')) return cols['id'];
+    throw new FilterSchemaException(
         'table has no `id` column — declare parentKey/targetKey explicitly'
     );
 }
