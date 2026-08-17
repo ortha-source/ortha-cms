@@ -30,6 +30,73 @@ const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
+/** Reads the persisted open state, tolerating an unreadable or absent cookie. */
+function readStoredOpen(): boolean | undefined {
+    if (typeof document === 'undefined') {
+        return undefined;
+    }
+    try {
+        const match = document.cookie.match(
+            new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`)
+        );
+        if (!match) {
+            return undefined;
+        }
+        return match[1] === 'true'
+            ? true
+            : match[1] === 'false'
+              ? false
+              : undefined;
+    } catch {
+        // A sandboxed iframe without `allow-same-origin` throws on access.
+        return undefined;
+    }
+}
+
+/** Persists the open state. Best-effort — an unwritable jar is not fatal. */
+function writeStoredOpen(open: boolean): void {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    try {
+        document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`;
+    } catch {
+        // Losing the preference is survivable; losing the toggle is not.
+    }
+}
+
+/**
+ * True for a target that owns `Ctrl/⌘+B` itself — a text field, or anything
+ * inside a rich-text editor, where the chord means **bold**. The shortcut used
+ * to `preventDefault()` on every keystroke that reached the window, so typing
+ * `Ctrl+B` in a body field collapsed the sidebar *and* left the text unbolded.
+ */
+function ownsBoldShortcut(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+    // `isContentEditable` covers a caret anywhere inside an editor in a real
+    // browser; the attribute check is what makes it observable in jsdom.
+    if (
+        target.isContentEditable ||
+        target.closest('[contenteditable=""], [contenteditable="true"]')
+    ) {
+        return true;
+    }
+    const tag = target.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') {
+        return true;
+    }
+    if (tag === 'INPUT') {
+        // Only the textual inputs; a checkbox has no use for bold.
+        const type = (target as HTMLInputElement).type;
+        return !['checkbox', 'radio', 'button', 'submit', 'reset'].includes(
+            type
+        );
+    }
+    return false;
+}
+
 type SidebarContextProps = {
     state: 'expanded' | 'collapsed';
     open: boolean;
@@ -67,7 +134,7 @@ function useOptionalSidebar() {
  * `SidebarInset` read it via {@link useSidebar}.
  */
 function SidebarProvider({
-    defaultOpen = true,
+    defaultOpen: defaultOpenProp,
     open: openProp,
     onOpenChange: setOpenProp,
     className,
@@ -84,7 +151,13 @@ function SidebarProvider({
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen);
+    // The cookie is the *fallback*, not an override: a caller that states a
+    // `defaultOpen` means it. Written on every toggle since the component was
+    // written, and — until this was fixed — read by nobody, so collapsing the
+    // sidebar never survived a reload.
+    const [_open, _setOpen] = React.useState(
+        () => defaultOpenProp ?? readStoredOpen() ?? true
+    );
     const open = openProp ?? _open;
     const setOpen = React.useCallback(
         (value: boolean | ((value: boolean) => boolean)) => {
@@ -95,8 +168,7 @@ function SidebarProvider({
                 _setOpen(openState);
             }
 
-            // This sets the cookie to keep the sidebar state.
-            document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+            writeStoredOpen(openState);
         },
         [setOpenProp, open]
     );
@@ -113,7 +185,10 @@ function SidebarProvider({
         const handleKeyDown = (event: KeyboardEvent) => {
             if (
                 event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-                (event.metaKey || event.ctrlKey)
+                (event.metaKey || event.ctrlKey) &&
+                // A text field and the rich-text editor own this chord — it is
+                // *bold* there. Yield rather than swallow it.
+                !ownsBoldShortcut(event.target)
             ) {
                 event.preventDefault();
                 toggleSidebar();
@@ -127,6 +202,38 @@ function SidebarProvider({
     // We add a state so that we can do data-state="expanded" or "collapsed".
     // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? 'expanded' : 'collapsed';
+
+    // Collapsing hides the region the collapse control itself lives in, so
+    // activating it from the keyboard used to leave the user on `<body>` with
+    // nothing focused, no announcement, and no way back but Tab-from-the-top
+    // (WCAG 2.4.3 / 3.2.2). Hand focus to the trigger that replaced it — the
+    // one the `TopBar` reveals inline, or the shell's floating toggle.
+    const previousState = React.useRef(state);
+    React.useEffect(() => {
+        const wasExpanded = previousState.current === 'expanded';
+        previousState.current = state;
+        if (!wasExpanded || state !== 'collapsed') {
+            return;
+        }
+
+        const active = document.activeElement as HTMLElement | null;
+        const stranded =
+            !active ||
+            active === document.body ||
+            !!active.closest?.('[inert]');
+        if (!stranded) {
+            return;
+        }
+
+        const reveal = Array.from(
+            document.querySelectorAll<HTMLElement>('[data-sidebar="trigger"]')
+        ).find(
+            (trigger) =>
+                !trigger.closest('[inert]') &&
+                trigger.getAttribute('tabindex') !== '-1'
+        );
+        reveal?.focus();
+    }, [state]);
 
     const contextValue = React.useMemo<SidebarContextProps>(
         () => ({
@@ -185,11 +292,20 @@ function Sidebar({
     collapsible = 'offcanvas',
     className,
     children,
+    mobileTitle = 'Sidebar',
+    mobileDescription = 'Displays the mobile sidebar.',
     ...props
 }: React.ComponentProps<'div'> & {
     side?: 'left' | 'right';
     variant?: 'sidebar' | 'floating' | 'inset';
     collapsible?: 'offcanvas' | 'icon' | 'none';
+    /**
+     * Accessible name for the mobile overlay, which is a dialog. Defaults to
+     * the English `'Sidebar'`; pass a localized string.
+     */
+    mobileTitle?: string;
+    /** Accessible description for the mobile overlay. */
+    mobileDescription?: string;
 }) {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -232,9 +348,9 @@ function Sidebar({
                     side={side}
                 >
                     <SheetHeader className="sr-only">
-                        <SheetTitle>Sidebar</SheetTitle>
+                        <SheetTitle>{mobileTitle}</SheetTitle>
                         <SheetDescription>
-                            Displays the mobile sidebar.
+                            {mobileDescription}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="flex h-full w-full flex-col">
@@ -299,8 +415,15 @@ function Sidebar({
 function SidebarTrigger({
     className,
     onClick,
+    label = 'Toggle Sidebar',
     ...props
-}: React.ComponentProps<typeof Button>) {
+}: React.ComponentProps<typeof Button> & {
+    /**
+     * Accessible name. Defaults to the English `'Toggle Sidebar'`; pass a
+     * localized string. The button is icon-only, so this *is* its whole name.
+     */
+    label?: string;
+}) {
     const { toggleSidebar } = useSidebar();
 
     return (
@@ -317,23 +440,30 @@ function SidebarTrigger({
             {...props}
         >
             <PanelLeftIcon />
-            <span className="sr-only">Toggle Sidebar</span>
+            <span className="sr-only">{label}</span>
         </Button>
     );
 }
 
 /** A thin drag-rail on the sidebar edge that also toggles it. */
-function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
+function SidebarRail({
+    className,
+    label = 'Toggle Sidebar',
+    ...props
+}: React.ComponentProps<'button'> & {
+    /** Accessible name; defaults to the English `'Toggle Sidebar'`. */
+    label?: string;
+}) {
     const { toggleSidebar } = useSidebar();
 
     return (
         <button
             data-sidebar="rail"
             data-slot="sidebar-rail"
-            aria-label="Toggle Sidebar"
+            aria-label={label}
             tabIndex={-1}
             onClick={toggleSidebar}
-            title="Toggle Sidebar"
+            title={label}
             className={cn(
                 'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex',
                 'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
@@ -650,7 +780,14 @@ function SidebarMenuButton({
         />
     );
 
-    if (!tooltip) {
+    // The tooltip exists to name a row that has shrunk to an icon, so it is
+    // only built when the row *is* an icon. It used to be mounted always and
+    // suppressed with Radix's `hidden`, which hides the panel visually but
+    // leaves the trigger carrying `aria-describedby` — and a referenced hidden
+    // node still contributes to the accessible description. Every expanded
+    // sidebar row therefore announced as "Members, button, Members": a
+    // description echoing the name, which a screen-reader user cannot skip.
+    if (!tooltip || state !== 'collapsed' || isMobile) {
         return button;
     }
 
@@ -663,12 +800,7 @@ function SidebarMenuButton({
     return (
         <Tooltip>
             <TooltipTrigger asChild>{button}</TooltipTrigger>
-            <TooltipContent
-                side="right"
-                align="center"
-                hidden={state !== 'collapsed' || isMobile}
-                {...tooltip}
-            />
+            <TooltipContent side="right" align="center" {...tooltip} />
         </Tooltip>
     );
 }

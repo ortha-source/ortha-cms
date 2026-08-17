@@ -61,31 +61,41 @@ PaginationLink.displayName = 'PaginationLink';
 
 const PaginationPrevious = ({
     className,
+    label = 'Previous',
+    'aria-label': ariaLabel = 'Go to previous page',
     ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
+}: React.ComponentProps<typeof PaginationLink> & {
+    /** Visible label; defaults to the English `'Previous'`. */
+    label?: React.ReactNode;
+}) => (
     <PaginationLink
-        aria-label="Go to previous page"
+        aria-label={ariaLabel}
         size="default"
         className={cn('gap-1 pl-2.5', className)}
         {...props}
     >
         <ChevronLeft className="h-4 w-4" />
-        <span>Previous</span>
+        <span>{label}</span>
     </PaginationLink>
 );
 PaginationPrevious.displayName = 'PaginationPrevious';
 
 const PaginationNext = ({
     className,
+    label = 'Next',
+    'aria-label': ariaLabel = 'Go to next page',
     ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
+}: React.ComponentProps<typeof PaginationLink> & {
+    /** Visible label; defaults to the English `'Next'`. */
+    label?: React.ReactNode;
+}) => (
     <PaginationLink
-        aria-label="Go to next page"
+        aria-label={ariaLabel}
         size="default"
         className={cn('gap-1 pr-2.5', className)}
         {...props}
     >
-        <span>Next</span>
+        <span>{label}</span>
         <ChevronRight className="h-4 w-4" />
     </PaginationLink>
 );
@@ -100,8 +110,11 @@ const PaginationEllipsis = ({
         className={cn('flex h-9 w-9 items-center justify-center', className)}
         {...props}
     >
+        {/* The wrapper is `aria-hidden`, which is right — the ellipsis is
+            decoration, and the page links either side carry the meaning. Any
+            `sr-only` text in here would be unreachable by construction, so
+            there is none. */}
         <MoreHorizontal className="h-4 w-4" />
-        <span className="sr-only">More pages</span>
     </span>
 );
 PaginationEllipsis.displayName = 'PaginationEllipsis';

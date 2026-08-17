@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_659 test cases across 67 spec files._
+_665 test cases across 68 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1023,6 +1023,30 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 | --- |
 | is a tab stop, because a scrolling region must be reachable by keyboard |
 | shows a focus indicator when it holds focus |
+
+<!-- source: apps/admin-e2e/src/host/platform-preferences.spec.ts -->
+_<sub>apps/admin-e2e/src/host/platform-preferences.spec.ts</sub>_
+
+## forced colors
+
+| Test case |
+| --- |
+| a button keeps a visible focus indicator |
+| the app scrollport keeps a visible focus indicator |
+| nothing opts out of the user palette |
+
+## focus indicator contrast
+
+| Test case |
+| --- |
+| the button focus ring clears 3:1 against the page in ${…} |
+
+## dark theme
+
+| Test case |
+| --- |
+| the members table has no contrast failures in the dark palette |
+| the workspaces dashboard has no contrast failures in the dark palette |
 
 <!-- source: apps/admin-e2e/src/host/reflow.spec.ts -->
 _<sub>apps/admin-e2e/src/host/reflow.spec.ts</sub>_

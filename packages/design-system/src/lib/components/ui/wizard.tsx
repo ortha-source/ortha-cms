@@ -65,7 +65,10 @@ export function Stepper({
 
                 return (
                     <li
-                        key={step.label}
+                        // Position, not `label`: the label is consumer copy,
+                        // and two steps may legitimately share one. The rail is
+                        // a fixed ordered list, so the index *is* the identity.
+                        key={index}
                         className="relative flex gap-3 pb-6 last:pb-0"
                     >
                         {!isLast ? (

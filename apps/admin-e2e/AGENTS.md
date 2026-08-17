@@ -85,6 +85,20 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
   frames — not the finished transcript, and not the order of its parts. The
   earlier note that this was impossible was wrong, and it cost the whole surface
   its coverage for a while.
+- **`test.use({ forcedColors: 'active' })` does nothing here.** The media query
+  still reports `false` inside the page, so a spec that sets forced colors the
+  declarative way passes while testing nothing at all — which is how the repo's
+  total absence of `forced-colors` support went unnoticed. `test.use({
+  colorScheme })` is unaffected and works normally. Use
+  `page.emulateMedia({ forcedColors: 'active' })`, and assert the query matched
+  before asserting anything about style
+  (`src/host/platform-preferences.spec.ts`).
+- **axe never emulates a media feature.** Every scan runs in the browser default
+  — light, no forced colors, no reduced motion, desktop viewport — so a clean
+  run is a statement about *that* state and no other. `scrollable-region-focusable`
+  only fires at a viewport where the element actually overflows, and
+  `color-contrast` only ever saw the light palette. Anything keyed on a
+  preference or a size needs a computed-style assertion, not a scanner.
 - **A Radix menu that is `modal` fails axe.** It `aria-hidden`s the page root,
   which holds focusable content, so `aria-hidden-focus` fires. Every row menu and
   picker in the admin passes `modal={false}`; a new one that doesn't will fail

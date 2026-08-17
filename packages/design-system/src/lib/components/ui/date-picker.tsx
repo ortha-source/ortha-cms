@@ -26,10 +26,17 @@ const CALENDAR_CLASS_NAMES = {
 const POPOVER_CLASS =
     'w-[var(--radix-popover-trigger-width)] max-w-[300px] p-0';
 
-/** `HH:mm` of a date. */
+/**
+ * `HH:mm:ss` of a date. Seconds are kept, not truncated: the time input runs at
+ * `step="1"`, which invites them, and a round trip through `HH:mm` used to
+ * discard whatever the user typed — both on the very next render and again
+ * whenever the day changed underneath.
+ */
 function timeOf(date: Date): string {
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+        date.getSeconds()
+    )}`;
 }
 
 /** Returns a copy of `date` with the `HH:mm[:ss]` applied. */

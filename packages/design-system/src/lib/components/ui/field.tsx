@@ -198,16 +198,27 @@ function FieldError({
             return null;
         }
 
-        if (errors?.length === 1 && errors[0]?.message) {
-            return errors[0].message;
+        // Only entries that actually carry a message can be announced. An
+        // `errors` array of `[]` or `[{}, undefined]` is still truthy, and
+        // building the `<ul>` unconditionally made it non-null too — which
+        // opened an empty `role="alert"` saying nothing at all.
+        const messages = errors
+            .map((error) => error?.message)
+            .filter((message): message is string => !!message);
+
+        if (messages.length === 0) {
+            return null;
+        }
+
+        if (messages.length === 1) {
+            return messages[0];
         }
 
         return (
             <ul className="ml-4 flex list-disc flex-col gap-1">
-                {errors.map(
-                    (error, index) =>
-                        error?.message && <li key={index}>{error.message}</li>
-                )}
+                {messages.map((message, index) => (
+                    <li key={index}>{message}</li>
+                ))}
             </ul>
         );
     }, [children, errors]);

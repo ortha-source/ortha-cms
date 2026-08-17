@@ -128,3 +128,65 @@
         cursor: not-allowed;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   Forced colors — Windows High Contrast, and any UA that swaps the palette out
+   from under the page (`forced-colors: active`).
+
+   The repo had no `forced-colors` rules at all while `prefers-reduced-motion`
+   was handled throughout, and the gap is not cosmetic. In forced-colors mode
+   the UA discards `box-shadow` outright — and every focus indicator in this
+   library is a Tailwind `ring-*`, which *is* a box-shadow. So a keyboard user
+   in High Contrast had no visible focus indicator anywhere in the admin: a
+   2.4.7 / 1.4.11 failure across every page at once, and one no axe run can see
+   (axe does not emulate the media feature).
+
+   A real `outline` survives, so that is what is drawn. `outline-color` is left
+   to the UA rather than pinned to a system colour, because the UA already knows
+   which of its own colours reads against the surface it just imposed.
+
+   Two more, both about state that is drawn only as a fill:
+   `SegmentedControlItem` and `SidebarMenuButton` pair their selected fill with
+   a font-weight bump on purpose, so 1.4.1 Use of Colour already holds without
+   this — what is added is a border, so the selected item is delimited rather
+   than merely bolder. `forced-color-adjust: none` is deliberately NOT used
+   anywhere: opting a component out of the user's palette is the failure this
+   block exists to avoid.
+--------------------------------------------------------------------------- */
+@media (forced-colors: active) {
+    /* The focus indicator, restored as something forced colors keeps.
+       `!important` is load-bearing, not laziness: several components carry
+       Tailwind's `focus-visible:outline-none` next to their ring, and that
+       utility is a class+pseudo — it outranks a bare `:focus-visible` on
+       specificity, so without this the outline would be turned straight back
+       off by the very components that most need it. */
+    :focus-visible {
+        outline: 2px solid !important;
+        outline-offset: 2px !important;
+    }
+
+    /* The inset variant, used where a parent clips its overflow (the sidebar
+       scrollport, an overflowing table) — an outset outline is drawn outside
+       the clipping box and never seen. */
+    [data-slot='sidebar-inset-scroll']:focus-visible,
+    [data-slot='table-scroll']:focus-visible {
+        outline-offset: -2px !important;
+    }
+
+    /* Selected / active state, which is otherwise only a background fill and
+       is flattened by the forced palette. */
+    [role='radio'][data-state='on'],
+    [data-sidebar='menu-button'][data-active='true'],
+    [role='option'][aria-checked='true'],
+    [aria-current]:not([aria-current='false']) {
+        border: 1px solid Highlight;
+    }
+
+    /* A disabled control drops to `opacity`, and opacity is not part of the
+       forced palette — it stays fully legible and reads as operable. */
+    [disabled],
+    [aria-disabled='true'],
+    [data-disabled] {
+        color: GrayText;
+    }
+}
