@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_567 test cases across 58 spec files._
+_568 test cases across 58 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1124,6 +1124,7 @@ _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_
 | revokes a session from the Sessions tab |
 | names the device in each session control and in its confirm dialog |
 | renders the activity timeline with per-action entries |
+| names every kind the member touched, not just the user.* ones |
 | shows workspace membership events in the personal log |
 | hides audit and access tabs without users:update |
 

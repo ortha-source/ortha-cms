@@ -166,8 +166,47 @@ test.describe('User detail page', () => {
         await userDetailPage.goto('u_grace');
         await userDetailPage.openTab('Activity');
 
-        await expect(page.getByText('Role changed')).toBeVisible();
+        // The label comes from `activity-admin`'s one kind->label catalogue,
+        // shared with the global Activity Log — this tab used to keep its own
+        // twelve-kind map and print the raw wire kind for everything else.
+        await expect(page.getByText('Changed role')).toBeVisible();
         await expect(page.getByText('by ada@ortha.dev')).toBeVisible();
+    });
+
+    test('names every kind the member touched, not just the user.* ones', async ({
+        page,
+        userDetailPage
+    }) => {
+        // The tab's query is "about **or by** this member", so an admin's own
+        // timeline surfaces whatever they did — media, tokens, content grants.
+        // Its private label map knew twelve kinds, so 14 of 25 rows on a real
+        // admin's page rendered as raw dotted wire tokens.
+        await mockActivity(
+            page,
+            [
+                'media.asset.uploaded',
+                'token.created',
+                'workspace.content_granted',
+                'user.activated'
+            ].map((kind, index) => ({
+                id: `ev_${index}`,
+                kind,
+                subjectType: 'user',
+                subjectId: 'u_grace',
+                actorId: 'u_grace',
+                actorEmail: 'grace@ortha.dev',
+                meta: null,
+                at: `2026-06-1${index}T09:00:00.000Z`
+            }))
+        );
+        await userDetailPage.goto('u_grace');
+        await userDetailPage.openTab('Activity');
+
+        await expect(page.getByText('Uploaded asset')).toBeVisible();
+        await expect(page.getByText('Created API token')).toBeVisible();
+        await expect(page.getByText('Granted content access')).toBeVisible();
+        await expect(page.getByText('Activated account')).toBeVisible();
+        await expect(page.getByText('media.asset.uploaded')).toHaveCount(0);
     });
 
     test('shows workspace membership events in the personal log', async ({
@@ -191,7 +230,7 @@ test.describe('User detail page', () => {
         await userDetailPage.goto('u_grace');
         await userDetailPage.openTab('Activity');
 
-        await expect(page.getByText('Removed from a workspace')).toBeVisible();
+        await expect(page.getByText('Removed workspace member')).toBeVisible();
     });
 
     test('hides audit and access tabs without users:update', async ({
