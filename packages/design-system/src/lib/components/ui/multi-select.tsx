@@ -48,9 +48,11 @@ type MultiSelectProps = {
 
 /**
  * A searchable multi-select built from `Popover` + `Command` + `Badge` (shadcn
- * has no core multi-select). The trigger shows the selected options as removable
- * badges; the popover lists options with a check on the selected ones. Fully
- * controlled via `value`/`onChange`.
+ * has no core multi-select). The trigger shows the selected options as badges
+ * (read-only — deselect from the popover, not the badge); the popover lists
+ * options with a check on the selected ones, each row carrying `aria-checked`
+ * so the selection is legible without sight. Search matches an option's `label`
+ * **and** its `value`. Fully controlled via `value`/`onChange`.
  */
 function MultiSelect({
     options,
@@ -87,6 +89,10 @@ function MultiSelect({
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    // Radix's Popover trigger declares `dialog`; what actually
+                    // opens is a listbox, and that is what a screen-reader user
+                    // needs to be told before opening it.
+                    aria-haspopup="listbox"
                     aria-invalid={invalid}
                     aria-describedby={ariaDescribedby}
                     disabled={disabled}
@@ -122,13 +128,32 @@ function MultiSelect({
                     field's divider to the popover's rounded corners. */}
                 <Command className="rounded-none">
                     <CommandInput placeholder={searchPlaceholder} />
-                    <CommandList>
+                    <CommandList aria-multiselectable="true">
                         <CommandEmpty>{emptyText}</CommandEmpty>
                         <CommandGroup>
                             {options.map((option) => (
                                 <CommandItem
                                     key={option.value}
-                                    value={option.label}
+                                    // cmdk identifies, filters and highlights a
+                                    // row by `value`. Keying it on the label
+                                    // merged two options that happen to share
+                                    // one — both highlighted together, and the
+                                    // arrow keys could not tell them apart —
+                                    // and made the option's own value
+                                    // unsearchable. `keywords` puts the label
+                                    // back into the filter.
+                                    value={option.value}
+                                    keywords={[option.label]}
+                                    // cmdk owns `aria-selected` (it tracks the
+                                    // *highlight*) and overwrites whatever a
+                                    // caller passes, so chosen-ness rides on
+                                    // `aria-checked`, which `role="option"`
+                                    // supports and cmdk never sets. Before
+                                    // this, the only signal was an
+                                    // `aria-hidden` tick differing by opacity —
+                                    // invisible to assistive tech and to anyone
+                                    // who cannot separate the two by colour.
+                                    aria-checked={selected.has(option.value)}
                                     onSelect={() => toggle(option.value)}
                                 >
                                     <Check

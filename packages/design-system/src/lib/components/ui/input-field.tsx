@@ -20,8 +20,11 @@ type InputFieldProps = Omit<React.ComponentProps<'input'>, 'id'> & {
     /** List of validation errors (e.g. from a form library). */
     errors?: Array<{ message?: string } | undefined>;
     /**
-     * Whether the field is invalid. When omitted, it is derived from the
-     * presence of `error`/`errors`.
+     * Whether the field is invalid — drives `aria-invalid` and the wrapper's
+     * `data-invalid`. When omitted, it is derived from the presence of
+     * `error`/`errors`. It does **not** gate the message: a supplied error is
+     * always rendered, so passing `invalid={false}` alongside one cannot hide
+     * it.
      */
     invalid?: boolean;
     /** Optional content on the label row (e.g. a "Forgot password?" link). */
@@ -54,7 +57,13 @@ const InputField = React.forwardRef<HTMLInputElement, InputFieldProps>(
     ) => {
         const hasError = !!error || (errors?.some((e) => e?.message) ?? false);
         const isInvalid = invalid ?? hasError;
-        const showError = isInvalid && (error || errors);
+        // Gate the alert on there being something to *say*, not on the
+        // container being non-empty: `errors={[]}` and `errors={[{}]}` are both
+        // truthy, and used to open an empty `role="alert"` announcing nothing.
+        // And `invalid` only decides how the control is marked — it must never
+        // swallow a message, because that message is the only thing telling the
+        // user what to fix.
+        const showError = hasError;
         const errorId = `${id}-error`;
         const descriptionId = `${id}-description`;
         // Associate the hint and/or error with the control so a screen reader

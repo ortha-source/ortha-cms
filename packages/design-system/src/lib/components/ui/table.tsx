@@ -2,18 +2,79 @@ import * as React from 'react';
 
 import { cn } from '../../utils';
 
+/**
+ * Tracks whether an element's content is wider than its box — i.e. whether the
+ * wrapper is actually a scroll container right now, rather than merely allowed
+ * to become one.
+ */
+function useOverflows(element: HTMLElement | null): boolean {
+    const [overflows, setOverflows] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!element) {
+            return;
+        }
+        const measure = () =>
+            setOverflows(element.scrollWidth > element.clientWidth);
+        measure();
+
+        // `ResizeObserver` catches the column widths settling after data loads;
+        // `resize` catches the viewport itself. Neither alone is enough.
+        const observer =
+            typeof ResizeObserver === 'undefined'
+                ? undefined
+                : new ResizeObserver(measure);
+        observer?.observe(element);
+        window.addEventListener('resize', measure);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, [element]);
+
+    return overflows;
+}
+
 const Table = React.forwardRef<
     HTMLTableElement,
     React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
-        <table
-            ref={ref}
-            className={cn('w-full caption-bottom text-sm', className)}
-            {...props}
-        />
-    </div>
-));
+>(({ className, ...props }, ref) => {
+    const [wrapper, setWrapper] = React.useState<HTMLElement | null>(null);
+    const overflows = useOverflows(wrapper);
+    const name = props['aria-label'];
+    const labelledBy = props['aria-labelledby'];
+
+    return (
+        /* A region that scrolls has to be reachable by keyboard (WCAG 2.1.1) —
+           a mouse wheel is not a substitute, and a narrow viewport is exactly
+           where a wide admin table stops fitting. The tab stop is taken *only*
+           while the content actually overflows, because an unconditional one
+           would add a stop to all nine admin tables at every viewport where
+           there is nothing to scroll. `group` rather than `region`: it names
+           the container for a screen reader without adding a second landmark
+           beside the `<main>` the shell already provides. And a stop that is
+           reached must be visible (WCAG 2.4.7) — the lesson the inset
+           scrollport learned the hard way — hence the ring. */
+        <div
+            ref={setWrapper}
+            className={cn(
+                'relative w-full overflow-auto',
+                overflows &&
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none'
+            )}
+            tabIndex={overflows ? 0 : undefined}
+            role={overflows && (name || labelledBy) ? 'group' : undefined}
+            aria-label={overflows ? name : undefined}
+            aria-labelledby={overflows ? labelledBy : undefined}
+        >
+            <table
+                ref={ref}
+                className={cn('w-full caption-bottom text-sm', className)}
+                {...props}
+            />
+        </div>
+    );
+});
 Table.displayName = 'Table';
 
 const TableHeader = React.forwardRef<
@@ -73,9 +134,14 @@ TableRow.displayName = 'TableRow';
 const TableHead = React.forwardRef<
     HTMLTableCellElement,
     React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+>(({ className, scope = 'col', ...props }, ref) => (
+    // `scope` defaults to the column, overridable for a row header. Browsers
+    // infer the association from position otherwise, which is right for a flat
+    // single-header grid and silently wrong the moment a `colspan`, a row
+    // header or a second header row appears.
     <th
         ref={ref}
+        scope={scope}
         className={cn(
             'h-10 px-3 text-left align-middle text-xs font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
             className
