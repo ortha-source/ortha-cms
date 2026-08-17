@@ -101,9 +101,18 @@ after changing cross-project dependencies to update TS project references.
 3. **`PermissionsGuard`** + `@RequirePermissions('users:read')` enforce RBAC
    (roles → permissions). State-changing POSTs additionally pass an
    **`OriginGuard`** (CSRF defense).
-4. The service runs the mutation, often in a transaction, and records an audit
-   row via `ActivityService.record(...)` **using the same transaction** — so
-   the audit commits if and only if the mutation does.
+4. The use case runs the mutation inside a `UnitOfWork` transaction and appends
+   its **domain events** to the transactional outbox (`OutboxWriter.append`)
+   **using that same transaction** — so an event commits if and only if the
+   mutation does, and never without it. Auditing is downstream of that: once the
+   transaction commits, `OutboxDispatcher` delivers each event to its
+   subscribers, and `activity`'s `AuditEventSubscriber` turns the audited kinds
+   into `activity_events` rows. The drain is triggered post-commit (and
+   `await`ed, so the row is normally there before the response returns) with a
+   5-second poll as the backstop; delivery is at-least-once and the audit insert
+   is keyed on the event id `ON CONFLICT DO NOTHING`, so a redelivery never
+   double-records. `ActivityService.record(...)` still exists but is
+   **deprecated** — nothing writes through it.
 5. The response returns; React Query updates client state.
 
 ## 6. Extension points (admin slots + server DI ports)
@@ -125,7 +134,9 @@ item may even expose a hook the render site calls in a loop.
 **Server — DI ports (inversion).** The *depended-upon* plugin declares a
 `Symbol` token + interface and injects it `@Optional()`; the *implementing*
 plugin binds it in its module. identity declares `CONTENT_CATALOG` /
-`ACTIVITY_RECORDER` (bound by content / activity); content declares
+`ACTIVITY_RECORDER` (bound by content / activity — though `ACTIVITY_RECORDER` is
+now deprecated, kept only for a stable surface: auditing moved to the outbox
+subscriber described in §5); content declares
 `CONTENT_ENTRY_EXTENSION` (bound by `i18n/server` to add row-per-locale scoping,
 create stamping, shared-field sync, and locale filters to the entries pipeline
 without content knowing what a locale is). Keeps the package graph acyclic.
