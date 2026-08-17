@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_617 test cases across 62 spec files._
+_618 test cases across 62 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1149,6 +1149,7 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | shows the member count in the header subtitle |
 | filters the roster by a search term |
 | shows an empty state when the search matches nobody |
+| a link back to the bare roster clears the search box with it |
 | invites a member through the three-step wizard |
 | assigns all workspaces via the "All workspaces" mode |
 | searches the workspaces in the assignment step |

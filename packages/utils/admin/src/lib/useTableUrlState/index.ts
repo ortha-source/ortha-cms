@@ -76,6 +76,22 @@ export function useTableUrlState({
     const [searchInput, setSearchInput] = useState(searchParam);
     const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
 
+    // The URL is the source of truth, so the box has to follow it *back*.
+    // Without this the box only ever initialises from the URL and the effect
+    // below writes it out forever after, which silently undoes every navigation
+    // that changed the search for the user: Back, a link to the bare list, a
+    // saved view. The guard is `searchParam !== debouncedSearch` — the URL
+    // moving to the value we just committed is our own write, not someone
+    // else's, and re-syncing on that would clobber keystrokes typed during the
+    // debounce window.
+    const [lastSearchParam, setLastSearchParam] = useState(searchParam);
+    if (lastSearchParam !== searchParam) {
+        setLastSearchParam(searchParam);
+        if (searchParam !== debouncedSearch) {
+            setSearchInput(searchParam);
+        }
+    }
+
     const updateParams = useCallback(
         (patch: Record<string, string | undefined>, resetPage = true) => {
             setSearchParams(
@@ -96,11 +112,17 @@ export function useTableUrlState({
 
     // Sync the debounced search into the URL. Settles in one extra pass: once
     // the URL reflects the debounced value the guard is false, so no loop.
+    //
+    // `debouncedSearch !== searchInput` means the debounce is still trailing
+    // the box — either the user is mid-burst, or the re-sync above just reset
+    // the box and the old value hasn't drained yet. Committing then would write
+    // the value the user has already navigated away from straight back into the
+    // URL, which is the loop this guard exists to prevent.
     useEffect(() => {
-        if (debouncedSearch !== searchParam) {
-            updateParams({ [searchKey]: debouncedSearch || undefined });
-        }
-    }, [debouncedSearch, searchParam, searchKey, updateParams]);
+        if (debouncedSearch !== searchInput) return;
+        if (debouncedSearch === searchParam) return;
+        updateParams({ [searchKey]: debouncedSearch || undefined });
+    }, [debouncedSearch, searchInput, searchParam, searchKey, updateParams]);
 
     return {
         searchParam,

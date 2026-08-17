@@ -59,6 +59,37 @@ const SELF_HANDLED_401_PATHS = [
     '/auth/invite'
 ];
 
+/**
+ * The request's path, as the exemption list spells them. `error.config.url` is
+ * the value the *caller* passed, and axios accepts several equivalent spellings
+ * of the same endpoint: `'auth/login'` (resolved against `baseURL`), a query
+ * string, or an absolute URL that bypasses `baseURL` entirely. Comparing the
+ * raw string would let a rejected sign-in written any of those ways read as a
+ * lost session and sign the user out mid-typo.
+ */
+function requestPath(url: string): string {
+    const withoutQuery = url.split(/[?#]/)[0];
+    const path = /^[a-z][a-z0-9+.-]*:\/\//i.test(withoutQuery)
+        ? new URL(withoutQuery).pathname.replace(/^\/api(?=\/|$)/, '')
+        : withoutQuery;
+    return path.startsWith('/') ? path : `/${path}`;
+}
+
+/**
+ * Whether a `401` from this URL is the endpoint's own answer. Matched on whole
+ * path segments, not as a bare prefix: `/auth/invite/:token` is the invite
+ * endpoint and must be exempt, while a future `/auth/logins-report` is an
+ * ordinary authenticated route and a `401` there really does mean the session
+ * died. A prefix test cannot tell those apart, and gets the second one wrong in
+ * the fail-open direction.
+ */
+function isSelfHandled(url: string): boolean {
+    const path = requestPath(url);
+    return SELF_HANDLED_401_PATHS.some(
+        (exempt) => path === exempt || path.startsWith(`${exempt}/`)
+    );
+}
+
 /** The registered session-lost handler, or `null` while none is installed. */
 let unauthorizedHandler: (() => void) | null = null;
 
@@ -81,17 +112,25 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
  * Fire the registered handler on an unexpected `401`, then rethrow — the global
  * sign-out is a side effect, never a substitute for the caller's own error
  * handling (a mutation still sees its rejection and can show its toast).
+ *
+ * The handler is called defensively: a throw from it would otherwise escape
+ * this callback and *replace* the rejection, so the caller's `catch` would see
+ * the handler's error instead of the `401` and misreport what happened.
  */
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         const status: unknown = error?.response?.status;
         const url: string = error?.config?.url ?? '';
-        if (
-            status === HTTP_STATUS.UNAUTHORIZED &&
-            !SELF_HANDLED_401_PATHS.some((path) => url.startsWith(path))
-        ) {
-            unauthorizedHandler?.();
+        if (status === HTTP_STATUS.UNAUTHORIZED && !isSelfHandled(url)) {
+            try {
+                unauthorizedHandler?.();
+            } catch (handlerError) {
+                console.error(
+                    'The unauthorized handler threw; the original 401 is still reported to the caller.',
+                    handlerError
+                );
+            }
         }
         return Promise.reject(error);
     }
