@@ -4,6 +4,7 @@ import { Button, TopBarActions } from '@ortha-cms/design-system';
 import {
     RIGHT_PANEL_ID,
     usePageChromeHosts,
+    usePanelFocusHandoff,
     useRightPanel
 } from '../../utils/pageChrome';
 
@@ -32,12 +33,16 @@ export function PageActions() {
     const { setActionsHost } = usePageChromeHosts();
     const panel = useRightPanel();
     const showExpand = !!panel?.present && !panel.open;
+    // Collapsing the panel destroys the button that did it (it goes `inert` with
+    // the rest of the column), so this one — the only way back — takes the focus.
+    const expandRef = usePanelFocusHandoff('bar');
 
     return (
         <TopBarActions>
             <div ref={setActionsHost} className="flex items-center gap-2" />
             {showExpand ? (
                 <Button
+                    ref={expandRef}
                     type="button"
                     variant="ghost"
                     size="icon"

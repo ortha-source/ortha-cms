@@ -4,10 +4,25 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode
 } from 'react';
 import { createPortal } from 'react-dom';
+
+/**
+ * Which of the two collapse/reopen controls should take focus after a
+ * {@link RightPanel.toggle}.
+ *
+ * The pair is deliberately split across two components — the panel's own header
+ * holds "Hide {title}", the top bar holds "Show {title}" — and only one of them
+ * exists (outside an `inert` subtree) at a time. So a toggle always destroys the
+ * control that caused it, and without a handoff the browser blurs to `<body>`:
+ * a keyboard user's next Tab restarts from the top of the document, and a screen
+ * reader hears nothing at all (WCAG 2.4.3, 4.1.3). This names the survivor so it
+ * can claim focus in the same commit that reveals it.
+ */
+export type PanelFocusTarget = 'panel' | 'bar';
 
 /** The right panel as the chrome sees it: whether there is one, and its state. */
 export type RightPanel = {
@@ -36,6 +51,13 @@ type PageChromeValue = RightPanel & {
     setPanelHost: (node: HTMLElement | null) => void;
     /** Registers a panel + its title while a filler is mounted. */
     registerPanel: (title: string) => () => void;
+    /**
+     * The control that should take focus after the last {@link RightPanel.toggle},
+     * or `null` when there is no pending handoff. See {@link PanelFocusTarget}.
+     */
+    focusTarget: PanelFocusTarget | null;
+    /** Drops the pending handoff — called by whichever control claimed it. */
+    clearFocusTarget: () => void;
 };
 
 const Context = createContext<PageChromeValue | null>(null);
@@ -102,6 +124,11 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
     // on this is what keeps the panel from sliding in on first paint, or every
     // time a page registers one — motion should mean "you just did that".
     const [animate, setAnimate] = useState(false);
+    // Set by `toggle`, claimed by whichever of the two controls the toggle just
+    // revealed. See `PanelFocusTarget`.
+    const [focusTarget, setFocusTarget] = useState<PanelFocusTarget | null>(
+        null
+    );
 
     useEffect(() => {
         if (!animate) return;
@@ -109,9 +136,26 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
         return () => clearTimeout(timer);
     }, [animate]);
 
+    // A handoff nobody claimed has to expire, or it would be claimed by the
+    // *next* control to mount — a page navigated to minutes later stealing focus
+    // out of nowhere. React runs child effects before this one, so a control that
+    // is on screen has already cleared it by the time this timer is armed.
+    useEffect(() => {
+        if (!focusTarget) return;
+        const timer = setTimeout(() => setFocusTarget(null), 0);
+        return () => clearTimeout(timer);
+    }, [focusTarget]);
+
     useEffect(() => {
         if (typeof window === 'undefined') return;
         try {
+            // A narrow viewport forces the panel collapsed whatever was stored
+            // (see `readOpen`) — and that is a layout decision, not something the
+            // user asked for. Writing it back overwrote the desktop preference,
+            // so a single page load on a phone left the panel collapsed on the
+            // next wide-screen visit, with nothing to explain why. Persist only
+            // where the preference actually applies.
+            if (window.matchMedia(MOBILE_QUERY).matches) return;
             window.localStorage.setItem(
                 STORAGE_KEY,
                 open ? 'open' : 'collapsed'
@@ -133,10 +177,17 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
             });
     }, []);
 
+    const clearFocusTarget = useCallback(() => setFocusTarget(null), []);
+
     const toggle = useCallback(() => {
         setAnimate(true);
-        setOpen((current) => !current);
-    }, []);
+        // Named from `open` rather than inside the updater, because the survivor
+        // has to be decided in the same render as the flip: collapsing leaves the
+        // top bar's reopen button, reopening leaves the panel's own collapse
+        // button.
+        setFocusTarget(open ? 'bar' : 'panel');
+        setOpen(!open);
+    }, [open]);
 
     const value = useMemo<PageChromeValue>(
         () => ({
@@ -151,9 +202,21 @@ export function PageChromeProvider({ children }: { children: ReactNode }) {
             setActionsHost,
             panelHost,
             setPanelHost,
-            registerPanel
+            registerPanel,
+            focusTarget,
+            clearFocusTarget
         }),
-        [panels, open, toggle, animate, actionsHost, panelHost, registerPanel]
+        [
+            panels,
+            open,
+            toggle,
+            animate,
+            actionsHost,
+            panelHost,
+            registerPanel,
+            focusTarget,
+            clearFocusTarget
+        ]
     );
 
     return <Context.Provider value={value}>{children}</Context.Provider>;
@@ -224,4 +287,40 @@ export function RightPanelPortal({
 export function usePageChromeHosts() {
     const { setActionsHost, setPanelHost, present, open } = usePageChrome();
     return { setActionsHost, setPanelHost, present, open };
+}
+
+/**
+ * Internal: gives one of the two panel toggles a ref that takes focus whenever a
+ * {@link RightPanel.toggle} named it the survivor.
+ *
+ * Focus has to move *to* the replacement, not merely away from the vanished
+ * control: `AppRightPanel` sets `inert` on the `<aside>` that contains its own
+ * collapse button, and `PageActions` unmounts its reopen button the moment the
+ * panel is back — so in both directions the element the user just activated stops
+ * being focusable and the browser drops to `<body>`. Each control claims its own
+ * handoff rather than the provider reaching into the DOM for it, so the focus
+ * move happens in the same commit that makes the control focusable.
+ *
+ * Returns `null` outside a {@link PageChromeProvider} — the same tolerance
+ * {@link useRightPanel} has, so a bar rendered in isolation still works.
+ */
+export function usePanelFocusHandoff(
+    target: PanelFocusTarget
+): (node: HTMLButtonElement | null) => void {
+    const ctx = useContext(Context);
+    const focusTarget = ctx?.focusTarget ?? null;
+    const clearFocusTarget = ctx?.clearFocusTarget;
+    const nodeRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        if (focusTarget !== target) return;
+        // `inert` is already gone (and the button already mounted) by the time
+        // effects run for this commit, so a plain `focus()` lands.
+        nodeRef.current?.focus();
+        clearFocusTarget?.();
+    }, [focusTarget, target, clearFocusTarget]);
+
+    return useCallback((node: HTMLButtonElement | null) => {
+        nodeRef.current = node;
+    }, []);
 }
