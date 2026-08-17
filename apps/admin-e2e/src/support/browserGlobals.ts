@@ -26,6 +26,32 @@ export interface EvalElement {
     querySelector(selector: string): EvalElement | null;
 }
 
+/**
+ * The scroll geometry of a scrollable element, for a `locator.evaluate` body.
+ *
+ * `Locator.evaluate` hands its callback `SVGElement | HTMLElement`, and the
+ * scroll properties live only on the `HTMLElement` branch — so reading one
+ * straight off the parameter does not compile. Widening through this shape says
+ * what the assertion actually needs instead of asserting a DOM class this
+ * project has no lib for.
+ */
+export interface EvalScrollable {
+    scrollTop: number;
+    scrollHeight: number;
+    clientHeight: number;
+}
+
+/**
+ * `navigator`, with the two platform hints a keyboard-shortcut glyph is judged
+ * on. The index signature is what keeps it assignable where a bare bag of
+ * properties is wanted (`ApiTokensPage` redefines `clipboard` on it).
+ */
+export interface EvalNavigator {
+    [key: string]: unknown;
+    platform?: string;
+    userAgentData?: { platform?: string };
+}
+
 /** An `<input>`, with the bits a one-time-secret field is judged on. */
 export interface EvalInput extends EvalElement {
     value: string;
@@ -72,6 +98,6 @@ export interface BrowserGlobals {
     location: { href: string };
     localStorage: EvalStorage;
     sessionStorage: EvalStorage;
-    navigator: Record<string, unknown>;
+    navigator: EvalNavigator;
     getComputedStyle(element: EvalElement): { overflowX: string };
 }

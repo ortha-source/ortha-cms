@@ -157,10 +157,7 @@ export interface CopilotPanelProps {
      * disagree from the next turn on. False means another window holds it and
      * has been focused instead, so this one leaves its own transcript alone.
      */
-    onAdoptConversation?(
-        conversationId: string,
-        title: string | null
-    ): boolean;
+    onAdoptConversation?(conversationId: string, title: string | null): boolean;
     /**
      * Which backend the next turn runs on, or `null` for the host's resolver.
      *
@@ -374,7 +371,17 @@ export function CopilotPanel({
         >
             <PanelResizeHandles controls={frame} />
 
-            <header
+            {/* A `div`, not a `header`. The panel is portalled to `<body>`, so a
+                `<header>` here is not "this window's title bar" to assistive
+                tech — with no sectioning ancestor it maps to the **banner**
+                landmark, the one reserved for the site header. Open two chats
+                and the document has two banners; open three and a screen-reader
+                user cycling landmarks lands in a chat window each time. The
+                window is already named by `aria-labelledby` on its container,
+                which is what actually carries the title. Caught by
+                `landmark-no-duplicate-banner` once admin-e2e's axe fixture
+                stopped omitting the whole `best-practice` ruleset. */}
+            <div
                 className="flex shrink-0 cursor-move touch-none items-center gap-1 border-b px-3 py-2 select-none"
                 onPointerDown={(event) => {
                     // The header's own controls are buttons, not a grab
@@ -422,7 +429,7 @@ export function CopilotPanel({
                     label={intl.formatMessage(messages.close)}
                     onClick={onClose}
                 />
-            </header>
+            </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
                 <PanelBody
@@ -519,10 +526,7 @@ function PanelBody({
     onChoiceChange(choice: CopilotModelChoice | null): void;
     skills: readonly string[];
     onSkillsChange(names: readonly string[]): void;
-    onAdoptConversation?(
-        conversationId: string,
-        title: string | null
-    ): boolean;
+    onAdoptConversation?(conversationId: string, title: string | null): boolean;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached

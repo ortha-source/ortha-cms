@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_669 test cases across 68 spec files._
+_673 test cases across 70 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -977,6 +977,25 @@ _<sub>apps/admin-e2e/src/copilot/view-switcher.spec.ts</sub>_
 | clicking the view you are already in is not a third state |
 | the dock stands down on the Agents view while it owns nothing |
 
+<!-- source: apps/admin-e2e/src/harness/axe-fixture.spec.ts -->
+_<sub>apps/admin-e2e/src/harness/axe-fixture.spec.ts</sub>_
+
+## axe harness
+
+| Test case |
+| --- |
+| runs the structural ruleset, and excludes exactly the tracked debt |
+| records what axe could not decide instead of discarding it |
+
+<!-- source: apps/admin-e2e/src/harness/seed-drift.spec.ts -->
+_<sub>apps/admin-e2e/src/harness/seed-drift.spec.ts</sub>_
+
+## harness seed drift
+
+| Test case |
+| --- |
+| the signed-in mock grants exactly the server permission catalogue |
+
 <!-- source: apps/admin-e2e/src/home/dashboard.spec.ts -->
 _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 
@@ -1030,6 +1049,12 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 
 <!-- source: apps/admin-e2e/src/host/platform-preferences.spec.ts -->
 _<sub>apps/admin-e2e/src/host/platform-preferences.spec.ts</sub>_
+
+## declarative platform preferences
+
+| Test case |
+| --- |
+| reach the page through `contextOptions` |
 
 ## forced colors
 

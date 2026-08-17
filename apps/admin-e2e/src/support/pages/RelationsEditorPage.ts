@@ -123,6 +123,30 @@ export class RelationsEditorPage extends BasePage {
             .first();
     }
 
+    /**
+     * How many records the bulk checkbox says it covers — the **whole** match
+     * set, read off the control's own accessible name rather than counted from
+     * the rendered window. The two differ by design (the list pages lazily), and
+     * a spec that snapshots the window and asserts against that is measuring a
+     * number that can move under it.
+     */
+    async selectAllTotal(): Promise<number> {
+        const label =
+            (await this.selectAllCheckbox.getAttribute('aria-label')) ?? '';
+        const match = label.match(/Select all (\d+)/);
+        if (!match) {
+            throw new Error(
+                `Expected the bulk checkbox to name its total; got "${label}"`
+            );
+        }
+        return Number(match[1]);
+    }
+
+    /** The picker's "{n} selected" summary, shown once anything is staged. */
+    get selectedSummary(): Locator {
+        return this.dialog.getByText(/^\d+ selected$/);
+    }
+
     /** The picker's "Add {n}" commit button (many relations). */
     get addSelectedButton(): Locator {
         return this.dialog.getByRole('button', { name: /^Add \d/ });

@@ -4,6 +4,7 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
 import { mockCopilotApi } from '../support/api/copilot';
 import { expectNoA11yViolations } from '../support/a11y';
+import type { BrowserGlobals, EvalScrollable } from '../support/browserGlobals';
 
 const WORKSPACE_ID = 'ws_marketing';
 
@@ -383,17 +384,12 @@ test.describe('Ortha AI dock — regressions', () => {
         // every OS, telling every Windows and Linux reader to press a key they
         // do not have — on the one affordance whose whole job is to teach the
         // shortcut.
-        const isApple = await page.evaluate(() =>
-            /mac|iphone|ipad|ipod/i.test(
-                (
-                    navigator as Navigator & {
-                        userAgentData?: { platform?: string };
-                    }
-                ).userAgentData?.platform ??
-                    navigator.platform ??
-                    ''
-            )
-        );
+        const isApple = await page.evaluate(() => {
+            const { navigator } = globalThis as unknown as BrowserGlobals;
+            return /mac|iphone|ipad|ipod/i.test(
+                navigator.userAgentData?.platform ?? navigator.platform ?? ''
+            );
+        });
         await expect(start).toContainText(isApple ? '⌘J' : 'CtrlJ');
     });
 
@@ -417,9 +413,10 @@ test.describe('Ortha AI dock — regressions', () => {
         // cannot be scrolled away from, so "it did not scroll" would be true
         // for the wrong reason. The docked panel is deliberately small, which
         // is why this case lives here rather than on the full-page view.
-        const overflow = await copilotDockPage
-            .transcript()
-            .evaluate((el) => el.scrollHeight - el.clientHeight);
+        const overflow = await copilotDockPage.transcript().evaluate((el) => {
+            const box = el as unknown as EvalScrollable;
+            return box.scrollHeight - box.clientHeight;
+        });
         expect(overflow).toBeGreaterThan(100);
 
         await copilotDockPage.ask('Set the summary please');
@@ -430,7 +427,7 @@ test.describe('Ortha AI dock — regressions', () => {
         // run dispatches one per frame — so this used to be undone by the very
         // next frame to land, with no way to stay put but to stop the run.
         await copilotDockPage.transcript().evaluate((el) => {
-            el.scrollTop = 0;
+            (el as unknown as EvalScrollable).scrollTop = 0;
         });
 
         // The answer really did arrive — the other way this could pass for the
@@ -443,7 +440,9 @@ test.describe('Ortha AI dock — regressions', () => {
 
         // …and the reader is still where they put themselves.
         expect(
-            await copilotDockPage.transcript().evaluate((el) => el.scrollTop)
+            await copilotDockPage
+                .transcript()
+                .evaluate((el) => (el as unknown as EvalScrollable).scrollTop)
         ).toBeLessThan(40);
     });
 

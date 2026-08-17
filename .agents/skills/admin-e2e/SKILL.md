@@ -48,7 +48,8 @@ page, add a suite here that exercises it — including an axe scan.
 // fixtures.ts — import { test, expect } from this, not @playwright/test
 test.extend<{ loginPage; homePage; makeAxe }>
 //   loginPage / homePage  → page objects (support/pages/)
-//   makeAxe()             → a fresh AxeBuilder, tagged WCAG 2.1 A/AA
+//   makeAxe()             → a fresh AxeBuilder: WCAG 2.1 A/AA + best-practice,
+//                           minus AXE_KNOWN_GAPS (the tracked, ticketed debt)
 
 // pages/LoginPage.ts
 loginPage.goto() / login(email, password)
@@ -115,10 +116,21 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
 
 ## Accessibility & keyboard (see also the `accessibility` skill)
 
-- `makeAxe()` returns an axe scanner tagged WCAG 2.1 A/AA, running the **full**
-  ruleset (no exclusions). Scan **states**, not just the initial render (errors
-  shown, banner shown, dialog open). If you ever need to exclude a rule, do it in
-  one place with a comment + a tracked TODO — never silently.
+- `makeAxe()` returns an axe scanner tagged WCAG 2.1 A/AA **plus
+  `best-practice`** — which is where axe files every structural rule
+  (`heading-order`, `page-has-heading-one`, `region`, `landmark-*`,
+  `aria-dialog-name`, `tabindex`, `skip-link`). `withTags` is a whitelist, so the
+  WCAG tags alone left 29% of axe's catalogue switched off and said nothing about
+  it. Scan **states**, not just the initial render (errors shown, banner shown,
+  dialog open).
+- Exclusions live in **one** place — `AXE_KNOWN_GAPS` in `support/fixtures.ts` —
+  each with its node count, its surfaces and its ticket, and
+  `src/harness/axe-fixture.spec.ts` pins the list so it cannot grow quietly.
+  Never `disableRules` in a spec.
+- `expectNoA11yViolations` fails on `violations` and **records `incomplete`** as
+  a test annotation. Treat "axe could not decide" as work, not as a pass —
+  `color-contrast` over a gradient, an image or a translucent overlay lands
+  there, which is how a real contrast failure ships under a green suite.
 - Keyboard specs cover what axe can't: first-focus, tab reachability, Enter-submits.
   Don't assert the exact tab order through **placeholder** controls (they change);
   assert the properties that matter.
@@ -135,17 +147,40 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
   so it's `../support/...` (one level), not `../../` (the server suite is deeper).
 - **Mocks bypass the dev proxy.** `page.route` intercepts in the browser before
   the request reaches Vite, so the `/api` proxy is irrelevant — no backend needed.
+  But a mock only covers the routes a spec *registered*; anything else proxies
+  through to whatever is listening, and a real API's `401` trips the admin's
+  global sign-out interceptor, so `mockSignedIn` stops holding and nearly every
+  page-level spec fails on a redirect to sign-in. `support/globalSetup.ts`
+  refuses the run rather than letting that read as a regression.
+- **`forcedColors` / `reducedMotion` are not test options.** Playwright's runner
+  builds context options from a fixed fixture list and neither is on it, so
+  `test.use({ forcedColors: 'active' })` is inert (and a `TS2353` error — keep
+  `typecheck` green and the compiler tells you). Use `page.emulateMedia()` or
+  `test.use({ contextOptions: { … } })`, which is spread through verbatim.
+- **Never `check()` a control that fetches before it reports itself checked.**
+  Playwright re-reads the state one tick after the click and throws a
+  *non-recoverable* "Clicking the checkbox did not change its state" — it passes
+  idle and fails under load. `click()`, then assert the end state.
 
 ## After writing
 
 Regenerate the catalog when you add/rename/remove a suite or case:
 
 ```bash
-npx nx e2e admin-e2e -- --project=chromium   # faster locally; CI runs all 3
+npx nx e2e admin-e2e                          # chromium is the only project
 npx nx run-many -t typecheck lint -p admin-e2e
-npx nx catalog admin-e2e                      # regenerate TESTS.md, then commit
-npx nx format:write
+npx nx catalog admin-e2e                      # regenerate TESTS.md (the pre-commit
+                                              # hook does this too), then commit
+npx nx format:write -- --uncommitted          # never bare: it reformats the repo
 ```
 
+**There is no CI.** `.github/workflows/` holds `release.yml` and nothing else —
+no `e2e`, no `lint`, no `typecheck`, no `catalog:check`. Whatever you run
+locally *is* the gate for this suite and `server-e2e` both, so run the whole
+thing before you merge and never merge red. `chromium` is likewise the only
+declared project; the mobile and branded entries in `playwright.config.ts` are
+commented out, so `--project=firefox` errors rather than doing anything.
+
 `TESTS.md` is generated from the spec AST (`tools/generate-test-catalog.mjs`);
-`npx nx catalog:check admin-e2e` fails on drift. Don't hand-edit it.
+`npx nx catalog:check admin-e2e` fails on drift, and the `admin-e2e-test-catalog`
+pre-commit hook regenerates and re-stages it. Don't hand-edit it.

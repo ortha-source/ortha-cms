@@ -22,12 +22,31 @@ import { mockWorkspaces } from '../support/api/workspaces';
  * axe cannot see this: it never emulates the media feature, so a clean scan
  * says nothing about it. These assertions read computed style instead.
  *
- * **Harness note.** `test.use({ forcedColors: 'active' })` is silently
- * ineffective here — the media query still reports `false` inside the page,
- * while `test.use({ colorScheme })` works normally. `page.emulateMedia()` does
- * take, so that is what forced colors uses below, the same way
- * `auth/reduced-motion.spec.ts` reaches for it. A spec that sets forced colors
- * the declarative way will pass while testing nothing.
+ * **Harness note — `forcedColors` and `reducedMotion` are not test options.**
+ * `test.use({ forcedColors: 'active' })` does nothing at all: the media query
+ * still reports `false` inside the page, while `test.use({ colorScheme })`
+ * works normally. The cause is not this repo's config. Playwright's runner
+ * assembles `browser.newContext()`'s argument from a **fixed list of option
+ * fixtures** (`playwright/lib/index.js`, `_combinedContextOptions`) — 21 of
+ * `BrowserContextOptions`' properties, and `forcedColors` and `reducedMotion`
+ * are not among them. They are absent from `PlaywrightTestOptions` for the same
+ * reason, so passing either through `test.use()` is in fact a **compile error**
+ * (`TS2353`) — it only looked silent because `nx typecheck admin-e2e` had been
+ * red since before this file existed (ORT-126), and nobody was reading its
+ * output. Fixing the typecheck is what makes this class of mistake loud again.
+ *
+ * Two routes do work, and the cases below exercise both:
+ *
+ * - `page.emulateMedia({ forcedColors })` — imperative, per test, what the
+ *   cases here use, the same way `auth/reduced-motion.spec.ts` reaches for it.
+ * - `test.use({ contextOptions: { forcedColors: 'active' } })` — declarative.
+ *   `contextOptions` **is** an option fixture and is spread into the context
+ *   arguments verbatim, so anything `browser.newContext()` accepts arrives.
+ *
+ * Same applies to every other `BrowserContextOptions` key with no fixture of
+ * its own — `reducedMotion`, `screen`, `strictSelectors`, `recordHar`,
+ * `recordVideo`. Reach for `contextOptions` rather than inventing a top-level
+ * key, and the compiler will tell you when you have guessed wrong.
  */
 
 /** The resolved focus-indicator properties of one element. */
@@ -68,7 +87,11 @@ function isFocused(locator: Locator): Promise<boolean> {
 }
 
 /** Tabs until `target` holds focus, or gives up after `limit` presses. */
-async function tabTo(page: Page, target: Locator, limit = 40): Promise<boolean> {
+async function tabTo(
+    page: Page,
+    target: Locator,
+    limit = 40
+): Promise<boolean> {
     for (let i = 0; i < limit; i++) {
         await page.keyboard.press('Tab');
         if (await isFocused(target)) {
@@ -77,6 +100,39 @@ async function tabTo(page: Page, target: Locator, limit = 40): Promise<boolean> 
     }
     return false;
 }
+
+/**
+ * The declarative route, pinned. Nothing else in the suite emulates a platform
+ * preference through `test.use`, so without this case a Playwright upgrade that
+ * moved `contextOptions` out from under the spread would leave the *documented*
+ * alternative as quietly dead as the one it replaced — which is the exact
+ * failure this whole block exists to prevent.
+ */
+test.describe('declarative platform preferences', () => {
+    test.use({
+        contextOptions: { forcedColors: 'active', reducedMotion: 'reduce' }
+    });
+
+    test('reach the page through `contextOptions`', async ({
+        page,
+        loginPage
+    }) => {
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        const matched = await page.evaluate(() => {
+            const { matchMedia } = globalThis as unknown as {
+                matchMedia: (q: string) => { matches: boolean };
+            };
+            return {
+                forced: matchMedia('(forced-colors: active)').matches,
+                motion: matchMedia('(prefers-reduced-motion: reduce)').matches
+            };
+        });
+
+        expect(matched).toEqual({ forced: true, motion: true });
+    });
+});
 
 test.describe('forced colors', () => {
     test('a button keeps a visible focus indicator', async ({
@@ -89,12 +145,13 @@ test.describe('forced colors', () => {
         await membersPage.goto();
         await expect(membersPage.heading).toBeVisible();
         expect(
-            await page.evaluate(() =>
-                (
-                    globalThis as unknown as {
-                        matchMedia: (q: string) => { matches: boolean };
-                    }
-                ).matchMedia('(forced-colors: active)').matches
+            await page.evaluate(
+                () =>
+                    (
+                        globalThis as unknown as {
+                            matchMedia: (q: string) => { matches: boolean };
+                        }
+                    ).matchMedia('(forced-colors: active)').matches
             )
         ).toBe(true);
 
@@ -157,7 +214,8 @@ test.describe('forced colors', () => {
                 };
             };
             return Array.from(scope.document.querySelectorAll('*')).filter(
-                (node) => scope.getComputedStyle(node).forcedColorAdjust === 'none'
+                (node) =>
+                    scope.getComputedStyle(node).forcedColorAdjust === 'none'
             ).length;
         });
 
@@ -281,13 +339,19 @@ async function ringContrast(
             );
             if (!geometry) continue;
             const spread = parseFloat(geometry[4]);
-            const color = layer.slice(0, layer.length - geometry[0].length).trim();
+            const color = layer
+                .slice(0, layer.length - geometry[0].length)
+                .trim();
             if (!color) continue;
             const painted = paint(color, 'rgb(255,255,255)');
             const overBlack = paint(color, 'rgb(0,0,0)');
             const transparent =
-                painted[0] === 255 && painted[1] === 255 && painted[2] === 255 &&
-                overBlack[0] === 0 && overBlack[1] === 0 && overBlack[2] === 0;
+                painted[0] === 255 &&
+                painted[1] === 255 &&
+                painted[2] === 255 &&
+                overBlack[0] === 0 &&
+                overBlack[1] === 0 &&
+                overBlack[2] === 0;
             if (transparent) continue;
             if (spread >= widest) {
                 widest = spread;
@@ -297,7 +361,10 @@ async function ringContrast(
 
         return {
             ring,
-            vsPage: contrast(paint(ring, pageBackground), paint(pageBackground)),
+            vsPage: contrast(
+                paint(ring, pageBackground),
+                paint(pageBackground)
+            ),
             vsControl: contrast(
                 paint(ring, controlStyle['backgroundColor']),
                 paint(controlStyle['backgroundColor'], pageBackground)
