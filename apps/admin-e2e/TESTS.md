@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_554 test cases across 57 spec files._
+_567 test cases across 58 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -20,6 +20,19 @@ _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
 | blocks Apply when a UUID "is one of" rule has a non-UUID value |
 | the open filter panel with a rule is accessible (axe) |
 | Reset clears the filter and restores the full log |
+
+<!-- source: apps/admin-e2e/src/activity/activity-kinds.spec.ts -->
+_<sub>apps/admin-e2e/src/activity/activity-kinds.spec.ts</sub>_
+
+## Activity Log kind catalogue
+
+| Test case |
+| --- |
+| every audit kind the server writes has a localized Action label |
+| a few labels read as the phrases they should be |
+| every subject type renders as a readable name, not a machine token |
+| the Details line reads the per-kind meta the server records |
+| the home panel names an action the same way the table does |
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
@@ -37,6 +50,13 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | shows an empty state when filters match nothing |
 | hides the nav entry and shows no-access without activity:read |
 
+## Activity Log resilience
+
+| Test case |
+| --- |
+| an over-large ?pageSize is clamped instead of 400ing into a dead end |
+| a malformed timestamp does not take the whole app down |
+
 ## Activity Log accessibility (axe, WCAG 2.1 A/AA)
 
 | Test case |
@@ -46,6 +66,16 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | table — loading skeleton |
 | empty state — no matches |
 | no-access state |
+| table — dark theme |
+| table — dark theme, expanded row |
+
+## Activity Log assistive-technology semantics
+
+| Test case |
+| --- |
+| a collapsed row contributes one table row, not two |
+| the When cell carries a machine-readable instant |
+| paging changes the live region, so the turnover is announced |
 
 ## Activity Log keyboard operability
 
@@ -53,6 +83,7 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | --- |
 | the actor-email search filters as you type |
 | a row expands from the keyboard |
+| "Clear filters" hands focus back instead of dropping it on the body |
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_
