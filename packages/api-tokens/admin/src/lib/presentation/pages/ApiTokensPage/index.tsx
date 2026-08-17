@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { KeyRound, Plus } from 'lucide-react';
 import { PageTopBar } from '@ortha-cms/shell-admin';
@@ -49,6 +50,15 @@ const messages = defineMessages({
         id: 'apiTokens.page.revokeError',
         defaultMessage: 'Couldn’t revoke the token. Please try again.'
     },
+    revoked: {
+        id: 'apiTokens.page.revoked',
+        defaultMessage: 'Token revoked'
+    },
+    results: {
+        id: 'apiTokens.page.results',
+        defaultMessage:
+            '{count, plural, one {# API token} other {# API tokens}}'
+    },
     prev: { id: 'apiTokens.page.prev', defaultMessage: 'Previous' },
     next: { id: 'apiTokens.page.next', defaultMessage: 'Next' },
     pageOf: {
@@ -56,6 +66,12 @@ const messages = defineMessages({
         defaultMessage: 'Page {page} of {pageCount}'
     }
 });
+
+/** Reads a 1-based page number off `?page=`, falling back to the first page. */
+function readPage(value: string | null): number {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
+}
 
 /**
  * The global "API tokens" management page (rendered at `/api-tokens` in the main
@@ -70,7 +86,27 @@ export function ApiTokensPage() {
     const canCreate = useHasPermission('tokens:create');
     const canRevoke = useHasPermission('tokens:delete');
 
-    const [page, setPage] = useState(1);
+    // The page lives in the URL, like `/users` and `/activity`: a token list
+    // page is then linkable, bookmarkable, and survives a reload or a Back.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const page = readPage(searchParams.get('page'));
+    const setPage = useCallback(
+        (next: number) => {
+            setSearchParams(
+                (prev) => {
+                    const params = new URLSearchParams(prev);
+                    if (next <= 1) {
+                        params.delete('page');
+                    } else {
+                        params.set('page', String(next));
+                    }
+                    return params;
+                },
+                { replace: true }
+            );
+        },
+        [setSearchParams]
+    );
     const [createOpen, setCreateOpen] = useState(false);
     const [secret, setSecret] = useState<string | null>(null);
 
@@ -92,16 +128,61 @@ export function ApiTokensPage() {
     const createToken = useCreateApiToken();
     const revokeToken = useRevokeApiToken();
 
+    /**
+     * Drops the plaintext from the mutation cache. Closing the reveal dialog
+     * clears the page's own `secret`, but the create mutation's cached *result*
+     * carries the secret too, and TanStack keeps a settled mutation for its
+     * `gcTime` (5 minutes by default) — so without this the credential outlives
+     * the dialog that promised it was gone and follows the user around the SPA.
+     * Pinned in a ref so the unmount cleanup below can never re-run on an
+     * identity change.
+     */
+    const resetCreateRef = useRef(createToken.reset);
+    resetCreateRef.current = createToken.reset;
+    const forgetSecret = useCallback(() => {
+        setSecret(null);
+        resetCreateRef.current();
+    }, []);
+
+    // Leaving the page with the reveal dialog still open never runs the handler
+    // above, so scrub the mutation on unmount as well.
+    useEffect(() => () => resetCreateRef.current(), []);
+
+    // Focus anchor for after a revoke: the kebab that opened the confirm dialog
+    // is unmounted by the same re-render that lands the new status, so Radix
+    // restores focus to a dead element and it falls to `<body>` (WCAG 2.4.3).
+    const resultsRef = useRef<HTMLDivElement>(null);
+    const wasRevoking = useRef(false);
+    useEffect(() => {
+        if (revokeToken.isPending) {
+            wasRevoking.current = true;
+            return;
+        }
+        if (!wasRevoking.current) {
+            return;
+        }
+        wasRevoking.current = false;
+        // A frame later, so this runs after Radix's own restoration rather than
+        // racing it — and only when that restoration actually lost focus.
+        requestAnimationFrame(() => {
+            const active = document.activeElement;
+            if (!active || active === document.body) {
+                resultsRef.current?.focus();
+            }
+        });
+    }, [revokeToken.isPending]);
+
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? DEFAULT_PAGE_SIZE;
     const pageCount = Math.max(1, Math.ceil(total / effectivePageSize));
 
-    // Pull `page` back after a revoke empties the last page.
+    // Pull `page` back when the list shrinks under the current page — or when a
+    // hand-typed `?page=` points past the end.
     useEffect(() => {
         if (data && page > pageCount) {
             setPage(pageCount);
         }
-    }, [data, page, pageCount]);
+    }, [data, page, pageCount, setPage]);
 
     if (!canRead) {
         return (
@@ -139,6 +220,8 @@ export function ApiTokensPage() {
 
     const revoke = (id: string) => {
         revokeToken.mutate(id, {
+            onSuccess: () =>
+                toast.success(intl.formatMessage(messages.revoked)),
             onError: () => toast.error(intl.formatMessage(messages.revokeError))
         });
     };
@@ -168,79 +251,101 @@ export function ApiTokensPage() {
                     }
                 />
 
-                {isPending ? (
-                    <ApiTokensSkeleton />
-                ) : isError ? (
-                    <Alert variant="destructive" role="alert" className="mt-4">
-                        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                            <span>{intl.formatMessage(messages.error)}</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="shadow-none"
-                                onClick={() => refetch()}
-                            >
-                                {intl.formatMessage(messages.retry)}
-                            </Button>
-                        </AlertDescription>
-                    </Alert>
-                ) : tokens.length === 0 ? (
-                    <ApiTokensEmpty
-                        onCreate={
-                            canCreate ? () => setCreateOpen(true) : undefined
-                        }
-                    />
-                ) : (
-                    <>
-                        <ApiTokensTable
-                            tokens={tokens}
-                            canRevoke={canRevoke}
-                            onRevoke={revoke}
-                            revokingId={
-                                revokeToken.isPending
-                                    ? (revokeToken.variables ?? null)
-                                    : null
-                            }
-                            resolveWorkspaceName={(id) =>
-                                workspaceNames.get(id) ?? id
-                            }
-                        />
-                        {pageCount > 1 ? (
-                            <div className="mt-4 flex items-center justify-end gap-3">
-                                <span className="text-sm text-muted-foreground">
-                                    {intl.formatMessage(messages.pageOf, {
-                                        page,
-                                        pageCount
-                                    })}
+                {/* Creating, revoking and paging all change the table without a
+                    navigation and without a heading change, so announce the
+                    result count (WCAG 4.1.3) — the same region `/users` and
+                    `/activity` carry. */}
+                {!isPending && !isError ? (
+                    <p role="status" aria-live="polite" className="sr-only">
+                        {intl.formatMessage(messages.results, { count: total })}
+                    </p>
+                ) : null}
+
+                {/* The focus anchor wraps every result state, not just the
+                    table, so it is still mounted whichever state a mutation
+                    lands the page in. `tabIndex={-1}` keeps it focusable
+                    programmatically without adding a tab stop. */}
+                <div ref={resultsRef} tabIndex={-1} className="outline-none">
+                    {isPending ? (
+                        <ApiTokensSkeleton />
+                    ) : isError ? (
+                        <Alert
+                            variant="destructive"
+                            role="alert"
+                            className="mt-4"
+                        >
+                            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                <span>
+                                    {intl.formatMessage(messages.error)}
                                 </span>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={page <= 1}
-                                    onClick={() =>
-                                        setPage((current) =>
-                                            Math.max(1, current - 1)
-                                        )
-                                    }
+                                    className="shadow-none"
+                                    onClick={() => refetch()}
                                 >
-                                    {intl.formatMessage(messages.prev)}
+                                    {intl.formatMessage(messages.retry)}
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={page >= pageCount}
-                                    onClick={() =>
-                                        setPage((current) =>
-                                            Math.min(pageCount, current + 1)
-                                        )
-                                    }
-                                >
-                                    {intl.formatMessage(messages.next)}
-                                </Button>
-                            </div>
-                        ) : null}
-                    </>
-                )}
+                            </AlertDescription>
+                        </Alert>
+                    ) : tokens.length === 0 ? (
+                        <ApiTokensEmpty
+                            onCreate={
+                                canCreate
+                                    ? () => setCreateOpen(true)
+                                    : undefined
+                            }
+                        />
+                    ) : (
+                        <>
+                            <ApiTokensTable
+                                tokens={tokens}
+                                canRevoke={canRevoke}
+                                onRevoke={revoke}
+                                revokingId={
+                                    revokeToken.isPending
+                                        ? (revokeToken.variables ?? null)
+                                        : null
+                                }
+                                resolveWorkspaceName={(id) =>
+                                    workspaceNames.get(id) ?? id
+                                }
+                            />
+                            {pageCount > 1 ? (
+                                <div className="mt-4 flex items-center justify-end gap-3">
+                                    <span className="text-sm text-muted-foreground">
+                                        {intl.formatMessage(messages.pageOf, {
+                                            page,
+                                            pageCount
+                                        })}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page <= 1}
+                                        onClick={() =>
+                                            setPage(Math.max(1, page - 1))
+                                        }
+                                    >
+                                        {intl.formatMessage(messages.prev)}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page >= pageCount}
+                                        onClick={() =>
+                                            setPage(
+                                                Math.min(pageCount, page + 1)
+                                            )
+                                        }
+                                    >
+                                        {intl.formatMessage(messages.next)}
+                                    </Button>
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+                </div>
             </Container>
 
             <CreateApiTokenDialog
@@ -254,7 +359,7 @@ export function ApiTokensPage() {
                 open={secret !== null}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setSecret(null);
+                        forgetSecret();
                     }
                 }}
             />
