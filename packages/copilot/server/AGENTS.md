@@ -25,7 +25,7 @@ profile, and the transcript this plugin now owns and migrates
 | `GET /api/copilot/models`              | `PermissionsGuard`                                  | The catalogue. Deployment-wide, so **no** `WorkspaceGuard`. |
 | `GET /api/copilot/conversations`       | `PermissionsGuard`, `WorkspaceGuard`                | This user's threads. `?archived=true` for the filed ones.   |
 | `GET /api/copilot/conversations/:id`   | `PermissionsGuard`, `WorkspaceGuard`                | Thread + transcript. Serves archived threads too.           |
-| `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename and/or archive.                                      |
+| `PATCH /api/copilot/conversations/:id` | `OriginGuard`, `PermissionsGuard`, `WorkspaceGuard` | Rename, archive, and/or record the model picked.            |
 | `GET /api/copilot/proposals`           | `PermissionsGuard`, `WorkspaceGuard`                | The record of what changed.                                 |
 | `GET /api/copilot/proposals/:id`       | `PermissionsGuard`, `WorkspaceGuard`                | One change.                                                 |
 | `GET /api/copilot/skills`              | `PermissionsGuard`, `WorkspaceGuard`                | The picker's catalogue. **No instruction bodies.**          |
@@ -51,14 +51,35 @@ transcript is untouched and `GET /conversations/:id` still serves it, so a link
 to an archived thread keeps working. If a hard delete is ever added it has to
 answer for the proposals first.
 
-Two things in the PATCH worth keeping:
+Three things in the PATCH worth keeping:
 
 - **`updatedAt` is not bumped.** It means "last used" and the list sorts by it;
   a rename would otherwise send a thread nobody has spoken to in a week to the
-  top. Covered by a case in `copilot-conversations.spec.ts`.
+  top. Covered by a case in `copilot-conversations.spec.ts` — and it matters
+  more now that `modelChoice` is patchable, because the client writes that as a
+  side effect of somebody touching a picker.
 - **The ownership predicate is in the `UPDATE`**, not a read beforehand, so
   there is no check-then-write window — and a miss is a flat 404 for "not yours"
   and "no such id" alike, matching the read routes.
+- **`modelChoice` is validated against `ModelRegistry.catalogue()`.** It is a
+  value the caller writes, the picker renders back, and the next run is offered
+  as its `provider`/`model` — so an unchecked string would be both stored user
+  input on the way to the UI and a run that could only fail. Checking it against
+  the boot-time registry keeps it inside what the operator already configured,
+  the same boundary the run route enforces when a request names a provider.
+
+**`modelChoice` is a memory, not a pin.** A run still carries its own provider
+and model per turn (`CreateRunDto`), and nothing about the column constrains the
+next one — it is what the client _seeds_ the picker from when a saved thread is
+reopened, which is the half of "don't forget my model" no browser-side state can
+do. Three states, and the last two are distinct on purpose: `null` is "nobody has
+picked on this thread" (the client keeps its own per-tab memory), `'default'` is
+"the person picked the host's resolver" (which can differ per run, so recording
+today's default provider instead would silently opt them out of that routing),
+and `'<provider>:<model>'` is a registered backend. One nullable text column
+rather than a `provider`/`model` pair precisely so the first two can be told
+apart; `'default'` cannot collide with a real key because a key always contains a
+colon.
 
 The proposal routes are **reads only** — the
 accept/reject pair and the `GET/PUT /api/copilot/policy` pair were deleted by
@@ -368,6 +389,21 @@ and `system-prompt.spec.ts` pins the structure. Three rules for editing it:
   included. Editing a published entry returns it to `draft` but **keeps**
   `publishedAt`, so "modified" is the pair, and the filter that finds it is in
   `admin_content_search`'s description where it costs only the runs that search.
+- **A prompt rule is the right fix only where no tool can enforce it.** v8's
+  shared-field rule is the case: `localized` is what makes a field vary per
+  locale, a field without it is **shared** across the translation group, and
+  i18n's sync copies it onto every sibling row. `i18n_propose_translation`
+  refuses a non-localized field name; `content_propose_create` /
+  `content_propose_update` do **not** — they filter only inverse relations — so
+  a model asked to translate can reach for a content tool with a `localeGroupId`
+  and rewrite every locale at once. HOW ORTHA WORKS states the fact
+  unconditionally; MAKING CHANGES restates it as an instruction only when
+  `i18n_propose_translation` is actually on offer. It stays **prose**: the rule
+  is about which fields carry a flag, and answering it in the prompt would mean
+  inlining the field schemas `describeTypes` exists to keep out (the e2e suite
+  asserts the prompt contains no `"fields"`). Closing the gap in
+  `content/server` would be the real fix, and the prompt is not a substitute for
+  it.
 - **The propose-rule bug is the cautionary tale.** v3 and v4 both said "any tool
   whose name starts with `propose`". Every propose tool is named for its owning
   plugin first (`content_propose_update`), so the rule matched **nothing** — a
@@ -442,7 +478,7 @@ the first query against a table nobody generated a migration for.
 
 | Table                   | Holds                                                                                                                                                                                                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `copilot_conversations` | Thread per user × workspace. FKs cascade from both.                                                                                                                                                                                                                      |
+| `copilot_conversations` | Thread per user × workspace. FKs cascade from both. `model_choice` remembers the model last picked for it — a memory the picker is seeded from, never a pin on the next run.                                                                                             |
 | `copilot_messages`      | Append-only transcript, as the **port's** content blocks — so it survives a provider switch. `position` is explicit because two turns can land in the same millisecond. `attachments` holds a user turn's files (see above).                                             |
 | `copilot_tool_calls`    | The security-review surface (ADR-0005). Redacted output.                                                                                                                                                                                                                 |
 | `copilot_proposals`     | Every change the copilot made, written before the write. `target`/`patch` are opaque jsonb — their shape belongs to the applier that declared the `kind`, and teaching this table about content entries would make the copilot the thing that changes when content does. |
@@ -460,7 +496,7 @@ the engine with an id `findOrFail`/`create` has already proved is the caller's,
 and `toolCalls(runId)` is a test seam. They are **not** reachable from a route,
 and a new caller for one of them is a new place to prove ownership.
 
-`GET /proposals` is the deliberate exception to the *user* half: it is
+`GET /proposals` is the deliberate exception to the _user_ half: it is
 workspace-scoped, because a proposal is the receipt for a change to the
 workspace's content and every member can already read that content. Its
 `?conversationId=` filter is not, though — `GET /conversations/:id` 404s a

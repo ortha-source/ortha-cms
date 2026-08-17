@@ -71,7 +71,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 7;
+export const SYSTEM_PROMPT_VERSION = 8;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -210,6 +210,7 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
                 'change failed, fix what the error named rather than repeating the call.\n' +
                 '- Read before you write. Fetch the entry first so you change what actually ' +
                 'needs changing and leave the rest alone.\n' +
+                describeTranslationRule(input.toolNames) +
                 '- Because these save straight away, prefer the smallest change that does ' +
                 'what was asked, and ask first if the request is ambiguous.\n' +
                 '- You cannot publish. If asked to, make the change and say a person has to ' +
@@ -278,7 +279,20 @@ function describeContentModel(toolNames: readonly string[]): string {
             'changed, when, and by whom are answerable rather than guesses.',
         'On a localized type each locale is its own entry, with its own id, status ' +
             'and version history. The German article is a separate entry from the ' +
-            'English one, not a field on it.'
+            'English one, not a field on it.',
+        // The counterpart of the line above, and the half a model gets wrong on
+        // its own. `localized` (content-server's `BaseFieldOptions`) is what
+        // makes a field vary per locale; a field without it is SHARED across the
+        // translation group, and the i18n plugin syncs its value onto every
+        // sibling row on update. So a model "translating" by writing shared
+        // values rewrites every locale at once — and unlike
+        // i18n_propose_translation, content_propose_create/update do not refuse
+        // it. Prose rather than metadata, deliberately: describeTypes carries no
+        // field schemas and this section must not become the place they leak in.
+        'Within a translation group only the fields marked localized vary per ' +
+            'locale. Every other field is SHARED by the group, so writing one ' +
+            'changes its value in every locale, not just the one you are editing. ' +
+            'Call admin_content_types to see which fields are localized.'
     ];
 
     // Only true where the i18n plugin is installed: without it there is no
@@ -292,6 +306,35 @@ function describeContentModel(toolNames: readonly string[]): string {
     }
 
     return 'HOW ORTHA WORKS\n' + lines.map((line) => `- ${line}`).join('\n');
+}
+
+/**
+ * The write-side restatement of the shared-field rule — one bullet inside
+ * MAKING CHANGES, or nothing.
+ *
+ * HOW ORTHA WORKS already states the fact; this says what to *do* with it,
+ * which is only worth prompt budget on a run that can write. It is worth it
+ * there because the tools do not enforce it: `i18n_propose_translation` refuses
+ * a non-localized field name outright, while `content_propose_create` /
+ * `content_propose_update` filter only inverse relations — so a model asked to
+ * translate can reach for a content tool with a `localeGroupId` and have the
+ * i18n plugin's sync fan its "translated" shared values out over every locale.
+ *
+ * Conditional on the tool being on offer, like the locale-slug line: naming a
+ * tool a deployment without the i18n plugin does not have buys a call that can
+ * only fail, and the unconditional HOW ORTHA WORKS line still carries the fact
+ * for those runs. Returns a bullet **with its trailing newline** so it can be
+ * spliced into the section or vanish without leaving a blank line behind.
+ */
+function describeTranslationRule(toolNames: readonly string[]): string {
+    if (!toolNames.includes('i18n_propose_translation')) {
+        return '';
+    }
+    return (
+        '- Never write a translation into a shared (non-localized) field — it would ' +
+        'change that value in every locale of the group. Translate with ' +
+        'i18n_propose_translation, which takes the localized fields only.\n'
+    );
 }
 
 /** Drops the sections that had nothing to say. */
