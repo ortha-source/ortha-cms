@@ -70,7 +70,9 @@ test.describe('axe harness', () => {
 
         // The excluded five must be genuinely off, not merely quiet.
         for (const rule of AXE_KNOWN_GAPS) {
-            expect(evaluated, `${rule} is excluded but ran`).not.toContain(rule);
+            expect(evaluated, `${rule} is excluded but ran`).not.toContain(
+                rule
+            );
         }
     });
 

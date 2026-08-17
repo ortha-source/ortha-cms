@@ -157,10 +157,7 @@ export interface CopilotPanelProps {
      * disagree from the next turn on. False means another window holds it and
      * has been focused instead, so this one leaves its own transcript alone.
      */
-    onAdoptConversation?(
-        conversationId: string,
-        title: string | null
-    ): boolean;
+    onAdoptConversation?(conversationId: string, title: string | null): boolean;
     /**
      * Which backend the next turn runs on, or `null` for the host's resolver.
      *
@@ -529,10 +526,7 @@ function PanelBody({
     onChoiceChange(choice: CopilotModelChoice | null): void;
     skills: readonly string[];
     onSkillsChange(names: readonly string[]): void;
-    onAdoptConversation?(
-        conversationId: string,
-        title: string | null
-    ): boolean;
+    onAdoptConversation?(conversationId: string, title: string | null): boolean;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached

@@ -52,7 +52,7 @@ states.
   `region`, the `landmark-*` family, `aria-dialog-name`, `tabindex`, `skip-link`.
   `withTags` is a **whitelist**, so for a long time those simply never ran: 30 of
   axe-core 4.12's 105 rules, 29% of the catalogue, were dark, and nothing said so
-  because no rule had been *disabled*. A route with no `<h1>`, no `<main>` and a
+  because no rule had been _disabled_. A route with no `<h1>`, no `<main>` and a
   nameless dialog scanned green. If you are ever tempted to trim that tag list,
   read `src/harness/axe-fixture.spec.ts` first — it exists to stop exactly this.
 - **Five rules are excluded, in one place, with tickets.** `AXE_KNOWN_GAPS` in
@@ -112,7 +112,7 @@ before merging and never merge red.
   frames — not the finished transcript, and not the order of its parts. The
   earlier note that this was impossible was wrong, and it cost the whole surface
   its coverage for a while.
-- **`forcedColors` and `reducedMotion` are not Playwright *test options*.**
+- **`forcedColors` and `reducedMotion` are not Playwright _test options_.**
   `test.use({ forcedColors: 'active' })` does nothing at all — the media query
   still reports `false` — while `test.use({ colorScheme })` works normally. The
   cause is not this repo's config: the runner assembles `browser.newContext()`'s
@@ -120,7 +120,7 @@ before merging and never merge red.
   (`playwright/lib/index.js`, `_combinedContextOptions`), and these two are not
   on it. They are absent from `PlaywrightTestOptions` for the same reason, so
   passing either through `test.use()` is a **compile error** (`TS2353`) — it only
-  ever looked *silent* because `nx typecheck admin-e2e` had been red for weeks
+  ever looked _silent_ because `nx typecheck admin-e2e` had been red for weeks
   and nobody was reading it. Two routes work, and both are pinned in
   `src/host/platform-preferences.spec.ts`:
   `page.emulateMedia({ forcedColors: 'active' })` per test, or
@@ -132,9 +132,9 @@ before merging and never merge red.
 - **Keep `typecheck` green.** It is the only static gate over 45 spec files, and
   the point above is what a broken one costs: a whole class of "this option does
   nothing" mistake stops being reported. There is no CI here — `npx nx typecheck
-  admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
+admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
 - **The run refuses to start against the wrong server.** `globalSetup` checks
-  that the port really holds *this* app (`reuseExistingServer` is `true`
+  that the port really holds _this_ app (`reuseExistingServer` is `true`
   unconditionally, so Playwright will happily adopt an impostor) and that no live
   API is answering behind the Vite proxy. A backend on the API port is the most
   expensive trap in this harness: mocks only cover the routes a spec registered,
@@ -156,7 +156,7 @@ before merging and never merge red.
   different sets and reads as a regression under load.
 - **axe never emulates a media feature.** Every scan runs in the browser default
   — light, no forced colors, no reduced motion, desktop viewport — so a clean
-  run is a statement about *that* state and no other. `scrollable-region-focusable`
+  run is a statement about _that_ state and no other. `scrollable-region-focusable`
   only fires at a viewport where the element actually overflows, and
   `color-contrast` only ever saw the light palette. Anything keyed on a
   preference or a size needs a computed-style assertion, not a scanner.

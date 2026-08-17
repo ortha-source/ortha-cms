@@ -35,7 +35,7 @@ import { mockWorkspaces } from '../support/api/workspaces';
  * red since before this file existed (ORT-126), and nobody was reading its
  * output. Fixing the typecheck is what makes this class of mistake loud again.
  *
- * Two routes do work, and `use-inert.spec` below pins both:
+ * Two routes do work, and the cases below exercise both:
  *
  * - `page.emulateMedia({ forcedColors })` — imperative, per test, what the
  *   cases here use, the same way `auth/reduced-motion.spec.ts` reaches for it.
@@ -87,7 +87,11 @@ function isFocused(locator: Locator): Promise<boolean> {
 }
 
 /** Tabs until `target` holds focus, or gives up after `limit` presses. */
-async function tabTo(page: Page, target: Locator, limit = 40): Promise<boolean> {
+async function tabTo(
+    page: Page,
+    target: Locator,
+    limit = 40
+): Promise<boolean> {
     for (let i = 0; i < limit; i++) {
         await page.keyboard.press('Tab');
         if (await isFocused(target)) {
@@ -141,12 +145,13 @@ test.describe('forced colors', () => {
         await membersPage.goto();
         await expect(membersPage.heading).toBeVisible();
         expect(
-            await page.evaluate(() =>
-                (
-                    globalThis as unknown as {
-                        matchMedia: (q: string) => { matches: boolean };
-                    }
-                ).matchMedia('(forced-colors: active)').matches
+            await page.evaluate(
+                () =>
+                    (
+                        globalThis as unknown as {
+                            matchMedia: (q: string) => { matches: boolean };
+                        }
+                    ).matchMedia('(forced-colors: active)').matches
             )
         ).toBe(true);
 
@@ -209,7 +214,8 @@ test.describe('forced colors', () => {
                 };
             };
             return Array.from(scope.document.querySelectorAll('*')).filter(
-                (node) => scope.getComputedStyle(node).forcedColorAdjust === 'none'
+                (node) =>
+                    scope.getComputedStyle(node).forcedColorAdjust === 'none'
             ).length;
         });
 
@@ -333,13 +339,19 @@ async function ringContrast(
             );
             if (!geometry) continue;
             const spread = parseFloat(geometry[4]);
-            const color = layer.slice(0, layer.length - geometry[0].length).trim();
+            const color = layer
+                .slice(0, layer.length - geometry[0].length)
+                .trim();
             if (!color) continue;
             const painted = paint(color, 'rgb(255,255,255)');
             const overBlack = paint(color, 'rgb(0,0,0)');
             const transparent =
-                painted[0] === 255 && painted[1] === 255 && painted[2] === 255 &&
-                overBlack[0] === 0 && overBlack[1] === 0 && overBlack[2] === 0;
+                painted[0] === 255 &&
+                painted[1] === 255 &&
+                painted[2] === 255 &&
+                overBlack[0] === 0 &&
+                overBlack[1] === 0 &&
+                overBlack[2] === 0;
             if (transparent) continue;
             if (spread >= widest) {
                 widest = spread;
@@ -349,7 +361,10 @@ async function ringContrast(
 
         return {
             ring,
-            vsPage: contrast(paint(ring, pageBackground), paint(pageBackground)),
+            vsPage: contrast(
+                paint(ring, pageBackground),
+                paint(pageBackground)
+            ),
             vsControl: contrast(
                 paint(ring, controlStyle['backgroundColor']),
                 paint(controlStyle['backgroundColor'], pageBackground)

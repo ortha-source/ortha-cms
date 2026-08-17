@@ -4,10 +4,7 @@ import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
 import { mockCopilotApi } from '../support/api/copilot';
 import { expectNoA11yViolations } from '../support/a11y';
-import type {
-    BrowserGlobals,
-    EvalScrollable
-} from '../support/browserGlobals';
+import type { BrowserGlobals, EvalScrollable } from '../support/browserGlobals';
 
 const WORKSPACE_ID = 'ws_marketing';
 
@@ -416,12 +413,10 @@ test.describe('Ortha AI dock — regressions', () => {
         // cannot be scrolled away from, so "it did not scroll" would be true
         // for the wrong reason. The docked panel is deliberately small, which
         // is why this case lives here rather than on the full-page view.
-        const overflow = await copilotDockPage
-            .transcript()
-            .evaluate((el) => {
-                const box = el as unknown as EvalScrollable;
-                return box.scrollHeight - box.clientHeight;
-            });
+        const overflow = await copilotDockPage.transcript().evaluate((el) => {
+            const box = el as unknown as EvalScrollable;
+            return box.scrollHeight - box.clientHeight;
+        });
         expect(overflow).toBeGreaterThan(100);
 
         await copilotDockPage.ask('Set the summary please');
