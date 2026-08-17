@@ -39,6 +39,28 @@ hand-written):
   portal, the bar keeps its page's React context — which is what lets the
   shell's page-actions region work from inside it.
 
+## Tests
+
+The package has a vitest + Testing Library suite (`npx nx test design-system`),
+co-located as `<component>.spec.tsx`. `src/test-setup.ts` shims the browser APIs
+jsdom lacks and Radix/cmdk/sonner require (`matchMedia`, `ResizeObserver`,
+pointer capture, `scrollIntoView`) — without it, anything built on `Popover`,
+`Command` or `Sheet` throws before the assertion.
+
+It is not a coverage exercise. What belongs here is the seam a *page* test
+cannot reach: a prop combination no shipped consumer passes
+(`invalid={false}` beside an error), a collision no shipped data produces (two
+options sharing a label), a value a browser test cannot see (the seconds in a
+datetime), or a preference the e2e harness does not emulate. Behaviour that a
+real page exercises belongs in `apps/admin-e2e`, where it is exercised for real.
+
+Two platform preferences are covered from `admin-e2e`, not here, because they
+are properties of the composed stylesheet:
+`apps/admin-e2e/src/host/platform-preferences.spec.ts` scans the **dark**
+palette (every other axe scan runs light) and asserts a focus indicator
+survives `forced-colors: active` — where the UA drops `box-shadow`, and so
+drops every Tailwind `ring-*` in this library along with it.
+
 ## TS conventions
 
 - `type` over `interface`
