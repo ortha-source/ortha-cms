@@ -12,8 +12,14 @@ a few lines of SSE parsing, and a dependency for that would not earn its place.
 
 ## What it exports
 
-- `createOpenAiCompatibleProvider(config): ModelProvider`. `config` is
-  `{ baseUrl, model, apiKey?, headers?, capabilities?, timeoutMs? }`.
+- `createOpenAiProvider(config): ModelProvider`. `config` is
+  `{ baseUrl, models, apiKey?, headers?, capabilities?, timeoutMs?,
+  maxTokensField? }`.
+
+`models` is a **list**, first entry the default — one endpoint and one
+credential back several models, so a user can switch mid-conversation. A run
+naming a model outside the list raises `UnknownModelError` rather than quietly
+answering on the default.
 
 `baseUrl` is the API root **including** the version segment
 (`http://localhost:11434/v1`); `/chat/completions` is appended, with any
@@ -23,7 +29,7 @@ trailing slashes trimmed first.
 
 ```
 src/lib/
-  openai-compatible-provider.ts  # the factory — request + stream loop, ~130 lines
+  openai-provider.ts             # the factory — request + stream loop, ~150 lines
   config.ts                      # config type, defaults, resolveEndpoint/resolveCapabilities
   sse.ts                         # readDataEvents — the event-stream reader
   wire/
@@ -77,10 +83,25 @@ Three shapes have to collapse into the port's vocabulary:
 `finish_reason` maps `tool_calls`/`function_call` → `tool_use`, `length` →
 `max_tokens`, `content_filter` → `refusal`, everything else → `end`.
 
+The output ceiling rides on **`max_tokens`**, which every local runtime
+understands. OpenAI's reasoning models reject that name and require
+`max_completion_tokens`; a deployment pointing at them sets
+`maxTokensField: 'max_completion_tokens'`, because the two cannot both be sent —
+an unrecognised parameter is itself a 400 there.
+
 Tool **results** flatten onto their own `role: 'tool'` messages after the
 assistant turn that requested them — the port's block-structured turns don't map
 one-to-one onto OpenAI's flat message list, and a turn can become several
 messages.
+
+## The port's clauses are checked, not assumed
+
+`conformance.spec.ts` runs the domain's `runModelProviderConformance` kit, which
+drives the same contract against all three adapters — one `done`, an abort that
+ends the stream, zero usage on an abort, and the promises around them. The
+stubbed endpoint it uses **observes the signal**, erroring the body mid-stream
+the way a real socket does, because a stub that ignored it would let the abort
+clauses pass unexercised.
 
 ## Timeouts and aborts
 
@@ -90,8 +111,12 @@ the caller's signal via `AbortSignal.any`. A caller abort ends the stream with
 naming the endpoint and the elapsed budget, because that is a misconfiguration
 the operator needs to see.
 
-The SSE reader (`sse.ts`) is deliberately forgiving: it reads `data:` lines,
-ignores comments and keep-alives, tolerates `\r\n`, and stops at `[DONE]`.
+The SSE reader (`sse.ts`) frames events on the **blank line** the format
+defines, joins an event's `data:` lines with newlines, ignores comments,
+keep-alives and every other field, tolerates `\r\n`, flushes a final event that
+arrived without its trailing blank line, and stops at `[DONE]`. One event is
+capped at `MAX_EVENT_CHARS` (1 MiB): a proxy that streams without ever sending a
+boundary would otherwise grow one string for the whole request budget.
 
 ## Commands
 

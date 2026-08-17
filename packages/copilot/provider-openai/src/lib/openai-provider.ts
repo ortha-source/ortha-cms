@@ -46,7 +46,14 @@ export function createOpenAiProvider(
     config: OpenAiProviderConfig
 ): ModelProvider {
     const endpoint = resolveEndpoint(config.baseUrl);
-    const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    // A non-positive budget is taken as "unset", not honoured: `?? DEFAULT` let
+    // a `timeoutMs: 0` through, and `AbortSignal.timeout(0)` fires immediately
+    // — every request aborting before it left, which reads as the endpoint
+    // being down rather than as the misconfiguration it is.
+    const timeoutMs =
+        config.timeoutMs !== undefined && config.timeoutMs > 0
+            ? config.timeoutMs
+            : DEFAULT_TIMEOUT_MS;
     const models = [...config.models];
 
     async function* stream(

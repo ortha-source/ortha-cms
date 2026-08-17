@@ -57,6 +57,13 @@ Aborting the caller's signal ends the stream with `stopReason: 'aborted'` rather
 than throwing, per the port's contract. Usage is reported as zero there: a
 cancelled call has no usage record we can trust.
 
+That is not left to this file's good intentions: `conformance.spec.ts` runs the
+domain's `runModelProviderConformance` kit, which drives the same clauses against
+all three adapters. The SDK stub it uses **observes the signal** — rejecting at
+construction when already aborted, erroring the iterator when the abort arrives
+mid-stream — because a stub that ignored it would let the abort clauses pass
+without being exercised.
+
 ## Thinking is left at the API default — do not disable it
 
 The adapter passes **no `thinking` configuration**. On current models thinking
@@ -81,6 +88,11 @@ fails — no network, no key, a gateway that doesn't proxy `/v1/models` — it f
 back to a conservative record rather than reporting "unknown" as "unsupported",
 which would drop a frontier model into degraded mode over a transient blip.
 
+A **failed** probe is not cached, only a successful one: the promise is stored
+before it resolves so two concurrent callers share one probe, and evicted if it
+rejects. Caching the fallback pinned a frontier model to it for the life of the
+process — the network came back and the adapter never noticed.
+
 The Models API exposes no tool-calling flag; every model it serves supports tool
 calling, so the adapter reports `true`.
 
@@ -99,3 +111,4 @@ calling, so the adapter reports `true`.
 
 - `npx nx typecheck @ortha-cms/copilot-provider-anthropic`
 - `npx nx lint @ortha-cms/copilot-provider-anthropic`
+- `npx nx test @ortha-cms/copilot-provider-anthropic`

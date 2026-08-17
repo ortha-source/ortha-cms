@@ -3,7 +3,7 @@ import type {
     ModelRequest,
     ModelTool
 } from '@ortha-cms/copilot-domain';
-import type { OpenAiProviderConfig } from '../config';
+import { DEFAULT_MAX_TOKENS_FIELD, type OpenAiProviderConfig } from '../config';
 import type { ChatMessage } from './types';
 
 /**
@@ -82,7 +82,8 @@ export function toRequestBody(
         model,
         messages: toChatMessages(request.messages, request.system),
         ...(tools.length > 0 ? { tools: toChatTools(tools) } : {}),
-        max_tokens: request.maxOutputTokens,
+        [config.maxTokensField ?? DEFAULT_MAX_TOKENS_FIELD]:
+            request.maxOutputTokens,
         stream: true,
         // Servers that don't know this field ignore it; the ones that do
         // return a final usage-only chunk.

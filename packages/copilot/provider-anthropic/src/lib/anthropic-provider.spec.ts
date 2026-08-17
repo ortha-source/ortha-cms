@@ -109,6 +109,32 @@ describe('createAnthropicProvider', () => {
                 })
             );
         });
+
+        it('forwards maxRetries and timeoutMs only when the operator set them', async () => {
+            // Passing `undefined` would override the SDK's own defaults with
+            // nothing, which is not the same as leaving them alone.
+            mockStream.mockReturnValue(sdkStream([], finalMessage()));
+            await drain(createAnthropicProvider(config).stream(request));
+
+            expect(mockConstructor.mock.calls[0][0]).not.toHaveProperty(
+                'maxRetries'
+            );
+            expect(mockConstructor.mock.calls[0][0]).not.toHaveProperty(
+                'timeout'
+            );
+
+            await drain(
+                createAnthropicProvider({
+                    ...config,
+                    maxRetries: 0,
+                    timeoutMs: 5_000
+                }).stream(request)
+            );
+
+            expect(mockConstructor).toHaveBeenLastCalledWith(
+                expect.objectContaining({ maxRetries: 0, timeout: 5_000 })
+            );
+        });
     });
 
     describe('streaming', () => {
@@ -252,6 +278,30 @@ describe('createAnthropicProvider', () => {
                     usage: { inputTokens: 0, outputTokens: 0 }
                 }
             ]);
+        });
+
+        it('keeps the partial answer when the assembled message rejects', async () => {
+            // The deltas are already out and already in the engine's
+            // `assistantBlocks`, so the throw costs the reason for stopping,
+            // not the text: the engine persists the partial turn as `error`.
+            const events: ModelStreamEvent[] = [];
+            mockStream.mockReturnValue({
+                async *[Symbol.asyncIterator]() {
+                    yield textDelta('Half an ');
+                },
+                finalMessage: () => Promise.reject(new Error('529 overloaded'))
+            });
+
+            await expect(
+                (async () => {
+                    for await (const event of createAnthropicProvider(
+                        config
+                    ).stream(request)) {
+                        events.push(event);
+                    }
+                })()
+            ).rejects.toThrow('529 overloaded');
+            expect(events).toEqual([{ type: 'text-delta', text: 'Half an ' }]);
         });
 
         it('re-throws a genuine API failure instead of swallowing it', async () => {
@@ -458,6 +508,50 @@ describe('createAnthropicProvider', () => {
             await expect(
                 provider.capabilities('claude-haiku-4-5')
             ).resolves.toMatchObject({ model: 'claude-haiku-4-5' });
+        });
+
+        it('re-probes after a failure instead of pinning the fallback', async () => {
+            // The failed probe used to be cached like an answer, so a blip at
+            // the wrong moment left the adapter reporting the conservative
+            // record for the life of the process — the network came back and
+            // nothing noticed.
+            mockRetrieve.mockRejectedValueOnce(new Error('ENOTFOUND'));
+            const provider = createAnthropicProvider(config);
+
+            await expect(provider.capabilities()).resolves.toMatchObject({
+                contextWindow: 200_000
+            });
+
+            mockRetrieve.mockResolvedValue({
+                id: 'claude-opus-5',
+                max_input_tokens: 1_000_000,
+                max_tokens: 64_000,
+                capabilities: { image_input: { supported: true } }
+            });
+
+            await expect(provider.capabilities()).resolves.toMatchObject({
+                contextWindow: 1_000_000
+            });
+            expect(mockRetrieve).toHaveBeenCalledTimes(2);
+        });
+
+        it('shares one in-flight probe between concurrent callers', async () => {
+            mockRetrieve.mockResolvedValue({
+                id: 'claude-opus-5',
+                max_input_tokens: 200_000,
+                max_tokens: 8_192,
+                capabilities: { image_input: { supported: true } }
+            });
+            const provider = createAnthropicProvider(config);
+
+            // The promise is cached before it resolves, deliberately: two runs
+            // asking at once must not pay for two probes.
+            await Promise.all([
+                provider.capabilities(),
+                provider.capabilities()
+            ]);
+
+            expect(mockRetrieve).toHaveBeenCalledTimes(1);
         });
 
         it('falls back conservatively when the probe fails', async () => {
