@@ -86,15 +86,53 @@ Key concepts:
 - **Scalar coercion** — `string` / `number` / `boolean` / `uuid` / `date` /
   `enum`; the parser coerces raw URL strings to the declared type before they
   hit Drizzle.
+- **Values must be scalars.** `string` / `number` / `boolean` are accepted (a
+  JSON client legitimately sends any of the three for a URL-shaped API);
+  `null`, a missing `value` key, objects and arrays are a
+  `FILTER_INVALID_VALUE` 400. They used to be run through `String(v)` and
+  *matched against*: `null` → `"null"`, no `value` → `"undefined"`,
+  `{}` → `"[object Object]"`, `[]` → `""` → `0` for a number field — a 200 with
+  a wrong, usually empty, result set, which is the only silent failure mode a
+  library that 400s every other bad value can have. "Is null" is the `null`
+  operator, not a `null` value.
 - **`FilterException`** (a `BadRequestException`) carries a `FilterErrorCode`
-  so controllers translate validation failures to clean HTTP 400s.
+  so controllers translate validation failures to clean HTTP 400s. Its
+  `context` is spread **before** the reserved keys, so a context field named
+  `code` / `statusCode` / `error` / `message` can never rewrite the envelope the
+  class exists to guarantee.
+- **`FilterSchemaException`** (an `InternalServerErrorException`, code
+  `FILTER_SCHEMA_INVALID`) is the other half: the request was well-formed and
+  the whitelist accepted it, but the **schema the caller declared** cannot be
+  translated — a `many-to-many` with target `fields` but no `table`, a `fields`
+  entry naming a column that is not on the table, a nested `fields` map with no
+  matching `relations` entry, a table with no `id` and no explicit key, an
+  unrecognised scalar `type` or relation `kind`. Deliberately a **500**: a 400
+  would blame the client, hide the fault from alerting, and leave the schema bug
+  in place. These four sites used to throw a bare `Error`, which reaches a
+  transport as an opaque 500 and, through MCP, an untyped JSON-RPC internal
+  error.
 
 The schema is the security boundary: only whitelisted fields/ops/relations
 reach SQL, and depth/node caps bound payload blow-up.
 
+**Every lookup of a user-supplied name in a schema map goes through
+`own()` (`own-property.ts`), never bare bracket notation.** `fields`,
+`relations`, a `RelationSchema`'s nested maps and drizzle's own column map are
+all plain object literals, so `map[name]` resolves `constructor`, `toString`,
+`valueOf`, `hasOwnProperty` and the rest of `Object.prototype` to truthy values
+and a `if (!map[name])` guard accepts a name nobody declared. Both downstream
+outcomes were live defects reachable from any filterable endpoint with a
+one-word query param: a scalar path handed a `Function` to drizzle as a
+`Column` and emitted `$1 = `, a Postgres syntax error — a **user-triggerable
+500**; a relation-shaped path (`toString.constructor`) fell out of
+`relationExists`'s `switch` as `undefined` and the predicate was **silently
+dropped**, answering 200 unfiltered. Both are pinned by
+`__test__/own-property-whitelist.spec.ts` and, end-to-end, by
+`apps/server-e2e/src/server/users/list-users-filter.spec.ts`.
+
 Internal files (not exported): `parse-filter-tree.ts`, `tree-to-drizzle.ts`,
 `relation-exists.ts`, `scalar-op.ts`, `negation.ts`, `resolve-leaf.ts`,
-`table-helpers.ts`, `filter-exceptions.ts`.
+`table-helpers.ts`, `own-property.ts`.
 
 ## Commands
 
