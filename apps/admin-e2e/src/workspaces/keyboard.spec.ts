@@ -61,6 +61,50 @@ test.describe('Workspaces keyboard accessibility', () => {
         await expect(workspacesPage.card('Research archive')).toBeVisible();
     });
 
+    test('the sidebar Workspaces group folds and unfolds from the keyboard', async ({
+        page,
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
+
+        const toggle = workspacesPage.sidebarWorkspacesToggle;
+        await toggle.focus();
+        await expect(toggle).toBeFocused();
+
+        // A real <button> (the label is a div until `asChild` hands the trigger
+        // its element), so both Enter and Space act on it.
+        await page.keyboard.press('Enter');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        await expect(
+            workspacesPage.sidebarWorkspaceLink('Marketing site')
+        ).toBeHidden();
+
+        await page.keyboard.press('Space');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(
+            workspacesPage.sidebarWorkspaceLink('Marketing site')
+        ).toBeVisible();
+        // Toggling must not steal focus from the control the user pressed.
+        await expect(toggle).toBeFocused();
+    });
+
+    test('the group "+" is its own tab stop after the collapse trigger', async ({
+        page,
+        workspacesPage
+    }) => {
+        await workspacesPage.goto();
+
+        // The "+" is painted *over* the heading row, so a full-width trigger
+        // would have made it unreachable-looking; it stays a separate control,
+        // the next stop after the trigger, and opens the wizard on Enter.
+        await workspacesPage.sidebarWorkspacesToggle.focus();
+        await page.keyboard.press('Tab');
+        await expect(workspacesPage.sidebarNewWorkspaceAction).toBeFocused();
+
+        await page.keyboard.press('Enter');
+        await expect(page).toHaveURL(/\/workspaces\/new$/);
+    });
+
     test.describe('create wizard', () => {
         test.beforeEach(async ({ page }) => {
             await mockWorkspacesApi(page);

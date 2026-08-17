@@ -194,6 +194,70 @@ export class WorkspaceSettingsPage extends BasePage {
         return this.page.getByRole('button', { name: /Switch workspace/ });
     }
 
+    /**
+     * The switcher's popover. Radix renders it `role="dialog"`; the component
+     * promotes its "Switch workspace" heading to the accessible name by id, so
+     * it is addressable without a test id and distinguishable from the settings
+     * page's own confirm dialogs.
+     */
+    get workspaceSwitcherPopover(): Locator {
+        return this.page.getByRole('dialog', { name: 'Switch workspace' });
+    }
+
+    /** Open the switcher popover and wait for it. */
+    async openWorkspaceSwitcher() {
+        await this.workspaceSwitcher.click();
+        await this.workspaceSwitcherPopover.waitFor();
+    }
+
+    /**
+     * One workspace row inside the open popover. Located by the row that
+     * *contains* the exact name, not by accessible name: the row's name folds
+     * in the avatar monogram and the "{n} members · active" sub-line, and
+     * "Workspace 1" is a prefix of "Workspace 10".
+     */
+    switcherOption(name: string): Locator {
+        return this.workspaceSwitcherPopover
+            .getByRole('button')
+            .filter({ has: this.page.getByText(name, { exact: true }) });
+    }
+
+    /** The popover's pinned "SWITCH WORKSPACE" heading (a styled paragraph). */
+    get switcherHeadingText(): Locator {
+        return this.workspaceSwitcherPopover.getByText('Switch workspace', {
+            exact: true
+        });
+    }
+
+    /** The popover's pinned "New workspace" action (below the list). */
+    get switcherCreate(): Locator {
+        return this.workspaceSwitcherPopover.getByRole('button', {
+            name: 'New workspace'
+        });
+    }
+
+    /**
+     * The element rendering a workspace's **name** inside the popover — the
+     * `truncate` span, located by its exact text rather than by class. Used for
+     * the overflow geometry check below.
+     */
+    switcherOptionName(name: string): Locator {
+        return this.workspaceSwitcherPopover.getByText(name, { exact: true });
+    }
+
+    /**
+     * Whether a workspace's name is actually clipped by CSS (its text is wider
+     * than the box drawing it) rather than widening the popover. A snapshot
+     * would not tell the two apart. Runs in the page and types the node
+     * structurally, since this project's tsconfig ships no DOM lib.
+     */
+    async switcherOptionNameIsClipped(name: string): Promise<boolean> {
+        return this.switcherOptionName(name).evaluate((node: unknown) => {
+            const el = node as { scrollWidth: number; clientWidth: number };
+            return el.scrollWidth > el.clientWidth;
+        });
+    }
+
     // --- shared: confirm dialog + toasts ---
 
     get dialog(): Locator {

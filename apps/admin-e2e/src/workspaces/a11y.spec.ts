@@ -1,6 +1,8 @@
 import { test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import {
+    manyWorkspaces,
+    mockWorkspaceSettingsApi,
     mockWorkspaces,
     mockWorkspacesApi,
     WORKSPACES_SEED
@@ -52,6 +54,64 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
         await workspacesPage.goto();
         await workspacesPage.search.fill('nonexistent-workspace-xyz');
         await workspacesPage.emptyText('No workspaces match').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('sidebar quick-list — collapsed', async ({
+        workspacesPage,
+        makeAxe
+    }) => {
+        await workspacesPage.goto();
+        await workspacesPage.collapseSidebarWorkspaces();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('sidebar quick-list — empty but creatable', async ({
+        page,
+        workspacesPage,
+        makeAxe
+    }) => {
+        // The state that took out sixteen scans across five suites, and that
+        // every other case here missed: no workspaces, but create permission,
+        // so the section still renders its heading and "+". Radix puts
+        // `aria-controls` on an **open** trigger, and the group is open by
+        // default, so a body that was conditionally not rendered left a
+        // dangling idref — `aria-valid-attr-value`, critical, on every page
+        // carrying the sidebar. Any suite whose mocks leave the workspace list
+        // empty or pending (users, activity, the loading skeletons) lands here,
+        // which is why it broke app-wide rather than only in this folder.
+        await mockWorkspaces(page, []);
+        await workspacesPage.goto();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('sidebar quick-list — list still loading', async ({
+        page,
+        workspacesPage,
+        makeAxe
+    }) => {
+        // Same shape, reached the other way: while the list query is in flight
+        // there are no rows either, and this is the pending state the other
+        // suites' scans sit in.
+        await mockWorkspaces(page, WORKSPACES_SEED, { delayMs: 30_000 });
+        await workspacesPage.goto();
+        await workspacesPage.listSkeleton().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('workspace switcher popover — a scrolling list of 30', async ({
+        page,
+        workspaceSettingsPage,
+        makeAxe
+    }) => {
+        // The scroll container only exists once the list overflows, which is
+        // also the only state in which `scrollable-region-focusable` can fire
+        // (axe never emulates a viewport, so the overflow has to be real at the
+        // default one). Its rows are <button>s, so the region is reachable —
+        // this scan is what pins that.
+        await mockWorkspaceSettingsApi(page, manyWorkspaces(30));
+        await workspaceSettingsPage.goto('ws_many_1');
+        await workspaceSettingsPage.openWorkspaceSwitcher();
         await expectNoA11yViolations(makeAxe());
     });
 

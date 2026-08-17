@@ -120,6 +120,42 @@ export const WORKSPACES_SEED: WorkspaceView[] = [
     }
 ];
 
+/**
+ * Build a **local** list of `count` active workspaces, for the suites that need
+ * a membership long enough to overflow a picker (the sidebar switcher's popover
+ * is unfiltered — it has no search box — so its scroll behaviour only shows up
+ * past a couple of dozen). Pass `longNames` to make every name far wider than
+ * the sidebar, which is what the truncation assertions need.
+ *
+ * Returns a fresh array each call: `WORKSPACES_SEED` is imported by several
+ * suites, so a spec must never grow or reorder that one.
+ */
+export function manyWorkspaces(
+    count: number,
+    { longNames = false }: { longNames?: boolean } = {}
+): WorkspaceView[] {
+    const colors = ['violet', 'teal', 'green', 'amber', 'slate', 'rose'];
+    // Real words rather than one unbroken token: a single long run has no wrap
+    // opportunity, so it could satisfy a truncation assertion for the wrong
+    // reason (nothing to wrap on) instead of because the CSS clipped it.
+    const padding = longNames
+        ? ' with a deliberately overlong name that no sidebar column can fit'
+        : '';
+    return Array.from({ length: count }, (_, index) => {
+        const label = `Workspace ${index + 1}`;
+        return {
+            id: `ws_many_${index + 1}`,
+            name: `${label}${padding}`,
+            slug: `workspace-${index + 1}`,
+            description: `Seeded workspace number ${index + 1}.`,
+            color: colors[index % colors.length],
+            status: 'active',
+            members: [member('u_ada', 'Ada Lovelace', 'ada@ortha.dev')],
+            content: []
+        } satisfies WorkspaceView;
+    });
+}
+
 /** The owner the mocked session attributes a created workspace to. */
 const OWNER = member(
     '00000000-0000-0000-0000-000000000001',

@@ -1,6 +1,11 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
+import {
+    manyWorkspaces,
+    mockWorkspaceSettingsApi,
+    mockWorkspaces,
+    mockWorkspacesApi
+} from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
 
 /**
@@ -144,8 +149,185 @@ test.describe('Workspaces page', () => {
         ).toBeHidden();
 
         // And the way out goes back to the list the user can see.
-        await noAccess.getByRole('link', { name: 'Back to workspaces' }).click();
+        await noAccess
+            .getByRole('link', { name: 'Back to workspaces' })
+            .click();
         await expect(page).toHaveURL('/workspaces');
+    });
+
+    // ORT-174 — the quick-list grew with the user's membership and pushed the
+    // sections below it out of the sidebar, with no way to fold it away.
+    test.describe('sidebar Workspaces section', () => {
+        test('ships expanded, listing the active workspaces', async ({
+            workspacesPage
+        }) => {
+            await workspacesPage.goto();
+
+            await expect(
+                workspacesPage.sidebarWorkspacesToggle
+            ).toHaveAttribute('aria-expanded', 'true');
+            await expect(
+                workspacesPage.sidebarWorkspaceLink('Marketing site')
+            ).toBeVisible();
+            // Archived workspaces never joined the quick-list.
+            await expect(
+                workspacesPage.sidebarWorkspaceLink('Research archive')
+            ).toBeHidden();
+        });
+
+        test('collapses and expands from the heading, flipping aria-expanded', async ({
+            workspacesPage
+        }) => {
+            await workspacesPage.goto();
+
+            await workspacesPage.collapseSidebarWorkspaces();
+            await expect(
+                workspacesPage.sidebarWorkspacesToggle
+            ).toHaveAttribute('aria-expanded', 'false');
+            // Radix unmounts the closed content, so the rows are gone from the
+            // tree entirely — not merely hidden behind a zero height.
+            await expect(
+                workspacesPage.sidebarWorkspaceLink('Marketing site')
+            ).toBeHidden();
+            await expect(workspacesPage.sidebarWorkspacesNav).toBeHidden();
+
+            await workspacesPage.expandSidebarWorkspaces();
+            await expect(
+                workspacesPage.sidebarWorkspacesToggle
+            ).toHaveAttribute('aria-expanded', 'true');
+            await expect(
+                workspacesPage.sidebarWorkspaceLink('Marketing site')
+            ).toBeVisible();
+        });
+
+        test('stays a plain heading when there is nothing to reveal', async ({
+            page,
+            workspacesPage
+        }) => {
+            // No rows → no `Collapsible` at all. Radix only emits
+            // `aria-controls` on an *open* trigger, and the group opens by
+            // default, so a trigger with an unmounted body would leave a
+            // dangling idref on every page that carries the sidebar.
+            await mockWorkspaces(page, []);
+            await workspacesPage.goto();
+
+            await expect(workspacesPage.sidebarWorkspacesToggle).toBeHidden();
+            // The "+" survives — it is what invites creating the first one.
+            await expect(
+                workspacesPage.sidebarNewWorkspaceAction
+            ).toBeVisible();
+        });
+
+        test('the "+" action still opens the wizard, collapsed or not', async ({
+            page,
+            workspacesPage
+        }) => {
+            await workspacesPage.goto();
+
+            // `SidebarGroupAction` is absolutely positioned over the same row
+            // the collapse trigger now occupies, so this is the collision the
+            // fix has to keep clear — the "+" must act, not toggle.
+            await workspacesPage.sidebarNewWorkspaceAction.click();
+            await expect(page).toHaveURL(/\/workspaces\/new$/);
+            await expect(
+                workspacesPage.sidebarWorkspacesToggle
+            ).toHaveAttribute('aria-expanded', 'true');
+
+            await page.goBack();
+            await workspacesPage.collapseSidebarWorkspaces();
+            await workspacesPage.sidebarNewWorkspaceAction.click();
+            await expect(page).toHaveURL(/\/workspaces\/new$/);
+        });
+    });
+
+    // ORT-175 — with a long membership the switcher's popover grew unbounded,
+    // and a long workspace name widened it instead of being clipped.
+    test.describe('workspace switcher popover', () => {
+        test('scrolls its list while the heading and create action stay put', async ({
+            page,
+            workspaceSettingsPage
+        }) => {
+            await mockWorkspaceSettingsApi(page, manyWorkspaces(30));
+            await workspaceSettingsPage.goto('ws_many_1');
+
+            await workspaceSettingsPage.openWorkspaceSwitcher();
+
+            const popover =
+                await workspaceSettingsPage.workspaceSwitcherPopover.boundingBox();
+            // 30 rows unbounded is ~1500px tall; the list is capped instead.
+            expect(popover?.height).toBeLessThan(500);
+
+            await expect(
+                workspaceSettingsPage.switcherHeadingText
+            ).toBeVisible();
+            await expect(workspaceSettingsPage.switcherCreate).toBeVisible();
+
+            const headingBefore =
+                await workspaceSettingsPage.switcherHeadingText.boundingBox();
+            const createBefore =
+                await workspaceSettingsPage.switcherCreate.boundingBox();
+
+            // The last row is only reachable by scrolling the list…
+            await workspaceSettingsPage
+                .switcherOption('Workspace 30')
+                .scrollIntoViewIfNeeded();
+            await expect(
+                workspaceSettingsPage.switcherOption('Workspace 30')
+            ).toBeVisible();
+
+            // …and doing so must not carry the heading or the create action
+            // away, which is what putting the scroll on `PopoverContent` did.
+            const headingAfter =
+                await workspaceSettingsPage.switcherHeadingText.boundingBox();
+            const createAfter =
+                await workspaceSettingsPage.switcherCreate.boundingBox();
+            expect(headingAfter?.y).toBeCloseTo(headingBefore?.y ?? -1, 0);
+            expect(createAfter?.y).toBeCloseTo(createBefore?.y ?? -1, 0);
+        });
+
+        test('clips a long workspace name instead of widening the popover', async ({
+            page,
+            workspaceSettingsPage
+        }) => {
+            await mockWorkspaceSettingsApi(
+                page,
+                manyWorkspaces(6, { longNames: true })
+            );
+            await workspaceSettingsPage.goto('ws_many_1');
+
+            const trigger =
+                await workspaceSettingsPage.workspaceSwitcher.boundingBox();
+            await workspaceSettingsPage.openWorkspaceSwitcher();
+            const popover =
+                await workspaceSettingsPage.workspaceSwitcherPopover.boundingBox();
+
+            // The popover is locked to `max(trigger width, min-w-64)` — 256px,
+            // the panel's floor, which is what wins over the ~239px sidebar
+            // trigger. The Tailwind v3 spelling of the width class emitted an
+            // invalid declaration under v4, so the panel had no width rule at
+            // all and grew to the longest name instead: several times this.
+            const MIN_POPOVER_WIDTH = 256;
+            const locked = Math.max(trigger?.width ?? 0, MIN_POPOVER_WIDTH);
+            expect(popover?.width).toBeLessThanOrEqual(locked + 1);
+            expect(popover?.width).toBeGreaterThanOrEqual(
+                (trigger?.width ?? 0) - 1
+            );
+
+            const longName =
+                'Workspace 2 with a deliberately overlong name that no sidebar column can fit';
+            const row = await workspaceSettingsPage
+                .switcherOption(longName)
+                .boundingBox();
+            expect(row?.width).toBeLessThanOrEqual((popover?.width ?? 0) + 1);
+
+            // Clipped by CSS, not merely laid out narrow: the text really is
+            // wider than the box drawing it.
+            expect(
+                await workspaceSettingsPage.switcherOptionNameIsClipped(
+                    longName
+                )
+            ).toBe(true);
+        });
     });
 
     test.describe('create wizard', () => {
