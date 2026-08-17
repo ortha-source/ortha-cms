@@ -28,7 +28,7 @@ contains no features.
 - `createAdmin(options)` — mounts the React root, wraps it in `BrowserRouter`,
   splits routes into public siblings + a single private group under the
   contributed `layout`, and renders a catch-all redirect
-- `AdminPlugin` — the plugin contract: `{ name, routes?, layout? }`
+- `AdminPlugin` — the plugin contract: `{ name, routes?, layout?, slots? }`
 - `RouteItem` — a contributed route: `{ path, element, public? }`
 - `CreateAdminOptions` — `{ plugins, rootElement?, locale? }`
 
@@ -47,9 +47,39 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
   other route mounts under one pathless parent route whose element is the first
   plugin-provided `layout` (or a bare `<Outlet/>`). All private pages render in
   that layout's outlet; the `*` catch-all (→ `/`) lives inside the group.
+- **Collisions are warned about, not resolved.** Two plugins contributing a
+  `layout`, or two contributing the same route `path`, are both "first one wins"
+  — and the loser is decided by registration order, which nobody chose. The host
+  cannot pick for the app, so it `console.warn`s and names the plugins involved.
+  The layout case is the one that bites: the shell's layout is what composes
+  identity's `RequireAuth`, so a layout registered ahead of it takes the auth
+  gate, the sidebar, the skip link and the `<main>` landmark with it, and every
+  private route renders **ungated**.
+- **A missing mount element is an error, not a blank page.** `rootElement` is
+  looked up and checked; a missing id throws with the id in the message, rather
+  than being cast to `HTMLElement` and failing inside React.
+- **One error boundary above everything** (`AppErrorBoundary`). A render-phase
+  throw that reaches the React root unmounts the whole tree, leaving `#root`
+  with zero children — no chrome to navigate away with and nothing to focus. The
+  realistic cause is a **lazy chunk that never arrives** (a deploy while the tab
+  was open: chunk names are content-hashed, and `Suspense` handles waiting, not
+  failing). The fallback is a real `<h1>` plus a Reload control, and it takes
+  focus on mount. It sits outside `BrowserRouter` (so a router throw is caught
+  too) and outside `Toaster` (so notifications outlive the failure). It is a
+  floor, not a substitute: a plugin that can degrade one region should catch
+  there, as `insights-admin` does per widget and `identity-admin` around the auth
+  screens.
+- **Navigation is announced** (`RouteAnnouncer`). A client-side navigation swaps
+  the view without the browser navigating, so nothing reports it: focus stays on
+  the link that was activated and the tab title does not change. The host mounts
+  one `sr-only` polite live region for the app's life and writes the new view's
+  `<h1>` into it on every pathname change after the first (WCAG 4.1.3). It
+  deliberately does **not** move focus — where focus belongs is the arriving
+  page's decision (identity's auth screens focus their own heading), and the
+  keyboard path past the sidebar is the shell's skip link.
 - **Auth-agnostic by design.** The host attaches no auth meaning to the
   public/private split — it only knows "private routes render under the
-  `layout`." Whether the layout *gates* them is the layout's business: the shell
+  `layout`." Whether the layout _gates_ them is the layout's business: the shell
   wraps its chrome in identity's `AuthProvider` + `RequireAuth`. So a `public:false`
   route with no gating `layout` renders **ungated** (fail-open) — the host does
   not guarantee a gate. This keeps the host free of any auth code; the trade is
@@ -98,8 +128,11 @@ createAdmin({
   (see `@ortha-cms/shell-admin`); the host only mounts it
 - Concrete slots & nav items — the host wires `slots` contributions but defines
   none; the shell owns the sidebar's `SIDEBAR_NAV_SLOT` and its nav items
-- Providers beyond the router, `IntlProvider`, `QueryClientProvider`, and
-  `TooltipProvider` (e.g. Toaster) — add when a plugin requires them
+- Providers beyond `AppearanceProvider`, `QueryClientProvider`, `IntlProvider`,
+  `TooltipProvider`, the router and `Toaster` — add when a plugin requires them.
+  The toast **corner** is not owned here: it is declared once in the design
+  system's `Toaster`, and the host passes no `position` (it used to, and the two
+  disagreed)
 - Actual pages — those live in feature plugins
 
 ## Commands

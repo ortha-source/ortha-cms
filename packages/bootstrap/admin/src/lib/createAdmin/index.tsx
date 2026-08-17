@@ -16,7 +16,64 @@ import {
     Toaster
 } from '@ortha-cms/design-system';
 import { UnsavedChangesGuard } from '../UnsavedChangesGuard';
-import type { CreateAdminOptions } from '../types/adminPlugin';
+import { AppErrorBoundary } from '../AppErrorBoundary';
+import { RouteAnnouncer } from '../RouteAnnouncer';
+import type { AdminPlugin, CreateAdminOptions } from '../types/adminPlugin';
+
+/**
+ * Warns when more than one plugin contributes a `layout`.
+ *
+ * Only the first survives — `find(Boolean)` below — and the loser is whichever
+ * plugin happens to be registered later, which is a decision nobody made. The
+ * shell's layout is what composes identity's `RequireAuth`, so losing it does
+ * not merely change the chrome: every private route renders **ungated**, with
+ * the sidebar, the skip link and the `<main>` landmark gone with it. The host
+ * cannot pick a winner for the app — it has no way to know which layout was
+ * meant — but it can refuse to do it silently.
+ */
+function warnOnLayoutCollision(plugins: AdminPlugin[]): void {
+    const contributors = plugins
+        .filter((plugin) => plugin.layout)
+        .map((plugin) => plugin.name);
+    if (contributors.length < 2) return;
+
+    const [winner, ...ignored] = contributors;
+    console.warn(
+        `[bootstrap-admin] ${contributors.length} plugins contribute a layout; only the first is mounted. ` +
+            `Using "${winner}", ignoring ${ignored.map((name) => `"${name}"`).join(', ')}. ` +
+            'Every non-public route renders inside the winner, so if it is not the app shell they are no longer gated.'
+    );
+}
+
+/**
+ * Warns when two routes claim the same `path`.
+ *
+ * React Router matches by rank, not by declaration, so which element renders at
+ * a duplicated path is unspecified; React additionally logs a bare
+ * "two children with the same key" that names the path but not the plugins
+ * behind it. Naming them here is the difference between a five-minute fix and
+ * an afternoon.
+ */
+function warnOnRouteCollisions(plugins: AdminPlugin[]): void {
+    const owners = new Map<string, string[]>();
+    for (const plugin of plugins) {
+        for (const route of plugin.routes ?? []) {
+            owners.set(route.path, [
+                ...(owners.get(route.path) ?? []),
+                plugin.name
+            ]);
+        }
+    }
+
+    for (const [path, contributors] of owners) {
+        if (contributors.length < 2) continue;
+        console.warn(
+            `[bootstrap-admin] route "${path}" is contributed by ${contributors
+                .map((name) => `"${name}"`)
+                .join(', ')}; only one of them will ever render.`
+        );
+    }
+}
 
 /**
  * Bootstraps the Ortha CMS admin app: mounts the React root, wraps it in
@@ -42,6 +99,9 @@ import type { CreateAdminOptions } from '../types/adminPlugin';
 export function createAdmin(options: CreateAdminOptions): void {
     const { plugins, rootElement = 'root', locale = 'en' } = options;
 
+    warnOnLayoutCollision(plugins);
+    warnOnRouteCollisions(plugins);
+
     const routes = plugins.flatMap((plugin) => plugin.routes ?? []);
     const publicRoutes = routes.filter((route) => route.public);
     const privateRoutes = routes.filter((route) => !route.public);
@@ -60,9 +120,19 @@ export function createAdmin(options: CreateAdminOptions): void {
         <Outlet />
     );
 
-    const root = ReactDOM.createRoot(
-        document.getElementById(rootElement) as HTMLElement
-    );
+    // Checked rather than cast. `createRoot(null)` throws deep inside React with
+    // a message about a "target container", which is true but says nothing about
+    // *which* id the host was told to mount into — and the page the developer is
+    // looking at is blank either way, so the console is all they have.
+    const container = document.getElementById(rootElement);
+    if (!container) {
+        throw new Error(
+            `[bootstrap-admin] no element with id "${rootElement}" to mount into. ` +
+                'The host HTML must contain it (see `apps/admin/index.html`), or pass a different `rootElement` to createAdmin().'
+        );
+    }
+
+    const root = ReactDOM.createRoot(container);
 
     root.render(
         <StrictMode>
@@ -70,35 +140,44 @@ export function createAdmin(options: CreateAdminOptions): void {
                 <QueryClientProvider client={queryClient}>
                     <IntlProvider locale={locale} defaultLocale="en">
                         <TooltipProvider delayDuration={200}>
-                            <BrowserRouter>
-                                <UnsavedChangesGuard>
-                                    <Routes>
-                                        {publicRoutes.map((route) => (
-                                            <Route
-                                                key={route.path}
-                                                path={route.path}
-                                                element={route.element}
-                                            />
-                                        ))}
-                                        <Route element={layout}>
-                                            {privateRoutes.map((route) => (
+                            <AppErrorBoundary>
+                                <BrowserRouter>
+                                    <RouteAnnouncer />
+                                    <UnsavedChangesGuard>
+                                        <Routes>
+                                            {publicRoutes.map((route) => (
                                                 <Route
                                                     key={route.path}
                                                     path={route.path}
                                                     element={route.element}
                                                 />
                                             ))}
-                                            <Route
-                                                path="*"
-                                                element={
-                                                    <Navigate to="/" replace />
-                                                }
-                                            />
-                                        </Route>
-                                    </Routes>
-                                </UnsavedChangesGuard>
-                            </BrowserRouter>
-                            <Toaster position="bottom-right" />
+                                            <Route element={layout}>
+                                                {privateRoutes.map((route) => (
+                                                    <Route
+                                                        key={route.path}
+                                                        path={route.path}
+                                                        element={route.element}
+                                                    />
+                                                ))}
+                                                <Route
+                                                    path="*"
+                                                    element={
+                                                        <Navigate
+                                                            to="/"
+                                                            replace
+                                                        />
+                                                    }
+                                                />
+                                            </Route>
+                                        </Routes>
+                                    </UnsavedChangesGuard>
+                                </BrowserRouter>
+                            </AppErrorBoundary>
+                            {/* Outside the boundary on purpose: a toast is how
+                                the rest of the app reports trouble, so it has to
+                                survive the failure that a boundary catches. */}
+                            <Toaster />
                         </TooltipProvider>
                     </IntlProvider>
                 </QueryClientProvider>
