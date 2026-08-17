@@ -334,14 +334,139 @@ describe('createOpenAiProvider', () => {
         ]);
     });
 
-    it('raises a request error naming the endpoint and status', async () => {
-        jest.mocked(globalThis.fetch).mockResolvedValue(
-            new Response('model not found', { status: 404 })
+    it('sends the output ceiling on `max_tokens`, or the field the operator named', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+        await drain(provider().stream(request));
+
+        expect(lastBody()['max_tokens']).toBe(256);
+        expect(lastBody()).not.toHaveProperty('max_completion_tokens');
+
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+        await drain(
+            createOpenAiProvider({
+                baseUrl: 'http://localhost:11434/v1',
+                models: ['o3-mini'],
+                maxTokensField: 'max_completion_tokens'
+            }).stream(request)
         );
 
-        await expect(drain(provider().stream(request))).rejects.toThrow(
-            /chat\/completions failed: 404/
+        // The two names cannot both be sent: an unrecognised parameter is
+        // itself a 400 on the endpoints that require the newer one.
+        expect(lastBody()['max_completion_tokens']).toBe(256);
+        expect(lastBody()).not.toHaveProperty('max_tokens');
+    });
+
+    it('combines the caller signal with the request timeout', async () => {
+        // Both must be able to end the request: the caller's Stop button and
+        // the endpoint that never answers.
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+        const controller = new AbortController();
+
+        await drain(provider().stream(request, controller.signal));
+
+        const signal = jest.mocked(globalThis.fetch).mock.calls.at(-1)?.[1]
+            ?.signal;
+        expect(signal).toBeInstanceOf(AbortSignal);
+        expect(signal?.aborted).toBe(false);
+        controller.abort();
+        expect(signal?.aborted).toBe(true);
+    });
+
+    it('treats a non-positive timeout as unset rather than as "abort now"', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+
+        const events = await drain(
+            createOpenAiProvider({
+                baseUrl: 'http://localhost:11434/v1',
+                models: ['llama3.1'],
+                timeoutMs: 0
+            }).stream(request)
         );
+
+        expect(events.at(-1)).toMatchObject({ type: 'done' });
+    });
+
+    it('names the endpoint and the budget when the request times out', async () => {
+        jest.mocked(globalThis.fetch).mockImplementation((_url, init) => {
+            const error = Object.assign(new Error('timed out'), {
+                name: 'TimeoutError'
+            });
+            return new Promise((_resolve, reject) => {
+                init?.signal?.addEventListener('abort', () => reject(error));
+            });
+        });
+
+        await expect(
+            drain(
+                createOpenAiProvider({
+                    baseUrl: 'http://localhost:11434/v1',
+                    models: ['llama3.1'],
+                    timeoutMs: 5
+                }).stream(request)
+            )
+        ).rejects.toThrow(
+            'Copilot model request to http://localhost:11434/v1/chat/completions timed out after 5ms.'
+        );
+    });
+
+    it('raises a request error naming the endpoint, the status and the body', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(
+            new Response('model not found', {
+                status: 404,
+                statusText: 'Not Found'
+            })
+        );
+
+        // The endpoint and the upstream detail are what an operator needs to
+        // diagnose a misconfigured base URL. They are also, today, forwarded
+        // verbatim to the browser by the run engine's `userFacingMessage` —
+        // pinned here so a change to either half is a visible one.
+        await expect(drain(provider().stream(request))).rejects.toThrow(
+            'Copilot model request to http://localhost:11434/v1/chat/completions failed: 404 Not Found — model not found'
+        );
+    });
+
+    it('lets config.headers override the bearer token it would otherwise send', async () => {
+        // Deliberate, and the shape an Azure `api-key` deployment needs: the
+        // spread order makes the operator's headers the last word.
+        jest.mocked(globalThis.fetch).mockResolvedValue(sseResponse([]));
+
+        await drain(
+            createOpenAiProvider({
+                baseUrl: 'http://localhost:11434/v1',
+                models: ['llama3.1'],
+                apiKey: 'sk-ignored',
+                headers: { authorization: 'Bearer other', 'x-org': 'acme' }
+            }).stream(request)
+        );
+
+        expect(
+            jest.mocked(globalThis.fetch).mock.calls.at(-1)?.[1]?.headers
+        ).toEqual({
+            'content-type': 'application/json',
+            authorization: 'Bearer other',
+            'x-org': 'acme'
+        });
+    });
+
+    it('reports an empty answer when a 200 carries no event stream at all', async () => {
+        // A server that ignored `stream: true` and answered with one JSON body
+        // lands here: `ok` is true, there are no `data:` lines, and the run ends
+        // with nothing to show rather than with an error naming the cause.
+        jest.mocked(globalThis.fetch).mockResolvedValue(
+            new Response('{"choices":[{"message":{"content":"hi"}}]}', {
+                status: 200,
+                headers: { 'content-type': 'application/json' }
+            })
+        );
+
+        expect(await drain(provider().stream(request))).toEqual([
+            {
+                type: 'done',
+                stopReason: 'end',
+                usage: { inputTokens: 0, outputTokens: 0 }
+            }
+        ]);
     });
 
     it('ends with `aborted` rather than throwing when the caller cancels', async () => {

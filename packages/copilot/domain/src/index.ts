@@ -31,6 +31,19 @@ export type {
 export { MODEL_REGISTRY, MODEL_RESOLVER } from './lib/model/model-provider';
 export { isAbortError, abortedEvent } from './lib/model/abort';
 export { resolveModel } from './lib/model/resolve-model';
+// The port's conformance kit. Framework-free on purpose: it reports rather than
+// asserts, so it needs no test runner and this package still imports nothing.
+export {
+    MODEL_PROVIDER_CONFORMANCE_CHECKS,
+    runModelProviderConformance
+} from './lib/model/conformance';
+export type {
+    ModelProviderConformanceCase,
+    ModelProviderConformanceCheck,
+    ModelProviderConformanceReport,
+    ModelProviderScenario,
+    ModelProviderTextScenario
+} from './lib/model/conformance';
 export { UnknownModelProviderError } from './lib/errors/unknown-model-provider.error';
 export { UnknownModelError } from './lib/errors/unknown-model.error';
 export { NoModelsConfiguredError } from './lib/errors/no-models-configured.error';

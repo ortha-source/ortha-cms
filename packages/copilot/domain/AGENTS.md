@@ -80,9 +80,29 @@ accounting as a fact. Every adapter has to implement that, so it lives here as
 two functions instead of as prose copy-pasted into each one. Both are pure, so
 this costs the layer nothing.
 
-Nothing _enforces_ the clauses — there is no exported conformance test-kit, and
-`provider-fake` currently reports partial usage on a mid-stream abort. Adding a
-kit the three adapters run is tracked separately.
+### The conformance kit — what enforces the clauses
+
+- `runModelProviderConformance(case)` + `MODEL_PROVIDER_CONFORMANCE_CHECKS`
+  (`lib/model/conformance.ts`).
+
+The clauses used to bind nothing: each adapter was on its honour, and they had
+already diverged — `provider-fake` reported a partial usage estimate on a
+mid-stream abort where both production adapters reported zero. No per-adapter
+spec could see that, because each one only ever documented what its own adapter
+happened to do.
+
+The kit takes a case that arms a provider per scenario and returns a **report**
+rather than throwing assertions: `null` per check it passed, otherwise the
+sentence naming what it did instead. That is what lets it live here — it needs no
+test framework, so this package still imports nothing — and each adapter's spec
+turns the report into one test per check with three lines. It checks the three
+`stream` clauses plus what the port promises around them: delta reassembly, a
+whole and parsed tool call, a usable usage record, `models()`, the default model,
+and `UnknownModelError` **before** any request is issued.
+
+Its own spec drives a deliberately non-conforming provider one clause at a time,
+because a conformance kit that cannot fail is indistinguishable from one that
+does nothing.
 
 ### The offer-time gate
 

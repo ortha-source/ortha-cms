@@ -7,7 +7,7 @@ import {
     type ModelRequest,
     type ModelStreamEvent
 } from '@ortha-cms/copilot-domain';
-import { probeCapabilities } from './capabilities';
+import { fallbackCapabilities, probeCapabilities } from './capabilities';
 import { createLazyClient } from './client';
 import type { AnthropicProviderConfig } from './config';
 import { toStreamParams } from './wire/request';
@@ -100,11 +100,22 @@ export function createAnthropicProvider(
         models: () => models,
         capabilities(model?: string): Promise<ModelCapabilities> {
             const resolved = resolveModel(model, models);
-            let probe = cachedCapabilities.get(resolved);
-            if (!probe) {
-                probe = probeCapabilities(client, resolved);
-                cachedCapabilities.set(resolved, probe);
+            const cached = cachedCapabilities.get(resolved);
+            if (cached) {
+                return cached;
             }
+            // The *promise* is cached, before it resolves, so two concurrent
+            // callers await one probe rather than two.
+            const probe = probeCapabilities(client, resolved).catch(() => {
+                // A failed probe is **not** kept: caching it would pin a
+                // frontier model to the conservative fallback for the life of
+                // the process over one blip — the network comes back and the
+                // adapter never notices. Evicting costs at most one probe per
+                // call while the endpoint is unreachable.
+                cachedCapabilities.delete(resolved);
+                return fallbackCapabilities(resolved);
+            });
+            cachedCapabilities.set(resolved, probe);
             return probe;
         },
         stream

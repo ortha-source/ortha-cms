@@ -33,7 +33,20 @@ export interface OpenAiProviderConfig {
     capabilities?: Partial<Omit<ModelCapabilities, 'model'>>;
     /** Request timeout in milliseconds. Defaults to 120 000. */
     timeoutMs?: number;
+    /**
+     * Which field carries the output ceiling on the wire.
+     *
+     * `max_tokens` is the long-standing name and the one every local runtime
+     * understands, so it stays the default. OpenAI's reasoning models **reject**
+     * it and require `max_completion_tokens` — a deployment pointing this at
+     * them has to say so, because the two names cannot both be sent (an
+     * unrecognised parameter is itself a 400 there).
+     */
+    maxTokensField?: 'max_tokens' | 'max_completion_tokens';
 }
+
+/** The wire field the output ceiling rides on unless the operator says otherwise. */
+export const DEFAULT_MAX_TOKENS_FIELD = 'max_tokens';
 
 /** Optimistic defaults — the frontier-model case, overridden per deployment. */
 export const DEFAULT_CAPABILITIES = {

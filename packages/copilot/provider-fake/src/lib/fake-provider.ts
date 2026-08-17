@@ -10,7 +10,8 @@ import {
     DEFAULT_CHUNK_SIZE,
     DEFAULT_MODELS,
     type FakeProvider,
-    type FakeProviderConfig
+    type FakeProviderConfig,
+    type FakeTurn
 } from './config';
 import { createScriptReader } from './script';
 import { chunkText } from './text';
@@ -51,47 +52,40 @@ export function createFakeProvider(
         // Resolved even though the fake ignores it: a test that asks for an
         // unlisted model should fail the same way production would.
         resolveModel(request.model, models);
-        const callIndex = calls.push(request) - 1;
+        // Snapshotted rather than aliased: the run engine appends to the very
+        // array it hands over as `messages`, so a recorded call would otherwise
+        // grow every later step's assistant turn and tool results — and
+        // `calls[0].messages` is precisely what a test asserting "what the
+        // first model call was shown" reads.
+        const callIndex =
+            calls.push({
+                ...request,
+                messages: [...request.messages],
+                ...(request.tools ? { tools: [...request.tools] } : {})
+            }) - 1;
         // Read the turn before checking the signal so an aborted call still
         // advances the script — the run happened, it just didn't finish.
         const turn = script.next();
 
-        if (signal?.aborted) {
-            yield abortedEvent();
-            return;
-        }
-
-        const text = turn.text ?? '';
-        for (const piece of chunkText(text, chunkSize)) {
+        // The whole turn is planned up front and then played through one abort
+        // check, so cancellation is observed at **every** boundary a real
+        // adapter observes it at: before the first delta, between deltas,
+        // before a tool call, and before `done`. A transport that has been torn
+        // down cannot emit anything more, and a fake that kept going would let
+        // a test assert events production would never have produced.
+        for (const event of playbackEvents(turn, request, chunkSize, callIndex)) {
             if (signal?.aborted) {
-                yield {
-                    type: 'done',
-                    stopReason: 'aborted',
-                    // Unlike a pre-flight abort, tokens were "produced" here,
-                    // so the partial usage is the honest number to report.
-                    usage: estimateUsage(request, text)
-                };
+                // Zero usage, per the port's third clause: a cancelled call
+                // never reaches a usage record anyone can trust, and the
+                // partial estimate this used to report was a guess entering
+                // cost accounting as a fact — and a guess neither production
+                // adapter makes, so every abort assertion in `server-e2e` was
+                // being written against fake-only numbers.
+                yield abortedEvent();
                 return;
             }
-            yield { type: 'text-delta', text: piece };
+            yield event;
         }
-
-        const toolCalls = turn.toolCalls ?? [];
-        for (const [index, call] of toolCalls.entries()) {
-            yield {
-                type: 'tool-call',
-                id: call.id ?? `fake-tool-${callIndex}-${index}`,
-                name: call.name,
-                input: call.input
-            };
-        }
-
-        yield {
-            type: 'done',
-            stopReason:
-                turn.stopReason ?? (toolCalls.length > 0 ? 'tool_use' : 'end'),
-            usage: turn.usage ?? estimateUsage(request, text)
-        };
     }
 
     return {
@@ -110,4 +104,35 @@ export function createFakeProvider(
         },
         stream
     };
+}
+
+/** One scripted turn as the event sequence a completed call would emit. */
+function playbackEvents(
+    turn: FakeTurn,
+    request: ModelRequest,
+    chunkSize: number,
+    callIndex: number
+): ModelStreamEvent[] {
+    const text = turn.text ?? '';
+    const toolCalls = turn.toolCalls ?? [];
+
+    return [
+        ...chunkText(text, chunkSize).map(
+            (piece): ModelStreamEvent => ({ type: 'text-delta', text: piece })
+        ),
+        ...toolCalls.map(
+            (call, index): ModelStreamEvent => ({
+                type: 'tool-call',
+                id: call.id ?? `fake-tool-${callIndex}-${index}`,
+                name: call.name,
+                input: call.input
+            })
+        ),
+        {
+            type: 'done',
+            stopReason:
+                turn.stopReason ?? (toolCalls.length > 0 ? 'tool_use' : 'end'),
+            usage: turn.usage ?? estimateUsage(request, text)
+        }
+    ];
 }
