@@ -56,6 +56,7 @@ const Table = React.forwardRef<
            reached must be visible (WCAG 2.4.7) — the lesson the inset
            scrollport learned the hard way — hence the ring. */
         <div
+            data-slot="table-scroll"
             ref={setWrapper}
             className={cn(
                 'relative w-full overflow-auto',

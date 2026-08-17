@@ -4,22 +4,49 @@ import { useAppearance } from '../../appearance';
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 /**
- * True when a click landed on a toast's body — not on one of its interactive
- * children (close/action/cancel buttons, links), which own their behavior.
+ * The toast a click landed on, if it landed on that toast's **body** — not on
+ * one of its interactive children (close/action/cancel buttons, links), which
+ * own their behavior.
  */
-function isToastBodyClick(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    if (!target.closest('[data-sonner-toast]')) return false;
-    return !target.closest(
+function toastBodyOf(target: EventTarget | null): HTMLElement | null {
+    if (!(target instanceof HTMLElement)) return null;
+    const toastElement = target.closest<HTMLElement>('[data-sonner-toast]');
+    if (!toastElement) return null;
+    return target.closest(
         '[data-close-button], [data-action], [data-cancel], a, button'
+    )
+        ? null
+        : toastElement;
+}
+
+/**
+ * Dismisses the one toast that was clicked.
+ *
+ * Sonner exposes no toast id in the DOM, and `toast.dismiss()` with no id means
+ * *dismiss everything* — so press-to-dismiss used to take the whole visible
+ * stack, including toasts the user had not read yet. Each toast does render its
+ * own close button, though, so the clicked toast can be made to dismiss itself.
+ * If a consumer has turned the close button off, fall back to the old
+ * behaviour rather than leaving the press dead.
+ */
+function dismissToast(toastElement: HTMLElement): void {
+    const closeButton = toastElement.querySelector<HTMLElement>(
+        '[data-close-button]'
     );
+    if (closeButton) {
+        closeButton.click();
+        return;
+    }
+    toast.dismiss();
 }
 
 /**
  * App-wide toast host, pinned to the **bottom-right**. Typed toasts
  * (`toast.success` / `.error` / `.warning` / `.info`) render on the matching
  * soft semantic surface with same-hue text and icon; each toast carries a
- * close button, and clicking a toast's body dismisses it too. The toast surface
+ * close button, and clicking a toast's body dismisses **that** toast too. The
+ * close button is what makes the press-to-dismiss per-toast, so turning it off
+ * from a consumer degrades the press back to dismissing the stack. The toast surface
  * follows the app theme — the resolved `light`/`dark` from `useAppearance` is
  * handed to Sonner so its own chrome matches the admin. Mounted once by the host
  * in `createAdmin`; call `toast()` from anywhere to surface a notification.
@@ -38,12 +65,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
     const { resolvedTheme } = useAppearance();
     return (
         /* Sonner renders its toasts in place (no portal), so a wrapper click
-           listener can offer press-to-dismiss. Sonner doesn't expose a toast
-           id in the DOM, so this dismisses the (rarely more than one) visible
-           stack. */
+           listener can offer press-to-dismiss — of the toast that was pressed,
+           and only that one. */
         <div
             onClick={(event) => {
-                if (isToastBodyClick(event.target)) toast.dismiss();
+                const pressed = toastBodyOf(event.target);
+                if (pressed) dismissToast(pressed);
             }}
         >
             <Sonner

@@ -292,11 +292,20 @@ function Sidebar({
     collapsible = 'offcanvas',
     className,
     children,
+    mobileTitle = 'Sidebar',
+    mobileDescription = 'Displays the mobile sidebar.',
     ...props
 }: React.ComponentProps<'div'> & {
     side?: 'left' | 'right';
     variant?: 'sidebar' | 'floating' | 'inset';
     collapsible?: 'offcanvas' | 'icon' | 'none';
+    /**
+     * Accessible name for the mobile overlay, which is a dialog. Defaults to
+     * the English `'Sidebar'`; pass a localized string.
+     */
+    mobileTitle?: string;
+    /** Accessible description for the mobile overlay. */
+    mobileDescription?: string;
 }) {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -339,9 +348,9 @@ function Sidebar({
                     side={side}
                 >
                     <SheetHeader className="sr-only">
-                        <SheetTitle>Sidebar</SheetTitle>
+                        <SheetTitle>{mobileTitle}</SheetTitle>
                         <SheetDescription>
-                            Displays the mobile sidebar.
+                            {mobileDescription}
                         </SheetDescription>
                     </SheetHeader>
                     <div className="flex h-full w-full flex-col">
@@ -406,8 +415,15 @@ function Sidebar({
 function SidebarTrigger({
     className,
     onClick,
+    label = 'Toggle Sidebar',
     ...props
-}: React.ComponentProps<typeof Button>) {
+}: React.ComponentProps<typeof Button> & {
+    /**
+     * Accessible name. Defaults to the English `'Toggle Sidebar'`; pass a
+     * localized string. The button is icon-only, so this *is* its whole name.
+     */
+    label?: string;
+}) {
     const { toggleSidebar } = useSidebar();
 
     return (
@@ -424,23 +440,30 @@ function SidebarTrigger({
             {...props}
         >
             <PanelLeftIcon />
-            <span className="sr-only">Toggle Sidebar</span>
+            <span className="sr-only">{label}</span>
         </Button>
     );
 }
 
 /** A thin drag-rail on the sidebar edge that also toggles it. */
-function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
+function SidebarRail({
+    className,
+    label = 'Toggle Sidebar',
+    ...props
+}: React.ComponentProps<'button'> & {
+    /** Accessible name; defaults to the English `'Toggle Sidebar'`. */
+    label?: string;
+}) {
     const { toggleSidebar } = useSidebar();
 
     return (
         <button
             data-sidebar="rail"
             data-slot="sidebar-rail"
-            aria-label="Toggle Sidebar"
+            aria-label={label}
             tabIndex={-1}
             onClick={toggleSidebar}
-            title="Toggle Sidebar"
+            title={label}
             className={cn(
                 'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex',
                 'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
