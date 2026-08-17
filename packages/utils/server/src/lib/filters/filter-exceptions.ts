@@ -1,4 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+    BadRequestException,
+    InternalServerErrorException
+} from '@nestjs/common';
 
 /** Machine-readable codes for filter parse errors. */
 export const FilterErrorCode = {
@@ -68,14 +71,50 @@ export class FilterException extends BadRequestException {
         message: string,
         context: Record<string, unknown> = {}
     ) {
+        // `context` is spread FIRST so the four reserved keys always win. The
+        // whole contract of this class is that a client can branch on `code`
+        // and on the 400 status; a context key named `code` / `statusCode` /
+        // `error` / `message` must not be able to rewrite them — a caller adding
+        // a plausible context field (`message: 'why'`) would otherwise silently
+        // break every consumer of the envelope.
         super({
+            ...context,
             statusCode: 400,
             error: 'Bad Request',
             code,
-            message: `filter: ${message}`,
-            ...context
+            message: `filter: ${message}`
         });
         this.code = code;
         this.context = context;
+    }
+}
+
+/**
+ * Thrown when the **schema** a caller declared cannot be translated — a
+ * `many-to-many` with target fields but no `table`, a `fields` entry naming a
+ * column that is not on the table, a nested `fields` map with no matching
+ * `relations` entry, or a table with no `id` and no explicit key.
+ *
+ * Deliberately a **500**, not a {@link FilterException} 400: the request was
+ * well-formed and the whitelist accepted it — what is broken is the schema the
+ * plugin author wrote. Answering 400 would blame the client, hide the fault
+ * from alerting (4xx is a client error) and leave the schema bug in place. What
+ * the bare `Error` these replace got wrong is only that it was untyped and
+ * indistinguishable from a genuine crash: a named class with a `code` lets a
+ * transport adapter (MCP's JSON-RPC mapping, the copilot run loop) report
+ * "this endpoint's filter surface is misconfigured" instead of an opaque
+ * "internal error".
+ */
+export class FilterSchemaException extends InternalServerErrorException {
+    /** Machine-readable error category — always `FILTER_SCHEMA_INVALID`. */
+    public readonly code = 'FILTER_SCHEMA_INVALID';
+
+    constructor(message: string) {
+        super({
+            statusCode: 500,
+            error: 'Internal Server Error',
+            code: 'FILTER_SCHEMA_INVALID',
+            message: `filter schema: ${message}`
+        });
     }
 }

@@ -22,7 +22,8 @@ export type {
 } from './lib/filters/types';
 export {
     FilterException,
-    FilterErrorCode
+    FilterErrorCode,
+    FilterSchemaException
 } from './lib/filters/filter-exceptions';
 export { clampInt } from './lib/clamp-int';
 export {

@@ -1,6 +1,7 @@
 import { and, not, or, type SQL } from 'drizzle-orm';
 import { FilterErrorCode, FilterException } from './filter-exceptions';
 import { isNegatingLeaf, positiveLeaf } from './negation';
+import { own } from './own-property';
 import { relationExists } from './relation-exists';
 import { scalar } from './scalar-op';
 import { columnOf, type DbLike, type TableLike } from './table-helpers';
@@ -93,7 +94,12 @@ async function translateRule(
         return scalar(columnOf(parent, rule.path[0]), rule.op, rule.value);
     }
     const key = rule.path[0];
-    const rel = schema.relations?.[key];
+    // `Object.hasOwn`-guarded: `relations['valueOf']` on a plain object map
+    // returns `Object.prototype.valueOf`, which passes this truthiness check
+    // and then falls out of `relationExists`'s `switch (rel.kind)` as
+    // `undefined` — the predicate the user asked for is silently dropped and
+    // the endpoint answers 200 unfiltered.
+    const rel = own(schema.relations, key);
     if (!rel) {
         throw new FilterException(
             FilterErrorCode.UnknownRelation,
