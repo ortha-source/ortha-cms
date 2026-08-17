@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_665 test cases across 68 spec files._
+_669 test cases across 68 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -767,6 +767,10 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | the collapsed field has no violations |
 | the expanded editor has no violations |
 | the field is reachable and openable from the keyboard |
+| a translated body claims its own language, expanded or not |
+| returns focus to the field when the editor closes |
+| offers a keyboard way out of the document, and says so |
+| leaves ⌘K alone while the caret is in the body |
 
 <!-- source: apps/admin-e2e/src/copilot/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/a11y.spec.ts</sub>_

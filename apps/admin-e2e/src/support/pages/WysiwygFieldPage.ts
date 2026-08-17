@@ -122,6 +122,91 @@ export class WysiwygFieldPage extends BasePage {
         await this.page.keyboard.type(text);
     }
 
+    /**
+     * The **effective** `lang` on an element — the nearest one an ancestor
+     * declares, which is what a screen reader actually resolves. Asserting the
+     * attribute on the element itself would miss the whole mechanism: the
+     * collapsed field inherits its language from the form's Translated group,
+     * and only the expanded view sets one of its own.
+     *
+     * Falls back to `<html lang>`, which the admin hardcodes to `en` — so a
+     * surface that claims nothing reports `'en'` rather than `null`, and a spec
+     * can tell "inherited the chrome's language" apart from "no language at
+     * all". `LangHost` is the shape the callback touches, spelled out locally
+     * because this project's `tsconfig` has no `dom` lib.
+     */
+    async resolvedLang(target: Locator): Promise<string | null> {
+        type LangHost = {
+            getAttribute(name: string): string | null;
+            parentElement: LangHost | null;
+        };
+        return target.evaluate((element) => {
+            let node = element as unknown as LangHost | null;
+            while (node) {
+                const value = node.getAttribute('lang');
+                if (value) return value;
+                node = node.parentElement;
+            }
+            return null;
+        });
+    }
+
+    /**
+     * The text an element's `aria-describedby` points at — what a screen reader
+     * reads out after the surface's own name. Resolved through the attribute
+     * rather than by locating the paragraph directly, because the whole claim is
+     * that the description is *wired up*, not merely present in the DOM.
+     */
+    async describedText(target: Locator): Promise<string> {
+        const id = await target.getAttribute('aria-describedby');
+        if (!id) return '';
+        // An attribute selector rather than `#id`: React's `useId` emits ids
+        // wrapped in guillemets (`«r7»`), which are not valid in a CSS id
+        // selector without escaping.
+        return (
+            (await this.page.locator(`[id="${id}"]`).textContent())?.trim() ??
+            ''
+        );
+    }
+
+    /**
+     * The chord that takes focus out of the document — `Ctrl+M`, and not `Mod`,
+     * because on macOS `Mod` is ⌘ and ⌘M minimizes the window.
+     */
+    async pressEscapeChord(): Promise<void> {
+        await this.page.keyboard.press('Control+m');
+    }
+
+    /**
+     * Press the workspace content palette's ⌘K / Ctrl+K chord wherever focus
+     * currently is — the point being that the binding is on `window`, so it
+     * fires from inside the editor too unless something yields it.
+     */
+    async pressSearchChord(): Promise<void> {
+        await this.page.keyboard.press('ControlOrMeta+k');
+    }
+
+    /**
+     * The nearest declared text direction, same walk as {@link resolvedLang}.
+     * `dir="auto"` is the answer the form gives: order each field's own bidi
+     * text from its content rather than from the admin's chrome.
+     */
+    async resolvedDir(target: Locator): Promise<string | null> {
+        type DirHost = {
+            getAttribute(name: string): string | null;
+            parentElement: DirHost | null;
+        };
+        return target.evaluate((element) => {
+            let node = element as unknown as DirHost | null;
+            while (node) {
+                const value = node.getAttribute('dir');
+                if (value) return value;
+                node = node.parentElement;
+            }
+            return null;
+        });
+    }
+
     /** Empty the open editor — select everything, delete it. */
     async clearAll(): Promise<void> {
         await this.page.keyboard.press('ControlOrMeta+a');

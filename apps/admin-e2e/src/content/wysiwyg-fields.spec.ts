@@ -7,6 +7,9 @@ import {
     WYSIWYG_DETAIL_SEED,
     WYSIWYG_ENTRY_ID,
     WYSIWYG_ENTRY_BODY,
+    WYSIWYG_GERMAN_ENTRY_ID,
+    WYSIWYG_GERMAN_LOCALE,
+    WYSIWYG_GERMAN_BODY,
     WYSIWYG_MEDIA_ENTRY_ID,
     WYSIWYG_MEDIA_ENTRY_BODY,
     mockContentSchema,
@@ -67,7 +70,16 @@ test.describe('Entry editor — rich text field', () => {
                     body: WYSIWYG_MEDIA_ENTRY_BODY,
                     summary: '<p>Short and sweet.</p>',
                     rawHtml: ''
+                },
+                [`article/${WYSIWYG_GERMAN_ENTRY_ID}`]: {
+                    title: 'Ausgabe 2.0',
+                    body: WYSIWYG_GERMAN_BODY,
+                    summary: '<p>Kurz und knapp.</p>',
+                    rawHtml: ''
                 }
+            },
+            locales: {
+                [`article/${WYSIWYG_GERMAN_ENTRY_ID}`]: WYSIWYG_GERMAN_LOCALE
             }
         });
         saves = await spyEntrySave(page);
@@ -285,6 +297,11 @@ test.describe('Entry editor — rich text field', () => {
             expect(body).toContain('<table');
             expect(body).toContain('<th');
             expect(body.match(/<tr>/g)).toHaveLength(3);
+            // `<th>` alone leaves a screen reader to *infer* which cells a
+            // header governs from where they sit — usually right for a plain
+            // grid, unreliable the moment a cell spans (WCAG 1.3.1). The insert
+            // always builds a header **row**, so every header cell is `col`.
+            expect(body.match(/<th[^>]*scope="col"/g)).toHaveLength(3);
         });
 
         test('stores a paragraph’s alignment as text-align', async ({
@@ -670,6 +687,91 @@ test.describe('Entry editor — rich text field', () => {
                 wysiwygFieldPage.expandedHeading('Body')
             ).toBeVisible();
             await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
+        });
+
+        test('a translated body claims its own language, expanded or not', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_GERMAN_ENTRY_ID);
+
+            // Collapsed: the language comes from the form's Translated group,
+            // which wraps every localized field.
+            const preview = wysiwygFieldPage.preview('Body');
+            await preview.waitFor();
+            expect(await wysiwygFieldPage.resolvedLang(preview)).toBe(
+                WYSIWYG_GERMAN_LOCALE
+            );
+
+            // Expanded: the view is rendered in place of the tab strip —
+            // *outside* that group — so it has to claim the language itself.
+            // Without it the body sits inside the admin's hardcoded
+            // `<html lang="en">` and a screen reader reads German prose with
+            // English pronunciation rules (WCAG 3.1.2).
+            await wysiwygFieldPage.open('Body');
+            const surface = wysiwygFieldPage.surface('Body');
+            expect(await wysiwygFieldPage.resolvedLang(surface)).toBe(
+                WYSIWYG_GERMAN_LOCALE
+            );
+            // …and orders its own bidi text from the content, matching the form.
+            expect(await wysiwygFieldPage.resolvedDir(surface)).toBe('auto');
+        });
+
+        test('returns focus to the field when the editor closes', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.openWithKeyboard('Body');
+            await wysiwygFieldPage.done();
+
+            // Focus does not follow a removed active element — it lands on
+            // `<body>`, and the author who pressed Done from the keyboard has to
+            // Tab from the top of the page to get back into the form
+            // (WCAG 2.4.3). It belongs on the control they came from.
+            await expect(wysiwygFieldPage.control('Body')).toBeFocused();
+        });
+
+        test('offers a keyboard way out of the document, and says so', async ({
+            wysiwygFieldPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // Tab cannot be the way out: inside a table it is bound to "next
+            // cell", and at the last cell it appends a **row** rather than
+            // falling through — so an author trying to leave grows the table one
+            // row per press. WCAG 2.1.2 accepts a component consuming Tab only
+            // if the user is advised of the way out, so there is one, and the
+            // surface's description says what it is.
+            const surface = wysiwygFieldPage.surface('Body');
+            await expect(surface).toBeFocused();
+            expect(await wysiwygFieldPage.describedText(surface)).toMatch(
+                /Control plus M/i
+            );
+
+            await wysiwygFieldPage.pressEscapeChord();
+            await expect(wysiwygFieldPage.exitButton('Done')).toBeFocused();
+        });
+
+        test('leaves ⌘K alone while the caret is in the body', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+
+            // The workspace's content palette binds ⌘K on `window`, so it fires
+            // wherever focus is. Opening it out from under a caret is a change
+            // of context in response to input into a *different* control
+            // (WCAG 3.2.2) — the same collision the sidebar's ⌘B toggle had with
+            // **bold**, and ⌘K is "insert a link" in every editor an author has
+            // used.
+            await wysiwygFieldPage.pressSearchChord();
+            await expect(contentLibraryPage.searchDialog).toBeHidden();
+            await expect(wysiwygFieldPage.surface('Body')).toBeFocused();
+
+            // …and the palette still opens from anywhere that is not text.
+            await contentLibraryPage.openSearchByShortcut();
+            await expect(contentLibraryPage.searchDialog).toBeVisible();
         });
     });
 });

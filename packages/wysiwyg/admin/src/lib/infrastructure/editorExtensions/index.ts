@@ -49,7 +49,23 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
         FontSize,
         Highlight.configure({ multicolor: true }),
         TextAlign.configure({ types: ALIGNABLE }),
-        TableKit.configure({ table: { resizable: true } }),
+        // `scope="col"` on every header cell. TipTap's `TableHeader` renders a
+        // bare `<th colspan rowspan colwidth>`, which leaves a screen reader to
+        // *infer* which cells a header governs from proximity — usually right
+        // for a plain grid, unreliable the moment a cell spans (WCAG 1.3.1).
+        // The insert command is the only way a table is created here and it
+        // always builds a header **row**, so `col` is the correct scope for
+        // every `<th>` this editor can produce; a header *column* would need a
+        // toggle that does not exist yet, and would need `scope="row"` with it.
+        //
+        // Set through `HTMLAttributes` rather than a `renderHTML` override so
+        // the attribute rides the node's own serialization — which means the
+        // preview (`renderRichText` re-serializes through this same schema) and
+        // the published body both carry it.
+        TableKit.configure({
+            table: { resizable: true },
+            tableHeader: { HTMLAttributes: { scope: 'col' } }
+        }),
         Callout,
         ColumnBlock,
         Column,
