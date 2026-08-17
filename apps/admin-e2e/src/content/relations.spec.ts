@@ -319,15 +319,37 @@ test.describe('Relation picker', () => {
         await relationsEditorPage.addRelatedButton.click();
         await relationsEditorPage.candidate('engineering').waitFor();
 
-        const loaded = await relationsEditorPage.candidateOptions.count();
-        expect(loaded).toBeGreaterThan(1);
+        // The number the control itself names, not a snapshot of the rendered
+        // window: the list pages lazily, so the window moves and the total does
+        // not. Asserting the total is the larger of the two is what keeps this
+        // case about *paging the rest in* rather than ticking a list that
+        // already fits — 32 records against a first page of 25.
+        const total = await relationsEditorPage.selectAllTotal();
+        expect(total).toBeGreaterThan(
+            await relationsEditorPage.candidateOptions.count()
+        );
 
-        // The checkbox counts the **whole** match set, not the loaded window —
-        // checking it pages the rest in and selects everything.
-        await relationsEditorPage.selectAllCheckbox.check();
-        await expect
-            .poll(() => relationsEditorPage.checkedCandidateOptions.count())
-            .toBeGreaterThanOrEqual(loaded);
+        // `click()`, deliberately, and not `check()`. This control fetches the
+        // remaining pages before it can report itself checked, and Playwright's
+        // `check()` re-reads the state one tick after the click and raises a
+        // *non-recoverable* "Clicking the checkbox did not change its state" if
+        // it is not there yet. On an idle machine the extra page lands inside
+        // that tick and on a busy one it does not — the whole of ORT-162, which
+        // reproduces every single time with 1.5 s of latency on the second
+        // candidate page. The end state was always correct; only the way the
+        // spec drove the control was load-dependent.
+        await relationsEditorPage.selectAllCheckbox.click();
+
+        // Everything, measured against the total the picker named — three
+        // independent statements of it, so a partial select cannot pass.
+        await expect(relationsEditorPage.selectedSummary).toHaveText(
+            `${total} selected`,
+            { timeout: 15_000 }
+        );
+        await expect(relationsEditorPage.selectAllCheckbox).toBeChecked();
+        await expect(relationsEditorPage.checkedCandidateOptions).toHaveCount(
+            total
+        );
 
         // Unchecking is the way back out of a bulk select.
         await relationsEditorPage.selectAllCheckbox.uncheck();
