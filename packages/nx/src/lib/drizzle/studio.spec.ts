@@ -1,0 +1,161 @@
+import { existsSync, readFileSync } from 'node:fs';
+
+const execFileSync = jest.fn();
+
+jest.mock('node:child_process', () => ({
+    execFileSync: (...args: unknown[]) => execFileSync(...args)
+}));
+
+import { runDrizzleKitStudio } from './studio';
+
+const URL = 'postgresql://ortha:secret@localhost:5432/ortha_cms';
+
+/** The temp config path drizzle-kit was pointed at, and its contents. */
+function ephemeralConfig(): { path: string; contents: string } {
+    const path = String(
+        execFileSync.mock.calls[0][1].find((arg: string) =>
+            arg.startsWith('--config=')
+        )
+    ).slice('--config='.length);
+
+    return { path, contents: readFileSync(path, 'utf8') };
+}
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // Read the temp config before the `finally` removes it.
+    execFileSync.mockImplementation(() => undefined);
+});
+
+afterEach(() => jest.restoreAllMocks());
+
+describe('runDrizzleKitStudio', () => {
+    it('hands drizzle-kit an ephemeral config that never holds the credential', () => {
+        let contents = '';
+        execFileSync.mockImplementation(() => {
+            contents = ephemeralConfig().contents;
+        });
+
+        runDrizzleKitStudio(URL);
+
+        expect(contents).toContain('process.env.DATABASE_URL');
+        expect(contents).not.toContain('secret');
+        expect(contents).not.toContain('ortha_cms');
+    });
+
+    it('passes the URL through the child’s environment instead', () => {
+        runDrizzleKitStudio(URL);
+
+        expect(execFileSync.mock.calls[0][2].env).toMatchObject({
+            DATABASE_URL: URL
+        });
+    });
+
+    it('removes the temp directory when Studio exits', () => {
+        let path = '';
+        execFileSync.mockImplementation(() => {
+            path = ephemeralConfig().path;
+        });
+
+        runDrizzleKitStudio(URL);
+
+        expect(existsSync(path)).toBe(false);
+    });
+
+    it('leaves host and port to drizzle-kit’s defaults when neither is given', () => {
+        runDrizzleKitStudio(URL);
+
+        expect(
+            execFileSync.mock.calls[0][1].filter(
+                (a: string) => a.startsWith('--host') || a.startsWith('--port')
+            )
+        ).toEqual([]);
+    });
+
+    it('forwards host and port when they are given', () => {
+        runDrizzleKitStudio(URL, { host: '0.0.0.0', port: 4990 });
+
+        expect(execFileSync.mock.calls[0][1]).toEqual(
+            expect.arrayContaining(['--host=0.0.0.0', '--port=4990'])
+        );
+    });
+
+    /**
+     * Studio has no authentication and full read/write access to the database.
+     * On loopback that is a local tool; on any other interface it is a database
+     * console offered to the network, and drizzle-kit says nothing about the
+     * difference.
+     */
+    describe('binding a non-loopback interface', () => {
+        it('warns, naming the exposure and how to undo it', () => {
+            runDrizzleKitStudio(URL, { host: '0.0.0.0' });
+
+            const warning = (console.warn as jest.Mock).mock.calls[0][0];
+            expect(warning).toContain('0.0.0.0:4983');
+            expect(warning).toContain('no authentication');
+            expect(warning).toContain('Drop --host');
+        });
+
+        it('names the port it was actually given', () => {
+            runDrizzleKitStudio(URL, { host: '10.0.0.5', port: 4990 });
+
+            expect((console.warn as jest.Mock).mock.calls[0][0]).toContain(
+                '10.0.0.5:4990'
+            );
+        });
+
+        it.each(['localhost', '127.0.0.1', '::1', 'LOCALHOST'])(
+            'stays quiet for %s',
+            (host) => {
+                runDrizzleKitStudio(URL, { host });
+
+                expect(console.warn).not.toHaveBeenCalled();
+            }
+        );
+
+        it('stays quiet when no host was asked for at all', () => {
+            runDrizzleKitStudio(URL);
+
+            expect(console.warn).not.toHaveBeenCalled();
+        });
+    });
+
+    /**
+     * Ctrl+C is the documented way to stop Studio, and `execFileSync` throws
+     * when its child is signalled. Reporting the documented exit as a failed
+     * target trains people to ignore red.
+     */
+    it.each(['SIGINT', 'SIGTERM'])(
+        'exits cleanly when stopped with %s',
+        (signal) => {
+            execFileSync.mockImplementation(() => {
+                throw Object.assign(new Error('killed'), { signal });
+            });
+
+            expect(() => runDrizzleKitStudio(URL)).not.toThrow();
+        }
+    );
+
+    it('still reports a genuine drizzle-kit failure', () => {
+        execFileSync.mockImplementation(() => {
+            throw Object.assign(new Error('bad config'), {
+                status: 1,
+                signal: null
+            });
+        });
+
+        expect(() => runDrizzleKitStudio(URL)).toThrow('bad config');
+    });
+
+    it('cleans up the temp directory even when Studio fails', () => {
+        let path = '';
+        execFileSync.mockImplementation(() => {
+            path = ephemeralConfig().path;
+            throw Object.assign(new Error('bad config'), { status: 1 });
+        });
+
+        expect(() => runDrizzleKitStudio(URL)).toThrow();
+        expect(existsSync(path)).toBe(false);
+    });
+});

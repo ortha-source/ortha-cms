@@ -39,8 +39,24 @@ export default async function dbMigrateExecutor(
         buildPlugins: (config: HostConfig) => ServerPlugin[];
     }>(join(context.root, options.plugins));
 
+    const url = config.database?.url;
+
+    // Without this, `new Pool({ connectionString: '' })` falls through to
+    // libpq's environment defaults (`PGHOST`/`PGUSER`/`PGDATABASE`, or
+    // localhost and the OS user). Measured: with `DATABASE_URL` unset and
+    // `PGDATABASE` pointing elsewhere, `db:migrate` reported
+    // "Migrations complete." after creating all 37 tables in a database
+    // nobody named. `db:studio` has always refused; this is the same refusal.
+    if (!url) {
+        throw new Error(
+            'DATABASE_URL is not set — db:migrate needs to know which database ' +
+                'to migrate, and will not fall back to the local defaults. Set ' +
+                'it in your .env before running db:migrate.'
+        );
+    }
+
     const plugins = pluginsModule.buildPlugins(config);
-    await applyPluginMigrations(plugins, config.database.url);
+    await applyPluginMigrations(plugins, url);
 
     return { success: true };
 }

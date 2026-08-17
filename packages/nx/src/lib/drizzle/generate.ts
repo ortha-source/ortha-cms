@@ -22,5 +22,23 @@ export function runDrizzleKitGenerate(
     if (name) {
         args.push(`--name=${name}`);
     }
-    execFileSync(process.execPath, args, { cwd, stdio: 'inherit' });
+
+    try {
+        execFileSync(process.execPath, args, { cwd, stdio: 'inherit' });
+    } catch (error) {
+        // `execFileSync` throws an Error whose message is the whole argv —
+        // node's path, drizzle-kit's bin path, every flag — which Nx then
+        // prints as a multi-frame stack. drizzle-kit has already said what was
+        // wrong on the inherited stdio just above; the useful thing to add is
+        // which project failed, not a second copy of the command.
+        const status = (error as { status?: number | null } | null)?.status;
+
+        throw new Error(
+            `drizzle-kit generate failed in ${cwd}` +
+                (typeof status === 'number' ? ` (exit ${status})` : '') +
+                ` — its output is above. Check ${config}'s \`schema\` paths and ` +
+                `that the schema files compile.`,
+            { cause: error }
+        );
+    }
 }
