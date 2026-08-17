@@ -5,6 +5,7 @@ import {
     readFileSync,
     rmSync,
     statSync,
+    utimesSync,
     writeFileSync
 } from 'node:fs';
 import { join } from 'node:path';
@@ -24,14 +25,22 @@ export interface ThrottleOptions {
      * it will not be publishing should not sit out the gap first.
      */
     spacing: number | (() => number);
-    /** Age at which a lock is assumed abandoned and stolen, in milliseconds. */
+    /**
+     * How long a lock may go **without a heartbeat** before it is assumed
+     * abandoned and stolen, in milliseconds. Not the age of the lock: the
+     * holder refreshes it while it works (see `heartbeat`), so a slow publish
+     * is never mistaken for a dead one.
+     */
     staleAfter?: number;
+    /** How often the holder refreshes its lock, in milliseconds. */
+    heartbeat?: number;
     /** Called once while waiting, so a queued package says why it is idle. */
     onWait?: (reason: string) => void;
 }
 
 const POLL_INTERVAL = 250;
 const DEFAULT_STALE_AFTER = 15 * 60_000;
+const DEFAULT_HEARTBEAT = 60_000;
 
 /**
  * Runs `publish` as the only publish happening in this workspace, and no
@@ -46,18 +55,40 @@ const DEFAULT_STALE_AFTER = 15 * 60_000;
  *
  * The lock is held across the spacing wait as well as the publish itself, so
  * the packages queue up rather than all sleeping at once and then racing.
+ *
+ * A held lock is **refreshed while it is held**. The staleness check exists for
+ * a holder that died, and the only evidence a file has of that is its mtime —
+ * so a lock stamped once at acquisition puts a ceiling on how long a publish
+ * may legitimately take. That ceiling was reachable: the executor's own default
+ * retry ladder sleeps 30+60+120+240+300s = 12.5 minutes before its sixth
+ * upload attempt, and `ORTHA_PUBLISH_RETRIES=8` pushes it past twenty, both
+ * against a 15-minute window. A peer would then "steal" a lock whose holder was
+ * mid-upload and publish alongside it, defeating the serialisation this whole
+ * file exists for. Heartbeating decouples the two: `staleAfter` now bounds
+ * silence, not work.
  */
 export async function withPublishSlot<T>(
     options: ThrottleOptions,
     publish: () => Promise<T>
 ): Promise<T> {
-    const { dir, spacing, staleAfter = DEFAULT_STALE_AFTER, onWait } = options;
+    const {
+        dir,
+        spacing,
+        staleAfter = DEFAULT_STALE_AFTER,
+        heartbeat = DEFAULT_HEARTBEAT,
+        onWait
+    } = options;
     const lockFile = join(dir, 'lock');
     const stampFile = join(dir, 'last-publish');
 
     mkdirSync(dir, { recursive: true });
 
     await acquire(lockFile, staleAfter, onWait);
+
+    // `unref` so a stuck publish never keeps the worker's event loop alive on
+    // the strength of its own heartbeat.
+    const beat = setInterval(() => touch(lockFile), heartbeat);
+    beat.unref();
 
     try {
         const gap = typeof spacing === 'function' ? spacing() : spacing;
@@ -70,15 +101,50 @@ export async function withPublishSlot<T>(
 
         return await publish();
     } finally {
+        clearInterval(beat);
         writeFileSync(stampFile, `${Date.now()}`);
-        rmSync(lockFile, { force: true });
+        release(lockFile);
     }
 }
 
 /**
- * `wx` fails when the file exists, which is the whole mutex. A lock older
- * than `staleAfter` belonged to a worker that died — stealing it is better
- * than wedging every later release.
+ * Refresh the lock's mtime, proving the holder is still working. A lock that
+ * has vanished (stolen, or `dist/` wiped mid-run) is left alone rather than
+ * recreated: this process no longer owns the slot, and re-taking it silently
+ * is the race it is trying to prevent.
+ */
+function touch(lockFile: string): void {
+    try {
+        const now = new Date();
+        utimesSync(lockFile, now, now);
+    } catch {
+        // Gone or unwritable — `release` will notice we no longer hold it.
+    }
+}
+
+/**
+ * Drop the lock, but only if it is still ours. If a peer stole it — the case
+ * the heartbeat is meant to prevent, not one it can rule out — removing it
+ * here would hand a *third* publisher the slot while the thief is uploading,
+ * turning one overlap into a cascade.
+ */
+function release(lockFile: string): void {
+    try {
+        const held = Number.parseInt(readFileSync(lockFile, 'utf8').trim(), 10);
+        if (held !== process.pid) return;
+    } catch {
+        // Unreadable or already gone; nothing of ours to remove.
+        return;
+    }
+
+    rmSync(lockFile, { force: true });
+}
+
+/**
+ * `wx` fails when the file exists, which is the whole mutex. A lock that has
+ * not been refreshed for `staleAfter` belonged to a worker that died without
+ * cleaning up — stealing it is better than wedging every later release. A
+ * living holder heartbeats, so "not refreshed" means silent, not merely slow.
  *
  * The age check is the backstop, not the first line of defence: a release
  * interrupted with Ctrl-C leaves its lock behind, and waiting fifteen minutes

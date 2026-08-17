@@ -6,13 +6,43 @@ import type { CreateNodesV2, TargetConfiguration } from '@nx/devkit';
  * Infers database and release targets onto projects, the same way `@nx/js`
  * infers `typecheck` from a tsconfig:
  *
- * - a project with a `drizzle.config.ts` gets a cacheable `db:generate`
+ * - a project with a `drizzle.config.ts` gets `db:generate`
  * - a project with an `ortha.config.ts` (the host) gets `db:migrate` and
  *   `db:studio`
  * - a package under `packages/` gets `build`, and a publishable one also
  *   gets `pack` plus an `nx-release-publish` pointed at what `pack` staged
  *
  * No per-project wiring — drop a config file and the target appears.
+ *
+ * ## Why `db:generate` is not cached
+ *
+ * It used to be, with `inputs: ['{projectRoot}/src/lib/schema/**\/*']` and
+ * `outputs: ['{projectRoot}/migrations']`. Both halves were wrong, and the
+ * combination lost work:
+ *
+ * 1. **The inputs could not be right.** Each project's schema location comes
+ *    from *its own* `drizzle.config.ts` — `./src/content/index.ts` for the
+ *    host, `./src/lib/infrastructure/schema/index.ts` for media,
+ *    `./src/lib/*\/infrastructure/schema/index.ts` for copilot. Five of the
+ *    eight configs in this workspace point outside `src/lib/schema/`, so the
+ *    declared input matched **nothing** for them: editing the schema did not
+ *    change the hash, and re-running `db:generate` with the same `--name`
+ *    replayed a cached "No schema changes, nothing to migrate" — a green tick
+ *    and no migration, which is precisely the schema/migration drift
+ *    `.cursor/BUGBOT.md` warns about.
+ * 2. **The output is also an input.** drizzle-kit diffs the schema against
+ *    `migrations/meta/*_snapshot.json`, which lives inside the declared
+ *    output directory. So the result is not a function of the declared inputs
+ *    no matter how those inputs are written, and a cache *restore* replaces
+ *    the whole `migrations/` directory — deleting migrations generated since
+ *    the entry was written, journal and snapshot included.
+ *
+ * Deriving the inputs from each config would fix (1) but not (2), and would
+ * mean importing eight TypeScript configs on every graph computation.
+ * Generation takes about a second, is run by hand a few times a week, and is
+ * run by nothing in CI, so the cache was buying nothing and risking the
+ * working tree. `db:migrate` and `db:studio` are uncached for the ordinary
+ * reason: they are side-effecting.
  */
 export const createNodesV2: CreateNodesV2 = [
     '**/{drizzle.config.ts,ortha.config.ts,package.json}',
@@ -42,9 +72,8 @@ export const createNodesV2: CreateNodesV2 = [
                               cwd: projectRoot,
                               config: 'drizzle.config.ts'
                           },
-                          cache: true,
-                          inputs: ['{projectRoot}/src/lib/schema/**/*'],
-                          outputs: ['{projectRoot}/migrations']
+                          // Deliberately uncached — see the note below.
+                          cache: false
                       }
                   }
                 : {

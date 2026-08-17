@@ -44,6 +44,19 @@ export default async function dbStudioExecutor(
         );
     }
 
+    // drizzle-kit does bind an ephemeral port for `--port=0`, but it prints the
+    // port it was *asked* for, so Studio ends up running somewhere the operator
+    // has no way to find. Refusing beats the silent drop this used to do and
+    // beats the unusable success drizzle-kit would give.
+    if (options.port === 0) {
+        throw new Error(
+            'port 0 is not supported — Drizzle Studio prints the port it was ' +
+                'asked for rather than the one it bound, so an ephemeral port ' +
+                'leaves it running at an address nothing reports. Pass a real ' +
+                'port, or drop --port for the default 4983.'
+        );
+    }
+
     runDrizzleKitStudio(url, { host: options.host, port: options.port });
 
     return { success: true };

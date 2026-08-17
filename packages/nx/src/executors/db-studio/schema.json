@@ -11,11 +11,11 @@
         },
         "host": {
             "type": "string",
-            "description": "Host interface Studio's local server binds to (drizzle-kit default: 127.0.0.1)."
+            "description": "Host interface Studio's local server binds to (drizzle-kit default: 127.0.0.1). Studio has NO authentication and full read/write access to the database, so anything other than loopback offers a database console to the network — a warning is printed when you do."
         },
         "port": {
             "type": "number",
-            "description": "Port Studio's local server listens on (drizzle-kit default: 4983)."
+            "description": "Port Studio's local server listens on (drizzle-kit default: 4983). 0 is refused: drizzle-kit binds an ephemeral port but prints the one it was asked for."
         }
     },
     "required": ["config"]

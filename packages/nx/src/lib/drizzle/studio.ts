@@ -51,6 +51,7 @@ export function runDrizzleKitStudio(
 
     const args = [bin, 'studio', `--config=${configPath}`];
     if (options.host) {
+        warnIfExposed(options.host, options.port);
         args.push(`--host=${options.host}`);
     }
     if (options.port) {
@@ -62,7 +63,44 @@ export function runDrizzleKitStudio(
             stdio: 'inherit',
             env: { ...process.env, DATABASE_URL: databaseUrl }
         });
+    } catch (error) {
+        // Ctrl+C is the documented way to stop Studio, and `execFileSync`
+        // throws when the child is terminated by a signal. Reporting the
+        // documented exit as a failed target trains people to ignore red.
+        if (terminatedByUser(error)) return;
+        throw error;
     } finally {
         rmSync(dir, { recursive: true, force: true });
     }
+}
+
+/** Interfaces that keep Studio on this machine. */
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+/**
+ * Studio is an **unauthenticated** browser with full read/write access to
+ * whatever `DATABASE_URL` points at — there is no login, and every table is
+ * editable. Bound to loopback that is a local tool; bound to anything else it
+ * is a database console offered to the network, and drizzle-kit says nothing
+ * about the difference. One flag is the whole distance between the two, so say
+ * it out loud rather than letting a `--host` typed once on a shared network go
+ * unremarked.
+ */
+function warnIfExposed(host: string, port?: number): void {
+    if (LOOPBACK.has(host.toLowerCase())) return;
+
+    console.warn(
+        `\n!! Drizzle Studio is binding ${host}:${port ?? 4983}, not loopback.\n` +
+            `   Studio has no authentication and full read/write access to this\n` +
+            `   database — anyone who can reach that address can read and change\n` +
+            `   every row. Only do this on a network you control, and stop it when\n` +
+            `   you are done. Drop --host to keep it on this machine.\n`
+    );
+}
+
+/** Whether the child was killed by an interrupt rather than failing on its own. */
+function terminatedByUser(error: unknown): boolean {
+    const signal = (error as { signal?: NodeJS.Signals | null } | null)?.signal;
+
+    return signal === 'SIGINT' || signal === 'SIGTERM';
 }
