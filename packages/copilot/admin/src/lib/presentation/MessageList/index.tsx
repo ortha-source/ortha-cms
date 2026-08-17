@@ -2,14 +2,17 @@ import { useEffect, useRef } from 'react';
 import {
     defineMessages,
     useIntl,
+    type IntlShape,
     type MessageDescriptor
 } from 'react-intl';
 import { CircleAlert, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
-import type { ChatMessage } from '../../domain/types/chat';
+import type { ChatMessage, ChatToolStep } from '../../domain/types/chat';
 import { Markdown } from '../Markdown';
 import { ToolStep } from '../ToolStep';
+import { humanizeToolName, toolPhrase } from '../ToolStep/labels';
+import { turnActivity } from './activity';
 import { ProposalCard } from '../ProposalCard';
 import { PermissionPrompt } from '../PermissionPrompt';
 import { AttachmentChip } from '../AttachmentChip';
@@ -36,6 +39,13 @@ const messages = defineMessages({
     thinking: {
         id: 'copilot.chat.thinking',
         defaultMessage: 'Thinking…'
+    },
+    // The gap between one call finishing and whatever comes next. "Thinking…"
+    // was true here and useless: the run had just done something specific, and
+    // the one line on screen refused to say what it was.
+    afterStep: {
+        id: 'copilot.chat.afterStep',
+        defaultMessage: '{action} — working out what to do next…'
     },
     errorTitle: {
         id: 'copilot.chat.errorTitle',
@@ -211,6 +221,7 @@ function Turn({
     // Cancelling is something the user did on purpose, so it gets a quiet note
     // rather than a warning banner telling them about their own action.
     const cancelled = turn.stopReason === 'aborted';
+    const activity = turnActivity(turn);
 
     if (turn.role === 'user') {
         return (
@@ -302,27 +313,27 @@ function Turn({
                     />
                 ))}
 
-            {/* Also **between** tool calls, not only before the first one.
-                The old condition bailed as soon as a step existed, so a turn
-                that searched and then thought for three seconds showed a
-                finished step and nothing else — the answer looked stuck. A
-                running step has its own spinner, so this stands down for it
+            {/* **The current action, named.** Also *between* tool calls and
+                not only before the first one — a turn that searched and then
+                thought for three seconds used to show a finished step and
+                nothing else, and the answer looked stuck. What is new is that
+                the gap after a call says which call it was, rather than the one
+                word "Thinking…" standing in for every state the run can be in.
+                `turnActivity` owns when it appears and what it knows; a running
+                step still has its own spinner and this stands down for it
                 rather than doubling up. */}
-            {turn.streaming &&
-                !turn.blocks.some(
-                    (block) => block.kind === 'text' && block.text
-                ) &&
-                !turn.blocks.some(
-                    (block) =>
-                        block.kind === 'step' && block.step.status === 'running'
-                ) && (
-                    // `motion-reduce:animate-none` because this pulses for the
-                    // whole time the model is thinking — the longest-lived
-                    // animation in the package, and the one 503.2 is about.
-                    <p className="text-muted-foreground animate-pulse text-sm motion-reduce:animate-none">
-                        {intl.formatMessage(messages.thinking)}
-                    </p>
-                )}
+            {activity && (
+                // `motion-reduce:animate-none` because this pulses for the
+                // whole time the model is thinking — the longest-lived
+                // animation in the package, and the one 503.2 is about.
+                <p className="text-muted-foreground animate-pulse text-sm motion-reduce:animate-none">
+                    {activity.kind === 'thinking'
+                        ? intl.formatMessage(messages.thinking)
+                        : intl.formatMessage(messages.afterStep, {
+                              action: stepAction(intl, activity.step)
+                          })}
+                </p>
+            )}
 
             {/* A real Alert, not a line of red text: a failed turn is the one
                 thing in the transcript a user must not scroll past, and the
@@ -362,4 +373,17 @@ function Turn({
             )}
         </div>
     );
+}
+
+/**
+ * What a finished call *did*, in words — the same past-tense phrase the step
+ * list shows, reused rather than re-worded so the status line and the log
+ * cannot drift into two names for one call.
+ *
+ * Falls back to {@link humanizeToolName} for a tool nobody wrote a phrase for
+ * (an MCP connector's), which is deliberately untranslated — see `labels.ts`.
+ */
+function stepAction(intl: IntlShape, step: ChatToolStep): string {
+    const phrase = toolPhrase(step.name, 'done');
+    return phrase ? intl.formatMessage(phrase) : humanizeToolName(step.name);
 }

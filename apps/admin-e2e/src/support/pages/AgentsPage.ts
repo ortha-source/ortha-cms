@@ -253,6 +253,37 @@ export class AgentsPage extends BasePage {
         return this.main.getByRole('region', { name: summary });
     }
 
+    /** The "this did not apply" banner inside a change card that failed. */
+    proposalError(summary: string | RegExp): Locator {
+        return this.proposalCard(summary).getByRole('alert');
+    }
+
+    /**
+     * That banner's icon.
+     *
+     * A CSS selector rather than a role: the glyph is decorative and carries
+     * `aria-hidden`, which is correct and also means there is no accessible
+     * handle for it — and its **position** is exactly what the spec measures.
+     */
+    proposalErrorIcon(summary: string | RegExp): Locator {
+        return this.proposalError(summary).locator('svg');
+    }
+
+    /** A change card's closing line ("Nothing was saved."), for the spacing. */
+    proposalFooter(summary: string | RegExp): Locator {
+        return this.proposalCard(summary).locator('footer');
+    }
+
+    /**
+     * The pulsing line under a streaming turn — what the run says it is doing.
+     *
+     * `role="log"`-scoped rather than page-wide: the composer has a status line
+     * of its own a few pixels below it.
+     */
+    activityLine(text: string | RegExp): Locator {
+        return this.transcript().getByText(text);
+    }
+
     // --- the composer -----------------------------------------------------
 
     /** The message box. */
@@ -524,6 +555,30 @@ export class AgentsPage extends BasePage {
     /** The drop overlay, shown only while files are dragged over the box. */
     dropOverlay(): Locator {
         return this.main.getByText('Drop files to attach them');
+    }
+
+    // --- the attached page (the context chip, above the composer) ----------
+
+    /**
+     * The "Add context" button. Offered only where the URL has a page-level
+     * context to give — inside the content library — and again after navigating
+     * away from whatever is already attached, since an attachment is a snapshot.
+     */
+    addContext(): Locator {
+        return this.main.getByRole('button', { name: 'Add context' });
+    }
+
+    /**
+     * The chip naming what is attached, e.g. "article entry" or "article list".
+     * Matched loosely because the chip also carries the locale when there is one.
+     */
+    contextChip(name: string | RegExp): Locator {
+        return this.main.getByText(name);
+    }
+
+    /** The chip's `×`. */
+    removeContext(): Locator {
+        return this.main.getByRole('button', { name: 'Remove context' });
     }
 
     // --- the model picker (bottom-left of the composer) --------------------
