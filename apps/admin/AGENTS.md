@@ -6,9 +6,25 @@ plugins** to the `@ortha-cms/bootstrap-admin` host.
 
 ## What's here
 
-- `src/main.tsx` — the **plugin registry**. Adding a feature to the admin means
-  registering its `AdminPlugin` here. This is the file you edit most.
-- Vite config, HTML entry, app-level wiring. No domain logic.
+- `src/plugins.ts` — the **plugin registry** (`buildPlugins()`). Adding a feature
+  to the admin means registering its `AdminPlugin` here. This is the file you edit
+  most. Also add the package to `package.json`'s `dependencies` — Nx infers the
+  graph from imports, so nothing breaks if you forget, which is exactly why the
+  manifest had drifted two entries behind `main.tsx`.
+- `src/main.tsx` — three lines: hand `buildPlugins()` to `createAdmin`.
+- `src/plugins.spec.ts` — the composition's own guarantees. The load-bearing one:
+  `createAdmin` mounts the **first** plugin `layout` it finds, and the shell's
+  layout is what composes identity's `RequireAuth` — so a layout contributed by a
+  plugin registered ahead of the shell renders every private route **ungated**
+  while signed out. Exactly one plugin in the repo contributes a layout today,
+  which is what makes the shipped order safe; the spec is what keeps it that way.
+  Relative order between slot-filling plugins is *not* asserted, because it does
+  not matter: slots are module-level singletons registered before the first
+  render.
+- Vite config, HTML entry, app-level wiring. No domain logic. Both ports come
+  from this checkout's `.env` (`ADMIN_PORT`, `API_PORT`/`PORT`) so parallel
+  worktree stacks do not read each other's database — see
+  [`docs/parallel-stacks.md`](../../docs/parallel-stacks.md).
 
 ## How it fits
 
