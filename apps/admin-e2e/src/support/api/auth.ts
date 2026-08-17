@@ -46,6 +46,12 @@ const ALL_PERMISSIONS = [
     'users:update',
     'users:delete',
     'activity:read',
+    // The external-API bearer tokens (`api-tokens-admin`). Without these the
+    // `/api-tokens` page and its sidebar entry are invisible to every suite,
+    // which is exactly how it stayed untested.
+    'tokens:read',
+    'tokens:create',
+    'tokens:delete',
     'content:read',
     'content:create',
     'content:update',

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_568 test cases across 58 spec files._
+_617 test cases across 62 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -84,6 +84,87 @@ _<sub>apps/admin-e2e/src/activity/audit-log.spec.ts</sub>_
 | the actor-email search filters as you type |
 | a row expands from the keyboard |
 | "Clear filters" hands focus back instead of dropping it on the body |
+
+<!-- source: apps/admin-e2e/src/api-tokens/a11y.spec.ts -->
+_<sub>apps/admin-e2e/src/api-tokens/a11y.spec.ts</sub>_
+
+## API tokens accessibility (axe, WCAG 2.1 A/AA)
+
+| Test case |
+| --- |
+| table — initial |
+| table — loading skeleton |
+| list error state |
+| empty state |
+| create dialog — open |
+| create dialog — the two selects carry real names |
+| create dialog — workspace fetch failed |
+| reveal dialog — secret shown |
+| revoke confirm — open |
+| no-access state |
+| the eight-column table scrolls rather than clips at 320 px |
+| the pager is reachable at 320 px too |
+
+<!-- source: apps/admin-e2e/src/api-tokens/api-tokens.spec.ts -->
+_<sub>apps/admin-e2e/src/api-tokens/api-tokens.spec.ts</sub>_
+
+## API tokens page
+
+| Test case |
+| --- |
+| lists tokens with every column the table promises |
+| derives status from expiry and revocation, revocation winning |
+| resolves workspace ids to names, falling back to the raw id |
+| offers Revoke only on an active token |
+| a failed list gets its own state, not the empty one |
+| Retry recovers the list once the API is back |
+| an empty deployment gets the empty state with a create action |
+| without tokens:create the empty state offers no way in |
+| without tokens:read the page refuses and never asks the API |
+| without tokens:delete the actions column is absent entirely |
+| the create dialog sends exactly what the server expects |
+| an expiry preset becomes an ISO timestamp in the future |
+| a failed create keeps the form and its values on screen |
+| the submit cannot be double-fired while a create is in flight |
+| a broken workspace fetch says so instead of reading as empty |
+| revoking flips the row in place and says it happened |
+| cancelling a revoke sends nothing |
+| a failed revoke toasts and leaves the row alone |
+| announces the result count so a change without a navigation is heard |
+| no pager on a single page |
+| the page lives in the URL, so it is linkable and survives a reload |
+| a deep link past the end clamps back to the last page |
+
+<!-- source: apps/admin-e2e/src/api-tokens/keyboard.spec.ts -->
+_<sub>apps/admin-e2e/src/api-tokens/keyboard.spec.ts</sub>_
+
+## API tokens keyboard operability
+
+| Test case |
+| --- |
+| the create dialog opens with the Name field focused |
+| Escape closes the workspace popover without closing the dialog |
+| the secret is a tab stop, so it can be read and copied by hand |
+| the whole secret is exposed, not just what fits on screen |
+| a revoke lands focus somewhere real instead of on the body |
+| the kebab is named per row, so a menu is never ambiguous |
+
+<!-- source: apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts -->
+_<sub>apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts</sub>_
+
+## API token reveal-once dialog
+
+| Test case |
+| --- |
+| shows the secret in a labelled, focusable field |
+| focusing the secret selects it, so Ctrl+C is a real fallback |
+| a copy that works confirms it |
+| a refused clipboard write says so instead of failing silently |
+| Done asks before discarding an uncopied secret |
+| Escape asks too — every dismissal path funnels through the guard |
+| once copied, the dialog closes without argument |
+| the plaintext is gone from the client once the dialog is dismissed |
+| reloading after a create leaves the token but not its secret |
 
 <!-- source: apps/admin-e2e/src/auth/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/a11y.spec.ts</sub>_

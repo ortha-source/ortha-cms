@@ -181,6 +181,27 @@ const jsonError = (status: number, message: string) => ({
 });
 
 /**
+ * Stub `GET /api/workspaces` as **broken**. Distinct from an empty list on
+ * purpose: every workspace *selector* in the admin degrades to "no workspaces"
+ * when this fails, and a picker that says "none" when it means "couldn't ask"
+ * lets an operator draw exactly the wrong conclusion. Register it after the
+ * normal mock — later routes win — so a suite can browse with real data and
+ * then break this one endpoint.
+ */
+export async function mockWorkspacesUnavailable(
+    page: Page,
+    status = 500
+): Promise<void> {
+    await page.route('**/api/workspaces', async (route) => {
+        if (route.request().method() !== 'GET') {
+            await route.fallback();
+            return;
+        }
+        await route.fulfill(jsonError(status, 'Internal Server Error'));
+    });
+}
+
+/**
  * Stub the full create-workspace flow with a **stateful** in-memory store: the
  * list `GET` reflects whatever `POST /api/workspaces` has created, so a created
  * card survives the post-create refetch (not just the optimistic insert). Also

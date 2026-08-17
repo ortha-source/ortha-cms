@@ -1,6 +1,8 @@
 import { useId, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Dialog,
     DialogContent,
@@ -52,6 +54,15 @@ const messages = defineMessages({
     workspaceEmpty: {
         id: 'apiTokens.create.workspaceEmpty',
         defaultMessage: 'No workspaces found.'
+    },
+    workspaceError: {
+        id: 'apiTokens.create.workspaceError',
+        defaultMessage:
+            'Couldn’t load the workspaces. Without them a token can’t be scoped, so try again before creating one.'
+    },
+    workspaceRetry: {
+        id: 'apiTokens.create.workspaceRetry',
+        defaultMessage: 'Retry'
     },
     workspaceHint: {
         id: 'apiTokens.create.workspaceHint',
@@ -115,7 +126,18 @@ export function CreateApiTokenDialog({
     const nameId = useId();
     const workspacesId = useId();
     const workspacesHintId = useId();
-    const { data: workspaces = [] } = useWorkspaceOptions(open);
+    // The two `Select`s are Radix triggers, not native controls, so a `<Label>`
+    // with no `htmlFor` would label nothing and both would announce as a bare
+    // combo box carrying only their current value ("Read-only", "Never") — with
+    // no way to tell the access control from the expiry one. Wire them the same
+    // way the Name field is wired.
+    const scopeId = useId();
+    const expiryId = useId();
+    const {
+        data: workspaces = [],
+        isError: workspacesFailed,
+        refetch: refetchWorkspaces
+    } = useWorkspaceOptions(open);
 
     const [name, setName] = useState('');
     const [workspaceIds, setWorkspaceIds] = useState<string[]>([]);
@@ -210,17 +232,45 @@ export function CreateApiTokenDialog({
                         >
                             {intl.formatMessage(messages.workspaceHint)}
                         </p>
+                        {/* A failed workspace fetch leaves the selector empty,
+                            which reads exactly like a deployment with no
+                            workspaces — so the admin would think there is
+                            nothing to pick rather than that the list failed.
+                            Say which it is, and offer the retry. */}
+                        {workspacesFailed ? (
+                            <Alert variant="destructive" role="alert">
+                                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                                    <span>
+                                        {intl.formatMessage(
+                                            messages.workspaceError
+                                        )}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="shadow-none"
+                                        onClick={() => refetchWorkspaces()}
+                                    >
+                                        {intl.formatMessage(
+                                            messages.workspaceRetry
+                                        )}
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
                     </div>
 
                     <div className="space-y-2">
-                        <Label>{intl.formatMessage(messages.scopeLabel)}</Label>
+                        <Label htmlFor={scopeId}>
+                            {intl.formatMessage(messages.scopeLabel)}
+                        </Label>
                         <Select
                             value={scope}
                             onValueChange={(value) =>
                                 setScope(value as ApiTokenScope)
                             }
                         >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger id={scopeId} className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -235,7 +285,7 @@ export function CreateApiTokenDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>
+                        <Label htmlFor={expiryId}>
                             {intl.formatMessage(messages.expiryLabel)}
                         </Label>
                         <Select
@@ -244,7 +294,7 @@ export function CreateApiTokenDialog({
                                 setExpiry(value as ExpiryPreset)
                             }
                         >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger id={expiryId} className="w-full">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

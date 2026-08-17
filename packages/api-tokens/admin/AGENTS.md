@@ -41,8 +41,26 @@ presentation/
   single-workspace token needs no header.
 - **Reveal-once secret.** The create response carries the plaintext `secret`
   exactly once; `RevealSecretDialog` shows it with copy-to-clipboard and a
-  "won't be shown again" warning. It is held only in page state and never
-  re-fetched.
+  "won't be shown again" warning. Four things about it are load-bearing, and
+  each mirrors the equivalent one-time invite link in `users/admin`
+  (`InviteLinkPanel` / `InviteLinkDialog`):
+    - the secret is a **labelled, focusable `readOnly` input** that selects
+      itself on focus — not a `<code>` block — so it can be read and copied
+      without the Copy button;
+    - the clipboard write is wrapped in `try`/`catch`; a refused write (insecure
+      origin, denied permission, unfocused document) toasts "select it manually"
+      rather than doing nothing;
+    - **every** dismissal path (Done, Esc, the overlay, the close button) asks
+      before discarding an uncopied secret;
+    - `useCreateApiToken` sets **`gcTime: 0`** and the page calls `reset()` on
+      dismissal _and_ on unmount. TanStack keeps a settled mutation — including
+      its result, which holds the plaintext — for `gcTime` after the last
+      observer detaches, and the mutation cache is not scoped to a route. At the
+      default the credential would outlive the dialog by five minutes and follow
+      the user across the SPA. `reveal-secret.spec.ts` pins this.
+- **The page number lives in the URL** (`?page=`), like `/users` and
+  `/activity`, so a list page is linkable and survives a reload; the clamp pulls
+  a hand-typed out-of-range page back to the last one.
 - **Permission mirror.** Create/revoke controls gate on
   `tokens:create`/`tokens:delete`, matching the server `PERMISSIONS` keys exactly
   (a typo silently hides/mis-shows UI).
@@ -50,7 +68,7 @@ presentation/
 ## Server contract this plugin depends on
 
 - `GET /api/api-tokens?page=&pageSize=&workspaceId=` → `{ items, total, page, pageSize }`
-  (`workspaceId` matches tokens whose bucket *contains* it)
+  (`workspaceId` matches tokens whose bucket _contains_ it)
 - `POST /api/api-tokens` `{ name, workspaceIds, scope, expiresAt? }` → token + one-time `secret`
 - `DELETE /api/api-tokens/:id` → 204
 - `GET /api/workspaces` → `{ id, name, description, color }[]`
