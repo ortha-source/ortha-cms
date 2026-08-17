@@ -27,7 +27,15 @@ singletons live in one place instead of inside `bootstrap-admin`.
   depending on the identity plugin. The interceptor always rethrows, so a
   caller's own error handling still runs, and it skips the paths where a `401`
   is the endpoint's own answer (`/auth/login`, `/auth/logout`, `/auth/me`,
-  `/auth/invite`) — a rejected sign-in must not read as a lost session.
+  `/auth/invite`) — a rejected sign-in must not read as a lost session. That
+  exemption is matched on **whole path segments** of the normalized request
+  path, never as a bare `startsWith` on the string the caller passed. Both
+  directions of a prefix test are wrong: `apiClient.post('auth/login', …)` (no
+  leading slash — axios resolves it fine against `baseURL`) would fall *out* of
+  the list and sign the user out on a typo'd password, and a future
+  `/auth/logins-report` would fall *into* it and never sign them out when the
+  session really did die. The handler is also called inside a `try` — a throw
+  from it must not replace the caller's `401` rejection.
 - `queryClient` — the app's single TanStack Query `QueryClient`. The host wires
   it into `QueryClientProvider`; plugins use `useQuery`/`useMutation`. It sets
   one app-wide default: **a `4xx` is not retried.** A client error is the
@@ -59,6 +67,10 @@ singletons live in one place instead of inside `bootstrap-admin`.
   wires contributions in once at boot. Pure data (no `react`), so it lives in
   this leaf rather than the host. The *generic* mechanism only — concrete slots
   (e.g. the shell's `SIDEBAR_NAV_SLOT`) are defined by their owning plugin.
+  `getItems()` returns a **copy**: one slot is read by every plugin that
+  consumes it, so handing back the internal array would make one consumer's
+  in-place `sort()` or `push()` a rewrite of shared plugin state. Read it fresh
+  rather than holding the array across a registration.
 
 - `slugify(input)` — derives a URL slug (`^[a-z0-9-]+$`) from free text. Pure,
   framework-free.
@@ -67,6 +79,33 @@ singletons live in one place instead of inside `bootstrap-admin`.
   takes a `react` dependency (alongside the `@tanstack/react-query` it already
   uses). Keep only **generic, framework-level** hooks here — feature/auth state
   stays in its owning plugin.
+
+- `useTableUrlState({ searchKey, defaultPageSize })` — the URL-as-source-of-truth
+  plumbing for list pages. The search box is **two-way**: it debounces into the
+  URL (300 ms), and it re-syncs *back* whenever the URL changes for a reason
+  other than that debounce — Back/Forward, a link to the bare list, a saved
+  view. A one-way box looks fine until you press Back and the filter reappears,
+  because the effect writes it out again; the guards on both sides
+  (`searchParam !== debouncedSearch` on the way in, `debouncedSearch ===
+  searchInput` on the way out) are what keep the round trip from looping or
+  clobbering keystrokes typed during the debounce window.
+- `UnsavedChangesProvider` / `useUnsavedChanges(dirty, key)` — the app-wide
+  "you have unsaved changes" guard. Two rules it is easy to get wrong:
+    - **Confirming answers for one form, not all of them.** The dirty set is not
+      cleared on confirm; each form clears its own key as it unmounts. Clearing
+      the set would disarm every other mounted form (a docked composer, a dialog
+      form) permanently, since `useUnsavedChanges` only re-registers when its
+      own inputs change.
+    - **A confirmed navigation goes through the router** (`useNavigate`), so the
+      provider must be mounted inside the router. Re-dispatching it as
+      `history.pushState({}, '', url)` + a synthetic `popstate` looks equivalent
+      and is not: it overwrites the state React Router keeps its history index
+      in, so the index reads back `undefined`, every later push writes `NaN`,
+      and Back/Forward deltas are wrong for the rest of the session.
+- `avatarColorForId(id)` — hashes an id into `AVATAR_COLORS` (FNV-1a over code
+  points). Not a sum of character codes: a sum is order-insensitive, so ids that
+  are permutations of each other collide, and colour is one of the cues a roster
+  uses to distinguish two people.
 
 > Auth state is **not** here — context, gate, and `/auth/me` all live in
 > `@ortha-cms/identity-admin`. This package is the shared HTTP/data + generic
@@ -93,7 +132,19 @@ singletons live in one place instead of inside `bootstrap-admin`.
 - `type` over `interface`; JSDoc on exports; `import type` for type-only imports
 - Each module is a `camelCase` folder with an `index.ts` (`apiClient/index.ts`)
 
+## Tests
+
+`npm exec nx test @ortha-cms/utils-admin` (vitest + jsdom, co-located
+`index.spec.ts(x)` beside each module). Every admin plugin inherits this
+package, so a defect here is a defect everywhere at once — which is why the
+seams are pinned here rather than in whichever page happened to notice: the
+`401` exemption match driven through the real interceptor stack, the query
+retry predicate read off the shipped client, the URL/search round trip, and the
+unsaved-changes guard against a real `BrowserRouter`. Component *behaviour*
+still belongs in `admin-e2e`.
+
 ## Commands
 
 - `npm exec nx typecheck @ortha-cms/utils-admin`
 - `npm exec nx lint @ortha-cms/utils-admin`
+- `npm exec nx test @ortha-cms/utils-admin`
