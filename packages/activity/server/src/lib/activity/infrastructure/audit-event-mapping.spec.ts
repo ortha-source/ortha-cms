@@ -8,6 +8,7 @@ import { IDENTITY_ACTIVITY_KINDS } from '@ortha-cms/identity-server';
 import {
     AUDITED_EVENT_KINDS,
     toAuditRow,
+    UnmappableAuditEventError,
     type AuditRow
 } from './audit-event-mapping';
 
@@ -166,6 +167,33 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectId: TARGET_USER_ID,
                 meta: { workspaceId: WORKSPACE_ID, email: null }
             });
+        });
+
+        it.each(['workspace.member_added', 'workspace.member_removed'])(
+            '%s refuses a payload with no userId rather than writing an empty subject',
+            (kind) => {
+                const bad = event(kind, 'workspace', WORKSPACE_ID, {
+                    email: 'bob@example.com'
+                });
+                // `subject_id` is `text NOT NULL`, so `''` inserts cleanly and
+                // produces a row naming an action, a workspace and an actor but
+                // no subject — unreadable, and unrepairable downstream.
+                expect(() => toAuditRow(bad)).toThrow(
+                    UnmappableAuditEventError
+                );
+                expect(() => toAuditRow(bad)).toThrow(/payload\.userId/);
+            }
+        );
+
+        it('a non-string userId is refused too (not coerced)', () => {
+            expect(() =>
+                toAuditRow(
+                    event('workspace.member_added', 'workspace', WORKSPACE_ID, {
+                        userId: 12345,
+                        email: 'bob@example.com'
+                    })
+                )
+            ).toThrow(UnmappableAuditEventError);
         });
 
         it('workspace.content_granted → { slug, kind }', () => {
@@ -362,6 +390,33 @@ describe('toAuditRow — event → audit-row parity', () => {
             expect(row?.meta).toEqual({ sessionsRevoked: 0 });
         });
 
+        it('user.activated → the account gained a credential, distinct from the sign-in', () => {
+            // `accept-invite.use-case.ts` appends `user.activated` and
+            // `auth.signed_in` together. Only the sign-in was mapped, so the
+            // trail said an invited person signed in and never that the account
+            // went `pending` → `active`. Verified live under ORT-42: two
+            // dispatched outbox rows, one audit row.
+            const row = toAuditRow(
+                event(
+                    'user.activated',
+                    'user',
+                    TARGET_USER_ID,
+                    {},
+                    { id: TARGET_USER_ID, email: 'invited@example.com' }
+                )
+            );
+            expect(row).toEqual({
+                id: EVENT_ID,
+                kind: 'user.activated',
+                subjectType: 'user',
+                subjectId: TARGET_USER_ID,
+                actorId: TARGET_USER_ID,
+                actorEmail: 'invited@example.com',
+                meta: null,
+                at: AT
+            });
+        });
+
         it('auth.signed_out → user.signed_out (actorEmail may be null)', () => {
             const row = toAuditRow(
                 event(
@@ -506,6 +561,130 @@ describe('toAuditRow — event → audit-row parity', () => {
         });
     });
 
+    describe('media library (event kind === audit kind)', () => {
+        const ASSET_ID = '44444444-4444-4444-8444-444444444444';
+        const FOLDER_ID = '55555555-5555-4555-8555-555555555555';
+
+        it('media.asset.uploaded → media_asset subject, payload minus actor', () => {
+            const row = toAuditRow(
+                event('media.asset.uploaded', 'media.asset', ASSET_ID, {
+                    name: 'hero.png',
+                    kind: 'image',
+                    folderId: null
+                })
+            );
+            expect(row).toEqual({
+                ...base(),
+                kind: 'media.asset.uploaded',
+                subjectType: 'media_asset',
+                subjectId: ASSET_ID,
+                meta: { name: 'hero.png', kind: 'image', folderId: null }
+            });
+        });
+
+        it('media.asset.updated carries only the field that changed', () => {
+            expect(
+                toAuditRow(
+                    event('media.asset.updated', 'media.asset', ASSET_ID, {
+                        alt: 'A hero image'
+                    })
+                )
+            ).toMatchObject({
+                kind: 'media.asset.updated',
+                subjectType: 'media_asset',
+                subjectId: ASSET_ID,
+                meta: { alt: 'A hero image' }
+            });
+        });
+
+        it('media.asset.moved records the destination folder', () => {
+            expect(
+                toAuditRow(
+                    event('media.asset.moved', 'media.asset', ASSET_ID, {
+                        folderId: FOLDER_ID
+                    })
+                )
+            ).toMatchObject({
+                kind: 'media.asset.moved',
+                subjectId: ASSET_ID,
+                meta: { folderId: FOLDER_ID }
+            });
+        });
+
+        it('media.asset.deleted keeps the storage key — the blob-GC seam', () => {
+            expect(
+                toAuditRow(
+                    event('media.asset.deleted', 'media.asset', ASSET_ID, {
+                        storageKey: 'ws/asset/hero.png',
+                        storageProvider: 'local'
+                    })
+                )
+            ).toMatchObject({
+                kind: 'media.asset.deleted',
+                subjectType: 'media_asset',
+                meta: {
+                    storageKey: 'ws/asset/hero.png',
+                    storageProvider: 'local'
+                }
+            });
+        });
+
+        it('media.folder.created → media_folder subject', () => {
+            expect(
+                toAuditRow(
+                    event('media.folder.created', 'media.folder', FOLDER_ID, {
+                        name: 'Campaign',
+                        parentId: null
+                    })
+                )
+            ).toEqual({
+                ...base(),
+                kind: 'media.folder.created',
+                subjectType: 'media_folder',
+                subjectId: FOLDER_ID,
+                meta: { name: 'Campaign', parentId: null }
+            });
+        });
+
+        it('media.folder.renamed → media_folder subject, { name }', () => {
+            expect(
+                toAuditRow(
+                    event('media.folder.renamed', 'media.folder', FOLDER_ID, {
+                        name: 'Campaign 2026'
+                    })
+                )
+            ).toMatchObject({
+                kind: 'media.folder.renamed',
+                subjectType: 'media_folder',
+                meta: { name: 'Campaign 2026' }
+            });
+        });
+
+        it('media.folder.deleted → media_folder subject, empty meta', () => {
+            expect(
+                toAuditRow(
+                    event('media.folder.deleted', 'media.folder', FOLDER_ID, {})
+                )
+            ).toMatchObject({
+                kind: 'media.folder.deleted',
+                subjectType: 'media_folder',
+                subjectId: FOLDER_ID,
+                meta: {}
+            });
+        });
+
+        it('never repeats the actor inside meta — it owns two columns already', () => {
+            const row = toAuditRow(
+                event('media.asset.uploaded', 'media.asset', ASSET_ID, {
+                    name: 'hero.png'
+                })
+            );
+            expect(row?.meta).not.toHaveProperty('actor');
+            expect(row?.actorId).toBe(ACTOR.id);
+            expect(row?.actorEmail).toBe(ACTOR.email);
+        });
+    });
+
     describe('non-audited kinds', () => {
         it('returns null for an unmapped kind', () => {
             expect(
@@ -520,13 +699,28 @@ describe('toAuditRow — event → audit-row parity', () => {
             ).toBeNull();
         });
 
-        it('audits exactly the 23 expected kinds', () => {
+        /**
+         * The whole-catalogue check. An event kind with no mapper is not an
+         * error anywhere at runtime — the dispatcher finds no subscriber,
+         * stamps the row dispatched, and the action is silently unaudited. This
+         * list is the only place that omission is visible, so it is pinned
+         * exhaustively rather than sampled.
+         */
+        it('audits exactly the 31 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'api_token.created',
                     'api_token.revoked',
                     'auth.signed_in',
                     'auth.signed_out',
+                    'media.asset.deleted',
+                    'media.asset.moved',
+                    'media.asset.updated',
+                    'media.asset.uploaded',
+                    'media.folder.created',
+                    'media.folder.deleted',
+                    'media.folder.renamed',
+                    'user.activated',
                     'user.password_changed',
                     'entry.published',
                     'entry.unpublished',

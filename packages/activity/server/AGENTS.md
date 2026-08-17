@@ -6,8 +6,17 @@ The audit-log **plugin** for the Ortha CMS server. It owns the
 admin's Activity Log drives.
 
 A **generic sink**: `kind` and `meta` are open (text / jsonb). Each emitting
-plugin owns its own kinds — identity (auth + workspaces), users (member
+plugin owns its own kinds — identity (auth, API tokens, workspaces), users
+(member lifecycle), content (publish lifecycle), media (asset + folder
 lifecycle) — so this package stays decoupled from any one domain's events.
+
+> **Adding a producer means adding a mapper here.** An event kind with no entry
+> in `FACET_MAPPERS` is not an error anywhere: the dispatcher finds no
+> subscriber, stamps the row `dispatched_at`, and the action is simply never
+> audited. That failure is completely silent, and it has happened three times
+> (API tokens, entry publishes, and the whole media library). The check is one
+> query — compare `select distinct kind from outbox_events` against
+> `AUDITED_EVENT_KINDS`.
 
 > **Layered (ADR-0003 — tactical DDD inside plugins).** `activity` is a
 > read-side / CRUD audit context: ADR-0003 says **don't force DDD on CRUD**, so
@@ -41,6 +50,15 @@ kinds pass through). Producers put the actor on the event payload with
 **event id** and the insert is `ON CONFLICT DO NOTHING`, so a re-delivered event
 never double-records. The audit is derived downstream — the write path and the
 audit path now evolve independently.
+
+**A mapper may refuse.** `toAuditRow` returning `null` means "not an audited
+kind, skip it" and the dispatcher marks the event delivered. Throwing
+`UnmappableAuditEventError` means the opposite — this *should* be audited and
+the payload cannot say who it is about — so the outbox row stays undispatched,
+is retried with backoff, and parks at `MAX_DELIVERY_ATTEMPTS` for the
+dead-letter query. `subject_id` is the only handle a row keeps on its subject
+(no FK, no denormalised name), so a defaulted `''` is not a degraded row but an
+unreadable one that no client can repair; refusing makes the gap loud instead.
 
 **Parity is unit-tested** DB-free: `audit-event-mapping.spec.ts` asserts each
 kind's produced row equals what the in-band `recorder.record(...)` wrote.

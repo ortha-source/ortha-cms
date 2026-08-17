@@ -57,7 +57,41 @@ const USER_AUDIT_KINDS = {
      * the log recorded nothing at all when a password changed
      * (BUG-identity-server-05).
      */
-    PASSWORD_CHANGED: 'user.password_changed'
+    PASSWORD_CHANGED: 'user.password_changed',
+    /**
+     * An invited account accepted its invite: set a first credential and went
+     * `pending` → `active`. Identity's aggregate has raised `user.activated`
+     * since the invite flow landed and `accept-invite.use-case.ts` appends it,
+     * but nothing mapped it — so the trail showed the invite, then a sign-in,
+     * and never the moment the account became usable. Verified against a live
+     * stack under ORT-42: one `POST /auth/invite/accept` appended both
+     * `user.activated` and `auth.signed_in`, both were stamped dispatched, and
+     * only the sign-in produced a row.
+     */
+    ACTIVATED: 'user.activated'
+} as const;
+
+/**
+ * The **media.\*** audit kinds. Media's aggregates have raised these on the
+ * outbox since the asset/folder aggregates were introduced — their own comment
+ * calls the outbox "the post-commit audit + blob-GC seam" — but nothing
+ * consumed them, so **every** media write was unaudited: uploading, renaming,
+ * re-foldering, duplicating and deleting an asset, and creating, renaming and
+ * deleting a folder, all left the log completely silent. Verified live under
+ * ORT-42 (eight write paths, eight dispatched outbox rows, zero audit rows).
+ *
+ * The event kind is the audit kind: unlike `member.*` → `user.*` there is no
+ * pre-existing audit catalogue for media to stay bug-compatible with, so
+ * inventing a second set of names would only add a mapping to remember.
+ */
+const MEDIA_AUDIT_KINDS = {
+    ASSET_UPLOADED: 'media.asset.uploaded',
+    ASSET_UPDATED: 'media.asset.updated',
+    ASSET_MOVED: 'media.asset.moved',
+    ASSET_DELETED: 'media.asset.deleted',
+    FOLDER_CREATED: 'media.folder.created',
+    FOLDER_RENAMED: 'media.folder.renamed',
+    FOLDER_DELETED: 'media.folder.deleted'
 } as const;
 
 /** Reads a payload field as a string (or `null` when absent/nullish). */
@@ -130,18 +164,92 @@ function apiTokenSubject(event: DomainEvent, auditKind: string): AuditFacet {
     };
 }
 
-/** A workspace membership facet — subject is the affected **user**, not the workspace. */
+/**
+ * Thrown when an event cannot be mapped to a row that identifies its subject.
+ *
+ * Refusing is the point. `subject_id` is the **only** handle an audit row keeps
+ * on the entity it is about — there is no FK, no denormalised name, and
+ * `actor_email` belongs to the actor — so a row written with an empty subject
+ * is not a degraded record, it is an unreadable one, and nothing downstream can
+ * repair it. Throwing leaves the outbox row undispatched, so the dispatcher
+ * retries it with backoff and parks it at `MAX_DELIVERY_ATTEMPTS` where the
+ * dead-letter query (`dispatched_at IS NULL AND attempts >= 15`) surfaces it.
+ * The gap becomes loud instead of becoming a row nobody can read.
+ */
+export class UnmappableAuditEventError extends Error {
+    constructor(event: DomainEvent, reason: string) {
+        super(
+            `Cannot map ${event.kind} (event ${event.eventId}) to an audit row: ${reason}`
+        );
+        this.name = 'UnmappableAuditEventError';
+    }
+}
+
+/**
+ * A workspace membership facet — subject is the affected **user**, not the
+ * workspace.
+ *
+ * A payload with no `userId` is refused rather than defaulted. It used to write
+ * `subjectId: '' `, which inserts cleanly against `subject_id text NOT NULL`
+ * and produces a row naming an action, a workspace and an actor but no subject
+ * — silent corruption of the trail, and (as ♿ A11Y-activity-server-01 records)
+ * a row whose Subject cell has no accessible name that no client can repair.
+ */
 function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
     const payload = event.payload;
+    const userId = nullableString(payload.userId);
+    if (!userId) {
+        throw new UnmappableAuditEventError(
+            event,
+            'payload.userId is missing, and the membership subject is the affected user'
+        );
+    }
     return {
         kind: auditKind,
         subjectType: 'user',
-        subjectId: nullableString(payload.userId) ?? '',
+        subjectId: userId,
         meta: {
             workspaceId: event.aggregateId,
             email: nullableString(payload.email)
         }
     };
+}
+
+/**
+ * A `'media_asset'`-subject facet. `meta` passes the event payload's own
+ * descriptive fields through — media's payloads differ per kind (`name`/`kind`
+ * on upload, the changed field on update, `folderId` on move, the storage key
+ * on delete) and each is exactly what a reviewer asking "what happened to this
+ * asset" wants, so the facet forwards the payload minus the actor rather than
+ * flattening every kind into one shape.
+ */
+function mediaAssetSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'media_asset',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/** A `'media_folder'`-subject facet. Same payload-passthrough as the asset one. */
+function mediaFolderSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'media_folder',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
+ * The event payload with `attachActor`'s `actor` key removed — the actor is
+ * lifted onto the row's own `actorId`/`actorEmail` columns by
+ * {@link toAuditRow}, so repeating it inside `meta` would only duplicate it.
+ */
+function payloadWithoutActor(event: DomainEvent): Record<string, unknown> {
+    const { actor: _actor, ...rest } = event.payload;
+    return rest;
 }
 
 /**
@@ -167,12 +275,20 @@ function membershipSubject(event: DomainEvent, auditKind: string): AuditFacet {
  * | `member.disabled`          | `user.suspended`          | user / `null`                                    |
  * | `member.reactivated`       | `user.reactivated`        | user / `null`                                    |
  * | `user.password_changed`    | `user.password_changed`   | user / `{ sessionsRevoked }`                     |
+ * | `user.activated`           | `user.activated`          | user / `null`                                    |
  * | `api_token.created`        | `token.created`           | api_token / `{ name, scope, workspaceIds, lookupPrefix }` |
  * | `api_token.revoked`        | `token.revoked`           | api_token / same shape                           |
  * | `auth.signed_in`           | `user.signed_in`          | user / `null`                                    |
  * | `auth.signed_out`          | `user.signed_out`         | user / `null`                                    |
  * | `entry.published`          | `entry.published`         | content_entry / `{ contentType }`                |
  * | `entry.unpublished`        | `entry.unpublished`       | content_entry / `{ contentType }`                |
+ * | `media.asset.uploaded`     | `media.asset.uploaded`    | media_asset / payload minus `actor`              |
+ * | `media.asset.updated`      | `media.asset.updated`     | media_asset / payload minus `actor`              |
+ * | `media.asset.moved`        | `media.asset.moved`       | media_asset / payload minus `actor`              |
+ * | `media.asset.deleted`      | `media.asset.deleted`     | media_asset / payload minus `actor`              |
+ * | `media.folder.created`     | `media.folder.created`    | media_folder / payload minus `actor`             |
+ * | `media.folder.renamed`     | `media.folder.renamed`    | media_folder / payload minus `actor`             |
+ * | `media.folder.deleted`     | `media.folder.deleted`    | media_folder / payload minus `actor`             |
  *
  * The actor (`actorId`/`actorEmail`) is not here — it rides on the event payload
  * (`attachActor`) and is read uniformly by {@link toAuditRow}.
@@ -238,6 +354,14 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
             sessionsRevoked: e.payload.sessionsRevoked ?? null
         }),
 
+    // Invite acceptance. `accept-invite.use-case.ts` appends this alongside
+    // `auth.signed_in`, and only the sign-in was ever mapped — so the trail
+    // recorded that an invited person signed in, but never that the account
+    // itself went from `pending` to `active` and gained a credential. Those are
+    // different facts and a security review wants the first one.
+    'user.activated': (e) =>
+        userSubject(e, USER_AUDIT_KINDS.ACTIVATED, null),
+
     'auth.signed_in': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),
     'auth.signed_out': (e) =>
@@ -257,7 +381,19 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // this subscriber — but nothing consumed them, so the log carried no content
     // activity at all.
     'entry.published': entrySubject,
-    'entry.unpublished': entrySubject
+    'entry.unpublished': entrySubject,
+
+    // The media library. Every one of these was raised on the outbox and
+    // dropped on the floor: the dispatcher found no subscriber for the kind,
+    // stamped the row dispatched, and the audit log stayed silent about every
+    // upload, rename, move and deletion in the asset store.
+    [MEDIA_AUDIT_KINDS.ASSET_UPLOADED]: mediaAssetSubject,
+    [MEDIA_AUDIT_KINDS.ASSET_UPDATED]: mediaAssetSubject,
+    [MEDIA_AUDIT_KINDS.ASSET_MOVED]: mediaAssetSubject,
+    [MEDIA_AUDIT_KINDS.ASSET_DELETED]: mediaAssetSubject,
+    [MEDIA_AUDIT_KINDS.FOLDER_CREATED]: mediaFolderSubject,
+    [MEDIA_AUDIT_KINDS.FOLDER_RENAMED]: mediaFolderSubject,
+    [MEDIA_AUDIT_KINDS.FOLDER_DELETED]: mediaFolderSubject
 };
 
 /**
@@ -286,6 +422,13 @@ function readActor(payload: Record<string, unknown>): {
  * Maps a domain event to the audit row it should produce, or `null` when the
  * kind is not audited. Pure and DB-free — the safety-net unit test asserts each
  * kind's row equals what the old in-band recorder wrote.
+ *
+ * Throws {@link UnmappableAuditEventError} when the kind **is** audited but the
+ * payload cannot identify its subject. `null` and a throw mean different things
+ * on purpose: `null` is "not our event, skip it" and the dispatcher marks the
+ * row delivered; a throw is "this should have been audited and cannot be", so
+ * the row stays undispatched, is retried with backoff, and finally parks as a
+ * dead letter rather than becoming a row nobody can read.
  */
 export function toAuditRow(event: DomainEvent): AuditRow | null {
     const mapper = FACET_MAPPERS[event.kind];
