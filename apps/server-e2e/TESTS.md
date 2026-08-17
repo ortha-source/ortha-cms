@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1148 test cases across 77 spec files._
+_1159 test cases across 78 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -17,6 +17,46 @@ _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
 | --- |
 | holds the bytes after an upload and drops them on delete |
 | starts every test with no blobs left over from the last one |
+
+<!-- source: apps/server-e2e/src/harness/create-server.spec.ts -->
+_<sub>apps/server-e2e/src/harness/create-server.spec.ts</sub>_
+
+## createServer (the host bootstrap)
+
+### the request body cap is configured, not inherited
+
+| Test case |
+| --- |
+| accepts a body well past express’s inherited 100 kB default |
+| refuses a body over the configured cap with 413 |
+| still accepts a body under the configured cap |
+
+### a boot failure says which plugin failed
+
+| Test case |
+| --- |
+| names the plugin whose onPluginInit throws, and rejects |
+
+### one plugin’s bad docs pass does not take the API down
+
+| Test case |
+| --- |
+| logs the plugin and still serves both the API and the reference |
+
+### the docs mount paths
+
+| Test case |
+| --- |
+| returns null, and mounts nothing, when docs are disabled |
+| returns both mount paths normalised |
+| serves both routes at a path configured without a leading slash |
+| registers the JSON route first, so it wins a path collision |
+
+### SIGTERM is handled rather than fatal
+
+| Test case |
+| --- |
+| installs shutdown listeners so in-flight requests are not dropped |
 
 <!-- source: apps/server-e2e/src/harness/harness-guards.spec.ts -->
 _<sub>apps/server-e2e/src/harness/harness-guards.spec.ts</sub>_
@@ -2363,6 +2403,7 @@ _<sub>apps/server-e2e/src/server/users/list-users-filter.spec.ts</sub>_
 | combines rules with an OR group |
 | AND-composes the filter with the existing status param |
 | rejects an unknown field with 400 (whitelist) |
+| rejects an inherited Object.prototype name with 400, not a 500 |
 | rejects an unknown operator with 400 |
 | rejects malformed JSON with 400 |
 | rejects a tree nested past the group-depth cap with 400 |

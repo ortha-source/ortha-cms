@@ -67,6 +67,16 @@ async function bootTestApp(
     if (config.trustProxy !== undefined) {
         app.set('trust proxy', config.trustProxy);
     }
+    // Mirrors `createServer`: an explicit body cap, rather than express's
+    // inherited 100 kB. Registered here as well so a suite can assert the
+    // boundary — the number is a decision now, and a decision nothing checks
+    // is one a refactor can silently drop.
+    app.useBodyParser('json', { limit: config.bodyLimit });
+    app.useBodyParser('urlencoded', {
+        limit: config.bodyLimit,
+        extended: true
+    });
+
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
         new ValidationPipe({
