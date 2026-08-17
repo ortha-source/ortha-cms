@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { type BrowserGlobals } from '../browserGlobals';
 
 /**
  * Page object for the Content Library at `/workspaces/:id/content` (from
@@ -754,6 +755,47 @@ export class ContentLibraryPage extends BasePage {
     /** The entry editor's Properties panel (the shell's right column). */
     get propertiesPanel(): Locator {
         return this.page.getByRole('complementary', { name: 'Properties' });
+    }
+
+    /**
+     * The panel's own collapse control, in its header. Only one of this and
+     * {@link showPropertiesButton} is reachable at a time: collapsing puts this
+     * one inside the `inert` `<aside>`, and reopening unmounts the other. That is
+     * why the shell has to hand focus between them.
+     */
+    get hidePropertiesButton(): Locator {
+        return this.page.getByRole('button', { name: 'Hide Properties' });
+    }
+
+    /** The reopen control the shell puts in the page's top bar once collapsed. */
+    get showPropertiesButton(): Locator {
+        return this.page.getByRole('button', { name: 'Show Properties' });
+    }
+
+    /**
+     * The dimming scrim behind the panel when it overlays a narrow viewport.
+     * Located by shape because it is deliberately nameless and `aria-hidden` — it
+     * is decoration, and its dismiss behaviour has keyboard equivalents (`Esc`
+     * and the panel's own collapse button) rather than being a control itself.
+     */
+    get propertiesScrim(): Locator {
+        return this.page.locator('div[aria-hidden="true"].fixed.inset-0');
+    }
+
+    /**
+     * The shell's persisted right-panel preference (`ortha:right-panel`).
+     *
+     * Read from storage rather than inferred from the column, because the defect
+     * this exists for is invisible on screen at the moment it happens: a narrow
+     * viewport is *right* to start collapsed, and the bug was writing that forced
+     * value back over the desktop preference.
+     */
+    async storedRightPanelState(): Promise<string | null> {
+        return this.page.evaluate(() =>
+            (globalThis as unknown as BrowserGlobals).localStorage.getItem(
+                'ortha:right-panel'
+            )
+        );
     }
 
     /**

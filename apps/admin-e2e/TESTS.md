@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_634 test cases across 64 spec files._
+_647 test cases across 65 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1119,6 +1119,37 @@ _<sub>apps/admin-e2e/src/shell/command-palette.spec.ts</sub>_
 | suggests nav destinations, workspaces, and content types |
 | navigates to a nav destination |
 | jumps straight to a workspace content type |
+| arrow keys move the announced selection, not just the highlight |
+| closing it with Escape gives focus back to the trigger |
+| choosing a result does not drag focus back to the sidebar |
+
+## the ⌘K binding
+
+| Test case |
+| --- |
+| opens the palette from anywhere that is not a text field |
+| leaves the caret alone when a page search field has it |
+| still toggles the palette closed from inside the palette |
+
+<!-- source: apps/admin-e2e/src/shell/right-panel.spec.ts -->
+_<sub>apps/admin-e2e/src/shell/right-panel.spec.ts</sub>_
+
+## the right panel
+
+| Test case |
+| --- |
+| collapsing it from the keyboard hands focus to the reopen button |
+| reopening it from the keyboard hands focus back into the panel |
+| a collapse the user never asked for is not persisted as a preference |
+| the desktop preference survives a narrow visit |
+
+## the right panel as a narrow-viewport overlay
+
+| Test case |
+| --- |
+| Escape dismisses it |
+| dismissing it with Escape still lands focus somewhere usable |
+| the scrim is decoration, not an unreachable control |
 
 <!-- source: apps/admin-e2e/src/users/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/users/a11y.spec.ts</sub>_
