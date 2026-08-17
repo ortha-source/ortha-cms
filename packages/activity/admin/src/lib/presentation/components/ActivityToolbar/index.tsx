@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { Ref, ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { SearchToolbar } from '@ortha-cms/design-system';
 
@@ -22,6 +22,8 @@ type ActivityToolbarProps = {
     filterControl?: ReactNode;
     /** Whether a search/filter request driven from here is still settling. */
     busy?: boolean;
+    /** Ref to the search input, so the page can restore focus to it. */
+    searchRef?: Ref<HTMLInputElement>;
 };
 
 /**
@@ -33,13 +35,15 @@ export function ActivityToolbar({
     email,
     onEmailChange,
     filterControl,
-    busy = false
+    busy = false,
+    searchRef
 }: ActivityToolbarProps) {
     const intl = useIntl();
 
     return (
         <SearchToolbar
             busy={busy}
+            inputRef={searchRef}
             value={email}
             onValueChange={onEmailChange}
             searchLabel={intl.formatMessage(messages.searchLabel)}

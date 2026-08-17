@@ -60,6 +60,67 @@ export const DEFAULT_ACTIVITY: ActivitySeed[] = [
     }
 ];
 
+/**
+ * **Every audit kind the server can write**, paired with the `subjectType` and
+ * the `meta` shape it carries — a black-box mirror of `FACET_MAPPERS` in
+ * `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts`
+ * (its *output* kinds, not its input event kinds).
+ *
+ * This list is the front-end half of a pin the two sides badly need. An audit
+ * kind the admin does not know is **not a type error and not a runtime error**:
+ * `toActivityEvent` casts `dto.kind as ActivityKind`, `formatActivityAction`
+ * finds no descriptor, and the Action column quietly prints the raw dotted wire
+ * token, untranslated. That is how `media.asset.uploaded` and six `workspace.*`
+ * kinds ended up rendering literally in a shipped UI. Nothing failed; a reader
+ * just saw machine strings.
+ *
+ * So when a new kind is added server-side, add it here — the specs below then
+ * fail until the admin has a label for it.
+ */
+export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
+    ['user.invited', 'user', { email: 'alan@ortha.dev' }],
+    ['user.invite_resent', 'user', { email: 'alan@ortha.dev' }],
+    ['user.invite_revoked', 'user', { email: 'alan@ortha.dev' }],
+    ['user.activated', 'user', null],
+    ['user.profile_updated', 'user', { name: { from: 'Ada L', to: 'Ada B' } }],
+    ['user.role_changed', 'user', { from: 'viewer', to: 'contributor' }],
+    ['user.suspended', 'user', null],
+    ['user.reactivated', 'user', null],
+    ['user.password_changed', 'user', { sessionsRevoked: 2 }],
+    ['user.signed_in', 'user', null],
+    ['user.signed_out', 'user', null],
+    ['workspace.created', 'workspace', { name: 'Marketing', slug: 'marketing' }],
+    ['workspace.updated', 'workspace', { fields: ['name'] }],
+    ['workspace.archived', 'workspace', {}],
+    ['workspace.unarchived', 'workspace', {}],
+    ['workspace.deleted', 'workspace', { name: 'Old', slug: 'old' }],
+    ['workspace.member_added', 'user', { workspaceId: 'w_1', email: 'a@b.c' }],
+    ['workspace.member_removed', 'user', { workspaceId: 'w_1', email: 'a@b.c' }],
+    ['workspace.content_granted', 'workspace', { slug: 'author', kind: 'collection' }],
+    ['workspace.content_revoked', 'workspace', { slug: 'author' }],
+    ['entry.published', 'content_entry', { contentType: 'article' }],
+    ['entry.unpublished', 'content_entry', { contentType: 'article' }],
+    ['token.created', 'api_token', { name: 'CI', scope: 'full' }],
+    ['token.revoked', 'api_token', { name: 'CI', scope: 'full' }],
+    ['media.asset.uploaded', 'media_asset', { name: 'hero.png', kind: 'image' }],
+    ['media.asset.updated', 'media_asset', { alt: 'A hero' }],
+    ['media.asset.moved', 'media_asset', { folderId: 'f_1' }],
+    ['media.asset.deleted', 'media_asset', { storageKey: 'w/a/hero.png' }],
+    ['media.folder.created', 'media_folder', { name: 'Brand', parentId: null }],
+    ['media.folder.renamed', 'media_folder', { name: 'Brand assets' }],
+    ['media.folder.deleted', 'media_folder', {}]
+].map(([kind, subjectType, meta], index) => ({
+    id: `ev_kind_${index}`,
+    kind: kind as string,
+    subjectType: subjectType as string,
+    subjectId: `subj_${index}`,
+    actorId: 'u_ada',
+    actorEmail: 'ada@ortha.dev',
+    meta: meta as Record<string, unknown> | null,
+    // Descending, so the log reads newest-first like the server's default.
+    at: new Date(Date.UTC(2026, 5, 1, 12, 0, 0) - index * 60_000).toISOString()
+}));
+
 /** Reads the filter/paging params the page sends from the intercepted URL. */
 function paramsOf(route: Route): {
     kinds: string[];

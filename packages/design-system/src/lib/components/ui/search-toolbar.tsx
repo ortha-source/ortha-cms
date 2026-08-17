@@ -29,6 +29,13 @@ export type SearchToolbarProps = {
      * list owns the announcement (its own live region says "Loading…").
      */
     busy?: boolean;
+    /**
+     * Ref to the search `<input>`. Lets a page restore focus to it after an
+     * action destroys the control the user activated — e.g. a "Clear filters"
+     * button that lives inside the empty state it unmounts, which otherwise
+     * drops focus to `<body>` (WCAG 2.4.3).
+     */
+    inputRef?: React.Ref<HTMLInputElement>;
     className?: string;
 };
 
@@ -45,6 +52,7 @@ export function SearchToolbar({
     searchPlaceholder,
     actions,
     busy = false,
+    inputRef,
     className
 }: SearchToolbarProps) {
     return (
@@ -60,6 +68,7 @@ export function SearchToolbar({
                     )}
                 </InputGroupAddon>
                 <InputGroupInput
+                    ref={inputRef}
                     type="search"
                     value={value}
                     onChange={(event) => onValueChange(event.target.value)}

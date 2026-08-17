@@ -16,6 +16,7 @@ const messages = defineMessages({
     actor: { id: 'activity.table.actor', defaultMessage: 'Actor' },
     action: { id: 'activity.table.action', defaultMessage: 'Action' },
     subject: { id: 'activity.table.subject', defaultMessage: 'Subject' },
+    details: { id: 'activity.table.details', defaultMessage: 'Details' },
     caption: { id: 'activity.table.caption', defaultMessage: 'Activity log' }
 });
 
@@ -47,7 +48,15 @@ export function ActivityTable({ events }: { events: ActivityEvent[] }) {
             <Table aria-label={intl.formatMessage(messages.caption)}>
                 <TableHeader>
                     <TableRow>
-                        <TableHead className="w-8" />
+                        {/* The disclosure column. An empty <th> reads as
+                            "blank" as the first cell of every row in a screen
+                            reader's column-header mode, so it carries a
+                            sr-only name that also says what its buttons do. */}
+                        <TableHead scope="col" className="w-8">
+                            <span className="sr-only">
+                                {intl.formatMessage(messages.details)}
+                            </span>
+                        </TableHead>
                         <TableHead scope="col">
                             {intl.formatMessage(messages.when)}
                         </TableHead>

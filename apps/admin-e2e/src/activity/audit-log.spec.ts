@@ -1,6 +1,11 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockActivity } from '../support/api/activity';
+import { mockWorkspaces } from '../support/api/workspaces';
+import {
+    ALL_KINDS_ACTIVITY,
+    DEFAULT_ACTIVITY,
+    mockActivity
+} from '../support/api/activity';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -130,6 +135,55 @@ test.describe('Activity Log page', () => {
 });
 
 /**
+ * The Activity Log's resilience to values it does not control: a hand-edited
+ * URL param the server would reject, and a timestamp the API should never send.
+ * Both are read-only surfaces, so neither can be reached by using the app —
+ * which is exactly why neither was covered.
+ */
+test.describe('Activity Log resilience', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+    });
+
+    test('an over-large ?pageSize is clamped instead of 400ing into a dead end', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockActivity(page, ALL_KINDS_ACTIVITY);
+        await activityLogPage.gotoWith('pageSize=1000');
+
+        // The server caps page size at 100 and answers 400 above it. A 400 here
+        // used to be unrecoverable: the rows-per-page Select is the only control
+        // that could fix it, and it lives inside the data branch that a failed
+        // query never renders — so Retry re-issued the same doomed request
+        // forever and the only way out was hand-editing the URL again.
+        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.errorAlert()).toHaveCount(0);
+        await expect(page.getByText('Rows per page')).toBeVisible();
+    });
+
+    test('a malformed timestamp does not take the whole app down', async ({
+        homePage,
+        page
+    }) => {
+        await mockWorkspaces(page);
+        await mockActivity(page, [
+            { ...DEFAULT_ACTIVITY[0], id: 'ev_bad', at: 'not-a-date' }
+        ]);
+        await homePage.goto();
+
+        // `new Date('not-a-date')` is an Invalid Date, and `toISOString()`
+        // *throws* on one. The home panel called it unguarded to fill its
+        // `<time datetime>`, so a single bad row threw inside render and — with
+        // no error boundary above the home slots — React unmounted the entire
+        // tree to a blank page. The rest of the dashboard must survive it.
+        await expect(homePage.heading).toBeVisible();
+        await expect(homePage.activityPanel).toBeVisible();
+        await expect(homePage.workspacesPanel).toBeVisible();
+    });
+});
+
+/**
  * Accessibility scans (axe, WCAG 2.1 A/AA) of the Activity Log and its states.
  * A regression guard, not a conformance claim.
  */
@@ -176,6 +230,105 @@ test.describe('Activity Log accessibility (axe, WCAG 2.1 A/AA)', () => {
         await activityLogPage.noAccessText().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
+
+    // The theme defaults to `system`, so emulating the OS preference flips the
+    // whole page without touching app internals. Every other axe scan in the
+    // repo runs in whatever theme the browser happens to default to, which
+    // leaves the dark palette — muted-on-muted at 11–12 px, plus a 30%-alpha
+    // fill under the detail panel — completely unscanned.
+    test('table — dark theme', async ({ activityLogPage, makeAxe, page }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await activityLogPage.goto();
+        await activityLogPage.heading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('table — dark theme, expanded row', async ({
+        activityLogPage,
+        makeAxe,
+        page
+    }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await activityLogPage.goto();
+        await activityLogPage.expandRow('Changed role');
+        await page.getByText('viewer → contributor').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+});
+
+/**
+ * The Activity Log's assistive-technology semantics — the parts axe cannot see
+ * because they are about what changes, and what a table's shape *means*.
+ */
+test.describe('Activity Log assistive-technology semantics', () => {
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+    });
+
+    test('a collapsed row contributes one table row, not two', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockActivity(page);
+        await activityLogPage.goto();
+        await expect(activityLogPage.table).toBeVisible();
+
+        // Every event renders a data row *and* a detail row so the disclosure
+        // can animate. `inert` used to sit on the inner <dl> only, leaving the
+        // empty <tr> a structural row: a 25-event page announced as 50 rows,
+        // with a blank row between every pair of events. The detail <tr> is now
+        // aria-hidden while collapsed, and `getByRole('row')` reads the same
+        // accessibility tree a screen reader does.
+        const header = 1;
+        await expect(activityLogPage.table.getByRole('row')).toHaveCount(
+            DEFAULT_ACTIVITY.length + header
+        );
+
+        // Expanding one adds exactly one row back.
+        await activityLogPage.expandRow('Changed role');
+        await expect(activityLogPage.table.getByRole('row')).toHaveCount(
+            DEFAULT_ACTIVITY.length + header + 1
+        );
+    });
+
+    test('the When cell carries a machine-readable instant', async ({
+        activityLogPage,
+        page
+    }) => {
+        await mockActivity(page);
+        await activityLogPage.goto();
+
+        // The home panel always did this; the table's When cell was a bare
+        // formatted string, so the exact instant was unavailable to AT,
+        // translation tools and user scripts.
+        const when = activityLogPage.row('Changed role').locator('time').first();
+        await expect(when).toHaveAttribute(
+            'datetime',
+            DEFAULT_ACTIVITY[1].at
+        );
+        await expect(when).toContainText('Jun');
+    });
+
+    test('paging changes the live region, so the turnover is announced', async ({
+        activityLogPage,
+        page
+    }) => {
+        // 31 events over a 25-row page: two pages, and every row changes.
+        await mockActivity(page, ALL_KINDS_ACTIVITY);
+        await activityLogPage.goto();
+
+        const status = activityLogPage.resultsStatus();
+        // The region used to carry only the total — which is invariant across
+        // pages — so Next page replaced all 25 rows and the announced text did
+        // not change at all. "Page 2 of 2" is a plain <span> with no live
+        // region, so a screen-reader user got silence.
+        await expect(status).toContainText('page 1 of 2');
+        await expect(status).toContainText('1–25');
+
+        await activityLogPage.pageButton('Next page').click();
+        await expect(status).toContainText('page 2 of 2');
+        await expect(status).toContainText('26–31');
+    });
 });
 
 /**
@@ -210,5 +363,25 @@ test.describe('Activity Log keyboard operability', () => {
         await activityLogPage.expandToggle('Changed role').focus();
         await page.keyboard.press('Enter');
         await expect(page.getByText('viewer → contributor')).toBeVisible();
+    });
+
+    test('"Clear filters" hands focus back instead of dropping it on the body', async ({
+        activityLogPage
+    }) => {
+        await activityLogPage.goto();
+        await activityLogPage.emailSearch.fill('nobody-xyz');
+        await activityLogPage.emptyText('No activity matches').waitFor();
+
+        // Clearing makes the query return rows, so the empty state — and with
+        // it the button just activated — unmounts. React does not move focus
+        // when that happens: it fell to <body> and the next Tab restarted from
+        // the top of the document, stranding a keyboard user with no idea where
+        // they were. The page already restores focus correctly when the filter
+        // panel closes; this is the same concept, twelve lines away.
+        await activityLogPage.clearFilters().focus();
+        await activityLogPage.clearFilters().press('Enter');
+
+        await expect(activityLogPage.table).toBeVisible();
+        await expect(activityLogPage.emailSearch).toBeFocused();
     });
 });

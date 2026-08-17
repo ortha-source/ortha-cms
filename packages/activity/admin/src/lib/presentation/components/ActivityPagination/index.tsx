@@ -43,8 +43,12 @@ export const PAGE_SIZE_OPTIONS = [25, 50, 100];
 /**
  * The table's footer bar: a rows-per-page selector and a "{from}–{to} of
  * {total}" readout, with previous/next controls once there's more than one
- * page. Real buttons (page state is client state, not a URL) that disable
- * cleanly at either end.
+ * page. Real buttons that disable cleanly at either end; the page they move to
+ * is written to the URL by the caller, so a paged view stays deep-linkable.
+ *
+ * The readout is duplicated into the page's polite live region — a sighted user
+ * reads it here, a screen-reader user hears it there, and neither has to hunt
+ * for what a Next-page press did.
  */
 export function ActivityPagination({
     page,

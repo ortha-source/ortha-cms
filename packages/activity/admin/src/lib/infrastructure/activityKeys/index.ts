@@ -8,9 +8,19 @@ export type ActivityListParams = {
     page?: number;
     /** Rows per page; the server defaults to its own page size. */
     pageSize?: number;
-    /** Sort column; the server defaults to `at`. */
+    /**
+     * Sort column; the server defaults to `at`.
+     *
+     * **No UI control sets this today.** The server whitelists `at`/`kind` and
+     * the field is carried so a future sortable header has somewhere to write,
+     * but the Activity table has no sortable column and `users-admin`'s per-user
+     * tab sends no sort either — so every list is the server's default
+     * newest-first. Don't read a `sort` in this type as evidence that a control
+     * exists (`♿ A11Y-activity-admin-08` records that the absent `aria-sort` is
+     * correct precisely because nothing is sortable).
+     */
     sort?: 'at' | 'kind';
-    /** Sort direction; the server defaults to `desc`. */
+    /** Sort direction; the server defaults to `desc`. Also unset by any UI. */
     order?: 'asc' | 'desc';
 };
 
