@@ -457,7 +457,14 @@ export function MediaLibraryPage() {
                     canCreate={canCreate}
                 />
 
-                <main className="min-w-0 flex-1 overflow-auto">
+                {/* A `div`, not a `main`: the host shell already renders the
+                    page's one `<main id="main-content">` and this sits inside
+                    it, so a second one gave the document two "main content"
+                    landmarks — neither of which is the page. "Jump to main"
+                    then lands somewhere arbitrary. Caught by
+                    `landmark-no-duplicate-main` once admin-e2e's axe fixture
+                    stopped omitting the whole `best-practice` ruleset. */}
+                <div className="min-w-0 flex-1 overflow-auto">
                     <div className="p-4 sm:p-6">
                         <div className="mb-4">
                             <h1 className="text-2xl font-semibold tracking-[-0.01em]">
@@ -589,7 +596,7 @@ export function MediaLibraryPage() {
                             )}
                         </section>
                     </div>
-                </main>
+                </div>
             </div>
 
             {/* Mobile-only folder navigation, mirroring the inline sidebar. */}

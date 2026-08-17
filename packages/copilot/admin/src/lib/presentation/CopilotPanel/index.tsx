@@ -374,7 +374,17 @@ export function CopilotPanel({
         >
             <PanelResizeHandles controls={frame} />
 
-            <header
+            {/* A `div`, not a `header`. The panel is portalled to `<body>`, so a
+                `<header>` here is not "this window's title bar" to assistive
+                tech — with no sectioning ancestor it maps to the **banner**
+                landmark, the one reserved for the site header. Open two chats
+                and the document has two banners; open three and a screen-reader
+                user cycling landmarks lands in a chat window each time. The
+                window is already named by `aria-labelledby` on its container,
+                which is what actually carries the title. Caught by
+                `landmark-no-duplicate-banner` once admin-e2e's axe fixture
+                stopped omitting the whole `best-practice` ruleset. */}
+            <div
                 className="flex shrink-0 cursor-move touch-none items-center gap-1 border-b px-3 py-2 select-none"
                 onPointerDown={(event) => {
                     // The header's own controls are buttons, not a grab
@@ -422,7 +432,7 @@ export function CopilotPanel({
                     label={intl.formatMessage(messages.close)}
                     onClick={onClose}
                 />
-            </header>
+            </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
                 <PanelBody
