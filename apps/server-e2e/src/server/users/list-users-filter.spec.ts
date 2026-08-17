@@ -159,6 +159,33 @@ describe('GET /api/users (query-builder filter)', () => {
         }).expect(400);
     });
 
+    it('rejects an inherited Object.prototype name with 400, not a 500', async () => {
+        // The field/relation whitelists are plain object maps, so a bare
+        // `fields[seg]` lookup finds `constructor` / `toString` /
+        // `hasOwnProperty` on Object.prototype and treats them as declared.
+        // Before the `Object.hasOwn` guard the leaf sailed through the parser
+        // and reached SQL as a non-column, emitting `$1 = ` — a Postgres
+        // syntax error, i.e. a user-triggerable 500 on every filterable
+        // endpoint. A relation-shaped one (`toString.constructor`) was worse:
+        // it translated to `undefined` and the filter was silently dropped.
+        const agent = await adminAgent();
+        for (const field of [
+            'constructor',
+            'toString',
+            'hasOwnProperty',
+            'toString.constructor',
+            'valueOf.key'
+        ]) {
+            const res = await getFiltered(agent, {
+                field,
+                op: 'eq',
+                value: 'x'
+            });
+            expect([field, res.status]).toEqual([field, 400]);
+            expect(res.body.code).toMatch(/^FILTER_UNKNOWN_(FIELD|RELATION)$/);
+        }
+    });
+
     it('rejects an unknown operator with 400', async () => {
         const agent = await adminAgent();
         await getFiltered(agent, {
