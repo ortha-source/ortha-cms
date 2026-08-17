@@ -10,6 +10,8 @@ import {
     Skeleton
 } from '@ortha-cms/design-system';
 import { useActivityLog } from '../../../application/useActivityLog';
+import { activityDateTime } from '../../activityDateTime';
+import { formatActivityAction } from '../../activityMessages';
 
 /** Intl descriptors for {@link RecentActivityPanel}, co-located here. */
 const messages = defineMessages({
@@ -43,7 +45,7 @@ const PREVIEW_SIZE = 6;
 
 /**
  * The home dashboard's Recent activity panel: the latest audit events (actor +
- * `domain.action` kind + time) with a "View all" link to the Activity log.
+ * the localized action label + time) with a "View all" link to the Activity log.
  * Backed by the real `GET /api/activity`. Renders nothing when the user lacks
  * `activity:read`, so a viewer without audit access never sees an empty panel.
  */
@@ -110,19 +112,27 @@ export function RecentActivityPanel() {
                                         {event.actor?.email ??
                                             intl.formatMessage(messages.system)}
                                     </span>
+                                    {/* The localized action label, the same
+                                        one the Activity table's Action column
+                                        shows. This used to print the raw
+                                        `domain.action` wire token, so the two
+                                        surfaces a reader compares side by side
+                                        named the same event differently — and
+                                        the panel's half was untranslatable. */}
                                     <Badge
                                         variant="secondary"
-                                        className="shrink-0 font-mono text-[11px] font-normal"
+                                        className="shrink-0 text-[11px] font-normal"
                                     >
-                                        {event.kind}
+                                        {formatActivityAction(intl, event.kind)}
                                     </Badge>
                                 </span>
                             </div>
                             <time
                                 className="shrink-0 text-xs text-muted-foreground"
-                                dateTime={event.at.toISOString()}
+                                dateTime={activityDateTime(event.at)}
                             >
                                 {intl.formatDate(event.at, {
+                                    year: 'numeric',
                                     month: 'short',
                                     day: 'numeric',
                                     hour: '2-digit',

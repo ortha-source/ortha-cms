@@ -30,7 +30,12 @@ const messages = defineMessages({
     },
     emptyDescription: {
         id: 'activity.empty.none.description',
-        defaultMessage: 'Actions across the workspace will appear here.'
+        // Deployment-wide, not workspace-scoped: `activity_events` has no
+        // workspace column and this page sends no workspace context, so
+        // promising a workspace scope here would misstate what the reader is
+        // looking at. See the plugin's AGENTS.md.
+        defaultMessage:
+            'Actions across this deployment will appear here — every workspace, and the actions that belong to none.'
     }
 });
 

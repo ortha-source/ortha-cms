@@ -24,6 +24,14 @@ export type ActivityEventResponse = {
  * Maps an audit event from the wire to the admin's `ActivityEvent` model. A
  * null `actorId` collapses the actor to `null` (a system event); `meta` is
  * passed through typed per kind by the contract; `at` becomes a `Date`.
+ *
+ * `at` is **not** coerced when the wire value doesn't parse: substituting an
+ * instant (epoch, "now") for a malformed audit timestamp would be a mapper
+ * fallback that silently rewrites the record, which is precisely what an audit
+ * trail must never do. The resulting `Invalid Date` is therefore part of this
+ * layer's contract, and the presentation renders it through
+ * `activityDateTime` / `intl.formatDate`, both of which are total — see that
+ * helper for why an unguarded `toISOString()` used to blank the whole SPA.
  */
 export function toActivityEvent(dto: ActivityEventResponse): ActivityEvent {
     return {

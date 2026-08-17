@@ -34,7 +34,10 @@ import {
 import { ActivityEmpty } from '../../components/ActivityEmpty';
 import { ActivityLogTableSkeleton } from '../../components/ActivityLogSkeleton';
 import { ActivityNoAccess } from '../../components/ActivityNoAccess';
-import { ActivityPagination } from '../../components/ActivityPagination';
+import {
+    ActivityPagination,
+    PAGE_SIZE_OPTIONS
+} from '../../components/ActivityPagination';
 import { ActivityTable } from '../../components/ActivityTable';
 import { ActivityToolbar } from '../../components/ActivityToolbar';
 import { ACTIVITY_FILTER_FIELDS } from '../../activityFilterFields';
@@ -48,8 +51,14 @@ const messages = defineMessages({
     },
     subtitle: {
         id: 'activity.page.subtitle',
+        // "this deployment", not "the workspace": `activity_events` has no
+        // workspace column and this page sends no workspace context, so the
+        // figure is deployment-wide by design. Saying "workspace" told an
+        // admin of a multi-workspace deployment that the count was scoped when
+        // it never was — on the page whose whole job is being the record of
+        // record. See the plugin's AGENTS.md.
         defaultMessage:
-            '{count, plural, one {# event} other {# events}} across the workspace.'
+            '{count, plural, one {# event} other {# events}} across this deployment.'
     },
     error: {
         id: 'activity.page.error',
@@ -66,8 +75,23 @@ const messages = defineMessages({
     results: {
         id: 'activity.page.results',
         defaultMessage: '{count, plural, one {# event} other {# events}} found.'
+    },
+    resultsPaged: {
+        id: 'activity.page.resultsPaged',
+        defaultMessage:
+            '{count, plural, one {# event} other {# events}} found. Showing {from}–{to}, page {page} of {pageCount}.'
     }
 });
+
+/**
+ * The largest page size the server accepts (`MAX_PAGE_SIZE` on
+ * `ListActivityQueryDto`). A hand-edited `?pageSize=` above it is a **400**, and
+ * a 400 here is unrecoverable from the UI: the rows-per-page Select is the only
+ * control that could fix it and it lives inside the data branch, which a failed
+ * query never renders. So the URL value is clamped before it is ever sent —
+ * Retry then has something that can succeed.
+ */
+const MAX_PAGE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
 
 /**
  * The Activity Log page: a filterable, paginated, deep-linkable table of audit
@@ -86,7 +110,7 @@ export function ActivityLogPage() {
         searchParam: emailParam,
         filterParam,
         page,
-        pageSize,
+        pageSize: rawPageSize,
         searchInput: emailInput,
         searchPending,
         setSearchInput: setEmailInput,
@@ -104,6 +128,10 @@ export function ActivityLogPage() {
     );
     const ruleCount = countRules(appliedFilter);
 
+    // `useTableUrlState` floors a nonsensical `?pageSize=` to the default but
+    // has no ceiling, so an over-large one reaches the API and 400s.
+    const pageSize = Math.min(rawPageSize, MAX_PAGE_SIZE);
+
     const params: ActivityListParams = {
         actorEmail: emailParam || undefined,
         filter: filterParam || undefined,
@@ -115,6 +143,7 @@ export function ActivityLogPage() {
     // The inline filter panel: its own open state (the toolbar button toggles
     // it), with the ids wiring the button's `aria-controls` to the region.
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const searchRef = useRef<HTMLInputElement>(null);
     const filtersPanelId = useId();
     const filtersToggleId = useId();
     const filtersToggleRef = useRef<HTMLButtonElement>(null);
@@ -180,10 +209,18 @@ export function ActivityLogPage() {
     const hasFilters = Boolean(emailParam) || ruleCount > 0;
 
     // Clear the filters (actor-email + query builder) and reset to the first
-    // page, while preserving the user's sort/order/page-size choices.
+    // page, preserving the chosen page size.
+    //
+    // Clearing makes the query return rows, so `ActivityEmpty` — and with it
+    // the "Clear filters" button the user just pressed — unmounts. React does
+    // not move focus when that happens, so it fell to `<body>` and the next Tab
+    // restarted from the top of the document. Focus goes to the search box
+    // instead, mirroring what `setFiltersPanelOpen` already does twelve lines
+    // up (WCAG 2.4.3).
     const clearFilters = () => {
         setEmailInput('');
         updateParams({ actorEmail: undefined, filter: undefined });
+        searchRef.current?.focus();
     };
 
     return (
@@ -209,6 +246,7 @@ export function ActivityLogPage() {
                 <ActivityToolbar
                     email={emailInput}
                     onEmailChange={setEmailInput}
+                    searchRef={searchRef}
                     busy={searchPending || isFetching}
                     filterControl={
                         <Button
@@ -258,11 +296,27 @@ export function ActivityLogPage() {
                     />
                 ) : null}
 
-                {/* Announce the result count to assistive tech after a filter
-                changes the table without a navigation (WCAG 4.1.3). */}
+                {/* Announce what changed to assistive tech after a filter or a
+                    page change moves the table without a navigation (WCAG
+                    4.1.3). The count alone is not enough: it is invariant
+                    across pages, so pressing Next page replaced all 25 rows
+                    and the region's text stayed identical — no announcement at
+                    all, and "Page 2 of 3" is a plain <span> outside any live
+                    region. Carrying the range and page here makes the text
+                    change exactly when the table does. */}
                 {!isPending && !isError && (
                     <p role="status" aria-live="polite" className="sr-only">
-                        {intl.formatMessage(messages.results, { count: total })}
+                        {events.length > 0
+                            ? intl.formatMessage(messages.resultsPaged, {
+                                  count: total,
+                                  from: (page - 1) * effectivePageSize + 1,
+                                  to: Math.min(page * effectivePageSize, total),
+                                  page,
+                                  pageCount
+                              })
+                            : intl.formatMessage(messages.results, {
+                                  count: total
+                              })}
                     </p>
                 )}
 
