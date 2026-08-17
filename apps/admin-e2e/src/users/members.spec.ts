@@ -71,6 +71,27 @@ test.describe('Members page', () => {
         await expect(membersPage.emptyText('No members match')).toBeVisible();
     });
 
+    test('a link back to the bare roster clears the search box with it', async ({
+        membersPage,
+        page
+    }) => {
+        await membersPage.goto();
+        await membersPage.search.fill('grace');
+        await expect(page).toHaveURL(/[?&]search=grace/);
+        await expect(membersPage.row('Ada Lovelace')).toHaveCount(0);
+
+        // The sidebar entry points at the bare `/users`. The URL is the source
+        // of truth for this page, so the box has to follow it back down —
+        // `useTableUrlState` used to only read the URL on mount and write its
+        // own value out forever after, which re-applied the filter and rewrote
+        // the URL the user had just navigated to.
+        await membersPage.nav.getByRole('link', { name: 'Members' }).click();
+
+        await expect(page).toHaveURL(/\/users$/);
+        await expect(membersPage.search).toHaveValue('');
+        await expect(membersPage.row('Ada Lovelace')).toBeVisible();
+    });
+
     test('invites a member through the three-step wizard', async ({
         membersPage,
         page
