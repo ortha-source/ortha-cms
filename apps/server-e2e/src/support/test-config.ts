@@ -41,6 +41,13 @@ export interface TestConfigOverrides {
      * forwarded client IP rather than collapsing to one global bucket.
      */
     trustProxy?: TrustProxySetting;
+    /**
+     * Shrink the request-body cap, so a suite can prove the `413` boundary
+     * without shipping a megabyte of fixture — and, more to the point, prove
+     * the cap is read from **this config** at all rather than inherited from
+     * `express.json()`'s 100 kB default, which is what it used to be.
+     */
+    bodyLimit?: string | number;
     /** Replace the allow-listed origins. */
     allowedOrigins?: string[];
     /**
@@ -148,6 +155,8 @@ export function buildTestConfig(
         port: 0,
         globalPrefix: 'api',
         trustProxy: overrides.trustProxy,
+        // The shipped default, so the parity suite asserts the real number.
+        bodyLimit: overrides.bodyLimit ?? '1mb',
         database: { url: connectionString },
         // Read twice: `createTestApp` passes it to `setupApiDocs` (the Scalar
         // reference), and the GraphQL plugin reads it to decide whether to

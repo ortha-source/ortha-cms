@@ -63,6 +63,11 @@ export interface OrthaConfig {
      * shares one rate-limit bucket.
      */
     trustProxy?: TrustProxySetting;
+    /**
+     * Cap on a JSON / urlencoded request body, sourced from
+     * `MAX_REQUEST_BODY`. Defaults to 1 MB — see the note on the literal below.
+     */
+    bodyLimit?: string | number;
     /** Database connection settings. */
     database: OrthaDatabaseConfig;
     /** OpenAPI document + Scalar API reference settings. */
@@ -124,6 +129,14 @@ const config: OrthaConfig = {
     // client-supplied `X-Forwarded-For`. Deployments behind a load balancer set
     // `TRUST_PROXY` to their hop count.
     trustProxy: readTrustProxy(),
+    // The largest JSON body a route will accept. Stable tuning, hence a
+    // literal, with an env override for a deployment whose entries are larger.
+    // 1 MB rather than express's inherited 100 kB default: that ceiling sat
+    // below a long-form article with embedded rich text, and it was refused
+    // with a bare `413` from the parser — before any controller, guard or
+    // protocol layer could shape the answer. Uploads are unrelated and much
+    // larger; they are multipart, capped by `plugins.media.maxUploadBytes`.
+    bodyLimit: process.env['MAX_REQUEST_BODY'] || '1mb',
     database: {
         url: process.env['DATABASE_URL'] ?? ''
     },

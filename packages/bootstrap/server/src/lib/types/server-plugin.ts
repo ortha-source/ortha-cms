@@ -74,6 +74,17 @@ export interface CreateServerOptions {
      */
     trustProxy?: TrustProxySetting;
     /**
+     * Cap on a JSON / urlencoded request body, in the `bytes` syntax Express
+     * accepts (`'1mb'`, `'512kb'`) or a raw byte count. Defaults to `'1mb'`.
+     *
+     * Set explicitly rather than inherited: `express.json()`'s own default is
+     * 100 kB, which a long-form entry with embedded rich text exceeds, and a
+     * body over the cap is refused with `413` by the parser before any
+     * controller or guard runs. Multipart uploads do not pass through here —
+     * the media plugin bounds those with its own `maxUploadBytes`.
+     */
+    bodyLimit?: string | number;
+    /**
      * OpenAPI document + Scalar API reference settings. Omitted, the reference
      * is served on `/reference` outside production.
      */
