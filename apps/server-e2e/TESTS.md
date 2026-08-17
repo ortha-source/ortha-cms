@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1140 test cases across 76 spec files._
+_1148 test cases across 77 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -116,6 +116,44 @@ _<sub>apps/server-e2e/src/harness/production-parity.spec.ts</sub>_
 | --- |
 | emits Secure + SameSite=None when the deployment configures them |
 | emits neither when the deployment does not (the test default) |
+
+<!-- source: apps/server-e2e/src/server/activity/activity-coverage.spec.ts -->
+_<sub>apps/server-e2e/src/server/activity/activity-coverage.spec.ts</sub>_
+
+## activity coverage — which write paths produce an audit row
+
+### media library
+
+| Test case |
+| --- |
+| audits a folder create, rename and delete |
+| audits an asset upload, edit, move and delete |
+| never repeats the actor inside meta — it has two columns of its own |
+
+### invite acceptance
+
+| Test case |
+| --- |
+| records the activation as well as the sign-in |
+
+### idempotency under redelivery
+
+| Test case |
+| --- |
+| a re-delivered event does not double-record |
+
+### a subject the mapper cannot name
+
+| Test case |
+| --- |
+| parks the event instead of writing an empty-string subject |
+| still records a membership event that does name its subject |
+
+### the log has no write surface
+
+| Test case |
+| --- |
+| rejects every verb but GET on /api/activity |
 
 <!-- source: apps/server-e2e/src/server/activity/activity-filter.spec.ts -->
 _<sub>apps/server-e2e/src/server/activity/activity-filter.spec.ts</sub>_
