@@ -8,6 +8,7 @@ import {
     useState,
     type ReactNode
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /** The guard's API, shared by every form and every navigation in the app. */
 type UnsavedChangesApi = {
@@ -75,6 +76,10 @@ export function UnsavedChangesProvider({
     dialog: UnsavedChangesDialog;
     children: ReactNode;
 }) {
+    // Mounted inside the app's router, so a confirmed navigation can go through
+    // the router itself rather than being re-dispatched at the History API.
+    const navigate = useNavigate();
+
     // A set of keys, so several forms can be mounted and the guard is "any".
     const [dirtyKeys, setDirtyKeys] = useState<ReadonlySet<string>>(
         () => new Set()
@@ -144,17 +149,21 @@ export function UnsavedChangesProvider({
             event.stopPropagation();
             const url = anchor.pathname + anchor.search + anchor.hash;
             setPending(() => () => {
-                // Re-dispatch as a real click once confirmed. Cheaper and safer
-                // than reaching for the router here: the anchor already knows
-                // where it goes, and the guard is clear by then.
-                window.history.pushState({}, '', url);
-                window.dispatchEvent(new PopStateEvent('popstate'));
+                // Hand the confirmed navigation to the router, which is what
+                // the intercepted `<Link>` would have done. A raw
+                // `pushState({}, '', url)` plus a synthetic `popstate` looks
+                // equivalent but overwrites the state React Router keeps its
+                // own history index in: the router reads the entry back as
+                // index `undefined`, every later push writes `NaN`, and
+                // Back/Forward deltas — which scroll restoration and any
+                // blocker depend on — are wrong for the rest of the session.
+                navigate(url);
             });
         };
 
         document.addEventListener('click', onClick, true);
         return () => document.removeEventListener('click', onClick, true);
-    }, []);
+    }, [navigate]);
 
     // Reload / close / external navigation — the browser's own prompt is the
     // only guard available, and it ignores custom copy by design.
@@ -184,9 +193,13 @@ export function UnsavedChangesProvider({
                 onConfirm: () => {
                     const proceed = pending;
                     setPending(null);
-                    // Clear the guard first: the pending navigation is the
-                    // user's answer, and the form is about to unmount anyway.
-                    setDirtyKeys(new Set());
+                    // Deliberately *not* clearing the dirty set here. The
+                    // answer the user gave is about the form they were asked
+                    // about, and that form clears its own key as it unmounts.
+                    // Clearing every key disarmed every other mounted form —
+                    // a docked composer, a dialog form — for the rest of the
+                    // session, and since `useUnsavedChanges` only re-registers
+                    // when its own inputs change, nothing ever armed it again.
                     proceed?.();
                 }
             })}

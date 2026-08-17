@@ -6,7 +6,11 @@
 export type Slot<T> = {
     /** Unique slot identifier. */
     readonly name: string;
-    /** Returns every item registered to this slot. */
+    /**
+     * Every item registered to this slot, as a fresh array — a consumer that
+     * sorts, filters in place, or pushes cannot rewrite what the next consumer
+     * of the same slot sees.
+     */
     getItems(): T[];
     /** Registers items into this slot. Used by the host wiring only. */
     _register(items: T[]): void;
@@ -32,7 +36,10 @@ export function createSlot<T>(name: string): Slot<T> {
     const items: T[] = [];
     return {
         name,
-        getItems: () => items,
+        // A copy, not the live array: a slot is read by every plugin that
+        // consumes it, so handing out the internal list makes one consumer's
+        // in-place `sort()`/`push()` a change to shared plugin state.
+        getItems: () => items.slice(),
         _register: (newItems: T[]) => items.push(...newItems)
     };
 }
