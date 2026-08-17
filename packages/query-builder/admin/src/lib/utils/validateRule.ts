@@ -10,6 +10,7 @@ import {
     type FilterRule,
     type WithinUnit
 } from '../types/filter-tree.type';
+import { opsForField } from './operators';
 
 /**
  * Machine-readable validation outcome for one rule. UI maps this to a
@@ -25,7 +26,17 @@ export const RULE_VALIDATION = {
      * has to re-pick the field (or drop the rule).
      */
     UnknownField: 'unknown_field',
+    /**
+     * The rule's operator isn't one the field offers — reachable only from a
+     * hand-edited or stale URL, because the picker only ever lists legal ops.
+     * Unlike a bad value this cannot be repaired by typing: the operator cell
+     * renders blank (the `Select` has no matching item), so the rule looks
+     * half-finished while actually being unrunnable.
+     */
+    OperatorNotAllowed: 'operator_not_allowed',
     ValueRequired: 'value_required',
+    /** A scalar value the field's type cannot represent (e.g. `yes` on a boolean). */
+    NotBoolean: 'not_boolean',
     NotUuid: 'not_uuid',
     NotNumber: 'not_number',
     NotDate: 'not_date',
@@ -52,6 +63,17 @@ export function validateRule(
     rule: FilterRule,
     field: FilterField
 ): RuleValidationCode | null {
+    // Operator legality first, because every branch below assumes the operator
+    // makes sense for the field. Nothing in the UI can produce an illegal one
+    // — the picker lists exactly `opsForField` — but `?filter=` is a public,
+    // hand-editable surface, and without this check the gate happily committed
+    // `ilike` against a `timestamptz` (the server answers that with a 500) and
+    // `eq "yes"` against a boolean (a 400). A filter the drawer itself refuses
+    // to draw is not one it should agree to send.
+    if (!opsForField(field).includes(rule.op)) {
+        return RULE_VALIDATION.OperatorNotAllowed;
+    }
+
     if (rule.op === OP.IsEmpty || rule.op === OP.IsNotEmpty) return null;
 
     if (rule.op === OP.Between) {
@@ -112,8 +134,16 @@ export function validateRule(
         if (field.type === FIELD_TYPE.Uuid) return RULE_VALIDATION.NotUuid;
         if (field.type === FIELD_TYPE.Number) return RULE_VALIDATION.NotNumber;
         if (field.type === FIELD_TYPE.Date) return RULE_VALIDATION.NotDate;
-        // string / boolean / enum are unconstrained beyond presence at
-        // this layer — Select-driven editors enforce membership.
+        // A boolean has exactly two legal values and `isScalarValid` already
+        // checked them, so falling through here meant `published eq "yes"`
+        // passed the gate and 400d on the wire. The `Select` editor cannot
+        // produce it; a hand-edited URL can.
+        if (field.type === FIELD_TYPE.Boolean) {
+            return RULE_VALIDATION.NotBoolean;
+        }
+        // string / enum are unconstrained beyond presence at this layer —
+        // `isScalarValid` returns true for both, so this is unreachable for
+        // them; Select-driven editors enforce enum membership.
     }
     return null;
 }

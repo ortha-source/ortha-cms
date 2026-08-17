@@ -31,9 +31,18 @@ const errorMessages = defineMessages({
         id: 'qb.rule.error.unknownField',
         defaultMessage: 'This field is no longer available — pick another one'
     },
+    operator_not_allowed: {
+        id: 'qb.rule.error.operatorNotAllowed',
+        defaultMessage:
+            'This operator does not apply to this field — pick another one'
+    },
     value_required: {
         id: 'qb.rule.error.valueRequired',
         defaultMessage: 'Value required'
+    },
+    not_boolean: {
+        id: 'qb.rule.error.notBoolean',
+        defaultMessage: 'Must be true or false'
     },
     not_uuid: {
         id: 'qb.rule.error.notUuid',
@@ -67,7 +76,9 @@ const errorMessages = defineMessages({
 
 const ERROR_BY_CODE: Record<RuleValidationCode, MessageDescriptor> = {
     [RULE_VALIDATION.UnknownField]: errorMessages.unknown_field,
+    [RULE_VALIDATION.OperatorNotAllowed]: errorMessages.operator_not_allowed,
     [RULE_VALIDATION.ValueRequired]: errorMessages.value_required,
+    [RULE_VALIDATION.NotBoolean]: errorMessages.not_boolean,
     [RULE_VALIDATION.NotUuid]: errorMessages.not_uuid,
     [RULE_VALIDATION.NotNumber]: errorMessages.not_number,
     [RULE_VALIDATION.NotDate]: errorMessages.not_date,
@@ -118,12 +129,17 @@ export function RuleRow({
     const ops = field ? opsForField(field) : [];
     // An unknown field is a broken rule, not an unfinished one, so it reports
     // regardless of `showErrors` — the user never typed it and has no draft to
-    // finish.
+    // finish. An operator the field doesn't offer is the same kind of thing and
+    // is worse to leave silent: the picker has no matching item, so the cell
+    // renders blank and the row reads as merely unfinished.
+    const validation = field ? validateRule(rule, field) : null;
     const errorCode: RuleValidationCode | null = !field
         ? RULE_VALIDATION.UnknownField
-        : showErrors
-          ? validateRule(rule, field)
-          : null;
+        : validation === RULE_VALIDATION.OperatorNotAllowed
+          ? validation
+          : showErrors
+            ? validation
+            : null;
     const errorId = useId();
 
     return (

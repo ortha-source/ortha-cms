@@ -72,7 +72,13 @@ export function opsForField(field: {
     type: FieldType;
     operators?: readonly OpId[];
 }): readonly OpId[] {
-    const allowed = OPS_FOR_TYPE[field.type];
+    // `Object.hasOwn`, not a bare lookup: `OPS_FOR_TYPE` is a plain object
+    // literal and `field.type` arrives from a server response, so a type
+    // naming an `Object.prototype` member would read back a truthy non-array
+    // and `.filter` would throw. An unknown type offers nothing instead.
+    const allowed = Object.hasOwn(OPS_FOR_TYPE, field.type)
+        ? OPS_FOR_TYPE[field.type]
+        : [];
     if (!field.operators) return allowed;
     const narrowed = allowed.filter((op) => field.operators?.includes(op));
     // A narrowing that matches nothing is a config error; falling back beats

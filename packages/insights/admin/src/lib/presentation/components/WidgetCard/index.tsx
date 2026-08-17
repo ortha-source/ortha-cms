@@ -11,12 +11,21 @@ const messages = defineMessages({
     empty: {
         id: 'insights.widget.empty',
         defaultMessage: 'Nothing to show for this period yet.'
+    },
+    loading: {
+        id: 'insights.widget.loading',
+        defaultMessage: 'Loading {title}…'
     }
 });
 
 /** Props for {@link WidgetCard}. */
 export type WidgetCardProps = {
-    /** The widget's name. Rendered as an `h4` — the page owns the `h1`. */
+    /**
+     * The widget's name. Rendered as an `h3` — the page owns the `h1` and each
+     * band owns its `h2`, so `h3` keeps the outline unbroken. It was an `h4`,
+     * which skipped a level: axe's `heading-order` rule is best-practice and
+     * the harness scans only the WCAG tag set, so nothing caught it.
+     */
     title: ReactNode;
     /** One line under the title saying what is being measured. */
     description?: ReactNode;
@@ -72,9 +81,9 @@ export function WidgetCard({
             <CardContent className="flex h-full flex-col gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <h4 className="text-sm font-semibold tracking-[-0.005em]">
+                        <h3 className="text-sm font-semibold tracking-[-0.005em]">
                             {title}
-                        </h4>
+                        </h3>
                         {description ? (
                             <p className="mt-0.5 text-xs text-muted-foreground">
                                 {description}
@@ -88,10 +97,20 @@ export function WidgetCard({
                 </div>
 
                 {isPending ? (
+                    // `role="status"` + an `sr-only` label, per the design
+                    // system's `Skeleton` contract: bare placeholder bars are
+                    // invisible to assistive tech, so the transition into
+                    // loading was silent on a page that puts nine widgets into
+                    // it at once. Named by title so nine simultaneous
+                    // announcements say which card each one is.
                     <div
+                        role="status"
                         className="flex flex-col gap-2.5"
                         data-testid="widget-skeleton"
                     >
+                        <span className="sr-only">
+                            {intl.formatMessage(messages.loading, { title })}
+                        </span>
                         {Array.from({ length: skeletonRows }, (_, index) => (
                             <Skeleton key={index} className="h-4 w-full" />
                         ))}
@@ -104,7 +123,15 @@ export function WidgetCard({
                         {intl.formatMessage(messages.error)}
                     </p>
                 ) : isEmpty ? (
-                    <p className="py-4 text-sm text-muted-foreground">
+                    // The error branch announces and this one did not, so the
+                    // ladder told a screen-reader user about failure and
+                    // stayed silent about success-with-no-data — the exact
+                    // pair the whole design exists to tell apart. Polite
+                    // rather than assertive: nothing is wrong.
+                    <p
+                        role="status"
+                        className="py-4 text-sm text-muted-foreground"
+                    >
                         {emptyMessage ?? intl.formatMessage(messages.empty)}
                     </p>
                 ) : (

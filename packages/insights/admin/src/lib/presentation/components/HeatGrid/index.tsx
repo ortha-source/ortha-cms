@@ -1,10 +1,19 @@
 import { Fragment } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
 import { cn } from '@ortha-cms/design-system';
 import {
     toneBackground,
     toneForIntensity,
     toneInk
 } from '../../../utils/chartTone';
+
+/** Intl descriptors for the grid's table fallback, co-located here. */
+const messages = defineMessages({
+    tableView: {
+        id: 'insights.heatGrid.tableView',
+        defaultMessage: 'Table view'
+    }
+});
 
 /** One cell of a {@link HeatGrid}. */
 export type HeatCell = {
@@ -59,9 +68,11 @@ export function HeatGrid({
     labelWidth = '6.5rem',
     cellHeight = '1.375rem'
 }: HeatGridProps) {
+    const intl = useIntl();
     const template = `${labelWidth} repeat(${columns.length}, minmax(0, 1fr))`;
 
     return (
+        <div className="flex flex-col gap-2">
         <div
             className="grid gap-[3px]"
             style={{ gridTemplateColumns: template }}
@@ -102,6 +113,58 @@ export function HeatGrid({
                     })}
                 </Fragment>
             ))}
+        </div>
+
+            {/* `role="img"` makes everything inside the grid presentational,
+                so the column headings, the row labels and every cell's value
+                are erased — a 7×24 punchcard reached a screen-reader user as
+                one summary sentence, and the per-cell `title` tooltips were
+                never keyboard-reachable in the first place. Same remedy
+                `AreaTrend` already ships: the numbers exist as real text. */}
+            <details className="text-xs">
+                <summary className="cursor-pointer text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.tableView)}
+                </summary>
+                <div className="mt-1.5 overflow-x-auto">
+                    <table className="w-full border-collapse text-xs">
+                        <caption className="sr-only">{ariaLabel}</caption>
+                        <thead>
+                            <tr>
+                                <td className="border-b py-1 pr-3" />
+                                {columns.map((column) => (
+                                    <th
+                                        key={column}
+                                        scope="col"
+                                        className="border-b py-1 px-1.5 text-right font-medium text-muted-foreground"
+                                    >
+                                        {column}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.id}>
+                                    <th
+                                        scope="row"
+                                        className="border-b py-1 pr-3 text-left font-medium text-muted-foreground"
+                                    >
+                                        {row.label}
+                                    </th>
+                                    {row.cells.map((cell) => (
+                                        <td
+                                            key={cell.id}
+                                            className="border-b py-1 px-1.5 text-right tabular-nums"
+                                        >
+                                            {cell.title}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
         </div>
     );
 }

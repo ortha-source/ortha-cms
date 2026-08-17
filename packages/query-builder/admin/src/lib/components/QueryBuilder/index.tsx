@@ -5,7 +5,7 @@ import type {
 } from '../../types/filter-field.type';
 import type { FilterGroup } from '../../types/filter-tree.type';
 import { defaultValueForOp } from '../../utils/defaultValueForOp';
-import { OPS_FOR_TYPE } from '../../utils/operators';
+import { opsForField } from '../../utils/operators';
 import {
     addGroupTo,
     addRuleTo,
@@ -80,7 +80,13 @@ export function QueryBuilder({
         onAddRule: (parentGroupId) => {
             const first = fields[0];
             if (!first) return;
-            const op = OPS_FOR_TYPE[first.type][0];
+            // `opsForField`, not `OPS_FOR_TYPE`, so a field that narrows its
+            // operator set (a virtual field answered by a subquery, say) is
+            // seeded with an operator it actually offers. Seeding from the
+            // type alone put "Add rule" and the operator picker on different
+            // vocabularies — the one place `FilterField.operators` was not
+            // being honoured.
+            const op = opsForField(first)[0];
             onChange(
                 addRuleTo(
                     tree,

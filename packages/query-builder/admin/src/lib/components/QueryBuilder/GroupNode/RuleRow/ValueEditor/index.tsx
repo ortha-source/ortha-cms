@@ -14,6 +14,7 @@ import {
     type RelationValueEditor
 } from '../../../../../types/filter-field.type';
 import {
+    MAX_WITHIN_LAST,
     OP,
     WITHIN_UNIT,
     type OpId,
@@ -192,11 +193,21 @@ export function ValueEditor({
                 <Input
                     type="number"
                     min={1}
+                    max={MAX_WITHIN_LAST}
                     value={String(v.n)}
                     onChange={(e) =>
                         onChange({
                             ...v,
-                            n: Math.max(1, Number(e.target.value) || 1)
+                            // Clamped at both ends. The upper bound matters as
+                            // much as the lower one: the JSON preview
+                            // serialises the draft on every keystroke, so a
+                            // half-typed long number used to resolve to an
+                            // instant `Date` cannot represent and threw
+                            // mid-edit.
+                            n: Math.min(
+                                MAX_WITHIN_LAST,
+                                Math.max(1, Number(e.target.value) || 1)
+                            )
                         })
                     }
                     aria-label={intl.formatMessage(messages.withinAmount)}

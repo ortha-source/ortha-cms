@@ -84,20 +84,20 @@ test.describe('Insights accessibility', () => {
         // group moves *focus* on an arrow key and commits on Enter/Space —
         // it does not follow focus with selection — so both steps are asserted
         // rather than assuming the arrow alone changes the range.
-        await insightsPage.rangeOption('30 days').focus();
+        await insightsPage.rangeOption('30d').focus();
         await page.keyboard.press('ArrowRight');
-        await expect(insightsPage.rangeOption('90 days')).toBeFocused();
-        await expect(insightsPage.rangeOption('90 days')).toHaveAttribute(
+        await expect(insightsPage.rangeOption('90d')).toBeFocused();
+        await expect(insightsPage.rangeOption('90d')).toHaveAttribute(
             'aria-checked',
             'false'
         );
 
         await page.keyboard.press('Enter');
-        await expect(insightsPage.rangeOption('90 days')).toHaveAttribute(
+        await expect(insightsPage.rangeOption('90d')).toHaveAttribute(
             'aria-checked',
             'true'
         );
-        await expect(insightsPage.rangeOption('30 days')).toHaveAttribute(
+        await expect(insightsPage.rangeOption('30d')).toHaveAttribute(
             'aria-checked',
             'false'
         );
