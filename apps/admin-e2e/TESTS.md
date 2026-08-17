@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_618 test cases across 62 spec files._
+_627 test cases across 63 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -968,6 +968,38 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | --- |
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
+
+<!-- source: apps/admin-e2e/src/host/host.spec.ts -->
+_<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
+
+## a private route whose chunk never loads
+
+| Test case |
+| --- |
+| shows a recoverable card instead of blanking the app |
+| the failure is a focused heading, not bare text |
+| a broken page does not take the toast host with it |
+
+## client-side navigation is announced
+
+| Test case |
+| --- |
+| the live region is mounted, and empty, before anything happens |
+| moving to another page speaks that page name |
+| the announcement takes up no space on screen |
+
+## the toast host
+
+| Test case |
+| --- |
+| sits in the corner the design system documents |
+
+## bypass blocks
+
+| Test case |
+| --- |
+| the first Tab reaches a visible skip link |
+| activating it puts focus inside main, past the sidebar |
 
 <!-- source: apps/admin-e2e/src/insights/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/insights/a11y.spec.ts</sub>_
