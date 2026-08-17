@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { PanelRightClose } from 'lucide-react';
 import { Button, cn, useIsMobile } from '@ortha-cms/design-system';
 import {
     RIGHT_PANEL_ID,
     usePageChromeHosts,
+    usePanelFocusHandoff,
     useRightPanel
 } from '../../utils/pageChrome';
 
@@ -52,15 +54,47 @@ export function AppRightPanel() {
     const isMobile = useIsMobile();
     const shown = !!panel?.present && panel.open;
     const animate = !!panel?.animate;
+    const collapseRef = usePanelFocusHandoff('panel');
+    const toggle = panel?.toggle;
+
+    // `Esc` dismisses the mobile overlay. The overlay is not a Radix `Sheet` on
+    // purpose — a Sheet unmounts its content when closed, and the panel's body is
+    // a **portal host** that has to stay mounted or collapsing would throw away
+    // the filler's state and refetch its data (see the class comment). So the one
+    // affordance a Sheet would have brought for free is added by hand.
+    //
+    // Deliberately yields to anything stacked on top: a dialog, menu or listbox
+    // open over the panel owns `Esc` first, and closing the panel out from under
+    // it would strand the user twice over.
+    useEffect(() => {
+        if (!isMobile || !shown || !toggle) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            if (
+                document.querySelector(
+                    '[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]'
+                )
+            ) {
+                return;
+            }
+            toggle();
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [isMobile, shown, toggle]);
 
     return (
         <>
             {isMobile && shown ? (
-                <button
-                    type="button"
-                    tabIndex={-1}
+                // A scrim, not a control: it was a `<button aria-hidden
+                // tabIndex={-1}>`, which advertises a role to nobody and cannot be
+                // operated by keyboard — a dismiss affordance that only a pointer
+                // could reach. The keyboard equivalents are `Esc` (above) and the
+                // panel's own collapse button, so this is honest as inert
+                // decoration.
+                <div
                     aria-hidden
-                    onClick={panel?.toggle}
+                    onClick={toggle}
                     className="fixed inset-0 z-30 cursor-default bg-foreground/20"
                 />
             ) : null}
@@ -107,6 +141,7 @@ export function AppRightPanel() {
                             {panel?.title}
                         </h2>
                         <Button
+                            ref={collapseRef}
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -116,7 +151,7 @@ export function AppRightPanel() {
                             aria-label={intl.formatMessage(messages.hide, {
                                 title: panel?.title ?? ''
                             })}
-                            onClick={panel?.toggle}
+                            onClick={toggle}
                         >
                             <PanelRightClose aria-hidden />
                         </Button>

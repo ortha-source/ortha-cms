@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Search } from 'lucide-react';
@@ -56,6 +56,27 @@ const messages = defineMessages({
 });
 
 /**
+ * Whether `target` is somewhere the user is composing text — a field, or any
+ * `contenteditable` host (the rich-text body).
+ *
+ * The ⌘K binding is on `window`, so it fires wherever focus is. Opening the
+ * palette out from under a caret is a change of context in response to input into
+ * a *different* control (WCAG 3.2.2), and the `preventDefault()` destroys the
+ * keystroke the user meant. Typed structurally: this package compiles against the
+ * DOM lib, but the check has to tolerate a target that is not an element at all
+ * (`window`, a text node).
+ */
+function isComposingText(target: EventTarget | null): boolean {
+    const element = target as { closest?: (selector: string) => unknown } | null;
+    if (!element || typeof element.closest !== 'function') return false;
+    return Boolean(
+        element.closest(
+            'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+        )
+    );
+}
+
+/**
  * The sidebar's search affordance and the ⌘K command palette behind it. The
  * trigger is styled like a search field; clicking it — or pressing ⌘K / Ctrl+K
  * — opens a `CommandDialog` whose suggestions are the primary-nav destinations
@@ -69,36 +90,81 @@ export function SidebarSearch() {
     const intl = useIntl();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
+    /** Whatever held focus when the palette opened, so closing can give it back. */
+    const restoreFocusRef = useRef<Element | null>(null);
+
+    const openPalette = useCallback(() => {
+        restoreFocusRef.current = document.activeElement;
+        setOpen(true);
+    }, []);
+
+    /**
+     * Closes the palette **and puts focus back**. Radix's own restore does not
+     * fire here (the account menu's dropdown, same library, does restore), so a
+     * keyboard user who opened the palette and changed their mind was dropped on
+     * `<body>` and had to Tab through the whole chrome again — WCAG 2.4.3.
+     *
+     * Deferred a tick so it lands after the dialog's focus scope has finished
+     * unmounting, and falls back to the trigger when the remembered element has
+     * gone with the page that owned it.
+     */
+    const closePalette = useCallback(() => {
+        setOpen(false);
+        const previous = restoreFocusRef.current;
+        restoreFocusRef.current = null;
+        setTimeout(() => {
+            const node =
+                previous instanceof HTMLElement && previous.isConnected
+                    ? previous
+                    : triggerRef.current;
+            node?.focus();
+        }, 0);
+    }, []);
 
     // ⌘K / Ctrl+K toggles the palette.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-                event.preventDefault();
-                setOpen((value) => !value);
+            if (!(event.metaKey || event.ctrlKey) || event.key !== 'k') return;
+            // While the palette is open its own input is the editable target, so
+            // the toggle-closed half must not be gated on that.
+            if (!open && isComposingText(event.target)) return;
+            event.preventDefault();
+            if (open) {
+                closePalette();
+            } else {
+                openPalette();
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+    }, [open, openPalette, closePalette]);
 
     const items = byOrder(SIDEBAR_NAV_SLOT.getItems());
     const sections = byOrder(COMMAND_SLOT.getItems());
 
+    // Choosing a result is not "changed my mind": the route is about to change, so
+    // these deliberately skip the focus restore in `closePalette` — putting focus
+    // back on the sidebar trigger would fight the incoming page.
     const go = (to: string) => {
+        restoreFocusRef.current = null;
         setOpen(false);
         navigate(to);
     };
-    const close = () => setOpen(false);
+    const close = () => {
+        restoreFocusRef.current = null;
+        setOpen(false);
+    };
 
     const label = intl.formatMessage(messages.search);
 
     return (
         <>
             <button
+                ref={triggerRef}
                 type="button"
                 aria-label={label}
-                onClick={() => setOpen(true)}
+                onClick={openPalette}
                 className="flex h-9 w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
                 <Search className="size-4 shrink-0" aria-hidden />
@@ -110,7 +176,9 @@ export function SidebarSearch() {
 
             <CommandDialog
                 open={open}
-                onOpenChange={setOpen}
+                onOpenChange={(next) =>
+                    next ? openPalette() : closePalette()
+                }
                 title={intl.formatMessage(messages.title)}
                 description={intl.formatMessage(messages.description)}
             >

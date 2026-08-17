@@ -41,6 +41,30 @@ does, from inside its own tree:
   `PageChromeProvider` (persisted, `ortha:right-panel`) rather than with the
   filler, since the control that flips it is chrome.
 
+  **The toggle pair hands focus between its halves**, and this is not optional.
+  "Hide {title}" lives inside the panel, "Show {title}" in the top bar, and only
+  one is reachable at a time — collapsing puts the first inside the `inert`
+  `<aside>`, reopening unmounts the second — so **every toggle destroys the
+  control that caused it** and the browser drops focus to `<body>`. `toggle`
+  therefore names the survivor (`PanelFocusTarget`) and that control claims focus
+  via `usePanelFocusHandoff` in the same commit that reveals it. Both directions
+  were broken; a handoff that covers only collapsing looks complete and is not.
+
+  **Persistence records a decision, not a layout.** A viewport under
+  `MOBILE_QUERY` starts the panel collapsed whatever was stored (an overlay
+  covering the page on arrival is nobody's request), and the persist effect
+  **must not write that back** — it used to, so a single load on a phone
+  overwrote the desktop preference for good.
+
+  **On a narrow viewport it is an overlay with a hand-wired `Esc`**, and it is
+  deliberately **not** a Radix `Sheet`: a Sheet unmounts its content, and the
+  panel's body is a portal host that has to stay mounted or collapsing throws
+  away the filler's state and refetches its data. So the one affordance a Sheet
+  would have brought for free is added by hand. The scrim is `aria-hidden`
+  decoration, not a `<button>` — a dismiss control no keyboard could reach was
+  worse than none, now that `Esc` exists. Focus is still not *contained* in the
+  overlay; that half is open.
+
 **Both are filled by `createPortal`, not by handing the shell a node** the way
 `useSidebarContent` does. React resolves context by where a node is _rendered_,
 so shell-rendered content is cut off from everything below the shell — the open
@@ -73,6 +97,23 @@ renders the global nav by default, but a descendant can take it over via
 `useSidebarContent(render, deps)` (backed by `SidebarContentProvider`, which
 `AppShell` mounts around the outlet). The workspace shell uses this to inject its
 per-workspace nav. The footer stays persistent across both contexts.
+
+The region holds **one** node, so two callers mounted at once are
+last-writer-wins — that part is by design. What was not: the loser's unmount
+cleanup cleared the *winner's* content, blanking the sidebar's whole middle until
+the next route change. Each caller now holds an ownership token and `clearContent`
+is a no-op unless it is still the one showing. An override is also expected to
+carry **its own labelled landmark** — the `<nav aria-label="Primary">` belongs to
+`GlobalSidebar`, so a node that omits one leaves the region unnamed
+(`workspaces-admin`'s `WorkspaceNav` supplies "Content types" / "Tools").
+
+**⌘K ignores editable targets.** `SidebarSearch` binds on `window`, so the
+shortcut used to fire with the caret in a page's search box or the rich-text body
+— opening the palette, taking the focus, and `preventDefault()`ing away the
+keystroke the user meant (WCAG 3.2.2). The *close* half still works from the
+palette's own input, which is a text field too. The palette also **restores focus**
+when closed without navigating; Radix does not do it here, though it does for every
+other overlay in the app.
 
 ## Package
 
