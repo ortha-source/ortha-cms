@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1159 test cases across 78 spec files._
+_1165 test cases across 78 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1386,6 +1386,17 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts</sub>_
 | trims the title, and rejects one that is blank once trimmed |
 | rejects a title past the limit |
 | does not reorder the list — a rename is not a use |
+
+### the model a thread was left on
+
+| Test case |
+| --- |
+| starts null — a fresh thread has recorded no choice |
+| records a concrete backend and serves it back |
+| keeps an explicit `default` distinct from never having picked |
+| 400s a backend the operator never registered |
+| does not reorder the list — picking a model is not a use |
+| 404s another user’s thread, like every other patch |
 
 ### archiving
 
