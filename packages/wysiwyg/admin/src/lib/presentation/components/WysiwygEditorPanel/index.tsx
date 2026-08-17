@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { Button } from '@ortha-cms/design-system';
@@ -19,8 +19,39 @@ const messages = defineMessages({
             '{words, plural, one {# word} other {# words}} · {characters, plural, one {# character} other {# characters}}'
     },
     done: { id: 'wysiwyg.editor.done', defaultMessage: 'Done' },
-    back: { id: 'wysiwyg.editor.back', defaultMessage: 'Back to fields' }
+    back: { id: 'wysiwyg.editor.back', defaultMessage: 'Back to fields' },
+    escapeHint: {
+        id: 'wysiwyg.editor.escapeHint',
+        defaultMessage:
+            'Press Control plus M to move focus out of the document, to the button that closes the editor.'
+    }
 });
+
+/**
+ * The chord that takes focus out of the document.
+ *
+ * Tab cannot be it. Inside a table `TableKit` binds Tab to "next cell", and at
+ * the last cell it appends a **row** and moves into that instead of returning
+ * `false` — so Tab never falls through, and an author trying to leave grows the
+ * table one row per press. A nested list swallows it too (`sinkListItem`).
+ * Shift-Tab does escape backwards, and Tab escapes from an ordinary paragraph,
+ * but WCAG 2.1.2 asks that the user be *advised* of the way out, and nothing
+ * said so — hence this, plus the visually-hidden instruction the surface points
+ * at with `aria-describedby`.
+ *
+ * `Ctrl` and not `Mod`: on macOS `Mod` is ⌘, and ⌘M is "minimize window" —
+ * taking it would break the OS. Ctrl+M is free on every platform, and is what
+ * ARIA's authoring practices name for exactly this editor pattern.
+ */
+function isEscapeChord(event: KeyboardEvent): boolean {
+    return (
+        event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === 'm'
+    );
+}
 
 /**
  * The editing surface itself: toolbar, document, footer. Expects a flex-column
@@ -78,6 +109,10 @@ export function WysiwygEditorPanel({
         onChangeRef.current = onChange;
     });
 
+    /** The nearest way out of the document — the footer's own exit button. */
+    const exitRef = useRef<HTMLButtonElement>(null);
+    const hintId = useId();
+
     const editor = useEditor({
         extensions: editorExtensions(placeholder),
         content: initialHtml,
@@ -107,11 +142,22 @@ export function WysiwygEditorPanel({
                     : {
                           role: 'textbox',
                           'aria-multiline': 'true',
-                          'aria-required': String(required)
+                          'aria-required': String(required),
+                          // Only the writing surface advertises the escape
+                          // chord: a reader's surface takes no keystrokes, has
+                          // no toolbar in front of it, and Tab already leaves
+                          // it in one press.
+                          'aria-describedby': hintId
                       }),
                 'aria-label': intl.formatMessage(messages.editorLabel, {
                     field: fieldLabel
                 })
+            },
+            handleKeyDown: (_view, event) => {
+                if (readOnly || !isEscapeChord(event)) return false;
+                event.preventDefault();
+                exitRef.current?.focus();
+                return true;
             }
         },
         onUpdate: ({ editor: instance }) => {
@@ -157,6 +203,15 @@ export function WysiwygEditorPanel({
             {readOnly ? null : <WysiwygToolbar editor={editor} />}
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
                 <EditorContent editor={editor} />
+                {/* The surface's `aria-describedby` target. Visually hidden
+                    because it is advice for someone who cannot see that the
+                    exit button is right below the document — everyone else can
+                    just look at it. */}
+                {readOnly ? null : (
+                    <p id={hintId} className="sr-only">
+                        {intl.formatMessage(messages.escapeHint)}
+                    </p>
+                )}
             </div>
             <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-3">
                 <p
@@ -171,7 +226,7 @@ export function WysiwygEditorPanel({
                     a reader, who has nothing to finish. It does the same thing
                     either way (collapse back to the form), so in preview it just
                     says so, matching the link at the top of the view. */}
-                <Button type="button" onClick={onDone}>
+                <Button ref={exitRef} type="button" onClick={onDone}>
                     {intl.formatMessage(
                         readOnly ? messages.back : messages.done
                     )}

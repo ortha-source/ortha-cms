@@ -505,6 +505,23 @@ export type EntryFieldControlContext = {
      */
     readOnly: boolean;
     /**
+     * The row's locale on a localized type — a **BCP-47 language tag** by the
+     * i18n plugin's wire contract, so a control can put it straight on the
+     * element that renders the value as `lang`.
+     *
+     * The form row already carries it: `EntryFieldSections` wraps the whole
+     * Translated group in `lang` + `dir="auto"`, and a `Component` rendered
+     * inside that group inherits both. A `FullView` does **not** — it is
+     * rendered in place of the tab strip, outside the group — so an expanded
+     * control has to set it itself, or a German body is announced with English
+     * pronunciation rules under the admin's `<html lang="en">` (WCAG 3.1.2).
+     *
+     * `undefined` on a type with no locales. It is the *row's* language, not the
+     * field's: apply it only to a field the schema marks `localized`, since a
+     * shared field holds one value for every locale.
+     */
+    contentLocale?: string;
+    /**
      * Whether this field currently **owns the editor's work area** — the
      * expanded view described on {@link EntryFieldControlItem.FullView}. Always
      * `false` for an item that declares no `FullView`.

@@ -654,6 +654,10 @@ export function EntryEditor({
               value: form.values[expandedField.name],
               error: form.errorFor(expandedField.name),
               readOnly,
+              // The form row inherits this from the Translated group's
+              // wrapper; an expanded view is rendered outside it, so it is
+              // handed the row's locale directly. See the field's JSDoc.
+              contentLocale: entry?.locale,
               onChange: (value) => form.setValue(expandedField.name, value),
               onBlur: () => form.touch(expandedField.name),
               expanded: true,

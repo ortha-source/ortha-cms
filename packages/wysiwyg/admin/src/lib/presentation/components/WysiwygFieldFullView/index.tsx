@@ -37,10 +37,12 @@ const messages = defineMessages({
  */
 export function WysiwygFieldFullView({
     field,
+    id,
     label,
     value,
     error,
     readOnly,
+    contentLocale,
     onChange,
     onBlur,
     setExpanded
@@ -55,12 +57,40 @@ export function WysiwygFieldFullView({
     const collapse = () => {
         setExpanded(false);
         onBlur?.();
+        // Focus does not follow a removed active element: the browser drops it
+        // on `<body>`, so an author who pressed **Done** from the keyboard lands
+        // nowhere and has to Tab from the top of the page to get back into the
+        // form (WCAG 2.4.3). Hand it to the control they came from — the button
+        // carries this field's `id`, and content-admin re-renders the form row
+        // on the next commit, so it only exists a frame later — the same
+        // deferred `getElementById` restore `EntryEditor` uses when a blocked
+        // save sends the author to the offending field.
+        requestAnimationFrame(() => {
+            document.getElementById(id)?.focus();
+        });
     };
 
     return (
         <section
             aria-labelledby={headingId}
             className="flex min-h-0 flex-1 flex-col"
+            // The row's own language, on a **localized** field: by definition it
+            // holds this locale's text, and without it a German or Arabic body
+            // is announced with English pronunciation rules under the admin's
+            // hardcoded `<html lang="en">` (WCAG 3.1.2). The collapsed preview
+            // already gets this from content-admin's Translated group — but the
+            // expanded view is rendered in place of the tab strip, *outside*
+            // that group, so the chain ended here. A shared field holds one
+            // value for every locale, usually still in the language it was first
+            // written in, so claiming this locale for it would be a worse
+            // assertion than making none.
+            //
+            // `dir="auto"` rather than the locale's own direction, matching the
+            // form: it orders the body from the body's first strong character,
+            // which is right for an RTL locale and stays right for an RTL
+            // quotation inside an LTR one.
+            lang={field.localized ? contentLocale : undefined}
+            dir="auto"
         >
             {/* Two rows, not one. A `Button` is a flex box with its own icon
                 and line-height; baseline-aligning it against an `<h2>` lines up

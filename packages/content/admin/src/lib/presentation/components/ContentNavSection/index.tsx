@@ -14,6 +14,33 @@ import {
 } from '../../../domain/constants';
 
 /**
+ * Whether the keystroke landed in something the user is **writing** in — a
+ * field, or a `contenteditable` host such as the rich-text body.
+ *
+ * The ⌘K binding is on `window`, so it fires wherever focus is. Opening the
+ * palette out from under a caret is a change of context in response to input
+ * into a *different* control (WCAG 3.2.2), and the `preventDefault()` destroys
+ * the keystroke the user meant — ⌘K is "insert link" in every editor an author
+ * has used. The global sidebar's palette already guards this way; this one did
+ * not, and it is the palette that is live inside a workspace, which is where the
+ * rich-text editor is. Same collision the sidebar's ⌘B toggle had with **bold**.
+ *
+ * Typed structurally, because the target may not be an element at all (`window`,
+ * a text node).
+ */
+function isComposingText(target: EventTarget | null): boolean {
+    const element = target as {
+        closest?: (selector: string) => unknown;
+    } | null;
+    if (!element || typeof element.closest !== 'function') return false;
+    return Boolean(
+        element.closest(
+            'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+        )
+    );
+}
+
+/**
  * The Content Library's "Content" section of the workspace sidebar — the
  * content-type nav (Collections/Pages groups + favorites) and the ⌘K search
  * palette, contributed to the workspace shell's `WORKSPACE_SECTION_SLOT` so it
@@ -47,13 +74,18 @@ export function ContentNavSection() {
                 (event.metaKey || event.ctrlKey) &&
                 event.key === SEARCH_SHORTCUT_KEY
             ) {
+                // Yield the chord to whatever the user is writing in — but only
+                // the *open* half. While the palette is open its own input is
+                // the editable target, so gating the toggle-closed half on the
+                // same check would leave ⌘K unable to dismiss it.
+                if (!searchOpen && isComposingText(event.target)) return;
                 event.preventDefault();
                 setSearchOpen((open) => !open);
             }
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+    }, [searchOpen]);
 
     const workspace = workspaces?.find((item) => item.id === workspaceId);
     // Render nothing until a workspace with granted content types resolves —
