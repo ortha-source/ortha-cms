@@ -166,6 +166,176 @@ test.describe('forced colors', () => {
     });
 });
 
+/**
+ * Contrast of the **focus ring** against the surface behind it, painted rather
+ * than inferred: the ring is composited onto a canvas and the pixels are read
+ * back, so the answer accounts for alpha, for `oklch()`, and for whatever the
+ * token happens to resolve to today.
+ *
+ * axe's `color-contrast` rule does not evaluate focus indicators at all, so
+ * this was invisible to every scan in the suite. `Button`'s ring used to be
+ * `ring-ring/40`, which measured **1.70:1** in light and **1.79:1** in dark —
+ * against the 3:1 that `1.4.11` requires — and the button has no other focus
+ * affordance, no border change and no fill change, so that faint ring was the
+ * whole indicator.
+ */
+async function ringContrast(
+    page: Page
+): Promise<{ vsPage: number; vsControl: number; ring: string }> {
+    return page.evaluate(() => {
+        const scope = globalThis as unknown as {
+            document: {
+                createElement: (t: string) => never;
+                activeElement: never;
+                body: never;
+            };
+            getComputedStyle: (el: unknown) => Record<string, string>;
+        };
+        const canvas = scope.document.createElement('canvas') as unknown as {
+            width: number;
+            height: number;
+            getContext: (t: string, o: unknown) => never;
+        };
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d', {
+            willReadFrequently: true
+        }) as unknown as {
+            clearRect: (a: number, b: number, c: number, d: number) => void;
+            fillRect: (a: number, b: number, c: number, d: number) => void;
+            getImageData: (
+                a: number,
+                b: number,
+                c: number,
+                d: number
+            ) => { data: ArrayLike<number> };
+            fillStyle: string;
+        };
+
+        /** `css` painted over `over`, read back as sRGB bytes. */
+        const paint = (css: string, over?: string): number[] => {
+            ctx.clearRect(0, 0, 1, 1);
+            if (over) {
+                ctx.fillStyle = over;
+                ctx.fillRect(0, 0, 1, 1);
+            }
+            ctx.fillStyle = css;
+            ctx.fillRect(0, 0, 1, 1);
+            return Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3);
+        };
+
+        const luminance = (rgb: number[]) => {
+            const channel = (value: number) => {
+                const c = value / 255;
+                return c <= 0.03928
+                    ? c / 12.92
+                    : Math.pow((c + 0.055) / 1.055, 2.4);
+            };
+            return (
+                0.2126 * channel(rgb[0]) +
+                0.7152 * channel(rgb[1]) +
+                0.0722 * channel(rgb[2])
+            );
+        };
+        const contrast = (a: number[], b: number[]) => {
+            const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+            return (hi + 0.05) / (lo + 0.05);
+        };
+
+        /** Splits a `box-shadow` value into layers, ignoring commas in `()`. */
+        const layersOf = (value: string): string[] => {
+            const out: string[] = [];
+            let depth = 0;
+            let current = '';
+            for (const character of value) {
+                if (character === '(') depth++;
+                if (character === ')') depth--;
+                if (character === ',' && depth === 0) {
+                    out.push(current.trim());
+                    current = '';
+                } else {
+                    current += character;
+                }
+            }
+            if (current.trim()) out.push(current.trim());
+            return out;
+        };
+
+        // The *focused* control, not the first button on the page — the ring
+        // only exists in the computed style while `:focus-visible` matches.
+        const control = scope.document.activeElement as unknown as never;
+        const controlStyle = scope.getComputedStyle(control);
+        const pageBackground = scope.getComputedStyle(scope.document.body)[
+            'backgroundColor'
+        ];
+
+        // The ring as *painted*: the widest-spread visible layer of the
+        // focused button's own `box-shadow`, alpha and all. Reading the
+        // `--color-ring` token instead would silently ignore the `/40` that
+        // was the entire defect.
+        let ring = '';
+        let widest = 0;
+        for (const layer of layersOf(controlStyle['boxShadow'] ?? '')) {
+            const geometry = layer.match(
+                /(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s*$/
+            );
+            if (!geometry) continue;
+            const spread = parseFloat(geometry[4]);
+            const color = layer.slice(0, layer.length - geometry[0].length).trim();
+            if (!color) continue;
+            const painted = paint(color, 'rgb(255,255,255)');
+            const overBlack = paint(color, 'rgb(0,0,0)');
+            const transparent =
+                painted[0] === 255 && painted[1] === 255 && painted[2] === 255 &&
+                overBlack[0] === 0 && overBlack[1] === 0 && overBlack[2] === 0;
+            if (transparent) continue;
+            if (spread >= widest) {
+                widest = spread;
+                ring = color;
+            }
+        }
+
+        return {
+            ring,
+            vsPage: contrast(paint(ring, pageBackground), paint(pageBackground)),
+            vsControl: contrast(
+                paint(ring, controlStyle['backgroundColor']),
+                paint(controlStyle['backgroundColor'], pageBackground)
+            )
+        };
+    });
+}
+
+test.describe('focus indicator contrast', () => {
+    for (const scheme of ['light', 'dark'] as const) {
+        test(`the button focus ring clears 3:1 against the page in ${scheme}`, async ({
+            page,
+            loginPage
+        }) => {
+            await page.emulateMedia({ colorScheme: scheme });
+            await loginPage.goto();
+            await expect(loginPage.submit).toBeVisible();
+
+            await loginPage.submit.focus();
+            const { vsPage, vsControl, ring } = await ringContrast(page);
+
+            // Nothing to measure means the ring was not found, not that it
+            // passed — the failure mode this helper must not have.
+            expect(ring).not.toBe('');
+
+            // The page side is the one the whole ring is drawn onto, and it is
+            // also what WCAG 2.2's change-of-state reading measures: the pixels
+            // the indicator replaced.
+            expect(vsPage).toBeGreaterThanOrEqual(3);
+            // Recorded rather than asserted at 3: in dark this side measures
+            // ~2.89:1 against a near-white button fill, and pushing it higher
+            // is a token decision in `apps/admin/src/styles.css` rather than a
+            // component one. It must not regress to the ~1.5:1 it was.
+            expect(vsControl).toBeGreaterThanOrEqual(2.5);
+        });
+    }
+});
+
 test.describe('dark theme', () => {
     test.use({ colorScheme: 'dark' });
 

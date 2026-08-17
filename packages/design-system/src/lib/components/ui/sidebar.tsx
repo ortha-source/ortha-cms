@@ -780,7 +780,14 @@ function SidebarMenuButton({
         />
     );
 
-    if (!tooltip) {
+    // The tooltip exists to name a row that has shrunk to an icon, so it is
+    // only built when the row *is* an icon. It used to be mounted always and
+    // suppressed with Radix's `hidden`, which hides the panel visually but
+    // leaves the trigger carrying `aria-describedby` — and a referenced hidden
+    // node still contributes to the accessible description. Every expanded
+    // sidebar row therefore announced as "Members, button, Members": a
+    // description echoing the name, which a screen-reader user cannot skip.
+    if (!tooltip || state !== 'collapsed' || isMobile) {
         return button;
     }
 
@@ -793,12 +800,7 @@ function SidebarMenuButton({
     return (
         <Tooltip>
             <TooltipTrigger asChild>{button}</TooltipTrigger>
-            <TooltipContent
-                side="right"
-                align="center"
-                hidden={state !== 'collapsed' || isMobile}
-                {...tooltip}
-            />
+            <TooltipContent side="right" align="center" {...tooltip} />
         </Tooltip>
     );
 }
