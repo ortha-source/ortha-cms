@@ -172,11 +172,11 @@ Three ceilings bound a request, none of which the tool registry can supply —
 it is transport-neutral, and a request/response exchange has obligations an
 in-process loop does not:
 
-| Bound                                                                 | Where                               | Over it                                                                                       |
-| --------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Request body**, 100 KB                                              | the host's express `json()` default | `413`, as a plain Nest body — this is above the JSON-RPC layer, so it is not a JSON-RPC frame |
-| **One `tools/call`**, `callTimeoutMs` (30s; `MCP_CALL_TIMEOUT_MS`)    | `build-mcp-server.ts`               | an `isError` result, `504` / `timeout`                                                        |
-| **One tool result**, `maxResultBytes` (4 MiB; `MCP_MAX_RESULT_BYTES`) | `build-mcp-server.ts`               | an `isError` result, `413` / `result_too_large`, naming both sizes                            |
+| Bound                                                                 | Where                  | Over it                                                                                       |
+| --------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| **Request body**, 1 MB (`MAX_REQUEST_BODY`)                           | the host's `bodyLimit` | `413`, as a plain Nest body — this is above the JSON-RPC layer, so it is not a JSON-RPC frame |
+| **One `tools/call`**, `callTimeoutMs` (30s; `MCP_CALL_TIMEOUT_MS`)    | `build-mcp-server.ts`  | an `isError` result, `504` / `timeout`                                                        |
+| **One tool result**, `maxResultBytes` (4 MiB; `MCP_MAX_RESULT_BYTES`) | `build-mcp-server.ts`  | an `isError` result, `413` / `result_too_large`, naming both sizes                            |
 
 The deadline **abandons, it does not cancel**: the handler is handed a signal
 that aborts on expiry (and on the caller hanging up — the SDK's `extra.signal`,

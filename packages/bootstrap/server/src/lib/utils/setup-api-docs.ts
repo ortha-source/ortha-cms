@@ -20,6 +20,27 @@ interface JsonResponse {
     json(body: unknown): unknown;
 }
 
+/**
+ * The path-item keys that are operations.
+ *
+ * A path item may also carry `parameters`, `$ref`, `summary`, `description`
+ * and `servers` — none of which take a `tags` property. Iterating
+ * `Object.values(item)` and writing `.tags` onto everything object-shaped
+ * would put one on a path-level `parameters` **array**, producing a document
+ * that no longer validates. Nest emits no such key today, which is exactly why
+ * a fixed allow-list is cheaper than discovering the day it does.
+ */
+const OPERATION_KEYS = [
+    'get',
+    'put',
+    'post',
+    'delete',
+    'options',
+    'head',
+    'patch',
+    'trace'
+] as const;
+
 const DEFAULT_PATH = '/reference';
 const DEFAULT_JSON_PATH = '/reference/json';
 const DEFAULT_TITLE = 'Ortha CMS API';
@@ -50,9 +71,9 @@ function tagByResource(document: OpenAPIObject, globalPrefix: string): void {
             continue;
         }
         tags.add(resource);
-        for (const operation of Object.values(
-            item as Record<string, unknown>
-        )) {
+        const pathItem = item as Record<string, unknown>;
+        for (const method of OPERATION_KEYS) {
+            const operation = pathItem[method];
             if (operation && typeof operation === 'object') {
                 (operation as { tags?: string[] }).tags = [resource];
             }
@@ -124,8 +145,22 @@ export function setupApiDocs(
     // Last: each plugin's own pass, so a plugin that describes itself (content
     // types are runtime data, invisible to the scanner) sees a finished,
     // already-tagged document.
+    //
+    // Guarded per plugin: the reference is developer tooling, and a plugin
+    // whose docs pass throws should cost its own contribution to the document,
+    // not the entire API. Unguarded, one bad `decorate` aborted `createServer`
+    // itself and the server never listened.
     for (const plugin of plugins) {
-        plugin.docs?.decorate?.(document as unknown as OpenApiDocument);
+        try {
+            plugin.docs?.decorate?.(document as unknown as OpenApiDocument);
+        } catch (error) {
+            Logger.error(
+                `Plugin "${plugin.name}" threw while decorating the OpenAPI document; its contribution is omitted from the reference.`,
+                error instanceof Error
+                    ? (error.stack ?? error.message)
+                    : String(error)
+            );
+        }
     }
 
     const uiPath = normalizePath(path);
