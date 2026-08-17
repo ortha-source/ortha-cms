@@ -73,47 +73,47 @@ export function HeatGrid({
 
     return (
         <div className="flex flex-col gap-2">
-        <div
-            className="grid gap-[3px]"
-            style={{ gridTemplateColumns: template }}
-            role="img"
-            aria-label={ariaLabel}
-        >
-            <span />
-            {columns.map((column) => (
-                <span
-                    key={column}
-                    className="text-center text-[10px] text-muted-foreground"
-                >
-                    {column}
-                </span>
-            ))}
-
-            {rows.map((row) => (
-                <Fragment key={row.id}>
-                    <span className="truncate pr-1.5 text-right text-[11px] text-muted-foreground">
-                        {row.label}
+            <div
+                className="grid gap-[3px]"
+                style={{ gridTemplateColumns: template }}
+                role="img"
+                aria-label={ariaLabel}
+            >
+                <span />
+                {columns.map((column) => (
+                    <span
+                        key={column}
+                        className="text-center text-[10px] text-muted-foreground"
+                    >
+                        {column}
                     </span>
-                    {row.cells.map((cell) => {
-                        const tone = toneForIntensity(cell.intensity);
-                        return (
-                            <span
-                                key={cell.id}
-                                title={cell.title}
-                                style={{ height: cellHeight }}
-                                className={cn(
-                                    'grid min-w-0 place-items-center rounded-[3px] text-[11px] font-semibold tabular-nums',
-                                    toneBackground(tone),
-                                    toneInk(tone)
-                                )}
-                            >
-                                {cell.text}
-                            </span>
-                        );
-                    })}
-                </Fragment>
-            ))}
-        </div>
+                ))}
+
+                {rows.map((row) => (
+                    <Fragment key={row.id}>
+                        <span className="truncate pr-1.5 text-right text-[11px] text-muted-foreground">
+                            {row.label}
+                        </span>
+                        {row.cells.map((cell) => {
+                            const tone = toneForIntensity(cell.intensity);
+                            return (
+                                <span
+                                    key={cell.id}
+                                    title={cell.title}
+                                    style={{ height: cellHeight }}
+                                    className={cn(
+                                        'grid min-w-0 place-items-center rounded-[3px] text-[11px] font-semibold tabular-nums',
+                                        toneBackground(tone),
+                                        toneInk(tone)
+                                    )}
+                                >
+                                    {cell.text}
+                                </span>
+                            );
+                        })}
+                    </Fragment>
+                ))}
+            </div>
 
             {/* `role="img"` makes everything inside the grid presentational,
                 so the column headings, the row labels and every cell's value

@@ -77,7 +77,9 @@ export function StatWidget({
                                 simply has none. The distinction the em dash
                                 exists to draw has to be drawn in text too. */}
                             <span className="sr-only">
-                                <FormattedMessage {...messages.unavailable} />{' '}
+                                <FormattedMessage
+                                    {...messages.unavailable}
+                                />{' '}
                             </span>
                             {label}
                         </span>
