@@ -22,11 +22,20 @@ const baseURL = process.env['BASE_URL'] || adminUrl;
  */
 export default defineConfig({
     ...nxE2EPreset(__filename, { testDir: './src' }),
+    /* Checks the port really holds *this* app and that no live API is behind the
+       proxy — both fail as a broad, plausible-looking regression otherwise.
+       Runs after `webServer` is up (plugin setup precedes global setup). */
+    globalSetup: './src/support/globalSetup.ts',
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         baseURL,
-        /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-        trace: 'on-first-retry'
+        /* `on-first-retry` produced a trace exactly never: the preset sets
+           `retries` to 0 outside CI and this repo has no CI, so there was no
+           first retry to collect on. Keep retries at 0 — a flake must stay
+           visible as a failure rather than be papered over — and retain the
+           trace on every failure instead, since a local run is the only
+           post-mortem anyone gets. See https://playwright.dev/docs/trace-viewer */
+        trace: 'retain-on-failure'
     },
     /* Run the admin dev server before starting the tests. Specs mock `/api`
        at the network layer, so no backend (or the dev proxy) is needed. */

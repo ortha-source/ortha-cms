@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_669 test cases across 68 spec files._
+_672 test cases across 69 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -987,6 +987,16 @@ _<sub>apps/admin-e2e/src/home/dashboard.spec.ts</sub>_
 | shows the greeting, stat tiles, and both panels |
 | the panels link through to their full pages |
 
+<!-- source: apps/admin-e2e/src/host/a11y-harness.spec.ts -->
+_<sub>apps/admin-e2e/src/host/a11y-harness.spec.ts</sub>_
+
+## axe harness
+
+| Test case |
+| --- |
+| runs the structural ruleset, and excludes exactly the tracked debt |
+| records what axe could not decide instead of discarding it |
+
 <!-- source: apps/admin-e2e/src/host/host.spec.ts -->
 _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 
@@ -1030,6 +1040,12 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 
 <!-- source: apps/admin-e2e/src/host/platform-preferences.spec.ts -->
 _<sub>apps/admin-e2e/src/host/platform-preferences.spec.ts</sub>_
+
+## declarative platform preferences
+
+| Test case |
+| --- |
+| reach the page through `contextOptions` |
 
 ## forced colors
 

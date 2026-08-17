@@ -14,8 +14,11 @@ states.
 ## How a run works
 
 1. **`playwright.config.ts`** starts the admin dev server (`nx run admin:serve`,
-   `reuseExistingServer`) at `http://localhost:4200` and runs `src/**/*.spec.ts`
-   in chromium.
+   `reuseExistingServer`) at `http://localhost:${ADMIN_PORT ?? 4200}` — the
+   per-worktree slot port, so parallel checkouts each drive their own stack — and
+   runs `src/**/*.spec.ts` in chromium. `support/globalSetup.ts` then refuses the
+   run if that port is not this app, or if a live API is answering behind the
+   proxy (see Gotchas — both fail as a broad, plausible-looking regression).
 2. **`support/fixtures.ts`** extends Playwright's `test` with **page-object**
    fixtures (`loginPage`, `homePage`). Specs import `test`/`expect` from here,
    never from `@playwright/test` directly.
@@ -23,7 +26,8 @@ states.
    (`mockLogin`, `spyLogin`). Routes are per-`page`, so they reset between tests
    with the browser context (the FE analog of `resetDb()`).
 4. **Accessibility.** `fixtures.ts` also provides `makeAxe` — an
-   `@axe-core/playwright` scanner pre-tagged for WCAG 2.1 A/AA. `support/a11y.ts`
+   `@axe-core/playwright` scanner tagged WCAG 2.1 A/AA **+ `best-practice`**,
+   with five rules excluded by name in `AXE_KNOWN_GAPS`. `support/a11y.ts`
    (`expectNoA11yViolations`) asserts a clean scan with a readable failure
    summary. `src/auth/a11y.spec.ts` scans pages **and dynamic states** (errors,
    banner); `keyboard.spec.ts` covers keyboard operability axe can't.
@@ -43,11 +47,28 @@ states.
 - **Reflow is not axe's job.** WCAG 1.4.10 (320px / 400% zoom) needs a viewport
   and geometry, not a rule engine: `src/auth/reflow.spec.ts` pins zero horizontal
   overflow and every control reachable by vertical scrolling alone.
-- `makeAxe` runs the **full** WCAG 2.1 A/AA ruleset (no rule exclusions). The
-  scan originally caught a real `color-contrast` failure on muted text; the
+- `makeAxe` runs the WCAG 2.1 A/AA tags **plus `best-practice`**, which is where
+  axe files every structural rule — `heading-order`, `page-has-heading-one`,
+  `region`, the `landmark-*` family, `aria-dialog-name`, `tabindex`, `skip-link`.
+  `withTags` is a **whitelist**, so for a long time those simply never ran: 30 of
+  axe-core 4.12's 105 rules, 29% of the catalogue, were dark, and nothing said so
+  because no rule had been *disabled*. A route with no `<h1>`, no `<main>` and a
+  nameless dialog scanned green. If you are ever tempted to trim that tag list,
+  read `src/host/a11y-harness.spec.ts` first — it exists to stop exactly this.
+- **Five rules are excluded, in one place, with tickets.** `AXE_KNOWN_GAPS` in
+  `support/fixtures.ts` names each, its measured node count and the surfaces it
+  fires on. They are real product debt, not rules the project disagrees with, and
+  deleting an entry is the last step of the fix. `a11y-harness.spec.ts` pins the
+  list so it cannot quietly grow. Never exclude a rule anywhere else.
+- **`incomplete` is not a pass.** `expectNoA11yViolations` records axe's
+  "could not decide" bucket as a test annotation (visible per case in the HTML
+  report) and folds it into the failure message. `color-contrast` is its biggest
+  contributor — semi-transparent text over a semi-transparent background lands
+  there rather than in `violations` — and it used to be destructured away, so
+  every such element was reported clean.
+- The scan originally caught a real `color-contrast` failure on muted text; the
   `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)
-  and the rule stays on to guard against regressions. If you must ever exclude a
-  rule, do it in one place with a comment + a tracked TODO — never silently.
+  and the rule stays on to guard against regressions.
 
 ## Test catalog
 
@@ -85,14 +106,48 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
   frames — not the finished transcript, and not the order of its parts. The
   earlier note that this was impossible was wrong, and it cost the whole surface
   its coverage for a while.
-- **`test.use({ forcedColors: 'active' })` does nothing here.** The media query
-  still reports `false` inside the page, so a spec that sets forced colors the
-  declarative way passes while testing nothing at all — which is how the repo's
-  total absence of `forced-colors` support went unnoticed. `test.use({
-  colorScheme })` is unaffected and works normally. Use
-  `page.emulateMedia({ forcedColors: 'active' })`, and assert the query matched
-  before asserting anything about style
-  (`src/host/platform-preferences.spec.ts`).
+- **`forcedColors` and `reducedMotion` are not Playwright *test options*.**
+  `test.use({ forcedColors: 'active' })` does nothing at all — the media query
+  still reports `false` — while `test.use({ colorScheme })` works normally. The
+  cause is not this repo's config: the runner assembles `browser.newContext()`'s
+  argument from a **fixed list of option fixtures**
+  (`playwright/lib/index.js`, `_combinedContextOptions`), and these two are not
+  on it. They are absent from `PlaywrightTestOptions` for the same reason, so
+  passing either through `test.use()` is a **compile error** (`TS2353`) — it only
+  ever looked *silent* because `nx typecheck admin-e2e` had been red for weeks
+  and nobody was reading it. Two routes work, and both are pinned in
+  `src/host/platform-preferences.spec.ts`:
+  `page.emulateMedia({ forcedColors: 'active' })` per test, or
+  `test.use({ contextOptions: { forcedColors: 'active' } })` — `contextOptions`
+  **is** an option fixture and is spread into the context arguments verbatim.
+  Same for every other `BrowserContextOptions` key with no fixture of its own
+  (`screen`, `strictSelectors`, `recordHar`, `recordVideo`): reach for
+  `contextOptions`, and let the compiler tell you when you have guessed wrong.
+- **Keep `typecheck` green.** It is the only static gate over 45 spec files, and
+  the point above is what a broken one costs: a whole class of "this option does
+  nothing" mistake stops being reported. There is no CI here — `npx nx typecheck
+  admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
+- **The run refuses to start against the wrong server.** `globalSetup` checks
+  that the port really holds *this* app (`reuseExistingServer` is `true`
+  unconditionally, so Playwright will happily adopt an impostor) and that no live
+  API is answering behind the Vite proxy. A backend on the API port is the most
+  expensive trap in this harness: mocks only cover the routes a spec registered,
+  everything else proxies through, the real `401` trips the admin's global
+  sign-out interceptor, `mockSignedIn` stops holding and nearly every page-level
+  spec fails on a redirect to `/identity/signin`. It looks exactly like a broad
+  regression. Measured: one spec file, 15 passed → 14 failed, purely by starting
+  the API.
+- **Don't drive an asynchronous control with `check()`.** Playwright's
+  `_setChecked` clicks once, re-reads the state one tick later and raises a
+  **non-recoverable** `Clicking the checkbox did not change its state` — no
+  retry, no web-first wait. Any control that fetches before it can report itself
+  checked (the relation picker's "Select all N", which pages the rest in) passes
+  on an idle machine and fails on a busy one. Use `click()` and assert the end
+  state. That was the whole of the `relations.spec.ts` load-flake.
+- **Assert against a number the product states, not one you snapshotted.** A
+  count taken from a lazily-paged list is a moving target; the same list's
+  "Select all 32" label is not. The failure mode is a test that measures two
+  different sets and reads as a regression under load.
 - **axe never emulates a media feature.** Every scan runs in the browser default
   — light, no forced colors, no reduced motion, desktop viewport — so a clean
   run is a statement about *that* state and no other. `scrollable-region-focusable`
