@@ -156,6 +156,33 @@ describe('Table', () => {
         expect(wrapper.getAttribute('tabindex')).toBeNull();
     });
 
+    // The wrapper is `w-full`, so showing a column does not change *its* box —
+    // only the table's. Observing the wrapper alone would miss the commonest
+    // way a table starts overflowing.
+    it('observes the table as well as its wrapper', () => {
+        const observed: unknown[] = [];
+        const original = globalThis.ResizeObserver;
+        globalThis.ResizeObserver = class {
+            observe(target: unknown) {
+                observed.push(target);
+            }
+            unobserve() {
+                return undefined;
+            }
+            disconnect() {
+                return undefined;
+            }
+        } as unknown as typeof ResizeObserver;
+
+        try {
+            const { table, wrapper } = renderTable();
+            expect(observed).toContain(wrapper);
+            expect(observed).toContain(table);
+        } finally {
+            globalThis.ResizeObserver = original;
+        }
+    });
+
     it('adds no tab stop to a table that fits', () => {
         const { wrapper } = renderTable();
 

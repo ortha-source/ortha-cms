@@ -18,13 +18,20 @@ function useOverflows(element: HTMLElement | null): boolean {
             setOverflows(element.scrollWidth > element.clientWidth);
         measure();
 
-        // `ResizeObserver` catches the column widths settling after data loads;
-        // `resize` catches the viewport itself. Neither alone is enough.
+        // Three things can change the answer and they need three sources.
+        // The **table** grows when a column is shown or the data widens a cell
+        // — the wrapper is `w-full` and does not move when that happens, so
+        // observing the wrapper alone misses it. The **wrapper** changes when
+        // the surrounding layout does. And `resize` catches the viewport, which
+        // neither observer sees on its own.
         const observer =
             typeof ResizeObserver === 'undefined'
                 ? undefined
                 : new ResizeObserver(measure);
         observer?.observe(element);
+        if (element.firstElementChild) {
+            observer?.observe(element.firstElementChild);
+        }
         window.addEventListener('resize', measure);
         return () => {
             observer?.disconnect();

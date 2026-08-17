@@ -87,7 +87,7 @@ the result; `npx nx catalog:check admin-e2e` fails if it has drifted.
   its coverage for a while.
 - **`test.use({ forcedColors: 'active' })` does nothing here.** The media query
   still reports `false` inside the page, so a spec that sets forced colors the
-  declarative way passes while testing nothing at all —  which is how the repo's
+  declarative way passes while testing nothing at all — which is how the repo's
   total absence of `forced-colors` support went unnoticed. `test.use({
   colorScheme })` is unaffected and works normally. Use
   `page.emulateMedia({ forcedColors: 'active' })`, and assert the query matched
