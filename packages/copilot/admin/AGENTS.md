@@ -510,11 +510,29 @@ sentences, and a run that made six calls should read back as six of them.
   is deliberately **not** translated: there is no message to translate for an
   identifier a third party chose, and minting an id per unknown tool would put
   untranslated English in the catalogue under a key nothing resolves.
-- **"Thinking…" also shows between steps**, not only before the first one. The
-  old condition bailed as soon as a step existed, so a turn that searched and
-  then thought for three seconds showed a finished step and nothing else — the
-  answer looked stuck. It stands down while a step is running, since the step
-  has its own spinner.
+- **A step names the thing it is doing, not only the kind of thing.**
+  `toolSubject` pulls a subject out of the call's own arguments — the `summary`
+  every `propose` tool's schema asks the model to write _for a person_ first,
+  then the query, the title, the content type — so the line reads "Creating an
+  entry · German translation of Prescribing Information". It costs no protocol
+  change: `tool-call` already carries the arguments and is emitted **before** the
+  call runs, and a stored `tool_use` block keeps them, so the live and reopened
+  transcripts derive the same subject from one function. The value is
+  model-authored text derived from workspace content, so it is treated as
+  hostile: control and format characters (bidi overrides included) are stripped,
+  every whitespace run collapses, and it is cut on **code points** so a
+  truncation cannot split a character. Rendered as a text node, never as markup.
+- **The gap between calls says which call it was.** The pending line under a
+  streaming turn is chosen by `MessageList/activity.ts` (pure, unit-tested), not
+  by a condition in JSX: after a completed step it reads "Searched content —
+  working out what to do next…", and "Thinking…" survives only for the gap where
+  that genuinely is all anyone can say — before the first frame of the turn. It
+  stands down for a running step (which has its own spinner and its own
+  present-tense phrase), for prose still arriving (the words _are_ the status),
+  for a failed turn, and for an unanswered permission prompt. It used to stand
+  down for the **whole turn** as soon as any prose existed, so a turn that
+  explained itself, searched, and then thought for three seconds showed a
+  finished step and nothing else — the answer looked stuck.
 - **A failed apply now draws as a failed step.** The `tool-result` event carried
   `ok: true` with `summary: 'failed'` — a green tick beside the word "failed".
   The block the _model_ gets stays a normal result whose text says NOT applied,
@@ -558,6 +576,17 @@ they learn their content changed at all.
   server's own reason. It falls back to a generic line when a reopened row
   carries no message — keyed off the **status**, never off `error` being
   present, or an older row would render its diff as though the change had landed.
+- **That failure banner does not use the design system's icon slot.** `Alert`
+  positions a top-level `<svg>` absolutely (`left-4 top-4`) and nudges the block
+  beside it up 3px — geometry tuned for a _title over a description_. This alert
+  is a description alone, usually one line, so those rules put the icon near the
+  top of the box and the sentence off its centre. Wrapping the icon and the
+  description in a flex row means none of the `[&>svg]` selectors match, which
+  fixes it here without changing the geometry the admin's ~25 other alerts are
+  drawn with. The wrapper is `py-3`, not `pt-3`: with no bottom padding the
+  banner butted into the footer's rule and read as part of the line below it.
+  Five other description-only call sites (users, api-tokens) have the same
+  alignment defect and are a candidate for a generic `Alert` grid rewrite.
 - **Reopening a thread reattaches the cards.** `useOpenConversation` fetches the
   transcript and `GET /copilot/proposals?conversationId=` concurrently and joins
   them on `toolCallId`, which is why the server stores it. The failure reason
@@ -601,7 +630,7 @@ were looking at articles. The attached value is a **snapshot**, not a live
 mirror of the URL; navigating re-offers the button so a stale one can be
 replaced without removing it first.
 
-Two things that matter:
+Three things that matter:
 
 - **`new` and `trash` are not entry ids.** They sit in the `:entryId` slot on
   the create form and the trash view. Sending `entryId: "new"` would have the
@@ -609,6 +638,18 @@ Two things that matter:
 - **The attached context is shown** (`ContextChip`, above the composer). Context
   attached invisibly is context the user cannot correct when it is wrong. The
   design's turn anatomy asks for it too: "Your message, plus where you are" (§2).
+- **What is attached lives on the session**, exactly like the model choice and
+  the staged skills — and it was the worst of the three at surviving. It was
+  `useState` inside `PanelBody`, which unmounts the instant a window collapses,
+  and inside `AgentsThread`, which unmounts on leaving the view. So the ordinary
+  sequence — attach the entry, collapse the window to go and read it, come back
+  and ask — sent the turn with **no** context, and the chip had gone with it, so
+  nothing said so. It is deliberately **not** seeded into the next chat the way
+  the model and the skills are: attaching is opt-in per question precisely so a
+  question asked from the Articles list is not silently declared to be about
+  articles, and an inherited attachment would put that bug back. Switching a
+  window to another thread keeps it, because the attachment belongs to the
+  question being written rather than to the transcript above it.
 
 None of it is an authority claim. `workspaceId` becomes `X-Workspace-Id`, which
 `WorkspaceGuard` validates; `contentType`/`entryId` reach the model as prompt
@@ -717,20 +758,48 @@ Both elements carry `motion-reduce:transition-none`.
 ## Model selection
 
 The picker renders `GET /api/copilot/models` (`ModelRegistry.catalogue()`), and
-the choice is **per turn, not per thread** — a conversation can start on a cheap
-model and escalate. "Default" is a real option meaning "whatever the host's
-resolver picks", which can differ per run; it is not a synonym for today's
-default provider. The picker hides itself when the deployment offers one
-backend.
+the choice is **sent per turn** — a conversation can start on a cheap model and
+escalate. "Default" is a real option meaning "whatever the host's resolver
+picks", which can differ per run; it is not a synonym for today's default
+provider. The picker hides itself when the deployment offers one backend.
 
-**The choice lives on the session, not in the component that draws the picker.**
-Held in `useState` it was lost by collapsing a window _and_ by leaving the Agents
-view — the user picked a model, came back, and silently got the default again.
-It is still per turn (sent with each message, changeable between them); what was
-broken was forgetting it, which nobody chose. A new chat inherits the last model
-picked, remembered per tab — so someone who always wants the bigger model does
-not re-pick it every time, and it can never become a setting nobody remembers
-turning on.
+**A pick is remembered in three places, and each covers what the one before it
+cannot.** Nothing here pins a thread to a model: every turn still carries its
+own, and all three exist only because the choice kept being _forgotten_, which
+nobody chose.
+
+- **On the session** (`sessions.ts`). Held in `useState` it was lost by
+  collapsing a window _and_ by leaving the Agents view — the user picked a model,
+  came back, and silently got the default again.
+- **In the store's per-tab seed** (`rememberChoice` / `seedChoice`), so a new
+  chat inherits the last model _picked_. Someone who always wants the bigger
+  model does not re-pick it every time.
+- **On the thread** (`copilot_conversations.model_choice`, written through
+  `useThreadModelChoice` → `PATCH /copilot/conversations/:id`, read back on
+  `ConversationView`). The tab was the ceiling of the other two: reopening a
+  saved conversation after a reload, or in a second tab, put you back on Default
+  with nothing on screen to say so.
+
+Three rules keep that from becoming noise, and each is a unit or e2e case:
+
+- **Only a _pick_ is written back.** `CopilotSession.choicePinned` tells a pick
+  apart from an inherited seed and from a value **adopted** from the thread
+  (`adopt-model`, deliberately not `model`). Without it every new conversation
+  would record a decision nobody made, and every thread opened would echo its own
+  value straight back.
+- **Adopting is not picking**, so it does not touch the per-tab seed either:
+  reading an old conversation must not change what your next new chat starts on.
+- **`null` and `'default'` are different states.** No stored value means "nobody
+  picked here" and the chat keeps its seed; `'default'` means the person chose
+  the resolver. Collapsing the two would quietly opt someone out of per-run
+  routing — `storedModelChoice` / `readStoredModelChoice` are the whole
+  encoding, and `'default'` is unambiguous only because a real
+  `<provider>:<model>` key always contains a colon.
+
+The PATCH does **not** bump `updatedAt` (the rail sorts by it, and touching a
+picker is not using a thread), and the write deliberately invalidates only that
+thread's own key — refetching both rails when nothing a rail renders has changed
+is two requests for an identical redraw.
 
 **On the Agents page the picker lives inside the composer, bottom-left** — passed as the
 `Composer`'s `controls`, which is the slot for anything that acts on the _next
@@ -897,7 +966,8 @@ co-located `defineMessages`.
 ## Testing
 
 `chatReducer`, the model-choice key helpers, `panelFrame`, `sessions`,
-`groupConversations` and `agentsRoute` are unit-tested (`nx test`) — this is the
+`groupConversations`, `agentsRoute`, `ToolStep/labels` and
+`MessageList/activity` are unit-tested (`nx test`) — this is the
 first admin package with a jest config, `testEnvironment: 'node'` because the
 tested code is pure. Anything that has to
 be got exactly right about the window's geometry belongs in `panelFrame.ts` for

@@ -1,0 +1,1 @@
+ALTER TABLE "copilot_conversations" ADD COLUMN "model_choice" text;

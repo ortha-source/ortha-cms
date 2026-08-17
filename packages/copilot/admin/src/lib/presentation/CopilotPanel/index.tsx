@@ -169,6 +169,16 @@ export interface CopilotPanelProps {
     /** Routes the next turn elsewhere. */
     onChoiceChange(choice: CopilotModelChoice | null): void;
     /**
+     * The page attached to the next turn, from the session — a prop for the
+     * same reason `choice` is, and it was the worse of the two: it was
+     * `useState` in `PanelBody`, which unmounts the moment the window collapses,
+     * so attaching an entry, collapsing the window to go and read it, and coming
+     * back sent the question with **no** context and no chip left to say so.
+     */
+    context: RouteContext | null;
+    /** Attaches a page to the next turn, or detaches it with `null`. */
+    onContextChange(context: RouteContext | null): void;
+    /**
      * Skills staged for this chat, from the session — a prop for the same
      * reason `choice` is: `PanelBody` unmounts when the window collapses, and
      * holding the selection there would silently drop it.
@@ -214,6 +224,8 @@ export function CopilotPanel({
     onAdoptConversation,
     choice,
     onChoiceChange,
+    context,
+    onContextChange,
     skills,
     onSkillsChange,
     returnFocusRef
@@ -438,6 +450,8 @@ export function CopilotPanel({
                     routeContext={routeContext}
                     choice={choice}
                     onChoiceChange={onChoiceChange}
+                    context={context}
+                    onContextChange={onContextChange}
                     skills={skills}
                     onSkillsChange={onSkillsChange}
                     {...(onAdoptConversation ? { onAdoptConversation } : {})}
@@ -515,6 +529,8 @@ function PanelBody({
     routeContext,
     choice,
     onChoiceChange,
+    context: attached,
+    onContextChange: setAttached,
     skills: stagedSkills,
     onSkillsChange,
     onAdoptConversation
@@ -524,14 +540,16 @@ function PanelBody({
     routeContext: RouteContext;
     choice: CopilotModelChoice | null;
     onChoiceChange(choice: CopilotModelChoice | null): void;
+    context: RouteContext | null;
+    onContextChange(context: RouteContext | null): void;
     skills: readonly string[];
     onSkillsChange(names: readonly string[]): void;
     onAdoptConversation?(conversationId: string, title: string | null): boolean;
 }) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
-    // context should not silently change under the user as they navigate.
-    const [attached, setAttached] = useState<RouteContext | null>(null);
+    // context should not silently change under the user as they navigate. From
+    // the **session**, not this component's state — see `CopilotPanelProps`.
     // Files staged for the next turn. Lives in the body, which unmounts when
     // the window collapses to the dock — deliberately: a half-written turn's
     // attachments are part of that draft, and the draft text goes with it too.

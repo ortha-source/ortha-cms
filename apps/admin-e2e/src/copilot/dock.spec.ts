@@ -1,7 +1,11 @@
 import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
-import { mockContentSchema } from '../support/api/content';
+import {
+    mockContentEntries,
+    mockContentSchema,
+    mockContentSchemaDetail
+} from '../support/api/content';
 import { mockCopilotApi } from '../support/api/copilot';
 import { expectNoA11yViolations } from '../support/a11y';
 import type { BrowserGlobals, EvalScrollable } from '../support/browserGlobals';
@@ -291,6 +295,108 @@ test.describe('Ortha AI dock', () => {
         // It lived in the component that drew the picker, so collapsing a
         // window silently put the user back on the default.
         await expect(copilotDockPage.modelPicker()).toContainText('gpt-5.2');
+    });
+});
+
+/**
+ * The page a chat has **attached** — the other half of what a window has to
+ * remember, and the half that was losing it more easily.
+ *
+ * It lived in `useState` inside the panel's body, which unmounts the moment the
+ * window collapses to the dock. So the ordinary sequence — attach the entry,
+ * collapse the window to go and read it, come back and ask the question — sent
+ * the turn with no context at all, and the chip had gone with it, so nothing on
+ * screen said so.
+ *
+ * These cases need a URL the context is derived *from*, which is why the suite
+ * below opens a collection's records table rather than the library's front page:
+ * `readRouteContext` has nothing to offer where there is no content type.
+ */
+test.describe('Ortha AI dock — the attached page', () => {
+    /** A collection whose records table gives the URL a content type. */
+    const TYPE = 'blog_post';
+
+    test.beforeEach(async ({ page, contentLibraryPage }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
+        await mockCopilotApi(page);
+        await contentLibraryPage.gotoSingle(WORKSPACE_ID, TYPE);
+    });
+
+    test('survives collapsing the window and reopening it', async ({
+        copilotDockPage
+    }) => {
+        await copilotDockPage.startChat();
+        await copilotDockPage.addContext().click();
+        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+
+        await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.pill('Untitled chat').click();
+
+        // The gesture people use to go and *look* at the page they attached is
+        // the one that used to drop the attachment.
+        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+    });
+
+    test('is still what the next turn carries after a collapse', async ({
+        page,
+        copilotDockPage,
+        contentLibraryPage
+    }) => {
+        const spy = await mockCopilotApi(page);
+        await contentLibraryPage.gotoSingle(WORKSPACE_ID, TYPE);
+
+        await copilotDockPage.startChat();
+        await copilotDockPage.addContext().click();
+        await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.pill('Untitled chat').click();
+
+        await copilotDockPage.ask('Which of these is missing a summary?');
+
+        // The chip being back is not the assertion that matters — what the run
+        // body says is. A chip that redrew from a context the composer no longer
+        // sends would be the same bug wearing the fix.
+        await expect.poll(() => spy.runs.length).toBe(1);
+        expect(spy.runs[0]).toMatchObject({
+            context: { surface: 'records', contentType: TYPE }
+        });
+    });
+
+    test('survives switching the window to another thread', async ({
+        copilotDockPage
+    }) => {
+        await copilotDockPage.startChat();
+        await copilotDockPage.addContext().click();
+
+        await copilotDockPage.openFromHistory(
+            'Which articles are missing a summary?'
+        );
+
+        // The attachment belongs to the question being written, not to the
+        // transcript above it — so loading a thread into this window leaves it
+        // alone, exactly as it leaves the model choice alone.
+        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toBeVisible();
+    });
+
+    test('can still be taken off after the window has been collapsed', async ({
+        copilotDockPage
+    }) => {
+        await copilotDockPage.startChat();
+        await copilotDockPage.addContext().click();
+        await copilotDockPage.composer().press('Escape');
+        await copilotDockPage.pill('Untitled chat').click();
+
+        await copilotDockPage.removeContext().click();
+
+        // The chip that came back is the live one, not a redraw of something
+        // the composer had already lost track of.
+        await expect(copilotDockPage.contextChip(`${TYPE} list`)).toHaveCount(
+            0
+        );
+        await expect(copilotDockPage.addContext()).toBeVisible();
     });
 });
 

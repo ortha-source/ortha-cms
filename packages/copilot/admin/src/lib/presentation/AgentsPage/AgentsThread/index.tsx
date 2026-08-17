@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { CircleAlert } from 'lucide-react';
 import {
@@ -72,6 +72,8 @@ export function AgentsThread({
         retry,
         choice,
         setChoice,
+        context: attached,
+        setContext: setAttached,
         skills: stagedSkills,
         setSkills
     } = useAgentThread(workspaceId);
@@ -91,8 +93,10 @@ export function AgentsThread({
     const skills = useComposerSkills(workspaceId, stagedSkills, setSkills);
 
     // Opt-in, and a snapshot rather than a live mirror of the URL: an attached
-    // context should not silently change under the user as they navigate.
-    const [attached, setAttached] = useState<RouteContext | null>(null);
+    // context should not silently change under the user as they navigate. On
+    // the **chat**, not in this component — this column unmounts when you leave
+    // the Agents view or switch threads, and holding it here meant a question
+    // asked after a trip into the CMS went with no context at all.
 
     const send = (text: string) => {
         chat.sendWith({

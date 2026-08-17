@@ -43,6 +43,41 @@ export function modelChoiceKey(choice: CopilotModelChoice): string {
     return `${choice.provider}:${choice.model}`;
 }
 
+/**
+ * How "Default" is written down when a thread records what it was left on.
+ *
+ * A real, selectable option rather than the absence of one: it means "whatever
+ * the host's resolver picks", which can differ per run, so storing today's
+ * default provider instead would silently opt the user out of that routing.
+ * It contains no colon, which is what keeps it unambiguous against a
+ * {@link modelChoiceKey}.
+ */
+export const DEFAULT_MODEL_CHOICE = 'default';
+
+/**
+ * A choice in the form the thread stores it — `PATCH /copilot/conversations/:id`
+ * and `ConversationView.modelChoice` both speak this.
+ *
+ * The *absence* of a stored value is `null` on the wire and means "nobody has
+ * picked on this thread", which is deliberately **not** the same as Default;
+ * this function never produces it, because a caller only writes what somebody
+ * chose.
+ */
+export function storedModelChoice(choice: CopilotModelChoice | null): string {
+    return choice ? modelChoiceKey(choice) : DEFAULT_MODEL_CHOICE;
+}
+
+/**
+ * The stored form back into a choice. Pass only a value the server actually
+ * carried — `null` there means "never picked", which the caller handles by
+ * leaving the chat on whatever seeded it.
+ */
+export function readStoredModelChoice(
+    stored: string
+): CopilotModelChoice | null {
+    return stored === DEFAULT_MODEL_CHOICE ? null : parseModelChoiceKey(stored);
+}
+
 /** Parses a {@link modelChoiceKey} back into a choice. */
 export function parseModelChoiceKey(key: string): CopilotModelChoice | null {
     // Split on the FIRST colon only: provider names can't contain one (the

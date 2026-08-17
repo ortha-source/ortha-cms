@@ -1,4 +1,5 @@
 import type { CopilotModelChoice } from './useCopilotModels';
+import type { RouteContext } from './readRouteContext';
 
 /**
  * One chat the user has going — a window, whether or not it is on screen.
@@ -50,11 +51,47 @@ export interface CopilotSession {
      * the Agents view — the user picked a model, came back, and silently got the
      * default again.
      *
-     * Still **per turn, not per thread**: it is sent with each message and can
-     * be changed between them, so a conversation can start cheap and escalate.
-     * What this fixes is forgetting the choice, which nobody chose.
+     * Still **sent per turn**: each message carries its own provider and model
+     * and can differ from the last, so a conversation can start cheap and
+     * escalate. What is remembered is the *pick*, not a pin — and it is
+     * remembered in three places, each covering what the one below it cannot:
+     * here (survives an unmount), in the store's per-tab seed (survives closing
+     * the chat), and on the thread server-side (survives the tab). What all
+     * three fix is forgetting the choice, which nobody chose.
      */
     choice: CopilotModelChoice | null;
+    /**
+     * True once somebody picked {@link choice} **for this chat**.
+     *
+     * The difference between a pick and an inheritance, and it is what decides
+     * whether the choice is written back to the thread. A chat that merely
+     * inherited the tab's last pick has not been given a model — writing that
+     * inheritance onto every new thread would make "nobody picked" a state no
+     * thread could ever be in, and would spend a request per conversation
+     * recording a decision nobody made.
+     *
+     * A choice **adopted from the thread** is likewise not a pick: it came from
+     * the server, and echoing it straight back is a write that says nothing.
+     */
+    choicePinned: boolean;
+    /**
+     * The page attached to the next turn, or `null` for a plain chat turn.
+     *
+     * On the session for the reason the model choice is, and it was the worse
+     * of the two: it lived in `useState` inside the panel's body, which
+     * **unmounts every time the window collapses to the dock**, and inside the
+     * Agents thread column, which unmounts on leaving the view — so attaching an
+     * entry, collapsing the window to go and look at it, and coming back to ask
+     * the question sent the turn with no context at all. Nothing on screen said
+     * so, because the chip had gone with it.
+     *
+     * A **snapshot**, not a live mirror of the URL, and deliberately **not**
+     * seeded into the next chat the way the model and skills are: attaching is
+     * opt-in per question precisely so that a question asked from the Articles
+     * list is not silently declared to be about articles, and an inherited
+     * attachment would reintroduce exactly that.
+     */
+    context: RouteContext | null;
     /**
      * The skills the person has staged for this chat, by name.
      *
@@ -126,8 +163,19 @@ export type SessionsAction =
     | { type: 'awaiting'; id: string; value: boolean }
     /** Move a chat between the full-page surface and the dock. */
     | { type: 'present'; id: string; presented: 'dock' | 'page' }
-    /** Route this chat's next turn to a different backend. */
+    /** The user picked a backend for this chat. Pins it, so it is written back. */
     | { type: 'model'; id: string; choice: CopilotModelChoice | null }
+    /**
+     * The **thread** said which backend it was left on.
+     *
+     * Deliberately not `model`: an adopted choice is not a pick, so it must not
+     * be written straight back to the thread it just came from, and it must not
+     * become the seed the *next* chat inherits either — reading a saved
+     * conversation is not the same as choosing its model for everything after.
+     */
+    | { type: 'adopt-model'; id: string; choice: CopilotModelChoice | null }
+    /** Attach a page to this chat's next turn, or (with `null`) detach it. */
+    | { type: 'context'; id: string; context: RouteContext | null }
     /** Replace the skills staged for this chat. */
     | { type: 'skills'; id: string; names: readonly string[] };
 
@@ -155,6 +203,12 @@ export function sessionsReducer(
                 awaiting: false,
                 presented,
                 choice: action.choice ?? null,
+                // A seed is an inheritance, not a pick — see `choicePinned`.
+                choicePinned: false,
+                // Never seeded: attaching is opt-in per question, and a chat
+                // that started life already claiming to be about a page is the
+                // bug `ContextChip` exists to prevent.
+                context: null,
                 skills: [...(action.skills ?? [])]
             };
             // Reopening a thread that is already open focuses it instead of
@@ -224,7 +278,21 @@ export function sessionsReducer(
 
         case 'model':
             return state.map((s) =>
-                s.id === action.id ? { ...s, choice: action.choice } : s
+                s.id === action.id
+                    ? { ...s, choice: action.choice, choicePinned: true }
+                    : s
+            );
+
+        case 'adopt-model':
+            return state.map((s) =>
+                s.id === action.id
+                    ? { ...s, choice: action.choice, choicePinned: false }
+                    : s
+            );
+
+        case 'context':
+            return state.map((s) =>
+                s.id === action.id ? { ...s, context: action.context } : s
             );
 
         case 'skills':

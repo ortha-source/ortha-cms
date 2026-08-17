@@ -175,8 +175,13 @@ export class CreateRunDto {
     /**
      * The model id to run on, from the chosen provider's list. Omit for that
      * provider's default. A user switches model by sending a different value on
-     * the next turn — the choice is per-run, not pinned to the thread, so a
-     * conversation can start cheap and escalate.
+     * the next turn — the choice is **per run**, so a conversation can start
+     * cheap and escalate.
+     *
+     * The thread does carry a `modelChoice` (see `UpdateConversationDto`), and
+     * it is a memory rather than a pin: it is what the picker is *seeded* from
+     * when a saved conversation is reopened, and nothing about it constrains
+     * what this field may be on the next turn.
      */
     @ApiPropertyOptional({ type: String, maxLength: 128 })
     @IsOptional()

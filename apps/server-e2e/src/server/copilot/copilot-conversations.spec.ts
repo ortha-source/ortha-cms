@@ -169,6 +169,111 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
         });
     });
 
+    // ------------------------------------------------------- the model memory
+    /**
+     * `modelChoice` — the model a thread was last **picked** onto.
+     *
+     * A memory, not a pin: the run route still takes its provider and model per
+     * turn, and nothing here constrains the next one. What it buys is that
+     * reopening a saved conversation in another tab offers the backend the
+     * person chose instead of silently falling back to Default.
+     *
+     * The column carries three states and the last two are the ones worth
+     * testing: `null` is "nobody has picked here", `'default'` is "the person
+     * picked the host's resolver". Collapsing those two would quietly opt a user
+     * out of per-run routing, so they round-trip separately below.
+     */
+    describe('the model a thread was left on', () => {
+        /**
+         * The one backend this harness registers — `fake` × `fake-1`, in the
+         * picker's own `<provider>:<model>` key form.
+         */
+        const KNOWN = 'fake:fake-1';
+
+        it('starts null — a fresh thread has recorded no choice', async () => {
+            const { agent } = await signIn(OWNER_EMAIL);
+            const id = await startThread(agent, 'nothing picked yet');
+
+            const [row] = await list(agent);
+            expect(row).toEqual(
+                expect.objectContaining({ id, modelChoice: null })
+            );
+        });
+
+        it('records a concrete backend and serves it back', async () => {
+            const { agent } = await signIn(OWNER_EMAIL);
+            const id = await startThread(agent, 'pick a model');
+
+            const response = await patch(agent, id)
+                .send({ modelChoice: KNOWN })
+                .expect(200);
+            expect(response.body.modelChoice).toBe(KNOWN);
+
+            // On the detail route too, which is where the picker is seeded from.
+            const detail = await agent
+                .get(`/api/copilot/conversations/${id}`)
+                .set('X-Workspace-Id', workspace.id)
+                .expect(200);
+            expect(detail.body.conversation.modelChoice).toBe(KNOWN);
+        });
+
+        it('keeps an explicit `default` distinct from never having picked', async () => {
+            const { agent } = await signIn(OWNER_EMAIL);
+            const id = await startThread(agent, 'the resolver, please');
+
+            const response = await patch(agent, id)
+                .send({ modelChoice: 'default' })
+                .expect(200);
+
+            // Not `null`. "Default" means *whatever the resolver picks for this
+            // run*, which can differ per run — storing today's default provider
+            // instead would pin the thread to something nobody chose, and
+            // storing nothing would lose the answer altogether.
+            expect(response.body.modelChoice).toBe('default');
+        });
+
+        it('400s a backend the operator never registered', async () => {
+            const { agent } = await signIn(OWNER_EMAIL);
+            const id = await startThread(agent, 'hi');
+
+            // The value is read back into the picker and offered as the next
+            // run's provider/model, so an unchecked string is both a stored
+            // value the user wrote and a run that could only fail.
+            await patch(agent, id)
+                .send({ modelChoice: 'evil:gpt-9' })
+                .expect(400);
+            await patch(agent, id)
+                .send({ modelChoice: 'not-a-key' })
+                .expect(400);
+        });
+
+        it('does not reorder the list — picking a model is not a use', async () => {
+            const { agent } = await signIn(OWNER_EMAIL);
+            const older = await startThread(agent, 'first');
+            const newer = await startThread(agent, 'second');
+
+            await patch(agent, older).send({ modelChoice: KNOWN }).expect(200);
+
+            // `updatedAt` sorts the rail and means "last used". The client
+            // writes this as a side effect of somebody touching a picker; a
+            // thread must not climb the rail because its model was looked at.
+            expect((await list(agent)).map((row) => row.id)).toEqual([
+                newer,
+                older
+            ]);
+        });
+
+        it('404s another user’s thread, like every other patch', async () => {
+            const owner = await signIn(OWNER_EMAIL);
+            const id = await startThread(owner.agent, 'private');
+
+            const other = await signIn(OTHER_EMAIL);
+            await patch(other.agent, id)
+                .send({ modelChoice: KNOWN })
+                .expect(404);
+        });
+    });
+
     // ------------------------------------------------------------ archiving
     describe('archiving', () => {
         it('moves the thread between two disjoint lists, reversibly', async () => {
