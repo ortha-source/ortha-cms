@@ -13,6 +13,7 @@ import { useHasPermission } from '@ortha-cms/identity-admin';
 import { MEDIA_CREATE } from '../../../domain/agentsRoute';
 import { useComposerAttachments } from '../../../application/useComposerAttachments';
 import { useComposerSkills } from '../../../application/useComposerSkills';
+import { useEffectiveModelChoice } from '../../../application/useCopilotModels';
 import type { RouteContext } from '../../../application/readRouteContext';
 import { Composer } from '../../Composer';
 import { ContextChip } from '../../ContextChip';
@@ -77,6 +78,10 @@ export function AgentsThread({
         skills: stagedSkills,
         setSkills
     } = useAgentThread(workspaceId);
+    // The backend the picker shows and the turn is sent with — the chat's own
+    // pick, or the catalogue's first entry until there is one. Opening this
+    // view therefore lands on a real model rather than on "Default".
+    const model = useEffectiveModelChoice(choice);
     // Files staged for the next turn. Held here rather than inside `Composer`
     // so `send` can read what was staged and clear it once the turn is away.
     const files = useComposerAttachments();
@@ -112,8 +117,8 @@ export function AgentsThread({
                 ...(attached?.locale ? { locale: attached.locale } : {})
             },
             options: {
-                provider: choice?.provider ?? null,
-                model: choice?.model ?? null
+                provider: model?.provider ?? null,
+                model: model?.model ?? null
             },
             attachments: files.sent,
             skills: skills.inForce,
@@ -188,7 +193,7 @@ export function AgentsThread({
                     // being written, not to the conversation, so it belongs
                     // with the thing that writes it.
                     controls={
-                        <ModelPicker value={choice} onChange={setChoice} />
+                        <ModelPicker value={model} onChange={setChoice} />
                     }
                     // The page already centres and pads its own column, so the
                     // composer drops the panel's divider and gutters and

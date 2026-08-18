@@ -16,11 +16,25 @@ import type {
 const MODELS = ['fake-1'] as const;
 
 /**
+ * The models the **second** registered provider advertises.
+ *
+ * A second backend exists so "which provider serves a run that names none?" is
+ * a question with a wrong answer available. There is no `defaultProvider`
+ * setting any more — the first registration serves it — and with one provider
+ * registered that rule is unfalsifiable: every assertion passes whether the
+ * engine reads the list, the request, or nothing at all.
+ */
+const ALT_MODELS = ['alt-1'] as const;
+
+/**
  * The provider currently backing the harness. Replaced wholesale by
  * {@link scriptCopilot}, because `createFakeProvider` takes its script at
  * construction — deliberately, so a script cannot be mutated mid-run.
  */
 let current = createFakeProvider({ models: [...MODELS] });
+
+/** The same, for the second registration. Scripted with the same turns. */
+let currentAlt = createFakeProvider({ models: [...ALT_MODELS] });
 
 /**
  * The provider registered with `CopilotPlugin` in `buildTestPlugins`.
@@ -42,6 +56,26 @@ export const fakeProvider: ModelProvider = {
 };
 
 /**
+ * The **second** provider registered with `CopilotPlugin`, after
+ * {@link fakeProvider}.
+ *
+ * Registered purely so registration *order* is observable: it is what a run
+ * naming no provider must NOT be served by, and what one naming `fake-alt`
+ * must be. It runs the same script — a test that switches provider is asking
+ * about routing, not about a different answer — and advertises its own model
+ * id, which is how the assertion tells the two apart.
+ */
+export const fakeAltProvider: ModelProvider = {
+    models: () => currentAlt.models(),
+    capabilities: (model?: string): Promise<ModelCapabilities> =>
+        currentAlt.capabilities(model),
+    stream: (
+        request: ModelRequest,
+        signal?: AbortSignal
+    ): AsyncIterable<ModelStreamEvent> => currentAlt.stream(request, signal)
+};
+
+/**
  * Scripts the turns the model will "produce", one per model call, and clears
  * the previous call log. Call it in each test, before the request.
  *
@@ -51,6 +85,10 @@ export const fakeProvider: ModelProvider = {
  */
 export function scriptCopilot(...turns: FakeTurn[]): void {
     current = createFakeProvider({ script: turns, models: [...MODELS] });
+    // The second provider gets the same turns, so a test that routes to it
+    // scripts nothing extra — and each fake keeps its own call log, which is
+    // what makes `copilotCalls()` still mean "what the FIRST provider served".
+    currentAlt = createFakeProvider({ script: turns, models: [...ALT_MODELS] });
 }
 
 /**
@@ -65,6 +103,7 @@ export function scriptCopilot(...turns: FakeTurn[]): void {
  */
 export function resetCopilot(): void {
     current = createFakeProvider({ script: [], models: [...MODELS] });
+    currentAlt = createFakeProvider({ script: [], models: [...ALT_MODELS] });
 }
 
 /**
@@ -77,6 +116,11 @@ export function resetCopilot(): void {
  */
 export function copilotCalls(): readonly ModelRequest[] {
     return current.calls;
+}
+
+/** As {@link copilotCalls}, for the second registered provider. */
+export function copilotAltCalls(): readonly ModelRequest[] {
+    return currentAlt.calls;
 }
 
 /**

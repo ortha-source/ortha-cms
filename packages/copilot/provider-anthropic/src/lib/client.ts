@@ -21,7 +21,7 @@ export function createLazyClient(config: AnthropicProviderConfig): LazyClient {
             if (!config.apiKey) {
                 throw new Error(
                     'The Anthropic copilot provider was selected but no API key is configured. ' +
-                        'Set ANTHROPIC_API_KEY, or point plugins.copilot.defaultProvider at another provider.'
+                        'Set ANTHROPIC_API_KEY, or pick another provider in the model picker.'
                 );
             }
             client = new Anthropic({

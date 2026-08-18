@@ -228,15 +228,15 @@ test.describe('Agents view — the rail and the thread', () => {
  * tomorrow, or in a second tab, silently put the user back on Default without
  * saying so.
  *
- * The seeded threads carry all **three** states on purpose, because the bug that
- * would be easiest to ship is collapsing the last two: `c_pricing` was left on a
- * concrete backend, `c_bios` on an explicit Default, and `c_summary` on nothing
- * at all.
+ * The seeded threads carry the three states a stored value can be in:
+ * `c_pricing` was left on a concrete backend, `c_bios` on the retired
+ * `'default'` sentinel (rows written when "Default" was still an option), and
+ * `c_summary` on nothing at all.
  */
 test.describe('Agents view — the model a thread was left on', () => {
     /** Left on `openai:gpt-5.2`. */
     const PICKED = 'Rewrite the pricing page intro';
-    /** Left on an explicit `default`. */
+    /** Left on the retired `'default'` sentinel — an old row. */
     const DEFAULTED = 'Audit author bios for broken links';
 
     test.beforeEach(async ({ page }) => {
@@ -259,7 +259,7 @@ test.describe('Agents view — the model a thread was left on', () => {
         await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
     });
 
-    test('an explicit Default is not the same as never having picked', async ({
+    test('a thread left on the retired Default sentinel opens on the first model', async ({
         page,
         agentsPage
     }) => {
@@ -272,15 +272,17 @@ test.describe('Agents view — the model a thread was left on', () => {
 
         await agentsPage.railRow(DEFAULTED).click();
 
-        // "Default" means *whatever the resolver picks*, which is a choice in
-        // its own right — so the thread overrules the tab's seed rather than
-        // being treated as the absence of an answer.
-        await expect(agentsPage.modelPicker()).toContainText('Default');
+        // `'default'` used to mean "whatever the host's resolver picks". The
+        // option is gone and so is the setting behind it, so an old row
+        // carrying it reads as "nobody picked here" — which lands on the
+        // catalogue's first entry. It still overrules the tab's seed: the
+        // thread said something, even if what it said no longer exists.
+        await expect(agentsPage.modelPicker()).toContainText('claude-sonnet-5');
 
         await agentsPage.railRow(THREAD.title).click();
 
-        // …and a thread nobody has picked on keeps the seed, rather than being
-        // quietly reset to Default by the same code path.
+        // …and a thread that never carried a value keeps the seed, rather than
+        // being quietly reset by the same code path.
         await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
     });
 

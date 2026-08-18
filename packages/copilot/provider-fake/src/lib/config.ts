@@ -67,7 +67,7 @@ export interface FakeProvider extends ModelProvider {
 /** The canned dev-mode reply used when no script is supplied. */
 export const DEV_MODE_REPLY =
     'The fake copilot provider is active, so no model was called. ' +
-    'Point `plugins.copilot.defaultProvider` at a real provider to get a real answer.';
+    'Register a real provider in `plugins.ts` — or pick one in the model picker — to get a real answer.';
 
 export const DEFAULT_CAPABILITIES: ModelCapabilities = {
     model: 'fake',

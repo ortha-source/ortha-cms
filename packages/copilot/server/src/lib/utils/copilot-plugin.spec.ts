@@ -23,7 +23,6 @@ const config = (
     overrides: Partial<CopilotPluginConfig> = {}
 ): CopilotPluginConfig => ({
     enabled: false,
-    defaultProvider: 'fake',
     maxOutputTokens: 8_192,
     ...overrides
 });
@@ -81,20 +80,6 @@ describe('CopilotPlugin config validation', () => {
                 })
             )
         ).toThrow(/"fake" declares no models/);
-    });
-
-    it('rejects a defaultProvider nobody registered', () => {
-        expect(() =>
-            CopilotPlugin(
-                options({ config: config({ defaultProvider: 'claude' }) })
-            )
-        ).toThrow(/"claude" is not registered\. Registered: fake/);
-    });
-
-    it('rejects a blank defaultProvider', () => {
-        expect(() =>
-            CopilotPlugin(options({ config: config({ defaultProvider: '' }) }))
-        ).toThrow(/requires `config\.defaultProvider`/);
     });
 
     it('rejects a non-positive maxOutputTokens', () => {

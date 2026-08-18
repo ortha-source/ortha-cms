@@ -14,7 +14,7 @@ import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
-import { fakeProvider, testCodeSkills } from './copilot';
+import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
 import { createInMemoryStorageProvider } from './media-storage';
 
 /**
@@ -79,11 +79,21 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
         }),
         I18nServerPlugin(config.plugins.i18n),
         // Copilot before MCP: runs are workspace-scoped and execute as the
-        // calling user, so it must register after workspaces and identity. Its
-        // only provider is the scripted fake — no key, no network, and the
-        // whole tool loop still exercised.
+        // calling user, so it must register after workspaces and identity. Both
+        // providers are scripted fakes — no key, no network, and the whole tool
+        // loop still exercised.
+        //
+        // **Two of them, and the order is the assertion.** There is no
+        // `defaultProvider` config: a run naming no provider is served by the
+        // first registration, so a harness with one provider could not tell a
+        // working rule from a broken one. `fake` is first and is what an
+        // unnamed run must land on; `fake-alt` is what naming a provider must
+        // reach instead.
         CopilotPlugin({
-            providers: [{ name: 'fake', provider: fakeProvider }],
+            providers: [
+                { name: 'fake', provider: fakeProvider },
+                { name: 'fake-alt', provider: fakeAltProvider }
+            ],
             // Code-defined skills, so the half of the feature that never
             // touches the database is exercised by the same boot the host
             // performs — including a code skill's name being unavailable to a

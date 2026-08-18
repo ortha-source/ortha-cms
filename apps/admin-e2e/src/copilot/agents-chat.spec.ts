@@ -96,7 +96,10 @@ test.describe('Agents view — asking', () => {
         await agentsPage.goto(WORKSPACE_ID);
         await agentsPage.welcomeHeading().waitFor();
 
-        await expect(agentsPage.modelPicker()).toContainText('Default');
+        // A new chat opens on the catalogue's FIRST entry, not on a
+        // "Default" row that named no model — the first registered provider is
+        // the deployment default, and the header says which one that is.
+        await expect(agentsPage.modelPicker()).toContainText('claude-sonnet-5');
         await agentsPage.chooseModel('gpt-5.2');
         await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
 

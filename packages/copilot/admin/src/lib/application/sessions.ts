@@ -42,8 +42,9 @@ export interface CopilotSession {
      */
     presented: 'dock' | 'page';
     /**
-     * Which backend this chat's **next turn** runs on, or `null` for the host's
-     * resolver ("Default").
+     * Which backend this chat's **next turn** runs on, or `null` until somebody
+     * picks — which the surfaces read as the catalogue's first entry
+     * (`useEffectiveModelChoice`), never as "let the server decide".
      *
      * On the session rather than in the component that draws the picker, for
      * the reason everything else here is: components unmount. Held in

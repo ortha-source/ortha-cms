@@ -176,17 +176,21 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
      * A memory, not a pin: the run route still takes its provider and model per
      * turn, and nothing here constrains the next one. What it buys is that
      * reopening a saved conversation in another tab offers the backend the
-     * person chose instead of silently falling back to Default.
+     * person chose instead of the house default.
      *
-     * The column carries three states and the last two are the ones worth
-     * testing: `null` is "nobody has picked here", `'default'` is "the person
-     * picked the host's resolver". Collapsing those two would quietly opt a user
-     * out of per-run routing, so they round-trip separately below.
+     * The column carries two live states — `null` ("nobody has picked here")
+     * and a `<provider>:<model>` key — plus `'default'`, a legacy value from
+     * when the picker offered "let the host's resolver decide" and the
+     * deployment had a `defaultProvider` behind it. Both are gone; the value is
+     * still accepted and still stored, because rows carrying it exist and an
+     * older client may still send one, and the client reads it back as "nobody
+     * picked".
      */
     describe('the model a thread was left on', () => {
         /**
-         * The one backend this harness registers — `fake` × `fake-1`, in the
-         * picker's own `<provider>:<model>` key form.
+         * The harness's first backend — `fake` × `fake-1`, in the picker's own
+         * `<provider>:<model>` key form. (It registers a second, `fake-alt`,
+         * so run routing has something to get wrong.)
          */
         const KNOWN = 'fake:fake-1';
 
@@ -217,18 +221,21 @@ describe('Copilot conversations (PATCH /api/copilot/conversations/:id)', () => {
             expect(detail.body.conversation.modelChoice).toBe(KNOWN);
         });
 
-        it('keeps an explicit `default` distinct from never having picked', async () => {
+        it('still accepts the legacy `default`, and stores it verbatim', async () => {
             const { agent } = await signIn(OWNER_EMAIL);
-            const id = await startThread(agent, 'the resolver, please');
+            const id = await startThread(agent, 'an older client');
 
             const response = await patch(agent, id)
                 .send({ modelChoice: 'default' })
                 .expect(200);
 
-            // Not `null`. "Default" means *whatever the resolver picks for this
-            // run*, which can differ per run — storing today's default provider
-            // instead would pin the thread to something nobody chose, and
-            // storing nothing would lose the answer altogether.
+            // Nothing produces this any more — the picker has no "Default" row
+            // and the deployment has no `defaultProvider` for it to mean. It is
+            // still accepted rather than 400'd, because rows carrying it exist
+            // and an older tab may still send one; the client reads it back as
+            // "nobody picked", which lands on the catalogue's first entry.
+            // Storing it as `null` instead would be this route rewriting what
+            // it was sent.
             expect(response.body.modelChoice).toBe('default');
         });
 

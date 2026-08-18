@@ -10,23 +10,27 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import { InjectCopilotConfig } from '../../../copilot.tokens';
-import type { CopilotPluginConfig } from '../../../types/copilot-config';
 
 /** What the model picker renders. */
 export interface ModelCatalogue {
-    /** Every provider × model pair on offer, in registration order. */
+    /**
+     * Every provider × model pair on offer, in registration order.
+     *
+     * The order carries the only default there is: `items[0]` is the first
+     * registered provider's first model, which is what a run that names
+     * neither gets, and what the picker opens on. There is no separate
+     * `defaultProvider` field for a client to reconcile with this list.
+     */
     items: ModelChoice[];
-    /** The provider a run gets when it names none. */
-    defaultProvider: string;
 }
 
 /**
  * `GET /api/copilot/models` — the backends a run may choose from.
  *
  * This is `ModelRegistry.catalogue()` served verbatim, which is what phase 0
- * built it for: "a user can switch model mid-conversation and an operator can
- * switch provider with one env var — neither needs a redeploy". The registry is
+ * built it for: a user switches model mid-conversation by picking another row,
+ * and an operator changes what is on offer by changing the provider list in
+ * `plugins.ts` — the list is the whole configuration. The registry is
  * fixed at boot from `plugins.ts`, so this leaks nothing an operator did not
  * already choose to offer — **names only**, never a credential or a base URL.
  *
@@ -41,16 +45,12 @@ export interface ModelCatalogue {
 @Controller('copilot')
 export class ListModelsController {
     constructor(
-        @Inject(MODEL_REGISTRY) private readonly registry: ModelRegistry,
-        @InjectCopilotConfig() private readonly config: CopilotPluginConfig
+        @Inject(MODEL_REGISTRY) private readonly registry: ModelRegistry
     ) {}
 
     @Get('models')
     @ApiOperation({ summary: 'List the model backends a run may choose from' })
     list(): ModelCatalogue {
-        return {
-            items: this.registry.catalogue(),
-            defaultProvider: this.config.defaultProvider
-        };
+        return { items: this.registry.catalogue() };
     }
 }

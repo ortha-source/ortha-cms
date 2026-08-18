@@ -200,18 +200,15 @@ export function buildTestConfig(
             // to opt into and everything to cover.
             copilot: {
                 enabled: overrides.copilot?.enabled ?? true,
-                defaultProvider: 'fake',
                 maxOutputTokens: overrides.copilot?.maxOutputTokens ?? 1024,
                 ...(overrides.copilot?.limits
                     ? { limits: overrides.copilot.limits }
                     : {}),
-                providers: {
-                    claude: { apiKey: '', models: ['unused'] },
-                    ollama: {
-                        baseUrl: 'http://localhost:1',
-                        models: ['unused']
-                    }
-                }
+                // Neither hosted backend is configured, exactly as in a clone
+                // with no keys — and `buildTestPlugins` registers only the
+                // scripted fake, which is therefore the first (and only)
+                // provider, and what a run naming none is served by.
+                providers: {}
             },
             // The media plugin registers an in-memory `memory` provider in
             // `buildTestPlugins`, so uploads never touch disk — unless a suite

@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1212 test cases across 80 spec files._
+_1213 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1431,7 +1431,8 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_
 | serves the catalogue of registered backends |
 | gates the catalogue on copilot:use |
 | runs on the requested provider and model, and records both |
-| records the default model when the run names none |
+| serves a run naming no provider from the first registered one |
+| routes to a later provider when the run names it |
 | refuses an unregistered provider with an error frame |
 | refuses a model the provider does not offer |
 
@@ -1480,7 +1481,7 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-conversations.spec.ts</sub>_
 | --- |
 | starts null — a fresh thread has recorded no choice |
 | records a concrete backend and serves it back |
-| keeps an explicit `default` distinct from never having picked |
+| still accepts the legacy `default`, and stores it verbatim |
 | 400s a backend the operator never registered |
 | does not reorder the list — picking a model is not a use |
 | 404s another user’s thread, like every other patch |

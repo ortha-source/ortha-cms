@@ -759,9 +759,19 @@ Both elements carry `motion-reduce:transition-none`.
 
 The picker renders `GET /api/copilot/models` (`ModelRegistry.catalogue()`), and
 the choice is **sent per turn** — a conversation can start on a cheap model and
-escalate. "Default" is a real option meaning "whatever the host's resolver
-picks", which can differ per run; it is not a synonym for today's default
-provider. The picker hides itself when the deployment offers one backend.
+escalate. The picker hides itself when the deployment offers one backend.
+
+**Every row is a real model, and a chat opens on the first one.** There is no
+"Default" option and no deployment setting behind it: the server's
+`config.defaultProvider` is gone, the first provider `plugins.ts` registers is
+the default, and `useEffectiveModelChoice` makes that `items[0]` here. So an
+unpicked chat sends `provider`/`model` naming the backend the header is
+showing, rather than omitting them and letting the server decide something the
+UI could not name. It is **derived, not seeded**: the catalogue is a query, so
+there may be nothing to seed from when a chat opens, and an effect filling it in
+later would race the model a saved thread was left on — and a derived value is
+also not a _pick_, so nothing is written back to the thread until someone
+touches the picker.
 
 **A pick is remembered in three places, and each covers what the one before it
 cannot.** Nothing here pins a thread to a model: every turn still carries its
@@ -777,8 +787,8 @@ nobody chose.
 - **On the thread** (`copilot_conversations.model_choice`, written through
   `useThreadModelChoice` → `PATCH /copilot/conversations/:id`, read back on
   `ConversationView`). The tab was the ceiling of the other two: reopening a
-  saved conversation after a reload, or in a second tab, put you back on Default
-  with nothing on screen to say so.
+  saved conversation after a reload, or in a second tab, put you back on the
+  house default with nothing on screen to say so.
 
 Three rules keep that from becoming noise, and each is a unit or e2e case:
 
@@ -789,12 +799,14 @@ Three rules keep that from becoming noise, and each is a unit or e2e case:
   value straight back.
 - **Adopting is not picking**, so it does not touch the per-tab seed either:
   reading an old conversation must not change what your next new chat starts on.
-- **`null` and `'default'` are different states.** No stored value means "nobody
-  picked here" and the chat keeps its seed; `'default'` means the person chose
-  the resolver. Collapsing the two would quietly opt someone out of per-run
-  routing — `storedModelChoice` / `readStoredModelChoice` are the whole
-  encoding, and `'default'` is unambiguous only because a real
-  `<provider>:<model>` key always contains a colon.
+- **`'default'` is a legacy value, read but never written.** It was the third
+  state, back when "Default" was a selectable option meaning "whatever the
+  resolver picks". Nothing produces it now, and a row still carrying it reads
+  back as "nobody picked here" — which lands the chat on `items[0]`, the same
+  place a thread with no stored value lands. `storedModelChoice` /
+  `readStoredModelChoice` are the whole encoding, and the sentinel stayed
+  unambiguous only because a real `<provider>:<model>` key always contains a
+  colon.
 
 The PATCH does **not** bump `updatedAt` (the rail sorts by it, and touching a
 picker is not using a thread), and the write deliberately invalidates only that

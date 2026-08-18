@@ -4,8 +4,12 @@ A scripted, deterministic `ModelProvider`. **Shipped, not test scaffolding**
 ([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3): it
 is how `server-e2e` will exercise the whole tool loop with no API key and no
 network, and how a contributor runs the admin offline. It is registered in
-`apps/server/src/plugins.ts` alongside the two real adapters, and it is the
-`COPILOT_PROVIDER` default so a fresh clone boots without configuration.
+`apps/server/src/plugins.ts` **last**, after whichever real adapters this
+deployment configured — and a clone with no keys configures none, so `fake` is
+the only provider there is, which is what lets a fresh checkout chat without
+configuration. The first registered provider serves a run that names none, so
+being last is also what keeps it out of the way of a deployment that has a real
+one.
 
 Depends only on `@ortha-cms/copilot-domain`. No network, no clock, no randomness
 — the run engine is a non-deterministic multi-step loop, and a flaky fake would

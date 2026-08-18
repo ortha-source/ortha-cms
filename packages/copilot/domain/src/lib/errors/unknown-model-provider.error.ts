@@ -1,6 +1,6 @@
 /**
  * A provider name was requested that no one registered — a misconfigured
- * `defaultProvider`, or a resolver returning a name outside the map.
+ * a resolver returning a name outside the map, or a run naming one.
  * Transport-agnostic by design; the HTTP layer decides how it renders.
  */
 export class UnknownModelProviderError extends Error {

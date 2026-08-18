@@ -3,7 +3,10 @@ import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
 import { ActivityPlugin } from '@ortha-cms/activity-server';
 import { ContentPlugin } from '@ortha-cms/content-server';
 import { ContentGraphqlPlugin } from '@ortha-cms/content-graphql';
-import { CopilotPlugin } from '@ortha-cms/copilot-server';
+import {
+    CopilotPlugin,
+    type ProviderRegistration
+} from '@ortha-cms/copilot-server';
 import { createAnthropicProvider } from '@ortha-cms/copilot-provider-anthropic';
 import { createFakeProvider } from '@ortha-cms/copilot-provider-fake';
 import { createOpenAiProvider } from '@ortha-cms/copilot-provider-openai';
@@ -17,6 +20,35 @@ import { UsersPlugin } from '@ortha-cms/users-server';
 import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
 import { contentTypes } from './content';
+
+/**
+ * The copilot backends this deployment can actually reach, in preference
+ * order — a real one first, `fake` last.
+ *
+ * **Only what is configured is registered.** `ortha.config.ts` omits a
+ * provider whose connection settings are absent, and an unconfigured backend
+ * is not registered here either: the first entry is what a run that names no
+ * provider gets, so a keyless `claude` at the top of the list would be the
+ * house default and would fail on the first message. A clone with no keys is
+ * left with `fake` alone, which is a working chat and a picker with nothing to
+ * choose (the admin hides a one-option picker).
+ */
+function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
+    const { claude, ollama } = config.plugins.copilot.providers;
+    return [
+        ...(claude
+            ? [{ name: 'claude', provider: createAnthropicProvider(claude) }]
+            : []),
+        ...(ollama
+            ? [{ name: 'ollama', provider: createOpenAiProvider(ollama) }]
+            : []),
+        // Shipped, not test scaffolding (ADR-0004 §3): it is how server-e2e
+        // drives the loop with no key and no network, and how a contributor
+        // runs the admin offline. Last, so it is the default only when it is
+        // the only thing there is.
+        { name: 'fake', provider: createFakeProvider() }
+    ];
+}
 
 /**
  * Builds the host's plugin list. Shared by `main.ts` (boot) and the
@@ -111,37 +143,23 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // exist: it takes a list of named, already-constructed providers.
         //
         // Each provider declares several models, so a user can switch between
-        // them mid-conversation, and an operator can switch provider entirely
-        // with `COPILOT_PROVIDER` — no redeploy, which is most of what
-        // self-hosters are asking for (ADR-0004 §5). Registering two of the
-        // same kind is just another entry:
+        // them mid-conversation, and an operator changes what is on offer by
+        // changing this list — no redeploy of the copilot packages, which is
+        // most of what self-hosters are asking for (ADR-0004 §5). Registering
+        // two of the same kind is just another entry:
         //   { name: 'ollama-big', provider: createOpenAiProvider({ … }) },
         //
-        // To route per run, add a `resolve` handler, e.g.:
+        // **The order is the setting.** There is no `defaultProvider`: the
+        // first entry serves a run that names no provider (MCP, the API, e2e)
+        // and is what the admin's model picker opens on. To route per run
+        // instead, add a `resolve` handler, e.g.:
         //   resolve: (ctx) => (isBigWorkspace(ctx.workspaceId) ? 'claude' : 'ollama'),
         //
         // Every provider × model pair registered here is what the chat panel's
         // model picker offers (`GET /api/copilot/models`), so adding a backend
         // is an entry in this list and nothing else.
         CopilotPlugin({
-            providers: [
-                {
-                    name: 'claude',
-                    provider: createAnthropicProvider(
-                        config.plugins.copilot.providers.claude
-                    )
-                },
-                {
-                    name: 'ollama',
-                    provider: createOpenAiProvider(
-                        config.plugins.copilot.providers.ollama
-                    )
-                },
-                // Shipped, not test scaffolding (ADR-0004 §3): it is how
-                // server-e2e drives the loop with no key and no network, and
-                // how a contributor runs the admin offline.
-                { name: 'fake', provider: createFakeProvider() }
-            ],
+            providers: copilotProviders(config),
             // Skills defined in code — reusable instruction packets available
             // in every workspace, reviewed in git and changed by a deploy
             // (ADR-0010). Workspaces author their own in the admin; a code

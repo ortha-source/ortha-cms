@@ -9,10 +9,17 @@ export interface CopilotModelChoice {
     model: string;
 }
 
-/** What `GET /api/copilot/models` returns. */
+/**
+ * What `GET /api/copilot/models` returns.
+ *
+ * The order is the only default there is: `items[0]` is the first registered
+ * provider's first model, which is what a run naming neither is served by, and
+ * what every chat opens on. The server used to send a `defaultProvider`
+ * alongside this list and no client ever read it — a second source of truth for
+ * something the list already says.
+ */
 export interface CopilotModelCatalogue {
     items: CopilotModelChoice[];
-    defaultProvider: string;
 }
 
 /** Query key for the model catalogue. */
@@ -44,11 +51,36 @@ export function modelChoiceKey(choice: CopilotModelChoice): string {
 }
 
 /**
- * How "Default" is written down when a thread records what it was left on.
+ * The backend a chat runs on: what somebody picked, or the **first entry in
+ * the catalogue** until they do.
  *
- * A real, selectable option rather than the absence of one: it means "whatever
- * the host's resolver picks", which can differ per run, so storing today's
- * default provider instead would silently opt the user out of that routing.
+ * That fallback is the client half of dropping `defaultProvider`. A chat used
+ * to open on "Default" — an option meaning "whatever the host's resolver
+ * picks", which named no model and showed the person nothing about what was
+ * going to answer them. Now the picker opens on a real row, and the turn is
+ * sent naming it, so what the header says is what runs.
+ *
+ * Derived rather than seeded into the session on open: the catalogue is a
+ * query, so at the moment a chat opens there may be nothing to seed *from*, and
+ * an effect that filled it in later would race the model a saved thread was
+ * left on. It is also, deliberately, **not a pick** — nothing is written back
+ * to the thread until somebody touches the picker (see `choicePinned`).
+ */
+export function useEffectiveModelChoice(
+    choice: CopilotModelChoice | null
+): CopilotModelChoice | null {
+    const { data } = useCopilotModels();
+    return choice ?? data?.items[0] ?? null;
+}
+
+/**
+ * How a thread recorded "the host's resolver picks" before there was anything
+ * else to record.
+ *
+ * Kept for **reading old rows only**. It was written when "Default" was a
+ * selectable option; it no longer is, so nothing produces this value any more,
+ * and a thread carrying it reads back as "nobody picked here" — which lands the
+ * chat on the first catalogue entry, exactly like a thread that never had one.
  * It contains no colon, which is what keeps it unambiguous against a
  * {@link modelChoiceKey}.
  */
@@ -59,12 +91,11 @@ export const DEFAULT_MODEL_CHOICE = 'default';
  * and `ConversationView.modelChoice` both speak this.
  *
  * The *absence* of a stored value is `null` on the wire and means "nobody has
- * picked on this thread", which is deliberately **not** the same as Default;
- * this function never produces it, because a caller only writes what somebody
- * chose.
+ * picked on this thread"; this function never produces it, because a caller
+ * only writes what somebody chose.
  */
-export function storedModelChoice(choice: CopilotModelChoice | null): string {
-    return choice ? modelChoiceKey(choice) : DEFAULT_MODEL_CHOICE;
+export function storedModelChoice(choice: CopilotModelChoice): string {
+    return modelChoiceKey(choice);
 }
 
 /**

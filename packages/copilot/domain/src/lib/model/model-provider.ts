@@ -182,8 +182,12 @@ export const MODEL_REGISTRY = Symbol('MODEL_REGISTRY');
 /**
  * The optional custom handler that picks WHICH registered provider serves a
  * given run — full custom code, returning a provider NAME present in the
- * registry. If the host supplies none, the core uses
- * `config.defaultProvider` for every run.
+ * registry. If the host supplies none, the core uses the **first registered
+ * provider** for every run that names none of its own.
+ *
+ * A run that does name a provider wins over this handler either way, so in
+ * practice it routes the callers that cannot pick — MCP and API clients — while
+ * the admin sends the model the person is looking at in the picker.
  */
 export type ModelResolver = (
     ctx: ModelRunContext,

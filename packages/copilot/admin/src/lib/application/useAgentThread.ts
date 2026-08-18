@@ -270,9 +270,11 @@ export function useAgentThread(workspaceId: string): AgentThread {
     }, [urlId, loaded]);
 
     // The model this thread was left on, from the same fetch that brought the
-    // transcript. `null` means nobody ever picked one here, which is **not** the
-    // same as Default — in that case the chat keeps whatever the tab's own last
-    // pick seeded it with, and the picker is not quietly reset.
+    // transcript. `null` means nobody ever picked one here — in that case the
+    // chat keeps whatever the tab's own last pick seeded it with (or the
+    // catalogue's first entry), and the picker is not quietly reset. A row
+    // carrying the legacy `'default'` reads back as `null` too, and adopting it
+    // is still right: the thread said something, even if what it said is gone.
     //
     // Adopted rather than picked (`adoptModel`, not `setModel`), so it is
     // neither written straight back to the thread it came from nor promoted to

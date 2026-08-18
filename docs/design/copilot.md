@@ -319,8 +319,10 @@ detailed in the package `AGENTS.md` files:
   into its visible text, where it silently never runs.
 - **A provider serves a list of models**, not one. `models()` is part of the
   port and `ModelRegistry.catalogue()` enumerates every provider × model pair,
-  so a user can switch model mid-conversation and an operator can switch
-  provider with one env var — neither needs a redeploy.
+  so a user can switch model mid-conversation, and the picker opens on the
+  first pair rather than on an abstract "Default". An operator changes what is
+  on offer, and which backend is the house default, by changing the registered
+  list — there is no `defaultProvider` setting beside it to keep in step.
 - **`CopilotPluginConfig` names no adapter.** Provider connection settings live
   with the host, so `copilot/server` depends only on `copilot-domain` and
   `bootstrap-server`. Adding a Bedrock adapter is a package plus a line in

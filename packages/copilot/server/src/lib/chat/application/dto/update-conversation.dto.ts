@@ -20,11 +20,13 @@ export const MAX_TITLE_LENGTH = 200;
 /**
  * The stored form of "let the host's resolver decide".
  *
- * A real, selectable option in the picker rather than the absence of one — it
- * means "whatever the resolver picks for this run", which can differ per run and
- * per workspace, so recording today's default provider instead would silently
- * opt the user out of that routing. It is unambiguous against a
- * `'<provider>:<model>'` key because it contains no colon.
+ * **Legacy: accepted, no longer produced.** It was a real option in the picker
+ * back when the deployment had a `defaultProvider` for it to mean; both are
+ * gone, and the admin now opens a chat on the catalogue's first entry and names
+ * it per turn. Still accepted here because rows carrying it exist and an older
+ * client may still send it — a client that does gets its thread read back as
+ * "nobody picked", which lands on that same first entry. It is unambiguous
+ * against a `'<provider>:<model>'` key because it contains no colon.
  */
 export const MODEL_CHOICE_DEFAULT = 'default';
 
@@ -91,7 +93,7 @@ export class UpdateConversationDto {
      * Record the model picked for this thread, so reopening it in another tab
      * offers the backend the person chose instead of the deployment default.
      *
-     * `'default'` for the host's resolver, otherwise `'<provider>:<model>'` —
+     * `'<provider>:<model>'` — or the legacy `'default'`, see above —
      * the same key the picker uses, split on its **first** colon (a model id
      * routinely contains one; a provider name cannot). The controller checks the
      * pair against `ModelRegistry.catalogue()`, so this can only ever name a

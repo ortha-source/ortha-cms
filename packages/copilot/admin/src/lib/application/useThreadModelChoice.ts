@@ -10,8 +10,9 @@ import { useUpdateConversation } from './useUpdateConversation';
  * outlives the tab: the session keeps it across an unmount, the store's seed
  * keeps it across closing the chat, and this keeps it across a reload, another
  * tab, and another day. Reopening a saved conversation then offers the backend
- * the person chose for it rather than silently falling back to Default — which
- * is the half of the forgetting the client alone could never fix.
+ * the person chose for it rather than silently falling back to the house
+ * default — which is the half of the forgetting the client alone could never
+ * fix.
  *
  * Three rules, each of them the difference between a memory and a nuisance:
  *
@@ -41,10 +42,13 @@ export function useThreadModelChoice(
     const pinned = session?.choicePinned ?? false;
     // A string rather than the object, so the effect compares by value — the
     // session hands back a fresh `choice` object on every store publication.
-    const choice = storedModelChoice(session?.choice ?? null);
+    // `null` cannot reach here with `pinned` true (a pick is always a real
+    // backend now that the picker has no "Default" row), and the guard below
+    // makes that structural rather than assumed.
+    const choice = session?.choice ? storedModelChoice(session.choice) : null;
 
     useEffect(() => {
-        if (!conversationId || !pinned) {
+        if (!conversationId || !pinned || !choice) {
             return;
         }
         mutate({ conversationId, patch: { modelChoice: choice } });

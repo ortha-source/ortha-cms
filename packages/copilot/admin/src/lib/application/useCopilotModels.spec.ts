@@ -32,19 +32,12 @@ describe('model choice keys', () => {
 });
 
 /**
- * The form a **thread** remembers its model in, which has one state more than
- * the picker does: "nobody has picked here" is not the same as "Default", and
- * collapsing the two is what would make reopening a saved conversation silently
- * opt the user out of the host's per-run routing.
+ * The form a **thread** remembers its model in. Only a real backend is ever
+ * written now — "Default" was retired with the `defaultProvider` setting it
+ * stood for — but rows written before that still carry the sentinel, and
+ * reading one has to land somewhere sensible rather than on half a key.
  */
 describe('the stored model choice', () => {
-    it('writes Default as a choice in its own right', () => {
-        // Not the absence of one: it means "whatever the resolver picks", which
-        // can differ per run — recording today's default provider instead would
-        // pin the thread to something the user did not choose.
-        expect(storedModelChoice(null)).toBe(DEFAULT_MODEL_CHOICE);
-    });
-
     it('round-trips a concrete backend', () => {
         const choice = { provider: 'anthropic', model: 'claude-opus-5' };
 
@@ -61,7 +54,9 @@ describe('the stored model choice', () => {
         );
     });
 
-    it('reads Default back as no choice', () => {
+    it('reads an old Default row back as no choice', () => {
+        // Which leaves the chat on the catalogue's first entry, exactly like a
+        // thread nobody ever picked on — see `useEffectiveModelChoice`.
         expect(readStoredModelChoice(DEFAULT_MODEL_CHOICE)).toBeNull();
     });
 

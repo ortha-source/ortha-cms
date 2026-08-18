@@ -72,13 +72,14 @@ Three things in the PATCH worth keeping:
 and model per turn (`CreateRunDto`), and nothing about the column constrains the
 next one — it is what the client _seeds_ the picker from when a saved thread is
 reopened, which is the half of "don't forget my model" no browser-side state can
-do. Three states, and the last two are distinct on purpose: `null` is "nobody has
-picked on this thread" (the client keeps its own per-tab memory), `'default'` is
-"the person picked the host's resolver" (which can differ per run, so recording
-today's default provider instead would silently opt them out of that routing),
-and `'<provider>:<model>'` is a registered backend. One nullable text column
-rather than a `provider`/`model` pair precisely so the first two can be told
-apart; `'default'` cannot collide with a real key because a key always contains a
+do. Two live states: `null` is "nobody has picked on this thread" (the client
+falls back to the catalogue's first entry), and `'<provider>:<model>'` is a
+registered backend. A third, `'default'`, is **legacy** — it meant "the person
+picked the host's resolver", from when the picker offered that and the
+deployment had a `defaultProvider` behind it; it is still accepted and still
+read, and reads back as "nobody picked". One nullable text column rather than a
+`provider`/`model` pair is what let the states be told apart at all;
+`'default'` cannot collide with a real key because a key always contains a
 colon.
 
 The proposal routes are **reads only** — the
@@ -552,13 +553,13 @@ conversation the caller owns.
 Structurally identical to media storage, by decision
 ([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md)):
 
-| media                    | copilot                  |
-| ------------------------ | ------------------------ |
-| `StorageProvider`        | `ModelProvider`          |
-| `buildRegistry`          | `buildModelRegistry`     |
-| `STORAGE_REGISTRY`       | `MODEL_REGISTRY`         |
-| `STORAGE_RESOLVER`       | `MODEL_RESOLVER`         |
-| `config.defaultProvider` | `config.defaultProvider` |
+| media                    | copilot                       |
+| ------------------------ | ----------------------------- |
+| `StorageProvider`        | `ModelProvider`               |
+| `buildRegistry`          | `buildModelRegistry`          |
+| `STORAGE_REGISTRY`       | `MODEL_REGISTRY`              |
+| `STORAGE_RESOLVER`       | `MODEL_RESOLVER`              |
+| `config.defaultProvider` | the first registered provider |
 
 **This package knows no adapter exists.** It does not import a vendor SDK, a
 factory, _or_ an adapter config type — so a Bedrock adapter is a package plus
@@ -571,11 +572,20 @@ routing policy rather than a veto over what the user picked from the catalogue
 they were shown. Naming one is not an escalation: the registry is fixed at boot,
 so the worst a caller can do is choose a backend the operator already configured.
 
+**There is no `defaultProvider` setting** — the row above is where media still
+has one. A run naming no provider is served by the **first registered**, which
+is the only column that cannot disagree with the list: a name in config could be
+misspelled, could point at a backend nobody registered (which is why this
+package used to validate it), and had to be kept in step with `providers` on
+every change. The admin does not rely on it in practice — the picker opens on
+`catalogue()[0]` and sends it — so what the first entry really governs is the
+callers that cannot pick: MCP, the API, and e2e.
+
 ### Why a list, not a map
 
 `providers` is `readonly ProviderRegistration[]`, so registration order is
-meaningful (the first entry reads as the house default, and `catalogue()`
-renders in that order) and two providers of the same kind are just two entries:
+meaningful (the first entry **is** the house default, and `catalogue()` renders
+in that order) and two providers of the same kind are just two entries:
 
 ```typescript
 { name: 'ollama-fast', provider: createOpenAiProvider({ models: ['llama3.1:8b'], … }) },
@@ -595,10 +605,11 @@ the second issue — worth fixing there too.)
 
 `CopilotPlugin` validates at **construction**, like `I18nServerPlugin`'s locales
 and `ContentPlugin`'s registry: at least one provider registered, every provider
-declaring at least one model, a `defaultProvider` that names one of them, a
-positive `maxOutputTokens`, and every ceiling in `limits` a positive number. A
-host that mistypes a provider name fails before boot rather than on the first
-chat message.
+declaring at least one model, a positive `maxOutputTokens`, and every ceiling in
+`limits` a positive number. A host that registers nothing fails before boot
+rather than on the first chat message. The "`defaultProvider` names a registered
+provider" check is gone with the setting — a misspelling nobody can write is a
+check nobody needs.
 
 `limits` is on that list because `maxSteps: 0` used to construct fine and
 produce a run that answers nothing at all: `for (step = 0; step < 0; …)` skips

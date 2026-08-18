@@ -42,7 +42,7 @@ export interface CopilotModuleOptions {
     resolve?: ModelResolver;
     /** Skills defined in code, available in every workspace. */
     skills?: readonly SkillDefinition[];
-    /** Host config (kill switch + default provider + connection settings). */
+    /** Host config (kill switch + output ceiling + run limits). */
     config: CopilotPluginConfig;
 }
 
@@ -60,8 +60,19 @@ export interface CopilotModuleOptions {
 export class CopilotModule {
     /** Creates the global dynamic module around a validated config. */
     static forRoot(options: CopilotModuleOptions): DynamicModule {
-        const resolver: ModelResolver =
-            options.resolve ?? (() => options.config.defaultProvider);
+        // No `resolve` handler means the **first registered provider** serves
+        // every run that names none. There is no separate `defaultProvider`
+        // setting to keep in sync with the list — the list *is* the setting,
+        // and its order is the preference order (`catalogue()` renders in it,
+        // and the admin's picker opens on its first entry).
+        const [first] = options.providers;
+        if (!first) {
+            throw new Error(
+                'CopilotModule requires at least one model provider — the first one registered ' +
+                    'is what serves a run that names none.'
+            );
+        }
+        const resolver: ModelResolver = options.resolve ?? (() => first.name);
 
         return {
             module: CopilotModule,

@@ -15,6 +15,7 @@ import {
     type SeededWorkspace
 } from '../../support/seed';
 import {
+    copilotAltCalls,
     copilotCalls,
     copilotToolCallRows,
     registerCopilotTools,
@@ -664,10 +665,16 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 .set('X-Workspace-Id', workspace.id)
                 .expect(200);
 
-            expect(response.body.defaultProvider).toBe('fake');
-            expect(response.body.items).toEqual([
-                { provider: 'fake', model: 'fake-1' }
-            ]);
+            // The list is the whole answer: no `defaultProvider` field to
+            // reconcile with it, because the first item *is* the default. It
+            // is served in **registration order**, which is what makes that
+            // true — the picker opens on `items[0]`.
+            expect(response.body).toEqual({
+                items: [
+                    { provider: 'fake', model: 'fake-1' },
+                    { provider: 'fake-alt', model: 'alt-1' }
+                ]
+            });
         });
 
         it('gates the catalogue on copilot:use', async () => {
@@ -705,10 +712,15 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
             expect(detail.body.messages[1].provider).toBe('fake');
         });
 
-        // Regression guard: the model used to be resolved inside the adapter,
-        // which left `copilot_messages.model` null on every row — the column
-        // cost accounting and "which model said this?" both read.
-        it('records the default model when the run names none', async () => {
+        // Two guards in one, and the second is why a *second* provider is
+        // registered at all. The first: the model used to be resolved inside
+        // the adapter, which left `copilot_messages.model` null on every row —
+        // a column both cost accounting and "which model said this?" read.
+        // The second: which provider serves a run that names none. There is no
+        // `defaultProvider` setting to answer that any more, so the answer has
+        // to come from the registration order, and with one provider
+        // registered the assertion would hold however the engine chose.
+        it('serves a run naming no provider from the first registered one', async () => {
             scriptCopilot({ text: 'ok' });
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
@@ -721,7 +733,36 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
                 .set('X-Workspace-Id', workspace.id)
                 .expect(200);
 
+            expect(detail.body.messages[1].provider).toBe('fake');
             expect(detail.body.messages[1].model).toBe('fake-1');
+            // …and the second provider was not touched, which is the half an
+            // assertion on the winner alone cannot say.
+            expect(copilotAltCalls()).toEqual([]);
+        });
+
+        it('routes to a later provider when the run names it', async () => {
+            scriptCopilot({ text: 'ok' });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const events = await run(agent, {
+                message: 'hi',
+                provider: 'fake-alt'
+            });
+            const conversationId = framesOfType(events, 'run-started')[0]
+                .conversationId;
+
+            const detail = await agent
+                .get(`/api/copilot/conversations/${conversationId}`)
+                .set('X-Workspace-Id', workspace.id)
+                .expect(200);
+
+            // Naming a provider is not an escalation — the registry is fixed at
+            // boot — so the request wins over the order, and the model defaults
+            // to that provider's own first.
+            expect(detail.body.messages[1].provider).toBe('fake-alt');
+            expect(detail.body.messages[1].model).toBe('alt-1');
+            expect(copilotAltCalls()).toHaveLength(1);
+            expect(copilotCalls()).toEqual([]);
         });
 
         it('refuses an unregistered provider with an error frame', async () => {

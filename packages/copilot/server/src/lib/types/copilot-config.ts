@@ -20,8 +20,6 @@ export interface CopilotPluginConfig {
      * that is an operator's decision to make explicitly.
      */
     enabled: boolean;
-    /** Registered provider name used when the host supplies no `resolve`. */
-    defaultProvider: string;
     /** Ceiling on a single model response, in tokens. */
     maxOutputTokens: number;
     /**

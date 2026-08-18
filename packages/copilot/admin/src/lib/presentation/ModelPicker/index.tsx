@@ -23,10 +23,6 @@ const messages = defineMessages({
         id: 'copilot.model.choose',
         defaultMessage: 'Choose a model'
     },
-    default: {
-        id: 'copilot.model.default',
-        defaultMessage: 'Default'
-    },
     none: {
         id: 'copilot.model.none',
         defaultMessage: 'No models configured'
@@ -34,10 +30,14 @@ const messages = defineMessages({
 });
 
 export interface ModelPickerProps {
-    /** The current choice, or `null` to use the deployment default. */
+    /**
+     * The backend showing now — `useEffectiveModelChoice`'s answer, so it is
+     * the first catalogue entry until somebody picks. `null` only while the
+     * catalogue is still loading, which is also when this renders nothing.
+     */
     value: CopilotModelChoice | null;
     /** Called when the user picks a different backend. */
-    onChange(choice: CopilotModelChoice | null): void;
+    onChange(choice: CopilotModelChoice): void;
 }
 
 /**
@@ -54,9 +54,13 @@ export interface ModelPickerProps {
  * chat this tab starts, and written onto the thread — so reopening a saved
  * conversation tomorrow, in another tab, offers the same backend. None of that
  * pins anything: the thread's memory only decides what this picker *starts* on.
- * "Default" is remembered as a choice in its own right, distinct from a thread
- * nobody has picked on, because it means "whatever the resolver picks" rather
- * than today's default provider.
+ *
+ * **Every option is a real model.** There is no "Default" row any more, and
+ * there is nothing for it to mean: a chat with no pick opens on the first entry
+ * in the catalogue and sends the turn naming it, so the header always says what
+ * is about to answer. "Default" named no model at all, and the deployment
+ * setting behind it (`config.defaultProvider`) is gone with it — the first
+ * provider `plugins.ts` registers is the default, and it is `items[0]` here.
  *
  * Renders nothing when the deployment offers a single backend: a picker with
  * one option is noise. It also renders nothing while the catalogue is loading,
@@ -89,9 +93,7 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
                     title={intl.formatMessage(messages.choose)}
                 >
                     <Cpu className="size-3.5" />
-                    <span className="max-w-32 truncate">
-                        {value?.model ?? intl.formatMessage(messages.default)}
-                    </span>
+                    <span className="max-w-32 truncate">{value?.model}</span>
                 </Button>
             </DropdownMenuTrigger>
 
@@ -99,19 +101,6 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
                 <DropdownMenuLabel>
                     {intl.formatMessage(messages.label)}
                 </DropdownMenuLabel>
-
-                {/* "Default" is a real option, not the absence of one: it means
-                    "whatever the host's resolver picks", which can differ per
-                    run and per workspace. Pinning it to today's default would
-                    silently opt the user out of that routing. */}
-                <DropdownMenuItem onSelect={() => onChange(null)}>
-                    <Check
-                        className={
-                            current === null ? 'size-3.5' : 'size-3.5 opacity-0'
-                        }
-                    />
-                    {intl.formatMessage(messages.default)}
-                </DropdownMenuItem>
 
                 {items.map((choice) => {
                     const key = modelChoiceKey(choice);

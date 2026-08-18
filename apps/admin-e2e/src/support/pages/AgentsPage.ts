@@ -583,7 +583,7 @@ export class AgentsPage extends BasePage {
 
     // --- the model picker (bottom-left of the composer) --------------------
 
-    /** The picker's trigger. It shows the current choice, or "Default". */
+    /** The picker's trigger. It shows the current choice — always a model. */
     modelPicker(): Locator {
         return this.main.getByRole('button', { name: 'Choose a model' });
     }

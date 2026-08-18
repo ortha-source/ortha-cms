@@ -243,3 +243,58 @@ describe('ALLOWED_ORIGINS', () => {
         ).toEqual([]);
     });
 });
+
+/**
+ * Which model backends this deployment even has.
+ *
+ * There is no `COPILOT_PROVIDER` naming one of them any more: the registered
+ * list is the setting and its first entry serves a run that names none, so a
+ * backend nobody configured must not be in the list at all — registered, it
+ * would be the house default and would fail on the first message.
+ */
+describe('copilot provider registration', () => {
+    const unset = {
+        ANTHROPIC_API_KEY: undefined,
+        COPILOT_OPENAI_BASE_URL: undefined
+    };
+
+    it('registers neither hosted backend in a clone with no keys', () => {
+        // Which leaves `fake` — added unconditionally in plugins.ts — as the
+        // whole catalogue, and therefore as what a run gets.
+        expect(loadConfig(unset).plugins.copilot.providers).toEqual({});
+    });
+
+    it('adds Claude when, and only when, a key is set', () => {
+        const { claude } = loadConfig({
+            ...unset,
+            ANTHROPIC_API_KEY: 'sk-test',
+            COPILOT_ANTHROPIC_MODELS: 'claude-opus-5, claude-haiku-4-5'
+        }).plugins.copilot.providers;
+
+        expect(claude?.apiKey).toBe('sk-test');
+        expect(claude?.models).toEqual(['claude-opus-5', 'claude-haiku-4-5']);
+        // Blank is not "configured": a key that is only whitespace registers a
+        // backend whose every call 401s.
+        expect(
+            loadConfig({ ...unset, ANTHROPIC_API_KEY: '   ' }).plugins.copilot
+                .providers.claude
+        ).toBeUndefined();
+    });
+
+    it('adds the OpenAI-wire backend only once an endpoint is named', () => {
+        expect(
+            loadConfig({ ...unset }).plugins.copilot.providers.ollama
+        ).toBeUndefined();
+
+        const { ollama } = loadConfig({
+            ...unset,
+            COPILOT_OPENAI_BASE_URL: 'http://localhost:11434/v1'
+        }).plugins.copilot.providers;
+
+        // No default endpoint: this used to fall back to a local Ollama, which
+        // was harmless while a separate setting chose the provider and is not
+        // now — it would put a backend nobody runs at the top of the list.
+        expect(ollama?.baseUrl).toBe('http://localhost:11434/v1');
+        expect(ollama?.models).toEqual(['llama3.1']);
+    });
+});

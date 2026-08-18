@@ -955,7 +955,7 @@ _<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
 | Test case |
 | --- |
 | reopening a thread offers the backend it was left on |
-| an explicit Default is not the same as never having picked |
+| a thread left on the retired Default sentinel opens on the first model |
 | a model picked on a thread is written to it, and survives a reload |
 | adopting a thread’s model does not write it straight back |
 | a fresh chat still inherits the last model picked in the tab |

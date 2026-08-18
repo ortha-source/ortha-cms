@@ -40,7 +40,7 @@ export function buildModelRegistry(
     for (const { name, provider } of registrations) {
         if (!name.trim()) {
             throw new Error(
-                'Every copilot model provider needs a non-empty name — it is what `defaultProvider` and a resolver refer to.'
+                'Every copilot model provider needs a non-empty name — it is what a run, and a resolver, refer to it by.'
             );
         }
         if (Object.prototype.hasOwnProperty.call(entries, name)) {

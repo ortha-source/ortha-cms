@@ -33,14 +33,32 @@ import type { MediaPluginConfig } from '@ortha-cms/media-server';
  *
  * Each key is the name runs refer to the provider by. Register two of the same
  * kind freely (`ollamaFast`, `ollamaBig`); each declares its own model list.
+ *
+ * **A key is present only when the deployment configured that backend**, and
+ * `plugins.ts` registers exactly the ones that are. There is no
+ * `defaultProvider` naming one of them: the registered list *is* the setting,
+ * its first entry serves a run that names none, and the admin's picker opens on
+ * it. A name in a variable could be misspelled, could point at a backend nobody
+ * registered, and had to be kept in step with the list on every change — while
+ * "configured" is a fact this file can read directly.
  */
 export interface OrthaCopilotConfig extends CopilotPluginConfig {
-    /** Model backends, keyed by the name they are registered under. */
+    /**
+     * Model backends, keyed by the name they are registered under, in
+     * preference order. Each is absent unless its connection settings are
+     * present — a keyless clone gets neither, and the shipped `fake` provider
+     * (registered unconditionally in `plugins.ts`) is the whole catalogue.
+     */
     providers: {
-        /** Native Claude. */
-        claude: AnthropicProviderConfig;
-        /** An OpenAI-wire-format endpoint — Ollama by default. */
-        ollama: OpenAiProviderConfig;
+        /** Native Claude. Present when `ANTHROPIC_API_KEY` is set. */
+        claude?: AnthropicProviderConfig;
+        /**
+         * An OpenAI-wire-format endpoint — a local Ollama, vLLM, LiteLLM,
+         * Azure or OpenAI itself. Present when `COPILOT_OPENAI_BASE_URL` is
+         * set: an endpoint nobody named is a backend that can only time out,
+         * and offering it in the picker would be worse than not having it.
+         */
+        ollama?: OpenAiProviderConfig;
     };
 }
 
@@ -151,6 +169,24 @@ function readOptionalPositiveInt(name: string): number | undefined {
     }
     return Number(raw);
 }
+
+/** A comma-separated list setting, trimmed and emptied of blanks. */
+function readList(name: string, fallback: string): string[] {
+    return (process.env[name] ?? fallback)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+/**
+ * The copilot backends this deployment can actually reach.
+ *
+ * Read out here because they gate whether a provider is registered at all
+ * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
+ * against a named value than against a nested `process.env` lookup.
+ */
+const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
+const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
 
 /** The deployment modes this app recognises. */
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -399,10 +435,6 @@ const config: OrthaConfig = {
             // Off by default (ADR-0005 §10). Enabling a hosted provider sends
             // workspace content to a third party, so an operator opts in.
             enabled: process.env['COPILOT_ENABLED'] === 'true',
-            // Which registered provider serves a run when `plugins.ts` supplies
-            // no custom `resolve` handler. `fake` needs no key and no network,
-            // so a fresh clone and CI both boot without configuration.
-            defaultProvider: process.env['COPILOT_PROVIDER'] ?? 'fake',
             maxOutputTokens: readPositiveInt(
                 'COPILOT_MAX_OUTPUT_TOKENS',
                 8_192
@@ -416,36 +448,54 @@ const config: OrthaConfig = {
             ...(Object.keys(runLimits).length > 0
                 ? { limits: runLimits }
                 : {}),
+            // Each backend is here only if it was configured. Registering
+            // one that cannot answer used to be harmless because
+            // `COPILOT_PROVIDER` decided who served a run; now the first
+            // registered provider does, so a keyless `claude` sitting at the
+            // top of the list would be the default and would fail on the first
+            // message. Absent instead, it is not in the catalogue, not in the
+            // picker, and not a default anybody has to override.
             providers: {
-                claude: {
-                    apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',
-                    // Stable product configuration, so literals like the i18n
-                    // locales. First is the default; the rest are what a user
-                    // can switch to mid-conversation. Comma-separated env
-                    // override for pinning a different set without a redeploy.
-                    models: (
-                        process.env['COPILOT_ANTHROPIC_MODELS'] ??
-                        'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
-                    )
-                        .split(',')
-                        .map((model) => model.trim())
-                        .filter(Boolean),
-                    ...(process.env['ANTHROPIC_BASE_URL']
-                        ? { baseUrl: process.env['ANTHROPIC_BASE_URL'] }
-                        : {})
-                },
-                ollama: {
-                    // Defaults to a local Ollama, the common self-hosted setup
-                    // — point it at vLLM, LiteLLM, Azure or OpenAI instead.
-                    baseUrl:
-                        process.env['COPILOT_OPENAI_BASE_URL'] ??
-                        'http://localhost:11434/v1',
-                    models: (process.env['COPILOT_OPENAI_MODELS'] ?? 'llama3.1')
-                        .split(',')
-                        .map((model) => model.trim())
-                        .filter(Boolean),
-                    apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
-                }
+                ...(anthropicApiKey
+                    ? {
+                          claude: {
+                              apiKey: anthropicApiKey,
+                              // Stable product configuration, so literals like
+                              // the i18n locales. First is the default; the
+                              // rest are what a user can switch to
+                              // mid-conversation. Comma-separated env override
+                              // for pinning a different set without a redeploy.
+                              models: readList(
+                                  'COPILOT_ANTHROPIC_MODELS',
+                                  'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
+                              ),
+                              ...(process.env['ANTHROPIC_BASE_URL']
+                                  ? {
+                                        baseUrl:
+                                            process.env['ANTHROPIC_BASE_URL']
+                                    }
+                                  : {})
+                          }
+                      }
+                    : {}),
+                ...(openAiBaseUrl
+                    ? {
+                          ollama: {
+                              // A local Ollama is http://localhost:11434/v1 —
+                              // point it at vLLM, LiteLLM, Azure or OpenAI
+                              // instead. No default: an unset variable means
+                              // "this deployment has no such backend", not
+                              // "assume one is running on this laptop".
+                              baseUrl: openAiBaseUrl,
+                              models: readList(
+                                  'COPILOT_OPENAI_MODELS',
+                                  'llama3.1'
+                              ),
+                              apiKey:
+                                  process.env['COPILOT_OPENAI_API_KEY'] ?? ''
+                          }
+                      }
+                    : {})
             }
         },
         mcp: {
@@ -471,10 +521,7 @@ const config: OrthaConfig = {
             // today, so the ceiling exists to keep a pathological result from
             // being serialised three times over rather than to shape normal
             // use. A result this large does not fit a model's context either.
-            maxResultBytes: readPositiveInt(
-                'MCP_MAX_RESULT_BYTES',
-                4_194_304
-            )
+            maxResultBytes: readPositiveInt('MCP_MAX_RESULT_BYTES', 4_194_304)
         }
     }
 };

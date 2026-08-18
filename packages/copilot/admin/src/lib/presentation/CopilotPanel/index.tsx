@@ -25,7 +25,10 @@ import { MessageList } from '../MessageList';
 import { ConversationPicker } from '../ConversationPicker';
 import { ModelPicker } from '../ModelPicker';
 import { PanelResizeHandles } from '../PanelResizeHandles';
-import type { CopilotModelChoice } from '../../application/useCopilotModels';
+import {
+    useEffectiveModelChoice,
+    type CopilotModelChoice
+} from '../../application/useCopilotModels';
 import type { RouteContext } from '../../application/readRouteContext';
 import { ContextChip } from '../ContextChip';
 
@@ -159,11 +162,13 @@ export interface CopilotPanelProps {
      */
     onAdoptConversation?(conversationId: string, title: string | null): boolean;
     /**
-     * Which backend the next turn runs on, or `null` for the host's resolver.
+     * Which backend the next turn runs on, or `null` until somebody picks —
+     * which reads as the catalogue's first entry (`useEffectiveModelChoice`),
+     * not as "let the server decide".
      *
      * A **prop, from the session** — it used to be `useState` in this file's
      * `PanelBody`, which unmounts the moment the panel collapses to the dock, so
-     * minimizing a chat silently reset its model to Default.
+     * minimizing a chat silently reset its model.
      */
     choice: CopilotModelChoice | null;
     /** Routes the next turn elsewhere. */
@@ -562,6 +567,12 @@ function PanelBody({
     // offering a button that fails".
     const canAttach = useHasPermission(MEDIA_CREATE);
 
+    // What the picker shows and what the turn is sent with, and they are the
+    // same value on purpose: an unpicked chat runs on the catalogue's first
+    // entry, so the header names the backend that is about to answer instead of
+    // the "Default" that named nothing.
+    const model = useEffectiveModelChoice(choice);
+
     // Skills, unlike files, come from the session — collapsing the window must
     // not silently change what the next turn runs under.
     const skills = useComposerSkills(workspaceId, stagedSkills, onSkillsChange);
@@ -574,7 +585,7 @@ function PanelBody({
     return (
         <>
             <div className="flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5">
-                <ModelPicker value={choice} onChange={onChoiceChange} />
+                <ModelPicker value={model} onChange={onChoiceChange} />
                 <ConversationPicker
                     workspaceId={workspaceId}
                     onOpen={(conversationId, threadTitle, loaded) => {
@@ -627,8 +638,8 @@ function PanelBody({
                                 : {})
                         },
                         options: {
-                            provider: choice?.provider ?? null,
-                            model: choice?.model ?? null
+                            provider: model?.provider ?? null,
+                            model: model?.model ?? null
                         },
                         attachments: files.sent,
                         skills: skills.inForce,

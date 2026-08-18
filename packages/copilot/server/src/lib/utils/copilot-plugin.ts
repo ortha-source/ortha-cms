@@ -21,6 +21,13 @@ export interface CopilotPluginOptions {
      * entry pairs an operator-chosen name with an already-constructed adapter,
      * so the plugin never learns which adapters exist — register two of the
      * same kind (`ollama-fast`, `ollama-big`) freely.
+     *
+     * **The order is the setting.** The first entry serves any run that names
+     * no provider, and is what the admin's model picker opens on. There is no
+     * separate `defaultProvider` to name one of these — a name that could be
+     * misspelled, could point at a provider nobody registered, and had to be
+     * kept in step with this list on every change. A deployment that should
+     * not reach a backend does not register it.
      */
     providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run (plain code). */
@@ -36,16 +43,16 @@ export interface CopilotPluginOptions {
      * the admin.
      */
     skills?: readonly SkillDefinition[];
-    /** Host config (kill switch + default provider + output ceiling). */
+    /** Host config (kill switch + output ceiling + run limits). */
     config: CopilotPluginConfig;
 }
 
 /**
  * Validate the wiring **eagerly** (like `ContentPlugin`'s registry and
- * `I18nServerPlugin`'s locales): a `defaultProvider` naming a provider nobody
- * registered, or a provider declaring no models, is a misconfiguration that
- * should fail at construction — before boot — rather than on the first chat
- * message, where it is most expensive to diagnose.
+ * `I18nServerPlugin`'s locales): an empty provider list, or a provider
+ * declaring no models, is a misconfiguration that should fail at construction —
+ * before boot — rather than on the first chat message, where it is most
+ * expensive to diagnose.
  *
  * Name uniqueness is enforced by `buildModelRegistry`, which the module builds
  * from the same list.
@@ -64,18 +71,6 @@ function assertOptions(options: CopilotPluginOptions): void {
                 `Copilot model provider "${entry.name}" declares no models. Configure at least one.`
             );
         }
-    }
-    if (!options.config.defaultProvider) {
-        throw new Error(
-            'CopilotPlugin requires `config.defaultProvider` to name one of the registered providers. ' +
-                `Registered: ${names.join(', ')}.`
-        );
-    }
-    if (!names.includes(options.config.defaultProvider)) {
-        throw new Error(
-            `CopilotPlugin's defaultProvider "${options.config.defaultProvider}" is not registered. ` +
-                `Registered: ${names.join(', ')}.`
-        );
     }
     if (options.config.maxOutputTokens <= 0) {
         throw new Error(
