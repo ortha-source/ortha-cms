@@ -134,7 +134,11 @@ export class CopilotDockPage extends BasePage {
         return this.panel(index).getByRole('log', { name: 'Conversation' });
     }
 
-    /** The model picker in the window's own control row. */
+    /**
+     * The model picker, bottom-left of the window's composer — the same place
+     * the Agents view keeps it. Panel-scoped rather than header-scoped, so the
+     * locator is indifferent to which row it rides in.
+     */
     modelPicker(index = 0): Locator {
         return this.headerButton('Choose a model', index);
     }

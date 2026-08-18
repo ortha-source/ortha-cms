@@ -88,11 +88,19 @@ export function ModelPicker({ value, onChange }: ModelPickerProps) {
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground h-8 gap-1.5 px-2 text-xs"
+                    // `min-w-0` so this is the control that gives way when the
+                    // row runs out of room: it shares the composer's bottom-left
+                    // with the paperclip and the skills button, both `shrink-0`
+                    // and both short, while a model id is long and the one label
+                    // that reads fine abbreviated. Without it the button holds
+                    // its content width and the row wraps instead — which is
+                    // what a panel dragged down to `MIN_PANEL_WIDTH` (320px)
+                    // does on every deployment offering more than one backend.
+                    className="text-muted-foreground h-8 min-w-0 gap-1.5 px-2 text-xs"
                     aria-label={intl.formatMessage(messages.choose)}
                     title={intl.formatMessage(messages.choose)}
                 >
-                    <Cpu className="size-3.5" />
+                    <Cpu className="size-3.5 shrink-0" />
                     <span className="max-w-32 truncate">{value?.model}</span>
                 </Button>
             </DropdownMenuTrigger>

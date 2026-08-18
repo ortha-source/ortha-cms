@@ -569,7 +569,7 @@ function PanelBody({
 
     // What the picker shows and what the turn is sent with, and they are the
     // same value on purpose: an unpicked chat runs on the catalogue's first
-    // entry, so the header names the backend that is about to answer instead of
+    // entry, so the picker names the backend that is about to answer instead of
     // the "Default" that named nothing.
     const model = useEffectiveModelChoice(choice);
 
@@ -584,8 +584,11 @@ function PanelBody({
 
     return (
         <>
+            {/* Threads only. The model picker used to sit here too, which
+                stated it as a property of the conversation — it is not, it
+                applies to the turn being written, so it now rides in the
+                composer where the Agents view already keeps it. */}
             <div className="flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5">
-                <ModelPicker value={model} onChange={onChoiceChange} />
                 <ConversationPicker
                     workspaceId={workspaceId}
                     onOpen={(conversationId, threadTitle, loaded) => {
@@ -652,6 +655,11 @@ function PanelBody({
                     files.clear();
                 }}
                 onStop={chat.stop}
+                // In the box, bottom-left — the same place the Agents view puts
+                // it, so the two surfaces read as one product.
+                controls={
+                    <ModelPicker value={model} onChange={onChoiceChange} />
+                }
                 {...(canAttach ? { attachments: files } : {})}
                 skills={skills}
             />

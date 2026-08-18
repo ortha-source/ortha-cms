@@ -765,7 +765,7 @@ escalate. The picker hides itself when the deployment offers one backend.
 "Default" option and no deployment setting behind it: the server's
 `config.defaultProvider` is gone, the first provider `plugins.ts` registers is
 the default, and `useEffectiveModelChoice` makes that `items[0]` here. So an
-unpicked chat sends `provider`/`model` naming the backend the header is
+unpicked chat sends `provider`/`model` naming the backend the picker is
 showing, rather than omitting them and letting the server decide something the
 UI could not name. It is **derived, not seeded**: the catalogue is a query, so
 there may be nothing to seed from when a chat opens, and an effect filling it in
@@ -813,12 +813,19 @@ picker is not using a thread), and the write deliberately invalidates only that
 thread's own key — refetching both rails when nothing a rail renders has changed
 is two requests for an identical redraw.
 
-**On the Agents page the picker lives inside the composer, bottom-left** — passed as the
-`Composer`'s `controls`, which is the slot for anything that acts on the _next
-turn_. Its first home was the page's top bar, and that was the wrong statement:
-chrome above the transcript reads as a property of the conversation, and the
-model is not one. The panel keeps its picker in its own header row, where it sits
-beside the history dropdown; there is no room in a 420px composer for both.
+**Both surfaces keep the picker inside the composer, bottom-left** — passed as
+the `Composer`'s `controls`, which is the slot for anything that acts on the
+_next turn_. Its first home on the Agents page was the page's top bar, and that
+was the wrong statement: chrome above the transcript reads as a property of the
+conversation, and the model is not one. The panel's header row made the same
+claim and has since given the picker up too, so the two surfaces now read as one
+product; the header keeps the history dropdown alone.
+
+It does fit a 420px panel, and a 320px one (`MIN_PANEL_WIDTH`) — but only
+because the picker's trigger is `min-w-0`. The paperclip and the skills button
+beside it are both `shrink-0` and both short; a model id is long and is the one
+label that survives being abbreviated, so it is the control that gives way and
+ellipsizes. Drop that `min-w-0` and the row wraps at the narrow end instead.
 
 ## The composer grows
 
