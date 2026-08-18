@@ -133,6 +133,11 @@ export function CreateApiTokenDialog({
     // way the Name field is wired.
     const scopeId = useId();
     const expiryId = useId();
+    // The dialog's element. Radix Dialog scroll-locks the page while open, so
+    // the workspace multi-select's popover must portal INTO it or its list
+    // won't scroll by mouse wheel — the same reason the relation picker and the
+    // records filter drawer capture theirs.
+    const [dialogEl, setDialogEl] = useState<HTMLDivElement | null>(null);
     const {
         data: workspaces = [],
         isError: workspacesFailed,
@@ -176,7 +181,7 @@ export function CreateApiTokenDialog({
                 onOpenChange(next);
             }}
         >
-            <DialogContent>
+            <DialogContent ref={setDialogEl}>
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
@@ -224,6 +229,7 @@ export function CreateApiTokenDialog({
                                 messages.workspaceEmpty
                             )}
                             aria-describedby={workspacesHintId}
+                            container={dialogEl}
                             className="w-full"
                         />
                         <p

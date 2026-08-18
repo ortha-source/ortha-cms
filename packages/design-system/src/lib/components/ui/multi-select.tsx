@@ -43,6 +43,16 @@ type MultiSelectProps = {
     disabled?: boolean;
     /** Ids of the hint/error elements describing the trigger. */
     'aria-describedby'?: string;
+    /**
+     * Where the popover portals. Pass the DOM node of a **scroll-locking**
+     * ancestor — a Radix `Dialog`'s content, a vaul `Drawer` — when this is
+     * rendered inside one. react-remove-scroll allow-lists only that ancestor's
+     * subtree, and a popover portaled to `document.body` sits outside it, so the
+     * option list scrolls by dragging its scrollbar but **not** by mouse wheel.
+     * Defaults to the body portal, which is right for a control on an ordinary
+     * page.
+     */
+    container?: HTMLElement | null;
     className?: string;
 };
 
@@ -65,6 +75,7 @@ function MultiSelect({
     invalid,
     disabled,
     'aria-describedby': ariaDescribedby,
+    container,
     className
 }: MultiSelectProps) {
     const [open, setOpen] = React.useState(false);
@@ -123,6 +134,7 @@ function MultiSelect({
             <PopoverContent
                 className="w-[var(--radix-popover-trigger-width)] max-w-[300px] overflow-hidden p-0"
                 align="start"
+                container={container}
             >
                 {/* `overflow-hidden` + a square `Command` clip the search
                     field's divider to the popover's rounded corners. */}
