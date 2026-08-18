@@ -9,6 +9,7 @@ import {
     countMediaAssets,
     resetDb,
     seedActiveUser,
+    seedMediaAsset,
     seedMediaFolder,
     seedMembership,
     seedWorkspace,
@@ -146,6 +147,99 @@ describe('media assets', () => {
         const res = await agent.get('/api/media/assets').expect(200);
         expect(res.body).toMatchObject({ page: 1, total: 2 });
         expect(res.body.items).toHaveLength(2);
+    });
+
+    // The browse controls belong to the server: the admin used to apply them in
+    // the browser over one fixed page of 100, so "oldest" returned the newest
+    // hundred in ascending order and a search could miss a file that existed.
+    describe('browsing a folder', () => {
+        /** Six root assets, named and tagged so each control is decidable. */
+        async function seedLibrary() {
+            const names = ['alpha', 'bravo', 'charlie', 'delta', 'echo'];
+            for (const name of names) {
+                await seedMediaAsset({
+                    workspaceId: workspace.id,
+                    uploadedBy: admin.id,
+                    name: `${name}.pdf`
+                });
+            }
+            await seedMediaAsset({
+                workspaceId: workspace.id,
+                uploadedBy: admin.id,
+                name: 'untitled.png',
+                kind: 'image',
+                mimeType: 'image/png',
+                tags: ['seasonal', 'campaign']
+            });
+        }
+
+        it('pages, and reports the whole-folder total with each page', async () => {
+            const agent = await login();
+            await seedLibrary();
+
+            const first = await agent
+                .get('/api/media/assets?page=1&pageSize=2&sort=name-asc')
+                .expect(200);
+            expect(first.body).toMatchObject({ total: 6, page: 1 });
+            expect(
+                first.body.items.map((a: { name: string }) => a.name)
+            ).toEqual(['alpha.pdf', 'bravo.pdf']);
+
+            // The total is the folder's, not the page's — it is what the pager
+            // counts pages from, and returning `items.length` would report one
+            // page however many there are.
+            const third = await agent
+                .get('/api/media/assets?page=3&pageSize=2&sort=name-asc')
+                .expect(200);
+            expect(third.body.total).toBe(6);
+            expect(
+                third.body.items.map((a: { name: string }) => a.name)
+            ).toEqual(['echo.pdf', 'untitled.png']);
+        });
+
+        it('sorts over the whole folder, not over one page of it', async () => {
+            const agent = await login();
+            await seedLibrary();
+
+            // The bug this pins: asking for the first page of "name-desc" has
+            // to return the *last* names, which a page-scoped sort cannot do.
+            const res = await agent
+                .get('/api/media/assets?page=1&pageSize=2&sort=name-desc')
+                .expect(200);
+            expect(res.body.items.map((a: { name: string }) => a.name)).toEqual(
+                ['untitled.png', 'echo.pdf']
+            );
+        });
+
+        it('searches names and tags, and counts only the matches', async () => {
+            const agent = await login();
+            await seedLibrary();
+
+            const byName = await agent
+                .get('/api/media/assets?search=charlie')
+                .expect(200);
+            expect(byName.body.total).toBe(1);
+            expect(byName.body.items[0].name).toBe('charlie.pdf');
+
+            // Tags were searchable while the filter ran in the browser; moving
+            // it to the server would have dropped them silently.
+            const byTag = await agent
+                .get('/api/media/assets?search=seasonal')
+                .expect(200);
+            expect(byTag.body.total).toBe(1);
+            expect(byTag.body.items[0].name).toBe('untitled.png');
+        });
+
+        it('filters by kind alongside the search', async () => {
+            const agent = await login();
+            await seedLibrary();
+
+            const res = await agent
+                .get('/api/media/assets?kind=image')
+                .expect(200);
+            expect(res.body.total).toBe(1);
+            expect(res.body.items[0].name).toBe('untitled.png');
+        });
     });
 
     it('renames and moves an asset via PATCH', async () => {

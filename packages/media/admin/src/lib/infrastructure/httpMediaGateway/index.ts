@@ -1,5 +1,5 @@
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
-import { ROOT_FOLDER_ID } from '../../constants';
+import { KIND_FILTER_ALL, ROOT_FOLDER_ID } from '../../constants';
 import {
     toMediaAsset,
     toMediaFolder,
@@ -9,6 +9,8 @@ import {
 } from '../mediaMapper';
 import type {
     CreateFolderInput,
+    ListAssetsParams,
+    MediaAssetPage,
     MediaFoldersResult,
     MediaGateway,
     MoveAssetsInput,
@@ -17,9 +19,6 @@ import type {
     UploadOptions
 } from '../mediaGateway';
 import type { MediaAsset } from '../../types/mediaAsset';
-
-/** Assets fetched per folder page — one large page (client-side filter/sort). */
-const ASSETS_PAGE_SIZE = 100;
 
 /** Translates the admin root sentinel to `undefined` (backend root = no id). */
 function folderParam(folderId: string): string | undefined {
@@ -48,18 +47,41 @@ export const httpMediaGateway: MediaGateway = {
         }
     },
 
-    async listAssets(folderId: string): Promise<MediaAsset[]> {
+    async listAssets({
+        folderId,
+        search,
+        kind,
+        sort,
+        page,
+        pageSize
+    }: ListAssetsParams): Promise<MediaAssetPage> {
         try {
+            const term = search?.trim();
             const { data } = await apiClient.get<AssetListResponse>(
                 '/media/assets',
                 {
+                    // Omitted rather than sent empty: `axios` drops an
+                    // `undefined` param, and the server reads a missing `search`
+                    // as "no search" while `search=` would be a blank term it
+                    // has to decide about. `kind` is omitted on the `all`
+                    // sentinel for the same reason — the wire says nothing
+                    // rather than saying "every kind".
                     params: {
                         folderId: folderParam(folderId),
-                        pageSize: ASSETS_PAGE_SIZE
+                        search: term || undefined,
+                        kind: kind === KIND_FILTER_ALL ? undefined : kind,
+                        sort,
+                        page,
+                        pageSize
                     }
                 }
             );
-            return data.items.map(toMediaAsset);
+            return {
+                items: data.items.map(toMediaAsset),
+                total: data.total,
+                page: data.page,
+                pageSize: data.pageSize
+            };
         } catch (error) {
             throw toApiError(error);
         }

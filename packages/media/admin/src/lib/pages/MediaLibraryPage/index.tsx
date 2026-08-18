@@ -6,6 +6,7 @@ import {
     Drawer,
     DrawerContent,
     DrawerTitle,
+    cn,
     toast
 } from '@ortha-cms/design-system';
 import { PanelLeft } from 'lucide-react';
@@ -27,6 +28,7 @@ import { MediaToolbar } from '../../components/MediaToolbar';
 import { MediaSelectionBar } from '../../components/MediaSelectionBar';
 import { MediaUploadBanner } from '../../components/MediaUploadBanner';
 import { MediaGrid } from '../../components/MediaGrid';
+import { MediaPagination } from '../../components/MediaPagination';
 import { MediaEmptyState } from '../../components/MediaEmptyState';
 import { AssetDetailDrawer } from '../../components/AssetDetailDrawer';
 import { NewFolderDialog } from '../../components/NewFolderDialog';
@@ -53,11 +55,6 @@ const messages = defineMessages({
         defaultMessage: 'We couldn’t load the media library.'
     },
     retry: { id: 'media.page.retry', defaultMessage: 'Try again' },
-    truncated: {
-        id: 'media.page.truncated',
-        defaultMessage:
-            'Showing the first {shown} of {total} items. Search or filter to narrow the list.'
-    },
     openNav: { id: 'media.page.openNav', defaultMessage: 'Folders' },
     navTitle: {
         id: 'media.page.navTitle',
@@ -247,16 +244,16 @@ export function MediaLibraryPage() {
         : intl.formatMessage(messages.allMedia);
 
     const hasFilters = store.search.trim() !== '' || store.kindFilter !== 'all';
-    const isEmpty =
-        store.childFolders.length === 0 && store.visibleAssets.length === 0;
 
-    // The gateway fetches one bounded page of assets and filters client-side, so
-    // a folder holding more than that page can't show them all. Surface the cap
-    // rather than silently hiding the overflow. (The true per-folder count comes
-    // from the folders query, independent of the loaded page.)
-    const loadedCount = store.assets.length;
-    const totalCount = store.folderCounts.get(store.currentFolderId) ?? 0;
-    const isTruncated = totalCount > loadedCount;
+    // Sub-folders belong to the folder, not to a page of its assets, so they are
+    // drawn once on the first page rather than repeating above every page of
+    // files. On any later page the grid is assets alone.
+    const showFolders = store.page === 1;
+    const visibleFolders = showFolders ? store.childFolders : [];
+
+    // Emptiness is now a fact about the whole folder, not about what happened to
+    // load: `total` counts every asset matching the search and filter across it.
+    const isEmpty = visibleFolders.length === 0 && store.total === 0;
 
     // Triggers a browser download for one asset (its bytes stream from the
     // `media:read`-gated raw route). Shared by the row action and bulk download.
@@ -474,7 +471,7 @@ export function MediaLibraryPage() {
                             </h1>
                             <p className="mt-0.5 text-sm text-muted-foreground">
                                 {intl.formatMessage(messages.subtitle, {
-                                    count: store.visibleAssets.length,
+                                    count: store.total,
                                     location: locationLabel
                                 })}
                             </p>
@@ -546,27 +543,28 @@ export function MediaLibraryPage() {
                             />
                         ) : null}
 
-                        {isTruncated ? (
-                            <p
-                                className="mb-3 text-sm text-muted-foreground"
-                                role="status"
-                            >
-                                {intl.formatMessage(messages.truncated, {
-                                    shown: loadedCount,
-                                    total: totalCount
-                                })}
-                            </p>
-                        ) : null}
-
                         {/* Focusable (but not tab-stop) so a destructive action
                             can hand focus back to the content it changed. */}
+                        {/* Dimmed and `aria-busy` while the grid is answering
+                            an older set of controls than the ones on screen —
+                            searching and paging are round trips now, and
+                            `keepPreviousData` deliberately leaves the previous
+                            page up rather than blanking it. Without this the
+                            stale results are indistinguishable from the new
+                            ones. Opacity rather than a spinner in place of the
+                            grid, so nothing moves and the tiles stay clickable
+                            for the moment they remain correct. */}
                         <section
                             ref={gridRef}
                             tabIndex={-1}
                             aria-label={intl.formatMessage(
                                 messages.assetsRegion
                             )}
-                            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            aria-busy={store.isRefreshing}
+                            className={cn(
+                                'transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                store.isRefreshing && 'opacity-60'
+                            )}
                         >
                             {isEmpty ? (
                                 <MediaEmptyState
@@ -580,7 +578,7 @@ export function MediaLibraryPage() {
                                 />
                             ) : (
                                 <MediaGrid
-                                    folders={store.childFolders}
+                                    folders={visibleFolders}
                                     assets={store.visibleAssets}
                                     folderCounts={store.folderCounts}
                                     selectedIds={store.selectedIds}
@@ -595,6 +593,20 @@ export function MediaLibraryPage() {
                                 />
                             )}
                         </section>
+
+                        {/* Keyed off the assets, not off emptiness: a folder
+                            holding only sub-folders is not empty, and a pager
+                            reading "0–0 of 0" under it says nothing. */}
+                        {store.total > 0 ? (
+                            <MediaPagination
+                                page={store.page}
+                                pageCount={store.pageCount}
+                                pageSize={store.pageSize}
+                                total={store.total}
+                                onPageChange={store.setPage}
+                                onPageSizeChange={store.setPageSize}
+                            />
+                        ) : null}
                     </div>
                 </div>
             </div>

@@ -35,6 +35,7 @@ import {
     KIND_FILTER_ALL,
     MEDIA_KIND,
     MEDIA_SORT,
+    PICKER_ASSETS_PAGE_SIZE,
     ROOT_FOLDER_ID,
     type MediaKind,
     type MediaSort
@@ -187,7 +188,13 @@ export function MediaPickerDialog({
     onConfirm: (assets: MediaAsset[]) => void;
 }) {
     const intl = useIntl();
-    const library = useMediaLibrary(open);
+    // No pager in this dialog: it is a picker, and the way you narrow it is by
+    // typing. One large page keeps that true — and the search reaching it is now
+    // the server's, so it finds a file anywhere in the folder rather than only
+    // among the ones that happened to load.
+    const library = useMediaLibrary(open, {
+        pageSize: PICKER_ASSETS_PAGE_SIZE
+    });
     const [picked, setPicked] = useState<Map<string, MediaAsset>>(new Map());
 
     const attached = useMemo(() => new Set(attachedIds ?? []), [attachedIds]);

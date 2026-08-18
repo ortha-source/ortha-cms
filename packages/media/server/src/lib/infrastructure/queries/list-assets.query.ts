@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, isNull, sql, type SQL } from 'drizzle-orm';
+import {
+    and,
+    asc,
+    desc,
+    eq,
+    ilike,
+    isNull,
+    or,
+    sql,
+    type SQL
+} from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
 import { mediaAsset, mediaKind } from '../schema/media-asset';
 import { InvalidAssetFilterError } from '../../domain/errors/invalid-asset-filter.error';
@@ -76,8 +86,8 @@ export interface ListAssetsParams {
 }
 
 /**
- * Read-side listing of a folder's assets — search over the name, an optional
- * kind filter, a whitelisted sort, and `LIMIT/OFFSET` pagination. Returns the
+ * Read-side listing of a folder's assets — search over the name and tags, an
+ * optional kind filter, a whitelisted sort, and `LIMIT/OFFSET` pagination. Returns the
  * admin's `{ items, total, page, pageSize }` envelope. Bypasses the aggregate
  * (a thin CQRS query).
  */
@@ -108,8 +118,17 @@ export class ListAssetsQuery {
             // Escaped, so `%` and `_` in the term are literals — every other
             // search in the codebase treats them that way and a user typing an
             // underscore means an underscore.
+            const pattern = `%${escapeLikePattern(search)}%`;
+            // Name **or** tag. The admin used to search both, in the browser,
+            // over whichever page had loaded; moving the search here would have
+            // quietly dropped tags from it. `jsonb_array_elements_text` matches
+            // one element at a time, so a term cannot span two tags or collide
+            // with the JSON punctuation the way a `tags::text` cast would.
             conditions.push(
-                ilike(mediaAsset.name, `%${escapeLikePattern(search)}%`)
+                or(
+                    ilike(mediaAsset.name, pattern),
+                    sql`EXISTS (SELECT 1 FROM jsonb_array_elements_text(${mediaAsset.tags}) AS tag WHERE tag ILIKE ${pattern})`
+                ) as SQL
             );
         }
         const where = and(...conditions);

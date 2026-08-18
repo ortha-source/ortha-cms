@@ -273,14 +273,58 @@ export async function mockMediaApi(
         const request = route.request();
         const method = request.method();
         if (method === 'GET') {
-            const folderId = new URL(request.url()).searchParams.get(
-                'folderId'
-            );
-            const items = assets.filter((a) =>
-                folderId ? a.folderId === folderId : a.folderId === null
-            );
+            const params = new URL(request.url()).searchParams;
+            const folderId = params.get('folderId');
+            const search = params.get('search')?.trim().toLowerCase() ?? '';
+            const kind = params.get('kind');
+            const sort = params.get('sort') ?? 'newest';
+            const page = Number(params.get('page') ?? '1');
+            const pageSize = Number(params.get('pageSize') ?? '24');
+
+            // The browse controls are the **server's** now — the admin sends
+            // search/kind/sort/page and draws whatever comes back, with no
+            // filtering of its own left to paper over a mock that ignores them.
+            // So this has to answer like the real query does, or the suite
+            // would be proving the UI works against a backend that does not.
+            const matched = assets
+                .filter((a) =>
+                    folderId ? a.folderId === folderId : a.folderId === null
+                )
+                .filter((a) => !kind || kind === 'all' || a.kind === kind)
+                // Name **or** tag, matching the server's own search.
+                .filter(
+                    (a) =>
+                        a.name.toLowerCase().includes(search) ||
+                        (a.tags ?? []).some((tag) =>
+                            tag.toLowerCase().includes(search)
+                        )
+                );
+
+            const sorted = [...matched].sort((a, b) => {
+                switch (sort) {
+                    case 'name-asc':
+                        return a.name.localeCompare(b.name);
+                    case 'name-desc':
+                        return b.name.localeCompare(a.name);
+                    case 'oldest':
+                        return a.createdAt.localeCompare(b.createdAt);
+                    case 'largest':
+                        return b.size - a.size;
+                    case 'smallest':
+                        return a.size - b.size;
+                    default:
+                        return b.createdAt.localeCompare(a.createdAt);
+                }
+            });
+
+            const start = (page - 1) * pageSize;
             await route.fulfill(
-                json({ items, total: items.length, page: 1, pageSize: 100 })
+                json({
+                    items: sorted.slice(start, start + pageSize),
+                    total: sorted.length,
+                    page,
+                    pageSize
+                })
             );
             return;
         }

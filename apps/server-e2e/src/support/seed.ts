@@ -720,6 +720,8 @@ export async function seedMediaAsset(opts: {
      * text.
      */
     alt?: string | null;
+    /** Labels on the asset. The listing's search matches these as well as the name. */
+    tags?: string[];
 }): Promise<{ id: string }> {
     const [row] = await getDatabase()
         .insert(mediaAsset)
@@ -731,6 +733,7 @@ export async function seedMediaAsset(opts: {
             mimeType: opts.mimeType ?? 'application/pdf',
             size: opts.size ?? 1024,
             alt: opts.alt ?? null,
+            tags: opts.tags ?? [],
             storageKey: `${opts.workspaceId}/seed/${opts.name}`,
             storageProvider: 'memory',
             uploadedBy: opts.uploadedBy

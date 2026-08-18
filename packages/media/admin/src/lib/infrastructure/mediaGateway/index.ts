@@ -8,6 +8,41 @@ export type MediaFoldersResult = {
     folderCounts: Map<string, number>;
 };
 
+/**
+ * How a listing is browsed — the whole of it, sent to the server.
+ *
+ * Every field here used to be applied in the browser over one fixed page of
+ * 100, which meant "oldest first" ordered the *newest hundred* and a search
+ * could not see a file that existed. They belong on the request because only
+ * the server can see the whole folder.
+ */
+export type ListAssetsParams = {
+    /** Folder to list — an admin folder id or the root sentinel. */
+    folderId: string;
+    /** Free-text match over the asset name. Blank means no search. */
+    search?: string;
+    /** A `MediaKind`, or the `all` sentinel for no kind filter. */
+    kind?: string;
+    /** One of the server's whitelisted sorts. */
+    sort?: string;
+    /** 1-based page number. */
+    page: number;
+    /** How many assets to return. The server caps this at 100. */
+    pageSize: number;
+};
+
+/**
+ * One page of assets plus the count the pager needs. `total` counts everything
+ * matching the search and filter across the whole folder, not what came back in
+ * `items` — which is the number the old gateway threw away.
+ */
+export type MediaAssetPage = {
+    items: MediaAsset[];
+    total: number;
+    page: number;
+    pageSize: number;
+};
+
 /** Create-folder input. `parentId` is an admin folder id or the root sentinel. */
 export type CreateFolderInput = { name: string; parentId: string };
 
@@ -61,7 +96,7 @@ export type UploadOptions = {
  */
 export type MediaGateway = {
     listFolders(): Promise<MediaFoldersResult>;
-    listAssets(folderId: string): Promise<MediaAsset[]>;
+    listAssets(params: ListAssetsParams): Promise<MediaAssetPage>;
     createFolder(input: CreateFolderInput): Promise<void>;
     renameFolder(input: RenameInput): Promise<void>;
     deleteFolder(id: string): Promise<void>;

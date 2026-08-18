@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1213 test cases across 80 spec files._
+_1217 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2266,6 +2266,18 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | uploads into a folder when folderId is given |
 | streams the uploaded bytes back on download |
 | lists a folder page and the workspace root |
+
+### browsing a folder
+
+| Test case |
+| --- |
+| pages, and reports the whole-folder total with each page |
+| sorts over the whole folder, not over one page of it |
+| searches names and tags, and counts only the matches |
+| filters by kind alongside the search |
+
+| Test case |
+| --- |
 | renames and moves an asset via PATCH |
 | duplicates an asset |
 | bulk-deletes assets |

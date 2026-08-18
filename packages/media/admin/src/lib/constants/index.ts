@@ -63,6 +63,28 @@ export type MediaKind = (typeof MEDIA_KIND)[keyof typeof MEDIA_KIND];
 /** The special "no filter" sentinel for the kind filter control. */
 export const KIND_FILTER_ALL = 'all';
 
+/**
+ * Assets per page in the library grid, and the sizes the pager offers.
+ *
+ * 24 matches the server's own default and divides evenly by the grid's column
+ * counts (2/3/4/5), so a full page never leaves a ragged last row. The server
+ * caps a page at 100, so nothing above it is offered.
+ */
+export const DEFAULT_ASSETS_PAGE_SIZE = 24;
+
+/** The page sizes the library's pager offers, smallest first. */
+export const ASSETS_PAGE_SIZE_OPTIONS = [24, 48, 96];
+
+/**
+ * Assets fetched by a surface that browses without a pager — the picker
+ * dialog, which narrows by searching rather than by paging. The server's
+ * ceiling, so it is one request whatever the folder holds.
+ */
+export const PICKER_ASSETS_PAGE_SIZE = 100;
+
+/** How long the search box waits after a keystroke before it queries. */
+export const SEARCH_DEBOUNCE_MS = 300;
+
 /** How the visible assets are ordered. */
 export const MEDIA_SORT = {
     NameAsc: 'name-asc',
