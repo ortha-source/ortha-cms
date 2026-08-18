@@ -142,6 +142,33 @@ The extension owns all locale _behavior_:
   saves returned 500 (`deadlock detected`, SQLSTATE 40P01); after, 0. A lock
   taken here precedes every row lock, so the second saver waits — which is the
   correct outcome for two edits to one record.
+- **`describeFanout`** — the read-only counterpart of `afterUpdate`, answering
+  "what would this write touch besides the row it names" **before** anything is
+  written. Nothing in the entries pipeline calls it; it exists for the copilot's
+  `content_propose_*` tools, which have to describe a change a user never sees
+  coming: under
+  [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) a proposal
+  applies as it is drafted, so one accepted edit to a shared field rewrites the
+  record in every language while the receipt reads as a single-entry edit. It
+  returns the fields in the submitted values that travel plus the sibling locale
+  slugs they reach, or `undefined` when the write is an ordinary single-row one
+  (not the type's, nothing travels, or the row is alone in its group) — a caveat
+  on every edit teaches the reader to skim past it on the one that matters. Three
+  things about it are deliberate: it filters the fields **before** reading
+  anything, so a save touching only per-locale fields (i.e. an actual
+  translation) costs no query; it is one self-join rather than "read the group
+  id, then read the group", because the bulk tool describes up to
+  `BULK_MAX_SAVE_ITEMS` items per turn; and it takes **no lock** and does not
+  filter `deleted_at` — no lock because it runs outside the write transaction and
+  a `FOR UPDATE` held for a model's turn is not a trade worth making (its answer
+  is advisory by construction), and no soft-delete filter because
+  `propagateToSiblings` rewrites trashed siblings too, so omitting them would
+  understate the very change the description exists to disclose.
+  `travelsToSiblings` is the predicate, stated once and deliberately **broader**
+  than `sharedColumns`: shared columns, mirrored FKs and join-backed link sets
+  are applied by three different mechanisms, but to a person being told what
+  their change will do they are one fact — the value they set here lands over
+  there.
 - **`filterExtension`** — the virtual filter fields `hasLocale` /
   `missingLocale` (enum of slugs) and `localeCount` (number), resolved to
   `EXISTS` / correlated-count subqueries over the group (ridden by the

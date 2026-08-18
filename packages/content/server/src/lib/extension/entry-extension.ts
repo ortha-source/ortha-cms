@@ -68,6 +68,39 @@ export interface EntryWriteContext {
     created: boolean;
 }
 
+/**
+ * What a write of one entry would **also** rewrite, beyond the row addressed.
+ *
+ * The entries pipeline does not know that a save can travel: an extension's
+ * {@link ContentEntryExtension.afterUpdate} may rewrite a whole set of related
+ * rows (the i18n plugin propagates a type's *shared* fields onto every sibling
+ * in the translation group), and the caller that asked for "change this one
+ * entry" has no way to see it. Everywhere a person types the change that is
+ * tolerable — they are looking at the record and its language switcher. It is
+ * not tolerable where an **agent** composes the change and it applies with no
+ * human in between ([ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)),
+ * which is what this exists for: the copilot's propose tools ask before they
+ * draft, so the receipt names the blast radius instead of reading as a
+ * single-entry edit.
+ *
+ * It describes; it does not decide. Propagating shared values IS the contract —
+ * "shared" means shared — so refusing the write would take away the only way to
+ * edit a shared field at all. The defect was that nobody was told.
+ */
+export interface EntryWriteFanout {
+    /**
+     * The names of the fields **in the submitted values** whose value travels
+     * to the other rows — a subset of what was asked for, never the whole type.
+     */
+    fields: readonly string[];
+    /**
+     * The other rows, named the way a person would recognise them (locale
+     * slugs, for the i18n extension). Never empty: an extension returns
+     * `undefined` rather than an empty description.
+     */
+    locales: readonly string[];
+}
+
 /** Context handed to {@link EntryFilterExtension.resolve} with each rule. */
 export interface EntryFilterContext {
     /** The content type the list request targets. */
@@ -198,4 +231,35 @@ export interface ContentEntryExtension {
         workspaceId: string,
         context: EntryWriteContext
     ): Promise<Record<string, unknown>[] | void>;
+
+    /**
+     * What a write of `values` onto `entryId` would rewrite **besides that
+     * row** — the read-only counterpart of {@link afterUpdate}, answered before
+     * anything is written.
+     *
+     * The pipeline itself never calls it: a save just saves, and the fan-out is
+     * the extension's own contract. It is asked by callers that have to
+     * *describe* a change before making it — the copilot's `content_propose_*`
+     * tools, whose receipt is the only place a user learns their content moved.
+     *
+     * Return `undefined` — not an empty description — when the write touches
+     * nothing else: the type is not the extension's, no field in `values`
+     * travels, or the row has no companions. Callers treat `undefined` as "an
+     * ordinary single-row edit" and say nothing, which is the common case and
+     * must stay silent.
+     *
+     * Reads only, and takes **no locks**: it runs outside the write
+     * transaction and its answer is advisory by construction — a sibling can
+     * appear between the description and the write. Locking here would put a
+     * `FOR UPDATE` on a translation group for the duration of a model's turn.
+     *
+     * Optional: an extension that only ever writes the row it was handed has
+     * nothing to describe.
+     */
+    describeFanout?(
+        type: AnyContentType,
+        entryId: string,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<EntryWriteFanout | undefined>;
 }
