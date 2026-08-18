@@ -437,17 +437,28 @@ test.describe('Agents view — what the run is doing', () => {
         );
 
         // **Spacing.** The wrapper was `pt-3` with no bottom padding, so the
-        // banner butted straight into the footer's rule and read as part of the
-        // line below it. Measured rather than snapshotted: the number that
-        // matters is the gap, and it survives a font change.
+        // banner butted straight into the rule below it and read as part of it.
+        // Measured rather than snapshotted: the number that matters is the gap,
+        // and it survives a font change.
+        //
+        // Against the **card's own bottom edge**, not a footer: a failure that
+        // carried its own reason omits the footer entirely (it would restate,
+        // and contradict, the sentence in the banner — "Nothing was saved."
+        // under "the first 3 were saved"). This measured the gap to that
+        // footer, so on the one card the case describes there was nothing to
+        // measure to, and it waited 30s for an element the component is right
+        // not to render.
         const alertBox = laidOut(await alert.boundingBox(), 'the alert');
-        const footerBox = laidOut(
-            await agentsPage.proposalFooter(FAILED).boundingBox(),
-            'the card’s footer'
+        const cardBox = laidOut(
+            await agentsPage.proposalCard(FAILED).boundingBox(),
+            'the change card'
         );
         expect(
-            footerBox.y - (alertBox.y + alertBox.height)
+            cardBox.y + cardBox.height - (alertBox.y + alertBox.height)
         ).toBeGreaterThanOrEqual(8);
+        // …and the footer really is absent, so the assertion above is measuring
+        // the case it claims to.
+        await expect(agentsPage.proposalFooter(FAILED)).toHaveCount(0);
 
         // **Alignment.** The design system positions a top-level `<svg>` at a
         // fixed `top-4` and nudges the text up 3px — geometry for an alert with

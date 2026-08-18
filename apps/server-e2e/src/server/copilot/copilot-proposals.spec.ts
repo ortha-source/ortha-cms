@@ -713,7 +713,7 @@ describe('Copilot changes', () => {
             // *rules* would not do: `test_article` is publishable, so
             // `EntryWriterService` defers required/length/format validation to
             // publish time and a two-character `text` would save happily.
-            const { result } = await propose(
+            const { result, proposal } = await propose(
                 agent,
                 'i18n_propose_bulk_translation',
                 {
@@ -742,8 +742,20 @@ describe('Copilot changes', () => {
             // A proposal has one status and one card, so there is no per-item
             // verdict to render — the message is what the model reads back,
             // and "nothing was saved" would be a lie about the German row.
-            expect(result.error).toContain('Translation 2 of 2 (fr) failed');
-            expect(result.error).toContain('The first 1 were saved');
+            //
+            // It rides on `output.applyError`, not on `error`. The two are
+            // different failures: `error` is a tool that refused or threw
+            // before there was a proposal, while a proposal whose APPLY failed
+            // has a row, a status and a card, and its reason travels with them
+            // (the `proposal` frame carries the same string, which is what the
+            // card renders). This asserted `error` and therefore asserted
+            // `undefined` contains a string.
+            const applyError = (
+                result.output as { applyError?: string } | undefined
+            )?.applyError;
+            expect(applyError).toContain('Translation 2 of 2 (fr) failed');
+            expect(applyError).toContain('The first 1 were saved');
+            expect(proposal.error).toBe(applyError);
 
             const rows = await localesOf(agent, id);
             expect(rows.get('de')).not.toBeNull();
