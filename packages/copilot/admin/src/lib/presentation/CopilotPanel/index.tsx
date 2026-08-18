@@ -6,6 +6,7 @@ import {
     MessageSquarePlus,
     Minimize2,
     Minus,
+    SquareArrowOutUpRight,
     X
 } from 'lucide-react';
 import { Button, cn } from '@ortha-cms/design-system';
@@ -35,6 +36,10 @@ import { ContextChip } from '../ContextChip';
 // Product name is **Ortha AI**; the code keeps `copilot`. See the naming note
 // in `docs/design/copilot.md`.
 const messages = defineMessages({
+    openInAgents: {
+        id: 'copilot.panel.openInAgents',
+        defaultMessage: 'Open in Agents view'
+    },
     title: {
         id: 'copilot.panel.title',
         defaultMessage: 'Ortha AI'
@@ -150,6 +155,20 @@ export interface CopilotPanelProps {
     /** Starts another chat alongside this one. */
     onNewChat(): void;
     /**
+     * Takes this chat to the full-page Agents view, given the thread it is on.
+     *
+     * The panel only asks; the surface above does the navigating. Nothing is
+     * closed or copied on the way — `useAgentThread` reads the thread out of
+     * the URL and **presents the chat already on it**, so the same store entry
+     * simply changes surface and leaves the dock of its own accord. A run
+     * mid-flight carries over with it.
+     *
+     * Offered only once the chat has a thread id: an unsaved chat has no URL to
+     * be opened at, and the Agents view's base path means "a fresh chat", which
+     * would strand the draft rather than move it.
+     */
+    onOpenInAgents?(conversationId: string): void;
+    /**
      * Asks the surface above whether this window may take `conversationId`,
      * before the history dropdown loads it.
      *
@@ -226,6 +245,7 @@ export function CopilotPanel({
     onMinimize,
     onClose,
     onNewChat,
+    onOpenInAgents,
     onAdoptConversation,
     choice,
     onChoiceChange,
@@ -418,6 +438,16 @@ export function CopilotPanel({
                     {title ?? intl.formatMessage(messages.title)}
                 </h2>
 
+                {/* Only with a thread to open — see `onOpenInAgents`. */}
+                {onOpenInAgents && chat.conversationId ? (
+                    <IconButton
+                        icon={SquareArrowOutUpRight}
+                        label={intl.formatMessage(messages.openInAgents)}
+                        onClick={() =>
+                            onOpenInAgents(chat.conversationId as string)
+                        }
+                    />
+                ) : null}
                 <IconButton
                     icon={MessageSquarePlus}
                     label={intl.formatMessage(messages.newChat)}

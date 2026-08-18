@@ -82,7 +82,7 @@ test.describe('CMS ⇄ Agents switcher', () => {
         );
     });
 
-    test('the dock stands down on the Agents view while it owns nothing', async ({
+    test('the dock stands down on the Agents view', async ({
         agentsPage,
         contentLibraryPage
     }) => {
@@ -95,5 +95,29 @@ test.describe('CMS ⇄ Agents switcher', () => {
 
         // Here it would offer to open the page you are already on.
         await expect(agentsPage.dock).toBeHidden();
+    });
+
+    test('…and stays down even when it owns a chat', async ({
+        agentsPage,
+        contentLibraryPage,
+        copilotDockPage
+    }) => {
+        // A chat opened on the CMS, so the dock owns a pill *and* a window.
+        await contentLibraryPage.goto(WORKSPACE_ID);
+        await copilotDockPage.startChat();
+        await expect(copilotDockPage.panel()).toBeVisible();
+
+        await agentsPage.switchView('Agents');
+
+        // The page is the chat surface now, so a floating window over it is a
+        // second one saying the same thing — the bar and the windows both go.
+        await expect(agentsPage.dock).toBeHidden();
+        await expect(copilotDockPage.panel()).toBeHidden();
+
+        // Back on the CMS both are there again — hidden, never closed, so a
+        // chat that was running was not thrown away behind the user's back.
+        await agentsPage.switchView('CMS');
+        await expect(agentsPage.dock).toBeVisible();
+        await expect(copilotDockPage.panel()).toBeVisible();
     });
 });

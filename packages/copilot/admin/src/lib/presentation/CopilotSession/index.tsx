@@ -30,6 +30,7 @@ export function CopilotSession({
     onMinimize,
     onClose,
     onNewChat,
+    onOpenInAgents,
     onAdoptConversation,
     returnFocusRef,
     onDescribe,
@@ -47,6 +48,8 @@ export function CopilotSession({
     onMinimize(): void;
     onClose(): void;
     onNewChat(): void;
+    /** Takes this chat to the Agents view — see `CopilotPanelProps`. */
+    onOpenInAgents?(conversationId: string): void;
     /**
      * Asks whether this window may take `conversationId`. False means another
      * window already holds that thread and has been focused instead — see
@@ -131,6 +134,7 @@ export function CopilotSession({
             onMinimize={onMinimize}
             onClose={onClose}
             onNewChat={onNewChat}
+            {...(onOpenInAgents ? { onOpenInAgents } : {})}
             {...(onAdoptConversation ? { onAdoptConversation } : {})}
             {...(returnFocusRef ? { returnFocusRef } : {})}
             // From the session, so collapsing this chat to the dock and

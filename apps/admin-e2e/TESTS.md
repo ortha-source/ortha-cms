@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_717 test cases across 73 spec files._
+_718 test cases across 73 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1040,7 +1040,8 @@ _<sub>apps/admin-e2e/src/copilot/view-switcher.spec.ts</sub>_
 | says which view you are in, in both of them |
 | goes back to the CMS page you left, not the workspace root |
 | clicking the view you are already in is not a third state |
-| the dock stands down on the Agents view while it owns nothing |
+| the dock stands down on the Agents view |
+| …and stays down even when it owns a chat |
 
 <!-- source: apps/admin-e2e/src/harness/axe-fixture.spec.ts -->
 _<sub>apps/admin-e2e/src/harness/axe-fixture.spec.ts</sub>_

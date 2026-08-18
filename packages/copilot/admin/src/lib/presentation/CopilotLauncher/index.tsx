@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
 import { badgeCount } from '../../application/tabBadge';
 import { useTabBadge } from '../../application/useTabBadge';
-import { COPILOT_USE, isAgentsPath } from '../../domain/agentsRoute';
+import {
+    COPILOT_USE,
+    agentThreadPath,
+    isAgentsPath
+} from '../../domain/agentsRoute';
 import { CopilotDock } from '../CopilotDock';
 import { CopilotSession } from '../CopilotSession';
 
@@ -43,17 +47,25 @@ export function CopilotLauncher() {
     const sessions = useCopilotSessions();
     const newChatRef = useRef<HTMLButtonElement>(null);
     const { pathname } = useLocation();
+    const navigate = useNavigate();
 
     const canUse = useHasPermission(COPILOT_USE);
     const routeContext = useRouteContext();
     const { workspaceId } = routeContext;
     const available = canUse && !!workspaceId;
 
-    // On the Agents view the dock's own button offers to open the page the user
-    // is already on, so it stands down — but only the **bar**, and only while
-    // the dock owns nothing. A chat the page handed back (you navigated away
-    // mid-answer) is a pill that has to stay reachable.
-    const dockRedundant = isAgentsPath(pathname) && sessions.dock.length === 0;
+    // On the Agents view the whole dock stands down — the bar *and* the windows.
+    // The page is already the chat surface, so a floating window over it is a
+    // second one saying the same thing, and the dock's own button would offer to
+    // open the page the user is standing on.
+    //
+    // Hidden, **not unmounted**. The chats keep running either way (they live in
+    // `copilotStore`, not here), but the mounted `CopilotSession`s are what
+    // report a finished answer, a parked permission prompt and a derived title
+    // back to the session store — which is what keeps the browser tab's badge
+    // truthful while the dock is out of sight, and what has the pills already
+    // correct the moment the user navigates away again.
+    const dockStandsDown = isAgentsPath(pathname);
 
     // The tab badge lives here for the same reason the dock does: this is the
     // one copilot component mounted for the whole session, so it can count
@@ -144,7 +156,12 @@ export function CopilotLauncher() {
                 by a transform on an ancestor. React context still flows through
                 portals, so the permission and workspace hooks are unaffected. */}
             {createPortal(
-                <>
+                // `hidden` rather than an unmount — see `dockStandsDown`. The
+                // attribute's `display: none` also takes the windows out of the
+                // tab order and the accessibility tree, which a visibility trick
+                // would not: a dock nobody can see must not still be reachable
+                // by Tab from the page it is hiding behind.
+                <div hidden={dockStandsDown}>
                     {/* Keyed by session **and** workspace: navigating to another
                         workspace must not hand an in-flight run a new
                         `X-Workspace-Id` half way through. */}
@@ -176,6 +193,15 @@ export function CopilotLauncher() {
                                 )
                             }
                             onNewChat={() => sessions.start()}
+                            // Navigate and nothing else: the Agents page
+                            // presents the chat already on that thread, so the
+                            // session changes surface and leaves the dock by
+                            // itself. Closing it here would race that handover.
+                            onOpenInAgents={(conversationId) =>
+                                navigate(
+                                    agentThreadPath(workspaceId, conversationId)
+                                )
+                            }
                             onDescribe={(meta) =>
                                 sessions.describe(session.id, meta)
                             }
@@ -195,16 +221,14 @@ export function CopilotLauncher() {
                         />
                     ))}
 
-                    {!dockRedundant && (
-                        <CopilotDock
-                            sessions={sessions.dock}
-                            onToggle={sessions.toggle}
-                            onClose={sessions.close}
-                            onNewChat={() => sessions.start()}
-                            newChatRef={newChatRef}
-                        />
-                    )}
-                </>,
+                    <CopilotDock
+                        sessions={sessions.dock}
+                        onToggle={sessions.toggle}
+                        onClose={sessions.close}
+                        onNewChat={() => sessions.start()}
+                        newChatRef={newChatRef}
+                    />
+                </div>,
                 document.body
             )}
         </>
