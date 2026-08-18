@@ -1192,9 +1192,11 @@ package's `AGENTS.md`.
 **atomically**; the status SQL is small executor-parameterized primitives on the
 engine (`markPublished`/`markDraft`/`loadLiveByIdsForUpdate`/…). Bulk publish
 keeps its **single locked (`FOR UPDATE`) transaction** (the TOCTOU protection the
-original defended) and reports partial success; bulk unpublish keeps its
-`{ count }` = live-matching-rows semantics and emits an event only per real
-`published → draft` transition. Reads (list / get / relations / bulk-publish
+original defended) and reports partial success; bulk unpublish reports
+`{ count }` = **real `published → draft` transitions**, the same set it emits an
+event for. It used to count every live row the ids matched — so unpublishing a
+list containing a draft counted it, against what the route's own OpenAPI
+description promises, and stamped `updated_at` on a row nothing happened to. Reads (list / get / relations / bulk-publish
 preview) stay thin query services. **CRUD writes** (create / update / delete /
 restore / purge and their bulk variants) stay on the engine directly — they carry
 no publish-state transition, so per ADR-0003 they are not forced through the

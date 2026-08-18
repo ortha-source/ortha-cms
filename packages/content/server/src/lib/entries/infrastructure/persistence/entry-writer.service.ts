@@ -900,10 +900,17 @@ export class EntryWriterService {
     }
 
     /**
-     * Revert every live row in `ids` to draft on `exec`, returning how many rows
-     * matched — the `{ count }` the bulk endpoint reports, unchanged from the
-     * single-statement original (count = live matching rows, not just those that
-     * were published).
+     * Revert the **published** rows among `ids` to draft on `exec`, returning
+     * how many actually transitioned — the `{ count }` the bulk endpoint
+     * reports.
+     *
+     * The status predicate is the whole of it, and it was missing: without it
+     * the `UPDATE` matched every live row in the list, so unpublishing two ids
+     * of which one was already a draft answered `{ count: 2 }` — which is what
+     * the route's own OpenAPI description promises it never does ("an id that
+     * was not a live published row … is not counted"). It also stamped
+     * `updatedAt` on rows nothing happened to, moving an entry up a
+     * last-modified sort because somebody unpublished a *different* one.
      */
     async markDraftBulk(
         exec: Database | DbTransaction,
@@ -924,6 +931,7 @@ export class EntryWriterService {
                 and(
                     inArray(t['id'], ids),
                     this.scope(type, workspaceId),
+                    eq(t['status'], ENTRY_STATUS.Published),
                     type.paranoid ? isNull(t['deletedAt']) : undefined
                 )
             )

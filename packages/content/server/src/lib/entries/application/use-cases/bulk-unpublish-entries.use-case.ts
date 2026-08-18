@@ -7,12 +7,15 @@ import type { BulkActionResult } from '../../types/bulk-publish';
 import { Entry } from '../../domain/entry';
 
 /**
- * Revert a set of live entries to draft. Runs inside one {@link UnitOfWork}: the
- * `{ count }` it reports is the number of live matching rows (unchanged from the
- * original single-statement behavior), while an `entry.unpublished` event is
- * appended only for the ids that were actually `published` before — a real
- * transition — so the outbox never records a spurious unpublish for a row that
- * was already a draft. 400 on a non-publishable type.
+ * Revert a set of live entries to draft. Runs inside one {@link UnitOfWork}, and
+ * **one set of ids runs through all three effects**: the `{ count }` reported,
+ * the revisions reverted, and the `entry.unpublished` events appended are the
+ * rows that were `published` before the write and no others.
+ *
+ * The count used to be broader — every live row the id list matched, draft ones
+ * included — while the events were already per real transition. Two numbers for
+ * one operation, and the wider of them was the one the caller was shown. 400 on
+ * a non-publishable type.
  */
 @Injectable()
 export class BulkUnpublishEntriesUseCase {
