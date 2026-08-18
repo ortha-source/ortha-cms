@@ -8,6 +8,7 @@ import {
     fenceUntrusted,
     isAbortError,
     isProposalDraft,
+    normalizeTranscript,
     resolveModel,
     toSkillRef,
     type AttachmentRef,
@@ -1209,10 +1210,20 @@ export class RunEngine {
      * transcript is the only thing carried forward. Fenced because a file name
      * is user-authored text arriving in the prompt — the same treatment a tool
      * result gets, for the same reason.
+     *
+     * The rows are then run through `normalizeTranscript`, which is what makes
+     * a *continued* conversation replayable at all. A run is stored as one
+     * assistant row holding text, `tool_use` **and** `tool_result` blocks
+     * together — the shape the transcript UI reads — and Anthropic rejects that
+     * on the way back in: a tool result has to ride on a user turn after the
+     * assistant turn that asked for it. It also drops `tool_use` blocks left
+     * unanswered by a run that was aborted mid-step, which is the same 400
+     * wearing a different message. The repair is here rather than at the write
+     * so it also fixes the threads already in the database.
      */
     private async loadHistory(conversationId: string): Promise<ModelMessage[]> {
         const rows = await this.conversations.messages(conversationId);
-        return rows.map((row) => {
+        const turns = rows.map((row) => {
             const extra: ModelContentBlock[] = [];
             if (row.attachments?.length) {
                 extra.push({
@@ -1235,6 +1246,7 @@ export class RunEngine {
                     extra.length > 0 ? [...row.content, ...extra] : row.content
             };
         });
+        return normalizeTranscript(turns);
     }
 }
 

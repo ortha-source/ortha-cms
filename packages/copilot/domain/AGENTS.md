@@ -54,6 +54,17 @@ something here needs a dependency, it belongs in a layer above.
   so the engine never grows a branch per vendor.
 - `ModelUsage` / `ModelStopReason` — the inputs to cost accounting and to the
   "why did it stop" line the UI shows.
+- `normalizeTranscript(messages)` — the one repair a **replayed** thread needs.
+  A run is persisted as one assistant row holding text, `tool_use` and
+  `tool_result` blocks together (the shape the transcript UI reads), and that is
+  not a shape the wire accepts: Anthropic requires a tool result on a `user`
+  turn immediately after the assistant turn that asked for it, and 400s
+  otherwise — `tool_result blocks can only be in user messages`. This splits the
+  row back into `assistant` / `user` pairs, one per step, and drops `tool_use`
+  blocks a cancelled run left unanswered (a second 400). It lives here, not in
+  an adapter, because the OpenAI adapter emits `role: 'tool'` per result block
+  and so *hides* the defect — one wire format tolerating bad data is not a
+  reason to send it.
 
 ### The registry seam
 

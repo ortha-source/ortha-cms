@@ -31,6 +31,7 @@ export type {
 export { MODEL_REGISTRY, MODEL_RESOLVER } from './lib/model/model-provider';
 export { isAbortError, abortedEvent } from './lib/model/abort';
 export { resolveModel } from './lib/model/resolve-model';
+export { normalizeTranscript } from './lib/model/transcript';
 // The port's conformance kit. Framework-free on purpose: it reports rather than
 // asserts, so it needs no test runner and this package still imports nothing.
 export {
