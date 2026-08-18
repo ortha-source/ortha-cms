@@ -2,7 +2,11 @@ import { expect, test } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
-import { frame, mockCopilotApi } from '../support/api/copilot';
+import {
+    failedProposalRun,
+    frame,
+    mockCopilotApi
+} from '../support/api/copilot';
 
 const WORKSPACE_ID = 'ws_marketing';
 
@@ -362,5 +366,218 @@ test.describe('Agents view — regressions', () => {
                 .transcript()
                 .getByRole('region', { name: 'Table in this answer' })
         ).toHaveAttribute('tabindex', '0');
+    });
+});
+
+/**
+ * **What the run says it is doing, and what it says when it could not.**
+ *
+ * Two things a QA pass named: a change card whose failure banner was cramped
+ * against the line below it and whose icon sat above its own sentence, and a
+ * transcript that answered "what is happening?" with the word "Thinking…" in
+ * every gap, including the ones where it had just done something specific.
+ *
+ * The pending phases are observable here despite `page.route` delivering the
+ * whole SSE body in one read, and the trick is worth knowing: a body that
+ * simply **stops** — no `done` frame — leaves the turn `streaming` for good,
+ * because `done` is the only frame that clears it. So the state the eye would
+ * catch for half a second becomes a state the assertions can take their time
+ * over. What is still out of reach is watching it change.
+ */
+/** A rectangle in the page, as `boundingBox()` reports one. */
+interface Box {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * A box, or a failure that names what could not be measured.
+ *
+ * `boundingBox()` is nullable for a good reason — an element that is not laid
+ * out has no rectangle — and the alternative here is a `!` on every read, which
+ * turns "the icon never rendered" into an unreadable `undefined` arithmetic
+ * failure three lines later.
+ */
+function laidOut(box: Box | null, what: string): Box {
+    if (!box) {
+        throw new Error(`${what} is not laid out, so it cannot be measured.`);
+    }
+    return box;
+}
+
+test.describe('Agents view — what the run is doing', () => {
+    const FAILED = 'German translation of Prescribing Information';
+
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+    });
+
+    test('a change that did not apply says so, with room around it', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, { runBody: failedProposalRun });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Translate that into German');
+
+        // The server's own reason, not a generic apology — this card is the
+        // only place a user learns their content did not change.
+        const alert = agentsPage.proposalError(FAILED);
+        await expect(alert).toContainText(
+            'No translation group “prescribing-information” on tag.'
+        );
+
+        // **Spacing.** The wrapper was `pt-3` with no bottom padding, so the
+        // banner butted straight into the footer's rule and read as part of the
+        // line below it. Measured rather than snapshotted: the number that
+        // matters is the gap, and it survives a font change.
+        const alertBox = laidOut(await alert.boundingBox(), 'the alert');
+        const footerBox = laidOut(
+            await agentsPage.proposalFooter(FAILED).boundingBox(),
+            'the card’s footer'
+        );
+        expect(
+            footerBox.y - (alertBox.y + alertBox.height)
+        ).toBeGreaterThanOrEqual(8);
+
+        // **Alignment.** The design system positions a top-level `<svg>` at a
+        // fixed `top-4` and nudges the text up 3px — geometry for an alert with
+        // a title over a description. On this one, a description alone, the
+        // icon sat high and the sentence sat off centre.
+        const iconBox = laidOut(
+            await agentsPage.proposalErrorIcon(FAILED).boundingBox(),
+            'the alert’s icon'
+        );
+        expect(
+            Math.abs(
+                iconBox.y +
+                    iconBox.height / 2 -
+                    (alertBox.y + alertBox.height / 2)
+            )
+        ).toBeLessThanOrEqual(2);
+    });
+
+    test('a step names the thing it is doing, not just the kind of thing', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, { runBody: failedProposalRun });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Translate that into German');
+
+        // "Added a translation" is a category. The `summary` the propose tools
+        // are asked to write for a person is on the `tool-call` frame already,
+        // and it is the thing the user actually asked for.
+        const step = agentsPage.toolStep(/Added a translation/);
+        await expect(step).toBeVisible();
+        await expect(step).toContainText(FAILED);
+    });
+
+    test('the pending line names the call that just ran', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, {
+            runBody: (conversationId) =>
+                [
+                    frame({
+                        type: 'run-started',
+                        runId: 'r_gap',
+                        conversationId
+                    }),
+                    frame({
+                        type: 'text-delta',
+                        text: 'Let me look that up. '
+                    }),
+                    frame({
+                        type: 'tool-call',
+                        id: 'call_gap',
+                        name: 'admin_content_search',
+                        input: { typeName: 'article', search: 'pricing' }
+                    }),
+                    frame({
+                        type: 'tool-result',
+                        id: 'call_gap',
+                        ok: true,
+                        summary: '3 results',
+                        durationMs: 8
+                    })
+                    // No `done`: the turn stays streaming, which is what makes
+                    // the gap between one call and the next assertable at all.
+                ].join('')
+        });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Which pricing articles are stale?');
+
+        await expect(
+            agentsPage.activityLine(/Searched content — working out what/)
+        ).toBeVisible();
+        // Two regressions in one assertion: the generic word is gone, and this
+        // gap used to show *nothing at all* — the old condition stood down for
+        // the rest of the turn as soon as any prose had arrived.
+        await expect(agentsPage.transcript()).not.toContainText('Thinking');
+        // The search's own subject rides along on the step above it.
+        await expect(agentsPage.toolStep(/Searched content/)).toContainText(
+            'pricing'
+        );
+    });
+
+    test('and still says “Thinking…” when that is genuinely all it knows', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page, {
+            // The turn has been accepted and nothing has come back yet. There
+            // is no action to name here, and inventing one would be worse than
+            // the generic word.
+            runBody: (conversationId) =>
+                frame({
+                    type: 'run-started',
+                    runId: 'r_idle',
+                    conversationId
+                })
+        });
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Think about it');
+
+        await expect(agentsPage.activityLine('Thinking…')).toBeVisible();
+    });
+
+    test('a reopened thread names its steps exactly as the live run did', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.welcomeHeading().waitFor();
+
+        await agentsPage.ask('Set the summary please');
+        const live = await agentsPage.toolStep(/Updated an entry/).innerText();
+
+        // The subject is derived on the client from the call's arguments, and a
+        // stored `tool_use` block keeps them — so the two paths must agree with
+        // no protocol change and no second mapping to keep in step.
+        await agentsPage
+            .railRow('Which articles are missing a summary?')
+            .click();
+        await expect(agentsPage.toolStep(/Updated an entry/)).toBeVisible();
+        const reopened = await agentsPage
+            .toolStep(/Updated an entry/)
+            .innerText();
+
+        expect(live).toContain('article');
+        expect(reopened).toContain('article');
     });
 });

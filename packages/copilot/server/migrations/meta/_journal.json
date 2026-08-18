@@ -43,6 +43,13 @@
       "when": 1786432607913,
       "tag": "0005_skills",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787000890048,
+      "tag": "0006_conversation_model_choice",
+      "breakpoints": true
     }
   ]
 }

@@ -17,9 +17,32 @@ export interface ConversationView {
     title: string | null;
     surface: string;
     archived: boolean;
+    /**
+     * The model last picked for this thread — `null` when nobody has,
+     * `'default'` for the host's resolver, else `'<provider>:<model>'`. See the
+     * column's own note for why the three states are one nullable text field.
+     */
+    modelChoice: string | null;
     createdAt: Date;
     updatedAt: Date;
 }
+
+/**
+ * The columns every conversation read serves.
+ *
+ * One object rather than four copies: the read shape is `ConversationView`, and
+ * a column added to the table but forgotten in one of the selects is a field
+ * that is present on the list and missing on the detail — which typechecks.
+ */
+const CONVERSATION_COLUMNS = {
+    id: copilotConversations.id,
+    title: copilotConversations.title,
+    surface: copilotConversations.surface,
+    archived: copilotConversations.archived,
+    modelChoice: copilotConversations.modelChoice,
+    createdAt: copilotConversations.createdAt,
+    updatedAt: copilotConversations.updatedAt
+} as const;
 
 /** One persisted turn. */
 export interface MessageView {
@@ -77,14 +100,7 @@ export class ConversationRepository {
         archived = false
     ): Promise<ConversationView[]> {
         return this.db
-            .select({
-                id: copilotConversations.id,
-                title: copilotConversations.title,
-                surface: copilotConversations.surface,
-                archived: copilotConversations.archived,
-                createdAt: copilotConversations.createdAt,
-                updatedAt: copilotConversations.updatedAt
-            })
+            .select(CONVERSATION_COLUMNS)
             .from(copilotConversations)
             .where(
                 and(
@@ -97,12 +113,16 @@ export class ConversationRepository {
     }
 
     /**
-     * Renames a thread and/or files it away, returning the updated row — or
-     * `null` when the id is not this user's in this workspace.
+     * Renames a thread, files it away, and/or records the model picked for it,
+     * returning the updated row — or `null` when the id is not this user's in
+     * this workspace.
      *
      * **`updatedAt` is deliberately not touched.** It means "last used", and the
      * list sorts by it: bumping it here would send a thread you merely renamed
-     * to the top of the rail, above conversations you actually had since.
+     * to the top of the rail, above conversations you actually had since. That
+     * goes double for `modelChoice`, which the client writes as a side effect of
+     * touching a picker — a thread must not climb the rail because someone
+     * looked at its model.
      *
      * The ownership predicate is part of the `UPDATE` rather than a read
      * beforehand, so there is no window between checking and writing — and a
@@ -113,7 +133,7 @@ export class ConversationRepository {
         conversationId: string,
         userId: string,
         workspaceId: string,
-        patch: { title?: string; archived?: boolean }
+        patch: { title?: string; archived?: boolean; modelChoice?: string }
     ): Promise<ConversationView | null> {
         const [row] = await this.db
             .update(copilotConversations)
@@ -121,6 +141,9 @@ export class ConversationRepository {
                 ...(patch.title !== undefined ? { title: patch.title } : {}),
                 ...(patch.archived !== undefined
                     ? { archived: patch.archived }
+                    : {}),
+                ...(patch.modelChoice !== undefined
+                    ? { modelChoice: patch.modelChoice }
                     : {})
             })
             .where(
@@ -130,14 +153,7 @@ export class ConversationRepository {
                     eq(copilotConversations.workspaceId, workspaceId)
                 )
             )
-            .returning({
-                id: copilotConversations.id,
-                title: copilotConversations.title,
-                surface: copilotConversations.surface,
-                archived: copilotConversations.archived,
-                createdAt: copilotConversations.createdAt,
-                updatedAt: copilotConversations.updatedAt
-            });
+            .returning(CONVERSATION_COLUMNS);
         return row ?? null;
     }
 
@@ -152,14 +168,7 @@ export class ConversationRepository {
         workspaceId: string
     ): Promise<ConversationView | null> {
         const [row] = await this.db
-            .select({
-                id: copilotConversations.id,
-                title: copilotConversations.title,
-                surface: copilotConversations.surface,
-                archived: copilotConversations.archived,
-                createdAt: copilotConversations.createdAt,
-                updatedAt: copilotConversations.updatedAt
-            })
+            .select(CONVERSATION_COLUMNS)
             .from(copilotConversations)
             .where(
                 and(
@@ -238,7 +247,10 @@ export class ConversationRepository {
                 surface,
                 title: deriveTitle(firstMessage)
             })
-            .returning();
+            // The view's columns, not `returning()`: a bare one hands back the
+            // owner ids and the allow-list too, which is more than any caller of
+            // a `ConversationView` should be holding.
+            .returning(CONVERSATION_COLUMNS);
         return row;
     }
 

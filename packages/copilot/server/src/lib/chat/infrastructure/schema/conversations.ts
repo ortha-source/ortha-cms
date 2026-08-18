@@ -45,6 +45,34 @@ export const copilotConversations = pgTable(
         /** Hidden from the list without losing the transcript. */
         archived: boolean('archived').notNull().default(false),
         /**
+         * The model the person last **picked** for this thread, so reopening it
+         * in another tab — or after a reload — offers the backend they chose
+         * rather than silently falling back to the deployment default.
+         *
+         * A memory, **not a pin**: the run route still takes its provider and
+         * model per turn, so a conversation can start cheap and escalate. What
+         * this column fixes is forgetting the choice, which nobody asked for.
+         *
+         * Three states, and telling the last two apart is the whole reason it is
+         * one nullable text column rather than a `provider`/`model` pair:
+         *
+         * - `null` — nobody has picked on this thread. The client keeps whatever
+         *   its own per-tab memory seeded the chat with.
+         * - `'default'` — the person explicitly picked **Default**, i.e. "let
+         *   the host's resolver decide", which can differ per run. Pinning
+         *   today's default provider instead would silently opt them out of
+         *   that routing.
+         * - `'<provider>:<model>'` — a registered backend, in the same
+         *   `modelChoiceKey` form the picker uses. A provider name cannot
+         *   contain a colon and a model id routinely does, so the **first**
+         *   colon separates the two — and `'default'` has none at all, which is
+         *   what keeps the sentinel unambiguous.
+         *
+         * The value is validated against `ModelRegistry.catalogue()` on write,
+         * so it can only ever name a backend the operator configured.
+         */
+        modelChoice: text('model_choice'),
+        /**
          * Tool names the user answered "allow for this chat" to.
          *
          * **On the thread, not on the user**, and that is the whole scope: it

@@ -25,6 +25,21 @@ export abstract class BasePage {
         return this.page.getByRole('menuitem', { name: label });
     }
 
+    /**
+     * The signed-in address as the account-menu trigger states it.
+     *
+     * Scoped to the trigger, because the same address is a legitimate second
+     * match elsewhere on a page that lists people — the Members table renders
+     * it in every matching row. A page-wide `getByText(email)` therefore races
+     * the roster: it resolves to one node until that table paints and to two
+     * afterwards, and the second one is a **strict-mode violation**, which does
+     * not retry. That is a latent trip-wire on any assertion about the account,
+     * so the scope belongs here rather than in each spec.
+     */
+    accountMenuEmail(email: string): Locator {
+        return this.accountMenuTrigger().getByText(email);
+    }
+
     // --- command palette (sidebar search, shell chrome) ---
 
     /** The sidebar search trigger that opens the ⌘K command palette. */

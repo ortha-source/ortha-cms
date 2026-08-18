@@ -115,6 +115,74 @@ export class WorkspacesPage extends BasePage {
         return this.page.getByRole('button', { name: 'Clear filters' });
     }
 
+    // --- the sidebar "Workspaces" quick-list section ---
+
+    /**
+     * The quick-list group's heading, which doubles as its collapse trigger
+     * (`aria-expanded` + `data-state` come from Radix `Collapsible`). Matched
+     * exactly so it never resolves the sidebar's "Workspaces" nav *link* or the
+     * page's own `<h1>` — both a different role, but the exact match also keeps
+     * it off "New workspace".
+     */
+    get sidebarWorkspacesToggle(): Locator {
+        return this.page.getByRole('button', {
+            name: 'Workspaces',
+            exact: true
+        });
+    }
+
+    /**
+     * The quick-list's `<nav>` landmark. Present **only while expanded** —
+     * Radix unmounts the closed content, so this is also the check that the
+     * collapsed rows left the tab order rather than merely going invisible.
+     */
+    get sidebarWorkspacesNav(): Locator {
+        return this.page.getByRole('navigation', { name: 'Workspaces' });
+    }
+
+    /**
+     * A workspace row inside the sidebar quick-list. **Not** an exact name
+     * match: each row leads with a `WorkspaceAvatar` monogram that is not
+     * `aria-hidden`, so the link's accessible name reads "MS Marketing site".
+     */
+    sidebarWorkspaceLink(name: string): Locator {
+        return this.sidebarWorkspacesNav.getByRole('link', { name });
+    }
+
+    /**
+     * The group's "+" action — a `SidebarGroupAction`, which is positioned
+     * absolutely **over** the heading row, so this is what proves the collapse
+     * trigger did not swallow it. A link, unlike the page header's identically
+     * named button.
+     */
+    get sidebarNewWorkspaceAction(): Locator {
+        return this.page.getByRole('link', { name: 'New workspace' });
+    }
+
+    /**
+     * Expand the quick-list **idempotently** — it ships open, so a bare click
+     * would collapse it. Reads `aria-expanded` first, then waits until it has
+     * settled open.
+     */
+    async expandSidebarWorkspaces() {
+        const trigger = this.sidebarWorkspacesToggle;
+        await trigger.waitFor();
+        if ((await trigger.getAttribute('aria-expanded')) !== 'true') {
+            await trigger.click();
+        }
+        await this.sidebarWorkspacesNav.waitFor();
+    }
+
+    /** Collapse the quick-list idempotently. */
+    async collapseSidebarWorkspaces() {
+        const trigger = this.sidebarWorkspacesToggle;
+        await trigger.waitFor();
+        if ((await trigger.getAttribute('aria-expanded')) === 'true') {
+            await trigger.click();
+        }
+        await this.sidebarWorkspacesNav.waitFor({ state: 'hidden' });
+    }
+
     // --- create ---
 
     /** Open the create wizard — a full page at `/workspaces/new`, not a dialog. */

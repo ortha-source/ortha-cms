@@ -108,7 +108,17 @@ export function WorkspaceSwitcher({
                         // heading below is a styled <p>, so it is promoted to
                         // the popover's label by id rather than by role.
                         aria-labelledby={headingId}
-                        className="w-[--radix-popover-trigger-width] min-w-64 p-2"
+                        // `w-[--radix-popover-trigger-width]` is the Tailwind
+                        // **v3** spelling: v4 no longer unwraps a bare `--var`
+                        // in brackets, so it emitted the invalid declaration
+                        // `width: --radix-popover-trigger-width` — which the
+                        // browser drops, while tailwind-merge had already
+                        // removed `PopoverContent`'s default `w-72`. The
+                        // popover therefore had no width rule at all and grew
+                        // to whatever the longest workspace name needed. v4
+                        // wants the `var()` spelled out (every other call site
+                        // in the repo already does).
+                        className="w-[var(--radix-popover-trigger-width)] min-w-64 p-2"
                     >
                         <p
                             id={headingId}
@@ -116,67 +126,95 @@ export function WorkspaceSwitcher({
                         >
                             {intl.formatMessage(messages.heading)}
                         </p>
-                        {workspaces.map((workspace) => {
-                            const isCurrent = workspace.id === current.id;
-                            return (
-                                <button
-                                    key={workspace.id}
-                                    type="button"
-                                    // The open workspace was marked only by a
-                                    // background tint plus an unlabelled check
-                                    // glyph — both invisible to a screen reader,
-                                    // and the tint alone is flattened under
-                                    // forced-colors, so every row read alike.
-                                    aria-current={
-                                        isCurrent ? 'true' : undefined
-                                    }
-                                    onClick={() =>
-                                        go(`/workspaces/${workspace.id}`)
-                                    }
-                                    className={cn(
-                                        'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent',
-                                        isCurrent && 'bg-accent'
-                                    )}
-                                >
-                                    <WorkspaceAvatar
-                                        initials={initialsOf(workspace.name)}
-                                        color={workspace.color}
-                                        className="size-7 shrink-0 rounded-md text-[11px]"
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-[13.5px] font-medium">
-                                            {workspace.name}
-                                        </span>
-                                        <span className="block truncate text-xs text-muted-foreground">
-                                            {intl.formatMessage(messages.sub, {
-                                                count: workspace.members.length,
-                                                status: workspace.status
-                                            })}
-                                        </span>
-                                    </span>
-                                    {isCurrent ? (
-                                        <>
-                                            <Check
-                                                aria-hidden
-                                                className="size-4 shrink-0 text-muted-foreground"
-                                            />
-                                            <span className="sr-only">
+                        {/* Only the list scrolls — the heading above and the
+                            "New workspace" action below are siblings, so
+                            scrolling the whole popover would carry both of them
+                            away. Sized against the *unfiltered* membership
+                            list (this switcher has no search box), so a user in
+                            thirty workspaces gets a bounded panel instead of
+                            one taller than the viewport. */}
+                        <div className="max-h-72 overflow-y-auto">
+                            {workspaces.map((workspace) => {
+                                const isCurrent = workspace.id === current.id;
+                                return (
+                                    <button
+                                        key={workspace.id}
+                                        type="button"
+                                        // The open workspace was marked only by
+                                        // a background tint plus an unlabelled
+                                        // check glyph — both invisible to a
+                                        // screen reader, and the tint alone is
+                                        // flattened under forced-colors, so
+                                        // every row read alike.
+                                        aria-current={
+                                            isCurrent ? 'true' : undefined
+                                        }
+                                        onClick={() =>
+                                            go(`/workspaces/${workspace.id}`)
+                                        }
+                                        // `ring-inset`: the row now sits in a
+                                        // clipping scroll container, and an
+                                        // outset focus ring on the first or
+                                        // last row would be drawn outside it
+                                        // and never seen.
+                                        className={cn(
+                                            'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                                            isCurrent && 'bg-accent'
+                                        )}
+                                    >
+                                        <WorkspaceAvatar
+                                            initials={initialsOf(
+                                                workspace.name
+                                            )}
+                                            color={workspace.color}
+                                            className="size-7 shrink-0 rounded-md text-[11px]"
+                                        />
+                                        {/* `min-w-0` on this flex item is what
+                                            lets the two `truncate` spans below
+                                            clip: without it the item's
+                                            automatic minimum size is its
+                                            content, so a long name would push
+                                            the row wider instead of
+                                            ellipsising. */}
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-[13.5px] font-medium">
+                                                {workspace.name}
+                                            </span>
+                                            <span className="block truncate text-xs text-muted-foreground">
                                                 {intl.formatMessage(
-                                                    messages.currentWorkspace
+                                                    messages.sub,
+                                                    {
+                                                        count: workspace.members
+                                                            .length,
+                                                        status: workspace.status
+                                                    }
                                                 )}
                                             </span>
-                                        </>
-                                    ) : null}
-                                </button>
-                            );
-                        })}
+                                        </span>
+                                        {isCurrent ? (
+                                            <>
+                                                <Check
+                                                    aria-hidden
+                                                    className="size-4 shrink-0 text-muted-foreground"
+                                                />
+                                                <span className="sr-only">
+                                                    {intl.formatMessage(
+                                                        messages.currentWorkspace
+                                                    )}
+                                                </span>
+                                            </>
+                                        ) : null}
+                                    </button>
+                                );
+                            })}
+                        </div>
                         {canCreate ? (
                             <>
                                 <div className="my-1 h-px bg-border" />
                                 <button
                                     type="button"
                                     onClick={() => go('/workspaces/new')}
-                                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent"
+                                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 >
                                     <span
                                         aria-hidden

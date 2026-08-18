@@ -166,3 +166,76 @@ export function humanizeToolName(name: string): string {
     if (!words) return name;
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/**
+ * Where a subject is looked for in a tool's arguments, **best first**.
+ *
+ * `summary` leads because every `propose` tool declares one and its schema asks
+ * the model to write it *for a person* ("New article: Spring launch") — it is
+ * the closest thing on the wire to the sentence a user would have typed. The
+ * rest are the fields the shipped read tools actually take, ending at the
+ * content type, which is the weakest useful answer ("Searching content ·
+ * article" still beats "Searching content").
+ *
+ * Ids are deliberately absent: `e42` names the thing to the machine and to
+ * nobody else, and a line that ends in one is noise wearing the shape of detail.
+ */
+const SUBJECT_KEYS = [
+    'summary',
+    'search',
+    'query',
+    'q',
+    'title',
+    'name',
+    'typeName',
+    'contentType',
+    'locale'
+] as const;
+
+/** How much of a subject is shown before it is cut. */
+export const MAX_TOOL_SUBJECT_LENGTH = 72;
+
+/**
+ * The **thing** a call is about, taken from its arguments — the difference
+ * between "Creating an entry…" and "Creating an entry · German translation of
+ * Prescribing Information".
+ *
+ * The input is model-authored text derived from workspace content, so it is
+ * treated as hostile on the way out: control and format characters (which
+ * include the bidi overrides that let a string render as something other than
+ * what it is) are replaced, every whitespace run collapses to one space, and
+ * the result is cut to {@link MAX_TOOL_SUBJECT_LENGTH} **code points** so a cut
+ * can never land inside a surrogate pair. Callers render the return value as
+ * text; nothing here produces markup.
+ *
+ * Returns `null` when the arguments carry nothing a person would recognise,
+ * which is the common case for a tool that takes only ids — the step then reads
+ * exactly as it did before.
+ */
+export function toolSubject(input: unknown): string | null {
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+        return null;
+    }
+    const record = input as Record<string, unknown>;
+    for (const key of SUBJECT_KEYS) {
+        const value = record[key];
+        if (typeof value !== 'string') {
+            continue;
+        }
+        const text = value
+            .replace(/[\p{Cc}\p{Cf}]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!text) {
+            continue;
+        }
+        const characters = Array.from(text);
+        return characters.length <= MAX_TOOL_SUBJECT_LENGTH
+            ? text
+            : `${characters
+                  .slice(0, MAX_TOOL_SUBJECT_LENGTH - 1)
+                  .join('')
+                  .trimEnd()}…`;
+    }
+    return null;
+}

@@ -11,6 +11,7 @@ import {
     subscribeToCopilotStore
 } from './copilotStore';
 import type { CopilotModelChoice } from './useCopilotModels';
+import type { RouteContext } from './readRouteContext';
 import { dockSessions, visibleSessions, type CopilotSession } from './sessions';
 
 /** What the dock, the windows and the Agents page all read. */
@@ -54,8 +55,15 @@ export interface CopilotSessions {
     noteActivity(id: string): void;
     /** Records whether the chat is parked on a permission prompt. */
     setAwaiting(id: string, value: boolean): void;
-    /** Routes this chat's next turn to a different backend. */
+    /** Routes this chat's next turn to a different backend — the user's pick. */
     setModel(id: string, choice: CopilotModelChoice | null): void;
+    /**
+     * Takes the backend a **saved thread** says it was left on. Not a pick, so
+     * it is neither written back nor inherited by the next chat.
+     */
+    adoptModel(id: string, choice: CopilotModelChoice | null): void;
+    /** Attaches a page to this chat's next turn, or detaches it with `null`. */
+    setContext(id: string, context: RouteContext | null): void;
     /** Replaces the skills staged for this chat. */
     setSkills(id: string, names: readonly string[]): void;
 }
@@ -165,6 +173,23 @@ export function useCopilotSessions(): CopilotSessions {
         []
     );
 
+    const adoptModel = useCallback(
+        (id: string, choice: CopilotModelChoice | null) => {
+            // **No `rememberChoice`.** Reopening a thread that happens to have
+            // been left on the big model must not silently make it the model
+            // every new chat in this tab starts on; the seed is what the person
+            // last *picked*, and reading is not picking.
+            dispatchSessions({ type: 'adopt-model', id, choice });
+        },
+        []
+    );
+
+    const setContext = useCallback(
+        (id: string, context: RouteContext | null) =>
+            dispatchSessions({ type: 'context', id, context }),
+        []
+    );
+
     const setSkills = useCallback((id: string, names: readonly string[]) => {
         // Both, exactly as `setModel` does: this chat runs under these from
         // now on, and the next chat inherits them. Leaving the Agents view
@@ -210,6 +235,8 @@ export function useCopilotSessions(): CopilotSessions {
         noteActivity,
         setAwaiting,
         setModel,
+        adoptModel,
+        setContext,
         setSkills
     };
 }

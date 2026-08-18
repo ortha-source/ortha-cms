@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_673 test cases across 70 spec files._
+_703 test cases across 71 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -464,6 +464,24 @@ _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
 | clearing a numeric field sends nothing rather than NaN |
 | a blocked publish explains itself instead of doing nothing |
 
+<!-- source: apps/admin-e2e/src/content/entry-field-groups.spec.ts -->
+_<sub>apps/admin-e2e/src/content/entry-field-groups.spec.ts</sub>_
+
+## Entry editor field groups
+
+### a type with both translated and shared fields
+
+| Test case |
+| --- |
+| draws a rule between the two runs, under their headings |
+| the rule is decorative — it never lands in the a11y tree |
+
+### a type whose fields are all one kind
+
+| Test case |
+| --- |
+| keeps the flat stack — no headings and no rule |
+
 <!-- source: apps/admin-e2e/src/content/entry-read-only.spec.ts -->
 _<sub>apps/admin-e2e/src/content/entry-read-only.spec.ts</sub>_
 
@@ -781,6 +799,7 @@ _<sub>apps/admin-e2e/src/copilot/a11y.spec.ts</sub>_
 | --- |
 | the empty thread, its openers and the rail |
 | a transcript with a tool step and a change card |
+| a change card that did not apply |
 | an expanded tool step |
 | the archived list |
 | the rename dialog |
@@ -854,6 +873,16 @@ _<sub>apps/admin-e2e/src/copilot/agents-chat.spec.ts</sub>_
 | a failed step says it failed, even when the tool returned a summary |
 | a table in an answer has headers, a name, and a scroll region a keyboard can reach |
 
+## Agents view — what the run is doing
+
+| Test case |
+| --- |
+| a change that did not apply says so, with room around it |
+| a step names the thing it is doing, not just the kind of thing |
+| the pending line names the call that just ran |
+| and still says “Thinking…” when that is genuinely all it knows |
+| a reopened thread names its steps exactly as the live run did |
+
 <!-- source: apps/admin-e2e/src/copilot/agents-manage.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/agents-manage.spec.ts</sub>_
 
@@ -904,6 +933,16 @@ _<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
 | a thread that will not open offers a retry |
 | without copilot:use there is no page and no switcher |
 
+## Agents view — the model a thread was left on
+
+| Test case |
+| --- |
+| reopening a thread offers the backend it was left on |
+| an explicit Default is not the same as never having picked |
+| a model picked on a thread is written to it, and survives a reload |
+| adopting a thread’s model does not write it straight back |
+| a fresh chat still inherits the last model picked in the tab |
+
 <!-- source: apps/admin-e2e/src/copilot/dock.spec.ts -->
 _<sub>apps/admin-e2e/src/copilot/dock.spec.ts</sub>_
 
@@ -927,6 +966,15 @@ _<sub>apps/admin-e2e/src/copilot/dock.spec.ts</sub>_
 | Expand is the way out of a bad drag |
 | the arrow keys move a focused window |
 | the model choice survives collapsing and reopening |
+
+## Ortha AI dock — the attached page
+
+| Test case |
+| --- |
+| survives collapsing the window and reopening it |
+| is still what the next turn carries after a collapse |
+| survives switching the window to another thread |
+| can still be taken off after the window has been collapsed |
 
 ## Ortha AI dock — regressions
 
@@ -1385,6 +1433,10 @@ _<sub>apps/admin-e2e/src/workspaces/a11y.spec.ts</sub>_
 | table — loading skeleton |
 | table — all statuses (archived rows visible) |
 | empty state — no matches |
+| sidebar quick-list — collapsed |
+| sidebar quick-list — empty but creatable |
+| sidebar quick-list — list still loading |
+| workspace switcher popover — a scrolling list of 30 |
 
 ### create wizard
 
@@ -1406,6 +1458,8 @@ _<sub>apps/admin-e2e/src/workspaces/keyboard.spec.ts</sub>_
 | search is reachable and filters by keyboard |
 | a row opens on Enter |
 | the status filter chips move with arrow keys |
+| the sidebar Workspaces group folds and unfolds from the keyboard |
+| the group "+" is its own tab stop after the collapse trigger |
 
 ### create wizard
 
@@ -1521,6 +1575,22 @@ _<sub>apps/admin-e2e/src/workspaces/workspaces.spec.ts</sub>_
 | a row shows the workspace member and type counts |
 | a row opens its workspace on click |
 | a workspace the user is not a member of shows a no-access screen |
+
+### sidebar Workspaces section
+
+| Test case |
+| --- |
+| ships expanded, listing the active workspaces |
+| collapses and expands from the heading, flipping aria-expanded |
+| stays a plain heading when there is nothing to reveal |
+| the "+" action still opens the wizard, collapsed or not |
+
+### workspace switcher popover
+
+| Test case |
+| --- |
+| scrolls its list while the heading and create action stay put |
+| clips a long workspace name instead of widening the popover |
 
 ### create wizard
 

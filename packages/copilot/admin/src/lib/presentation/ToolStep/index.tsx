@@ -7,7 +7,7 @@ import {
     Spinner
 } from '@ortha-cms/design-system';
 import type { ChatToolStep } from '../../domain/types/chat';
-import { humanizeToolName, toolPhrase } from './labels';
+import { humanizeToolName, toolPhrase, toolSubject } from './labels';
 
 const messages = defineMessages({
     // Fallbacks for a tool with no phrase of its own — an MCP connector's, or
@@ -88,6 +88,9 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                   tool: humanizeToolName(step.name)
               }
           );
+    // What the call is *about*, from its own arguments. Untrusted text — see
+    // `toolSubject` — and rendered as a text node, never as markup.
+    const subject = toolSubject(step.input);
 
     return (
         <Collapsible className="border-border/60 bg-muted/40 rounded-md border">
@@ -108,7 +111,23 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                               : messages.statusSucceeded
                     )}
                 </span>
-                <span className="shrink-0">{label}</span>
+                {/* The running step is the one thing on this list that is
+                    *happening*, so it carries a little more weight than the
+                    entries above it, which are a log of what already did. */}
+                <span className={running ? 'shrink-0 font-medium' : 'shrink-0'}>
+                    {label}
+                </span>
+                {/* **What the call is about**, not just what kind of call it
+                    is. "Creating an entry…" is a category; "Creating an entry ·
+                    German translation of Prescribing Information" is the thing
+                    the person asked for, and it is already on the wire — the
+                    `tool-call` frame carries the arguments and arrives *before*
+                    the call runs. */}
+                {subject && (
+                    <span className="text-muted-foreground min-w-0 truncate">
+                        · {subject}
+                    </span>
+                )}
                 {/* The tool's own one-liner — "12 results", "applied" — after
                     the phrase rather than instead of it.
 

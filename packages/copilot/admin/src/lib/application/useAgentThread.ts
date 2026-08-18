@@ -9,7 +9,12 @@ import { copilotStoreState } from './copilotStore';
 import { useCopilotChat, type CopilotChat } from './useCopilotChat';
 import { useCopilotSessions } from './useCopilotSessions';
 import { useConversationDetail } from './useConversation';
-import type { CopilotModelChoice } from './useCopilotModels';
+import { useThreadModelChoice } from './useThreadModelChoice';
+import {
+    readStoredModelChoice,
+    type CopilotModelChoice
+} from './useCopilotModels';
+import type { RouteContext } from './readRouteContext';
 
 /** What the Agents page needs to render one thread. */
 export interface AgentThread {
@@ -25,8 +30,16 @@ export interface AgentThread {
     retry(): void;
     /** Which backend the next turn runs on, or `null` for the host's resolver. */
     choice: CopilotModelChoice | null;
-    /** Routes the next turn elsewhere. Remembered on the chat, not the page. */
+    /**
+     * Routes the next turn elsewhere. Remembered on the chat, not the page —
+     * and, once the chat has a thread, written to the thread as well, so
+     * reopening it tomorrow offers the same backend.
+     */
     setChoice(choice: CopilotModelChoice | null): void;
+    /** The page attached to the next turn. On the chat, so leaving keeps it. */
+    context: RouteContext | null;
+    /** Attaches the given page, or detaches with `null`. */
+    setContext(context: RouteContext | null): void;
     /** The skills staged for this chat. On the chat, so leaving keeps them. */
     skills: readonly string[];
     /** Replaces the staged set. */
@@ -256,6 +269,27 @@ export function useAgentThread(workspaceId: string): AgentThread {
         chatRef.current.load(urlId, loaded.messages);
     }, [urlId, loaded]);
 
+    // The model this thread was left on, from the same fetch that brought the
+    // transcript. `null` means nobody ever picked one here, which is **not** the
+    // same as Default — in that case the chat keeps whatever the tab's own last
+    // pick seeded it with, and the picker is not quietly reset.
+    //
+    // Adopted rather than picked (`adoptModel`, not `setModel`), so it is
+    // neither written straight back to the thread it came from nor promoted to
+    // the seed the next new chat inherits.
+    const storedChoice = loaded?.conversation.modelChoice ?? null;
+    useEffect(() => {
+        const id = sessionIdRef.current;
+        if (!id || !urlId || storedChoice === null) {
+            return;
+        }
+        sessionsRef.current.adoptModel(id, readStoredModelChoice(storedChoice));
+    }, [urlId, storedChoice]);
+
+    // …and the other direction: a model the user picks here is written onto the
+    // thread, so the next tab to open it starts where they left off.
+    useThreadModelChoice(presented, workspaceId);
+
     const { refetch } = detail;
     const retry = useCallback(() => void refetch(), [refetch]);
 
@@ -263,6 +297,13 @@ export function useAgentThread(workspaceId: string): AgentThread {
         const id = sessionIdRef.current;
         if (id) {
             sessionsRef.current.setModel(id, choice);
+        }
+    }, []);
+
+    const setContext = useCallback((context: RouteContext | null) => {
+        const id = sessionIdRef.current;
+        if (id) {
+            sessionsRef.current.setContext(id, context);
         }
     }, []);
 
@@ -280,6 +321,12 @@ export function useAgentThread(workspaceId: string): AgentThread {
         // what it did not do while it lived in the component.
         choice: presented?.choice ?? null,
         setChoice,
+        // Likewise from the session. It was `useState` in the thread column,
+        // which unmounts on leaving the view — so attaching an entry, going to
+        // look at it, and coming back sent the question with no context and
+        // nothing on screen to say the chip had gone.
+        context: presented?.context ?? null,
+        setContext,
         // Likewise from the session: leaving the page and coming back must not
         // silently drop the instructions the next turn was set up to run under.
         skills: presented?.skills ?? EMPTY_SKILLS,

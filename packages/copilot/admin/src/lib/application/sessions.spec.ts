@@ -26,6 +26,8 @@ describe('sessionsReducer', () => {
                 awaiting: false,
                 presented: 'dock',
                 choice: null,
+                choicePinned: false,
+                context: null,
                 skills: []
             }
         ]);
@@ -332,6 +334,194 @@ describe('sessionsReducer', () => {
             );
             expect(state).toHaveLength(1);
             expect(state[0].choice?.model).toBe('claude-opus-5');
+        });
+    });
+
+    /**
+     * Whether the choice was **picked for this chat** or merely arrived with it.
+     * The flag is what decides if the model is written back to the thread, so
+     * getting it wrong is either a decision nobody made recorded against every
+     * new conversation, or a pick that never survives the tab.
+     */
+    describe('a pick versus an inheritance', () => {
+        it('pins a model the user picked', () => {
+            const state = play(open('a'), {
+                type: 'model',
+                id: 'a',
+                choice: { provider: 'openai', model: 'gpt-5.2' }
+            });
+
+            expect(state[0].choicePinned).toBe(true);
+        });
+
+        it('pins Default too — choosing the resolver is choosing', () => {
+            const state = play(open('a'), {
+                type: 'model',
+                id: 'a',
+                choice: null
+            });
+
+            expect(state[0]).toMatchObject({
+                choice: null,
+                choicePinned: true
+            });
+        });
+
+        it('does not pin a seeded model', () => {
+            // The tab's last pick, inherited by a brand-new chat. Nobody chose
+            // it *here*, so it must not be written onto the thread this chat
+            // goes on to create.
+            const state = play({
+                type: 'open',
+                id: 'a',
+                choice: { provider: 'openai', model: 'gpt-5.2' }
+            });
+
+            expect(state[0]).toMatchObject({
+                choice: { provider: 'openai', model: 'gpt-5.2' },
+                choicePinned: false
+            });
+        });
+
+        it('does not pin a model adopted from the thread', () => {
+            // It came *from* the server; echoing it straight back is a write
+            // that says nothing.
+            const state = play(open('a'), {
+                type: 'adopt-model',
+                id: 'a',
+                choice: { provider: 'anthropic', model: 'claude-opus-5' }
+            });
+
+            expect(state[0]).toMatchObject({
+                choice: { provider: 'anthropic', model: 'claude-opus-5' },
+                choicePinned: false
+            });
+        });
+
+        it('un-pins when the thread overrules a seed', () => {
+            // Opening a saved thread seeds the chat from the tab, then the
+            // thread's own value arrives. The result is the thread's, unpinned.
+            const state = play(
+                {
+                    type: 'open',
+                    id: 'a',
+                    conversationId: 'c1',
+                    choice: { provider: 'openai', model: 'gpt-5.2' }
+                },
+                { type: 'adopt-model', id: 'a', choice: null }
+            );
+
+            expect(state[0]).toMatchObject({
+                choice: null,
+                choicePinned: false
+            });
+        });
+
+        it('leaves other chats unpinned when one is picked for', () => {
+            const state = play(open('a'), open('b'), {
+                type: 'model',
+                id: 'a',
+                choice: { provider: 'openai', model: 'gpt-5.2' }
+            });
+
+            expect(state[0].choicePinned).toBe(true);
+            expect(state[1].choicePinned).toBe(false);
+        });
+    });
+
+    /**
+     * The attached page. It was `useState` in two components that both unmount
+     * routinely — the panel's body when the window collapses, the thread column
+     * when you leave the Agents view — so the whole point of these cases is that
+     * nothing about *being rendered* can change what the next turn carries.
+     */
+    describe('the page attached to the next turn', () => {
+        const ENTRY = {
+            workspaceId: 'ws1',
+            contentType: 'article',
+            entryId: 'e42',
+            surface: 'entry'
+        } as const;
+
+        it('starts with nothing attached', () => {
+            // Attaching is opt-in per question: a chat that opened already
+            // claiming to be about a page is the bug the chip exists to stop.
+            expect(play(open('a'))[0].context).toBeNull();
+        });
+
+        it('is never seeded into a new chat, unlike the model and the skills', () => {
+            const state = play(
+                open('a'),
+                { type: 'context', id: 'a', context: ENTRY },
+                {
+                    type: 'open',
+                    id: 'b',
+                    choice: { provider: 'openai', model: 'gpt-5.2' },
+                    skills: ['house-style']
+                }
+            );
+
+            expect(state[1]).toMatchObject({
+                context: null,
+                skills: ['house-style']
+            });
+        });
+
+        it('attaches the page it was given', () => {
+            const state = play(open('a'), {
+                type: 'context',
+                id: 'a',
+                context: ENTRY
+            });
+
+            expect(state[0].context).toEqual(ENTRY);
+        });
+
+        it('detaches on null', () => {
+            const state = play(
+                open('a'),
+                { type: 'context', id: 'a', context: ENTRY },
+                { type: 'context', id: 'a', context: null }
+            );
+
+            expect(state[0].context).toBeNull();
+        });
+
+        it('survives being collapsed to the dock and reopened', () => {
+            // The bug, exactly: the chip lived in the panel body, which
+            // unmounts on collapse — so going to look at the page you attached
+            // was the gesture that dropped it.
+            const state = play(
+                open('a'),
+                { type: 'context', id: 'a', context: ENTRY },
+                { type: 'minimize', id: 'a' },
+                { type: 'focus', id: 'a' }
+            );
+
+            expect(state[0].context).toEqual(ENTRY);
+        });
+
+        it('survives the round trip between the page and the dock', () => {
+            const state = play(
+                open('a'),
+                { type: 'present', id: 'a', presented: 'page' },
+                { type: 'context', id: 'a', context: ENTRY },
+                { type: 'present', id: 'a', presented: 'dock' },
+                { type: 'present', id: 'a', presented: 'page' }
+            );
+
+            expect(state[0].context).toEqual(ENTRY);
+        });
+
+        it('is per chat — attaching to one leaves the others alone', () => {
+            const state = play(open('a'), open('b'), {
+                type: 'context',
+                id: 'b',
+                context: ENTRY
+            });
+
+            expect(state[0].context).toBeNull();
+            expect(state[1].context).toEqual(ENTRY);
         });
     });
 

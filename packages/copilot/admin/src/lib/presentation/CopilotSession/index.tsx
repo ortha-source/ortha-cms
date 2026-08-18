@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCopilotChat } from '../../application/useCopilotChat';
+import { useThreadModelChoice } from '../../application/useThreadModelChoice';
 import type { CopilotSession as Session } from '../../application/sessions';
 import type { CopilotModelChoice } from '../../application/useCopilotModels';
 import type { RouteContext } from '../../application/readRouteContext';
@@ -35,6 +36,7 @@ export function CopilotSession({
     onActivity,
     onAwaiting,
     onChoiceChange,
+    onContextChange,
     onSkillsChange
 }: {
     session: Session;
@@ -50,19 +52,23 @@ export function CopilotSession({
      * window already holds that thread and has been focused instead — see
      * {@link CopilotPanelProps.onAdoptConversation}.
      */
-    onAdoptConversation?(
-        conversationId: string,
-        title: string | null
-    ): boolean;
+    onAdoptConversation?(conversationId: string, title: string | null): boolean;
     /** Focused when this window goes away, so focus never falls to `<body>`. */
     returnFocusRef?: React.RefObject<HTMLElement | null>;
     onDescribe(meta: { conversationId?: string | null; title?: string }): void;
     onActivity(): void;
     onAwaiting(value: boolean): void;
     onChoiceChange(choice: CopilotModelChoice | null): void;
+    onContextChange(context: RouteContext | null): void;
     onSkillsChange(names: readonly string[]): void;
 }) {
     const chat = useCopilotChat(session.id, workspaceId, session.minimized);
+
+    // A model picked in this window is written onto its thread, so reopening
+    // the conversation in another tab starts on the same backend. Here rather
+    // than in the panel because the panel unmounts when the window collapses,
+    // and a pick made just before collapsing must still land.
+    useThreadModelChoice(session, workspaceId);
 
     // The thread id the first turn created, reported up so the dock can tell
     // two windows apart and refuse to open the same thread twice.
@@ -131,6 +137,11 @@ export function CopilotSession({
             // reopening it does not quietly put it back on the default model.
             choice={session.choice}
             onChoiceChange={onChoiceChange}
+            // Likewise from the session: the panel's body unmounts when the
+            // window collapses, so an attachment held there was dropped by the
+            // very gesture people use to go and look at the page they attached.
+            context={session.context}
+            onContextChange={onContextChange}
             skills={session.skills}
             onSkillsChange={onSkillsChange}
         />

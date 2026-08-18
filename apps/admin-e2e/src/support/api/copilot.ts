@@ -6,6 +6,12 @@ export interface CopilotConversationView {
     title: string | null;
     surface: string;
     archived: boolean;
+    /**
+     * The model the thread was last left on: `null` when nobody has picked one,
+     * `'default'` for the host's resolver, else `'<provider>:<model>'`. The
+     * three states are distinct on purpose — see the seed below.
+     */
+    modelChoice: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -155,25 +161,46 @@ function seedConversations(): CopilotConversationView[] {
         id: string,
         title: string | null,
         days: number,
-        archived = false
+        archived = false,
+        modelChoice: string | null = null
     ): CopilotConversationView => ({
         id,
         title,
         surface: 'chat',
         archived,
+        modelChoice,
         createdAt: daysAgo(days),
         updatedAt: daysAgo(days)
     });
 
     return [
+        // No stored model: nobody has picked on this thread, so opening it must
+        // leave the picker on whatever the tab's own last pick seeded.
         row('c_summary', 'Which articles are missing a summary?', 0),
         row('c_attached', 'What does this brief say?', 0),
-        row('c_pricing', 'Rewrite the pricing page intro', 0),
+        // Left on a concrete backend — the thread the "reopening restores the
+        // model" case opens.
+        row(
+            'c_pricing',
+            'Rewrite the pricing page intro',
+            0,
+            false,
+            'openai:gpt-5.2'
+        ),
         // Untitled, so the filter's "an untitled thread matches nothing" rule
         // has something to drop.
         row('c_untitled', null, 1),
         row('c_translate', 'Translate the launch post into German', 3),
-        row('c_bios', 'Audit author bios for broken links', 5),
+        // Explicitly **Default**, which is a choice rather than the absence of
+        // one — the third state, and the one that is easy to collapse into
+        // "unset" by accident.
+        row(
+            'c_bios',
+            'Audit author bios for broken links',
+            5,
+            false,
+            'default'
+        ),
         row('c_notes', 'Draft release notes for 2.4', 12),
         row('c_authors', 'Which entries have no author linked?', 40)
     ];
@@ -346,6 +373,62 @@ function runBody(conversationId: string): string {
         }),
         frame({ type: 'text-delta', text: 'Afterwards: the change is saved.' }),
         frame({ type: 'done', messageId: 'm_live', stopReason: 'end' })
+    ].join('');
+}
+
+/**
+ * A run whose change **did not apply** — the receipt nobody wants to read.
+ *
+ * Pass it as `runBody`. The proposal lands `pending`, which since ADR-0009
+ * means the apply failed, and carries the server's own reason — which is what
+ * the card's alert renders. Shared between the transcript suite and the axe
+ * scan so both are looking at one fixture.
+ *
+ * The tool input carries a `summary` because that is the shape the real
+ * `propose` tools take: their schema asks the model to write one line for a
+ * person, and the step list shows it as the call's subject.
+ */
+export function failedProposalRun(conversationId: string): string {
+    return [
+        frame({ type: 'run-started', runId: 'r_fail', conversationId }),
+        frame({
+            type: 'tool-call',
+            id: 'call_fail',
+            name: 'i18n_propose_translation',
+            input: {
+                typeName: 'article',
+                id: 'e42',
+                locale: 'de',
+                summary: 'German translation of Prescribing Information'
+            }
+        }),
+        frame({
+            type: 'tool-result',
+            id: 'call_fail',
+            ok: false,
+            summary: 'failed: add the translation',
+            error: 'No translation group “prescribing-information” on tag.',
+            durationMs: 9
+        }),
+        frame({
+            type: 'proposal',
+            id: 'p_fail',
+            toolCallId: 'call_fail',
+            toolName: 'i18n_propose_translation',
+            kind: 'i18n.translation.create',
+            summary: 'German translation of Prescribing Information',
+            target: { typeName: 'article', id: 'e42', locale: 'de' },
+            changes: [
+                {
+                    field: 'name',
+                    label: 'Name',
+                    after: 'Fachinformation'
+                }
+            ],
+            status: 'pending',
+            error: 'No translation group “prescribing-information” on tag.'
+        }),
+        frame({ type: 'done', messageId: 'm_fail', stopReason: 'end' })
     ].join('');
 }
 
@@ -530,6 +613,10 @@ export async function mockCopilotApi(
                 title: 'Set the summary please',
                 surface: 'chat',
                 archived: false,
+                // A fresh thread has recorded nothing: the run route does not
+                // write the choice, the client does — and only for a model
+                // somebody actually picked for this chat.
+                modelChoice: null,
                 createdAt: now,
                 updatedAt: now
             });
@@ -574,6 +661,11 @@ export async function mockCopilotApi(
             }
             if (typeof body.archived === 'boolean') {
                 conversation.archived = body.archived;
+            }
+            // Like the real column: written when the person picks, never
+            // cleared, and never a reason to bump `updatedAt`.
+            if (typeof body.modelChoice === 'string') {
+                conversation.modelChoice = body.modelChoice;
             }
             return route.fulfill(json(conversation));
         }

@@ -91,11 +91,9 @@ export class CopilotDockPage extends BasePage {
      * else does.
      */
     windows(): Locator {
-        return this.page
-            .getByRole('dialog')
-            .filter({
-                has: this.page.getByRole('button', { name: 'Move Ortha AI' })
-            });
+        return this.page.getByRole('dialog').filter({
+            has: this.page.getByRole('button', { name: 'Move Ortha AI' })
+        });
     }
 
     /** One window by index. */
@@ -147,6 +145,30 @@ export class CopilotDockPage extends BasePage {
         await this.page
             .getByRole('menuitem', { name: new RegExp(model) })
             .click();
+    }
+
+    // --- the attached page (the context chip, above the composer) ----------
+
+    /**
+     * The window's "Add context" button. Rendered only where the URL has a
+     * page-level context to offer, and offered again once the user has navigated
+     * somewhere else — an attachment is a snapshot, replaceable without first
+     * removing it.
+     */
+    addContext(index = 0): Locator {
+        return this.panel(index).getByRole('button', { name: 'Add context' });
+    }
+
+    /** The chip naming what this window has attached. */
+    contextChip(name: string | RegExp, index = 0): Locator {
+        return this.panel(index).getByText(name);
+    }
+
+    /** The chip's `×`. */
+    removeContext(index = 0): Locator {
+        return this.panel(index).getByRole('button', {
+            name: 'Remove context'
+        });
     }
 
     /** The history dropdown — the panel's equivalent of the Agents rail. */

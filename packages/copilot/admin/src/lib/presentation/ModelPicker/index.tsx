@@ -43,11 +43,20 @@ export interface ModelPickerProps {
 /**
  * Picks which registered backend the next turn runs on.
  *
- * The choice is **per turn, not per thread** — sending a different model on the
- * next message is all it takes, which is what lets a conversation start on a
- * cheap model and escalate when the question gets hard. Phase 0 made this
- * possible by having a provider serve a *list* of models and by exposing
- * `catalogue()`; this is that decision paying off.
+ * The choice is **sent per turn** — a different model on the next message is all
+ * it takes, which is what lets a conversation start on a cheap model and
+ * escalate when the question gets hard. Phase 0 made this possible by having a
+ * provider serve a *list* of models and by exposing `catalogue()`; this is that
+ * decision paying off.
+ *
+ * What it is **not** is forgotten. A pick is remembered on the chat (so
+ * collapsing a window or leaving the Agents view keeps it), seeded into the next
+ * chat this tab starts, and written onto the thread — so reopening a saved
+ * conversation tomorrow, in another tab, offers the same backend. None of that
+ * pins anything: the thread's memory only decides what this picker *starts* on.
+ * "Default" is remembered as a choice in its own right, distinct from a thread
+ * nobody has picked on, because it means "whatever the resolver picks" rather
+ * than today's default provider.
  *
  * Renders nothing when the deployment offers a single backend: a picker with
  * one option is noise. It also renders nothing while the catalogue is loading,

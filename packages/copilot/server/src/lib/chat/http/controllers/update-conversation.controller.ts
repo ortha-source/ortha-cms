@@ -2,6 +2,7 @@ import {
     BadRequestException,
     Body,
     Controller,
+    Inject,
     NotFoundException,
     Param,
     ParseUUIDPipe,
@@ -9,6 +10,7 @@ import {
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
+import { MODEL_REGISTRY, type ModelRegistry } from '@ortha-cms/copilot-domain';
 import {
     CurrentUser,
     OriginGuard,
@@ -22,11 +24,14 @@ import {
     ConversationRepository,
     type ConversationView
 } from '../../infrastructure/persistence/conversation.repository';
-import { UpdateConversationDto } from '../../application/dto/update-conversation.dto';
+import {
+    MODEL_CHOICE_DEFAULT,
+    UpdateConversationDto
+} from '../../application/dto/update-conversation.dto';
 
 /**
- * `PATCH /api/copilot/conversations/:id` — rename a thread, file it away, or
- * bring it back.
+ * `PATCH /api/copilot/conversations/:id` — rename a thread, file it away, bring
+ * it back, or record the model picked for it.
  *
  * **Archiving is the only removal this API offers, and it is reversible.** A
  * thread's proposals are the receipts for changes that were actually made to
@@ -43,11 +48,16 @@ import { UpdateConversationDto } from '../../application/dto/update-conversation
 @RequirePermissions(PERMISSIONS.COPILOT_USE)
 @Controller('copilot')
 export class UpdateConversationController {
-    constructor(private readonly conversations: ConversationRepository) {}
+    constructor(
+        private readonly conversations: ConversationRepository,
+        @Inject(MODEL_REGISTRY) private readonly models: ModelRegistry
+    ) {}
 
     @Patch('conversations/:id')
     @UseGuards(OriginGuard)
-    @ApiOperation({ summary: 'Rename or archive a copilot conversation' })
+    @ApiOperation({
+        summary: 'Rename, archive, or set the model of a copilot conversation'
+    })
     async update(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() body: UpdateConversationDto,
@@ -57,10 +67,18 @@ export class UpdateConversationController {
         // An empty patch cannot mean anything, and answering 200 to it would
         // report success for a write that never happened. The pipe cannot catch
         // this: every property is legitimately optional on its own.
-        if (body.title === undefined && body.archived === undefined) {
+        if (
+            body.title === undefined &&
+            body.archived === undefined &&
+            body.modelChoice === undefined
+        ) {
             throw new BadRequestException(
-                'Provide a title, an archived flag, or both.'
+                'Provide a title, an archived flag, a model choice, or several.'
             );
+        }
+
+        if (body.modelChoice !== undefined) {
+            this.assertKnownModel(body.modelChoice);
         }
 
         const updated = await this.conversations.update(
@@ -71,6 +89,9 @@ export class UpdateConversationController {
                 ...(body.title !== undefined ? { title: body.title } : {}),
                 ...(body.archived !== undefined
                     ? { archived: body.archived }
+                    : {}),
+                ...(body.modelChoice !== undefined
+                    ? { modelChoice: body.modelChoice }
                     : {})
             }
         );
@@ -79,5 +100,36 @@ export class UpdateConversationController {
             throw new NotFoundException('Conversation not found.');
         }
         return updated;
+    }
+
+    /**
+     * Refuses a choice that names no registered backend.
+     *
+     * The column is read back into the picker and offered as the next run's
+     * `provider`/`model`, so an unchecked string is a value the user writes and
+     * the UI then renders — and a run that would fail on a backend that does not
+     * exist. Checking against `catalogue()` keeps the stored value inside what
+     * the operator configured at boot, which is the same boundary the run route
+     * enforces when a request names a provider.
+     */
+    private assertKnownModel(choice: string): void {
+        if (choice === MODEL_CHOICE_DEFAULT) {
+            return;
+        }
+        // The first colon only: a provider name cannot contain one, and a model
+        // id routinely does (`llama3.1:8b`).
+        const separator = choice.indexOf(':');
+        const provider = separator > 0 ? choice.slice(0, separator) : '';
+        const model = separator > 0 ? choice.slice(separator + 1) : '';
+        const known = this.models
+            .catalogue()
+            .some(
+                (entry) => entry.provider === provider && entry.model === model
+            );
+        if (!known) {
+            throw new BadRequestException(
+                'That model choice names no registered backend.'
+            );
+        }
     }
 }

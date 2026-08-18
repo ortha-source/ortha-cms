@@ -129,13 +129,34 @@ export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
                 card that then showed the diff with no warning would read as
                 though the change had gone through. */}
             {failed && (
-                <div className="px-3 pt-3">
+                // `py-3`, not `pt-3`: with no bottom padding the alert butted
+                // straight into the footer's rule, so the one block on the card
+                // that says the change did not happen was the one drawn as
+                // though it were part of the line below it.
+                <div className="px-3 py-3">
                     <Alert variant="destructive">
-                        <CircleAlert className="size-4" />
-                        <AlertDescription>
-                            {proposal.error ??
-                                intl.formatMessage(messages.failedGeneric)}
-                        </AlertDescription>
+                        {/* **The icon is not a direct child of the `Alert`,
+                            deliberately.** The design system positions a
+                            top-level `<svg>` absolutely (`left-4 top-4`) and
+                            nudges the block beside it up 3px — geometry tuned
+                            for an alert with a *title* over a description. This
+                            one is a description alone, usually a single line,
+                            so those rules put the icon near the top of the box
+                            and the sentence off its centre. Wrapping the pair
+                            in a flex row means none of the `[&>svg]` selectors
+                            match, which is a local fix rather than a change to
+                            the geometry every other alert in the admin is
+                            drawn with. */}
+                        <div className="flex items-center gap-2">
+                            <CircleAlert
+                                aria-hidden
+                                className="text-destructive size-4 shrink-0"
+                            />
+                            <AlertDescription>
+                                {proposal.error ??
+                                    intl.formatMessage(messages.failedGeneric)}
+                            </AlertDescription>
+                        </div>
                     </Alert>
                 </div>
             )}

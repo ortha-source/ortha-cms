@@ -7,6 +7,13 @@ export interface CopilotConversation {
     title: string | null;
     surface: string;
     archived: boolean;
+    /**
+     * The model this thread was last **left on**, in the stored form
+     * (`'default'`, or `'<provider>:<model>'`) — and `null` when nobody has
+     * picked one, which is deliberately not the same thing. See
+     * `readStoredModelChoice`.
+     */
+    modelChoice: string | null;
     createdAt: string;
     updatedAt: string;
 }

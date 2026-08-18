@@ -18,6 +18,23 @@ import {
 export const MAX_TITLE_LENGTH = 200;
 
 /**
+ * The stored form of "let the host's resolver decide".
+ *
+ * A real, selectable option in the picker rather than the absence of one — it
+ * means "whatever the resolver picks for this run", which can differ per run and
+ * per workspace, so recording today's default provider instead would silently
+ * opt the user out of that routing. It is unambiguous against a
+ * `'<provider>:<model>'` key because it contains no colon.
+ */
+export const MODEL_CHOICE_DEFAULT = 'default';
+
+/**
+ * Longest model choice we accept: a provider name plus a model id plus the
+ * separator. Bounded because it is stored and echoed back to the picker.
+ */
+export const MAX_MODEL_CHOICE_LENGTH = 200;
+
+/**
  * Body of `PATCH /api/copilot/conversations/:id`.
  *
  * A **patch**, so every property is optional and only the ones present are
@@ -69,4 +86,30 @@ export class UpdateConversationDto {
     @IsOptional()
     @IsBoolean()
     archived?: boolean;
+
+    /**
+     * Record the model picked for this thread, so reopening it in another tab
+     * offers the backend the person chose instead of the deployment default.
+     *
+     * `'default'` for the host's resolver, otherwise `'<provider>:<model>'` —
+     * the same key the picker uses, split on its **first** colon (a model id
+     * routinely contains one; a provider name cannot). The controller checks the
+     * pair against `ModelRegistry.catalogue()`, so this can only ever name a
+     * backend the operator configured.
+     *
+     * It is a **memory, not a pin**: the run route still takes its provider and
+     * model per turn, and nothing here constrains the next one.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: MAX_MODEL_CHOICE_LENGTH,
+        description:
+            "The model picked for this thread: `default`, or `<provider>:<model>` naming a pair from `GET /api/copilot/models`. Doesn't constrain the next run.",
+        example: 'anthropic:claude-opus-5'
+    })
+    @IsOptional()
+    @IsString()
+    @MinLength(1)
+    @MaxLength(MAX_MODEL_CHOICE_LENGTH)
+    modelChoice?: string;
 }

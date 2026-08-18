@@ -218,3 +218,130 @@ test.describe('Agents view — the rail and the thread', () => {
         await expect(agentsPage.rail).toBeHidden();
     });
 });
+
+/**
+ * What a **thread** remembers about the model it was left on.
+ *
+ * The choice is still sent per turn — a conversation can start cheap and
+ * escalate, and nothing here pins it. What is fixed is the forgetting: it used
+ * to live only in this tab's memory, so reopening a saved conversation
+ * tomorrow, or in a second tab, silently put the user back on Default without
+ * saying so.
+ *
+ * The seeded threads carry all **three** states on purpose, because the bug that
+ * would be easiest to ship is collapsing the last two: `c_pricing` was left on a
+ * concrete backend, `c_bios` on an explicit Default, and `c_summary` on nothing
+ * at all.
+ */
+test.describe('Agents view — the model a thread was left on', () => {
+    /** Left on `openai:gpt-5.2`. */
+    const PICKED = 'Rewrite the pricing page intro';
+    /** Left on an explicit `default`. */
+    const DEFAULTED = 'Audit author bios for broken links';
+
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page);
+        await mockContentSchema(page);
+    });
+
+    test('reopening a thread offers the backend it was left on', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_pricing');
+
+        // Nothing in this tab picked it — it came back from the thread, which
+        // is the whole point: a fresh tab used to start every saved
+        // conversation on Default.
+        await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
+    });
+
+    test('an explicit Default is not the same as never having picked', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+
+        // A pick in this tab, which seeds every chat started after it.
+        await agentsPage.chooseModel('claude-opus-5');
+        await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
+
+        await agentsPage.railRow(DEFAULTED).click();
+
+        // "Default" means *whatever the resolver picks*, which is a choice in
+        // its own right — so the thread overrules the tab's seed rather than
+        // being treated as the absence of an answer.
+        await expect(agentsPage.modelPicker()).toContainText('Default');
+
+        await agentsPage.railRow(THREAD.title).click();
+
+        // …and a thread nobody has picked on keeps the seed, rather than being
+        // quietly reset to Default by the same code path.
+        await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
+    });
+
+    test('a model picked on a thread is written to it, and survives a reload', async ({
+        page,
+        agentsPage
+    }) => {
+        const spy = await mockCopilotApi(page);
+        await agentsPage.gotoThread(WORKSPACE_ID, THREAD.id);
+        await expect(agentsPage.transcript()).toBeVisible();
+
+        await agentsPage.chooseModel('gpt-5.2');
+
+        await expect
+            .poll(() => spy.patches)
+            .toContainEqual({
+                id: THREAD.id,
+                body: { modelChoice: 'openai:gpt-5.2' }
+            });
+
+        // A reload is the honest test of "it outlived the tab": the store, the
+        // per-tab seed and every component are gone, so anything the picker
+        // shows now came back over the wire.
+        await page.reload();
+
+        await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
+    });
+
+    test('adopting a thread’s model does not write it straight back', async ({
+        page,
+        agentsPage
+    }) => {
+        const spy = await mockCopilotApi(page);
+
+        await agentsPage.gotoThread(WORKSPACE_ID, 'c_pricing');
+        await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
+
+        // Reading is not picking. Echoing the value the server just sent would
+        // be a write per thread opened — and it would make the rail's own
+        // "last used" ordering answer for something nobody did.
+        expect(spy.patches).toEqual([]);
+    });
+
+    test('a fresh chat still inherits the last model picked in the tab', async ({
+        page,
+        agentsPage
+    }) => {
+        await mockCopilotApi(page);
+        await agentsPage.goto(WORKSPACE_ID);
+        await agentsPage.chooseModel('claude-opus-5');
+
+        // Through a thread that has its own stored model, so the seed has every
+        // chance to be clobbered on the way past.
+        await agentsPage.railRow(PICKED).click();
+        await expect(agentsPage.modelPicker()).toContainText('gpt-5.2');
+        await agentsPage.railNewChat().click();
+
+        // The per-tab seed is what the person last **picked**, and adopting a
+        // thread's model is not picking: somebody who always wants the bigger
+        // model does not re-pick it because they read an old conversation.
+        await expect(agentsPage.welcomeHeading()).toBeVisible();
+        await expect(agentsPage.modelPicker()).toContainText('claude-opus-5');
+    });
+});

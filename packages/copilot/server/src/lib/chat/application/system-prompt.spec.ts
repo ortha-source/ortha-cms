@@ -63,6 +63,28 @@ describe('buildSystemPrompt', () => {
             expect(build()).toContain('each locale is its own entry');
         });
 
+        // The other half of the same fact, and the half nothing enforces:
+        // `i18n_propose_translation` refuses a non-localized field, but the
+        // content propose tools filter only inverse relations — so a model
+        // "translating" through one writes shared values that i18n's sync then
+        // copies onto every sibling locale.
+        it('says a field without localized is shared by the whole group', () => {
+            const prompt = build();
+
+            expect(prompt).toContain(
+                'only the fields marked localized vary per locale'
+            );
+            expect(prompt).toContain('changes its value in every locale');
+            expect(prompt).toContain('admin_content_types');
+        });
+
+        // Prose, not metadata: the rule must not become the excuse for
+        // inlining field schemas that `describeTypes` deliberately omits. The
+        // e2e suite pins the same thing against a live prompt.
+        it('states the rule without inlining field schemas', () => {
+            expect(build()).not.toContain('"fields"');
+        });
+
         // The line tells the model to look slugs up; with no i18n plugin bound
         // there is nothing to look them up in, so the instruction can only
         // produce a failing tool call.
@@ -105,6 +127,43 @@ describe('buildSystemPrompt', () => {
             expect(prompt).not.toContain('starts with "propose"');
             expect(prompt).toContain('content_propose_update');
             expect(prompt).toContain('despite the name');
+        });
+
+        // The write-side half of the shared-field rule. It routes the model to
+        // the one tool that enforces it, so it is only true of a run that was
+        // offered that tool.
+        it('routes a translation to the i18n tool when that tool is offered', () => {
+            const prompt = build({
+                toolNames: [
+                    'content_propose_update',
+                    'i18n_propose_translation'
+                ],
+                hasWriteTools: true
+            });
+
+            expect(prompt).toContain(
+                'Never write a translation into a shared (non-localized) field'
+            );
+            expect(prompt).toContain('i18n_propose_translation');
+        });
+
+        it('withholds the translation rule from a run that cannot write', () => {
+            expect(
+                build({
+                    toolNames: [
+                        'content_propose_update',
+                        'i18n_propose_translation'
+                    ]
+                })
+            ).not.toContain('Never write a translation into a shared');
+        });
+
+        // No i18n plugin, no tool to name — the unconditional HOW ORTHA WORKS
+        // line still carries the fact for these runs.
+        it('names no translation tool when none is on offer', () => {
+            expect(build({ hasWriteTools: true })).not.toContain(
+                'i18n_propose_translation'
+            );
         });
     });
 

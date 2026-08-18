@@ -30,15 +30,23 @@ test.describe('Account menu', () => {
     });
 
     test('shows the signed-in account in the toolbar dropdown', async ({
-        membersPage,
-        page
+        membersPage
     }) => {
         await membersPage.goto();
+
+        // Asserted on the closed trigger, which is where the address is
+        // rendered — the open dropdown holds the two actions and nothing else.
+        // It also has to be read *before* the click: the menu is modal, so
+        // opening it `aria-hidden`s the page root and the trigger drops out of
+        // the accessibility tree, taking every role-based locator with it.
+        await expect(
+            membersPage.accountMenuEmail('ada@ortha.dev')
+        ).toBeVisible();
+
         await membersPage.openAccountMenu();
 
         await expect(membersPage.accountMenuItem('My profile')).toBeVisible();
         await expect(membersPage.accountMenuItem('Logout')).toBeVisible();
-        await expect(page.getByText('ada@ortha.dev')).toBeVisible();
     });
 
     test('"My profile" opens the current user’s detail page', async ({

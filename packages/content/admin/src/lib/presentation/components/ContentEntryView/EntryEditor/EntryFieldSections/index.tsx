@@ -1,4 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
+import { Separator } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../../domain/constants';
 import type { EntryFormState } from '../../../../hooks/useEntryForm';
@@ -115,7 +116,12 @@ export function EntryFieldSections({
     }
 
     return (
-        <div className="flex flex-col gap-8">
+        // `gap-6` rather than the `gap-8` this used before the rule: the gap is
+        // now paid **twice** (group → rule → group), so keeping 8 would have
+        // doubled the whitespace between the runs. Six leaves the rule centred
+        // between them and still clear of the `gap-5` between fields inside a
+        // group, so the stronger break reads as the group boundary.
+        <div className="flex flex-col gap-6">
             {/* Only the translated run carries the row's language: by
                 definition it holds this locale's text. A shared field holds one
                 value for every locale — usually still in the language it was
@@ -132,6 +138,14 @@ export function EntryFieldSections({
                 lang={contentLocale}
                 dir="auto"
             />
+            {/* The boundary between the two runs, drawn rather than left to
+                whitespace: which run a field is in decides whether editing it
+                changes every locale, and a gap alone did not say where one run
+                ended. Deliberately **decorative** — Radix renders `role="none"`,
+                so it adds nothing to the accessibility tree; the two group
+                headings are what name the runs for a screen reader, and a rule
+                announced as content would only be noise between them. */}
+            <Separator data-testid="entry-field-group-divider" />
             <FieldGroup
                 title={intl.formatMessage(messages.sharedTitle)}
                 description={intl.formatMessage(messages.sharedBody)}

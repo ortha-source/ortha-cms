@@ -99,8 +99,7 @@ export function CopilotLauncher() {
     const adoptConversation = useCallback(
         (sessionId: string, conversationId: string, title: string | null) => {
             const existing = all.find(
-                (s) =>
-                    s.conversationId === conversationId && s.id !== sessionId
+                (s) => s.conversationId === conversationId && s.id !== sessionId
             );
             if (existing) {
                 focus(existing.id);
@@ -186,6 +185,9 @@ export function CopilotLauncher() {
                             }
                             onChoiceChange={(choice) =>
                                 sessions.setModel(session.id, choice)
+                            }
+                            onContextChange={(context) =>
+                                sessions.setContext(session.id, context)
                             }
                             onSkillsChange={(names) =>
                                 sessions.setSkills(session.id, names)
