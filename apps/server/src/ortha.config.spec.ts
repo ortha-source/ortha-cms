@@ -154,27 +154,66 @@ describe('NODE_ENV', () => {
     });
 });
 
-describe('COPILOT_MAX_STEPS', () => {
-    it('leaves the plugin default in place when unset', () => {
+describe('copilot run ceilings', () => {
+    const unset = {
+        COPILOT_MAX_STEPS: undefined,
+        COPILOT_WALL_CLOCK_MS: undefined,
+        COPILOT_MAX_TOTAL_TOKENS: undefined
+    };
+
+    it('omits `limits` entirely when none are set', () => {
         // Spreading `limits: { maxSteps: undefined }` would overwrite the
-        // plugin's own ceiling with nothing, so the key is conditional.
+        // plugin's own ceiling with nothing, so each key is conditional — and
+        // so is the object, or an untouched `.env` would pin `limits: {}` here
+        // instead of leaving DEFAULT_RUN_LIMITS visible.
+        expect(loadConfig(unset).plugins.copilot.limits).toBeUndefined();
         expect(
-            loadConfig({ COPILOT_MAX_STEPS: undefined }).plugins.copilot.limits
+            loadConfig({
+                ...unset,
+                COPILOT_MAX_STEPS: '',
+                COPILOT_WALL_CLOCK_MS: '',
+                COPILOT_MAX_TOTAL_TOKENS: ''
+            }).plugins.copilot.limits
         ).toBeUndefined();
-        expect(loadConfig({ COPILOT_MAX_STEPS: '' }).plugins.copilot.limits)
-            .toBeUndefined();
     });
 
-    it('passes a configured ceiling through', () => {
+    it('passes each configured ceiling through on its own', () => {
         expect(
-            loadConfig({ COPILOT_MAX_STEPS: '20' }).plugins.copilot.limits
+            loadConfig({ ...unset, COPILOT_MAX_STEPS: '20' }).plugins.copilot
+                .limits
         ).toEqual({ maxSteps: 20 });
+        expect(
+            loadConfig({ ...unset, COPILOT_WALL_CLOCK_MS: '600000' }).plugins
+                .copilot.limits
+        ).toEqual({ wallClockMs: 600_000 });
+        expect(
+            loadConfig({ ...unset, COPILOT_MAX_TOTAL_TOKENS: '900000' }).plugins
+                .copilot.limits
+        ).toEqual({ maxTotalTokens: 900_000 });
+    });
+
+    it('carries a partial override without inventing the other two', () => {
+        // The point of the conditional keys: raising one must not silently pin
+        // the other two to whatever this file happened to think they were.
+        expect(
+            loadConfig({
+                ...unset,
+                COPILOT_MAX_STEPS: '50',
+                COPILOT_MAX_TOTAL_TOKENS: '900000'
+            }).plugins.copilot.limits
+        ).toEqual({ maxSteps: 50, maxTotalTokens: 900_000 });
     });
 
     it('rejects zero, which would make every run end before its first step', () => {
-        expect(loadError({ COPILOT_MAX_STEPS: '0' })).toContain(
+        expect(loadError({ ...unset, COPILOT_MAX_STEPS: '0' })).toContain(
             'COPILOT_MAX_STEPS'
         );
+        expect(loadError({ ...unset, COPILOT_WALL_CLOCK_MS: '0' })).toContain(
+            'COPILOT_WALL_CLOCK_MS'
+        );
+        expect(
+            loadError({ ...unset, COPILOT_MAX_TOTAL_TOKENS: '0' })
+        ).toContain('COPILOT_MAX_TOTAL_TOKENS');
     });
 });
 

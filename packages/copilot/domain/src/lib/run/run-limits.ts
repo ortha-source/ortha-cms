@@ -20,15 +20,31 @@ export interface RunLimits {
 }
 
 /**
- * Defaults sized for the phase-1 read-only catalogue: a search-then-answer turn
- * takes two steps, and a genuinely multi-part question a handful more. Set high
- * enough not to truncate real work, low enough that a loop is caught in seconds
- * rather than minutes.
+ * Defaults sized for a run that **writes**, not the phase-1 read-only catalogue
+ * these were first tuned for. There, a search-then-answer turn took two steps
+ * and a multi-part question a handful more, so eight steps in two minutes was
+ * generous. A write turn is not shaped like that: the model reads the type,
+ * reads the entries it is about to change, proposes, reads the result, and
+ * reports — and an instruction covering several entries repeats the middle of
+ * that. Batching (`content_propose_bulk_save`) collapses the writes into one
+ * call but not the reads around them, and runs were still ending on
+ * `max-steps` with the answer half-written.
+ *
+ * All three move together on purpose. They are checked in the same loop, so
+ * raising one alone just relocates the wall — a run given 30 steps and 120
+ * seconds ends on `timeout` instead, which is the same truncated answer under
+ * a different name. Every step is still authorized, audited and recorded; what
+ * these bound is spend, and the ceiling that matters for spend is the token
+ * one.
+ *
+ * Each is overridable per deployment — see `CopilotPluginConfig.limits`, and
+ * `COPILOT_MAX_STEPS` / `COPILOT_WALL_CLOCK_MS` / `COPILOT_MAX_TOTAL_TOKENS`
+ * in the host's `ortha.config.ts`.
  */
 export const DEFAULT_RUN_LIMITS: RunLimits = {
-    maxSteps: 8,
-    wallClockMs: 120_000,
-    maxTotalTokens: 120_000
+    maxSteps: 30,
+    wallClockMs: 300_000,
+    maxTotalTokens: 400_000
 };
 
 /**

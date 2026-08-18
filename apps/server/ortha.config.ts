@@ -224,17 +224,29 @@ function defaultAdminOrigin(): string {
 }
 
 /**
- * The copilot's step ceiling, or `undefined` to leave the plugin's own default
- * in place.
+ * The copilot's run ceilings, each `undefined` to leave the plugin's own
+ * default in place.
  *
- * Read out here because the key is *conditionally spread* below: the plugin's
- * `RunLimits` default (8) has to survive an unset variable, and spreading
- * `limits: { maxSteps: undefined }` would overwrite it with nothing. Zero is
- * rejected rather than silently ignored — `maxSteps: 0` skips the run loop
- * entirely, yielding a thread that shows a question and then silence, which is
- * why `CopilotPlugin` refuses it at construction too.
+ * Read out here because the keys are *conditionally spread* below: a
+ * `DEFAULT_RUN_LIMITS` entry has to survive an unset variable, and spreading
+ * `{ maxSteps: undefined }` would overwrite it with nothing. Zero is rejected
+ * rather than silently ignored — `maxSteps: 0` skips the run loop entirely,
+ * yielding a thread that shows a question and then silence, which is why
+ * `CopilotPlugin` refuses it at construction too.
+ *
+ * All three are exposed, not just `maxSteps`. They are checked in the same
+ * loop, so an operator who raises one alone moves the wall rather than lifting
+ * it: a run given more steps but the same wall clock stops on `timeout`
+ * instead, which reads to the user as the same truncated answer.
  */
 const maxSteps = readOptionalPositiveInt('COPILOT_MAX_STEPS');
+const wallClockMs = readOptionalPositiveInt('COPILOT_WALL_CLOCK_MS');
+const maxTotalTokens = readOptionalPositiveInt('COPILOT_MAX_TOTAL_TOKENS');
+const runLimits = {
+    ...(maxSteps !== undefined ? { maxSteps } : {}),
+    ...(wallClockMs !== undefined ? { wallClockMs } : {}),
+    ...(maxTotalTokens !== undefined ? { maxTotalTokens } : {})
+};
 
 const config: OrthaConfig = {
     port: readPositiveInt('PORT', 3000),
@@ -395,14 +407,15 @@ const config: OrthaConfig = {
                 'COPILOT_MAX_OUTPUT_TOKENS',
                 8_192
             ),
-            // Run ceilings. Only `maxSteps` is env-exposed, because it is the
-            // one an operator actually reaches for: a smaller local model often
-            // needs more tool round trips than a frontier one to answer the
-            // same question, and a run that ends on "reached the maximum number
-            // of steps" is usually asking for a higher number here. Raising it
-            // costs tokens rather than safety — every step is still authorized,
-            // audited, and bounded by the wall-clock and token ceilings.
-            ...(maxSteps !== undefined ? { limits: { maxSteps } } : {}),
+            // Run ceilings, each keeping `DEFAULT_RUN_LIMITS` when unset. The
+            // whole object is spread away when nothing is set, so an untouched
+            // `.env` leaves the plugin's defaults visible rather than pinning
+            // them here. Raising these costs tokens rather than safety — every
+            // step is still authorized and audited, and a `propose` tool still
+            // writes its row before it writes anything else.
+            ...(Object.keys(runLimits).length > 0
+                ? { limits: runLimits }
+                : {}),
             providers: {
                 claude: {
                     apiKey: process.env['ANTHROPIC_API_KEY'] ?? '',

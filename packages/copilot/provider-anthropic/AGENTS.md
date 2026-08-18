@@ -12,7 +12,7 @@ Drizzle and Nest out of any `domain/` layer.
 
 - `createAnthropicProvider(config): ModelProvider` — a factory the host binds at
   the composition root. `config` is
-  `{ apiKey, models, baseUrl?, effort?, maxRetries?, timeoutMs? }`.
+  `{ apiKey, models, baseUrl?, effort?, maxRetries?, timeoutMs?, promptCaching? }`.
 
 `models` is a **list**, first entry the default. One key and one client back
 several models, so a user can switch mid-conversation. A run naming a model
@@ -78,6 +78,48 @@ If a future phase needs cheaper runs, the lever is `config.effort` (`low` …
 
 Sampling parameters are likewise absent: current models reject `temperature`,
 `top_p` and `top_k` outright, which is why the port never carried them.
+
+## Prompt caching is on, and the loop is why
+
+A copilot run is a **loop over a stateless API**: step _n_ resends everything
+steps 1…_n_−1 sent, so the prompt grows every step while the genuinely new
+content is one tool result. Uncached, a run's billed input is roughly quadratic
+in its step count — which is what made the run engine's step ceiling behave like
+a cost ceiling, and why raising it felt expensive. Cache reads are ~0.1x base
+input price and the 1.25x write premium is repaid by the second step, so a run
+of any length pays for the markers several times over.
+
+Placement follows the API's render order — `tools` → `system` → `messages`:
+
+- **One breakpoint at the end of `system`**, which is why `system` goes on the
+  wire as a one-element block array rather than a bare string. Tools render
+  _ahead_ of system, so that single entry covers the whole static prefix; marking
+  the tools as well would spend a second breakpoint on a prefix already covered.
+  A run with tools and **no** system prompt marks the last tool instead — there
+  the tools _are_ the end of the prefix.
+- **Up to three rolling breakpoints through `messages`**, newest turn always,
+  older turns only when blocks have accumulated. Four is the API's hard ceiling;
+  a fifth is a 400 on every request.
+
+The accumulation rule is not tidiness. A breakpoint walks back **at most 20
+content blocks** looking for an existing entry, and past that it misses
+**silently** — no error, just a full-price prefill and `cache_read_input_tokens`
+of zero. One tool call adds two or three blocks and never comes close; a turn
+requesting tools in parallel adds a `tool_use` and a `tool_result` per call and
+can clear 20 on its own. Beyond the three-breakpoint budget the chain is carried
+_between_ requests: the oldest breakpoint of step _n_ reaches an entry a
+breakpoint of step _n_−1 wrote.
+
+**`promptCaching: false` is an escape hatch, not a tuning knob** — it exists for
+a `baseUrl` gateway or proxy that rejects `cache_control` rather than passing it
+through. The symptom there is a 400 on every run, not a quiet loss of caching.
+
+Two things would silently kill this, so watch for them in the engine rather than
+here: anything per-request in the system prompt (a timestamp, a run id) puts a
+changing byte at the front of the prefix, and a tool list whose order varies
+invalidates from position 0. Neither is true today. Verify with
+`usage.cachedInputTokens` — the port already carries it, and the run engine's
+`totalTokens()` already excludes it from `maxTotalTokens`.
 
 ## Capabilities are probed, not guessed
 

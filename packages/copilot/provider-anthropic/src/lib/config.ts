@@ -23,6 +23,18 @@ export interface AnthropicProviderConfig {
     maxRetries?: number;
     /** Per-request timeout in milliseconds. Defaults to the SDK's 10 minutes. */
     timeoutMs?: number;
+    /**
+     * Whether to send `cache_control` breakpoints. **Defaults to on**, and
+     * should stay on: a run is a loop over a stateless API, so every step
+     * resends the whole conversation and an uncached run's billed input grows
+     * roughly with the square of its step count. Cache reads are ~0.1x base
+     * input price, and the write premium (1.25x) is repaid by the second step.
+     *
+     * The escape hatch exists for a {@link baseUrl} gateway or proxy that
+     * rejects the field rather than passing it through — the symptom is a 400
+     * on every run, not a quiet loss of caching.
+     */
+    promptCaching?: boolean;
 }
 
 /**

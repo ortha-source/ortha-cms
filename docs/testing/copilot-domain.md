@@ -58,7 +58,7 @@ relative. In particular **no vendor SDK**, which is ADR-0004 §1's whole point.
 | `resolveCapabilityProfile(input)` | function | Offer-time gate; generic over `AuthorizableTool` |
 | `CapabilityProfile`, `CopilotActor`, `AuthorizableTool`, `WithheldTool`, `WithheldReason`, `ToolPermissionKey`, `ResolveCapabilityProfileInput` | types | — |
 | `validateToolInput(input, schema)`, `ToolInputValidation` | function + type | A deliberate JSON Schema subset |
-| `DEFAULT_RUN_LIMITS`, `RUN_STOP_EXPLANATIONS`, `RunLimits`, `RunStopReason` | const + types | steps 8 / wall clock 120 000 ms / total tokens 120 000 |
+| `DEFAULT_RUN_LIMITS`, `RUN_STOP_EXPLANATIONS`, `RunLimits`, `RunStopReason` | const + types | steps 30 / wall clock 300 000 ms / total tokens 400 000 |
 | `CopilotRunEvent` and its eight members | types | Exactly what the SSE controller serialises |
 | `ToolPermissionDecision` | type | `'once' \| 'chat' \| 'deny'` — deliberately no `'always'` |
 | `fenceUntrusted(source, payload)`, `UNTRUSTED_DATA_RULE` | function + const | ADR-0005 §8's structural defence |
@@ -147,7 +147,7 @@ None at runtime. **Consumers** that must be healthy for the manual plan below:
 | F29 | `fenceUntrusted` survives an unserialisable payload | `untrusted.ts:52-56` | 🧪 UNIT |
 | F30 | `UNTRUSTED_DATA_RULE` is stated once in the system prompt | `untrusted.ts:10-14` | ✅ E2E `copilot-chat.spec.ts:381` |
 | F31 | **The fence has no size bound** | `untrusted.ts:50-58` | ❌ NONE → 🐞 BUG-copilot-domain-02 |
-| F32 | `DEFAULT_RUN_LIMITS` = 8 steps / 120 s / 120 000 tokens | `src/lib/run/run-limits.ts:28-32` | ✅ E2E `copilot-chat.spec.ts:522` (steps only) |
+| F32 | `DEFAULT_RUN_LIMITS` = 30 steps / 300 s / 400 000 tokens | `src/lib/run/run-limits.ts` | ✅ E2E `copilot-chat.spec.ts:522` (steps only, counted off the constant) |
 | F33 | `RunStopReason` is a superset of `ModelStopReason` | `run-limits.ts:39-55` | ⚠️ PARTIAL — `max-steps` and `refusal` covered; `timeout` and `max-tokens` not |
 | F34 | `RUN_STOP_EXPLANATIONS` has a sentence for every reason | `run-limits.ts:58-67` | ❌ NONE (the admin re-declares its own map — see §6) |
 | F35 | `CopilotRunEvent` is a closed union of eight members | `src/lib/run/run-event.ts:186-194` | ✅ E2E `copilot-chat.spec.ts:274` (the frame sequence) |

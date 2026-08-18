@@ -378,6 +378,11 @@ export class RunEngine {
 
             ctx.usage.inputTokens += turn.usage.inputTokens;
             ctx.usage.outputTokens += turn.usage.outputTokens;
+            // The cache figures accumulate too, and are reported on `done`
+            // alongside the other two. A provider that reports neither leaves
+            // both keys absent rather than zero, so a run on an adapter with no
+            // cache is indistinguishable from one that never hit it.
+            addCacheTokens(ctx.usage, turn.usage);
             if (turn.text) {
                 ctx.assistantBlocks.push({ type: 'text', text: turn.text });
             }
@@ -1282,8 +1287,32 @@ function toModelTools(tools: readonly ToolDefinition[]): ModelTool[] {
 }
 
 /** Input + output across a run. */
+/**
+ * Folds a turn's cache counts into the run's, leaving a key absent when the
+ * provider reported nothing for it.
+ */
+function addCacheTokens(into: ModelUsage, from: ModelUsage): void {
+    if (from.cachedInputTokens !== undefined) {
+        into.cachedInputTokens =
+            (into.cachedInputTokens ?? 0) + from.cachedInputTokens;
+    }
+    if (from.cacheWriteInputTokens !== undefined) {
+        into.cacheWriteInputTokens =
+            (into.cacheWriteInputTokens ?? 0) + from.cacheWriteInputTokens;
+    }
+}
+
 function totalTokens(usage: ModelUsage): number {
-    return usage.inputTokens + usage.outputTokens;
+    // Cache **writes** count; cache **reads** do not. A write is billed at a
+    // premium over plain input, so leaving it out would let caching make a run
+    // look cheaper than it is. A read is ~a tenth of the price and is the whole
+    // point of caching — charging the ceiling for it would spend the run's
+    // budget on re-reading the prompt, which is exactly what caching stopped.
+    return (
+        usage.inputTokens +
+        usage.outputTokens +
+        (usage.cacheWriteInputTokens ?? 0)
+    );
 }
 
 /**

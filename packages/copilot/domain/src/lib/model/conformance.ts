@@ -365,10 +365,20 @@ function abortedTerminal(
     return null;
 }
 
-/** Clause 3: zero on both counts, and nothing smuggled in via the cache count. */
+/** Clause 3: zero on both counts, and nothing smuggled in via a cache count. */
 function zeroUsage(done: DoneEvent): string | null {
-    const { inputTokens, outputTokens, cachedInputTokens } = done.usage;
-    if (inputTokens !== 0 || outputTokens !== 0 || cachedInputTokens) {
+    const {
+        inputTokens,
+        outputTokens,
+        cachedInputTokens,
+        cacheWriteInputTokens
+    } = done.usage;
+    if (
+        inputTokens !== 0 ||
+        outputTokens !== 0 ||
+        cachedInputTokens ||
+        cacheWriteInputTokens
+    ) {
         return `an aborted call reported usage ${JSON.stringify(done.usage)}; the port requires zero, because a partial estimate is a guess entering cost accounting as a fact`;
     }
     return null;

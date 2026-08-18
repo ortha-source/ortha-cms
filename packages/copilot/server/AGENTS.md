@@ -427,6 +427,13 @@ stays in the controller, and the loop is testable by draining the generator.
   only between steps — so a run can overshoot `maxTotalTokens` by a whole model
   call, and measurably does: a 100-token ceiling ended a run at 10 000. Bounding
   that would mean predicting a turn's size before making it.
+- **What `maxTotalTokens` counts.** Uncached input + output + **cache writes**,
+  accumulated across the run. Cache *reads* are excluded on purpose: they cost
+  ~a tenth of plain input and they are the whole point of caching, so charging
+  the ceiling for them would spend the budget re-reading a prompt the provider
+  already has. Writes are billed at a premium and are counted, or turning
+  caching on would have made every run look cheaper than it is — see
+  [`provider-anthropic/AGENTS.md`](../provider-anthropic/AGENTS.md#prompt-caching-is-on-and-the-loop-is-why).
 - **The user's message is persisted before the model is called**, so a dropped
   connection never loses what someone typed.
 - **The capability profile is recomputed per run and re-checked per tool call**
@@ -440,18 +447,24 @@ stays in the controller, and the loop is testable by draining the generator.
 - **A repeated identical call is refused, not re-run.** A model — especially a
   smaller local one — will sometimes re-request a call it already made instead
   of using the result. Without a guard the engine obliges every time until it
-  hits `maxSteps`: eight model calls, eight identical queries, no answer, and a
-  stop reason that explains nothing. The guard compares `name` + arguments
+  hits `maxSteps`: a run's whole step budget spent on identical queries, no
+  answer, and a stop reason that explains nothing. The guard compares `name` + arguments
   (key-sorted, so argument order doesn't defeat it) and feeds back a tool error
   _saying_ the call was already made — telling the model is what breaks the
   loop; silently re-running or refusing without a reason both just repeat.
   Checked after authorization, so a repeat can never reveal more than a first
   call would.
-- **`maxSteps` is configurable** via `config.limits.maxSteps` (`COPILOT_MAX_STEPS`).
-  The default of 8 suits a frontier model; a smaller local one often needs more
-  round trips for the same question. Raising it costs tokens rather than safety
-  — every step is still authorized, audited, and bounded by the wall-clock and
-  token ceilings.
+- **All three ceilings are configurable** via `config.limits`, and all three are
+  env-exposed on the host: `COPILOT_MAX_STEPS`, `COPILOT_WALL_CLOCK_MS`,
+  `COPILOT_MAX_TOTAL_TOKENS`. **Raise them together.** They are checked in the
+  same loop, so lifting one alone relocates the wall rather than removing it — a
+  run given more steps and the same wall clock stops on `timeout` instead, which
+  is the same truncated answer under a different name. Raising them costs tokens
+  rather than safety: every step is still authorized and audited, and a
+  `propose` tool still records its row before it applies anything. The defaults
+  (30 / 300 s / 400 000 tokens) are sized for a run that *writes* — the model
+  reads the type, reads the entries, proposes, reads the result, reports, and a
+  multi-entry instruction repeats the middle of that.
 - **Every attempted call is audited**, successful or not — a refused call is
   exactly what a reviewer is looking for. Output is stored as a **summary**, not
   whole: copying entry bodies into an append-only table would duplicate content
@@ -562,7 +575,7 @@ produce a run that answers nothing at all: `for (step = 0; step < 0; …)` skips
 the loop, so the engine yields `run-started` and then `done` with `max-steps` —
 no model call, no answer, and (because `assistantBlocks` is empty) **no
 assistant row**, leaving a thread showing a question and silence for good.
-`COPILOT_MAX_STEPS` is env-exposed, so a typo reached it.
+All three ceilings are env-exposed, so a typo reaches them.
 
 Being **disabled is not a wiring error**: `config.enabled: false` is the default
 and constructs fine. That switch is the operator's kill switch (ADR-0005 §10),

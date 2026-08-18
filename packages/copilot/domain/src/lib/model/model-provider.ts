@@ -31,6 +31,17 @@ export interface ModelUsage {
     outputTokens: number;
     /** Input tokens served from a provider-side prompt cache, when reported. */
     cachedInputTokens?: number;
+    /**
+     * Input tokens **written** to a provider-side prompt cache, when reported.
+     *
+     * Disjoint from both counts above — a provider reports the prompt as
+     * uncached + read + written — and billed at a premium (~1.25x) rather than
+     * free. Carried separately so a run's ceiling can add it: without it,
+     * turning caching on would make a run look cheaper than it is, and a token
+     * budget that silently stops counting part of the spend is worse than one
+     * tuned too low.
+     */
+    cacheWriteInputTokens?: number;
 }
 
 /** Why the model stopped generating. */

@@ -19,14 +19,25 @@ export function toStopReason(stopReason: StopReason | null): ModelStopReason {
     }
 }
 
-/** Maps Anthropic's usage record onto the port's, dropping absent cache stats. */
+/**
+ * Maps Anthropic's usage record onto the port's, dropping absent cache stats.
+ *
+ * The three input counts are **disjoint**: `input_tokens` is the uncached
+ * remainder only, and the whole prompt is `input_tokens` + the two cache
+ * figures. Reading only the first is how an agent that ran for an hour reports
+ * 4k of input.
+ */
 export function toUsage(usage: Usage): ModelUsage {
     const cached = usage.cache_read_input_tokens;
+    const written = usage.cache_creation_input_tokens;
     return {
         inputTokens: usage.input_tokens,
         outputTokens: usage.output_tokens,
         ...(cached === null || cached === undefined
             ? {}
-            : { cachedInputTokens: cached })
+            : { cachedInputTokens: cached }),
+        ...(written === null || written === undefined
+            ? {}
+            : { cacheWriteInputTokens: written })
     };
 }

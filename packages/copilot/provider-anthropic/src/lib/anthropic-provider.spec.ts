@@ -196,6 +196,41 @@ describe('createAnthropicProvider', () => {
             });
         });
 
+        it('reports cache writes, which the ceiling has to charge for', async () => {
+            // The three input counts are disjoint — the whole prompt here is
+            // 120 + 64 + 900 — and a write is billed at a premium over plain
+            // input. Dropping it would make caching look free and quietly stop
+            // `maxTotalTokens` from counting part of the run's spend.
+            mockStream.mockReturnValue(
+                sdkStream(
+                    [],
+                    finalMessage({
+                        usage: {
+                            input_tokens: 120,
+                            output_tokens: 7,
+                            cache_read_input_tokens: 64,
+                            cache_creation_input_tokens: 900
+                        }
+                    })
+                )
+            );
+
+            const events = await drain(
+                createAnthropicProvider(config).stream(request)
+            );
+
+            expect(events.at(-1)).toEqual({
+                type: 'done',
+                stopReason: 'end',
+                usage: {
+                    inputTokens: 120,
+                    outputTokens: 7,
+                    cachedInputTokens: 64,
+                    cacheWriteInputTokens: 900
+                }
+            });
+        });
+
         it('emits tool calls from the assembled message, parsed and whole', async () => {
             mockStream.mockReturnValue(
                 sdkStream(
@@ -414,7 +449,9 @@ describe('createAnthropicProvider', () => {
             );
 
             expect(lastParams()).toMatchObject({
-                system: 'You are the copilot.',
+                // A block array rather than a bare string: that is what carries
+                // the cache breakpoint. See the prompt-caching suite below.
+                system: [{ type: 'text', text: 'You are the copilot.' }],
                 max_tokens: 512,
                 tools: [
                     {
@@ -454,6 +491,174 @@ describe('createAnthropicProvider', () => {
             await drain(createAnthropicProvider(config).stream(request));
 
             expect(lastParams()).not.toHaveProperty('tools');
+        });
+    });
+
+    describe('prompt caching', () => {
+        beforeEach(() => {
+            mockStream.mockReturnValue(sdkStream([], finalMessage()));
+        });
+
+        /** The `cache_control` marker, or `undefined`, on a request's system. */
+        function systemBreakpoint(): unknown {
+            const system = lastParams()['system'] as
+                | { cache_control?: unknown }[]
+                | string;
+            return typeof system === 'string'
+                ? undefined
+                : system.at(-1)?.cache_control;
+        }
+
+        /** Indices of the messages whose last block carries a breakpoint. */
+        function messageBreakpoints(): number[] {
+            const messages = lastParams()['messages'] as {
+                content: { cache_control?: unknown }[];
+            }[];
+            return messages
+                .map((message, index) =>
+                    message.content.at(-1)?.cache_control ? index : -1
+                )
+                .filter((index) => index >= 0);
+        }
+
+        /** A run of `count` steps: one tool call and its result per step. */
+        function loopOf(count: number): ModelRequest {
+            const messages: ModelRequest['messages'] = [
+                { role: 'user', content: [{ type: 'text', text: 'go' }] }
+            ];
+            for (let step = 0; step < count; step += 1) {
+                messages.push({
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool_use',
+                            id: `toolu_${step}`,
+                            name: 'search',
+                            input: { q: step }
+                        }
+                    ]
+                });
+                messages.push({
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'tool_result',
+                            toolUseId: `toolu_${step}`,
+                            content: 'ok'
+                        }
+                    ]
+                });
+            }
+            return { system: 'You are the copilot.', messages, maxOutputTokens: 512 };
+        }
+
+        it('caches the static prefix on the system block, which covers the tools', async () => {
+            // Render order is tools -> system -> messages, so one breakpoint at
+            // the end of system caches both. That prefix is identical on every
+            // step of a run, and it is the expensive half.
+            await drain(
+                createAnthropicProvider(config).stream({
+                    ...request,
+                    system: 'You are the copilot.',
+                    tools: [
+                        {
+                            name: 'search',
+                            description: 'Search entries',
+                            inputSchema: { type: 'object' }
+                        }
+                    ]
+                })
+            );
+
+            expect(systemBreakpoint()).toEqual({ type: 'ephemeral' });
+            // Not on the tools as well — that would spend a second breakpoint
+            // on a prefix the system block already covers.
+            const tools = lastParams()['tools'] as Record<string, unknown>[];
+            expect(tools[0]).not.toHaveProperty('cache_control');
+        });
+
+        it('falls back to the last tool when the run has no system prompt', async () => {
+            // Without a system block the tools ARE the end of the static
+            // prefix, and marking one of them is the only way to cache them.
+            await drain(
+                createAnthropicProvider(config).stream({
+                    ...request,
+                    tools: [
+                        {
+                            name: 'search',
+                            description: 'Search entries',
+                            inputSchema: { type: 'object' }
+                        },
+                        {
+                            name: 'read',
+                            description: 'Read an entry',
+                            inputSchema: { type: 'object' }
+                        }
+                    ]
+                })
+            );
+
+            const tools = lastParams()['tools'] as Record<string, unknown>[];
+            expect(tools[0]).not.toHaveProperty('cache_control');
+            expect(tools[1]['cache_control']).toEqual({ type: 'ephemeral' });
+        });
+
+        it('rolls a breakpoint onto the newest turn, so the next step reads it', async () => {
+            await drain(createAnthropicProvider(config).stream(loopOf(2)));
+
+            const messages = lastParams()['messages'] as unknown[];
+            expect(messageBreakpoints()).toContain(messages.length - 1);
+        });
+
+        it('keeps every breakpoint within the API\u2019s 20-block lookback', async () => {
+            // A breakpoint walks back at most 20 content blocks looking for the
+            // previous entry; past that it misses silently and the run pays
+            // full price with no error to notice. A long run must therefore
+            // carry intermediate breakpoints, not just one on the newest turn.
+            //
+            // Sized to fit the three-breakpoint budget, so every gap is
+            // measurable inside this one request. Past that the chain is
+            // carried BETWEEN requests instead — the oldest breakpoint of step
+            // n reaches the entry a breakpoint of step n-1 wrote — which is the
+            // same rule, but not a property one request can be asked about.
+            await drain(createAnthropicProvider(config).stream(loopOf(20)));
+
+            const messages = lastParams()['messages'] as {
+                content: unknown[];
+            }[];
+            const blocksBefore = (index: number) =>
+                messages
+                    .slice(0, index)
+                    .reduce((sum, message) => sum + message.content.length, 0);
+
+            const gaps = messageBreakpoints()
+                .map(blocksBefore)
+                .sort((a, b) => a - b)
+                .map((position, index, positions) =>
+                    index === 0 ? position : position - positions[index - 1]
+                );
+            expect(Math.max(...gaps)).toBeLessThan(20);
+        });
+
+        it('never exceeds the API\u2019s four-breakpoint ceiling', async () => {
+            // Five would be a 400 on every single request.
+            await drain(createAnthropicProvider(config).stream(loopOf(60)));
+
+            expect(messageBreakpoints().length + 1).toBeLessThanOrEqual(4);
+        });
+
+        it('sends no cache_control at all when the host opts out', async () => {
+            // The escape hatch for a gateway that rejects the field. Opting out
+            // must also put `system` back to a bare string.
+            await drain(
+                createAnthropicProvider({
+                    ...config,
+                    promptCaching: false
+                }).stream(loopOf(3))
+            );
+
+            expect(lastParams()['system']).toBe('You are the copilot.');
+            expect(messageBreakpoints()).toEqual([]);
         });
     });
 

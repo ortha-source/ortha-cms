@@ -21,6 +21,7 @@ import {
     scriptCopilot
 } from '../../support/copilot';
 import { FixtureToolProvider } from '../../support/copilot-fixture-tools';
+import { DEFAULT_RUN_LIMITS } from '@ortha-cms/copilot-domain';
 import { assembledText, framesOfType, parseSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
@@ -520,17 +521,24 @@ describe('Copilot chat (POST /api/copilot/runs)', () => {
         });
 
         it('stops with max-steps when the model never stops calling tools', async () => {
-            // Nine distinct calls — more than the default ceiling of 8 steps,
-            // and distinct so the repeat guard doesn't end it first.
+            // One more turn than the ceiling allows, and every call distinct so
+            // the repeat guard doesn't end the run first. Counted off
+            // `DEFAULT_RUN_LIMITS` rather than written out: the ceiling is
+            // tuned for whatever the copilot is being asked to do this quarter,
+            // and a literal here turns a raised default into a test that passes
+            // for the wrong reason — the run ending on `end`, not `max-steps`.
             scriptCopilot(
-                ...Array.from({ length: 9 }, (_, index) => ({
-                    toolCalls: [
-                        {
-                            name: 'fixture.readThing',
-                            input: { q: `query-${index}` }
-                        }
-                    ]
-                }))
+                ...Array.from(
+                    { length: DEFAULT_RUN_LIMITS.maxSteps + 1 },
+                    (_, index) => ({
+                        toolCalls: [
+                            {
+                                name: 'fixture.readThing',
+                                input: { q: `query-${index}` }
+                            }
+                        ]
+                    })
+                )
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 

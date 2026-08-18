@@ -422,7 +422,7 @@ a scripted fake.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Script 9 turns, each asking for a *distinct* tool call, default `maxSteps: 8` | The run ends with `done.stopReason = "max-steps"` after exactly 8 model calls |
+| 1 | Script `DEFAULT_RUN_LIMITS.maxSteps + 1` turns, each asking for a *distinct* tool call | The run ends with `done.stopReason = "max-steps"` after exactly `maxSteps` model calls |
 | 2 | Restart with `COPILOT_MAX_STEPS=3` and repeat | Ends after 3 |
 | 3 | `COPILOT_MAX_STEPS=0` | **Suspected:** the `for` loop never runs, the run yields `run-started` then `done` with `max-steps` and no answer. Check the value is refused at construction — `copilot-plugin.ts:53-90` validates `maxOutputTokens` but **not** `limits.maxSteps` |
 
@@ -802,8 +802,8 @@ below is an assertion about that string.
 ### Boundary
 
 - **EC-07 — `maxSteps` exactly reached.** `✅ E2E` `copilot-chat.spec.ts:522`.
-  Note the loop is `step < maxSteps`, so `maxSteps: 8` allows exactly 8 model
-  calls and 8 rounds of tools.
+  Note the loop is `step < maxSteps`, so `maxSteps: n` allows exactly `n` model
+  calls and `n` rounds of tools.
 
 - **EC-08 — `maxSteps: 0` or negative.** `❌ NONE`
   `copilot-plugin.ts:53-90` validates `maxOutputTokens` but never `limits`.

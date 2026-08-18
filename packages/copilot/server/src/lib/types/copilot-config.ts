@@ -28,11 +28,13 @@ export interface CopilotPluginConfig {
      * Optional overrides for the run engine's ceilings. Omitted fields keep
      * `DEFAULT_RUN_LIMITS`.
      *
-     * `maxSteps` is the one an operator actually reaches for: a smaller local
-     * model often needs more tool round trips than a frontier one to answer the
-     * same question, and the default of 8 is tuned for the latter. Raising it
-     * costs tokens rather than safety — every step is still authorized, audited
-     * and bounded by the wall clock and token ceilings.
+     * `maxSteps` is the one an operator reaches for first — a smaller local
+     * model needs more tool round trips than a frontier one to answer the same
+     * question — but raising it alone rarely helps, because all three are
+     * checked in the same loop and a run that no longer runs out of steps runs
+     * out of seconds instead. Move them together. Raising them costs tokens
+     * rather than safety: every step is still authorized and audited, and a
+     * `propose` tool still records its row before it applies anything.
      */
     limits?: Partial<RunLimits>;
 }
