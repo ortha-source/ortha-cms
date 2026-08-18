@@ -43,10 +43,12 @@ import { useEntryRelations } from '../../../../application/useEntryRelations';
 import { useEntryMedia } from '../../../../application/useEntryMedia';
 import { entryIssuesFrom } from '../../../../infrastructure/entryIssues';
 import { fieldLabel } from '../../../../domain/entryColumns';
+import { entryTabForField } from '../../../../domain/entryTab';
 import { toRelationIds } from '../../../../domain/relationIds';
 import { EntryActions } from './EntryActions';
 import { EntryFieldSections } from './EntryFieldSections';
 import { EntrySidebar, type PublishGateItem } from './EntrySidebar';
+import { EntryTabIssues } from './EntryTabIssues';
 import { HistoryTimeline } from './HistoryTimeline';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 import { RelationFieldSection } from './RelationFieldSection';
@@ -494,6 +496,39 @@ export function EntryEditor({
         [fieldGate, relationGate]
     );
 
+    // Which tabs still hold something that blocks publishing — what the tab bar
+    // marks with an asterisk. A set, not a tally: the marker says *that* a tab
+    // has outstanding fields, and the rail beside it is where the list of them
+    // already lives.
+    //
+    // Same rule as `fieldGate`, resolved to a tab instead of a label: a field
+    // counts when the strict (required-enforced) errors name it, which is
+    // exactly the set the rail lists as failing. Reading `form.errors` rather
+    // than the gate keeps the field in hand, and the field is what knows its
+    // tab; the gate items are already flattened to labels by then.
+    //
+    // `form.errors` is live and ungated by `submitted`, so a new entry shows
+    // its markers from the moment it opens. That is deliberate and matches the
+    // rail beside it, which has always listed the same unmet fields before the
+    // first save — the marker says "this is what publishing still wants", not
+    // "you got something wrong just now".
+    const unmetTabs = useMemo<Set<string>>(() => {
+        const slugs = new Set<string>();
+        for (const field of visible) {
+            if (validationIgnored.has(field.name)) continue;
+            if (!form.errors[field.name]) continue;
+            slugs.add(entryTabForField(field));
+        }
+        // The link-managed required relations, which never reach the values bag
+        // and so are missing from `form.errors` entirely. `relationGate` has
+        // already done that work; every item in it is a relation, so every
+        // failure belongs to the Relations tab.
+        if (relationGate.some((item) => !item.ok)) {
+            slugs.add(ENTRY_TAB.Relations);
+        }
+        return slugs;
+    }, [form.errors, visible, validationIgnored, relationGate]);
+
     // The staged relation deltas to send with the save — only fields with a
     // pending change, serialized to the wire shape. Undefined when nothing staged.
     const relationsPayload = (): Record<string, RelationDelta> | undefined => {
@@ -552,11 +587,9 @@ export function EntryEditor({
         const first =
             visible.find((field) => blocking[field.name]) ??
             schema.fields.find((field) => blocking[field.name]);
-        if (first?.type === CONTENT_FIELD_TYPE.Relation)
-            onTabChange(ENTRY_TAB.Relations);
-        else if (first?.type === CONTENT_FIELD_TYPE.Media)
-            onTabChange(ENTRY_TAB.Media);
-        else onTabChange(ENTRY_TAB.General);
+        // Through the shared mapping, so the tab this jumps to is always the
+        // tab the bar just marked.
+        onTabChange(first ? entryTabForField(first) : ENTRY_TAB.General);
         toast.error(
             intl.formatMessage(
                 publish ? messages.publishBlocked : messages.saveBlocked,
@@ -825,6 +858,11 @@ export function EntryEditor({
                                                 {intl.formatMessage(
                                                     messages.tabGeneral
                                                 )}
+                                                <EntryTabIssues
+                                                    unmet={unmetTabs.has(
+                                                        ENTRY_TAB.General
+                                                    )}
+                                                />
                                             </TabsTrigger>
                                             <TabsTrigger
                                                 value={ENTRY_TAB.Relations}
@@ -832,6 +870,11 @@ export function EntryEditor({
                                                 {intl.formatMessage(
                                                     messages.tabRelations
                                                 )}
+                                                <EntryTabIssues
+                                                    unmet={unmetTabs.has(
+                                                        ENTRY_TAB.Relations
+                                                    )}
+                                                />
                                             </TabsTrigger>
                                             {tabItems.map((item) => (
                                                 <TabsTrigger
@@ -841,6 +884,11 @@ export function EntryEditor({
                                                     {intl.formatMessage(
                                                         item.label
                                                     )}
+                                                    <EntryTabIssues
+                                                        unmet={unmetTabs.has(
+                                                            item.slug
+                                                        )}
+                                                    />
                                                 </TabsTrigger>
                                             ))}
                                             <TabsTrigger
