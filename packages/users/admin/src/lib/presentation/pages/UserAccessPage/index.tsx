@@ -17,6 +17,7 @@ import { useSetMemberStatus } from '../../../application/useSetMemberStatus';
 import { useUserDetailContext } from '../../userDetailContext';
 import { MemberEntity } from '../../../domain/member';
 import { ConfirmDialog } from '@ortha-cms/design-system';
+import { PasswordResetCard } from '../../components/PasswordResetCard';
 
 /** Intl descriptors for {@link UserAccessPage}, co-located with the component. */
 const messages = defineMessages({
@@ -94,11 +95,20 @@ const messages = defineMessages({
 });
 
 /**
- * The Access tab: suspend or reactivate a member's sign-in. Mirrors the
- * server's lifecycle — only `active` can be suspended, only `disabled`
- * reactivated, and `pending` (un-accepted invite) is read-only. The last
- * active admin and your own account can't be suspended; the button explains
- * why instead of failing on submit.
+ * The Access tab: everything that governs whether — and how — this member gets
+ * into the product. Two cards:
+ *
+ * - **sign-in access** — suspend or reactivate. Mirrors the server's lifecycle:
+ *   only `active` can be suspended, only `disabled` reactivated, and `pending`
+ *   (un-accepted invite) is read-only. The last active admin and your own
+ *   account can't be suspended; the button explains why instead of failing on
+ *   submit.
+ * - **password** — generate a single-use reset link for the member
+ *   ({@link PasswordResetCard}).
+ *
+ * The two belong on one tab because they answer the same question from either
+ * side: this is where an admin goes when someone can't get in, whether the
+ * reason is that they were locked out or that they forgot their password.
  */
 export function UserAccessPage() {
     const intl = useIntl();
@@ -122,10 +132,22 @@ export function UserAccessPage() {
               : null;
 
     const card = isPending
-        ? { icon: MailCheck, title: messages.pendingTitle, body: messages.pendingBody }
+        ? {
+              icon: MailCheck,
+              title: messages.pendingTitle,
+              body: messages.pendingBody
+          }
         : isDisabled
-          ? { icon: Ban, title: messages.disabledTitle, body: messages.disabledBody }
-          : { icon: ShieldCheck, title: messages.activeTitle, body: messages.activeBody };
+          ? {
+                icon: Ban,
+                title: messages.disabledTitle,
+                body: messages.disabledBody
+            }
+          : {
+                icon: ShieldCheck,
+                title: messages.activeTitle,
+                body: messages.activeBody
+            };
     const Icon = card.icon;
 
     const run = () => {
@@ -152,58 +174,69 @@ export function UserAccessPage() {
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Icon aria-hidden className="size-5 text-muted-foreground" />
-                    {intl.formatMessage(card.title)}
-                </CardTitle>
-                <CardDescription>
-                    {intl.formatMessage(card.body)}
-                </CardDescription>
-            </CardHeader>
-            {!isPending ? (
-                <CardContent className="space-y-3">
-                    {blockedReason ? (
-                        <Alert>
-                            <AlertDescription>
-                                {intl.formatMessage(blockedReason)}
-                            </AlertDescription>
-                        </Alert>
-                    ) : null}
-                    <Button
-                        variant={isDisabled ? 'default' : 'outline'}
-                        onClick={() => setConfirming(true)}
-                        disabled={blockedReason !== null || setStatus.isPending}
-                    >
-                        {intl.formatMessage(
-                            isDisabled ? messages.reactivate : messages.suspend
-                        )}
-                    </Button>
-                </CardContent>
-            ) : null}
+        <div className="flex flex-col gap-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Icon
+                            aria-hidden
+                            className="size-5 text-muted-foreground"
+                        />
+                        {intl.formatMessage(card.title)}
+                    </CardTitle>
+                    <CardDescription>
+                        {intl.formatMessage(card.body)}
+                    </CardDescription>
+                </CardHeader>
+                {!isPending ? (
+                    <CardContent className="space-y-3">
+                        {blockedReason ? (
+                            <Alert>
+                                <AlertDescription>
+                                    {intl.formatMessage(blockedReason)}
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
+                        <Button
+                            variant={isDisabled ? 'default' : 'outline'}
+                            onClick={() => setConfirming(true)}
+                            disabled={
+                                blockedReason !== null || setStatus.isPending
+                            }
+                        >
+                            {intl.formatMessage(
+                                isDisabled
+                                    ? messages.reactivate
+                                    : messages.suspend
+                            )}
+                        </Button>
+                    </CardContent>
+                ) : null}
 
-            <ConfirmDialog
-                open={confirming}
-                onOpenChange={setConfirming}
-                busy={setStatus.isPending}
-                title={intl.formatMessage(
-                    isDisabled
-                        ? messages.confirmReactivateTitle
-                        : messages.confirmSuspendTitle,
-                    { name: member.name }
-                )}
-                description={intl.formatMessage(
-                    isDisabled
-                        ? messages.confirmReactivateBody
-                        : messages.confirmSuspendBody
-                )}
-                confirmLabel={intl.formatMessage(
-                    isDisabled ? messages.reactivate : messages.suspend
-                )}
-                confirmVariant={isDisabled ? 'default' : 'destructive'}
-                onConfirm={run}
-            />
-        </Card>
+                <ConfirmDialog
+                    open={confirming}
+                    onOpenChange={setConfirming}
+                    busy={setStatus.isPending}
+                    title={intl.formatMessage(
+                        isDisabled
+                            ? messages.confirmReactivateTitle
+                            : messages.confirmSuspendTitle,
+                        { name: member.name }
+                    )}
+                    description={intl.formatMessage(
+                        isDisabled
+                            ? messages.confirmReactivateBody
+                            : messages.confirmSuspendBody
+                    )}
+                    confirmLabel={intl.formatMessage(
+                        isDisabled ? messages.reactivate : messages.suspend
+                    )}
+                    confirmVariant={isDisabled ? 'default' : 'destructive'}
+                    onConfirm={run}
+                />
+            </Card>
+
+            <PasswordResetCard member={member} />
+        </div>
     );
 }

@@ -53,6 +53,32 @@ export type AcceptInviteInput = {
 };
 
 /**
+ * Whose password a reset link sets, as returned by
+ * `GET /api/auth/reset/:token`. Shown on the reset screen so the person
+ * following a link handed to them out-of-band can confirm it is for the right
+ * account before they commit a password to it.
+ */
+export type PasswordResetDetails = {
+    /** The email of the account the link resets. */
+    email: string;
+    /** The account's display name, or `null` when it has none. */
+    name: string | null;
+};
+
+/**
+ * What the reset form submits. The password is typed twice — the link is
+ * single-use, so a mistyped password cannot be corrected by opening it again.
+ */
+export type ResetPasswordInput = {
+    /** The raw one-time token lifted from the reset link's `?token=`. */
+    token: string;
+    /** The password to set as this account's credential. */
+    password: string;
+    /** Re-typed password; must equal `password`. */
+    confirmPassword: string;
+};
+
+/**
  * Token pair returned from a successful login.
  */
 export type AuthTokens = {

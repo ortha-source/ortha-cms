@@ -68,6 +68,22 @@ export interface InvitedMemberView extends MemberView {
     inviteToken: string;
 }
 
+/**
+ * A member plus the one-time password-reset token just issued for them — the
+ * response of `POST /api/users/:id/password-reset`, and **only** that route.
+ * Every other read returns a plain {@link MemberView}, so a token never leaks
+ * into a route that merely displays members.
+ *
+ * The token is the secret half of the reset link. Only its hash is stored, so
+ * this response is the single moment it exists in readable form — the admin
+ * copies the link from here and delivers it themselves. Once a mailer lands
+ * (identity epic #11) the link is emailed and this field can go.
+ */
+export interface PasswordResetMemberView extends MemberView {
+    /** The raw reset token, shown to the issuing admin exactly once. */
+    resetToken: string;
+}
+
 /** One page of members, as returned by `GET /api/users`. */
 export interface MemberListView {
     /** The members on this page. */

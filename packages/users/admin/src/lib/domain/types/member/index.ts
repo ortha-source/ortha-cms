@@ -71,6 +71,18 @@ export type InvitedMember = Member & {
     inviteToken: string;
 };
 
+/**
+ * A member the API just issued a password-reset token for — the response of
+ * `POST /users/:id/password-reset`, and nothing else. No mailer sends the link
+ * yet, so the issuing admin is the delivery channel: the token comes back once,
+ * is turned into a link for them to hand over, and is never readable again (the
+ * server stores only its hash).
+ */
+export type MemberWithResetToken = Member & {
+    /** The raw password-reset token, shown to the issuing admin exactly once. */
+    resetToken: string;
+};
+
 /** One page of members plus the pagination envelope. */
 export type MemberList = {
     /** The members on this page. */

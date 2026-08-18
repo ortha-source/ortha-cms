@@ -29,7 +29,21 @@ cannot be used to probe for live invites. The one-time guarantee is a
 **conditional** `consumedAt` write in `DrizzleInviteRepository.consume` — of two
 concurrent accepts exactly one gets a row back, so a link can never activate an
 account twice. Issuing invites stays with the users context; identity owns the
-`tokens` table and the redemption. It also **provisions the root
+`tokens` table and the redemption. It also handles **password reset** — the redemption half of the
+admin-driven flow (`users-server` mints the link): `GET /auth/reset/:token`
+names the account a link opens (read-only, so opening it twice is fine) and
+`POST /auth/reset` sets the new credential and revokes **every** live session
+the account holds. Both are `@Public()` + throttled; the redemption also passes
+`OriginGuard`. It deliberately issues **no** session — the caller has proven
+only that they hold a link, so they finish at the sign-in form — and it accepts
+only an `active` account: a `pending` one has no credential to rotate (that is
+the invite flow) and a `disabled` one is locked out by design, so resetting it
+would quietly reopen a path an admin closed. Every failure mode raises the same
+`InvalidResetTokenError` and renders as one bare 404. The one-time guarantee is
+the same conditional `consumedAt` write the invite path uses, and the `reset`
+rows of `tokens` are reached through their own `PasswordResetRepository` port
+whose `type = 'reset'` predicate is load-bearing: an invite token must never
+open the reset path. It also **provisions the root
 admin** on boot from host config (`root-admin/`, FR-10): when `rootAdmin` is
 set, `RootAdminService` (driven by `RootAdminSeeder`) idempotently ensures one
 `active` user holding the `admin` role (non-destructive — an existing email is
@@ -62,6 +76,7 @@ domain/          # framework-free core — the one hard rule below
   user-account.ts                  # UserAccount aggregate (status lifecycle + credential)
   user-account.repository.ts       # UserAccountRepository PORT + USER_ACCOUNT_REPOSITORY
   invite.repository.ts             # InviteRepository PORT + INVITE_REPOSITORY (find + burn)
+  password-reset.repository.ts     # PasswordResetRepository PORT + PASSWORD_RESET_REPOSITORY
   session.ts                       # Session entity (validity, framework-free)
   session-policy.ts                # SessionPolicy (expiry + lastUsedAt throttle rules)
   session.repository.ts            # SessionRepository PORT + SESSION_REPOSITORY
@@ -72,9 +87,10 @@ domain/          # framework-free core — the one hard rule below
 application/     # orchestration — one use case per state change
   use-cases/                       # login / logout / refresh-session / change-password
                                    # + describe-invite / accept-invite
+                                   # + describe-password-reset / reset-password
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleUserAccountRepository, UserAccountMapper, DrizzleSessionRepository,
-                # DrizzleInviteRepository
+                # DrizzleInviteRepository, DrizzlePasswordResetRepository
   queries/      # UserLookupQuery (thin auth/credentials read side)
 ```
 
@@ -104,7 +120,10 @@ lint isn't wired yet — self-enforce it.
   a week. `keepSessionId` spares the caller's own device. The
   `user.password_changed` event carries the actor and the eviction count, and
   the activity plugin's audit subscriber maps it to a `user.password_changed`
-  row. No HTTP route wires it yet; `apps/server-e2e/.../change-password.spec.ts`
+  row. `ResetPasswordUseCase` applies the same rule from the reset link, and
+  spares **nothing** — there is no "caller's own device" when the caller is
+  unauthenticated. `ChangePasswordUseCase` itself still has no HTTP route (the
+  self-service change lands later); `apps/server-e2e/.../change-password.spec.ts`
   drives it out of DI so the flow is not left unexercised until one appears.
 - **`Session`** is an entity + **`SessionPolicy`** holds the expiry and
   `lastUsedAt`-refresh-throttle rules lifted out of the old session service into
@@ -125,6 +144,16 @@ lint isn't wired yet — self-enforce it.
 - `SessionRepository` (`SESSION_REPOSITORY`) → `DrizzleSessionRepository` over the
   `sessions` table — the SHA-256-hashed-token store the old `SessionService`
   was, now behind a port and using `SessionPolicy` for expiry.
+- `PasswordResetRepository` (`PASSWORD_RESET_REPOSITORY`) →
+  `DrizzlePasswordResetRepository` over the `reset` rows of `tokens`. The same
+  two operations as the invite port, kept separate because the two flows
+  collapse to different errors and because the `type` predicate is the thing
+  stopping an invite token from redeeming as a reset. `ResetPasswordUseCase`
+  reads the token **before** opening its transaction and again inside it: bcrypt
+  costs ~250ms, so hashing under the transaction would hold a write lock for it,
+  and hashing before looking at the token would let anyone spend that CPU with a
+  junk link. The pre-read is advisory — the conditional `consume` is still what
+  makes the link one-time.
 - `InviteRepository` (`INVITE_REPOSITORY`) → `DrizzleInviteRepository` over the
   `invite` rows of `tokens`. Two operations, both on the accept path:
   `findPendingByTokenHash` (unconsumed **and** unexpired, joined to the user) and
@@ -416,8 +445,13 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   (`src/lib/schema`, `drizzle.config.ts`, the committed `migrations/`), which
   `db:generate` produces.
 - **Email / SMTP** — identity emits events / exposes a port; the host delivers
-  (#11). Until then nothing sends an invite link: `users-server` returns the raw
-  token from the mint endpoints and the admin hands the link over.
+  (#11). Until then nothing sends an invite **or reset** link: `users-server`
+  returns the raw token from the mint endpoints and the admin hands the link
+  over. This is also why there is no self-service "forgot password" route — a
+  public form that mints a link has nowhere to send it, and returning the token
+  to whoever asked would hand any anonymous caller a takeover link for any email
+  they can name. The recovery path therefore runs through an admin, who can be
+  asked to vouch for the person, until a mailer exists.
 - **CLI** — root-admin bootstrap is env/config-driven (`RootAdminService.ensure`
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.

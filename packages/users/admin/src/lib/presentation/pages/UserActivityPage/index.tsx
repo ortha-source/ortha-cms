@@ -121,6 +121,10 @@ const KIND_STYLE: Record<string, { icon: ActivityIcon; className: string }> = {
         icon: KeyRound,
         className: 'bg-violet-500/10 text-violet-600'
     },
+    'user.password_reset_issued': {
+        icon: KeyRound,
+        className: 'bg-amber-500/10 text-amber-600'
+    },
     'user.signed_in': {
         icon: LogIn,
         className: 'bg-slate-500/10 text-slate-600'

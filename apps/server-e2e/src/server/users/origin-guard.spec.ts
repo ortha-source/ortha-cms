@@ -6,6 +6,7 @@ import {
 } from '../../support/test-app';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
+    getResetTokenHashes,
     resetDb,
     seedActiveUser,
     seedUser,
@@ -244,6 +245,36 @@ describe('OriginGuard — users-server state-changing routes', () => {
                 .delete(`/api/users/${pending.id}/invites`)
                 .set('Origin', TEST_ALLOWED_ORIGIN)
                 .expect(204);
+        });
+    });
+
+    describe('POST /api/users/:id/password-reset', () => {
+        it('rejects a disallowed Origin with 403, minting no link', async () => {
+            const target = await seedUser(harness.app, {
+                email: 'reset-victim@example.com',
+                role: 'viewer',
+                status: 'active'
+            });
+            const agent = await login();
+            await agent
+                .post(`/api/users/${target.id}/password-reset`)
+                .set('Origin', EVIL_ORIGIN)
+                .expect(403);
+
+            expect(await getResetTokenHashes(target.id)).toHaveLength(0);
+        });
+
+        it('allows the configured app origin', async () => {
+            const target = await seedUser(harness.app, {
+                email: 'reset-ok@example.com',
+                role: 'viewer',
+                status: 'active'
+            });
+            const agent = await login();
+            await agent
+                .post(`/api/users/${target.id}/password-reset`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(201);
         });
     });
 

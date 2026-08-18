@@ -4,7 +4,9 @@ The identity **plugin** for the Ortha CMS admin UI — the admin-side counterpar
 to [`@ortha-cms/identity-server`](../server/AGENTS.md). It contributes the
 identity screens into the admin host. It ships the **login UI** at
 `/identity/signin` (wired to `POST /api/auth/login` via `useLoginMutation`), the
-**accept-invite UI** at `/identity/accept-invite?token=…`, and
+**accept-invite UI** at `/identity/accept-invite?token=…`, the
+**reset-password UI** at `/identity/reset-password?token=…` (the far end of the
+link an admin generates on a member's Access tab), and
 **owns the entire admin auth kit**: the auth context (`AuthState`, `useAuth`,
 `AuthProviderContext`), the `AuthProvider` that fetches `GET /api/auth/me`
 (`useCurrentUser`) and publishes the current user, and the `RequireAuth` route
@@ -22,8 +24,8 @@ proportionate to its small surface (it has no client domain rules; the server
 owns auth). `src/lib` is organized into:
 
 - **`domain/`** — an `Email` value object for instant login-field validation and
-  a `Password` one carrying the length rule the accept form mirrors from the
-  server. Pure TS, no React.
+  a `Password` one carrying the length rule the accept **and reset** forms mirror
+  from the server. Pure TS, no React.
 - **`infrastructure/`** — the `authGateway` port + `httpAuthGateway`
   implementation (the sole `apiClient` user: login, logout, current-user).
 - **`application/`** — the data hooks (`useLoginMutation` / `useLogoutMutation` /
@@ -113,11 +115,20 @@ owns auth). `src/lib` is organized into:
   assembled by the host in `apps/admin/src/main.tsx`.
 - **Nested routing.** The plugin contributes one wildcard route `/identity/*`
   whose element is `IdentityRouter`, a `react-router-dom` `<Routes>` that owns
-  the sub-paths (`signin` and `accept-invite`, with `/identity` →
-  `/identity/signin`). New auth pages (signup, password reset) are added inside
-  that router, not the host. `accept-invite` takes its token from the **query
-  string** (`?token=…`), never a path segment, so the secret is not part of a
-  route pattern.
+  the sub-paths (`signin`, `accept-invite` and `reset-password`, with
+  `/identity` → `/identity/signin`). New auth pages are added inside that
+  router, not the host. Both token-bearing pages take their token from the
+  **query string** (`?token=…`), never a path segment, so the secret is not part
+  of a route pattern.
+
+  **`reset-password` deliberately does not end signed in.** Accepting an invite
+  lands the invitee inside the app, because the server sets a session cookie on
+  the way; the reset redemption sets none — it revokes every session on the
+  account instead — so the page finishes on a confirmation that hands off to the
+  sign-in form. The success state is also checked *before* the link-lookup
+  states, because the token is spent by definition once the reset succeeds and a
+  refetch would otherwise replace that confirmation with "this link no longer
+  works".
 - **Presentation vs. container.** `LoginForm` is presentation only: it manages
   field state with TanStack Form and delegates submission to an
   `onSubmit(credentials)` prop, with `isPending`/`error` props driving the button
@@ -252,7 +263,8 @@ createAdmin({
   shares with the server.
 - **End-to-end** — everything above `domain/` is covered from the browser in
   [`apps/admin-e2e/src/auth`](../../../apps/admin-e2e/AGENTS.md) (`login`,
-  `logout`, `accept-invite`, `private-routes`, `routing`, plus the `a11y` and
+  `logout`, `accept-invite`, `reset-password`, `private-routes`, `routing`,
+  plus the `a11y` and
   `keyboard` suites), against mocked `/api` routes. Prefer adding there over
   unit-testing a hook or a page: the states worth guarding — an outage, a dead
   link, a stale cache after a session change — only exist once the router, the

@@ -95,7 +95,8 @@ tab bar (design-system `TabNav`) above the active tab. Six tab pages:
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses
 `@ortha-cms/activity-admin`'s `useActivityLog`, pinned to `subjectId`),
-**Access** (suspend/reactivate), and **Preferences** (`UserPreferencesPage` —
+**Access** (suspend/reactivate **plus the password-reset link**), and
+**Preferences** (`UserPreferencesPage` —
 the colour-theme picker Light/Dark/System over `/api/preferences`, applied
 optimistically through the design-system `AppearanceProvider`). The Audit
 (Sessions, Activity) and Access tabs are permission-gated **at the route
@@ -156,6 +157,31 @@ dismissal with a warning; once copied it closes freely. The wizard's `InviteSent
 step registers with the app-wide `useUnsavedChanges` guard for the same reason —
 that covers links, programmatic navigation and reload (`beforeunload`), which no
 component here could intercept on its own.
+
+## The password-reset link hand-off
+
+The Access tab's `PasswordResetCard` mints a single-use reset link for an
+**active** member and reveals it through `PasswordResetLinkDialog` /
+`PasswordResetLinkPanel` — the same reveal-once shape as the invite pair,
+because it is the same situation: no mailer exists, so the admin is the delivery
+channel and the raw token is readable exactly once.
+
+Three details are deliberate:
+
+- **The card gates itself on status.** A `pending` member has no password to
+  reset (resend their invite) and a `disabled` one cannot sign in, so the button
+  locks with the reason rather than letting the server 409 a click that was
+  never going to work.
+- **The dismissal guard matters more here than for invites.** The server refuses
+  a second mint for a minute (`PASSWORD_RESET_RECENTLY_SENT`), so closing the
+  dialog without copying is not even immediately recoverable — the dialog
+  intercepts the first uncopied dismissal, exactly like `InviteLinkDialog`.
+- **The 409 is read, not flattened.** `PASSWORD_RESET_RECENTLY_SENT` carries
+  `retryAfterSeconds`, so the toast says how long to wait; anything else falls
+  back to the generic conflict message.
+
+`passwordResetLinkFor(token)` builds the URL the same way `inviteLinkFor` does,
+and points at identity's `/identity/reset-password` route.
 
 ## Conventions
 

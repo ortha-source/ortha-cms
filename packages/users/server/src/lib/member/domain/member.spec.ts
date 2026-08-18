@@ -149,6 +149,27 @@ describe('Member aggregate', () => {
         });
     });
 
+    describe('ensureCanResetPassword', () => {
+        it('passes for an active member', () => {
+            const member = rehydrated({ status: 'active' });
+            expect(() => member.ensureCanResetPassword()).not.toThrow();
+        });
+
+        it('rejects a pending member — there is no password to reset yet', () => {
+            const member = rehydrated({ status: 'pending' });
+            expect(() => member.ensureCanResetPassword()).toThrow(
+                InvalidMemberStateError
+            );
+        });
+
+        it('rejects a disabled member — a reset must not reopen a closed account', () => {
+            const member = rehydrated({ status: 'disabled' });
+            expect(() => member.ensureCanResetPassword()).toThrow(
+                InvalidMemberStateError
+            );
+        });
+    });
+
     describe('revokeInvite', () => {
         it('raises member.removed for a pending member', () => {
             const member = rehydrated({ status: 'pending' });

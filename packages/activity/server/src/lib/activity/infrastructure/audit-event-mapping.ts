@@ -45,6 +45,15 @@ interface AuditFacet {
 const USER_AUDIT_KINDS = {
     INVITED: 'user.invited',
     INVITE_RESENT: 'user.invite_resent',
+    /**
+     * An admin minted a one-time password-reset link for a member. Recorded at
+     * **issue** time, not at redemption: handing someone a link that can take
+     * over an account is an administrative act in its own right, and it needs
+     * to be attributed to the admin who performed it even if the link is never
+     * used. The redemption shows up separately as `user.password_changed`,
+     * actored by the account holder.
+     */
+    PASSWORD_RESET_ISSUED: 'user.password_reset_issued',
     INVITE_REVOKED: 'user.invite_revoked',
     PROFILE_UPDATED: 'user.profile_updated',
     ROLE_CHANGED: 'user.role_changed',
@@ -269,6 +278,7 @@ function payloadWithoutActor(event: DomainEvent): Record<string, unknown> {
  * | `workspace.content_revoked`| `workspace.content_revoked`| workspace / `{ slug }`                           |
  * | `member.invited`           | `user.invited`            | user / `{ email }`                               |
  * | `member.invite_resent`     | `user.invite_resent`      | user / `{ email }`                               |
+ * | `member.password_reset_issued` | `user.password_reset_issued` | user / `{ email }`                     |
  * | `member.removed`           | `user.invite_revoked`     | user / `{ email }`                               |
  * | `member.profile_updated`   | `user.profile_updated`    | user / `{ name: { from, to } }`                  |
  * | `member.role_changed`      | `user.role_changed`       | user / `{ from, to }`                            |
@@ -328,6 +338,10 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
         userSubject(e, USER_AUDIT_KINDS.INVITE_RESENT, {
             email: nullableString(e.payload.email)
         }),
+    'member.password_reset_issued': (e) =>
+        userSubject(e, USER_AUDIT_KINDS.PASSWORD_RESET_ISSUED, {
+            email: nullableString(e.payload.email)
+        }),
     'member.removed': (e) =>
         userSubject(e, USER_AUDIT_KINDS.INVITE_REVOKED, {
             email: nullableString(e.payload.email)
@@ -359,8 +373,7 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // recorded that an invited person signed in, but never that the account
     // itself went from `pending` to `active` and gained a credential. Those are
     // different facts and a security review wants the first one.
-    'user.activated': (e) =>
-        userSubject(e, USER_AUDIT_KINDS.ACTIVATED, null),
+    'user.activated': (e) => userSubject(e, USER_AUDIT_KINDS.ACTIVATED, null),
 
     'auth.signed_in': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),

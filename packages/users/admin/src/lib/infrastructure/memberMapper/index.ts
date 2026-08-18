@@ -8,6 +8,7 @@ import type {
     Member,
     MemberRole,
     MemberStatus,
+    MemberWithResetToken,
     MemberWorkspace
 } from '../../domain/types/member';
 
@@ -99,6 +100,25 @@ export function toMember(dto: MemberResponse): Member {
  */
 export function toInvitedMember(dto: InvitedMemberResponse): InvitedMember {
     return { ...toMember(dto), inviteToken: dto.inviteToken };
+}
+
+/**
+ * A member as returned by the one endpoint that mints a password-reset token
+ * (`POST /users/:id/password-reset`). Identical to {@link MemberResponse} plus
+ * the raw token — the only response that carries one.
+ */
+export type PasswordResetMemberResponse = MemberResponse & {
+    resetToken: string;
+};
+
+/**
+ * Maps a password-reset response to the admin's {@link MemberWithResetToken} —
+ * the mapped member plus the one-time token, carried through verbatim.
+ */
+export function toMemberWithResetToken(
+    dto: PasswordResetMemberResponse
+): MemberWithResetToken {
+    return { ...toMember(dto), resetToken: dto.resetToken };
 }
 
 /** Whether a wire role key is one of the admin's assignable roles. */

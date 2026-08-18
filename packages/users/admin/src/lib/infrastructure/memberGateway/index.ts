@@ -2,7 +2,8 @@ import type {
     InvitedMember,
     Member,
     MemberList,
-    MemberRole
+    MemberRole,
+    MemberWithResetToken
 } from '../../domain/types/member';
 import type { UserSession } from '../../domain/types/session';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
@@ -90,6 +91,13 @@ export type MemberGateway = {
     resendInvite(id: string): Promise<InvitedMember>;
     /** Revokes a pending invite via `DELETE /api/users/:id/invites`. */
     revokeInvite(id: string): Promise<void>;
+    /**
+     * Mints a one-time password-reset link for an active member via
+     * `POST /api/users/:id/password-reset`, resolving with the member and the
+     * raw token (`409` = the member is not active, or one was just issued).
+     * Issuing kills any previous link, so the new one has to reach the member.
+     */
+    issuePasswordReset(id: string): Promise<MemberWithResetToken>;
     /** Edits name/role via `PATCH /api/users/:id` (`409` = last admin). */
     update(input: UpdateMemberInput): Promise<Member>;
     /** Disables or re-enables a member via `POST /api/users/:id/(disable|enable)`. */

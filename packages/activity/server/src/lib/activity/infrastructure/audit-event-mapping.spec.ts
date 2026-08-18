@@ -256,6 +256,20 @@ describe('toAuditRow — event → audit-row parity', () => {
             });
         });
 
+        it('member.password_reset_issued → user.password_reset_issued { email }', () => {
+            const row = toAuditRow(
+                event('member.password_reset_issued', 'member', MEMBER_ID, {
+                    email: 'ada@example.com'
+                })
+            );
+            expect(row).toMatchObject({
+                kind: 'user.password_reset_issued',
+                subjectType: 'user',
+                subjectId: MEMBER_ID,
+                meta: { email: 'ada@example.com' }
+            });
+        });
+
         it('member.removed → user.invite_revoked { email }', () => {
             const row = toAuditRow(
                 event('member.removed', 'member', MEMBER_ID, {
@@ -706,7 +720,7 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 31 expected kinds', () => {
+        it('audits exactly the 32 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'api_token.created',
@@ -727,6 +741,7 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'member.disabled',
                     'member.invite_resent',
                     'member.invited',
+                    'member.password_reset_issued',
                     'member.profile_updated',
                     'member.reactivated',
                     'member.removed',

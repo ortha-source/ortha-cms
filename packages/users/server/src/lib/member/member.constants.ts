@@ -21,3 +21,14 @@ export const FILTER_MAX_LENGTH = 4096;
  * enough that a genuine "that address bounced, try again" is barely delayed.
  */
 export const INVITE_RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * How long after issuing a password-reset link another one is refused.
+ *
+ * Same reasoning as {@link INVITE_RESEND_COOLDOWN_SECONDS}, and the same
+ * failure it prevents: issuing is unconditionally destructive and the raw token
+ * is unrecoverable, so a double-clicked "Generate link" mints a second token,
+ * kills the first, and can leave the admin holding the *first* response's link
+ * — already dead, with no sign that it is.
+ */
+export const PASSWORD_RESET_COOLDOWN_SECONDS = 60;

@@ -81,6 +81,7 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['user.invited', 'user', { email: 'alan@ortha.dev' }],
     ['user.invite_resent', 'user', { email: 'alan@ortha.dev' }],
     ['user.invite_revoked', 'user', { email: 'alan@ortha.dev' }],
+    ['user.password_reset_issued', 'user', { email: 'alan@ortha.dev' }],
     ['user.activated', 'user', null],
     ['user.profile_updated', 'user', { name: { from: 'Ada L', to: 'Ada B' } }],
     ['user.role_changed', 'user', { from: 'viewer', to: 'contributor' }],
@@ -89,20 +90,36 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['user.password_changed', 'user', { sessionsRevoked: 2 }],
     ['user.signed_in', 'user', null],
     ['user.signed_out', 'user', null],
-    ['workspace.created', 'workspace', { name: 'Marketing', slug: 'marketing' }],
+    [
+        'workspace.created',
+        'workspace',
+        { name: 'Marketing', slug: 'marketing' }
+    ],
     ['workspace.updated', 'workspace', { fields: ['name'] }],
     ['workspace.archived', 'workspace', {}],
     ['workspace.unarchived', 'workspace', {}],
     ['workspace.deleted', 'workspace', { name: 'Old', slug: 'old' }],
     ['workspace.member_added', 'user', { workspaceId: 'w_1', email: 'a@b.c' }],
-    ['workspace.member_removed', 'user', { workspaceId: 'w_1', email: 'a@b.c' }],
-    ['workspace.content_granted', 'workspace', { slug: 'author', kind: 'collection' }],
+    [
+        'workspace.member_removed',
+        'user',
+        { workspaceId: 'w_1', email: 'a@b.c' }
+    ],
+    [
+        'workspace.content_granted',
+        'workspace',
+        { slug: 'author', kind: 'collection' }
+    ],
     ['workspace.content_revoked', 'workspace', { slug: 'author' }],
     ['entry.published', 'content_entry', { contentType: 'article' }],
     ['entry.unpublished', 'content_entry', { contentType: 'article' }],
     ['token.created', 'api_token', { name: 'CI', scope: 'full' }],
     ['token.revoked', 'api_token', { name: 'CI', scope: 'full' }],
-    ['media.asset.uploaded', 'media_asset', { name: 'hero.png', kind: 'image' }],
+    [
+        'media.asset.uploaded',
+        'media_asset',
+        { name: 'hero.png', kind: 'image' }
+    ],
     ['media.asset.updated', 'media_asset', { alt: 'A hero' }],
     ['media.asset.moved', 'media_asset', { folderId: 'f_1' }],
     ['media.asset.deleted', 'media_asset', { storageKey: 'w/a/hero.png' }],

@@ -2,6 +2,7 @@ import { test as base } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { LoginPage } from './pages/LoginPage';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { HomePage } from './pages/HomePage';
 import { WorkspacesPage } from './pages/WorkspacesPage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
@@ -82,6 +83,7 @@ export const AXE_KNOWN_GAPS = [
 interface Fixtures {
     loginPage: LoginPage;
     acceptInvitePage: AcceptInvitePage;
+    resetPasswordPage: ResetPasswordPage;
     homePage: HomePage;
     workspacesPage: WorkspacesPage;
     workspaceSettingsPage: WorkspaceSettingsPage;
@@ -118,6 +120,9 @@ export const test = base.extend<Fixtures>({
     },
     acceptInvitePage: async ({ page }, use) => {
         await use(new AcceptInvitePage(page));
+    },
+    resetPasswordPage: async ({ page }, use) => {
+        await use(new ResetPasswordPage(page));
     },
     homePage: async ({ page }, use) => {
         await use(new HomePage(page));

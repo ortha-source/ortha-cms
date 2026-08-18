@@ -2,7 +2,9 @@ import type {
     AcceptInviteInput,
     CurrentUser,
     InviteDetails,
-    LoginCredentials
+    LoginCredentials,
+    PasswordResetDetails,
+    ResetPasswordInput
 } from '../../../types/auth';
 
 /**
@@ -46,4 +48,21 @@ export type AuthGateway = {
      * `400` = the password failed the server's rules).
      */
     acceptInvite(input: AcceptInviteInput): Promise<void>;
+    /**
+     * Resolves a reset link's token to the account it is for via
+     * `GET /api/auth/reset/:token`. Throws an `ApiError` on failure — `404`
+     * covers every dead-link case (unknown, expired, already used, or issued
+     * for an account that is no longer active), which the server deliberately
+     * does not distinguish.
+     */
+    describePasswordReset(token: string): Promise<PasswordResetDetails>;
+    /**
+     * Redeems a reset link via `POST /api/auth/reset`, setting the account's
+     * new password and revoking every session it had open. Unlike
+     * {@link AuthGateway.acceptInvite} this sets **no** session cookie — the
+     * caller proved only that they hold a link, so they finish at the sign-in
+     * form. Throws an `ApiError` (`404` = dead link, `400` = the password
+     * failed the server's rules).
+     */
+    resetPassword(input: ResetPasswordInput): Promise<void>;
 };
