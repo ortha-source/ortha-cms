@@ -198,24 +198,26 @@ back, stop on a final answer or a ceiling. Steps 5–8 repeat.
 `read` runs freely; `propose` produces a reviewable change; `apply` writes
 directly and is off unless workspace policy enables it (ADR-0005 §6).
 
-| Tool                       | Bound by  | Requires           | Effect          |
-| -------------------------- | --------- | ------------------ | --------------- |
-| `admin_content_types`      | content   | `content:read`     | read            |
-| `admin_content_search`     | content   | `content:read`     | read            |
-| `admin_content_get`        | content   | `content:read`     | read            |
-| `admin_content_revisions`  | content   | `content:read`     | read            |
-| `admin_content_diff`       | content   | `content:read`     | read            |
-| `content.exportEntries`    | content   | `content:read`     | read            |
-| `i18n_locales_list`        | i18n      | `content:read`     | read            |
-| `i18n_translations_get`    | i18n      | `content:read`     | read            |
-| `content_propose_create`   | content   | `content:create`   | propose         |
-| `content_propose_update`   | content   | `content:update`   | propose         |
-| `i18n_propose_translation` | i18n      | `content:update`   | propose         |
-| `media_assets_search`      | media     | `media:read`       | read            |
-| `media_propose_alt_text`   | media     | `media:update`     | propose         |
-| `activity_recent`          | activity  | `activity:read`    | read            |
-| `workspace_members_list`   | users     | `users:read`       | read            |
-| `mcp.<connector>.*`        | connector | as mapped by admin | read by default |
+| Tool                            | Bound by  | Requires                            | Effect          |
+| ------------------------------- | --------- | ----------------------------------- | --------------- |
+| `admin_content_types`           | content   | `content:read`                      | read            |
+| `admin_content_search`          | content   | `content:read`                      | read            |
+| `admin_content_get`             | content   | `content:read`                      | read            |
+| `admin_content_revisions`       | content   | `content:read`                      | read            |
+| `admin_content_diff`            | content   | `content:read`                      | read            |
+| `content.exportEntries`         | content   | `content:read`                      | read            |
+| `i18n_locales_list`             | i18n      | `content:read`                      | read            |
+| `i18n_translations_get`         | i18n      | `content:read`                      | read            |
+| `content_propose_create`        | content   | `content:create`                    | propose         |
+| `content_propose_update`        | content   | `content:update`                    | propose         |
+| `content_propose_bulk_save`     | content   | `content:create` + `content:update` | propose         |
+| `i18n_propose_translation`      | i18n      | `content:update`                    | propose         |
+| `i18n_propose_bulk_translation` | i18n      | `content:update`                    | propose         |
+| `media_assets_search`           | media     | `media:read`                        | read            |
+| `media_propose_alt_text`        | media     | `media:update`                      | propose         |
+| `activity_recent`               | activity  | `activity:read`                     | read            |
+| `workspace_members_list`        | users     | `users:read`                        | read            |
+| `mcp.<connector>.*`             | connector | as mapped by admin                  | read by default |
 
 Because the profile is derived from `SYSTEM_ROLES`, the practical effect is:
 

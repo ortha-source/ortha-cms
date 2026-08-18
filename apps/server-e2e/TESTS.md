@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1177 test cases across 79 spec files._
+_1180 test cases across 79 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1552,6 +1552,14 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 | appends a revision, because it went through the ordinary write |
 | merges rather than replacing the untouched fields |
 | reports a failed apply instead of claiming success |
+
+### a batch translation is one change
+
+| Test case |
+| --- |
+| writes every locale, carrying the shared values over |
+| stops at the first failure and says how many landed |
+| refuses a locale the record already has, before writing anything |
 
 ### there is no approval boundary any more
 

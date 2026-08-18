@@ -11,6 +11,33 @@ import { EntryWriterService } from '../entries/infrastructure/persistence/entry-
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
 
+/**
+ * Refuses a create that names a translation group — the shape these tools no
+ * longer offer.
+ *
+ * A create is a whole row: `coerceValues` stamps every declared field, so each
+ * shared field the change did not name arrives as `null`, and the i18n
+ * extension propagates a create's shared columns **outward** onto every sibling
+ * — blanking the record in every other language, and silently so where the
+ * siblings are all drafts. Doing it correctly means inheriting the source row's
+ * shared values at apply time, which is knowledge the i18n plugin owns; hence
+ * `i18n_propose_translation` / `i18n_propose_bulk_translation`.
+ *
+ * The schemas dropped `localeGroupId`, so nothing produces one any more. This
+ * guards the one case that outlives a schema: a proposal drafted before the
+ * change whose apply failed, left `pending`, and is carried out later.
+ */
+function assertStartsItsOwnGroup(localeGroupId: unknown): void {
+    if (typeof localeGroupId === 'string' && localeGroupId.length > 0) {
+        throw new Error(
+            'This change would add a language to an existing record, which a content save ' +
+                'cannot do without blanking the record’s shared fields in every other ' +
+                'language. Translate with i18n_propose_translation or ' +
+                'i18n_propose_bulk_translation instead.'
+        );
+    }
+}
+
 /** Resolves a granted, registered type or throws — shared by both appliers. */
 async function grantedType(
     registry: ContentTypeRegistry,
@@ -66,7 +93,7 @@ export class CreateEntryProposalApplier implements ProposalApplier {
         );
         const values = (input.patch['values'] ?? {}) as Record<string, unknown>;
         const locale = input.target['locale'];
-        const localeGroupId = input.target['localeGroupId'];
+        assertStartsItsOwnGroup(input.target['localeGroupId']);
 
         const entry = await this.writer.create(
             type,
@@ -78,7 +105,8 @@ export class CreateEntryProposalApplier implements ProposalApplier {
             // and have no caller here.
             undefined,
             typeof locale === 'string' ? locale : undefined,
-            typeof localeGroupId === 'string' ? localeGroupId : undefined,
+            // No group to join — a create here always starts its own.
+            undefined,
             // The human who accepted is the actor on the write and on its
             // revision — never a copilot identity, which does not exist.
             actor.userId
@@ -241,6 +269,7 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                     );
                     updated.push(entry.id);
                 } else {
+                    assertStartsItsOwnGroup(item.localeGroupId);
                     const entry = await this.writer.create(
                         type,
                         values,
@@ -249,9 +278,8 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                         typeof item.locale === 'string'
                             ? item.locale
                             : undefined,
-                        typeof item.localeGroupId === 'string'
-                            ? item.localeGroupId
-                            : undefined,
+                        // No group to join — see `assertStartsItsOwnGroup`.
+                        undefined,
                         actor.userId
                     );
                     created.push(entry.id);

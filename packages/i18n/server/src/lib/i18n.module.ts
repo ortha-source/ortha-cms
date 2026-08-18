@@ -14,7 +14,10 @@ import { LocalizationCoverageQuery } from './insights/infrastructure/queries/loc
 import { LocalizationCoverageController } from './insights/http/controllers/localization-coverage.controller';
 import { I18nCopilotToolProvider } from './copilot/i18n-tool.provider';
 import { TranslationProposalToolProvider } from './copilot/translation-proposal.provider';
-import { TranslationProposalApplier } from './copilot/translation-proposal.applier';
+import {
+    BulkTranslationProposalApplier,
+    TranslationProposalApplier
+} from './copilot/translation-proposal.applier';
 
 /**
  * NestJS module of the i18n plugin. Registered **global** so its binding of
@@ -63,11 +66,16 @@ export class I18nModule {
                 // optionally.
                 I18nCopilotToolProvider,
                 TranslationProposalToolProvider,
-                // The applier for the kind that propose tool produces. Next to
-                // it on purpose: a missing applier surfaces only when a human
-                // clicks Accept.
+                // The appliers for the kinds those propose tools produce —
+                // one per kind, next to them on purpose: a missing applier
+                // surfaces only when a change is carried out.
                 TranslationProposalApplier,
-                copilotAppliersRegistrar('i18n', TranslationProposalApplier)
+                BulkTranslationProposalApplier,
+                copilotAppliersRegistrar(
+                    'i18n',
+                    TranslationProposalApplier,
+                    BulkTranslationProposalApplier
+                )
             ],
             exports: [CONTENT_ENTRY_EXTENSION, LocaleRegistryService]
         };

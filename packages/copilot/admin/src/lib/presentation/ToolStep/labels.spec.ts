@@ -25,6 +25,7 @@ describe('toolPhrase', () => {
             'content_propose_update',
             'content_propose_bulk_save',
             'i18n_propose_translation',
+            'i18n_propose_bulk_translation',
             'media_propose_alt_text'
         ]) {
             expect(toolPhrase(name, 'running')).not.toBeNull();

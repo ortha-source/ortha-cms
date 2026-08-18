@@ -147,6 +147,52 @@ describe('buildSystemPrompt', () => {
             expect(prompt).toContain('i18n_propose_translation');
         });
 
+        // The two batch rules used to disagree on the one request that provokes
+        // both — "translate these eight posts into German" is several entries
+        // of one type *and* a translation — and the safe answer is the i18n
+        // tool: a content save creates records, it cannot add a language to one
+        // that already exists without blanking the group's shared fields.
+        it('sends a batch translation to the i18n bulk tool, not the content one', () => {
+            const prompt = build({
+                toolNames: [
+                    'content_propose_bulk_save',
+                    'i18n_propose_bulk_translation'
+                ],
+                hasWriteTools: true
+            });
+
+            expect(prompt).toContain('content_propose_bulk_save once');
+            expect(prompt).toContain(
+                'That is i18n_propose_bulk_translation, once'
+            );
+            expect(prompt).toContain(
+                'cannot add a language to a record that exists'
+            );
+        });
+
+        it('leaves the batch rule alone where translations cannot be batched', () => {
+            expect(
+                build({
+                    toolNames: ['content_propose_bulk_save'],
+                    hasWriteTools: true
+                })
+            ).not.toContain('i18n_propose_bulk_translation');
+        });
+
+        it('names both translation tools in the shared-field rule', () => {
+            expect(
+                build({
+                    toolNames: [
+                        'i18n_propose_translation',
+                        'i18n_propose_bulk_translation'
+                    ],
+                    hasWriteTools: true
+                })
+            ).toContain(
+                'i18n_propose_translation or i18n_propose_bulk_translation'
+            );
+        });
+
         it('withholds the translation rule from a run that cannot write', () => {
             expect(
                 build({

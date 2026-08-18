@@ -408,6 +408,7 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
+                    'i18n_propose_bulk_translation',
                     'media_propose_alt_text',
                     'media_propose_file'
                 ])

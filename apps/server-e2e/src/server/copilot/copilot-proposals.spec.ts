@@ -190,6 +190,7 @@ describe('Copilot changes', () => {
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
+                    'i18n_propose_bulk_translation',
                     'media_propose_alt_text',
                     'media_propose_file'
                 ])
@@ -226,6 +227,7 @@ describe('Copilot changes', () => {
                     'content_propose_create',
                     'content_propose_update',
                     'i18n_propose_translation',
+                    'i18n_propose_bulk_translation',
                     'media_propose_alt_text'
                 ])
             );
@@ -619,6 +621,152 @@ describe('Copilot changes', () => {
             expect((await readEntry(agent, id)).values['text']).toBe(
                 'Old headline'
             );
+        });
+    });
+
+    // ------------------------------------------------- batch translations
+    //
+    // The batch a model reaches for on "translate this into German and French".
+    // What it must NOT be is `content_propose_bulk_save` with a
+    // `localeGroupId`: a create is a whole row, so every shared field the batch
+    // did not name arrives as null and the i18n sync pushes those nulls over
+    // the group — which is why the content tools no longer offer that argument
+    // and this is the only route in.
+    describe('a batch translation is one change', () => {
+        /** The group's rows, keyed by locale, straight from the locale panel. */
+        async function localesOf(agent: request.Agent, id: string) {
+            const response = await agent
+                .get(`/api/i18n/content/test_article/${id}/locales`)
+                .set('X-Workspace-Id', workspace.id)
+                .expect(200);
+            const items = response.body.items as {
+                locale: string;
+                entry: { id: string } | null;
+            }[];
+            return new Map(items.map((item) => [item.locale, item.entry]));
+        }
+
+        it('writes every locale, carrying the shared values over', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'English headline', select: 'article' }],
+                workspace.id
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { result, proposal } = await propose(
+                agent,
+                'i18n_propose_bulk_translation',
+                {
+                    typeName: 'test_article',
+                    summary: 'Translate into German and French',
+                    items: [
+                        {
+                            id,
+                            locale: 'de',
+                            values: { text: 'Deutsche Überschrift' }
+                        },
+                        {
+                            id,
+                            locale: 'fr',
+                            values: { text: 'Titre français' }
+                        }
+                    ]
+                }
+            );
+
+            expect(result.ok).toBe(true);
+            // One row for the whole batch: a proposal is the receipt for one
+            // tool call, and three cards for one instruction is what this tool
+            // exists to stop.
+            expect(proposal.kind).toBe('i18n.entry.bulk-translate');
+            expect(await proposalRows(agent)).toHaveLength(1);
+
+            const rows = await localesOf(agent, id);
+            const de = rows.get('de');
+            const fr = rows.get('fr');
+            expect(de).not.toBeNull();
+            expect(fr).not.toBeNull();
+
+            // `select` is required AND shared, so no translation ever carries
+            // it: the applier seeds each create from the source row. Without
+            // that the write fails its own required check — and where it
+            // doesn't, the null is synced over the whole group.
+            const german = await readEntry(agent, (de as { id: string }).id);
+            expect(german.values['text']).toBe('Deutsche Überschrift');
+            expect(german.values['select']).toBe('article');
+            // …and the language it was translated from is untouched.
+            const english = await readEntry(agent, id);
+            expect(english.values['text']).toBe('English headline');
+            expect(english.values['select']).toBe('article');
+        });
+
+        it('stops at the first failure and says how many landed', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'English headline', select: 'article' }],
+                workspace.id
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            // `text` is required with minLength 3, so the second item passes
+            // the offer-time checks and fails at the write — the only way to
+            // reach the applier's partial-failure path.
+            const { result } = await propose(
+                agent,
+                'i18n_propose_bulk_translation',
+                {
+                    typeName: 'test_article',
+                    summary: 'One good, one bad',
+                    items: [
+                        {
+                            id,
+                            locale: 'de',
+                            values: { text: 'Deutsche Überschrift' }
+                        },
+                        { id, locale: 'fr', values: { text: 'no' } }
+                    ]
+                }
+            );
+
+            expect(result.ok).toBe(false);
+            // A proposal has one status and one card, so there is no per-item
+            // verdict to render — the message is what the model reads back,
+            // and "nothing was saved" would be a lie about the German row.
+            expect(result.error).toContain('Translation 2 of 2 (fr) failed');
+            expect(result.error).toContain('The first 1 were saved');
+
+            const rows = await localesOf(agent, id);
+            expect(rows.get('de')).not.toBeNull();
+            expect(rows.get('fr')).toBeNull();
+        });
+
+        it('refuses a locale the record already has, before writing anything', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'English headline', select: 'article' }],
+                workspace.id
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { result } = await propose(
+                agent,
+                'i18n_propose_bulk_translation',
+                {
+                    typeName: 'test_article',
+                    summary: 'A duplicate and a good one',
+                    items: [
+                        { id, locale: 'de', values: { text: 'Deutsch' } },
+                        { id, locale: 'en', values: { text: 'English again' } }
+                    ]
+                }
+            );
+
+            // The offer-time checks run over the whole batch first, so a
+            // duplicate `(group, locale)` — a 409 at write time — costs the
+            // good item nothing: neither is written.
+            expect(result.ok).toBe(false);
+            expect(result.error).toContain('already has a "en" translation');
+            expect(await proposalRows(agent)).toHaveLength(0);
+            const rows = await localesOf(agent, id);
+            expect(rows.get('de')).toBeNull();
         });
     });
 

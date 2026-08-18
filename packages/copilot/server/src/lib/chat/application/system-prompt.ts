@@ -286,9 +286,9 @@ function describeContentModel(toolNames: readonly string[]): string {
         // makes a field vary per locale; a field without it is SHARED across the
         // translation group, and the i18n plugin syncs its value onto every
         // sibling row on update. So a model "translating" by writing shared
-        // values rewrites every locale at once — and unlike
-        // i18n_propose_translation, content_propose_create/update do not refuse
-        // it. Prose rather than metadata, deliberately: describeTypes carries no
+        // values rewrites every locale at once — and unlike the i18n propose
+        // tools, content_propose_create/update do not refuse it. Prose rather
+        // than metadata, deliberately: describeTypes carries no
         // field schemas and this section must not become the place they leak in.
         'Within a translation group only the fields marked localized vary per ' +
             'locale. Every other field is SHARED by the group, so writing one ' +
@@ -331,7 +331,18 @@ function describeBatchRule(toolNames: readonly string[]): string {
     return (
         '- Changing several entries of one type? Use content_propose_bulk_save once ' +
         'instead of calling the single-entry tool per entry. If it reports that only ' +
-        'some entries were saved, say exactly how many and which ones were not.\n'
+        'some entries were saved, say exactly how many and which ones were not.\n' +
+        // The batch rule and the translation rule used to pull in opposite
+        // directions on the one request that provokes both — "translate these
+        // eight posts into German" is several entries of one type *and* a
+        // translation. The tie is broken here, and in the only direction that
+        // is safe: content_propose_bulk_save creates records, it cannot add a
+        // language to one that already exists.
+        (toolNames.includes('i18n_propose_bulk_translation')
+            ? '- Translating one entry into several locales, or several entries into one ' +
+              'locale? That is i18n_propose_bulk_translation, once. The content tools ' +
+              'create new records; they cannot add a language to a record that exists.\n'
+            : '')
     );
 }
 
@@ -341,11 +352,14 @@ function describeBatchRule(toolNames: readonly string[]): string {
  *
  * HOW ORTHA WORKS already states the fact; this says what to *do* with it,
  * which is only worth prompt budget on a run that can write. It is worth it
- * there because the tools do not enforce it: `i18n_propose_translation` refuses
- * a non-localized field name outright, while `content_propose_create` /
+ * there because the tools do not enforce it: the i18n propose tools refuse a
+ * non-localized field name outright, while `content_propose_create` /
  * `content_propose_update` filter only inverse relations — so a model asked to
- * translate can reach for a content tool with a `localeGroupId` and have the
- * i18n plugin's sync fan its "translated" shared values out over every locale.
+ * translate can still write "translated" shared values onto the entry it is
+ * looking at, and the i18n plugin's sync fans them out over every locale.
+ * (Reaching for a content tool with a `localeGroupId` is no longer among the
+ * ways to do it: they stopped offering one, precisely because a create that
+ * joins a group blanks that group's shared fields.)
  *
  * Conditional on the tool being on offer, like the locale-slug line: naming a
  * tool a deployment without the i18n plugin does not have buys a call that can
@@ -354,13 +368,18 @@ function describeBatchRule(toolNames: readonly string[]): string {
  * spliced into the section or vanish without leaving a blank line behind.
  */
 function describeTranslationRule(toolNames: readonly string[]): string {
-    if (!toolNames.includes('i18n_propose_translation')) {
+    const offered = [
+        'i18n_propose_translation',
+        'i18n_propose_bulk_translation'
+    ].filter((name) => toolNames.includes(name));
+    if (offered.length === 0) {
         return '';
     }
     return (
         '- Never write a translation into a shared (non-localized) field — it would ' +
         'change that value in every locale of the group. Translate with ' +
-        'i18n_propose_translation, which takes the localized fields only.\n'
+        `${offered.join(' or ')} — they take the localized fields only, and adding a ` +
+        'language to an entry is the one thing the content tools cannot do.\n'
     );
 }
 

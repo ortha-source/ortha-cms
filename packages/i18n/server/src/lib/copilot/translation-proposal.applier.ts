@@ -105,7 +105,8 @@ export class TranslationProposalApplier implements ProposalApplier {
             string,
             unknown
         >;
-        const inherited = await this.sharedValues(
+        const inherited = await sharedValues(
+            this.db,
             type,
             sourceId,
             actor.workspaceId
@@ -125,55 +126,190 @@ export class TranslationProposalApplier implements ProposalApplier {
             detail: { typeName: type.name, locale, localeGroupId }
         };
     }
+}
 
-    /**
-     * The source entry's **shared** field values — everything the new sibling
-     * must carry over rather than invent.
-     *
-     * The exclusions mirror what the extension itself treats as shared, because
-     * a value this copied that the extension does *not* consider shared would
-     * be a per-locale field silently seeded from another language:
-     *
-     * - **Localized fields** are what the translation supplies.
-     * - **Many and inverse relations** are join-backed rather than
-     *   column-backed, so `toRecord` already drops them; the extension's own
-     *   sync is what carries them onto the new sibling.
-     * - **Any relation whose stored id differs per locale** — mirrored or
-     *   unsynced (`isPerLocaleField`). Copying the source's would point the
-     *   German row at an English one, which the writer rejects as a
-     *   cross-locale link; for a mirrored relation the extension resolves the
-     *   right per-locale id itself, after the insert.
-     */
-    private async sharedValues(
-        type: AnyContentType,
-        sourceId: string,
-        workspaceId: string
-    ): Promise<Record<string, unknown>> {
-        const table = type.table as unknown as ContentTable;
-        const [row] = await this.db
-            .select()
-            .from(type.table)
-            .where(
-                and(
-                    eq(table['id'], sourceId),
-                    eq(table['workspaceId'], workspaceId),
-                    ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
-                )
+/**
+ * The source entry's **shared** field values — everything the new sibling must
+ * carry over rather than invent.
+ *
+ * The exclusions mirror what the extension itself treats as shared, because a
+ * value copied here that the extension does *not* consider shared would be a
+ * per-locale field silently seeded from another language:
+ *
+ * - **Localized fields** are what the translation supplies.
+ * - **Many and inverse relations** are join-backed rather than column-backed,
+ *   so `toRecord` already drops them; the extension's own sync is what carries
+ *   them onto the new sibling.
+ * - **Any relation whose stored id differs per locale** — mirrored or unsynced
+ *   (`isPerLocaleField`). Copying the source's would point the German row at an
+ *   English one, which the writer rejects as a cross-locale link; for a
+ *   mirrored relation the extension resolves the right per-locale id itself,
+ *   after the insert.
+ *
+ * A free function rather than a method because **both** appliers need it, and
+ * needing it is not optional: it is the whole difference between joining a
+ * translation group and blanking it.
+ */
+async function sharedValues(
+    db: Database,
+    type: AnyContentType,
+    sourceId: string,
+    workspaceId: string
+): Promise<Record<string, unknown>> {
+    const table = type.table as unknown as ContentTable;
+    const [row] = await db
+        .select()
+        .from(type.table)
+        .where(
+            and(
+                eq(table['id'], sourceId),
+                eq(table['workspaceId'], workspaceId),
+                ...(type.paranoid ? [isNull(table['deletedAt'])] : [])
             )
-            .limit(1);
-        if (!row) {
-            // The propose tool proved this row existed; by apply time it may
-            // not. Failing here beats creating a translation of nothing.
-            throw new Error('The entry this translates no longer exists.');
+        )
+        .limit(1);
+    if (!row) {
+        // The propose tool proved this row existed; by apply time it may not.
+        // Failing here beats creating a translation of nothing.
+        throw new Error('The entry this translates no longer exists.');
+    }
+
+    const source = toRecord(type, row as Record<string, unknown>).values;
+    const shared: Record<string, unknown> = {};
+    for (const [name, spec] of Object.entries(type.fields)) {
+        if (isPerLocaleField(type, spec)) continue;
+        if (!(name in source)) continue;
+        shared[name] = source[name];
+    }
+    return shared;
+}
+
+/**
+ * Applies `i18n.entry.bulk-translate` — several translations carried out as one
+ * change.
+ *
+ * **Item by item through the same `EntryWriterService.create` the single-entry
+ * applier calls**, each with its own source entry's shared values inherited: a
+ * batch is a way of asking for N translations, not a second way of writing one.
+ * Sequentially rather than concurrently, because every write takes the
+ * workspace's shared content lock and (on a localized type) an advisory lock
+ * over the translation group — a batch translating one record into five
+ * languages contends with itself by construction, so a fan-out would buy
+ * nothing but lock waits.
+ *
+ * **It stops at the first failure and throws**, exactly as the content plugin's
+ * bulk applier does. A proposal is one row with one status, so there is no
+ * per-item verdict to render; carrying on would grow the number of rows written
+ * under a receipt that then reports failure. The error names how many landed,
+ * which is what the model reads back to the user.
+ */
+@Injectable()
+export class BulkTranslationProposalApplier implements ProposalApplier {
+    readonly kind = I18N_PROPOSAL_KINDS.bulkTranslation;
+
+    constructor(
+        @InjectContentRegistry()
+        private readonly registry: ContentTypeRegistry,
+        private readonly writer: EntryWriterService,
+        private readonly grants: WorkspaceGrantsQuery,
+        @InjectDatabase() private readonly db: Database
+    ) {}
+
+    async apply(
+        input: { target: ProposalTarget; patch: Record<string, unknown> },
+        actor: ProposalActor
+    ): Promise<ProposalApplyResult> {
+        const typeName = input.target['typeName'];
+        if (typeof typeName !== 'string') {
+            throw new Error('This proposal is missing its content type.');
         }
 
-        const source = toRecord(type, row as Record<string, unknown>).values;
-        const shared: Record<string, unknown> = {};
-        for (const [name, spec] of Object.entries(type.fields)) {
-            if (isPerLocaleField(type, spec)) continue;
-            if (!(name in source)) continue;
-            shared[name] = source[name];
+        // Re-checked rather than trusted from the row: grants can be revoked
+        // between proposing and applying, and a stored type name is an
+        // argument like any other.
+        const type = this.registry.get(typeName);
+        const granted = await this.grants.grantedSlugs(actor.workspaceId);
+        if (!type || !granted.has(type.name)) {
+            throw new Error(
+                `Unknown content type "${typeName}" in this workspace.`
+            );
         }
-        return shared;
+
+        const items = input.patch['items'];
+        if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('This change names no translations.');
+        }
+
+        const created: string[] = [];
+        const locales: string[] = [];
+
+        for (const [index, raw] of items.entries()) {
+            const item = (raw ?? {}) as {
+                sourceId?: unknown;
+                localeGroupId?: unknown;
+                locale?: unknown;
+                values?: unknown;
+            };
+            const sourceId = item.sourceId;
+            const localeGroupId = item.localeGroupId;
+            const locale = item.locale;
+            if (
+                typeof sourceId !== 'string' ||
+                typeof localeGroupId !== 'string' ||
+                typeof locale !== 'string'
+            ) {
+                throw new Error(
+                    `Translation ${index + 1} of ${items.length} is missing its target.`
+                );
+            }
+
+            try {
+                // Read per item and at apply time, not once for the batch: two
+                // items may translate two different records, and a shared field
+                // edited between drafting and applying must not be clobbered by
+                // a stale copy of itself.
+                const inherited = await sharedValues(
+                    this.db,
+                    type,
+                    sourceId,
+                    actor.workspaceId
+                );
+                const translated = (item.values ?? {}) as Record<
+                    string,
+                    unknown
+                >;
+                const entry = await this.writer.create(
+                    type,
+                    { ...inherited, ...translated },
+                    actor.workspaceId,
+                    undefined,
+                    locale,
+                    localeGroupId,
+                    actor.userId
+                );
+                created.push(entry.id);
+                locales.push(locale);
+            } catch (error) {
+                throw new Error(
+                    `Translation ${index + 1} of ${items.length} (${locale}) failed: ` +
+                        `${error instanceof Error ? error.message : String(error)}. ` +
+                        (created.length === 0
+                            ? 'Nothing was saved.'
+                            : `The first ${created.length} were saved and the rest were not.`)
+                );
+            }
+        }
+
+        return {
+            // No `entityId`: a batch has no single entity to link to, and
+            // naming one of them would send the user to an arbitrary member of
+            // the set. The ids are in `detail` instead.
+            detail: {
+                typeName: type.name,
+                created,
+                locales,
+                count: created.length
+            }
+        };
     }
 }

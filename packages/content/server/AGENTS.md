@@ -373,6 +373,22 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   row with one status, so carrying on would grow the number of entries written
   under a receipt that then reports failure. (The public API's `bulkSave` does
   the opposite, because there every item gets its own verdict.)
+- **Neither create tool takes a `localeGroupId` any more**, and that is a rule
+  rather than a simplification. Joining a translation group looks like a create
+  with two extra arguments and is not one: a create is a whole row, so every
+  shared field the change did not name arrives as `null`, and the i18n
+  extension propagates a create's shared columns **outward** onto every sibling
+  — blanking the record in every other language, silently where the siblings
+  are drafts. Doing it right means inheriting the source row's shared values at
+  apply time, which is knowledge the i18n plugin owns, so
+  `i18n_propose_translation` / `i18n_propose_bulk_translation` are the route and
+  these tools create new records only. `locale` stays: a **new** record written
+  in French starts its own group and has no siblings to blank. The appliers
+  refuse a stored `localeGroupId` outright (`assertStartsItsOwnGroup`), which
+  covers the one case a schema change cannot — a proposal drafted before this,
+  left `pending` by a failed apply, carried out later. The public API's `/bulk`
+  is unaffected: a client there sends the whole document, which is what a create
+  joining a group needs.
 - `CreateEntryProposalApplier` / `UpdateEntryProposalApplier` carry those
   changes out, through **`EntryWriterService.create` / `.update` — the same
   methods the HTTP routes call**. Not "similar to": the same, which is what

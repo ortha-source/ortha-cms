@@ -347,8 +347,9 @@ The deciding question is always what the tool would show a **token** holding
 `content:read`, not which consumer asked for it; the full checklist is in
 [`tools/server`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately).
 
-It also binds **`i18n_propose_translation`** (`effect: 'propose'`), which
-translates an entry into another locale. Since
+It also binds the two **write** tools, `i18n_propose_translation` and
+`i18n_propose_bulk_translation` (both `effect: 'propose'`), which translate an
+entry into another locale. Since
 [ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md) the change is
 applied as soon as it is drafted, so the tool's own checks are the last ones
 before a write: resolve the slug against the configured set, confirm the target
@@ -357,14 +358,39 @@ locale does not already exist in the group (a duplicate is a 409), and refuse a
 per-locale version of it would either be ignored or silently overwrite every
 sibling.
 
-`TranslationProposalApplier` creates the sibling through
-`EntryWriterService.create` with a `localeGroupId`. There is deliberately no
+**The batch is the same tool for N locales, and the reason it exists is the
+reason the content one does.** "Translate this into German, French and Spanish"
+was three calls — three steps of a bounded run and three cards in the
+transcript for one instruction. `i18n_propose_bulk_translation` takes
+`items[{ id, locale, values }]` (capped at content's `BULK_MAX_SAVE_ITEMS`), so
+one entry into five languages and eight entries into one language are the same
+list. Three checks are only true of a batch: the group is read **once per
+distinct source id** (five languages of one record ask an identical question),
+two items claiming the same `(group, locale)` are refused up front rather than
+colliding with the unique index halfway through the apply, and every error is
+prefixed with the item that caused it. A refusal fails the whole call — nothing
+is written, which is what makes retrying a corrected batch safe.
+
+**The content tools no longer offer a `localeGroupId`.** A model asked to
+translate used to reach for `content_propose_create` /
+`content_propose_bulk_save` with one, and that is the shape that quietly breaks
+a group — see the paragraph below, which applies with more force to a batch. The
+i18n propose tools are now the only route in, and the content appliers refuse a
+stored group id rather than joining one.
+
+`TranslationProposalApplier` and `BulkTranslationProposalApplier` create the
+siblings through `EntryWriterService.create` with a `localeGroupId`. The batch
+one writes item by item, sequentially (every write takes the workspace's shared
+content lock and a lock over the translation group, so a fan-out would contend
+with itself), and **stops at the first failure**, naming how many landed — a
+proposal is one row with one status, so there is no per-item verdict to show and
+"nothing was saved" would be a lie about the rows that were. There is deliberately no
 "create translation" write path to reuse — joining a group is what that argument
 already means, and the bound extension stamps and validates it inside the write
 transaction, which is also what makes a duplicate `(group, locale)` a clean 409
 instead of a corrupt group.
 
-**It reads the source entry first, and must keep doing so.** The tool accepts
+**They read the source entry first, and must keep doing so.** The tool accepts
 only localized values, but a create is a whole row: `coerceValues` stamps every
 declared field, so a shared field nobody supplied arrives as `null` rather than
 absent. Two things then go wrong at once — the new row fails its own required
@@ -373,7 +399,7 @@ carries it), and, worse, `afterUpdate` treats that `null` as a shared value the
 save carries and pushes it onto every sibling. A published sibling is
 re-validated and fails, rolling the create back with "Entry validation failed";
 a group of drafts has no such guard and the shared field is **silently blanked
-in every locale**. So the applier seeds the create from the source row's shared
+in every locale**. So each applier seeds its create from that item's source row's shared
 values — the same thing the admin's own create-translation does by sending the
 source's values, which is why that path never hit this. The values then match
 the group, `IS DISTINCT FROM` finds nothing to sync, and no sibling is touched.

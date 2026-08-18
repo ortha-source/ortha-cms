@@ -169,13 +169,20 @@ which is for presentation and never for authority.
 
 Plus the `propose` half — the write tools, all of which **write nothing**:
 
-| Plugin    | Tool                       | Produces kind          |
-| --------- | -------------------------- | ---------------------- |
-| `content` | `content_propose_create`   | `content.entry.create` |
-| `content` | `content_propose_update`   | `content.entry.update` |
-| `i18n`    | `i18n_propose_translation` | `i18n.entry.translate` |
-| `media`   | `media_propose_alt_text`   | `media.asset.setAlt`   |
-| `media`   | `media_propose_file`       | `media.asset.create`   |
+| Plugin    | Tool                            | Produces kind               |
+| --------- | ------------------------------- | --------------------------- |
+| `content` | `content_propose_create`        | `content.entry.create`      |
+| `content` | `content_propose_update`        | `content.entry.update`      |
+| `content` | `content_propose_bulk_save`     | `content.entry.bulk-save`   |
+| `i18n`    | `i18n_propose_translation`      | `i18n.entry.translate`      |
+| `i18n`    | `i18n_propose_bulk_translation` | `i18n.entry.bulk-translate` |
+| `media`   | `media_propose_alt_text`        | `media.asset.setAlt`        |
+| `media`   | `media_propose_file`            | `media.asset.create`        |
+
+The two batch kinds are their own kinds rather than a repeated single one: a
+proposal row is the receipt for **one** tool call, so a batch written as twelve
+rows would be twelve cards in the transcript for a change the user asked for
+once, none of which said what the other eleven were.
 
 ## Attachments
 
@@ -428,7 +435,7 @@ stays in the controller, and the loop is testable by draining the generator.
   call, and measurably does: a 100-token ceiling ended a run at 10 000. Bounding
   that would mean predicting a turn's size before making it.
 - **What `maxTotalTokens` counts.** Uncached input + output + **cache writes**,
-  accumulated across the run. Cache *reads* are excluded on purpose: they cost
+  accumulated across the run. Cache _reads_ are excluded on purpose: they cost
   ~a tenth of plain input and they are the whole point of caching, so charging
   the ceiling for them would spend the budget re-reading a prompt the provider
   already has. Writes are billed at a premium and are counted, or turning
@@ -462,7 +469,7 @@ stays in the controller, and the loop is testable by draining the generator.
   is the same truncated answer under a different name. Raising them costs tokens
   rather than safety: every step is still authorized and audited, and a
   `propose` tool still records its row before it applies anything. The defaults
-  (30 / 300 s / 400 000 tokens) are sized for a run that *writes* — the model
+  (30 / 300 s / 400 000 tokens) are sized for a run that _writes_ — the model
   reads the type, reads the entries, proposes, reads the result, reports, and a
   multi-entry instruction repeats the middle of that.
 - **Every attempted call is audited**, successful or not — a refused call is

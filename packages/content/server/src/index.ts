@@ -178,7 +178,11 @@ export type {
 } from './lib/public-api/types/public-expansion';
 export {
     DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE
+    MAX_PAGE_SIZE,
+    // Exported for the other plugins' batch tools (i18n's bulk translation),
+    // so "how many writes may one call start" is one number rather than a
+    // second cap that drifts from this one.
+    BULK_MAX_SAVE_ITEMS
 } from './lib/entries/entries.constants';
 export { RELATION_DELTA_ADDRESSING } from './lib/entries/types/entry-list-view';
 export type {

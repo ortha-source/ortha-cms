@@ -179,14 +179,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                         type: 'string',
                         maxLength: 35,
                         description:
-                            'Locale to create in, on a localized type. Omitted, the default ' +
-                            'locale is used — call i18n_locales_list if unsure.'
-                    },
-                    localeGroupId: {
-                        type: 'string',
-                        description:
-                            'Join an existing translation group, making this entry that ' +
-                            'group’s row in `locale`. From i18n_translations_get.'
+                            'Locale to create in, on a localized type — for a NEW record ' +
+                            'written in that language. Omitted, the default locale is used; ' +
+                            'call i18n_locales_list if unsure. To add a language to an entry ' +
+                            'that already exists, use i18n_propose_translation instead.'
                     },
                     summary: {
                         type: 'string',
@@ -211,7 +207,6 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     typeName: string;
                     values: Record<string, unknown>;
                     locale?: string;
-                    localeGroupId?: string;
                     summary: string;
                 };
                 const type = await this.resolveGranted(
@@ -225,12 +220,13 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
 
                 return {
                     kind: CONTENT_PROPOSAL_KINDS.createEntry,
+                    // No `localeGroupId`: joining an existing translation group
+                    // is not a content-save operation, however close the
+                    // arguments look — see `proposeBulk` and
+                    // `CreateEntryProposalApplier`.
                     target: {
                         typeName: type.name,
-                        ...(args.locale ? { locale: args.locale } : {}),
-                        ...(args.localeGroupId
-                            ? { localeGroupId: args.localeGroupId }
-                            : {})
+                        ...(args.locale ? { locale: args.locale } : {})
                     },
                     patch: { values },
                     summary: args.summary,
@@ -407,6 +403,16 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
      * updates, no `id` creates. There is deliberately no group-addressed update
      * (the ambiguity the REST `op` field resolves), because the admin tools hand
      * the model entry ids and nothing here would produce a bare group id.
+     *
+     * **And deliberately no `localeGroupId`, which it used to take.** Joining a
+     * translation group is not a content save with two extra arguments: a
+     * create is a whole row, so every shared field the item did not name
+     * arrives as `null`, and the i18n extension then pushes those nulls onto
+     * every sibling in the group — blanking the record in every other language,
+     * silently where the siblings are drafts. Getting that right means
+     * inheriting the source row's shared values at apply time, which is
+     * knowledge the i18n plugin owns, so `i18n_propose_bulk_translation` is the
+     * route and this tool creates new records only.
      */
     private proposeBulk(): ToolDefinition {
         return {
@@ -455,14 +461,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                                     type: 'string',
                                     maxLength: 35,
                                     description:
-                                        'Locale to create in, on a localized type. Create-only — an ' +
-                                        'entry id already names its own locale.'
-                                },
-                                localeGroupId: {
-                                    type: 'string',
-                                    description:
-                                        'Join an existing translation group, making the new entry that ' +
-                                        'group’s row in `locale`. Create-only.'
+                                        'Locale to create a NEW record in, on a localized type. ' +
+                                        'Create-only — an entry id already names its own locale. To ' +
+                                        'add languages to entries that already exist, use ' +
+                                        'i18n_propose_bulk_translation instead.'
                                 }
                             },
                             required: ['values'],
@@ -579,10 +581,7 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     patched.push({
                         ...(item.id ? { id: item.id } : {}),
                         values: changed,
-                        ...(item.locale ? { locale: item.locale } : {}),
-                        ...(item.localeGroupId
-                            ? { localeGroupId: item.localeGroupId }
-                            : {})
+                        ...(item.locale ? { locale: item.locale } : {})
                     });
                 }
 
@@ -612,8 +611,6 @@ interface BulkProposalItem {
     values: Record<string, unknown>;
     /** Locale of a created row. */
     locale?: string;
-    /** Translation group a created row joins. */
-    localeGroupId?: string;
 }
 
 /** The field's admin label, when it has one — for the diff's row heading. */

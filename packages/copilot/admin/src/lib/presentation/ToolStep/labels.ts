@@ -135,6 +135,14 @@ const phrases = defineMessages({
         id: 'copilot.step.i18n_propose_translation.done',
         defaultMessage: 'Added a translation'
     },
+    'i18n_propose_bulk_translation.running': {
+        id: 'copilot.step.i18n_propose_bulk_translation.running',
+        defaultMessage: 'Adding translations…'
+    },
+    'i18n_propose_bulk_translation.done': {
+        id: 'copilot.step.i18n_propose_bulk_translation.done',
+        defaultMessage: 'Added translations'
+    },
     'media_propose_alt_text.running': {
         id: 'copilot.step.media_propose_alt_text.running',
         defaultMessage: 'Setting alt text…'
