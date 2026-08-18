@@ -707,9 +707,12 @@ describe('Copilot changes', () => {
             );
             const { agent } = await signIn(ADMIN_EMAIL, 'admin');
 
-            // `text` is required with minLength 3, so the second item passes
-            // the offer-time checks and fails at the write — the only way to
-            // reach the applier's partial-failure path.
+            // The second item names a `heroImage` asset that does not exist —
+            // a localized field, so it passes the offer-time checks, and a
+            // media target the writer refuses (422) before it inserts. Field
+            // *rules* would not do: `test_article` is publishable, so
+            // `EntryWriterService` defers required/length/format validation to
+            // publish time and a two-character `text` would save happily.
             const { result } = await propose(
                 agent,
                 'i18n_propose_bulk_translation',
@@ -722,7 +725,15 @@ describe('Copilot changes', () => {
                             locale: 'de',
                             values: { text: 'Deutsche Überschrift' }
                         },
-                        { id, locale: 'fr', values: { text: 'no' } }
+                        {
+                            id,
+                            locale: 'fr',
+                            values: {
+                                text: 'Titre français',
+                                heroImage:
+                                    '00000000-0000-4000-8000-0000000000ff'
+                            }
+                        }
                     ]
                 }
             );

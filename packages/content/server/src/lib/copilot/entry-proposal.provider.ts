@@ -158,8 +158,11 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 'Propose creating a new entry. This does NOT create anything — it drafts the ' +
                 'change and asks the user to approve it, and the reply will say so. Call ' +
                 'admin_content_types for the type’s fields first; supply only fields you are ' +
-                'confident about, since the user reviews exactly what you send. The entry is ' +
-                'always created as a draft: you cannot publish.',
+                'confident about, since the user reviews exactly what you send. On a ' +
+                'PUBLISHABLE type the entry lands as a draft, so a partial one saves fine and ' +
+                'you cannot publish it. On a type that is NOT publishable there is no draft — ' +
+                'the row is live immediately, so every field it marks `required` must be in ' +
+                '`values` or the save is refused; ask the user for a value you do not know.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -427,7 +430,10 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                 'without one creates a new draft. Read the entries first with ' +
                 'admin_content_search / admin_content_get so the diff is real. If any entry ' +
                 'fails to save, the change stops there and the reply says how many landed — ' +
-                'do not claim the whole batch saved without reading it.',
+                'do not claim the whole batch saved without reading it. On a type that is ' +
+                'NOT publishable each created item is live at once, so it must carry every ' +
+                '`required` field; a partial item is refused and takes the rest of the batch ' +
+                'with it.',
             inputSchema: {
                 type: 'object',
                 properties: {

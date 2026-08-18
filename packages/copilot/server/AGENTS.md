@@ -388,22 +388,45 @@ and `system-prompt.spec.ts` pins the structure. Three rules for editing it:
   read it, and arrives in context. HOW ORTHA WORKS carries only what is true of
   every deployment and what no single tool can say — the workspace grant
   boundary, `draft`/`published` being the whole state set, **publish state being
-  the `status` + `publishedAt` pair**, numbered versions, and each locale being
-  its own entry. The publish-state line (v6) is the counterpart of the
+  the `status` + `publishedAt` pair**, **what a save must contain**, numbered
+  versions, and each locale being its own entry. The publish-state line (v6) is the counterpart of the
   propose-rule bug below: `draft`/`published` is true of the _column_, and a
   model that reads it as the whole story answers "how many entries are edited
   but not published?" with a count of every draft — the never-published ones
   included. Editing a published entry returns it to `draft` but **keeps**
   `publishedAt`, so "modified" is the pair, and the filter that finds it is in
   `admin_content_search`'s description where it costs only the runs that search.
+- **v10 also broke a tie between two rules that used to disagree.** "Translate
+  these eight posts into German" is several entries of one type _and_ a
+  translation, so the batch rule pointed at `content_propose_bulk_save` while
+  the translation rule pointed at the i18n tool. Where
+  `i18n_propose_bulk_translation` is on offer the batch rule now defers to it,
+  in the only direction that is safe: a content save creates records and cannot
+  add a language to one that exists.
+- **v10: what a save must contain depends on `publishable`, and nothing else
+  says so.** `EntryWriterService` sets `enforceRequired = !type.publishable`: a
+  publishable type's save always lands as a **draft**, and a draft may be
+  incomplete, so required fields, lengths and formats are checked at **publish**
+  — while a non-publishable type has no later moment and validates every write,
+  refusing one that omits a required field. Both propose tools take the same
+  `values` bag whatever the type, so a model has no way to tell the two apart
+  from a schema; without the rule it learns the difference from a 422 naming
+  fields it never asked the user about. HOW ORTHA WORKS carries the fact (and
+  points at `admin_content_types`, which reports `publishable` and `required`);
+  MAKING CHANGES carries the instruction, because the useful part is what to do
+  when a required value is unknown — **ask**, rather than invent one or write
+  without it — and that answer differs by type where the fact alone does not.
 - **A prompt rule is the right fix only where no tool can enforce it.** v8's
   shared-field rule is the case: `localized` is what makes a field vary per
   locale, a field without it is **shared** across the translation group, and
   i18n's sync copies it onto every sibling row. `i18n_propose_translation`
   refuses a non-localized field name; `content_propose_create` /
   `content_propose_update` do **not** — they filter only inverse relations — so
-  a model asked to translate can reach for a content tool with a `localeGroupId`
-  and rewrite every locale at once. HOW ORTHA WORKS states the fact
+  a model asked to translate can still write "translated" shared values onto the
+  entry in front of it and rewrite every locale at once. (The other half of that
+  gap **was** closed in code, which is the point: the content tools no longer
+  offer a `localeGroupId`, so joining a group now goes through the i18n tools
+  that inherit the source's shared values.) HOW ORTHA WORKS states the fact
   unconditionally; MAKING CHANGES restates it as an instruction only when
   `i18n_propose_translation` is actually on offer. It stays **prose**: the rule
   is about which fields carry a flag, and answering it in the prompt would mean

@@ -71,7 +71,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 9;
+export const SYSTEM_PROMPT_VERSION = 10;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -210,6 +210,16 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
                 'change failed, fix what the error named rather than repeating the call.\n' +
                 '- Read before you write. Fetch the entry first so you change what actually ' +
                 'needs changing and leave the rest alone.\n' +
+                // The write-side half of the publishable rule above. It is a
+                // bullet rather than a line of prose because the useful part is
+                // what to DO when a required value is missing: on a publishable
+                // type saving a partial draft is the helpful answer, and on a
+                // non-publishable one the same move is a refused write and a
+                // wasted turn.
+                '- Creating an entry of a type that is NOT publishable? Send every field it ' +
+                'marks required — there is no draft to finish later, so a save missing one ' +
+                'is refused. If you do not know a required value, ask the user for it ' +
+                'rather than inventing one or writing without it.\n' +
                 describeBatchRule(input.toolNames) +
                 describeTranslationRule(input.toolNames) +
                 '- Because these save straight away, prefer the smallest change that does ' +
@@ -276,6 +286,20 @@ function describeContentModel(toolNames: readonly string[]): string {
             '`draft` with no publishedAt = never published. So “modified”, ' +
             '“edited but not published” and “has unpublished changes” all mean ' +
             'draft AND publishedAt is not null — never draft alone.',
+        // The rule this pair states is `EntryWriterService`'s `enforceRequired
+        // = !type.publishable`, and it is invisible from the tool schemas: both
+        // propose tools take the same `values` bag whatever the type, so the
+        // only thing that tells a model a half-filled create will be REFUSED
+        // rather than saved as a draft is this. Without it the failure arrives
+        // as a 422 listing fields the model never asked the user about.
+        'Not every type is publishable, and that changes what a save must contain. ' +
+            'A publishable type’s save always lands as a DRAFT, and a draft may be ' +
+            'incomplete — its rules (required fields, lengths, formats) are enforced ' +
+            'when it is PUBLISHED, not when it is saved.',
+        'A type that is NOT publishable has no draft state: every row is live, so ' +
+            'every save is validated immediately and one missing a required field is ' +
+            'refused outright. admin_content_types reports `publishable` on the type ' +
+            'and `required` on each field — check both before you write.',
         'Every saved change to an entry captures a numbered version, so what ' +
             'changed, when, and by whom are answerable rather than guesses.',
         'On a localized type each locale is its own entry, with its own id, status ' +

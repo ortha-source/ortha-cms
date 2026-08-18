@@ -78,6 +78,21 @@ describe('buildSystemPrompt', () => {
             expect(prompt).toContain('admin_content_types');
         });
 
+        // `EntryWriterService`'s `enforceRequired = !type.publishable`, which
+        // no tool schema shows: both propose tools take the same `values` bag
+        // whatever the type, so without this the model learns the difference
+        // from a 422 naming fields it never asked the user about.
+        it('says required fields bite at publish time, except where nothing publishes', () => {
+            const prompt = build();
+
+            expect(prompt).toContain('always lands as a DRAFT');
+            expect(prompt).toContain(
+                'enforced when it is PUBLISHED, not when it is saved'
+            );
+            expect(prompt).toContain('A type that is NOT publishable');
+            expect(prompt).toContain('refused outright');
+        });
+
         // Prose, not metadata: the rule must not become the excuse for
         // inlining field schemas that `describeTypes` deliberately omits. The
         // e2e suite pins the same thing against a live prompt.
@@ -127,6 +142,23 @@ describe('buildSystemPrompt', () => {
             expect(prompt).not.toContain('starts with "propose"');
             expect(prompt).toContain('content_propose_update');
             expect(prompt).toContain('despite the name');
+        });
+
+        // The write-side half of the publishable rule. The fact alone leaves
+        // the useful question open — what to do when a required value is
+        // missing — and the answers differ: a partial draft is helpful on a
+        // publishable type and a refused write on a non-publishable one.
+        it('tells a write to ask for a required value it does not have', () => {
+            const prompt = build({ hasWriteTools: true });
+
+            expect(prompt).toContain(
+                'type that is NOT publishable? Send every'
+            );
+            expect(prompt).toContain('ask the user for it');
+        });
+
+        it('withholds that rule from a run that cannot write', () => {
+            expect(build()).not.toContain('ask the user for it');
         });
 
         // The write-side half of the shared-field rule. It routes the model to
