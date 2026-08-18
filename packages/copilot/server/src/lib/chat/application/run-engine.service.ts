@@ -6,11 +6,13 @@ import {
     MODEL_REGISTRY,
     MODEL_RESOLVER,
     fenceUntrusted,
+    interruptionNote,
     isAbortError,
     isProposalDraft,
     normalizeTranscript,
     resolveModel,
     toSkillRef,
+    wasCutShort,
     type AttachmentRef,
     type AttachmentResolver,
     type CopilotRunEvent,
@@ -856,12 +858,7 @@ export class RunEngine {
                 `Run ${ctx.runId}: propose tool "${call.name}" returned a value ` +
                     'that is not a ProposalDraft; nothing was recorded.'
             );
-            return this.toolFailure(
-                ctx,
-                call,
-                message,
-                Date.now() - startedAt
-            );
+            return this.toolFailure(ctx, call, message, Date.now() - startedAt);
         }
 
         const draft: ProposalDraft = output;
@@ -1239,6 +1236,19 @@ export class RunEngine {
             // earlier answer reads the way it does, which a name supplies.
             if (row.skills?.length) {
                 extra.push({ type: 'text', text: skillNote(row.skills) });
+            }
+            // Why an assistant turn stops short of an answer is the one thing
+            // about it the model cannot read off its own output — the ceilings
+            // belong to the engine, and `RunStopReason` says outright that they
+            // are "limits the engine imposes and the model never sees". So a
+            // turn cut off at a ceiling replays looking exactly like a turn that
+            // simply finished, and "continue" gets a fresh start on the whole
+            // task instead of a resumption of the interrupted one.
+            if (wasCutShort(row.stopReason)) {
+                extra.push({
+                    type: 'text',
+                    text: interruptionNote(row.stopReason as RunStopReason)
+                });
             }
             return {
                 role: row.role,

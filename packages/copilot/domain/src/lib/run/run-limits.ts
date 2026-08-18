@@ -81,3 +81,60 @@ export const RUN_STOP_EXPLANATIONS: Record<RunStopReason, string> = {
     aborted: 'Cancelled.',
     error: 'Stopped by an error.'
 };
+
+/**
+ * The stop reasons that mean an assistant turn was **cut off**, rather than
+ * ended by the model having said what it had to say.
+ *
+ * `end` is the ordinary finish. `refusal` is deliberate and is left out on
+ * purpose: the model declined, and a note inviting it to "pick up where it
+ * stopped" is precisely the nudge that should not be there.
+ */
+const CUT_SHORT_REASONS: ReadonlySet<string> = new Set<RunStopReason>([
+    'max-steps',
+    'max-tokens',
+    'timeout',
+    'max-output-tokens',
+    'aborted',
+    'error'
+]);
+
+/**
+ * Whether a persisted `stopReason` names a turn that was cut off. Takes the
+ * stored `string | null` rather than the union, because that is what comes back
+ * out of the database.
+ */
+export function wasCutShort(stopReason: string | null): boolean {
+    return stopReason !== null && CUT_SHORT_REASONS.has(stopReason);
+}
+
+/**
+ * The line that tells the model an earlier turn of this conversation was
+ * interrupted, and why — replayed as part of that turn.
+ *
+ * Why it has to be said at all: the ceilings are the engine's, not the
+ * provider's, so {@link RunStopReason} is explicit that they are "limits the
+ * engine imposes and the model never sees". A turn cut off at one replays
+ * looking exactly like a turn that finished, and "continue" then restarts the
+ * whole task instead of resuming the interrupted one.
+ *
+ * **A note, on the turns it happened to — not a summary of the thread.** One
+ * sentence on a turn that was already cut off: a few dozen tokens on a
+ * conversation where something went wrong, and nothing at all on one where
+ * nothing did. It reuses {@link RUN_STOP_EXPLANATIONS} rather than writing a
+ * second set of phrasings, so the reason a user reads in the UI and the reason
+ * the model reads here cannot drift apart.
+ *
+ * The dropped-tool-calls sentence is not incidental: `normalizeTranscript`
+ * removes `tool_use` blocks a cut-off run never got results for, so work the
+ * model can see itself starting is genuinely missing from what it replays.
+ * Unsaid, the transcript reads as though those steps were never attempted.
+ */
+export function interruptionNote(stopReason: RunStopReason): string {
+    return (
+        `(That turn did not finish. ${RUN_STOP_EXPLANATIONS[stopReason]} ` +
+        'Any tool call it had started but not completed is absent from this ' +
+        'transcript. If the user asks you to continue, resume from where it ' +
+        'stopped rather than starting the task again.)'
+    );
+}

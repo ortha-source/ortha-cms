@@ -73,7 +73,9 @@ export type {
 // --- the run (phase 1) ---
 export {
     DEFAULT_RUN_LIMITS,
-    RUN_STOP_EXPLANATIONS
+    RUN_STOP_EXPLANATIONS,
+    interruptionNote,
+    wasCutShort
 } from './lib/run/run-limits';
 export type { RunLimits, RunStopReason } from './lib/run/run-limits';
 export type {
