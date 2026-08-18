@@ -1,10 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import type { AnyContentType } from '../../types/content-type';
 import { toRecord } from '../../entries/infrastructure/persistence/entry-row';
 import { EntryWriterService } from '../../entries/infrastructure/persistence/entry-writer.service';
 import { PublishEntryUseCase } from '../../entries/application/use-cases/publish-entry.use-case';
 import { UnpublishEntryUseCase } from '../../entries/application/use-cases/unpublish-entry.use-case';
+import { BulkPublishEntriesUseCase } from '../../entries/application/use-cases/bulk-publish-entries.use-case';
+import { BulkUnpublishEntriesUseCase } from '../../entries/application/use-cases/bulk-unpublish-entries.use-case';
+import type {
+    BulkActionResult,
+    BulkPublishResult
+} from '../../entries/types/bulk-publish';
 import type { PublicSaveEntryDto } from '../http/dto/public-save-entry.dto';
+import type { PublicBulkSaveItemDto } from '../http/dto/public-bulk.dto';
+import {
+    BULK_SAVE_OP,
+    type BulkSaveOp,
+    type PublicBulkError,
+    type PublicBulkSaveItemResult,
+    type PublicBulkSaveResult
+} from '../types/public-bulk';
+import { resolveBulkSaveOp } from './bulk-save-op';
 import type { PublicEntry } from '../types/public-entry';
 import { PublicEntriesQuery, type EntryLocator } from './public-entries.query';
 
@@ -43,7 +58,9 @@ export class PublicEntryWritesService {
         private readonly writer: EntryWriterService,
         private readonly entries: PublicEntriesQuery,
         private readonly publishEntry: PublishEntryUseCase,
-        private readonly unpublishEntry: UnpublishEntryUseCase
+        private readonly unpublishEntry: UnpublishEntryUseCase,
+        private readonly bulkPublishEntries: BulkPublishEntriesUseCase,
+        private readonly bulkUnpublishEntries: BulkUnpublishEntriesUseCase
     ) {}
 
     /**
@@ -135,6 +152,92 @@ export class PublicEntryWritesService {
     }
 
     /**
+     * Save many entries of one type in a single request — the batch form of
+     * {@link create} and {@link update}, and the reason it is one method rather
+     * than two: an import is a list of records, some of which the caller already
+     * has and some of which it does not, and splitting that into two calls would
+     * make the client sort them first.
+     *
+     * **Each item is dispatched to the very same `create` / `update` above.**
+     * Nothing about what a write means is restated here — validation, relation
+     * deltas, media checks, revision numbering, the outbox, i18n's sibling sync
+     * all come from the one pipeline, so "saved in bulk" and "saved one at a
+     * time" cannot mean different things.
+     *
+     * **Partial success, item by item.** The items are written one transaction
+     * at a time (`EntryWriterService` opens its own per write, taking the
+     * workspace's shared content lock), so there is no batch to roll back even
+     * in principle — and rejecting forty-nine good entries because the fiftieth
+     * names a relation that does not exist would defeat the point of the
+     * endpoint. Every item therefore gets a verdict, failures carry the status
+     * and message their single-entry call would have produced, and the caller
+     * retries the ones it can fix. This is the same contract the bulk-publish
+     * commit already reports through its `skipped` list.
+     *
+     * **Written in order, one after another** rather than concurrently. Every
+     * write takes the workspace's shared content lock and (on a localized type)
+     * an advisory lock over the translation group, so a batch touching siblings
+     * would spend a fan-out contending with itself; sequential also makes the
+     * per-item results deterministic, which a caller diffing two runs relies on.
+     */
+    async bulkSave(
+        type: AnyContentType,
+        items: readonly PublicBulkSaveItemDto[],
+        workspaceId: string,
+        grantedTypes: ReadonlySet<string>
+    ): Promise<PublicBulkSaveResult> {
+        const results: PublicBulkSaveItemResult[] = [];
+
+        for (const [index, item] of items.entries()) {
+            // Resolved inside the loop, and inside the try: a malformed
+            // locator is this item's problem, not the request's. Failing the
+            // whole call on it would make one mis-addressed row cost every
+            // other row's write — the very thing the per-item contract exists
+            // to prevent.
+            let op: BulkSaveOp = BULK_SAVE_OP.Create;
+            try {
+                const resolved = resolveBulkSaveOp(item);
+                op = resolved.op;
+                const entry =
+                    resolved.op === BULK_SAVE_OP.Create
+                        ? await this.create(
+                              type,
+                              item,
+                              workspaceId,
+                              grantedTypes
+                          )
+                        : await this.update(
+                              type,
+                              resolved.locator,
+                              item,
+                              workspaceId,
+                              grantedTypes,
+                              resolved.locale
+                          );
+                results.push({ index, op: resolved.op, ok: true, entry });
+            } catch (error) {
+                results.push({
+                    index,
+                    op,
+                    ok: false,
+                    error: toBulkSaveError(error)
+                });
+            }
+        }
+
+        return {
+            items: results,
+            created: results.filter(
+                (result) => result.ok && result.op === BULK_SAVE_OP.Create
+            ).length,
+            updated: results.filter(
+                (result) => result.ok && result.op === BULK_SAVE_OP.Update
+            ).length,
+            failed: results.filter((result) => !result.ok).length
+        };
+    }
+
+    /**
      * The values bag an update submits: the stored values with the caller's
      * merged over them (see {@link update}), minus any single relation the
      * caller is setting through `relations`.
@@ -164,6 +267,63 @@ export class PublicEntryWritesService {
             }
         }
         return merged;
+    }
+
+    /**
+     * Publish many entries at once.
+     *
+     * **Delegates to `BulkPublishEntriesUseCase` — the admin's own** — rather
+     * than looping over {@link publish}. That use-case selects the candidate
+     * rows `FOR UPDATE` and re-validates them inside **one** transaction, which
+     * is the only thing that closes the window between "this draft validates"
+     * and "publish it"; a loop of single publishes would reopen it once per id.
+     * It also reports the ids it skipped and why (already published, blocked by
+     * validation, not found in this workspace), so a partial batch is legible
+     * rather than a flat count.
+     *
+     * The grant gate has already run in the caller, and the use-case is
+     * workspace-scoped, so an id from another workspace is reported as
+     * `not-found` — the same answer an id that never existed gets.
+     */
+    bulkPublish(
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<BulkPublishResult> {
+        return this.bulkPublishEntries.execute(type, ids, workspaceId);
+    }
+
+    /**
+     * Take many entries off the air, reverting each to a draft.
+     *
+     * `{ count }` rather than a per-id verdict, because unpublishing has no
+     * gate to fail: an id that is not a live published row of this workspace is
+     * simply not one of the rows that changed. The count is the number that
+     * actually transitioned, and one `entry.unpublished` event is emitted per
+     * transition — never per submitted id.
+     */
+    bulkUnpublish(
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<BulkActionResult> {
+        return this.bulkUnpublishEntries.execute(type, ids, workspaceId);
+    }
+
+    /**
+     * Remove many entries — soft-deleting on a `paranoid` type (recoverable
+     * from the admin's trash) and hard-deleting otherwise, exactly as
+     * {@link remove} does for one.
+     *
+     * Rows, not records: on a localized type this deletes the listed locales
+     * and leaves their siblings live.
+     */
+    bulkRemove(
+        type: AnyContentType,
+        ids: string[],
+        workspaceId: string
+    ): Promise<BulkActionResult> {
+        return this.writer.bulkRemove(type, ids, workspaceId);
     }
 
     /** Take an entry live. 422 when the stored draft no longer validates. */
@@ -251,4 +411,35 @@ export class PublicEntryWritesService {
             grantedTypes
         );
     }
+}
+
+/**
+ * One item's failure, in the vocabulary the single-entry routes already speak.
+ *
+ * A Nest `HttpException` carries both halves of what the caller needs — the
+ * status the same write would have failed with, and the body it would have been
+ * given, `issues` and all — so a 422's per-field detail survives being one row
+ * of a batch instead of being flattened to a sentence. Anything else is a bug
+ * rather than a rejection, and is reported as a 500 with its message so the item
+ * is still diagnosable; the batch keeps going either way, because one item
+ * throwing unexpectedly is not a reason to abandon the rest.
+ */
+function toBulkSaveError(error: unknown): PublicBulkError {
+    if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const body =
+            typeof response === 'object' && response !== null
+                ? (response as Record<string, unknown>)
+                : {};
+        const message = body['message'];
+        return {
+            status: error.getStatus(),
+            message: typeof message === 'string' ? message : error.message,
+            ...(body['issues'] === undefined ? {} : { issues: body['issues'] })
+        };
+    }
+    return {
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: error instanceof Error ? error.message : String(error)
+    };
 }

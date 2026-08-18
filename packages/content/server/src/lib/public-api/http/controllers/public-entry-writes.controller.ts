@@ -27,6 +27,13 @@ import type { PublicEntry } from '../../types/public-entry';
 import { ApiTokenGuard } from '../guards/api-token.guard';
 import { ApiTokenWorkspaceGuard } from '../guards/api-token-workspace.guard';
 import { PublicSaveEntryDto } from '../dto/public-save-entry.dto';
+import { PublicBulkIdsDto, PublicBulkSaveDto } from '../dto/public-bulk.dto';
+import { BULK_MAX_SAVE_ITEMS } from '../../../entries/entries.constants';
+import type { PublicBulkSaveResult } from '../../types/public-bulk';
+import type {
+    BulkActionResult,
+    BulkPublishResult
+} from '../../../entries/types/bulk-publish';
 import { PublicEntryQueryDto } from '../dto/public-list-entries-query.dto';
 import { resolveGrantedType } from './resolve-granted-type';
 
@@ -40,6 +47,14 @@ import { resolveGrantedType } from './resolve-granted-type';
  * `publish` / `delete`), which `ApiTokenGuard` evaluates against the token's
  * scope through the same `AccessPolicy` the session routes use. A `read` token
  * therefore gets a **403** on all of them without a line of code here saying so.
+ *
+ * **Batches sit alongside the single-entry writes, not instead of them**
+ * (`/bulk`, `/bulk/publish`, `/bulk/unpublish`, `/bulk/delete`). They exist
+ * because an external client is usually syncing a list — an import, a scheduled
+ * republish — and doing that one HTTP round trip per record is the difference
+ * between a job that finishes and one that times out. Every one of them runs the
+ * same use-case its single-entry sibling does, so a batch is a way of *asking*,
+ * never a second set of rules.
  *
  * Like the reads, every single-entry write exists in **both addressing forms** —
  * `:id` and `group/:localeGroupId` — so a localized client that holds group ids
@@ -88,6 +103,105 @@ export class PublicEntryWritesController {
             workspaceId
         );
         return this.writes.create(type, body, workspaceId, granted);
+    }
+
+    // ---- batches -----------------------------------------------------------
+    //
+    // **Declared before the `:id` routes**, because `bulk/publish` and
+    // `:id/publish` are the same shape to the router and Express matches in
+    // declaration order — the single-entry routes' `ParseUUIDPipe` is a backstop
+    // that turns a mis-ordered match into a 400, not a substitute for the order.
+    // Same arrangement, same reason, as the admin's `BulkEntriesController`.
+
+    /** `POST /api/v1/content/:typeName/bulk` — create and/or update many entries. */
+    @Post(':typeName/bulk')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions(PERMISSIONS.CONTENT_CREATE, PERMISSIONS.CONTENT_UPDATE)
+    @ApiOperation({
+        summary: 'Save many entries',
+        description: `Creates and/or updates up to ${BULK_MAX_SAVE_ITEMS} entries of one type in a single request — an item with an \`id\` updates that entry, one without creates a new draft, and an item naming only a \`localeGroupId\` must say which with \`op\`. Each item means exactly what the equivalent \`POST\` / \`PATCH\` means, merge semantics and all.\n\n**Always 200, even when items fail.** Items are written one transaction at a time, so a batch cannot be rolled back as a unit and one bad row does not reject the rest: the response carries a verdict per item in request order, with failures reporting the status and message the single-entry call would have returned (a 422 keeps its per-field \`issues\`). Retry the failures you can fix. Both \`content:create\` and \`content:update\` are required, since one request may do either.`
+    })
+    async bulkSave(
+        @Param('typeName') typeName: string,
+        @Body() body: PublicBulkSaveDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<PublicBulkSaveResult> {
+        const { type, granted } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.writes.bulkSave(type, body.items, workspaceId, granted);
+    }
+
+    /** `POST /api/v1/content/:typeName/bulk/publish` — take many entries live. */
+    @Post(':typeName/bulk/publish')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+    @ApiOperation({
+        summary: 'Publish many entries',
+        description:
+            'Re-validates the listed drafts inside **one locked transaction** and publishes those that pass, reporting the rest in `skipped` with why — `already-published`, `blocked` (validation), or `not-found` (unknown, soft-deleted, or in another workspace). Partial success is the normal outcome, not an error. 400 on a type that is not publishable.'
+    })
+    async bulkPublish(
+        @Param('typeName') typeName: string,
+        @Body() body: PublicBulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<BulkPublishResult> {
+        const { type } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.writes.bulkPublish(type, body.ids, workspaceId);
+    }
+
+    /** `POST /api/v1/content/:typeName/bulk/unpublish` — take many off the air. */
+    @Post(':typeName/bulk/unpublish')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions(PERMISSIONS.CONTENT_PUBLISH)
+    @ApiOperation({
+        summary: 'Unpublish many entries',
+        description:
+            'Reverts the listed entries to drafts. `count` is how many actually transitioned — an id that was not a live published row of this workspace changes nothing and is not counted, which is the only way this call can "fail" for an id.'
+    })
+    async bulkUnpublish(
+        @Param('typeName') typeName: string,
+        @Body() body: PublicBulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<BulkActionResult> {
+        const { type } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.writes.bulkUnpublish(type, body.ids, workspaceId);
+    }
+
+    /** `POST /api/v1/content/:typeName/bulk/delete` — remove many entries. */
+    @Post(':typeName/bulk/delete')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions(PERMISSIONS.CONTENT_DELETE)
+    @ApiOperation({
+        summary: 'Delete many entries',
+        description:
+            'Soft-deletes on a `paranoid` type (recoverable from the admin’s trash) and hard-deletes otherwise. `count` is how many rows were removed. Deletes exactly the listed rows: on a localized type the other translations stay live.\n\nA `POST`, not a `DELETE`, because the ids travel in a body — the one thing a `DELETE` cannot reliably carry through proxies and client libraries.'
+    })
+    async bulkRemove(
+        @Param('typeName') typeName: string,
+        @Body() body: PublicBulkIdsDto,
+        @CurrentWorkspace() workspaceId: string
+    ): Promise<BulkActionResult> {
+        const { type } = await resolveGrantedType(
+            this.registry,
+            this.grants,
+            typeName,
+            workspaceId
+        );
+        return this.writes.bulkRemove(type, body.ids, workspaceId);
     }
 
     // ---- addressed by translation group -----------------------------------
@@ -215,7 +329,13 @@ export class PublicEntryWritesController {
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentWorkspace() workspaceId: string
     ): Promise<PublicEntry> {
-        return this.applyPublish(typeName, { id }, workspaceId, undefined, true);
+        return this.applyPublish(
+            typeName,
+            { id },
+            workspaceId,
+            undefined,
+            true
+        );
     }
 
     /** `POST /api/v1/content/:typeName/:id/unpublish` — take it off the air. */

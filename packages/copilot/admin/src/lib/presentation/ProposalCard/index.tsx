@@ -161,15 +161,24 @@ export function ProposalCard({ proposal }: { proposal: ChatProposal }) {
                 </div>
             )}
 
-            <footer className="flex items-center gap-2 border-t px-3 py-2">
-                <span className="text-muted-foreground text-[11px]">
-                    {proposal.status === 'accepted'
-                        ? intl.formatMessage(messages.applied)
-                        : proposal.status === 'rejected'
-                          ? intl.formatMessage(messages.wasRejected)
-                          : intl.formatMessage(messages.notApplied)}
-                </span>
-            </footer>
+            {/* **Omitted when a failure carried its own reason**, because the
+                two would contradict each other. "Nothing was saved." is right
+                for a change that never started, and wrong for one that stopped
+                halfway — a batch reports "the first 3 were saved and the rest
+                were not", and a flat denial underneath it is the sentence a
+                user believes. The alert above already states the outcome, so
+                the footer stands down rather than restating it. */}
+            {!(failed && proposal.error) && (
+                <footer className="flex items-center gap-2 border-t px-3 py-2">
+                    <span className="text-muted-foreground text-[11px]">
+                        {proposal.status === 'accepted'
+                            ? intl.formatMessage(messages.applied)
+                            : proposal.status === 'rejected'
+                              ? intl.formatMessage(messages.wasRejected)
+                              : intl.formatMessage(messages.notApplied)}
+                    </span>
+                </footer>
+            )}
         </section>
     );
 }

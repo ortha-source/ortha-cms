@@ -27,6 +27,10 @@ import {
     PublicListEntriesQueryDto
 } from '../public-api/http/dto/public-list-entries-query.dto';
 import { PublicSaveEntryDto } from '../public-api/http/dto/public-save-entry.dto';
+import {
+    PublicBulkIdsDto,
+    PublicBulkSaveDto
+} from '../public-api/http/dto/public-bulk.dto';
 import { RELATION_PAGE_SIZE } from '../entries/infrastructure/persistence/relation-link.service';
 import { fieldSchema, isValueField } from '../docs/field-schema';
 import {
@@ -36,6 +40,8 @@ import {
     validateToolInput
 } from './tool-input';
 import {
+    BULK_IDS_SCHEMA,
+    BULK_SAVE_SCHEMA,
     CREATE_SCHEMA,
     ENTRY_ACTION_SCHEMA,
     GET_ENTRY_SCHEMA,
@@ -99,7 +105,7 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
     }
 
     /**
-     * The twelve content tools. @see ToolProvider.tools
+     * The sixteen content tools. @see ToolProvider.tools
      *
      * Every one is stamped `surfaces: ['mcp']` below rather than tool by tool:
      * they are uniformly the **public-API** set — published-only reads through
@@ -419,6 +425,111 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         localeArg(input)
                     );
                     return { deleted: true };
+                }
+            },
+            // ---- batches ---------------------------------------------------
+            //
+            // The single-entry writes above stay exactly as they are; these are
+            // for the case a model has a *list*. Without them, "publish these
+            // twelve drafts" is twelve tool calls — twelve round trips through
+            // the model, each spending context on a result nobody reads, and on
+            // the copilot's side twelve steps against a bounded run. Each one
+            // runs the same use-case its single-entry sibling does.
+            {
+                name: 'content_bulk_save',
+                title: 'Save many entries',
+                description:
+                    'Create and/or update many entries of one type in a single call. An item with an `id` updates that entry (a **partial** update, exactly like `content_update`); an item without one creates a draft. Always succeeds as a call: each item gets its own verdict in the same position, and a failure carries the reason that item would have failed with on its own — so read `failed` and the per-item `error`, and do not report the batch as saved without checking them.',
+                inputSchema: BULK_SAVE_SCHEMA,
+                requires: [
+                    PERMISSIONS.CONTENT_CREATE,
+                    PERMISSIONS.CONTENT_UPDATE
+                ],
+                readOnly: false,
+                handler: async (input, context) => {
+                    const { type, granted } = await this.resolve(
+                        requireTypeName(input),
+                        context
+                    );
+                    const body = await validateToolInput(PublicBulkSaveDto, {
+                        items: input['items']
+                    });
+                    return this.writes.bulkSave(
+                        type,
+                        body.items,
+                        context.workspaceId,
+                        granted
+                    );
+                }
+            },
+            {
+                name: 'content_bulk_publish',
+                title: 'Publish many entries',
+                description:
+                    'Re-validate and publish many drafts at once. Publishes the ones that pass and reports the rest in `skipped` with why — `already-published`, `blocked` (it fails the type’s validation rules), or `not-found`. A partly-skipped batch is the normal outcome, so say what actually went live rather than assuming all of it did.',
+                inputSchema: BULK_IDS_SCHEMA,
+                requires: [PERMISSIONS.CONTENT_PUBLISH],
+                readOnly: false,
+                handler: async (input, context) => {
+                    const { type } = await this.resolve(
+                        requireTypeName(input),
+                        context
+                    );
+                    const body = await validateToolInput(PublicBulkIdsDto, {
+                        ids: input['ids']
+                    });
+                    return this.writes.bulkPublish(
+                        type,
+                        body.ids,
+                        context.workspaceId
+                    );
+                }
+            },
+            {
+                name: 'content_bulk_unpublish',
+                title: 'Unpublish many entries',
+                description:
+                    'Revert many entries to drafts. `count` is how many actually changed — an id that was not a live published entry here changes nothing and is not counted.',
+                inputSchema: BULK_IDS_SCHEMA,
+                requires: [PERMISSIONS.CONTENT_PUBLISH],
+                readOnly: false,
+                handler: async (input, context) => {
+                    const { type } = await this.resolve(
+                        requireTypeName(input),
+                        context
+                    );
+                    const body = await validateToolInput(PublicBulkIdsDto, {
+                        ids: input['ids']
+                    });
+                    return this.writes.bulkUnpublish(
+                        type,
+                        body.ids,
+                        context.workspaceId
+                    );
+                }
+            },
+            {
+                name: 'content_bulk_delete',
+                title: 'Delete many entries',
+                description:
+                    'Remove many entries — recoverable from the admin’s trash on a soft-deleting type, permanent otherwise. Deletes exactly the listed rows: on a localized type the other translations stay live. `count` is how many were removed.',
+                inputSchema: BULK_IDS_SCHEMA,
+                requires: [PERMISSIONS.CONTENT_DELETE],
+                readOnly: false,
+                destructive: true,
+                handler: async (input, context) => {
+                    const { type } = await this.resolve(
+                        requireTypeName(input),
+                        context
+                    );
+                    const body = await validateToolInput(PublicBulkIdsDto, {
+                        ids: input['ids']
+                    });
+                    return this.writes.bulkRemove(
+                        type,
+                        body.ids,
+                        context.workspaceId
+                    );
                 }
             }
         ];

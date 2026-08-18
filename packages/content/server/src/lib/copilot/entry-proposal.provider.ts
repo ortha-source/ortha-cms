@@ -10,13 +10,14 @@ import type {
 } from '../registry/content-type-registry';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
+import { BULK_MAX_SAVE_ITEMS } from '../entries/entries.constants';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
 
 /**
- * The content plugin's **write** tools — `content_propose_create` and
- * `content_propose_update`.
+ * The content plugin's **write** tools — `content_propose_create`,
+ * `content_propose_update`, and `content_propose_bulk_save` for the batch.
  *
- * Both are `effect: 'propose'`: they compute a change and hand it back, and the
+ * All three are `effect: 'propose'`: they compute a change and hand it back, and the
  * run engine persists it as a `copilot_proposals` row for a human to accept
  * ([ADR-0005](../../../../../../docs/adr/0005-copilot-authority-model.md) §5).
  * **Nothing here writes to the database.** That is the whole point of the split
@@ -32,7 +33,9 @@ import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
  *
  * **`content:publish` is not exposed at any role** (ADR-0005 §7). The copilot
  * may prepare a publishable draft; a person presses publish. There is
- * deliberately no `status` in either tool's schema.
+ * deliberately no `status` in any of their schemas — and no bulk publish or
+ * bulk delete either, however convenient: batching is a way of *asking*, not a
+ * route to authority a single-entry tool was not given.
  */
 @Injectable()
 export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
@@ -54,9 +57,9 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
         this.toolRegistry?.register(this);
     }
 
-    /** The two write tools, in the order the model sees them. */
+    /** The three write tools, in the order the model sees them. */
     tools(): readonly ToolDefinition[] {
-        return [this.proposeEntry(), this.proposeEdit()];
+        return [this.proposeEntry(), this.proposeEdit(), this.proposeBulk()];
     }
 
     /** Resolves a granted, registered type — the same uniform message as the reads. */
@@ -384,6 +387,233 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
             }
         };
     }
+    /**
+     * `content_propose_bulk_save` — many creates and edits as **one** change.
+     *
+     * It exists because the single-entry pair scales badly in the one direction
+     * users actually push it: "translate these eight posts", "retag everything
+     * from last month". Each entry was a tool call, so a run spent its step
+     * budget on round trips and the transcript grew a card per record — eight
+     * receipts for one instruction, none of which said what the other seven
+     * were.
+     *
+     * **Still `effect: 'propose'`, and still writes nothing here.** The batch is
+     * computed from the model's arguments plus the entries as they are now, and
+     * handed back for the engine to record and apply. One proposal row, one
+     * card, one diff listing every field of every entry — which is also what
+     * makes the batch reviewable after the fact instead of merely fast.
+     *
+     * The per-item addressing is the smaller half of the public API's: an `id`
+     * updates, no `id` creates. There is deliberately no group-addressed update
+     * (the ambiguity the REST `op` field resolves), because the admin tools hand
+     * the model entry ids and nothing here would produce a bare group id.
+     */
+    private proposeBulk(): ToolDefinition {
+        return {
+            name: 'content_propose_bulk_save',
+            title: 'Propose several entry changes',
+            description:
+                'Propose creating and/or changing SEVERAL entries of one content type in a ' +
+                'single change. Use this instead of calling content_propose_create or ' +
+                'content_propose_update repeatedly — the user sees one approval card listing ' +
+                'every entry, and you spend one step instead of one per record. An item with ' +
+                'an `id` changes that entry (send only the fields you are changing); an item ' +
+                'without one creates a new draft. Read the entries first with ' +
+                'admin_content_search / admin_content_get so the diff is real. If any entry ' +
+                'fails to save, the change stops there and the reply says how many landed — ' +
+                'do not claim the whole batch saved without reading it.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    typeName: {
+                        type: 'string',
+                        description: 'The content type every item belongs to.'
+                    },
+                    items: {
+                        type: 'array',
+                        minItems: 1,
+                        maxItems: BULK_MAX_SAVE_ITEMS,
+                        description: `The entries to save (1…${BULK_MAX_SAVE_ITEMS}), applied in order.`,
+                        items: {
+                            type: 'object',
+                            properties: {
+                                id: {
+                                    type: 'string',
+                                    description:
+                                        'The entry to change, as returned by admin_content_search. ' +
+                                        'Omit to create a new entry instead.'
+                                },
+                                values: {
+                                    type: 'object',
+                                    description:
+                                        'Field values keyed by field name. On an item with an `id`, ' +
+                                        'only the fields to change — omitted fields keep their current ' +
+                                        'values. A many-relation takes an array of target entry ids and ' +
+                                        'REPLACES the whole set.'
+                                },
+                                locale: {
+                                    type: 'string',
+                                    maxLength: 35,
+                                    description:
+                                        'Locale to create in, on a localized type. Create-only — an ' +
+                                        'entry id already names its own locale.'
+                                },
+                                localeGroupId: {
+                                    type: 'string',
+                                    description:
+                                        'Join an existing translation group, making the new entry that ' +
+                                        'group’s row in `locale`. Create-only.'
+                                }
+                            },
+                            required: ['values'],
+                            additionalProperties: false
+                        }
+                    },
+                    summary: {
+                        type: 'string',
+                        maxLength: 200,
+                        description:
+                            'One line describing the whole batch, shown to the user on the approval ' +
+                            'card. Write it for a person, e.g. “Translate 8 posts into German”.'
+                    }
+                },
+                required: ['typeName', 'items', 'summary'],
+                additionalProperties: false
+            },
+            requires: [PERMISSIONS.CONTENT_CREATE, PERMISSIONS.CONTENT_UPDATE],
+            readOnly: false,
+            effect: 'propose',
+            surfaces: ['copilot'],
+            handler: async (input, ctx): Promise<ProposalDraft> => {
+                const args = (input ?? {}) as {
+                    typeName: string;
+                    items?: BulkProposalItem[];
+                    summary: string;
+                };
+                const type = await this.resolveGranted(
+                    args.typeName,
+                    ctx.workspaceId
+                );
+                const items = args.items ?? [];
+                if (items.length === 0) {
+                    throw new Error(
+                        'Nothing to save — `items` was empty. Send at least one entry.'
+                    );
+                }
+                if (items.length > BULK_MAX_SAVE_ITEMS) {
+                    throw new Error(
+                        `Too many entries in one change: ${items.length}, and the limit is ` +
+                            `${BULK_MAX_SAVE_ITEMS}. Split it into smaller batches.`
+                    );
+                }
+
+                const changes: ProposalChange[] = [];
+                const patched: BulkProposalItem[] = [];
+
+                for (const [index, item] of items.entries()) {
+                    const { values, fields } = this.narrowValues(
+                        type.name,
+                        item.values ?? {}
+                    );
+                    if (Object.keys(values).length === 0) {
+                        throw new Error(
+                            `Item ${index + 1} names no fields to write. Every item needs \`values\`.`
+                        );
+                    }
+
+                    // A create has no `before`; an edit reads the live entry so
+                    // the card carries a real diff — and so a missing or
+                    // out-of-workspace id fails HERE, before the user is told
+                    // anything is happening, rather than halfway through the
+                    // write.
+                    const before = item.id
+                        ? ((
+                              await this.writer.getOne(
+                                  type,
+                                  item.id,
+                                  ctx.workspaceId
+                              )
+                          ).values ?? {})
+                        : undefined;
+
+                    // Fields that would not actually change are dropped, and
+                    // an item left with none of them is dropped whole — the
+                    // batch equivalent of `proposeEdit`'s no-op guard, and here
+                    // it is more than card hygiene: writing an entry its own
+                    // current values still appends a revision and, on a
+                    // publishable type, takes a live entry back to draft. A
+                    // model re-sending twenty unchanged records would
+                    // unpublish twenty live pages.
+                    const changed: Record<string, unknown> = {};
+                    for (const [field, after] of Object.entries(values)) {
+                        const wholeSet = this.isWholeSetRelation(
+                            fields.get(field)
+                        );
+                        // A whole-set relation has no readable `before` here,
+                        // so it always counts as a change.
+                        const hasBefore = before !== undefined && !wholeSet;
+                        if (
+                            hasBefore &&
+                            JSON.stringify(before[field] ?? null) ===
+                                JSON.stringify(after ?? null)
+                        ) {
+                            continue;
+                        }
+                        changed[field] = after;
+                        changes.push({
+                            // Prefixed by position, because the card keys its
+                            // rows on `field` and eight entries editing `title`
+                            // would otherwise collapse into one row.
+                            field: `items[${index}].${field}`,
+                            label: `#${index + 1} ${labelOf(fields.get(field)).label ?? field}`,
+                            ...(hasBefore
+                                ? { before: before[field] ?? null }
+                                : {}),
+                            after
+                        });
+                    }
+                    if (Object.keys(changed).length === 0) {
+                        continue;
+                    }
+
+                    patched.push({
+                        ...(item.id ? { id: item.id } : {}),
+                        values: changed,
+                        ...(item.locale ? { locale: item.locale } : {}),
+                        ...(item.localeGroupId
+                            ? { localeGroupId: item.localeGroupId }
+                            : {})
+                    });
+                }
+
+                if (patched.length === 0) {
+                    throw new Error(
+                        'Those entries already have these values — nothing would change.'
+                    );
+                }
+
+                return {
+                    kind: CONTENT_PROPOSAL_KINDS.bulkSaveEntries,
+                    target: { typeName: type.name },
+                    patch: { items: patched },
+                    summary: args.summary,
+                    changes
+                };
+            }
+        };
+    }
+}
+
+/** One entry in a proposed batch, as the model sends it and the applier reads it. */
+interface BulkProposalItem {
+    /** The entry to change. Absent on a create. */
+    id?: string;
+    /** The fields to write. */
+    values: Record<string, unknown>;
+    /** Locale of a created row. */
+    locale?: string;
+    /** Translation group a created row joins. */
+    localeGroupId?: string;
 }
 
 /** The field's admin label, when it has one — for the diff's row heading. */

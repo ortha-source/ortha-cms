@@ -23,6 +23,7 @@ describe('toolPhrase', () => {
             'workspace_members_list',
             'content_propose_create',
             'content_propose_update',
+            'content_propose_bulk_save',
             'i18n_propose_translation',
             'media_propose_alt_text'
         ]) {

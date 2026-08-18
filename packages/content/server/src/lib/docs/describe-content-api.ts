@@ -75,6 +75,7 @@ const ENTRY_ROUTES: Record<string, Record<string, OperationSpec>> = {
     '/{id}/revisions/{number}': { get: shared('RevisionDetail') },
     '/{id}/revisions/{number}/restore': { post: VALIDATED_ENTRY },
     '/{id}/revisions/{number}/publish': { post: VALIDATED_ENTRY },
+    '/bulk': { post: shared('BulkSaveResult') },
     '/bulk/publish/preview': { post: shared('BulkPublishPreview') },
     '/bulk/publish': {
         post: { response: { kind: 'schema', name: 'BulkPublishResult' } }

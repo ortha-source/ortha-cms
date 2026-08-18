@@ -1,5 +1,7 @@
 import type { JsonSchema } from '@ortha-cms/tools-server';
 import {
+    BULK_MAX_IDS,
+    BULK_MAX_SAVE_ITEMS,
     DEFAULT_PAGE_SIZE,
     FILTER_MAX_LENGTH,
     MAX_PAGE_SIZE
@@ -297,4 +299,64 @@ export const ENTRY_ACTION_SCHEMA: JsonSchema = object(
         locale: LOCALE
     },
     ['typeName']
+);
+
+/**
+ * `content_bulk_save` — the batch form of create + update.
+ *
+ * One `items` array rather than a `creates` and an `updates` list: a model
+ * working from a list of records knows which ones it read an id for and which
+ * it did not, and asking it to partition them first is a step it can get wrong
+ * for no benefit. The addressing inside an item is the same addressing the
+ * single-entry tools take as top-level arguments.
+ */
+export const BULK_SAVE_SCHEMA: JsonSchema = object(
+    {
+        typeName: TYPE_NAME,
+        items: {
+            type: 'array',
+            minItems: 1,
+            maxItems: BULK_MAX_SAVE_ITEMS,
+            description: `The entries to save (1…${BULK_MAX_SAVE_ITEMS}), applied in order. Every item is reported back at the same position, so a partial batch is legible.`,
+            items: object({
+                id: {
+                    type: 'string',
+                    format: 'uuid',
+                    description:
+                        'The entry to update. Omit to create a new one.'
+                },
+                op: {
+                    type: 'string',
+                    enum: ['create', 'update'],
+                    description:
+                        'What this item does. Inferred from the addressing — an `id` means update, no `id` and no `localeGroupId` means create — and required only when you pass `localeGroupId` alone, which could mean either adding that record’s row in `locale` or changing the row it already has there.'
+                },
+                values: VALUES,
+                relations: RELATION_DELTAS,
+                locale: LOCALE,
+                localeGroupId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description:
+                        'The translation group this row belongs to — joined on a create, addressed together with `locale` on an update.'
+                }
+            })
+        }
+    },
+    ['typeName', 'items']
+);
+
+/** `content_bulk_publish` / `content_bulk_unpublish` / `content_bulk_delete`. */
+export const BULK_IDS_SCHEMA: JsonSchema = object(
+    {
+        typeName: TYPE_NAME,
+        ids: {
+            type: 'array',
+            minItems: 1,
+            maxItems: BULK_MAX_IDS,
+            items: { type: 'string', format: 'uuid' },
+            description: `Entry ids to act on (1…${BULK_MAX_IDS}). Ids from another workspace, or that never existed, simply do not match — they are not an error.`
+        }
+    },
+    ['typeName', 'ids']
 );
