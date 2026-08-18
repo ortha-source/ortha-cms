@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_703 test cases across 71 spec files._
+_717 test cases across 73 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -382,6 +382,23 @@ _<sub>apps/admin-e2e/src/auth/reflow.spec.ts</sub>_
 | the sign-in card fits without sideways scrolling |
 | the accept-invite card fits, long email and all |
 | nothing is stranded above the scroll origin |
+
+<!-- source: apps/admin-e2e/src/auth/reset-password.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/reset-password.spec.ts</sub>_
+
+## reset a password
+
+| Test case |
+| --- |
+| names the account the link opens and asks only for a password |
+| submits the token with the password and hands off to sign-in |
+| does not re-report the spent link as dead after succeeding |
+| refuses to submit a password that is too short |
+| refuses to submit when the confirmation does not match |
+| explains a dead link and offers sign-in |
+| treats a link with no token as a truncated one, not a dead one |
+| offers a retry — not a replacement — when the lookup itself fails |
+| reports a link that died while the form was open |
 
 <!-- source: apps/admin-e2e/src/auth/routing.spec.ts -->
 _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
@@ -1374,6 +1391,19 @@ _<sub>apps/admin-e2e/src/users/members.spec.ts</sub>_
 | hides write controls without the matching permission |
 | shows a no-access state without users:read |
 | hands over the rotated link when an invite is resent |
+
+<!-- source: apps/admin-e2e/src/users/password-reset.spec.ts -->
+_<sub>apps/admin-e2e/src/users/password-reset.spec.ts</sub>_
+
+## generate a password reset link
+
+| Test case |
+| --- |
+| reveals the link once, for the right member |
+| guards the first dismissal until the link has been copied |
+| offers no reset for a member who has not accepted their invite |
+| offers no reset for a suspended member |
+| says how long to wait when a link was just generated |
 
 <!-- source: apps/admin-e2e/src/users/preferences.spec.ts -->
 _<sub>apps/admin-e2e/src/users/preferences.spec.ts</sub>_

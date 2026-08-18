@@ -3,7 +3,9 @@ import type {
     AcceptInviteInput,
     CurrentUser,
     InviteDetails,
-    LoginCredentials
+    LoginCredentials,
+    PasswordResetDetails,
+    ResetPasswordInput
 } from '../../../types/auth';
 import type { AuthGateway } from '../authGateway';
 
@@ -57,6 +59,25 @@ export const httpAuthGateway: AuthGateway = {
     async acceptInvite(input: AcceptInviteInput): Promise<void> {
         try {
             await apiClient.post('/auth/invite/accept', input);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async describePasswordReset(token: string): Promise<PasswordResetDetails> {
+        try {
+            const { data } = await apiClient.get<PasswordResetDetails>(
+                `/auth/reset/${encodeURIComponent(token)}`
+            );
+            return data;
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async resetPassword(input: ResetPasswordInput): Promise<void> {
+        try {
+            await apiClient.post('/auth/reset', input);
         } catch (error) {
             throw toApiError(error);
         }

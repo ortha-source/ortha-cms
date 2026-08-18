@@ -7,15 +7,18 @@ import {
 import type {
     InvitedMember,
     Member,
-    MemberList
+    MemberList,
+    MemberWithResetToken
 } from '../../domain/types/member';
 import type { UserSession } from '../../domain/types/session';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
 import {
     toInvitedMember,
     toMember,
+    toMemberWithResetToken,
     type InvitedMemberResponse,
-    type MemberResponse
+    type MemberResponse,
+    type PasswordResetMemberResponse
 } from '../memberMapper';
 import type { MembersListParams } from '../membersKeys';
 import type {
@@ -134,6 +137,17 @@ export const httpMemberGateway: MemberGateway = {
                 `/users/${id}/invites/resend`
             );
             return toInvitedMember(data);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async issuePasswordReset(id: string): Promise<MemberWithResetToken> {
+        try {
+            const { data } = await apiClient.post<PasswordResetMemberResponse>(
+                `/users/${id}/password-reset`
+            );
+            return toMemberWithResetToken(data);
         } catch (error) {
             throw toApiError(error);
         }

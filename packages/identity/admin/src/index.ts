@@ -4,6 +4,8 @@ export { IdentityRouter } from './lib/presentation/router';
 export { LoginForm } from './lib/presentation/components/LoginForm';
 export { AcceptInviteForm } from './lib/presentation/components/AcceptInviteForm';
 export type { AcceptInviteFormValues } from './lib/presentation/components/AcceptInviteForm';
+export { ResetPasswordForm } from './lib/presentation/components/ResetPasswordForm';
+export type { ResetPasswordFormValues } from './lib/presentation/components/ResetPasswordForm';
 export { AuthLayout } from './lib/presentation/components/AuthLayout';
 export {
     PASSWORD_MIN_LENGTH,
@@ -17,15 +19,14 @@ export {
     useHasPermission,
     AuthStatus
 } from './lib/presentation/auth/authContext';
-export type {
-    AuthState,
-    AuthUser
-} from './lib/presentation/auth/authContext';
+export type { AuthState, AuthUser } from './lib/presentation/auth/authContext';
 export { useLogoutMutation } from './lib/application/useLogoutMutation';
 export type {
     LoginCredentials,
     AuthTokens,
     CurrentUser,
     InviteDetails,
-    AcceptInviteInput
+    AcceptInviteInput,
+    PasswordResetDetails,
+    ResetPasswordInput
 } from './types/auth';

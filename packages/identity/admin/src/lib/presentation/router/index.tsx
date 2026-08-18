@@ -27,6 +27,17 @@ const AcceptInvitePage = lazy(() =>
 );
 
 /**
+ * Reset-password page, split for the same reason as the accept-invite one: it
+ * is reached rarely, from a one-time link, and never by a signed-in user
+ * browsing the app.
+ */
+const ResetPasswordPage = lazy(() =>
+    import('../pages/ResetPasswordPage').then((module) => ({
+        default: module.ResetPasswordPage
+    }))
+);
+
+/**
  * Identity plugin router. Renders the auth sub-routes; mounted by the plugin
  * under the `/identity` base path (see {@link IdentityPlugin}). The lazy pages
  * are wrapped in a `Suspense` boundary that shows the {@link LoginSkeleton}
@@ -36,8 +47,9 @@ const AcceptInvitePage = lazy(() =>
  * propagate to the root and blank the page on the one route a locked-out user
  * needs.
  *
- * `accept-invite` takes its token from the query string (`?token=…`) rather
- * than a path segment, so the secret never becomes part of a route pattern.
+ * `accept-invite` and `reset-password` take their token from the query string
+ * (`?token=…`) rather than a path segment, so the secret never becomes part of
+ * a route pattern.
  */
 export function IdentityRouter() {
     return (
@@ -49,6 +61,10 @@ export function IdentityRouter() {
                     <Route
                         path="accept-invite"
                         element={<AcceptInvitePage />}
+                    />
+                    <Route
+                        path="reset-password"
+                        element={<ResetPasswordPage />}
                     />
                 </Routes>
             </Suspense>

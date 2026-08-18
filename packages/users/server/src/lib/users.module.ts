@@ -5,11 +5,13 @@ import { InviteMemberController } from './member/http/controllers/invite-member.
 import { UpdateMemberController } from './member/http/controllers/update-member.controller';
 import { SetMemberStatusController } from './member/http/controllers/set-member-status.controller';
 import { ResendInviteController } from './member/http/controllers/resend-invite.controller';
+import { IssuePasswordResetController } from './member/http/controllers/issue-password-reset.controller';
 import { RevokeInviteController } from './member/http/controllers/revoke-invite.controller';
 import { InviteMemberUseCase } from './member/application/use-cases/invite-member.use-case';
 import { UpdateMemberUseCase } from './member/application/use-cases/update-member.use-case';
 import { SetMemberStatusUseCase } from './member/application/use-cases/set-member-status.use-case';
 import { ResendInviteUseCase } from './member/application/use-cases/resend-invite.use-case';
+import { IssuePasswordResetUseCase } from './member/application/use-cases/issue-password-reset.use-case';
 import { RevokeInviteUseCase } from './member/application/use-cases/revoke-invite.use-case';
 import { MemberViewQuery } from './member/infrastructure/queries/member-view.query';
 import { WorkspaceMembersQuery } from './member/infrastructure/queries/workspace-members.query';
@@ -20,6 +22,7 @@ import { WORKSPACE_LINKER } from './member/application/ports/workspace-linker.po
 import { DrizzleMemberRepository } from './member/infrastructure/persistence/drizzle-member.repository';
 import { MemberMapper } from './member/infrastructure/persistence/member.mapper';
 import { InviteTokenService } from './member/infrastructure/persistence/invite-token.service';
+import { PasswordResetTokenService } from './member/infrastructure/persistence/password-reset-token.service';
 import { DrizzleSessionRevoker } from './member/infrastructure/persistence/drizzle-session-revoker';
 import { DrizzleWorkspaceLinker } from './member/infrastructure/persistence/drizzle-workspace-linker';
 
@@ -54,7 +57,8 @@ export class UsersModule {
                 UpdateMemberController,
                 SetMemberStatusController,
                 ResendInviteController,
-                RevokeInviteController
+                RevokeInviteController,
+                IssuePasswordResetController
             ],
             providers: [
                 // Application — one use case per state-changing operation.
@@ -63,6 +67,7 @@ export class UsersModule {
                 SetMemberStatusUseCase,
                 ResendInviteUseCase,
                 RevokeInviteUseCase,
+                IssuePasswordResetUseCase,
                 // Read model — thin CQRS query service (bypasses the aggregate).
                 MemberViewQuery,
                 WorkspaceMembersQuery,
@@ -78,7 +83,8 @@ export class UsersModule {
                 { provide: SESSION_REVOKER, useClass: DrizzleSessionRevoker },
                 { provide: WORKSPACE_LINKER, useClass: DrizzleWorkspaceLinker },
                 MemberMapper,
-                InviteTokenService
+                InviteTokenService,
+                PasswordResetTokenService
             ]
         };
     }

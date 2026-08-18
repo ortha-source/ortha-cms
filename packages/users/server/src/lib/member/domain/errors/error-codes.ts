@@ -22,7 +22,9 @@ export const MEMBER_ERROR_CODES = {
     /** The member's status forbids this transition (e.g. resend on an active member). */
     INVALID_MEMBER_STATE: 'INVALID_MEMBER_STATE',
     /** An invite was issued moments ago; rotating again would kill a live link. */
-    INVITE_RECENTLY_SENT: 'INVITE_RECENTLY_SENT'
+    INVITE_RECENTLY_SENT: 'INVITE_RECENTLY_SENT',
+    /** A reset link was issued moments ago; issuing again would kill a live link. */
+    PASSWORD_RESET_RECENTLY_SENT: 'PASSWORD_RESET_RECENTLY_SENT'
 } as const;
 
 /** One of {@link MEMBER_ERROR_CODES}. */

@@ -59,6 +59,35 @@ export class UserDetailPage extends BasePage {
             .getByRole('button', { name: label });
     }
 
+    // --- Access tab: sign-in access + the password reset link ---
+
+    /** The Access tab's "Generate reset link" button. */
+    generateResetLink(): Locator {
+        return this.page.getByRole('button', {
+            name: /Generate reset link|Generating reset link/
+        });
+    }
+
+    /** The reveal-once dialog that shows the minted reset link. */
+    resetLinkDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /** The read-only link field inside the reveal dialog, by the member's email. */
+    resetLinkField(email: string): Locator {
+        return this.page.getByLabel(`Password reset link for ${email}`);
+    }
+
+    /** The dialog's copy button. */
+    copyResetLink(): Locator {
+        return this.page.getByRole('button', { name: 'Copy link' });
+    }
+
+    /** The dialog's dismiss button (guarded until the link has been copied). */
+    resetLinkDone(): Locator {
+        return this.page.getByRole('button', { name: 'Done' });
+    }
+
     // --- Preferences tab (self-only): the colour-theme picker ---
 
     /**

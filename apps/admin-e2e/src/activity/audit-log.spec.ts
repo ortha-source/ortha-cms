@@ -301,11 +301,11 @@ test.describe('Activity Log assistive-technology semantics', () => {
         // The home panel always did this; the table's When cell was a bare
         // formatted string, so the exact instant was unavailable to AT,
         // translation tools and user scripts.
-        const when = activityLogPage.row('Changed role').locator('time').first();
-        await expect(when).toHaveAttribute(
-            'datetime',
-            DEFAULT_ACTIVITY[1].at
-        );
+        const when = activityLogPage
+            .row('Changed role')
+            .locator('time')
+            .first();
+        await expect(when).toHaveAttribute('datetime', DEFAULT_ACTIVITY[1].at);
         await expect(when).toContainText('Jun');
     });
 
@@ -313,7 +313,11 @@ test.describe('Activity Log assistive-technology semantics', () => {
         activityLogPage,
         page
     }) => {
-        // 31 events over a 25-row page: two pages, and every row changes.
+        // The whole kind catalogue over a 25-row page: two pages, and every
+        // row changes. The last row's index is derived from the fixture rather
+        // than written out — the catalogue grows every time the server learns a
+        // new audit kind, and this assertion is about the *announcement*, not
+        // about how many kinds there happen to be today.
         await mockActivity(page, ALL_KINDS_ACTIVITY);
         await activityLogPage.goto();
 
@@ -327,7 +331,7 @@ test.describe('Activity Log assistive-technology semantics', () => {
 
         await activityLogPage.pageButton('Next page').click();
         await expect(status).toContainText('page 2 of 2');
-        await expect(status).toContainText('26–31');
+        await expect(status).toContainText(`26–${ALL_KINDS_ACTIVITY.length}`);
     });
 });
 

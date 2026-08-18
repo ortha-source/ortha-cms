@@ -25,6 +25,14 @@ admin's Members page drives. Exposes, under `/api/users`:
 - `DELETE /users/:id/invites` — revoke a pending invite by deleting the
   placeholder row (cascades drop token + memberships). Real accounts are
   **never deleted** through this API.
+- `POST /users/:id/password-reset` — mint a single-use password-reset link for
+  an **active** member (`users:update`), returned the same reveal-once way. This
+  is the whole password-recovery story today: with no mailer, a public "forgot
+  password" form would have nowhere to send a link, so the flow runs through an
+  admin. Redeeming the link is identity's job (`POST /api/auth/reset`); this
+  context only decides **who** may be reset. 409s a `pending` member (no
+  password yet — resend their invite) and a `disabled` one (locked out on
+  purpose).
 
 > **Layered per ADR-0003 (tactical DDD inside plugins).** This is Wave 2 of the
 > migration; the structure copies the `@ortha-cms/workspaces-server` pilot —
@@ -43,6 +51,7 @@ domain/          # framework-free core — the one hard rule below
   errors/                          # transport-agnostic domain errors
 application/     # orchestration — one use case per state change
   use-cases/                       # invite / update / set-status / resend-invite / revoke-invite
+                                   # + issue-password-reset
   queries/member.view.ts           # read-model view types (MemberView …)
   ports/                           # secondary ports (SESSION_REVOKER, WORKSPACE_LINKER)
   dto/                             # class-validator DTOs (shape checks only)
@@ -50,7 +59,7 @@ application/     # orchestration — one use case per state change
   member-filter.ts                 # query-builder filter schema
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleMemberRepository, MemberMapper, member-lock, InviteTokenService,
-                # DrizzleSessionRevoker, DrizzleWorkspaceLinker
+                # PasswordResetTokenService, DrizzleSessionRevoker, DrizzleWorkspaceLinker
   queries/      # MemberViewQuery (the paginated list + byId read model)
 http/            # thin controllers (routes/permissions/error-mapping unchanged)
 member.constants.ts                # page sizes, filter length cap
@@ -75,8 +84,9 @@ domain event. Invariants guarded here:
 - **last-admin protection** — the last remaining _active admin_ can be neither
   demoted (`changeRole`) nor disabled (`disable`); the current admin count is
   supplied by the application under a lock and the aggregate decides;
-- **lifecycle validity** — only `active` disables, only `disabled` enables, only
-  `pending` resends/revokes (`InvalidMemberStateError`).
+- **lifecycle validity** — only `active` disables **and only `active` gets a
+  password-reset link**, only `disabled` enables, only `pending`
+  resends/revokes (`InvalidMemberStateError`).
 
 The **self-action** guard (a member cannot disable or re-role their own account)
 needs the acting user's identity, which the aggregate does not know, so the
@@ -140,6 +150,34 @@ Two rules:
 - Add a new code by adding to `MEMBER_ERROR_CODES` and giving the domain error a
   `readonly code: MemberErrorCode`. Typing it as the union (not `string`) is
   what makes `conflict()` reject a code that isn't in the catalogue.
+
+## The password-reset mint
+
+`POST /:id/password-reset` mirrors the resend path deliberately, because it has
+the same shape and the same hazards: `PasswordResetTokenService.rotate` keeps at
+most one live `reset` token per user, takes its own per-user advisory lock
+(a **different** namespace from the invite lock, so a reset for one person never
+queues behind an invite rotation for another), reads its TTL from identity's
+`token.resetTtlSeconds`, and refuses a second mint inside
+`PASSWORD_RESET_COOLDOWN_SECONDS` (60) with
+`409 PASSWORD_RESET_RECENTLY_SENT` + `retryAfterSeconds`.
+
+Two things are worth stating outright:
+
+- **Only `active` members qualify** (`Member.ensureCanResetPassword`). A
+  `pending` member has no credential to rotate, and a link that sets one without
+  activating the account would leave them unable to sign in anyway. A `disabled`
+  member is locked out by an admin's decision, and minting a credential-setting
+  link for them reads as reopening it. Identity's redemption refuses a
+  non-active account for the same reason, so this guard only turns a link to
+  nowhere into an honest 409.
+- **The audit row is written at mint time**, not at redemption
+  (`member.password_reset_issued` → `user.password_reset_issued`). Handing
+  someone a link that can take over an account is an administrative act in its
+  own right and has to be attributed to the admin who performed it, whether or
+  not the link is ever used. The redemption is a *separate* row
+  (`user.password_changed`), actored by the account holder — the two together
+  are what let a reviewer say who opened the door and who walked through it.
 
 ## The resend cooldown
 
@@ -241,7 +279,9 @@ same permission. No invite tokens, no session data.
       each take their `DELETE` snapshot before the other's `INSERT` commits,
       leaving two live links where the contract promises one.
       Redeeming a token is **not** here — identity owns the `tokens` table and the
-      accept endpoints; this context only decides who gets invited.
+      accept/reset endpoints; this context only decides who gets invited and who
+      gets a reset link. `PasswordResetTokenService` is its sibling for the
+      `reset` rows, with the same two load-bearing properties.
 
 ## Commands
 

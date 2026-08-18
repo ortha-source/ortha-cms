@@ -27,6 +27,10 @@ const actionMessages = defineMessages({
         id: 'activity.action.user.invite_revoked',
         defaultMessage: 'Revoked invite'
     },
+    passwordResetIssued: {
+        id: 'activity.action.user.password_reset_issued',
+        defaultMessage: 'Issued password reset link'
+    },
     activated: {
         id: 'activity.action.user.activated',
         defaultMessage: 'Activated account'
@@ -153,6 +157,7 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.invited': actionMessages.invited,
     'user.invite_resent': actionMessages.inviteResent,
     'user.invite_revoked': actionMessages.inviteRevoked,
+    'user.password_reset_issued': actionMessages.passwordResetIssued,
     'user.activated': actionMessages.activated,
     'user.profile_updated': actionMessages.profileUpdated,
     'user.role_changed': actionMessages.roleChanged,
@@ -298,6 +303,7 @@ export function formatActivityDetails(
         case 'user.invited':
         case 'user.invite_resent':
         case 'user.invite_revoked':
+        case 'user.password_reset_issued':
             return metaStr(meta, 'email');
         case 'user.role_changed': {
             const from = metaStr(meta, 'from');

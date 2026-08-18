@@ -204,6 +204,31 @@ export class Member {
     }
 
     /**
+     * Guards issuing a password-reset link: only an `active` member qualifies,
+     * else {@link InvalidMemberStateError}.
+     *
+     * A `pending` member has no password to reset — they finish through the
+     * invite flow, and issuing a reset instead would hand them a link that
+     * cannot activate their account. A `disabled` one is locked out on purpose;
+     * minting a credential-setting link for them would quietly reopen a
+     * sign-in path an admin deliberately closed (identity's redemption refuses
+     * a non-active account for the same reason, so this only turns a dead link
+     * into an honest 409).
+     *
+     * Minting the token is a repository concern; this only enforces the
+     * invariant and changes no state.
+     */
+    ensureCanResetPassword(): void {
+        if (!this._status.isActive) {
+            throw new InvalidMemberStateError(
+                this._id.value,
+                this._status.value,
+                'issue a password reset for'
+            );
+        }
+    }
+
+    /**
      * Revokes a `pending` member's invite, else {@link InvalidMemberStateError}
      * — real accounts are disabled, not deleted. The placeholder row's deletion
      * is a repository concern; this enforces the invariant and raises

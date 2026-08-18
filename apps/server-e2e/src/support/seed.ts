@@ -531,6 +531,64 @@ export async function getInviteConsumedAt(
     return row?.consumedAt;
 }
 
+/**
+ * Read a user's live password-reset token hashes — the raw token is returned by
+ * the API exactly once and never stored. Used to assert that issuing mints a
+ * token and that re-issuing rotates it (a different hash, still exactly one).
+ */
+export async function getResetTokenHashes(userId: string): Promise<string[]> {
+    const rows = await getDatabase()
+        .select({ tokenHash: tokens.tokenHash, type: tokens.type })
+        .from(tokens)
+        .where(eq(tokens.userId, userId));
+    return rows
+        .filter((row) => row.type === 'reset')
+        .map((row) => row.tokenHash);
+}
+
+/**
+ * Back-date a user's reset token issue time — steps past the issue cooldown
+ * without making the suite sleep for it. `POST /:id/password-reset` refuses to
+ * rotate a link minted moments ago (it would destroy one the admin is still
+ * holding), so a spec that re-issues has to age the token first or assert the
+ * `PASSWORD_RESET_RECENTLY_SENT` conflict deliberately.
+ */
+export async function ageResetTokens(
+    userId: string,
+    seconds = 3600
+): Promise<void> {
+    await getDatabase()
+        .update(tokens)
+        .set({ createdAt: new Date(Date.now() - seconds * 1000) })
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'reset')));
+}
+
+/**
+ * Force a user's reset tokens into the past — simulates a link that sat unused
+ * past its TTL, without making the suite wait out the real one.
+ */
+export async function expireResetTokens(userId: string): Promise<void> {
+    await getDatabase()
+        .update(tokens)
+        .set({ expiresAt: new Date(Date.now() - 60_000) })
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'reset')));
+}
+
+/**
+ * Whether a user's reset token has been burned — `consumedAt` is what makes a
+ * reset link one-time, so a spec asserting "the link is spent" reads it here.
+ * `null` when the user has no reset token at all.
+ */
+export async function getResetConsumedAt(
+    userId: string
+): Promise<Date | null | undefined> {
+    const [row] = await getDatabase()
+        .select({ consumedAt: tokens.consumedAt })
+        .from(tokens)
+        .where(and(eq(tokens.userId, userId), eq(tokens.type, 'reset')));
+    return row?.consumedAt;
+}
+
 /** Count a user's session rows — used to assert a session was created. */
 export async function countUserSessions(userId: string): Promise<number> {
     const rows = await getDatabase()

@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1180 test cases across 79 spec files._
+_1212 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -849,6 +849,56 @@ _<sub>apps/server-e2e/src/server/auth/me.spec.ts</sub>_
 | rejects a live session whose account was suspended |
 | accepts the same session again once the account is reactivated |
 | rejects a live session whose account fell back to pending |
+
+<!-- source: apps/server-e2e/src/server/auth/password-reset.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/password-reset.spec.ts</sub>_
+
+## reset a password
+
+### POST /api/users/:id/password-reset
+
+| Test case |
+| --- |
+| mints exactly one token and hands the raw value back once |
+| stores only the hash — the raw token is not in the database |
+| rotates: issuing again kills the previous link |
+| refuses a second issue inside the cooldown, so a double-click cannot orphan the first link |
+| 409s a pending member — there is no password to reset yet |
+| 409s a suspended member — a reset must not reopen a closed account |
+| 404s an unknown member |
+| 403s a caller without users:update |
+| 401s an unauthenticated caller |
+| audits the issue against the admin who performed it |
+
+### GET /api/auth/reset/:token
+
+| Test case |
+| --- |
+| names the account the link is for, with no session |
+| leaks nothing beyond the email and name |
+| does not consume the token — the link survives a page refresh |
+| 404s an unknown token |
+| 404s an expired token |
+| 404s an empty token segment, without a 500 |
+| 404s a token that is not hex, without a 500 |
+| does not honour an invite token — the two flows never cross |
+
+### POST /api/auth/reset
+
+| Test case |
+| --- |
+| sets the new credential and lets the member sign in with it |
+| kills the old password |
+| revokes every live session — the old password does not outlive itself |
+| issues no session of its own — holding a link is not signing in |
+| burns the token — the same link cannot be used twice |
+| 404s an expired token, leaving the old password in place |
+| 404s once the account has been suspended, even with a live link |
+| rejects a password that misses the server rules |
+| rejects a mismatched confirmation server-side |
+| cannot be pointed at another account |
+| rejects a hostile Origin |
+| audits the change against the member, with the eviction count |
 
 <!-- source: apps/server-e2e/src/server/auth/role-seeding.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/role-seeding.spec.ts</sub>_
@@ -2574,6 +2624,13 @@ _<sub>apps/server-e2e/src/server/users/origin-guard.spec.ts</sub>_
 | Test case |
 | --- |
 | rejects a disallowed Origin with 403, leaving the row in place |
+| allows the configured app origin |
+
+### POST /api/users/:id/password-reset
+
+| Test case |
+| --- |
+| rejects a disallowed Origin with 403, minting no link |
 | allows the configured app origin |
 
 ### reads are unaffected
