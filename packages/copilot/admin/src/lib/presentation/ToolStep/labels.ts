@@ -119,6 +119,14 @@ const phrases = defineMessages({
         id: 'copilot.step.content_propose_update.done',
         defaultMessage: 'Updated an entry'
     },
+    'content_propose_bulk_save.running': {
+        id: 'copilot.step.content_propose_bulk_save.running',
+        defaultMessage: 'Saving several entries…'
+    },
+    'content_propose_bulk_save.done': {
+        id: 'copilot.step.content_propose_bulk_save.done',
+        defaultMessage: 'Saved several entries'
+    },
     'i18n_propose_translation.running': {
         id: 'copilot.step.i18n_propose_translation.running',
         defaultMessage: 'Adding a translation…'

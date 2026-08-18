@@ -71,7 +71,7 @@ export interface SystemPromptInput {
  * set that gives this number teeth is phase 4 work; the number costs nothing
  * now and is impossible to backfill later.
  */
-export const SYSTEM_PROMPT_VERSION = 8;
+export const SYSTEM_PROMPT_VERSION = 9;
 
 /** How many type summaries the prompt may carry before it is truncated. */
 const MAX_TYPE_SUMMARIES = 50;
@@ -210,6 +210,7 @@ export function buildSystemPrompt(input: SystemPromptInput): string {
                 'change failed, fix what the error named rather than repeating the call.\n' +
                 '- Read before you write. Fetch the entry first so you change what actually ' +
                 'needs changing and leave the rest alone.\n' +
+                describeBatchRule(input.toolNames) +
                 describeTranslationRule(input.toolNames) +
                 '- Because these save straight away, prefer the smallest change that does ' +
                 'what was asked, and ask first if the request is ambiguous.\n' +
@@ -306,6 +307,32 @@ function describeContentModel(toolNames: readonly string[]): string {
     }
 
     return 'HOW ORTHA WORKS\n' + lines.map((line) => `- ${line}`).join('\n');
+}
+
+/**
+ * The batching rule — one bullet, only on a run that was offered the batch tool.
+ *
+ * It is worth prompt budget because the model's default is the wrong one: given
+ * eight entries to change it will reach for the tool it already knows and call
+ * it eight times, which is eight steps against a bounded run and eight cards in
+ * the transcript for one instruction. Nothing in the single-entry tools' own
+ * descriptions can say "there is a better tool for the plural case" — a tool
+ * description is read when the tool is considered, and this decision is made
+ * before that.
+ *
+ * The second half is the honesty clause. A batch stops at the first entry that
+ * fails, so "some of it saved" is a real outcome, and a model that reports the
+ * whole batch as done leaves the person believing content changed that did not.
+ */
+function describeBatchRule(toolNames: readonly string[]): string {
+    if (!toolNames.includes('content_propose_bulk_save')) {
+        return '';
+    }
+    return (
+        '- Changing several entries of one type? Use content_propose_bulk_save once ' +
+        'instead of calling the single-entry tool per entry. If it reports that only ' +
+        'some entries were saved, say exactly how many and which ones were not.\n'
+    );
 }
 
 /**

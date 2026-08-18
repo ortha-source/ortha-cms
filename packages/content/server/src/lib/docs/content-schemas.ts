@@ -390,6 +390,54 @@ function sharedSchemas(): Record<string, OpenApiSchema> {
             properties: { count: { type: 'integer' } },
             required: ['count']
         },
+        BulkSaveError: {
+            type: 'object',
+            description:
+                'Why one item of a bulk save did not go through — the status and message the same write would have returned on its own.',
+            properties: {
+                status: { type: 'integer' },
+                message: { type: 'string' },
+                issues: {
+                    type: 'array',
+                    items: ref('ValidationIssue'),
+                    description: 'Present on a 422.'
+                }
+            },
+            required: ['status', 'message']
+        },
+        BulkSaveItemResult: {
+            type: 'object',
+            description:
+                'What became of one submitted item, at the position it was sent in.',
+            properties: {
+                index: {
+                    type: 'integer',
+                    description: '0-based position in the submitted `items`.'
+                },
+                op: { type: 'string', enum: ['create', 'update'] },
+                ok: { type: 'boolean' },
+                entry: {
+                    type: 'object',
+                    additionalProperties: true,
+                    description:
+                        'The saved entry, in the same shape a single-entry write returns. Absent when `ok` is false.'
+                },
+                error: ref('BulkSaveError')
+            },
+            required: ['index', 'op', 'ok']
+        },
+        BulkSaveResult: {
+            type: 'object',
+            description:
+                'One verdict per submitted item, in request order, plus the tallies. Partial success is the contract — the call is a 200 whether or not every item saved.',
+            properties: {
+                items: { type: 'array', items: ref('BulkSaveItemResult') },
+                created: { type: 'integer' },
+                updated: { type: 'integer' },
+                failed: { type: 'integer' }
+            },
+            required: ['items', 'created', 'updated', 'failed']
+        },
         RevisionSnapshot: {
             type: 'object',
             description:

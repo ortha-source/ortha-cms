@@ -338,8 +338,9 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   for `design:paramtypes` — Nest then injects `undefined` silently, producing a
   copilot with no content tools and no error anywhere. A factory's `inject` list
   names its dependencies as values, so there is no reflected type to get wrong.
-- `EntryProposalToolProvider` ships the **write** pair,
-  `content_propose_create` and `content_propose_update` (`effect: 'propose'`).
+- `EntryProposalToolProvider` ships the **write** tools,
+  `content_propose_create`, `content_propose_update` and
+  `content_propose_bulk_save` (all `effect: 'propose'`).
   Neither writes anything: they compute a change and hand it back, and the run
   engine records it for a human to accept. That is the whole point of the split
   — the tool is a pure function of the model's arguments plus the current
@@ -352,6 +353,26 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   their links never travel in the values bag, so a value for one would be
   silently dropped. **No `status` parameter exists at any role** (ADR-0005 §7):
   the copilot may prepare a publishable draft; a person presses publish.
+- **`content_propose_bulk_save` is one change, not a loop.** "Translate these
+  eight posts" used to be eight tool calls — eight steps against a bounded run,
+  and eight cards in the transcript for one instruction, none of which said what
+  the other seven were. It takes `items[]` with the smaller half of the public
+  API's addressing (an `id` updates, no `id` creates; no group-addressed update,
+  since the admin tools hand the model entry ids), reads every edited entry at
+  propose time so the card carries a real diff, and prefixes each change's
+  `field` by position because the card keys its rows on that name. Fields that
+  would not change are dropped and an item left with none is dropped whole —
+  more than card hygiene here, since writing an entry its own current values
+  still appends a revision and takes a **live** entry back to draft, so a model
+  re-sending twenty unchanged records would unpublish twenty live pages. There is
+  deliberately **no** bulk publish and no bulk delete: batching is a way of
+  asking, not a route to authority a single-entry tool was never given
+  (ADR-0005 §7). `BulkSaveEntriesProposalApplier` writes the items one at a time
+  through the same `EntryWriterService` methods and **stops at the first
+  failure**, throwing a message that names how many landed — a proposal is one
+  row with one status, so carrying on would grow the number of entries written
+  under a receipt that then reports failure. (The public API's `bulkSave` does
+  the opposite, because there every item gets its own verdict.)
 - `CreateEntryProposalApplier` / `UpdateEntryProposalApplier` carry those
   changes out, through **`EntryWriterService.create` / `.update` — the same
   methods the HTTP routes call**. Not "similar to": the same, which is what
@@ -647,9 +668,43 @@ token is the only way in, and a session cookie is _not_ accepted):
 | `PATCH /v1/content/:typeName/:id`                        | **partial** update + relation deltas                                  |
 | `POST /v1/content/:typeName/:id/publish` \| `/unpublish` | the publish lifecycle                                                 |
 | `DELETE /v1/content/:typeName/:id`                       | soft delete (paranoid) or hard delete                                 |
+| `POST /v1/content/:typeName/bulk`                        | **batch save** — create and/or update many entries                   |
+| `POST /v1/content/:typeName/bulk/{publish,unpublish,delete}` | the batch forms of the lifecycle writes                          |
 
 Plus `/v1/media/assets` (upload) and `/v1/media/assets/:id/raw` (bytes), which
 live in **media-server** — see its AGENTS.md.
+
+**Batches** exist because an external client is usually syncing a *list*, and
+one HTTP round trip per record is the difference between a job that finishes and
+one that times out. They are a way of asking, never a second set of rules: each
+runs the same use-case its single-entry sibling does. Two contracts, and the
+difference between them is not arbitrary:
+
+- **`/bulk` (save) reports per item and keeps going.** `EntryWriterService`
+  opens its own transaction per write, so there is no batch to roll back even in
+  principle — and rejecting forty-nine good rows because the fiftieth names a
+  missing relation would defeat the endpoint. The response is always a 200
+  carrying a verdict per item in request order, each failure repeating the
+  status and message (and a 422's `issues`) the single-entry call would have
+  given; the caller retries what it can fix. Items are written **in order, one
+  at a time** — every write takes the workspace's shared content lock, so a
+  fan-out would mostly contend with itself. Both `content:create` and
+  `content:update` are required, since one request may do either.
+- **`/bulk/publish` delegates to `BulkPublishEntriesUseCase`** rather than
+  looping over the single publish: that use-case selects the candidates
+  `FOR UPDATE` and re-validates inside **one** transaction, which is the only
+  thing that closes the window between "this draft validates" and "publish it".
+  It answers in the admin's own `BulkPublishResult` / `BulkActionResult` shapes,
+  so a consumer moving between the two surfaces learns one body, not two.
+
+Each item of a save carries the addressing a single-entry write takes from its
+**URL** (`resolveBulkSaveOp`, unit-tested): an `id` updates, neither `id` nor
+`localeGroupId` creates, and a bare `localeGroupId` is genuinely ambiguous —
+"add this record's German row" or "change the German row it already has" — so it
+requires `op`. An `op` that contradicts the addressing is an error rather than a
+silent preference. The batch actions take `{ ids }`, entry ids only: a group
+names a record across languages, and publishing "the record" would publish
+translations the caller never listed.
 
 **This same surface is also served over GraphQL** at `POST /api/v1/graphql`, by
 [`@ortha-cms/content-graphql`](../graphql/AGENTS.md). That package is an
@@ -981,7 +1036,7 @@ copilot) can do what the public API does. [ADR-0006](../../../docs/adr/0006-cms-
 
 ```
 mcp/
-  content-tools.provider.ts  # the ToolProvider: twelve tools + the type resources
+  content-tools.provider.ts  # the ToolProvider: sixteen tools + the type resources
   tool-schemas.ts            # JSON Schema for the tool ARGUMENTS (generic, hand-written)
   tool-input.ts              # DTO-backed validation, the locator, the draft-visibility rule
 ```
@@ -996,10 +1051,12 @@ validation, and the mapping — nothing else. This is also why the tools live
 and exporting them so an outside package could drive the read path is exactly
 how a second, diverging copy of the visibility rules gets written.
 
-**Twelve generic tools, not a set per content type.** `content_types_list`,
+**Sixteen generic tools, not a set per content type.** `content_types_list`,
 `content_type_get`, `content_list`, `content_get`, `content_relations`,
 `content_media`, `content_translations`, `content_create`, `content_update`,
-`content_publish`, `content_unpublish`, `content_delete`. `typeName` is an
+`content_publish`, `content_unpublish`, `content_delete`, and the batches
+`content_bulk_save`, `content_bulk_publish`, `content_bulk_unpublish`,
+`content_bulk_delete`. `typeName` is an
 argument, exactly as it is a path segment on the HTTP routes. Generating
 `article_create`, `author_create`, … would put the whole content model in every
 conversation's context (a client loads all tool schemas on connect) and could

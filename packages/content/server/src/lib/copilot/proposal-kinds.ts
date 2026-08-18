@@ -14,5 +14,16 @@ export const CONTENT_PROPOSAL_KINDS = {
     /** A new draft entry of a content type. */
     createEntry: 'content.entry.create',
     /** A change to an existing entry's field values. */
-    updateEntry: 'content.entry.update'
+    updateEntry: 'content.entry.update',
+    /**
+     * A batch of creates and updates on one content type, carried out as one
+     * change.
+     *
+     * Its own kind rather than a repeated `createEntry`/`updateEntry`, because
+     * a proposal row is the receipt for **one tool call**: a batch that wrote
+     * itself as twelve rows would be twelve cards in the transcript for a
+     * change the user asked for once, and no row would say what the other
+     * eleven were.
+     */
+    bulkSaveEntries: 'content.entry.bulk-save'
 } as const;

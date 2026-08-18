@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1165 test cases across 78 spec files._
+_1177 test cases across 79 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -404,6 +404,43 @@ _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_
 | lists only the types the workspace was granted |
 | serves one type’s field schema |
 | 404s the schema of an ungranted type |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-content-bulk.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-content-bulk.spec.ts</sub>_
+
+## Public content API — batches (/api/v1)
+
+### scope
+
+| Test case |
+| --- |
+| refuses every batch route to a read-only token |
+| 404s a type the workspace was not granted |
+
+### save
+
+| Test case |
+| --- |
+| creates and updates in one call, reporting each item |
+| matches `bulk` as a route, not as an entry id |
+| merges an update instead of replacing the values bag |
+| saves the good items and reports only the bad one |
+| fails only the item that names a bare translation group |
+| adds a translation when the item says `op: "create"` |
+| 400s an empty batch and one over the cap |
+
+### publish
+
+| Test case |
+| --- |
+| publishes the valid drafts and says why it skipped the rest |
+| counts only the entries an unpublish actually changed |
+
+### delete
+
+| Test case |
+| --- |
+| removes the listed entries and counts them |
 
 <!-- source: apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts -->
 _<sub>apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts</sub>_

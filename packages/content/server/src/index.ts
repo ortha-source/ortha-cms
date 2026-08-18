@@ -155,6 +155,22 @@ export {
 } from './lib/public-api/http/dto/public-list-entries-query.dto';
 export type { EntryVisibility } from './lib/public-api/http/dto/public-list-entries-query.dto';
 export { PublicSaveEntryDto } from './lib/public-api/http/dto/public-save-entry.dto';
+// The batch write contracts, exported for the same reason as the single-entry
+// ones: a second protocol adapter over this surface (GraphQL does exactly that
+// for the singles) must be able to reach the DTOs and the result shape rather
+// than invent its own.
+export {
+    PublicBulkIdsDto,
+    PublicBulkSaveDto,
+    PublicBulkSaveItemDto
+} from './lib/public-api/http/dto/public-bulk.dto';
+export { BULK_SAVE_OP } from './lib/public-api/types/public-bulk';
+export type {
+    BulkSaveOp,
+    PublicBulkError,
+    PublicBulkSaveItemResult,
+    PublicBulkSaveResult
+} from './lib/public-api/types/public-bulk';
 export type {
     PublicMediaFieldView,
     PublicMediaRef,

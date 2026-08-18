@@ -160,3 +160,124 @@ export class UpdateEntryProposalApplier implements ProposalApplier {
         };
     }
 }
+
+/**
+ * Applies `content.entry.bulk-save` — a batch of creates and edits, carried out
+ * as one change.
+ *
+ * **Item by item through the same `EntryWriterService` methods the other two
+ * appliers call**, for the same reason they do: validation, the advisory lock,
+ * the revision snapshot and the i18n sibling sync all have to happen per entry,
+ * and a batch-shaped shortcut around any of them would be a second write path.
+ * Sequentially, not concurrently — each write takes the workspace's shared
+ * content lock, so a fan-out would mostly contend with itself.
+ *
+ * **It stops at the first failure and throws.** There is no per-item verdict to
+ * show: a proposal is one row with one status, and its card says "Saved" or
+ * "Not saved". Carrying on after a failure would grow the number of entries
+ * written under a receipt that then reports failure — so the batch halts, and
+ * the error names exactly how many landed, which is what the model reads back
+ * to the user. (The public API's `bulkSave` does the opposite and keeps going,
+ * because there the caller gets every item's verdict and can retry the ones it
+ * can fix.)
+ */
+@Injectable()
+export class BulkSaveEntriesProposalApplier implements ProposalApplier {
+    readonly kind = CONTENT_PROPOSAL_KINDS.bulkSaveEntries;
+
+    constructor(
+        @InjectContentRegistry()
+        private readonly registry: ContentTypeRegistry,
+        private readonly writer: EntryWriterService,
+        private readonly grants: WorkspaceGrantsQuery
+    ) {}
+
+    async apply(
+        input: { target: ProposalTarget; patch: Record<string, unknown> },
+        actor: ProposalActor
+    ): Promise<ProposalApplyResult> {
+        const type = await grantedType(
+            this.registry,
+            this.grants,
+            input.target['typeName'],
+            actor.workspaceId
+        );
+        const items = input.patch['items'];
+        if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('This change names no entries.');
+        }
+
+        const created: string[] = [];
+        const updated: string[] = [];
+
+        for (const [index, raw] of items.entries()) {
+            const item = (raw ?? {}) as {
+                id?: unknown;
+                values?: unknown;
+                locale?: unknown;
+                localeGroupId?: unknown;
+            };
+            const values = (item.values ?? {}) as Record<string, unknown>;
+            const id = typeof item.id === 'string' ? item.id : undefined;
+
+            try {
+                if (id) {
+                    // Read now, not when the batch was proposed, so an item
+                    // written minutes later lands on whatever the entry has
+                    // become — the same merge rule the single-entry applier
+                    // states at length.
+                    const current = await this.writer.getOne(
+                        type,
+                        id,
+                        actor.workspaceId
+                    );
+                    const entry = await this.writer.update(
+                        type,
+                        id,
+                        { ...(current.values ?? {}), ...values },
+                        actor.workspaceId,
+                        undefined,
+                        actor.userId
+                    );
+                    updated.push(entry.id);
+                } else {
+                    const entry = await this.writer.create(
+                        type,
+                        values,
+                        actor.workspaceId,
+                        undefined,
+                        typeof item.locale === 'string'
+                            ? item.locale
+                            : undefined,
+                        typeof item.localeGroupId === 'string'
+                            ? item.localeGroupId
+                            : undefined,
+                        actor.userId
+                    );
+                    created.push(entry.id);
+                }
+            } catch (error) {
+                const done = created.length + updated.length;
+                throw new Error(
+                    `Entry ${index + 1} of ${items.length} failed: ` +
+                        `${error instanceof Error ? error.message : String(error)}. ` +
+                        (done === 0
+                            ? 'Nothing was saved.'
+                            : `The first ${done} were saved and the rest were not.`)
+                );
+            }
+        }
+
+        return {
+            // No `entityId`: a batch has no single entity to link to, and
+            // naming one of them would send the user to an arbitrary member of
+            // the set. The ids are in `detail` instead.
+            detail: {
+                typeName: type.name,
+                created,
+                updated,
+                count: created.length + updated.length
+            }
+        };
+    }
+}

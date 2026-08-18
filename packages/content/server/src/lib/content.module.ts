@@ -24,6 +24,7 @@ import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
 import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
 import { EntryProposalToolProvider } from './copilot/entry-proposal.provider';
 import {
+    BulkSaveEntriesProposalApplier,
     CreateEntryProposalApplier,
     UpdateEntryProposalApplier
 } from './copilot/entry-proposal.applier';
@@ -220,10 +221,12 @@ export class ContentModule {
                 // when a human clicks Accept.
                 CreateEntryProposalApplier,
                 UpdateEntryProposalApplier,
+                BulkSaveEntriesProposalApplier,
                 copilotAppliersRegistrar(
                     'content',
                     CreateEntryProposalApplier,
-                    UpdateEntryProposalApplier
+                    UpdateEntryProposalApplier,
+                    BulkSaveEntriesProposalApplier
                 )
             ],
             exports: [
