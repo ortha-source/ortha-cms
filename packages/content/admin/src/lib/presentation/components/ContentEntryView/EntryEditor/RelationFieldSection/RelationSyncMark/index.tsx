@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Globe, Languages, Split } from 'lucide-react';
+import { Globe, Languages, Merge } from 'lucide-react';
 import {
     Tooltip,
     TooltipContent,
@@ -37,10 +37,24 @@ const messages = defineMessages({
     }
 });
 
-/** Icon + copy per mode — one lookup, so the three can't drift apart. */
+/**
+ * Icon + copy per mode — one lookup, so the three can't drift apart.
+ *
+ * **The globe means "per locale" here because that is what it means
+ * everywhere else.** `LocalizedFieldMark` marks a `localized` field — one whose
+ * value differs per locale — with a globe, and `none` is that same idea for
+ * links: each locale keeps its own. The globe used to sit on `shared`, which
+ * reads as the opposite (globe = global = one for all), so a reader who had
+ * learnt the glyph on the General tab was told the reverse on the Relations
+ * one. Whichever way round it is argued, it cannot be both.
+ *
+ * `shared` takes `Merge` — every locale converging on one set of links, which
+ * is exactly what editing it does. Not `Layers` or `Link2`: both are already
+ * spoken for elsewhere in the admin (Workspaces' nav, and links themselves).
+ */
 const MARKS = {
     shared: {
-        Icon: Globe,
+        Icon: Merge,
         name: messages.sharedName,
         hint: messages.sharedHint
     },
@@ -50,7 +64,7 @@ const MARKS = {
         hint: messages.mirroredHint
     },
     none: {
-        Icon: Split,
+        Icon: Globe,
         name: messages.perLocaleName,
         hint: messages.perLocaleHint
     }
