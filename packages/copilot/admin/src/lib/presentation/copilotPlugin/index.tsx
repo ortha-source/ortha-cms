@@ -6,6 +6,7 @@ import {
     WORKSPACE_SECTION_SLOT
 } from '@ortha-cms/workspaces-admin';
 import { AGENTS_SEGMENT, SKILLS_SEGMENT } from '../../domain/agentsRoute';
+import { AgentsPageSkeleton, SkillsPageSkeleton } from '../AgentsSkeleton';
 import { CopilotLauncher } from '../CopilotLauncher';
 import { ViewSwitcher } from '../ViewSwitcher';
 
@@ -104,7 +105,7 @@ export function CopilotPlugin(): CopilotAdminPlugin {
                         path: `${AGENTS_SEGMENT}/${SKILLS_SEGMENT}`,
                         order: 49,
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense fallback={<SkillsPageSkeleton />}>
                                 <SkillsPage />
                             </Suspense>
                         )
@@ -117,7 +118,7 @@ export function CopilotPlugin(): CopilotAdminPlugin {
                         path: `${AGENTS_SEGMENT}/*`,
                         order: 50,
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense fallback={<AgentsPageSkeleton />}>
                                 <AgentsPage />
                             </Suspense>
                         )

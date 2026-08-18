@@ -10,6 +10,7 @@ import {
     INSIGHTS_SECTION_SLOT,
     type InsightsSection
 } from '../../presentation/slots/insightsSlots';
+import { InsightsPageSkeleton } from '../../presentation/components/InsightsSkeleton';
 
 const InsightsPage = lazy(() =>
     import('../../presentation/pages/InsightsPage').then((module) => ({
@@ -115,7 +116,7 @@ export function InsightsPlugin({
                     {
                         path: 'insights/*',
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense fallback={<InsightsPageSkeleton />}>
                                 <InsightsPage />
                             </Suspense>
                         )

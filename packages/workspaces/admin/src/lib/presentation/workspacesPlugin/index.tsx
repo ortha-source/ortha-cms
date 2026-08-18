@@ -9,6 +9,7 @@ import {
 import { Layers, Settings } from 'lucide-react';
 import {
     CreateWorkspacePageSkeleton,
+    WorkspaceSettingsPageSkeleton,
     WorkspaceShellSkeleton,
     WorkspacesPageSkeleton
 } from '../components/WorkspacesSkeleton';
@@ -186,7 +187,9 @@ export function WorkspacesPlugin(): WorkspacesAdminPlugin {
                         // `content/*`.
                         path: 'settings/*',
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense
+                                fallback={<WorkspaceSettingsPageSkeleton />}
+                            >
                                 <WorkspaceSettingsPage />
                             </Suspense>
                         )

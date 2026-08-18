@@ -22,6 +22,7 @@ import { MediaStorageWidget } from '../../components/MediaStorageWidget';
 import { MediaUploadsWidget } from '../../components/MediaUploadsWidget';
 import { MediaAltTextWidget } from '../../components/MediaAltTextWidget';
 import { EntryMediaTab } from '../../components/EntryMediaTab';
+import { MediaLibraryPageSkeleton } from '../../components/MediaLibrarySkeleton';
 import { WysiwygLibrarySource } from '../../components/WysiwygLibrarySource';
 import { WysiwygUploadSource } from '../../components/WysiwygUploadSource';
 import {
@@ -127,7 +128,7 @@ export function MediaPlugin(): MediaAdminPlugin {
                     {
                         path: 'media/*',
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense fallback={<MediaLibraryPageSkeleton />}>
                                 <MediaLibraryPage />
                             </Suspense>
                         )

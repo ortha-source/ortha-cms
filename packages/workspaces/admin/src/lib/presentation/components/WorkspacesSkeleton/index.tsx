@@ -4,6 +4,7 @@ import {
     Skeleton,
     WizardPageSkeleton
 } from '@ortha-cms/design-system';
+import { WorkspaceSettingsTopBar } from '../WorkspaceSettingsTopBar';
 
 /** Intl descriptors for the workspaces skeletons, co-located here. */
 const messages = defineMessages({
@@ -18,6 +19,10 @@ const messages = defineMessages({
     loadingContent: {
         id: 'workspaces.skeleton.loadingContent',
         defaultMessage: 'Loading content types…'
+    },
+    loadingSettings: {
+        id: 'workspaces.skeleton.loadingSettings',
+        defaultMessage: 'Loading workspace settings…'
     }
 });
 
@@ -116,7 +121,9 @@ export function WorkspaceShellSkeleton() {
 export function CreateWorkspacePageSkeleton() {
     const intl = useIntl();
 
-    return <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />;
+    return (
+        <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />
+    );
 }
 
 /** A placeholder resource section: a header row over a few selectable rows. */
@@ -159,5 +166,71 @@ export function ContentTypesSkeleton() {
                 <ResourceSectionSkeleton />
             </div>
         </div>
+    );
+}
+
+/**
+ * Full-page placeholder for the workspace-settings lazy-route `Suspense`
+ * fallback, mounted in the workspace shell at `/workspaces/:id/settings/*`.
+ *
+ * The bar is **real**, not a skeleton: it is the page's identity, it hosts the
+ * sidebar-reveal trigger when the app sidebar is collapsed, and it derives its
+ * crumbs from the URL rather than from data — so the very same
+ * {@link WorkspaceSettingsTopBar} the page renders can paint before the chunk
+ * arrives, already naming the section being opened. Below it the header, the
+ * tab bar and the section card are sketched, so the page slots into a layout
+ * that is already the right shape.
+ */
+export function WorkspaceSettingsPageSkeleton() {
+    const intl = useIntl();
+
+    return (
+        <>
+            <WorkspaceSettingsTopBar />
+            <Container className="space-y-6 py-8" role="status">
+                <span className="sr-only">
+                    {intl.formatMessage(messages.loadingSettings)}
+                </span>
+
+                <div aria-hidden className="flex flex-col gap-2">
+                    <Skeleton className="h-8 w-56" />
+                    <Skeleton className="h-4 w-80 max-w-full" />
+                </div>
+
+                <div aria-hidden className="flex flex-col gap-6">
+                    <div className="flex gap-2 border-b pb-2">
+                        {/* Whole literal class strings — Tailwind scans source
+                            text and never emits an interpolated width. */}
+                        {['w-16', 'w-20', 'w-16', 'w-24'].map(
+                            (width, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-2 px-3 py-1.5"
+                                >
+                                    <Skeleton className="size-4 shrink-0 rounded" />
+                                    <Skeleton className={`h-4 ${width}`} />
+                                </div>
+                            )
+                        )}
+                    </div>
+
+                    <div className="flex min-w-0 flex-col gap-6 rounded-xl border p-6">
+                        <div className="flex flex-col gap-2">
+                            <Skeleton className="h-5 w-40" />
+                            <Skeleton className="h-4 w-72 max-w-full" />
+                        </div>
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div key={index} className="flex flex-col gap-2">
+                                <Skeleton className="h-4 w-28" />
+                                <Skeleton className="h-9 w-full" />
+                            </div>
+                        ))}
+                        <div className="flex justify-end border-t pt-4">
+                            <Skeleton className="h-9 w-28" />
+                        </div>
+                    </div>
+                </div>
+            </Container>
+        </>
     );
 }

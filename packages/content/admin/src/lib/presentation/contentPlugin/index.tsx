@@ -10,6 +10,7 @@ import {
     INSIGHTS_WIDGET_SLOT
 } from '@ortha-cms/insights-admin';
 import { CONTENT_READ, CONTENT_SEGMENT } from '../../domain/constants';
+import { ContentLibraryPageSkeleton } from '../components/ContentLibrarySkeleton';
 import { ContentNavSection } from '../components/ContentNavSection';
 import { ContentTypeCommands } from '../components/ContentTypeCommands';
 import { ContentEntriesStat } from '../components/ContentEntriesStat';
@@ -168,7 +169,7 @@ export function ContentPlugin(): ContentAdminPlugin {
                         // Lowest order → the workspace's default landing section.
                         order: 10,
                         element: (
-                            <Suspense fallback={null}>
+                            <Suspense fallback={<ContentLibraryPageSkeleton />}>
                                 <ContentLibraryPage />
                             </Suspense>
                         )
