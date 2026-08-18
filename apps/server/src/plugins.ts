@@ -32,8 +32,15 @@ import { contentTypes } from './content';
  * house default and would fail on the first message. A clone with no keys is
  * left with `fake` alone, which is a working chat and a picker with nothing to
  * choose (the admin hides a one-option picker).
+ *
+ * **Exported for `plugins.spec.ts`.** The order this returns is what decides
+ * the house default, and it is unreachable from the outside otherwise: the
+ * plugin object carries its `copilotConfig`, not its providers, and `server-e2e`
+ * builds its own plugin list rather than calling `buildPlugins`. So a config
+ * threaded into the wrong factory here would have passed every test in the
+ * repo.
  */
-function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
+export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
     const { claude, ollama } = config.plugins.copilot.providers;
     return [
         ...(claude

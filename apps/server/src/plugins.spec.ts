@@ -1,5 +1,8 @@
-import config from '../ortha.config';
-import { buildPlugins } from './plugins';
+import config, {
+    type OrthaConfig,
+    type OrthaCopilotConfig
+} from '../ortha.config';
+import { buildPlugins, copilotProviders } from './plugins';
 
 /**
  * The shipped composition, asserted.
@@ -70,7 +73,9 @@ describe('buildPlugins()', () => {
             .map((plugin) => plugin.migrations?.table);
 
         expect([...new Set(tables)]).toEqual(tables);
-        expect(tables.every((table) => table?.startsWith('__drizzle_migrations_'))).toBe(true);
+        expect(
+            tables.every((table) => table?.startsWith('__drizzle_migrations_'))
+        ).toBe(true);
     });
 
     it('keeps the content plugin and its GraphQL adapter as one registration, not two schemas', () => {
@@ -90,5 +95,88 @@ describe('buildPlugins()', () => {
         // host-owned migrations are the only content migrations in the run.
         expect(graphql?.migrations).toBeUndefined();
         expect(content?.migrations?.table).toBe('__drizzle_migrations_content');
+    });
+});
+
+/**
+ * Which model backends the shipped composition registers, and in what order.
+ *
+ * Load-bearing since the copilot lost its `defaultProvider`: the **first**
+ * registration serves any run that names none, and it is what the admin's model
+ * picker opens on. Nothing else covers this — `buildPlugins` is called above
+ * under the ambient environment, which has no keys, so only the `[fake]` path
+ * ever ran; `server-e2e` registers its own two fakes and never reaches this
+ * file; and the plugin object exposes `copilotConfig`, not the providers. A
+ * `claude` entry handed the *ollama* settings would have been green everywhere.
+ *
+ * Constructing an adapter costs nothing here — `createAnthropicProvider` builds
+ * its client lazily, so a fake key makes no network call and no SDK is touched
+ * until a run streams.
+ */
+describe('copilotProviders()', () => {
+    /** The shipped config with a copilot provider set substituted in. */
+    const withProviders = (
+        providers: OrthaCopilotConfig['providers']
+    ): OrthaConfig => ({
+        ...config,
+        plugins: {
+            ...config.plugins,
+            copilot: { ...config.plugins.copilot, providers }
+        }
+    });
+
+    const claude = {
+        apiKey: 'sk-test',
+        models: ['claude-opus-5', 'claude-haiku-4-5']
+    };
+    const ollama = {
+        baseUrl: 'http://localhost:11434/v1',
+        models: ['llama3.1'],
+        apiKey: ''
+    };
+
+    it('registers the scripted fake alone when nothing is configured', () => {
+        // The fresh-clone case: a working chat, a picker the admin hides
+        // because there is nothing to choose, and `fake` as the default only
+        // because it is the only thing there is.
+        expect(copilotProviders(withProviders({})).map((p) => p.name)).toEqual([
+            'fake'
+        ]);
+    });
+
+    it('puts a configured backend ahead of the fake', () => {
+        // Order is the whole assertion: `fake` first would make every run in a
+        // configured deployment answer with the canned dev reply.
+        expect(
+            copilotProviders(withProviders({ claude })).map((p) => p.name)
+        ).toEqual(['claude', 'fake']);
+        expect(
+            copilotProviders(withProviders({ claude, ollama })).map(
+                (p) => p.name
+            )
+        ).toEqual(['claude', 'ollama', 'fake']);
+    });
+
+    it('hands each adapter its own settings', () => {
+        // The mistake this catches is a copy-paste one: two entries built from
+        // the same config key read fine and route every run to one backend.
+        const byName = new Map(
+            copilotProviders(withProviders({ claude, ollama })).map((entry) => [
+                entry.name,
+                entry.provider
+            ])
+        );
+
+        expect(byName.get('claude')?.models()).toEqual(claude.models);
+        expect(byName.get('ollama')?.models()).toEqual(ollama.models);
+    });
+
+    it('offers the first registered model as the deployment default', () => {
+        // `catalogue()[0]` is what a run naming no provider gets and what the
+        // picker opens on, so this pins the pair the UI and the engine agree on.
+        const [first] = copilotProviders(withProviders({ claude, ollama }));
+
+        expect(first?.name).toBe('claude');
+        expect(first?.provider.models()[0]).toBe('claude-opus-5');
     });
 });
