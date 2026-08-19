@@ -144,6 +144,25 @@ export function QueryBuilderPanel({
     const apply = () => {
         if (treeHasInvalidRules(draft, fields)) {
             setShowErrors(true);
+            // Take the user to the first thing that is wrong. A failed Apply
+            // otherwise inserted three `role="alert"` paragraphs at once, which
+            // screen readers coalesce or drop — and left focus on the Apply
+            // button, so finding the offending row meant tabbing the whole
+            // builder (3.3.1, `ORT-157`). The errors render in the same commit
+            // as `showErrors`, so the query has to wait for it.
+            requestAnimationFrame(() => {
+                const firstError =
+                    regionRef.current?.querySelector<HTMLElement>(
+                        '[data-testid="qb-rule-error"]'
+                    );
+                // The row's first control, not the message: a message is not
+                // focusable, and the control is what the user has to change.
+                firstError?.parentElement
+                    ?.querySelector<HTMLElement>(
+                        'input, select, [role="combobox"], button'
+                    )
+                    ?.focus();
+            });
             return;
         }
         const hasRules = draft && draft.children.length > 0;
@@ -162,9 +181,19 @@ export function QueryBuilderPanel({
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         // Esc collapses the panel — but let an open popover (the field/value
         // pickers) swallow its own Escape first.
-        if (event.key === 'Escape' && !event.defaultPrevented) {
-            onOpenChange(false);
-        }
+        if (event.key !== 'Escape' || event.defaultPrevented) return;
+
+        // Hand focus back to the control that opened this. Collapsing makes the
+        // `<section>` `inert` while focus is inside it, so without this the
+        // browser dropped focus to `<body>` and the next Tab restarted at the
+        // top of the document — the panel deliberately moves focus *in* on open
+        // and did nothing on the way out (2.4.3, `ORT-157`). `labelledBy` names
+        // the toggle, which is exactly the element to return to.
+        const toggle = labelledBy ? document.getElementById(labelledBy) : null;
+        onOpenChange(false);
+        // After the commit that sets `inert`: focusing first would be undone by
+        // the browser blurring an element inside an inert subtree.
+        requestAnimationFrame(() => toggle?.focus());
     };
 
     return (

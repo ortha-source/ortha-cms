@@ -12,7 +12,14 @@ export type EnumMultiSelectProps = {
     onChange: (next: string[]) => void;
     /** Accessible group label (no visible legend sits beside the row). */
     label: string;
-    /** Marks the group `aria-invalid` when the rule fails validation. */
+    /**
+     * Marks each checkbox `aria-invalid` when the rule fails validation.
+     *
+     * On the **checkboxes**, not on the group. `aria-invalid` is a widget
+     * attribute for inputs and ARIA 1.2 does not list it on `role="group"`, so
+     * putting it there conveyed the invalid state to nobody at all — the group
+     * ignored it and the individual controls carried nothing (`ORT-157`).
+     */
     invalid?: boolean;
     /** Id of the rule's error message, wired as `aria-describedby`. */
     describedById?: string;
@@ -45,7 +52,6 @@ export function EnumMultiSelect({
         <div
             role="group"
             aria-label={label}
-            aria-invalid={invalid || undefined}
             aria-describedby={describedById}
             className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-input px-3 py-1.5"
         >
@@ -62,6 +68,7 @@ export function EnumMultiSelect({
                                 toggle(opt.value, checked === true)
                             }
                             aria-label={optLabel}
+                            aria-invalid={invalid || undefined}
                         />
                         {optLabel}
                     </label>
