@@ -109,7 +109,7 @@ export const MediaAssetType = new GraphQLObjectType({
         alt: {
             type: GraphQLString,
             description:
-                'The text alternative for **this usage** — the entry value\'s own alt where it has one, the asset\'s default otherwise, and `""` when the usage is marked decorative. `""` and `null` mean different things: `""` is "render alt=\"\", this image says nothing", `null` is "nobody supplied one".'
+                'The text alternative for **this usage** — the entry value’s own alt where it has one, the asset’s default otherwise, and `""` when the usage is marked decorative. `""` and `null` mean different things: `""` says "this image says nothing, render an empty alt"; `null` says "nobody has supplied one", which is a gap to report rather than an instruction to hide it.'
         },
         decorative: {
             type: GraphQLBoolean,
