@@ -50,6 +50,37 @@ describe('parseFieldSelection', () => {
         );
     });
 
+    describe('names a plain object merely inherits', () => {
+        // The field map is the host's object literal, so `type.fields[name]`
+        // also resolved everything `Object.prototype` carries. `constructor`
+        // read back `Object` — truthy, so the "unknown field" 400 never fired
+        // — and `isPureValueField(Object)` asked for `Object.type`, `undefined`,
+        // which is not a reference type, so the second 400 didn't fire either.
+        // The name landed in the selected set and reached the projection
+        // builder, which put a class function into the `.select()` list: a 500
+        // out of drizzle on a public, token-authenticated endpoint.
+        it.each([
+            'constructor',
+            'toString',
+            'valueOf',
+            'hasOwnProperty',
+            'isPrototypeOf',
+            'propertyIsEnumerable',
+            'toLocaleString',
+            '__proto__'
+        ])('rejects %s as an unknown field', (name) => {
+            expect(() => parseFieldSelection(post, name)).toThrow(
+                new RegExp(`unknown field "${name}"`)
+            );
+        });
+
+        it('rejects it alongside real fields rather than selecting the rest', () => {
+            expect(() =>
+                parseFieldSelection(post, 'title,constructor,views')
+            ).toThrow(/unknown field "constructor"/);
+        });
+    });
+
     it('rejects an over-long selection', () => {
         const names = Array.from({ length: 101 }, (_, i) => `f${i}`).join(',');
         expect(() => parseFieldSelection(post, names)).toThrow(

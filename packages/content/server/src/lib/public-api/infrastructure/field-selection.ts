@@ -54,7 +54,21 @@ export function parseFieldSelection(
     }
 
     for (const name of names) {
-        const spec = type.fields[name];
+        // `Object.hasOwn`, not `type.fields[name]`: the field map is the host's
+        // plain object literal, passed through untouched, so a bare lookup also
+        // resolves everything it INHERITS. `?fields=constructor` read back
+        // `Object` — a function, so `!spec` was false and the "unknown field"
+        // 400 never fired — and `isPureValueField` then asked for
+        // `Object.type`, `undefined`, which is not a reference type, so the
+        // second 400 never fired either. `constructor` landed in the selected
+        // set and reached the projection builder, which put a class function
+        // into the `.select()` list instead of a column: a 500 out of drizzle
+        // on a public, token-authenticated endpoint. `toString`, `valueOf`,
+        // `hasOwnProperty`, `isPrototypeOf`, `propertyIsEnumerable` and
+        // `toLocaleString` all worked the same way.
+        const spec = Object.hasOwn(type.fields, name)
+            ? type.fields[name]
+            : undefined;
         if (!spec) {
             throw new BadRequestException(
                 `fields: unknown field "${name}" on "${type.name}".`

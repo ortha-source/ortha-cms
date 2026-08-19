@@ -47,7 +47,12 @@ export function filterTreeSchema(): Record<string, unknown> {
                 description:
                     'A filterable path from admin_content_types → filterableFields, e.g. "status" or "author.name".'
             },
-            op: { type: 'string', enum: [...FILTER_OPERATORS] },
+            op: {
+                type: 'string',
+                enum: [...FILTER_OPERATORS],
+                description:
+                    'like/ilike/nilike match text only — they are rejected on a date, number, boolean or uuid field. Use eq/ne, the ordering operators, or in/nin there.'
+            },
             value: {
                 description:
                     'The comparison value. An array for in/nin; a boolean for null (true = IS NULL); omitted values are rejected.'

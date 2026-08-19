@@ -1,6 +1,7 @@
 import { and, eq, getTableColumns, isNull, type AnyColumn } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import {
+    FilterSchemaException,
     RelationKind,
     ScalarFieldType,
     type FieldSchema,
@@ -60,10 +61,27 @@ function fieldLabel(name: string, spec: AnyFieldSpec): string {
         : humanize(name);
 }
 
-/** Resolve a column on a generated table by its JS property name. */
+/**
+ * Resolve a column on a generated table by its JS property name.
+ *
+ * `Object.hasOwn`-guarded, and it throws rather than returning `undefined`.
+ * Every caller today passes a literal or a name off `Object.entries(type.fields)`,
+ * so nothing request-supplied reaches it — but drizzle's column map is a plain
+ * object, an unguarded lookup resolves `constructor`/`valueOf`/`toString` to
+ * truthy non-columns, and handing one of those to drizzle as a `Column` emits a
+ * broken fragment (a 500) rather than failing here. Its `utils-server`
+ * counterpart (`columnOf`) is guarded the same way, so the two helpers can't
+ * disagree about what a name means.
+ */
 function col(table: PgTable, name: string): AnyColumn {
     const cols = getTableColumns(table) as unknown as Record<string, AnyColumn>;
-    return cols[name];
+    const column = Object.hasOwn(cols, name) ? cols[name] : undefined;
+    if (!column) {
+        throw new FilterSchemaException(
+            `column "${name}" does not exist on the generated table`
+        );
+    }
+    return column;
 }
 
 /**

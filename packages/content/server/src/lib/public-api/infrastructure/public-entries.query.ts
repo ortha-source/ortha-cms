@@ -417,13 +417,21 @@ export class PublicEntriesQuery {
             columns['locale'] = table['locale'];
             columns['localeGroupId'] = table['localeGroupId'];
         }
+        // `Object.hasOwn` on both loops. `selected` is already own-property
+        // validated against the type's field map (`parseFieldSelection`), and
+        // `alsoNeeded` carries internal constants — but the failure mode here
+        // is putting a drizzle table's INHERITED member (a class function) into
+        // a `.select()` list, which is a 500, and a reader should not have to
+        // work out which of the two loops is the safe one.
         for (const name of selected) {
-            columns[name] = table[name];
+            if (Object.hasOwn(table, name)) columns[name] = table[name];
         }
         for (const name of alsoNeeded) {
             // Join-backed relations own no column on this table; skip them
             // rather than putting `undefined` in the SELECT list.
-            if (table[name]) columns[name] = table[name];
+            if (Object.hasOwn(table, name) && table[name]) {
+                columns[name] = table[name];
+            }
         }
         return columns;
     }
