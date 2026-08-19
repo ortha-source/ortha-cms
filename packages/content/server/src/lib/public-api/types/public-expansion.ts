@@ -66,6 +66,26 @@ export interface PublicMediaRef {
     alt: string | null;
     /** The author marked this usage purely presentational. */
     decorative?: true;
+    /**
+     * Timed-text tracks for a video or audio asset — everything a consumer
+     * needs to emit `<track>` elements. Empty for an image, and for a video
+     * nobody has captioned (`ORT-92`).
+     */
+    tracks: PublicMediaTrack[];
+}
+
+/** One timed-text track on a published video or audio asset. */
+export interface PublicMediaTrack {
+    /** `captions` / `subtitles` / `descriptions` / `chapters`. */
+    kind: string;
+    /** BCP-47 tag of the track's language. */
+    srclang: string;
+    /** The label a player shows in its track menu. */
+    label: string;
+    /** Route the WebVTT bytes stream from — same bearer token as the query. */
+    src: string;
+    /** Whether a player should enable this one by default. */
+    default?: boolean;
 }
 
 /** One media field's assets, in their stored order. */

@@ -30,6 +30,7 @@ export function toAssetView(row: AssetRow, uploaderName: string): AssetView {
         duration: row.duration,
         tags: row.tags ?? [],
         alt: row.alt,
+        tracks: row.tracks ?? [],
         uploadedBy: uploaderName,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString()

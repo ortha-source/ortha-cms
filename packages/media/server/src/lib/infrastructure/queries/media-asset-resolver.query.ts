@@ -36,6 +36,7 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                 mimeType: mediaAsset.mimeType,
                 name: mediaAsset.name,
                 alt: mediaAsset.alt,
+                tracks: mediaAsset.tracks,
                 variants: mediaAsset.variants
             })
             .from(mediaAsset)
@@ -61,7 +62,17 @@ export class MediaAssetResolverQuery implements MediaAssetResolver {
                 // record's media costs the editor a thumbnail, not an original.
                 thumbUrl: variantUrl('thumb'),
                 previewUrl: variantUrl('preview'),
-                alt: row.alt
+                alt: row.alt,
+                // The track's `src` is the WebVTT asset's own raw route, not
+                // this asset's — the pointer is stored as an id so the file
+                // stays an ordinary library asset with its own permissions.
+                tracks: (row.tracks ?? []).map((track) => ({
+                    kind: track.kind,
+                    srclang: track.srclang,
+                    label: track.label,
+                    src: `/api/media/assets/${track.assetId}/raw`,
+                    ...(track.default ? { default: true as const } : {})
+                }))
             });
         }
         return result;

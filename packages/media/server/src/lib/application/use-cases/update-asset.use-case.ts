@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
 import type { EventActor } from '@ortha-cms/database';
+import type { StoredMediaTrack } from '../../infrastructure/schema/media-asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FolderId } from '../../domain/value-objects/folder-id';
 import { AssetNotFoundError } from '../../domain/errors/asset-not-found.error';
@@ -20,6 +21,8 @@ export interface UpdateAssetPatch {
     folderId?: string | null;
     tags?: string[];
     alt?: string;
+    /** Timed-text tracks, replacing the asset's current set (`ORT-92`). */
+    tracks?: StoredMediaTrack[];
 }
 
 /** Applies a partial edit to an asset (rename / move / retag / set alt). */
@@ -75,6 +78,7 @@ export class UpdateAssetUseCase {
             if (patch.name !== undefined) asset.rename(patch.name);
             if (patch.tags !== undefined) asset.retag(patch.tags);
             if (patch.alt !== undefined) asset.setAlt(patch.alt);
+            if (patch.tracks !== undefined) asset.setTracks(patch.tracks);
 
             await this.assets.save(asset);
             await this.outbox.append(attachActor(asset.pullEvents(), actor));

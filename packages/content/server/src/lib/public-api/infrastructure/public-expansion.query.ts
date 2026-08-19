@@ -51,6 +51,21 @@ export const MAX_EXPANDED_FIELDS = 10;
  */
 const PUBLIC_MEDIA_BASE_PATH = '/api/v1/media/assets';
 
+/**
+ * Rewrites a track's admin URL to the public one.
+ *
+ * The resolver builds `/api/media/assets/<id>/raw`, whose scope comes from the
+ * caller's workspace **membership** — which a bearer token does not have. The
+ * id is the only part worth keeping, so it is lifted out and re-addressed
+ * against the public base, same as {@link publicAssetUrl} does for the asset
+ * itself. A src that does not match is passed through: an unexpected shape is
+ * better published as-is than silently rewritten to a 404.
+ */
+function publicTrackUrl(src: string): string {
+    const id = /\/assets\/([^/]+)\/raw/.exec(src)?.[1];
+    return id ? publicAssetUrl(id) : src;
+}
+
 /** The public download URL for one asset, optionally a generated derivative. */
 function publicAssetUrl(id: string, variant?: 'thumb' | 'preview'): string {
     const base = `${PUBLIC_MEDIA_BASE_PATH}/${id}/raw`;
@@ -374,6 +389,16 @@ export class PublicExpansionQuery {
                         kind: asset.kind,
                         mimeType: asset.mimeType,
                         alt: publicAlt(ref, asset.alt),
+                        // Rewritten to the token-fetchable route, exactly like
+                        // `url` above: the resolver hands back the admin's
+                        // addresses, which a bearer cannot reach (`ORT-92`).
+                        tracks: asset.tracks.map((track) => ({
+                            kind: track.kind,
+                            srclang: track.srclang,
+                            label: track.label,
+                            src: publicTrackUrl(track.src),
+                            ...(track.default ? { default: true } : {})
+                        })),
                         ...(ref.decorative === true
                             ? { decorative: true as const }
                             : {})

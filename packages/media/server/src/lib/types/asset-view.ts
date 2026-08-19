@@ -1,3 +1,5 @@
+import type { StoredMediaTrack } from '../infrastructure/schema/media-asset';
+
 /**
  * The wire shape of an asset the API returns to the admin — mirrors the
  * `MediaAsset` the admin store consumes. `url` is the app's own download route;
@@ -23,6 +25,11 @@ export interface AssetView {
     duration: number | null;
     tags: string[];
     alt: string | null;
+    /**
+     * Timed-text tracks attached to a video or audio asset — captions,
+     * subtitles, descriptions, chapters. Empty for everything else (`ORT-92`).
+     */
+    tracks: StoredMediaTrack[];
     /** Display name of the uploader (resolved from the stored user id). */
     uploadedBy: string;
     createdAt: string;

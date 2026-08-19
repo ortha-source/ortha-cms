@@ -29,6 +29,41 @@ const ContentTypeKindEnum = new GraphQLEnumType({
 });
 
 /**
+ * One timed-text track on a video or audio asset (`ORT-92`).
+ *
+ * Declared before {@link MediaAssetType} uses it: `fields` there is an object
+ * literal rather than a thunk, so the reference is evaluated at module load.
+ */
+export const MediaTrackType = new GraphQLObjectType({
+    name: 'MediaTrack',
+    description: 'A captions, subtitles, descriptions or chapters track.',
+    fields: {
+        kind: {
+            type: new GraphQLNonNull(GraphQLString),
+            description:
+                '`captions` carries the non-speech audio a deaf viewer needs; `subtitles` is a translation for someone who can hear it.'
+        },
+        srclang: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "BCP-47 tag of the track's language."
+        },
+        label: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: 'What a player shows in its track menu.'
+        },
+        src: {
+            type: new GraphQLNonNull(GraphQLString),
+            description:
+                'Where the WebVTT bytes stream from. **Requires the same bearer token as this query.**'
+        },
+        default: {
+            type: GraphQLBoolean,
+            description: 'Whether a player should enable this track by default.'
+        }
+    }
+});
+
+/**
  * One media asset attached to an entry.
  *
  * **The URLs are authenticated routes.** They point at the CMS's own media
@@ -80,6 +115,13 @@ export const MediaAssetType = new GraphQLObjectType({
             type: GraphQLBoolean,
             description:
                 'True when the author marked this usage purely presentational, so it should publish with an empty alt and be skipped by a screen reader.'
+        },
+        tracks: {
+            type: new GraphQLNonNull(
+                new GraphQLList(new GraphQLNonNull(MediaTrackType))
+            ),
+            description:
+                'Timed-text tracks for a video or audio asset — what a consumer needs to emit `<track>`. Empty for an image, and for a video nobody has captioned.'
         }
     }
 });
