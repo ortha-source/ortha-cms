@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     ArrowDown,
@@ -6,7 +7,15 @@ import {
     FileWarning,
     Trash2
 } from 'lucide-react';
-import { Button, cn } from '@ortha-cms/design-system';
+import {
+    Button,
+    Checkbox,
+    Field,
+    FieldLabel,
+    Input,
+    cn
+} from '@ortha-cms/design-system';
+import { MEDIA_ALT_MAX_LENGTH } from '@ortha-cms/content-domain';
 import { MEDIA_KIND, type MediaKind } from '../../../constants';
 import type { MediaFieldDisplay } from '../../../types/mediaFieldDisplay';
 import { assetGradient } from '../../../utils/assetGradient';
@@ -15,6 +24,22 @@ import { MediaKindIcon } from '../../MediaKindIcon';
 
 /** Intl descriptors for {@link MediaFieldItem}, co-located. */
 const messages = defineMessages({
+    altLabel: {
+        id: 'media.field.item.altLabel',
+        defaultMessage: 'Alt text for {name}'
+    },
+    altPlaceholder: {
+        id: 'media.field.item.altPlaceholder',
+        defaultMessage: 'Describe this image'
+    },
+    altMissing: {
+        id: 'media.field.item.altMissing',
+        defaultMessage: 'Needs alt text'
+    },
+    decorativeLabel: {
+        id: 'media.field.item.decorativeLabel',
+        defaultMessage: 'Decorative — no description needed'
+    },
     remove: { id: 'media.fieldItem.remove', defaultMessage: 'Remove {name}' },
     preview: {
         id: 'media.fieldItem.preview',
@@ -81,7 +106,11 @@ export function MediaFieldItem({
     multiple,
     readOnly = false,
     onRemove,
-    onMove
+    onMove,
+    alt,
+    decorative = false,
+    onAltChange,
+    onDecorativeChange
 }: {
     item: MediaFieldDisplay;
     /** Zero-based position, shown (1-based) and used to gate the arrows. */
@@ -93,8 +122,15 @@ export function MediaFieldItem({
     readOnly?: boolean;
     onRemove: () => void;
     onMove: (delta: number) => void;
+    /** The text alternative stored on **this usage**, if any. */
+    alt?: string;
+    /** Whether this usage is marked purely presentational. */
+    decorative?: boolean;
+    onAltChange?: (next: string) => void;
+    onDecorativeChange?: (next: boolean) => void;
 }) {
     const intl = useIntl();
+    const altId = useId();
     const asImage = item.kind === MEDIA_KIND.Image;
     const meta = [
         formatKind(item.mimeType),
@@ -264,6 +300,62 @@ export function MediaFieldItem({
                     {item.missing ? item.id : item.resolving ? '' : meta}
                 </p>
             </div>
+
+            {/* The text alternative, **per usage**. Attaching an asset used to
+                prompt for nothing at all: the stored value was a bare id with
+                nowhere to put one, so an author could publish an image nobody
+                could read and the tool called the entry valid (WCAG 1.1.1, 508
+                504.3 — `ORT-83`, `ORT-91`). The same image legitimately needs
+                different alt in different places, which is why this lives on the
+                field rather than only on the library row.
+
+                Hidden for a missing or still-resolving asset: there is nothing
+                to describe yet, and for a non-image the question is usually the
+                wrong one — a PDF attachment is named by its link text. */}
+            {!readOnly && !item.missing && !item.resolving && onAltChange ? (
+                <div className="flex flex-col gap-1.5 border-t px-2.5 py-2">
+                    <Field>
+                        <FieldLabel htmlFor={altId} className="text-[11px]">
+                            {intl.formatMessage(messages.altLabel, {
+                                name: item.name
+                            })}
+                        </FieldLabel>
+                        <Input
+                            id={altId}
+                            value={alt ?? ''}
+                            disabled={decorative}
+                            maxLength={MEDIA_ALT_MAX_LENGTH}
+                            placeholder={intl.formatMessage(
+                                messages.altPlaceholder
+                            )}
+                            onChange={(event) =>
+                                onAltChange(event.target.value)
+                            }
+                            className="h-7 text-xs"
+                        />
+                    </Field>
+                    {onDecorativeChange ? (
+                        <label className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                            <Checkbox
+                                checked={decorative}
+                                onCheckedChange={(next) =>
+                                    onDecorativeChange(next === true)
+                                }
+                            />
+                            {intl.formatMessage(messages.decorativeLabel)}
+                        </label>
+                    ) : null}
+                    {/* Not an error — the entry is only *unpublishable*, and
+                        only when the field is required. A warning that names the
+                        gap beats a red banner on a draft somebody is still
+                        writing. */}
+                    {!decorative && !(alt ?? '').trim() ? (
+                        <p className="text-warning-soft-foreground text-[11px]">
+                            {intl.formatMessage(messages.altMissing)}
+                        </p>
+                    ) : null}
+                </div>
+            ) : null}
         </li>
     );
 }

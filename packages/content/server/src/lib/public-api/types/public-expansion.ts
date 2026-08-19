@@ -53,8 +53,19 @@ export interface PublicMediaRef {
     kind: string;
     /** MIME type, e.g. `image/png`. */
     mimeType: string;
-    /** Alt text, when set. */
+    /**
+     * The text alternative for **this usage** — the entry value's own `alt`
+     * where it has one, the asset row's default otherwise, and `''` when the
+     * usage is {@link decorative}.
+     *
+     * `''` and `null` mean different things and a consumer should treat them
+     * differently: `''` is "render `alt=\"\"`, this image says nothing", while
+     * `null` is "nobody has supplied one" — which is a gap to report, not an
+     * instruction to hide the image from assistive tech (`ORT-83`).
+     */
     alt: string | null;
+    /** The author marked this usage purely presentational. */
+    decorative?: true;
 }
 
 /** One media field's assets, in their stored order. */

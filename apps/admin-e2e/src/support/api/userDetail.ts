@@ -81,7 +81,9 @@ export async function mockUserSessions(
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(sessions.filter((s) => !revoked.includes(s.id)))
+            body: JSON.stringify(
+                sessions.filter((s) => !revoked.includes(s.id))
+            )
         });
     });
     await page.route('**/api/users/*/sessions/*', async (route) => {

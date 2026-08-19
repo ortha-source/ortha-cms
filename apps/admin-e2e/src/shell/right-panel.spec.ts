@@ -52,9 +52,7 @@ test.describe('the right panel', () => {
     });
 
     /** Opens the editor with the panel registered and shown. */
-    async function openEditorWithPanel(
-        contentLibraryPage: ContentLibraryPage
-    ) {
+    async function openEditorWithPanel(contentLibraryPage: ContentLibraryPage) {
         await contentLibraryPage.gotoEntry(
             LIBRARY_WORKSPACE.id,
             'blog_post',
@@ -206,8 +204,9 @@ test.describe('the right panel as a narrow-viewport overlay', () => {
         // hidden button claims this job" rather than on the div, so replacing the
         // scrim's markup cannot quietly reintroduce the pattern.
         await expect(contentLibraryPage.propertiesScrim).toBeVisible();
-        await expect(
-            contentLibraryPage.propertiesScrim
-        ).not.toHaveJSProperty('tagName', 'BUTTON');
+        await expect(contentLibraryPage.propertiesScrim).not.toHaveJSProperty(
+            'tagName',
+            'BUTTON'
+        );
     });
 });

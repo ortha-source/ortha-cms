@@ -630,6 +630,115 @@ describe('validateEntryValues — media fields', () => {
             message: 'is required'
         });
     });
+
+    // --- the text alternative (`ORT-83`) --------------------------------------
+
+    it('accepts the object form with alt text', () => {
+        expect(only({ cover: { id: UUID, alt: 'A green rectangle' } })).toEqual(
+            []
+        );
+    });
+
+    it('accepts the object form marked decorative', () => {
+        expect(only({ cover: { id: UUID, decorative: true } })).toEqual([]);
+    });
+
+    it('accepts a mixed array of bare ids and refs', () => {
+        expect(only({ photos: [UUID, { id: UUID, alt: 'Second' }] })).toEqual(
+            []
+        );
+    });
+
+    it('rejects a ref whose id is not a uuid', () => {
+        expect(only({ cover: { id: 'nope', alt: 'x' } })).toContainEqual({
+            field: 'cover',
+            message: 'must be a media asset id'
+        });
+    });
+
+    it('rejects non-string alt text', () => {
+        expect(only({ cover: { id: UUID, alt: 42 } })).toContainEqual({
+            field: 'cover',
+            message: 'alt text must be a string'
+        });
+    });
+
+    it('rejects alt text over the cap', () => {
+        expect(
+            only({ cover: { id: UUID, alt: 'a'.repeat(1001) } })
+        ).toContainEqual({
+            field: 'cover',
+            message: 'alt text must be at most 1000 characters'
+        });
+    });
+
+    it('refuses decorative *and* alt text together', () => {
+        expect(
+            only({ cover: { id: UUID, alt: 'Something', decorative: true } })
+        ).toContainEqual({
+            field: 'cover',
+            message: 'cannot be marked decorative and carry alt text'
+        });
+    });
+
+    it('does not require a text alternative on an optional media field', () => {
+        expect(only({ cover: UUID, photos: [UUID] })).toEqual([]);
+    });
+
+    it('requires a text alternative on a required media field', () => {
+        const requiredFields = {
+            hero: { type: CONTENT_FIELD_TYPE.Media, required: true }
+        };
+        // The legacy bare-id form is "no alternative supplied", which is exactly
+        // what it is — so a required field carrying one does not publish.
+        expect(
+            validateEntryValues(requiredFields, { hero: UUID }).issues
+        ).toContainEqual({
+            field: 'hero',
+            message:
+                'needs alt text, or to be marked decorative, before it can be published'
+        });
+        // A blank alt is not an answer either: it is indistinguishable from an
+        // untouched field, which is the ambiguity `decorative` removes.
+        expect(
+            validateEntryValues(requiredFields, {
+                hero: { id: UUID, alt: '  ' }
+            }).issues
+        ).toContainEqual({
+            field: 'hero',
+            message:
+                'needs alt text, or to be marked decorative, before it can be published'
+        });
+        expect(
+            validateEntryValues(requiredFields, {
+                hero: { id: UUID, alt: 'A hero' }
+            }).issues
+        ).toEqual([]);
+        expect(
+            validateEntryValues(requiredFields, {
+                hero: { id: UUID, decorative: true }
+            }).issues
+        ).toEqual([]);
+    });
+
+    it('requires it of every entry in a required multiple field', () => {
+        const requiredFields = {
+            shots: {
+                type: CONTENT_FIELD_TYPE.Media,
+                required: true,
+                multiple: true
+            }
+        };
+        expect(
+            validateEntryValues(requiredFields, {
+                shots: [{ id: UUID, alt: 'One' }, UUID]
+            }).issues
+        ).toContainEqual({
+            field: 'shots',
+            message:
+                'needs alt text, or to be marked decorative, before it can be published'
+        });
+    });
 });
 
 describe('validateFieldValue — richtext', () => {

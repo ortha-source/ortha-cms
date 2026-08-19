@@ -1,4 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
+import { toMediaValueRef, type MediaValueRef } from '@ortha-cms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import {
@@ -35,27 +36,30 @@ export class MediaRefsQuery {
         const out: Record<string, MediaRef[]> = {};
         if (!this.resolver) return out;
 
-        const byField: Record<string, string[]> = {};
+        // The **refs**, not just the ids: a media value has carried a
+        // per-usage `alt` and a `decorative` flag since `ORT-83`, and the whole
+        // point of putting them on the value is that they override the asset
+        // row's own description for *this* usage.
+        const byField: Record<string, MediaValueRef[]> = {};
         const all = new Set<string>();
         for (const [name, spec] of Object.entries(type.fields)) {
             if (spec.type !== CONTENT_FIELD_TYPE.Media) continue;
             const value = values[name];
-            const ids = Array.isArray(value)
-                ? value.filter(
-                      (id): id is string => typeof id === 'string' && !!id
-                  )
-                : typeof value === 'string' && value
-                  ? [value]
-                  : [];
-            if (!ids.length) continue;
-            byField[name] = ids;
-            for (const id of ids) all.add(id);
+            const refs = (Array.isArray(value) ? value : [value])
+                .map(toMediaValueRef)
+                .filter(
+                    (ref): ref is MediaValueRef => ref !== null && !!ref.id
+                );
+            if (!refs.length) continue;
+            byField[name] = refs;
+            for (const ref of refs) all.add(ref.id);
         }
         if (!all.size) return out;
 
         const resolved = await this.resolver.resolve([...all], workspaceId);
-        for (const [name, ids] of Object.entries(byField)) {
-            out[name] = ids.map((id) => {
+        for (const [name, refs] of Object.entries(byField)) {
+            out[name] = refs.map((ref) => {
+                const id = ref.id;
                 const asset = resolved.get(id);
                 return asset
                     ? {
@@ -73,7 +77,14 @@ export class MediaRefsQuery {
                               : {}),
                           kind: asset.kind,
                           mimeType: asset.mimeType,
-                          alt: asset.alt
+                          // Per-usage wins over the asset's default, and
+                          // `decorative` beats both: an image the author marked
+                          // presentational *here* publishes with an empty `alt`
+                          // however it is described in the library.
+                          alt: usageAlt(ref, asset.alt),
+                          ...(ref.decorative === true
+                              ? { decorative: true }
+                              : {})
                       }
                     : {
                           id,
@@ -87,4 +98,20 @@ export class MediaRefsQuery {
         }
         return out;
     }
+}
+
+/**
+ * The alt text this usage should publish with.
+ *
+ * `decorative` wins outright and resolves to an empty string — the value an
+ * `<img alt="">` needs to be skipped by a screen reader, which is a different
+ * claim from having no `alt` attribute at all. Otherwise a per-usage `alt`
+ * overrides the asset row's default, and a usage that said nothing falls back to
+ * it. Alt text is per usage, not per asset: the same logo is "Acme logo" in a
+ * header and decorative in a footer strip (`ORT-83`).
+ */
+function usageAlt(ref: MediaValueRef, assetAlt: string | null): string | null {
+    if (ref.decorative === true) return '';
+    if (typeof ref.alt === 'string' && ref.alt.trim() !== '') return ref.alt;
+    return assetAlt;
 }

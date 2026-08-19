@@ -13,6 +13,7 @@ import {
 } from '@ortha-cms/design-system';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import type { MediaRef } from '@ortha-cms/content-admin';
+import { toMediaValueRef, type MediaValueRef } from '@ortha-cms/content-domain';
 import { MEDIA_CREATE, MEDIA_KIND, MEDIA_READ } from '../../constants';
 import type { MediaAsset } from '../../types/mediaAsset';
 import type { MediaFieldDisplay } from '../../types/mediaFieldDisplay';
@@ -114,11 +115,19 @@ const messages = defineMessages({
     }
 });
 
-/** Normalize the field value (single id | id[] | null) to an ordered id list. */
-function toIds(value: unknown): string[] {
-    if (Array.isArray(value))
-        return value.filter((v): v is string => typeof v === 'string' && !!v);
-    return typeof value === 'string' && value ? [value] : [];
+/**
+ * Normalize the field value to an ordered list of {@link MediaValueRef}s.
+ *
+ * The value is `{ id, alt?, decorative? }` (or a list of them) since `ORT-83`,
+ * and a bare id or id array before that — both still arrive, so both are
+ * normalized here and the legacy form stays confined to the kernel's
+ * `toMediaValueRef`. A legacy value reads as "no alternative supplied", which is
+ * exactly what it is.
+ */
+function toRefs(value: unknown): MediaValueRef[] {
+    return (Array.isArray(value) ? value : [value])
+        .map(toMediaValueRef)
+        .filter((ref): ref is MediaValueRef => ref !== null && !!ref.id);
 }
 
 /** The original-bytes route for an id we know nothing else about. */
@@ -222,7 +231,8 @@ export function MediaFieldControl({
     // so a freshly-added asset shows its real name/thumbnail before any refetch.
     const [known, setKnown] = useState<Map<string, MediaAsset>>(new Map());
 
-    const ids = toIds(value);
+    const refs = toRefs(value);
+    const ids = refs.map((ref) => ref.id);
 
     // Staging is only offered when the user may actually upload; the presave
     // step would otherwise fail the save on their behalf. A read-only record is
@@ -307,19 +317,47 @@ export function MediaFieldControl({
         });
     };
 
-    const setIds = (nextIds: string[]) => {
+    const setRefs = (nextRefs: MediaValueRef[]) => {
         // Anything staged that just left the field is forgotten here — one place,
         // so a remove, a replace, and a re-pick all release the preview blob (and
         // stop the save uploading a file nothing references).
         if (pending) {
-            const kept = new Set(nextIds);
+            const kept = new Set(nextRefs.map((ref) => ref.id));
             for (const assetId of ids) {
                 if (!kept.has(assetId) && pending.has(assetId))
                     uploads?.drop(assetId);
             }
         }
-        onChange(multiple ? nextIds : (nextIds[0] ?? null));
+        onChange(multiple ? nextRefs : (nextRefs[0] ?? null));
         onBlur?.();
+    };
+
+    /** Attaching by id, keeping the alt text of anything already attached. */
+    const setIds = (nextIds: string[]) => {
+        const byId = new Map(refs.map((ref) => [ref.id, ref]));
+        setRefs(nextIds.map((assetId) => byId.get(assetId) ?? { id: assetId }));
+    };
+
+    /**
+     * Patches one usage's text alternative.
+     *
+     * `alt` and `decorative` are mutually exclusive by the kernel's validation —
+     * an image cannot be presentational *and* carry a description — so marking a
+     * usage decorative drops whatever was typed rather than leaving a value the
+     * publish gate would refuse. Un-marking it leaves the field empty, which is
+     * the honest state: the author has not answered yet.
+     */
+    const patchRef = (index: number, patch: Partial<MediaValueRef>) => {
+        setRefs(
+            refs.map((ref, at) => {
+                if (at !== index) return ref;
+                const next: MediaValueRef = { ...ref, ...patch };
+                if (next.decorative === true) delete next.alt;
+                if (next.decorative !== true) delete next.decorative;
+                if (next.alt === '') delete next.alt;
+                return next;
+            })
+        );
     };
 
     const onPicked = (assets: MediaAsset[]) => {
@@ -491,6 +529,24 @@ export function MediaFieldControl({
                                 readOnly={readOnly}
                                 onRemove={() => removeAt(index)}
                                 onMove={(delta) => move(index, delta)}
+                                {...(refs[index]?.alt !== undefined
+                                    ? { alt: refs[index].alt }
+                                    : {})}
+                                decorative={refs[index]?.decorative === true}
+                                onAltChange={
+                                    readOnly
+                                        ? undefined
+                                        : (next) =>
+                                              patchRef(index, { alt: next })
+                                }
+                                onDecorativeChange={
+                                    readOnly
+                                        ? undefined
+                                        : (next) =>
+                                              patchRef(index, {
+                                                  decorative: next
+                                              })
+                                }
                             />
                         ))}
                     </ul>

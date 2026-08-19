@@ -31,9 +31,7 @@ export class HomePage extends BasePage {
      * (e.g. "Members").
      */
     statTile(label: string): Locator {
-        return this.page
-            .getByRole('main')
-            .getByText(label, { exact: true });
+        return this.page.getByRole('main').getByText(label, { exact: true });
     }
 
     /** The Workspaces dashboard panel heading (`<h2>`). */

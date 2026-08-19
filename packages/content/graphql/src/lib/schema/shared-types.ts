@@ -71,7 +71,16 @@ export const MediaAssetType = new GraphQLObjectType({
             type: new GraphQLNonNull(GraphQLString),
             description: 'MIME type, e.g. `image/png`.'
         },
-        alt: { type: GraphQLString, description: 'Alt text, when set.' }
+        alt: {
+            type: GraphQLString,
+            description:
+                'The text alternative for **this usage** — the entry value\'s own alt where it has one, the asset\'s default otherwise, and `""` when the usage is marked decorative. `""` and `null` mean different things: `""` is "render alt=\"\", this image says nothing", `null` is "nobody supplied one".'
+        },
+        decorative: {
+            type: GraphQLBoolean,
+            description:
+                'True when the author marked this usage purely presentational, so it should publish with an empty alt and be skipped by a screen reader.'
+        }
     }
 });
 
