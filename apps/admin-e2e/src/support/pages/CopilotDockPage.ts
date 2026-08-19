@@ -23,11 +23,15 @@ export class CopilotDockPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
-        // A `group`, not a `toolbar`: the role was downgraded once it was clear
-        // the dock implements none of the composite-widget keyboard model a
-        // toolbar promises (no roving tabindex, no arrow keys). Every pill is
-        // its own tab stop, which is what `group` describes.
-        this.dock = page.getByRole('group', { name: 'Ortha AI chats' });
+        // A `complementary`, not a `toolbar`: the role was downgraded once it
+        // was clear the dock implements none of the composite-widget keyboard
+        // model a toolbar promises (no roving tabindex, no arrow keys) — every
+        // pill is its own tab stop. It became a **landmark** rather than a plain
+        // `group` because the dock is portalled to `<body>`, so without one its
+        // pills sat outside every landmark on the page (`ORT-170`).
+        this.dock = page.getByRole('complementary', {
+            name: 'Ortha AI chats'
+        });
     }
 
     // --- the dock ---------------------------------------------------------

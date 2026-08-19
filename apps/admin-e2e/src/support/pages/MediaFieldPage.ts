@@ -87,9 +87,15 @@ export class MediaFieldPage extends BasePage {
      * here: both fields render a button called "Upload".
      */
     fieldCard(fieldLabel: string): Locator {
+        // `.last()` because the app-wide scrollport is a named `role="group"`
+        // now (`ORT-150`), and it is an **ancestor** of every field on the page
+        // — so an unscoped `getByRole('group')` filtered by a field's label
+        // matches the scrollport as well as the card. DOM order puts the
+        // ancestor first, so the innermost match is the card.
         return this.page
             .getByRole('group')
-            .filter({ has: this.page.getByText(fieldLabel, { exact: true }) });
+            .filter({ has: this.page.getByText(fieldLabel, { exact: true }) })
+            .last();
     }
 
     /** An attached asset's remove button, by the asset's file name. */
@@ -244,5 +250,32 @@ export class MediaFieldPage extends BasePage {
     /** The record title input — required, so a save needs it filled. */
     get title(): Locator {
         return this.page.getByRole('textbox', { name: 'Title' });
+    }
+
+    /**
+     * The alt-text input for one attached asset, named after the asset it
+     * describes (`ORT-83` / `ORT-91`).
+     */
+    altInput(assetName: string): Locator {
+        return this.page.getByRole('textbox', {
+            name: `Alt text for ${assetName}`
+        });
+    }
+
+    /** Its "this one is decorative" companion. */
+    decorativeToggle(assetName: string): Locator {
+        return this.page
+            .getByRole('group')
+            .filter({ has: this.altInput(assetName) })
+            .last()
+            .locator('..')
+            .getByRole('checkbox', {
+                name: 'Decorative — no description needed'
+            });
+    }
+
+    /** The warning shown while a usage has answered neither question. */
+    altMissingWarning(): Locator {
+        return this.page.getByText('Needs alt text');
     }
 }

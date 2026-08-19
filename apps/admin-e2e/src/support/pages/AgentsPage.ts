@@ -31,9 +31,11 @@ export class AgentsPage extends BasePage {
         super(page);
         this.main = page.getByRole('main');
         this.rail = page.getByRole('complementary', { name: 'Chats' });
-        // A `group`, not a `toolbar` — see `CopilotDockPage` for why the role
-        // was downgraded.
-        this.dock = page.getByRole('group', { name: 'Ortha AI chats' });
+        // A `complementary`, not a `toolbar` or a bare `group` — see
+        // `CopilotDockPage` for both halves of why.
+        this.dock = page.getByRole('complementary', {
+            name: 'Ortha AI chats'
+        });
     }
 
     // --- navigation -------------------------------------------------------
@@ -111,7 +113,11 @@ export class AgentsPage extends BasePage {
 
     /** Every recency heading on screen, in order — for grouping assertions. */
     async railGroupNames(): Promise<string[]> {
-        return this.rail.getByRole('heading').allInnerTexts();
+        // Level 3 only. The rail itself carries a visually-hidden `<h2>` naming
+        // the column, so the page's `<h1>` no longer jumps straight to the date
+        // buckets (`ORT-167`) — and a bare `getByRole('heading')` would count it
+        // as a bucket.
+        return this.rail.getByRole('heading', { level: 3 }).allInnerTexts();
     }
 
     /** The rail's "couldn't load your chats" state — distinct from empty. */
@@ -320,7 +326,9 @@ export class AgentsPage extends BasePage {
      * hint, so it carries the attach limit and the "waiting for uploads" state.
      */
     composerHint(): Locator {
-        return this.main.getByRole('status');
+        // By name: the transcript's own phase region is a second
+        // `role="status"` in `main` (`ORT-116`), so a bare role is ambiguous.
+        return this.main.getByRole('status', { name: 'Composer status' });
     }
 
     // --- attachments ------------------------------------------------------

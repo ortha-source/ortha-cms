@@ -14,6 +14,10 @@ const messages = defineMessages({
     mobileDescription: {
         id: 'shell.sidebar.mobileDescription',
         defaultMessage: 'The main navigation for Ortha CMS.'
+    },
+    label: {
+        id: 'shell.sidebar.label',
+        defaultMessage: 'Sidebar'
     }
 });
 
@@ -58,6 +62,10 @@ export function AppSidebar() {
             collapsible="offcanvas"
             mobileTitle={intl.formatMessage(messages.mobileTitle)}
             mobileDescription={intl.formatMessage(messages.mobileDescription)}
+            // Makes the panel a named `complementary` landmark. The brand label
+            // in the header, and every group a plugin contributes below the
+            // primary `<nav>`, were otherwise outside every landmark (`ORT-170`).
+            label={intl.formatMessage(messages.label)}
         >
             {override ?? <GlobalSidebar />}
             {footerItems.length > 0 ? (

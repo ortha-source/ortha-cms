@@ -41,6 +41,17 @@ type SkeletonRegionProps = React.ComponentProps<'div'> & {
      * the design system stays intl-agnostic, so pass a translated string.
      */
     label: string;
+    /**
+     * The page's `<h1>`, rendered visually hidden.
+     *
+     * For a **route-level** skeleton — the `Suspense` fallback a lazy page shows
+     * while its chunk loads. That state is a whole page with no heading at all
+     * until the real one mounts, and it is the state a slow connection sits in
+     * longest, which makes it the one most likely to be navigated by heading
+     * (`ORT-167`). Omit it for a skeleton *inside* a page whose header is
+     * already on screen — a second `<h1>` is worse than none.
+     */
+    heading?: string;
 };
 
 /**
@@ -61,12 +72,14 @@ type SkeletonRegionProps = React.ComponentProps<'div'> & {
  */
 export function SkeletonRegion({
     label,
+    heading,
     children,
     className,
     ...props
 }: SkeletonRegionProps) {
     return (
         <div role="status" aria-busy className={className} {...props}>
+            {heading ? <h1 className="sr-only">{heading}</h1> : null}
             <span className="sr-only">{label}</span>
             {/* The blocks carry no text, but they do carry structure — a
                 skeleton table is still a `<table>` to a screen reader, and

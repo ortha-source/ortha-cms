@@ -765,9 +765,28 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
-    /** The entry editor's Properties panel (the shell's right column). */
+    /**
+     * The entry editor's Properties panel (the shell's right column).
+     *
+     * Located by its accessible **name** rather than its role, because the role
+     * changes with the viewport. As a column it is `complementary` — chrome
+     * beside the page. Under `md` it is a fixed overlay covering the page, and
+     * since `ORT-154` gave it real focus containment (everything behind it goes
+     * `inert`) it says so with `role="dialog"` + `aria-modal="true"`. One handle
+     * across both layouts; {@link propertiesOverlay} is the narrow-viewport
+     * shape when a spec means that specifically.
+     */
     get propertiesPanel(): Locator {
-        return this.page.getByRole('complementary', { name: 'Properties' });
+        return this.page.locator('aside[aria-label="Properties"]');
+    }
+
+    /**
+     * The Properties panel **as a narrow-viewport modal overlay** — the shape it
+     * only takes under `md`, and only once the page behind it is `inert`
+     * (`ORT-154`).
+     */
+    get propertiesOverlay(): Locator {
+        return this.page.getByRole('dialog', { name: 'Properties' });
     }
 
     /**

@@ -12,6 +12,10 @@ import {
 
 /** Intl descriptors for the content-library skeleton, co-located here. */
 const messages = defineMessages({
+    heading: {
+        id: 'content.library.skeleton.heading',
+        defaultMessage: 'Loading content types'
+    },
     nav: {
         id: 'content.topbar.nav',
         defaultMessage: 'Breadcrumb'
@@ -48,6 +52,18 @@ export function ContentLibraryPageSkeleton() {
 
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
+            {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
+                fallback is a whole page with no heading at all until the real
+                one mounts — and it is the state a slow connection sits in
+                longest, so it is the one most likely to be navigated by heading
+                (`ORT-167`).
+
+                It names the **state**, not the page, and deliberately: an `<h1>`
+                repeating the loaded page's would put two identically-named
+                level-one headings on screen across the swap, which is ambiguous
+                to a reader and to anything locating by heading. "Loading X" is
+                also the more useful thing to hear here. */}
+            <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
             <TopBar>
                 <TopBarIcon className="bg-brand-soft text-brand-soft-foreground">
                     <Library />

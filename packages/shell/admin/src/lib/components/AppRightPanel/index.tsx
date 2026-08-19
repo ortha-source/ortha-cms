@@ -70,9 +70,15 @@ export function AppRightPanel() {
         if (!isMobile || !shown || !toggle) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'Escape') return;
+            //
+            // `:not(#RIGHT_PANEL_ID)` because the panel is **itself** a
+            // `role="dialog"` on this breakpoint now (`ORT-154`) — without the
+            // exclusion this handler found the panel, concluded something was
+            // stacked on top of it, and yielded to itself, so `Esc` stopped
+            // working the moment the attribute was added.
             if (
                 document.querySelector(
-                    '[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]'
+                    `[role="dialog"]:not(#${RIGHT_PANEL_ID}),[role="alertdialog"],[role="menu"],[role="listbox"]`
                 )
             ) {
                 return;

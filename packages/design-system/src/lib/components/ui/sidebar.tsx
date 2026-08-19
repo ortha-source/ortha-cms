@@ -294,6 +294,7 @@ function Sidebar({
     children,
     mobileTitle = 'Sidebar',
     mobileDescription = 'Displays the mobile sidebar.',
+    label,
     ...props
 }: React.ComponentProps<'div'> & {
     side?: 'left' | 'right';
@@ -306,6 +307,23 @@ function Sidebar({
     mobileTitle?: string;
     /** Accessible description for the mobile overlay. */
     mobileDescription?: string;
+    /**
+     * Accessible name for the sidebar panel, which makes it a `complementary`
+     * landmark. Omitted by default, so nothing changes for a consumer that has
+     * not thought about it.
+     *
+     * Without it the panel is a plain `div`, and everything in it that is not
+     * inside the consumer's own `<nav>` — a brand label, a slot-contributed
+     * group, a view switcher — sits outside every landmark, which is content a
+     * screen-reader user cannot reach by landmark and must tab through
+     * (`ORT-170`). `complementary` rather than `navigation`: consumers put a
+     * real `<nav>` inside this for the links, and a second navigation landmark
+     * wrapping it would say the whole panel is nothing but links.
+     *
+     * On mobile the panel is a Radix dialog, which is already a container in its
+     * own right — {@link mobileTitle} names that.
+     */
+    label?: string;
 }) {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -400,6 +418,12 @@ function Sidebar({
                 <div
                     data-sidebar="sidebar"
                     data-slot="sidebar-inner"
+                    // Conditional on a name: a `complementary` with no
+                    // accessible name is a landmark a screen-reader user cannot
+                    // tell from any other, which is worse than the generic it
+                    // replaced.
+                    role={label ? 'complementary' : undefined}
+                    aria-label={label}
                     className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
                 >
                     {children}

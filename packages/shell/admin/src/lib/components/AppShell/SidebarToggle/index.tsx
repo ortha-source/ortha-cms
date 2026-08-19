@@ -1,3 +1,4 @@
+import type * as React from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { SidebarTrigger, useSidebar } from '@ortha-cms/design-system';
 
@@ -20,7 +21,9 @@ const messages = defineMessages({
  * floating fallback also hides itself (via `:has()`) whenever the open page
  * has one — it only ever shows on bar-less pages (the Home dashboard).
  */
-export function SidebarToggle() {
+export function SidebarToggle({
+    ...props
+}: React.ComponentProps<typeof SidebarTrigger>) {
     const intl = useIntl();
     const { state, isMobile } = useSidebar();
 
@@ -35,6 +38,7 @@ export function SidebarToggle() {
         <SidebarTrigger
             label={intl.formatMessage(messages.show)}
             className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm [main:has([data-slot=top-bar])~&]:hidden"
+            {...props}
         />
     );
 }

@@ -97,7 +97,68 @@ test.describe('Entry editor — Media tab', () => {
 
         await mediaFieldPage.save.click();
         await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
-        expect(saves.bodies[0].values.cover).toBe(MEDIA_ASSET_IDS.hero);
+        // `{ id }`, not a bare id: a media value carries its per-usage text
+        // alternative since `ORT-83`, and an attach with no alt yet is exactly
+        // "the id, and nobody has answered the alt question".
+        expect(saves.bodies[0].values.cover).toEqual({
+            id: MEDIA_ASSET_IDS.hero
+        });
+    });
+
+    test('prompts for alt text, and round-trips it with the attachment', async ({
+        mediaFieldPage
+    }) => {
+        await mediaFieldPage.gotoNewArticle(WS);
+        await mediaFieldPage.title.fill('A record');
+        await mediaFieldPage.openMediaTab();
+
+        await mediaFieldPage.libraryButton('Select from library').click();
+        await mediaFieldPage.pickAsset('hero.png');
+        await expect(mediaFieldPage.pickerDialog).toBeHidden();
+
+        // Attaching asks the question. Before `ORT-83` there was nowhere to put
+        // an answer at all: the value was a bare id, so an author could publish
+        // an image nobody could read and the tool called the entry valid.
+        await expect(mediaFieldPage.altInput('hero.png')).toBeVisible();
+        await expect(mediaFieldPage.altMissingWarning()).toBeVisible();
+
+        await mediaFieldPage.altInput('hero.png').fill('A green rectangle');
+        await expect(mediaFieldPage.altMissingWarning()).toBeHidden();
+
+        await mediaFieldPage.save.click();
+        await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+        expect(saves.bodies[0].values.cover).toEqual({
+            id: MEDIA_ASSET_IDS.hero,
+            alt: 'A green rectangle'
+        });
+    });
+
+    test('takes "decorative" as an answer, and it is not the same as blank', async ({
+        mediaFieldPage
+    }) => {
+        await mediaFieldPage.gotoNewArticle(WS);
+        await mediaFieldPage.title.fill('A record');
+        await mediaFieldPage.openMediaTab();
+
+        await mediaFieldPage.libraryButton('Select from library').click();
+        await mediaFieldPage.pickAsset('hero.png');
+        await expect(mediaFieldPage.pickerDialog).toBeHidden();
+
+        await mediaFieldPage.decorativeToggle('hero.png').click();
+
+        // The warning goes, because the question **has** been answered — which
+        // is the distinction WCAG 1.1.1 turns on and an empty string cannot
+        // carry: an author who left the box blank and an author who decided the
+        // image says nothing produce the same bytes otherwise.
+        await expect(mediaFieldPage.altMissingWarning()).toBeHidden();
+        await expect(mediaFieldPage.altInput('hero.png')).toBeDisabled();
+
+        await mediaFieldPage.save.click();
+        await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
+        expect(saves.bodies[0].values.cover).toEqual({
+            id: MEDIA_ASSET_IDS.hero,
+            decorative: true
+        });
     });
 
     test('restricts the picker to the kinds the field accepts', async ({
@@ -147,7 +208,9 @@ test.describe('Entry editor — Media tab', () => {
         // The save uploads it first, then writes the record with the new id.
         await expect.poll(() => uploads.count).toBe(1);
         await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
-        expect(saves.bodies[0].values.cover).toBe(uploadedAssetId(1));
+        expect(saves.bodies[0].values.cover).toEqual({
+            id: uploadedAssetId(1)
+        });
     });
 
     test('drops a staged file without ever uploading it', async ({
@@ -197,8 +260,8 @@ test.describe('Entry editor — Media tab', () => {
         await mediaFieldPage.save.click();
         await expect.poll(() => saves.bodies.length).toBeGreaterThan(0);
         expect(saves.bodies[0].values.gallery).toEqual([
-            MEDIA_ASSET_IDS.report,
-            MEDIA_ASSET_IDS.hero
+            { id: MEDIA_ASSET_IDS.report },
+            { id: MEDIA_ASSET_IDS.hero }
         ]);
     });
 

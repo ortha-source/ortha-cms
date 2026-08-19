@@ -111,14 +111,21 @@ export function MediaFieldSection({
             <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <h3 id={titleId} className="text-sm font-medium">
+                        {/* `<h2>`, not `<h3>`: a media field is a top-level
+                            section of the editor and the only heading above it
+                            is the page's `<h1>`, so `<h3>` skipped a level —
+                            the same fix as `FieldGroup` and
+                            `RelationFieldSection` (`ORT-168`'s rule, caught
+                            here once `heading-order` was switched on). The size
+                            is a class, not the rank. */}
+                        <h2 id={titleId} className="text-sm font-medium">
                             {labelOf(field)}
                             {field.required ? (
                                 <span aria-hidden className="text-destructive">
                                     *
                                 </span>
                             ) : null}
-                        </h3>
+                        </h2>
                         {field.localized ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>

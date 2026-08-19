@@ -3,6 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@ortha-cms/design-system';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { mediaValueIds, toMediaValueRef } from '@ortha-cms/content-domain';
 import type { EntryPresave } from '@ortha-cms/content-admin';
 import { ROOT_FOLDER_ID, UPLOAD_CONCURRENCY } from '../../constants';
 import { httpMediaGateway } from '../../infrastructure/httpMediaGateway';
@@ -30,13 +31,13 @@ function referenced(
     values: Record<string, unknown>,
     pending: ReadonlyMap<string, PendingUpload>
 ): PendingUpload[] {
+    // Through the kernel: a media value is `{ id, alt?, decorative? }` as well
+    // as a bare id since `ORT-83`, and reading only strings meant a staged file
+    // attached to a field was no longer *referenced* by it — so the save
+    // uploaded nothing and wrote a record pointing at a placeholder.
     const ids = new Set<string>();
-    for (const value of Object.values(values)) {
-        if (typeof value === 'string') ids.add(value);
-        else if (Array.isArray(value))
-            for (const item of value)
-                if (typeof item === 'string') ids.add(item);
-    }
+    for (const value of Object.values(values))
+        for (const id of mediaValueIds(value)) ids.add(id);
     return [...ids]
         .map((id) => pending.get(id))
         .filter((entry): entry is PendingUpload => !!entry);
@@ -49,20 +50,38 @@ function resolveValues(
 ): Record<string, unknown> {
     if (resolved.size === 0) return values;
     const out: Record<string, unknown> = { ...values };
+
+    /**
+     * Swaps one value's placeholder for the real asset id, **keeping whatever
+     * else the value carries** — the alt text and the decorative flag an author
+     * typed against the staged file belong to the asset it became.
+     */
+    const swap = (item: unknown): { value: unknown; changed: boolean } => {
+        const ref = toMediaValueRef(item);
+        if (!ref) return { value: item, changed: false };
+        const id = resolved.get(ref.id);
+        if (!id) return { value: item, changed: false };
+        return {
+            // A bare id in, a bare id out: only widen the shape where the author
+            // actually said something, so an untouched attach keeps the wire
+            // form it had.
+            value: typeof item === 'string' ? id : { ...ref, id },
+            changed: true
+        };
+    };
+
     for (const [name, value] of Object.entries(values)) {
-        if (typeof value === 'string') {
-            const id = resolved.get(value);
-            if (id) out[name] = id;
-        } else if (Array.isArray(value)) {
+        if (Array.isArray(value)) {
             let changed = false;
             const next = value.map((item) => {
-                if (typeof item !== 'string') return item;
-                const id = resolved.get(item);
-                if (!id) return item;
-                changed = true;
-                return id;
+                const swapped = swap(item);
+                if (swapped.changed) changed = true;
+                return swapped.value;
             });
             if (changed) out[name] = next;
+        } else {
+            const swapped = swap(value);
+            if (swapped.changed) out[name] = swapped.value;
         }
     }
     return out;

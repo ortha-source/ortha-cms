@@ -47,38 +47,45 @@ export const AXE_TAGS = [
 ] as const;
 
 /**
- * The rules turned back off, and why — the debt that switching `best-practice`
- * on uncovered. Each is a **real** finding with its own ticket, not a rule the
- * project disagrees with; the exclusion exists so the other ~30 newly-enabled
- * rules can guard against regression today rather than waiting on product work
- * in six packages.
+ * The rules turned back off, and why.
  *
- * Measured across the seven `a11y.spec.ts` files (node counts, not test counts):
+ * Switching `best-practice` on uncovered five findings. **Four are fixed** and
+ * their rules are live again, guarding against regression:
  *
- * - `region` (49) — content outside any landmark, on every surface. The broadest
- *   of the five and the one that follows from the rest. `ORT-170`
- * - `landmark-one-main` (14) — **all** of them on the unauthenticated routes
- *   (login, accept-invite, the root loader, the auth gate): that shell renders
- *   no `<main>` at all. `ORT-166`
- * - `page-has-heading-one` (11) — the Agents view (6 states, the finding
- *   `ORT-117` was filed for), the login page, the root loader, the Content
- *   Library's welcome + error panes, the Members skeleton. `ORT-167`
- * - `heading-order` (6) — the alert/banner title renders as `<h5>` under an
- *   `<h1>`, so every visible error banner skips three levels. `ORT-168`
- * - `aria-dialog-name` (2) — the Content Library column picker and the create
- *   workspace directory-results popup are `role="dialog"` with no accessible
- *   name; a screen reader announces a bare "dialog". `ORT-169`
+ * - `landmark-one-main` (was 14 nodes) — the signed-out shell rendered no
+ *   `<main>` at all. `ORT-166`
+ * - `page-has-heading-one` (11) — the Agents view, the Content Library panes and
+ *   three busy states rendered no `<h1>`. `ORT-167`
+ * - `heading-order` (6) — `AlertTitle` was a hard-coded `<h5>` under every
+ *   page's `<h1>`. `ORT-168`
+ * - `aria-dialog-name` (2) — the column picker and the people search announced
+ *   a bare "dialog". `ORT-169`
  *
- * **Deleting an entry here is the fix's last step**, and `harness/axe-fixture.spec.ts`
- * pins the list so it cannot quietly grow.
+ * `region` (49) is the one that stays off, and the reason is the rule rather
+ * than the product. Its two real findings **are** fixed — the app sidebar and
+ * the copilot dock are named landmarks now (`ORT-170`) — and what is left is a
+ * class axe cannot currently be told about: an **open Radix menu**, portalled to
+ * `<body>` as `div[data-radix-popper-content-wrapper]`. axe's own default
+ * exempts transient overlays, via a `regionMatcher` of
+ * `'dialog, [role=dialog], [role=alertdialog], svg'` — which is why the Content
+ * Library's column picker (a Popover, so `role="dialog"`) passes and the
+ * identical row menu beside it does not. `[role=menu]` simply is not on that
+ * list, and `regionMatcher` is a **check** option: `AxeBuilder` can only pass
+ * `RunOptions`, which carries no way to set one.
+ *
+ * The alternative — `.exclude()`-ing the wrapper — would drop the menu's whole
+ * subtree from *every* rule, losing the contrast and naming checks that
+ * currently run inside it. That is a worse trade than one disabled
+ * best-practice rule.
+ *
+ * So the guard `region` was providing is replaced by something sharper rather
+ * than dropped: `host/host.spec.ts` asserts by name that the sidebar and the
+ * dock are landmarks, which is what it actually caught.
+ *
+ * **Deleting an entry here is the last step of a fix**, and
+ * `harness/axe-fixture.spec.ts` pins this list so it cannot quietly grow.
  */
-export const AXE_KNOWN_GAPS = [
-    'region',
-    'landmark-one-main',
-    'page-has-heading-one',
-    'heading-order',
-    'aria-dialog-name'
-] as const;
+export const AXE_KNOWN_GAPS: readonly string[] = ['region'];
 
 interface Fixtures {
     loginPage: LoginPage;

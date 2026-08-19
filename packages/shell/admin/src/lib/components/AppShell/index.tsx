@@ -121,10 +121,14 @@ function AppShellChrome() {
             <AppRightPanel />
             {/* Inert with the rest of the page behind the overlay: it is
                 `fixed`, so it would otherwise sit above the scrim and stay both
-                visible and tabbable. */}
-            <div inert={overlayUp || undefined}>
-                <SidebarToggle />
-            </div>
+                visible and tabbable.
+
+                On the button itself, **not** a wrapper. It hides itself with
+                `[main:has([data-slot=top-bar])~&]:hidden` — a sibling
+                combinator against `<main>` — so putting a `<div>` between them
+                breaks the selector and the floating toggle reappears on every
+                page that has a top bar. */}
+            <SidebarToggle inert={overlayUp || undefined} />
         </SidebarProvider>
     );
 }

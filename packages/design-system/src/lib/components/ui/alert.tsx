@@ -26,12 +26,22 @@ const alertVariants = cva(
 );
 
 /**
- * Carries the id `Alert` minted for its title down to {@link AlertTitle}, so the
- * banner can name itself without either component needing an id from the caller.
- * `null` outside an `Alert` — a bare `AlertTitle` then renders unlabelled rather
- * than pointing `aria-labelledby` at nothing.
+ * What `Alert` hands down to {@link AlertTitle}: the id it minted, and the
+ * callback the title uses to say it exists.
+ *
+ * The second half is load-bearing. Not every `Alert` has a title — several
+ * render only an `AlertDescription` — and `aria-labelledby` pointing at an id
+ * that is on no element is an `aria-valid-attr-value` failure, i.e. strictly
+ * worse than the unnamed banner it replaced. So the attribute is only written
+ * once a title has actually mounted.
+ *
+ * `null` outside an `Alert`: a bare `AlertTitle` then renders without an id
+ * rather than colliding with one it was never given.
  */
-const AlertTitleIdContext = React.createContext<string | null>(null);
+const AlertTitleContext = React.createContext<{
+    id: string;
+    onMount: () => void;
+} | null>(null);
 
 /**
  * A page-level message banner. `role="alert"`, so new content is announced.
@@ -49,20 +59,27 @@ const Alert = React.forwardRef<
     React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
 >(({ className, variant, ...props }, ref) => {
     const titleId = React.useId();
+    const [hasTitle, setHasTitle] = React.useState(false);
+
+    const context = React.useMemo(
+        () => ({ id: titleId, onMount: () => setHasTitle(true) }),
+        [titleId]
+    );
 
     return (
-        <AlertTitleIdContext.Provider value={titleId}>
+        <AlertTitleContext.Provider value={context}>
             <div
                 ref={ref}
                 role="alert"
-                // A caller that names the banner itself wins: `{...props}` is
-                // spread after, so an explicit `aria-label`/`aria-labelledby`
-                // overrides this one.
-                aria-labelledby={titleId}
+                // Only once a title exists to point at — see the context above.
+                // A caller that names the banner itself wins either way:
+                // `{...props}` is spread after, so an explicit
+                // `aria-label`/`aria-labelledby` overrides this one.
+                aria-labelledby={hasTitle ? titleId : undefined}
                 className={cn(alertVariants({ variant }), className)}
                 {...props}
             />
-        </AlertTitleIdContext.Provider>
+        </AlertTitleContext.Provider>
     );
 });
 Alert.displayName = 'Alert';
@@ -78,12 +95,20 @@ const AlertTitle = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
 >(({ className, id, ...props }, ref) => {
-    const contextId = React.useContext(AlertTitleIdContext);
+    const context = React.useContext(AlertTitleContext);
+    const onMount = context?.onMount;
+
+    // Tells the `Alert` above it that there is something to name it with.
+    // In an effect rather than during render, because it sets state on the
+    // parent.
+    React.useEffect(() => {
+        onMount?.();
+    }, [onMount]);
 
     return (
         <div
             ref={ref}
-            id={id ?? contextId ?? undefined}
+            id={id ?? context?.id}
             data-slot="alert-title"
             className={cn(
                 'mb-1 font-medium leading-none tracking-tight',
