@@ -9,6 +9,10 @@ import {
 
 /** Intl descriptors for the content-library load error, co-located here. */
 const messages = defineMessages({
+    heading: {
+        id: 'content.library.error.heading',
+        defaultMessage: 'Content Library'
+    },
     title: {
         id: 'content.library.errorTitle',
         defaultMessage: 'Couldn’t load content types'
@@ -37,6 +41,11 @@ export function ContentLibraryError({ onRetry }: ContentLibraryErrorProps) {
 
     return (
         <Container className="py-8">
+            {/* The page's `<h1>`, visually hidden. A failed schema load replaces
+                the whole route with this banner, and the banner is a status
+                message rather than the page's heading — so this state was
+                reporting no `<h1>` at all (`ORT-167`). */}
+            <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
             <Alert role="alert">
                 <AlertTitle>{intl.formatMessage(messages.title)}</AlertTitle>
                 <AlertDescription className="flex flex-col items-start gap-3">

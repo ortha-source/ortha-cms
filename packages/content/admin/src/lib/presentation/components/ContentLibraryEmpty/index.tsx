@@ -36,8 +36,11 @@ export function ContentLibraryEmpty() {
                     <EmptyMedia variant="icon">
                         <PackageOpen />
                     </EmptyMedia>
-                    <EmptyTitle>
-                        {intl.formatMessage(messages.title)}
+                    {/* The page's `<h1>` — this state is the whole route
+                        when the workspace was granted no content types
+                        (`ORT-167`). */}
+                    <EmptyTitle asChild>
+                        <h1>{intl.formatMessage(messages.title)}</h1>
                     </EmptyTitle>
                     <EmptyDescription>
                         {intl.formatMessage(messages.body)}

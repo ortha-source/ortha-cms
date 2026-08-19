@@ -25,32 +25,74 @@ const alertVariants = cva(
     }
 );
 
+/**
+ * Carries the id `Alert` minted for its title down to {@link AlertTitle}, so the
+ * banner can name itself without either component needing an id from the caller.
+ * `null` outside an `Alert` — a bare `AlertTitle` then renders unlabelled rather
+ * than pointing `aria-labelledby` at nothing.
+ */
+const AlertTitleIdContext = React.createContext<string | null>(null);
+
+/**
+ * A page-level message banner. `role="alert"`, so new content is announced.
+ *
+ * It names itself with `aria-labelledby` pointing at its {@link AlertTitle},
+ * rather than the title being a heading. An alert's title is not a section of
+ * the document — it is a status message, and the heading rank it should carry
+ * depends entirely on where the banner is mounted, which the component cannot
+ * know. It used to hardcode `<h5>`, so every banner rendered under a page's
+ * `<h1>` jumped four levels and told a screen-reader user it was subordinate to
+ * something that does not exist (`ORT-168`).
+ */
 const Alert = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-    <div
-        ref={ref}
-        role="alert"
-        className={cn(alertVariants({ variant }), className)}
-        {...props}
-    />
-));
+>(({ className, variant, ...props }, ref) => {
+    const titleId = React.useId();
+
+    return (
+        <AlertTitleIdContext.Provider value={titleId}>
+            <div
+                ref={ref}
+                role="alert"
+                // A caller that names the banner itself wins: `{...props}` is
+                // spread after, so an explicit `aria-label`/`aria-labelledby`
+                // overrides this one.
+                aria-labelledby={titleId}
+                className={cn(alertVariants({ variant }), className)}
+                {...props}
+            />
+        </AlertTitleIdContext.Provider>
+    );
+});
 Alert.displayName = 'Alert';
 
+/**
+ * The banner's title line — the text that becomes its accessible name.
+ *
+ * A `<div>`, not a heading: see {@link Alert}. Consumers that genuinely want a
+ * heading here (a banner that really is a titled section) should render one
+ * themselves at the rank their page calls for and pass it as a child.
+ */
 const AlertTitle = React.forwardRef<
-    HTMLParagraphElement,
-    React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-    <h5
-        ref={ref}
-        className={cn(
-            'mb-1 font-medium leading-none tracking-tight',
-            className
-        )}
-        {...props}
-    />
-));
+    HTMLDivElement,
+    React.HTMLAttributes<HTMLDivElement>
+>(({ className, id, ...props }, ref) => {
+    const contextId = React.useContext(AlertTitleIdContext);
+
+    return (
+        <div
+            ref={ref}
+            id={id ?? contextId ?? undefined}
+            data-slot="alert-title"
+            className={cn(
+                'mb-1 font-medium leading-none tracking-tight',
+                className
+            )}
+            {...props}
+        />
+    );
+});
 AlertTitle.displayName = 'AlertTitle';
 
 const AlertDescription = React.forwardRef<

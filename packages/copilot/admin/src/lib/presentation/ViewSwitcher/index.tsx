@@ -129,18 +129,32 @@ export function ViewSwitcher() {
                 // The sidebar paints a dark surface in both themes, so the
                 // control states its own colours rather than inheriting the
                 // page palette the design-system default assumes.
+                //
+                // The inactive segment used to be `text-sidebar-foreground/70`
+                // over this `/40` surface. A semi-transparent foreground over a
+                // semi-transparent background is exactly the pair axe reports as
+                // `incomplete` rather than deciding — so it was discarded, and
+                // the suite stayed green over a tint the package's own
+                // `AGENTS.md` forbids in as many words: use the full token, "not
+                // an opacity of it … the token is the one that was verified
+                // against AA, so tinting it further is undoing that check by
+                // hand" (`ORT-117`). The full token is used now. Nothing is lost
+                // from the selected state, which was never carried by the
+                // contrast between the two: `SegmentedControlItem` pairs its
+                // selected fill with `font-semibold`, so the distinction is
+                // weight plus background, and holds under 1.4.1 without colour.
                 className="border-sidebar-border bg-sidebar-accent/40 flex w-full rounded-lg p-0.5"
             >
                 <SegmentedControlItem
                     value={CMS}
-                    className="text-sidebar-foreground/70 hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
+                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
                 >
                     <Layers className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.cms)}
                 </SegmentedControlItem>
                 <SegmentedControlItem
                     value={AGENTS}
-                    className="text-sidebar-foreground/70 hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
+                    className="text-sidebar-foreground hover:text-sidebar-foreground data-[state=on]:bg-sidebar-accent data-[state=on]:text-sidebar-foreground flex-1 justify-center px-2"
                 >
                     <Sparkles className="size-3.5" aria-hidden />
                     {intl.formatMessage(messages.agents)}

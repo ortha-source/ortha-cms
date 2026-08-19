@@ -15,8 +15,13 @@ import { COPILOT_USE, agentsPath } from '../../domain/agentsRoute';
 import { AgentsRail } from './AgentsRail';
 import { AgentsThread } from './AgentsThread';
 import { AgentsTopBar } from './AgentsTopBar';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 const messages = defineMessages({
+    heading: {
+        id: 'copilot.agents.heading',
+        defaultMessage: 'Ortha AI'
+    },
     forbiddenTitle: {
         id: 'copilot.agents.forbiddenTitle',
         defaultMessage: 'No access'
@@ -54,13 +59,29 @@ const messages = defineMessages({
  */
 export function AgentsPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.heading));
     const workspace = useCurrentWorkspace();
     const canUse = useHasPermission(COPILOT_USE);
     const routeContext = useRouteContext();
 
+    // The page's `<h1>`, visually hidden. This route renders no
+    // `ContainerHeader`, by design — the transcript is the page and a title bar
+    // over it would cost the width it needs — so the first heading a screen
+    // reader met was the rail's date buckets: pressing `H` suggested the page
+    // was *about* dates and pressing `1` found nothing (`ORT-117`, `ORT-167`).
+    // Rendered in both branches, because the permission-denied state is a full
+    // page too.
+    const heading = (
+        <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
+    );
+
     if (!canUse) {
         return (
             <Container className="py-8">
+                {heading}
                 <Empty className="border" role="alert">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
@@ -80,6 +101,7 @@ export function AgentsPage() {
 
     return (
         <>
+            {heading}
             {/* Hoists itself into the inset's fixed bar strip, so it spans the
                 rail and the thread both and neither of them scrolls under it. */}
             <AgentsTopBar

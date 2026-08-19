@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { defineMessages, useIntl } from 'react-intl';
-import { HTTP_STATUS } from '@ortha-cms/utils-admin';
+import { HTTP_STATUS, useDocumentTitle } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { LoginForm } from '../../components/LoginForm';
 import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginMutation } from '../../../application/useLoginMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
 import { takeSessionEnded } from '../../../application/sessionEnded';
-import { useDocumentTitle } from '../../useDocumentTitle';
 
 /** Router state `RequireAuth` attaches when it bounces a user to sign-in. */
 type FromState = { from?: { pathname?: string } };
@@ -18,7 +17,7 @@ type FromState = { from?: { pathname?: string } };
 const messages = defineMessages({
     documentTitle: {
         id: 'identity.login.documentTitle',
-        defaultMessage: 'Sign in · Ortha CMS'
+        defaultMessage: 'Sign in'
     },
     invalidCredentials: {
         id: 'identity.login.error.invalidCredentials',

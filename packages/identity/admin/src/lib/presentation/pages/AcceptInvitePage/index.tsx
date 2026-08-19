@@ -7,7 +7,7 @@ import {
     CardHeader,
     Skeleton
 } from '@ortha-cms/design-system';
-import { HTTP_STATUS } from '@ortha-cms/utils-admin';
+import { HTTP_STATUS, useDocumentTitle } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { InviteUnavailable } from '../../components/InviteUnavailable';
 import { InviteLookupFailed } from '../../components/InviteLookupFailed';
@@ -18,17 +18,20 @@ import {
 import { useInvite } from '../../../application/useInvite';
 import { useAcceptInviteMutation } from '../../../application/useAcceptInviteMutation';
 import { currentUserKey } from '../../../application/useCurrentUser';
-import { useDocumentTitle } from '../../useDocumentTitle';
 
 /** Intl descriptors for {@link AcceptInvitePage}, co-located with the component. */
 const messages = defineMessages({
     documentTitle: {
         id: 'identity.acceptInvite.documentTitle',
-        defaultMessage: 'Accept your invite · Ortha CMS'
+        defaultMessage: 'Accept your invite'
     },
     loading: {
         id: 'identity.acceptInvite.loading',
         defaultMessage: 'Checking your invite…'
+    },
+    loadingHeading: {
+        id: 'identity.acceptInvite.loadingHeading',
+        defaultMessage: 'Accept your invitation'
     },
     linkExpired: {
         id: 'identity.acceptInvite.error.linkExpired',
@@ -96,7 +99,13 @@ export function AcceptInvitePage() {
 
     if (invite.isPending) {
         return (
-            <AuthLayout surface="invite-loading">
+            <AuthLayout surface="invite-loading" focusHeading={false}>
+                {/* The busy state's `<h1>`, visually hidden: it is a
+                    full page like any other and was reporting none
+                    (`ORT-167`). */}
+                <h1 className="sr-only">
+                    {intl.formatMessage(messages.loadingHeading)}
+                </h1>
                 <div role="status">
                     <span className="sr-only">
                         {intl.formatMessage(messages.loading)}

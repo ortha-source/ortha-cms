@@ -28,6 +28,7 @@ import { ApiTokensNoAccess } from '../../components/ApiTokensNoAccess';
 import { CreateApiTokenDialog } from '../../components/CreateApiTokenDialog';
 import { RevealSecretDialog } from '../../components/RevealSecretDialog';
 import type { CreateApiTokenInput } from '../../../infrastructure/apiTokenGateway';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 const messages = defineMessages({
     title: { id: 'apiTokens.page.title', defaultMessage: 'API tokens' },
@@ -82,6 +83,10 @@ function readPage(value: string | null): number {
  */
 export function ApiTokensPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.title));
     const canRead = useHasPermission('tokens:read');
     const canCreate = useHasPermission('tokens:create');
     const canRevoke = useHasPermission('tokens:delete');

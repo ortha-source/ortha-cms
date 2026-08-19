@@ -12,6 +12,10 @@ const messages = defineMessages({
     loading: {
         id: 'identity.login.skeleton.loading',
         defaultMessage: 'Loading…'
+    },
+    heading: {
+        id: 'identity.login.skeleton.heading',
+        defaultMessage: 'Sign in'
     }
 });
 
@@ -26,7 +30,16 @@ export function LoginSkeleton() {
     const intl = useIntl();
 
     return (
-        <AuthLayout surface="chunk-loading">
+        <AuthLayout surface="chunk-loading" focusHeading={false}>
+            {/* The page's `<h1>`, visually hidden. The loaded page gets one from
+                `LoginForm`'s `CardTitle`, but the chunk-loading state rendered
+                none — and a loading state is the state a slow connection sits in
+                longest, so it is the one most likely to be navigated by heading
+                (`ORT-167`). It is not focused: `AuthLayout` deliberately skips
+                the focus move for a skeleton that is about to be replaced. */}
+            <h1 className="sr-only">
+                {intl.formatMessage(messages.heading)}
+            </h1>
             <div role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loading)}

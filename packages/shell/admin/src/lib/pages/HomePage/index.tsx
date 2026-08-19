@@ -1,11 +1,15 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Container } from '@ortha-cms/design-system';
 import { useAuth } from '@ortha-cms/identity-admin';
-import { byOrder } from '@ortha-cms/utils-admin';
+import { byOrder, useDocumentTitle } from '@ortha-cms/utils-admin';
 import { HOME_SECTION_SLOT } from '../../slots/homeSlots';
 
 /** Intl descriptors for {@link HomePage}, co-located with the component. */
 const messages = defineMessages({
+    documentTitle: {
+        id: 'shell.home.documentTitle',
+        defaultMessage: 'Home'
+    },
     greetingMorning: {
         id: 'shell.home.greeting.morning',
         defaultMessage: 'Good morning, {name}'
@@ -40,6 +44,10 @@ function greetingFor(hour: number) {
  */
 export function HomePage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.documentTitle));
     const { user } = useAuth();
     const greeting = greetingFor(new Date().getHours());
 

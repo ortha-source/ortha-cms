@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Columns3 } from 'lucide-react';
 import {
@@ -117,6 +117,12 @@ export function CollectionRecordsColumnPicker({
 }) {
     const intl = useIntl();
     const labelOf = useColumnLabel();
+    // Radix gives the popover `role="dialog"`, and it had no accessible name —
+    // a screen reader announced a bare "dialog" and the user had no idea what
+    // they had entered (`ORT-169`). The heading it already renders is the name;
+    // this ties the two together rather than duplicating the string into an
+    // `aria-label` that could drift from it.
+    const headingId = useId();
     const [query, setQuery] = useState('');
     const searching = query.trim().length > 0;
     const sensors = useSensors(
@@ -227,8 +233,15 @@ export function CollectionRecordsColumnPicker({
                     {intl.formatMessage(messages.trigger)}
                 </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-2">
-                <p className="px-1 py-1.5 text-xs font-medium text-muted-foreground">
+            <PopoverContent
+                align="end"
+                className="w-64 p-2"
+                aria-labelledby={headingId}
+            >
+                <p
+                    id={headingId}
+                    className="px-1 py-1.5 text-xs font-medium text-muted-foreground"
+                >
                     {intl.formatMessage(messages.heading)}
                 </p>
                 <Input

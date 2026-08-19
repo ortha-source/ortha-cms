@@ -18,6 +18,7 @@ import {
 import { UnsavedChangesGuard } from '../UnsavedChangesGuard';
 import { AppErrorBoundary } from '../AppErrorBoundary';
 import { RouteAnnouncer } from '../RouteAnnouncer';
+import { DesignSystemLabels } from '../DesignSystemLabels';
 import type { AdminPlugin, CreateAdminOptions } from '../types/adminPlugin';
 
 /**
@@ -31,6 +32,9 @@ import type { AdminPlugin, CreateAdminOptions } from '../types/adminPlugin';
  * cannot pick a winner for the app — it has no way to know which layout was
  * meant — but it can refuse to do it silently.
  */
+/** The locale every descriptor's `defaultMessage` is authored in. */
+const DEFAULT_LOCALE = 'en';
+
 function warnOnLayoutCollision(plugins: AdminPlugin[]): void {
     const contributors = plugins
         .filter((plugin) => plugin.layout)
@@ -76,6 +80,46 @@ function warnOnRouteCollisions(plugins: AdminPlugin[]): void {
 }
 
 /**
+ * Reports a missing translation once per message id, per locale.
+ *
+ * `IntlProvider` logs every `MISSING_TRANSLATION` at `error` level, once per
+ * render of every descriptor — 460 of them on a single `/activity` load with
+ * `locale: 'de'` — and gives the host no way to downgrade, sample or collect
+ * them. The volume is not a style complaint: it buries anything real in the
+ * console, which is the only place a developer looks (`ORT-141`).
+ *
+ * Two rules. A locale that *is* the default has nothing to be missing, so the
+ * fallback is the expected path and says nothing at all. Otherwise each id is
+ * reported once, at `warn` — a missing catalogue entry is a gap to fill, not a
+ * failure of this render — and everything that is not a missing translation is
+ * passed through untouched, because those are real formatting errors.
+ */
+function makeIntlErrorHandler(
+    locale: string,
+    defaultLocale: string
+): (error: Error) => void {
+    const reported = new Set<string>();
+
+    return (error: Error) => {
+        const code = (error as Error & { code?: string }).code;
+        if (code !== 'MISSING_TRANSLATION') {
+            console.error(error);
+            return;
+        }
+        if (locale === defaultLocale) return;
+
+        const id = (error as Error & { descriptor?: { id?: string } })
+            .descriptor?.id;
+        const key = id ?? error.message;
+        if (reported.has(key)) return;
+        reported.add(key);
+        console.warn(
+            `[bootstrap-admin] no "${locale}" translation for "${key}"; using the default message.`
+        );
+    };
+}
+
+/**
  * Bootstraps the Ortha CMS admin app: mounts the React root, wraps it in
  * the data, i18n, and router providers, and renders the routes contributed by
  * every plugin.
@@ -98,6 +142,14 @@ function warnOnRouteCollisions(plugins: AdminPlugin[]): void {
  */
 export function createAdmin(options: CreateAdminOptions): void {
     const { plugins, rootElement = 'root', locale = 'en' } = options;
+
+    // The document's language, which nothing was setting: `apps/admin/index.html`
+    // ships `lang="en"` and the host never touched it, so a `locale: 'de'` app
+    // was German content announced with an English synthesizer — WCAG 3.1.1
+    // Language of Page, and the one part of `ORT-141` that is unambiguously the
+    // host's to fix. Set before render so assistive tech sees it with the first
+    // paint rather than after a reconciliation.
+    document.documentElement.lang = locale;
 
     warnOnLayoutCollision(plugins);
     warnOnRouteCollisions(plugins);
@@ -138,47 +190,59 @@ export function createAdmin(options: CreateAdminOptions): void {
         <StrictMode>
             <AppearanceProvider>
                 <QueryClientProvider client={queryClient}>
-                    <IntlProvider locale={locale} defaultLocale="en">
-                        <TooltipProvider delayDuration={200}>
-                            <AppErrorBoundary>
-                                <BrowserRouter>
-                                    <RouteAnnouncer />
-                                    <UnsavedChangesGuard>
-                                        <Routes>
-                                            {publicRoutes.map((route) => (
-                                                <Route
-                                                    key={route.path}
-                                                    path={route.path}
-                                                    element={route.element}
-                                                />
-                                            ))}
-                                            <Route element={layout}>
-                                                {privateRoutes.map((route) => (
+                    <IntlProvider
+                        locale={locale}
+                        defaultLocale={DEFAULT_LOCALE}
+                        onError={makeIntlErrorHandler(locale, DEFAULT_LOCALE)}
+                    >
+                        <DesignSystemLabels>
+                            <TooltipProvider delayDuration={200}>
+                                <AppErrorBoundary>
+                                    <BrowserRouter>
+                                        <RouteAnnouncer />
+                                        <UnsavedChangesGuard>
+                                            <Routes>
+                                                {publicRoutes.map((route) => (
                                                     <Route
                                                         key={route.path}
                                                         path={route.path}
                                                         element={route.element}
                                                     />
                                                 ))}
-                                                <Route
-                                                    path="*"
-                                                    element={
-                                                        <Navigate
-                                                            to="/"
-                                                            replace
-                                                        />
-                                                    }
-                                                />
-                                            </Route>
-                                        </Routes>
-                                    </UnsavedChangesGuard>
-                                </BrowserRouter>
-                            </AppErrorBoundary>
-                            {/* Outside the boundary on purpose: a toast is how
+                                                <Route element={layout}>
+                                                    {privateRoutes.map(
+                                                        (route) => (
+                                                            <Route
+                                                                key={route.path}
+                                                                path={
+                                                                    route.path
+                                                                }
+                                                                element={
+                                                                    route.element
+                                                                }
+                                                            />
+                                                        )
+                                                    )}
+                                                    <Route
+                                                        path="*"
+                                                        element={
+                                                            <Navigate
+                                                                to="/"
+                                                                replace
+                                                            />
+                                                        }
+                                                    />
+                                                </Route>
+                                            </Routes>
+                                        </UnsavedChangesGuard>
+                                    </BrowserRouter>
+                                </AppErrorBoundary>
+                                {/* Outside the boundary on purpose: a toast is how
                                 the rest of the app reports trouble, so it has to
                                 survive the failure that a boundary catches. */}
-                            <Toaster />
-                        </TooltipProvider>
+                                <Toaster />
+                            </TooltipProvider>
+                        </DesignSystemLabels>
                     </IntlProvider>
                 </QueryClientProvider>
             </AppearanceProvider>

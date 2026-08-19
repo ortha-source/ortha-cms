@@ -24,6 +24,10 @@ import type { Workspace } from '../../../domain/types/workspace';
 
 /** Intl descriptors for the workspace sidebar nav, co-located here. */
 const messages = defineMessages({
+    hideNav: {
+        id: 'workspaces.nav.hide',
+        defaultMessage: 'Hide navigation'
+    },
     back: {
         id: 'workspaces.nav.back',
         defaultMessage: 'Home'
@@ -72,7 +76,14 @@ export function WorkspaceNav({ workspace }: { workspace: Workspace }) {
                         <ArrowLeft className="size-4" aria-hidden />
                         {intl.formatMessage(messages.back)}
                     </Link>
-                    <SidebarTrigger className="text-sidebar-foreground/70" />
+                    {/* Only reachable while the sidebar is open, so it always
+                        *hides* — and it says so in the session's own language
+                        rather than the design system's English default
+                        (`ORT-159`). */}
+                    <SidebarTrigger
+                        label={intl.formatMessage(messages.hideNav)}
+                        className="text-sidebar-foreground/70"
+                    />
                 </div>
                 <WorkspaceSwitcher
                     current={workspace}
