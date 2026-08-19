@@ -70,6 +70,18 @@ Key concepts:
 - **Operators** — `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `like`,
   `ilike`, `nilike`, `null` — each mapped to a parameterized Drizzle helper.
   Values are never string-interpolated into SQL.
+- **An operator is checked against the field's type, not just against the
+  vocabulary** (`operator-support.ts`). A leaf has three axes — field, operator,
+  value — and the whitelist used to cover two: `ilike` on a `date`/`number`/
+  `boolean`/`uuid` named a real field, carried an acceptable value, and reached
+  Postgres as `~~*`, which those column types have no operator for. That was a
+  **user-triggerable 500 from a shareable link** on every filterable endpoint;
+  it is now `FILTER_OPERATOR_NOT_ALLOWED` (400) carrying `path`, `op`,
+  `fieldType` and the `allowed` list. The table states what the **column** can
+  answer, so it is wider than the admin picker's `OPS_FOR_TYPE` (which drops
+  `eq` on dates and all but `eq` on booleans for editor reasons): only the
+  text-only `~~` family — `like`/`ilike`/`nilike` — is withheld, and only from
+  non-textual types.
 - **Negation has two rules, both non-obvious** (`negation.ts`):
     - **On a relation path**, a negating leaf (`ne` / `nin` / `nilike`, and
       `null: true`) is rewritten into `NOT EXISTS(… positive …)` — the
@@ -90,7 +102,7 @@ Key concepts:
   JSON client legitimately sends any of the three for a URL-shaped API);
   `null`, a missing `value` key, objects and arrays are a
   `FILTER_INVALID_VALUE` 400. They used to be run through `String(v)` and
-  *matched against*: `null` → `"null"`, no `value` → `"undefined"`,
+  _matched against_: `null` → `"null"`, no `value` → `"undefined"`,
   `{}` → `"[object Object]"`, `[]` → `""` → `0` for a number field — a 200 with
   a wrong, usually empty, result set, which is the only silent failure mode a
   library that 400s every other bad value can have. "Is null" is the `null`

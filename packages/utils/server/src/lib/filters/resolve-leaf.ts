@@ -3,6 +3,7 @@ import {
     FilterException,
     FilterSchemaException
 } from './filter-exceptions';
+import { operatorsFor } from './operator-support';
 import { own } from './own-property';
 import { FilterOperator, ScalarFieldType } from './types';
 import type { FilterSchema, ParsedFilter, ScalarFieldSchema } from './types';
@@ -62,6 +63,7 @@ export function resolveLeaf(
                     { path: path.join('.') }
                 );
             }
+            assertOperatorAllowed(field, op as FilterOperator, path);
             return {
                 path,
                 op: op as FilterOperator,
@@ -89,6 +91,35 @@ export function resolveLeaf(
     throw new FilterException(
         FilterErrorCode.InvalidShape,
         'unreachable: path walker ended without a leaf'
+    );
+}
+
+/**
+ * Reject an operator the field's column type cannot answer.
+ *
+ * Runs **before** coercion, so the reported issue is the operator rather than a
+ * value the operator would never have accepted anyway — `embargoUntil ilike
+ * "%2020%"` should say "ilike is not available on a date field", not "not a
+ * date: %2020%". The context carries `path`, `op` and the `allowed` list, so a
+ * client can render a per-field issue and offer the operators that do work.
+ *
+ * An unrecognised declared type is left alone: that is a **schema** bug, and
+ * `scalarOf` already raises the 500 (`FilterSchemaException`) that names it.
+ * Blaming the client with a 400 here would hide it.
+ */
+function assertOperatorAllowed(
+    field: ScalarFieldSchema,
+    op: FilterOperator,
+    path: string[]
+): void {
+    const allowed = operatorsFor(field.type);
+    if (!allowed || allowed.includes(op)) {
+        return;
+    }
+    throw new FilterException(
+        FilterErrorCode.OperatorNotAllowed,
+        `operator "${op}" is not available on "${path.join('.')}" (a ${field.type} field)`,
+        { path: path.join('.'), op, fieldType: field.type, allowed }
     );
 }
 

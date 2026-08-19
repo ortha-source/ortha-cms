@@ -10,6 +10,10 @@ export {
     ScalarFieldType,
     RelationKind
 } from './lib/filters/types';
+export {
+    OPERATORS_BY_TYPE,
+    operatorsFor
+} from './lib/filters/operator-support';
 export type {
     ScalarFieldSchema,
     FieldSchema,
