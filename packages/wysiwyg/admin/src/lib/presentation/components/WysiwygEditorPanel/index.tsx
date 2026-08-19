@@ -1,11 +1,16 @@
 import { useEffect, useId, useRef } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { EditorContent, useEditor } from '@tiptap/react';
+import {
+    inspectRichText,
+    type RichTextDocument
+} from '@ortha-cms/content-domain';
 import { Button } from '@ortha-cms/design-system';
 import { WYSIWYG_PROSE_CLASS } from '../../../domain/constants';
 import { normalizeRichText } from '../../../domain/richTextValue';
 import { editorExtensions } from '../../../infrastructure/editorExtensions';
 import { useLiveEditorState } from '../../hooks/useLiveEditorState';
+import { WysiwygIssueList } from '../WysiwygIssueList';
 import { WysiwygToolbar } from '../WysiwygToolbar';
 
 const messages = defineMessages({
@@ -60,7 +65,7 @@ function isEscapeChord(event: KeyboardEvent): boolean {
  * under them.
  *
  * Mounted **only while the field is expanded**, which is what lets the editor be
- * seeded from `initialHtml` once at mount and own its state from then on — no
+ * seeded from `initialContent` once at mount and own its state from then on — no
  * controlled-content sync, and therefore none of the caret-jumping that comes
  * with one.
  *
@@ -71,7 +76,7 @@ function isEscapeChord(event: KeyboardEvent): boolean {
  */
 export function WysiwygEditorPanel({
     fieldLabel,
-    initialHtml,
+    initialContent,
     placeholder,
     required = false,
     readOnly = false,
@@ -80,8 +85,12 @@ export function WysiwygEditorPanel({
 }: {
     /** The field's display label, used to name the editing region. */
     fieldLabel: string;
-    /** The value when the field was expanded. Read once — not a controlled prop. */
-    initialHtml: string;
+    /**
+     * The value when the field was expanded — the stored document, or the HTML
+     * string a body written before this change is still stored as, which TipTap
+     * parses through its own schema. Read once, not a controlled prop.
+     */
+    initialContent: RichTextDocument | string;
     /** The field's `admin.placeholder`, shown in an empty document. */
     placeholder: string;
     /** Mirrors the field's `required` onto the editing surface. */
@@ -94,7 +103,7 @@ export function WysiwygEditorPanel({
      */
     readOnly?: boolean;
     /** Write an edit back to the entry form. */
-    onChange: (value: string) => void;
+    onChange: (value: RichTextDocument | null) => void;
     /** Collapse back to the form. */
     onDone: () => void;
 }) {
@@ -115,7 +124,7 @@ export function WysiwygEditorPanel({
 
     const editor = useEditor({
         extensions: editorExtensions(placeholder),
-        content: initialHtml,
+        content: initialContent,
         editable: !readOnly,
         // The author pressed the field to keep writing, so start where the text
         // ends — and put focus in the document rather than leaving it on the
@@ -164,7 +173,14 @@ export function WysiwygEditorPanel({
             // Belt-and-braces: `editable: false` already refuses every
             // transaction, but this is the one line that writes to the record.
             if (readOnly) return;
-            onChangeRef.current(normalizeRichText(instance.getHTML()));
+            // `getJSON`, not `getHTML`: the stored value is the **document**,
+            // which is what makes its heading order, table headers and language
+            // markers checkable instead of characters in an opaque string.
+            // Saving one is also how a legacy HTML body is upgraded — it was
+            // parsed through this editor's schema on the way in.
+            onChangeRef.current(
+                normalizeRichText(instance.getJSON() as RichTextDocument)
+            );
         }
     });
 
@@ -176,6 +192,17 @@ export function WysiwygEditorPanel({
         };
         return { words: count.words(), characters: count.characters() };
     };
+
+    // The structural findings on the document as it stands — the same rules the
+    // server applies (`inspectRichText`), read live so an author is told while
+    // they can still act on it rather than by a failed save. 504.2 asks whether
+    // the tool *enables* conformant content; a rule nobody sees until the gate
+    // closes does not.
+    const issues = useLiveEditorState(
+        editor,
+        (instance) => inspectRichText(instance.getJSON()),
+        []
+    );
 
     const live = useLiveEditorState(editor, readCounts, {
         words: 0,
@@ -213,6 +240,13 @@ export function WysiwygEditorPanel({
                     </p>
                 )}
             </div>
+            {/* Below the document rather than above it: the findings are about
+                what has been written, and a list that pushed the writing
+                surface down every time a heading changed would move the caret
+                out from under the author's eyes. A reader gets it too — a
+                read-only body they cannot fix is still a body whose problems
+                are worth knowing, and this is the only surface that says so. */}
+            <WysiwygIssueList issues={issues} />
             <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-3">
                 <p
                     className="text-xs text-muted-foreground"

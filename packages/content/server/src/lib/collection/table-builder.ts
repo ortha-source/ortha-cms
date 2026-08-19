@@ -64,9 +64,17 @@ function columnFor(
     let builder;
     switch (spec.type) {
         case CONTENT_FIELD_TYPE.Text:
-        case CONTENT_FIELD_TYPE.RichText:
         case CONTENT_FIELD_TYPE.Select:
             builder = text(col);
+            break;
+        case CONTENT_FIELD_TYPE.RichText:
+            // A structured document (the editor's node tree), not an HTML
+            // string — which is what makes a body's heading order, table
+            // headers and language markers checkable rather than opaque.
+            // A body written before that change is a JSON *string* in the same
+            // column, so nothing had to be rewritten to migrate: `jsonb` holds
+            // both, and both read back as a valid `richtext` value.
+            builder = jsonb(col);
             break;
         case CONTENT_FIELD_TYPE.Number:
             builder = spec.validation.integer

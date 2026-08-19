@@ -5,6 +5,10 @@
  * `InferEntry` can derive row types with correct nullability.
  */
 
+import {
+    isWellFormedLanguageTag,
+    type RichTextDocument
+} from '@ortha-cms/content-domain';
 import { CONTENT_FIELD_TYPE, MEDIA_KIND_VALUES } from '../types/fields';
 import type {
     BaseFieldOptions,
@@ -16,6 +20,7 @@ import type {
     NumberFieldOptions,
     RelationFieldOptions,
     RelationInverseFieldOptions,
+    RichTextFieldOptions,
     SelectFieldOptions,
     TextFieldOptions,
     WithRequired
@@ -27,12 +32,22 @@ function base<TType extends FieldType>(
     options: BaseFieldOptions = {},
     validation: FieldValidation = {}
 ) {
+    // A `lang` that no user agent can parse is worse than none — it tells
+    // assistive tech the content is in a language it cannot pronounce. Fail at
+    // definition time (boot) rather than shipping it into every entry.
+    if (options.lang !== undefined && !isWellFormedLanguageTag(options.lang)) {
+        throw new Error(
+            `Invalid BCP-47 language tag ${JSON.stringify(options.lang)} on a ` +
+                `${type} field. Expected something like "en", "en-GB" or "zh-Hans".`
+        );
+    }
     return {
         type,
         required: options.required ?? false,
         // Omitted (not `false`) when unset, so serialized specs stay lean and
         // the admin can treat presence as the flag.
         ...(options.localized ? { localized: true as const } : {}),
+        ...(options.lang !== undefined ? { lang: options.lang } : {}),
         validation,
         admin: options.admin ?? {}
     };
@@ -62,12 +77,29 @@ function text<const O extends TextFieldOptions = TextFieldOptions>(
     });
 }
 
-/** Long-form rich text (block-based in the admin). Stored as text. */
-function richtext<const O extends TextFieldOptions = TextFieldOptions>(
+/**
+ * Long-form rich text — a **structured document**, not an HTML string.
+ *
+ * The value is the ProseMirror/TipTap node tree the admin editor produces, in
+ * a `jsonb` column, so heading order, table headers, link text and the
+ * language of a quoted passage are things the platform can express and check
+ * (WCAG 1.3.1 / 2.4.6 / 3.1.2) rather than characters inside an opaque blob.
+ * `minLength`/`maxLength` count the body's **text** for the same reason:
+ * bolding a word used to cost the author `<strong></strong>`.
+ *
+ * A body written before this change is an HTML string, and still reads and
+ * validates as one — see `@ortha-cms/content-domain`'s rich-text module. It is
+ * rewritten as a document the next time the record is saved through the editor.
+ */
+function richtext<const O extends RichTextFieldOptions = RichTextFieldOptions>(
     options?: O
-): FieldSpec<'richtext', WithRequired<O, string>> {
-    const { minLength, maxLength } = options ?? {};
-    return base(CONTENT_FIELD_TYPE.RichText, options, { minLength, maxLength });
+): FieldSpec<'richtext', WithRequired<O, RichTextDocument | string>> {
+    const { minLength, maxLength, structure } = options ?? {};
+    return base(CONTENT_FIELD_TYPE.RichText, options, {
+        minLength,
+        maxLength,
+        ...(structure !== undefined ? { structure } : {})
+    });
 }
 
 /** Floating-point number (or integer with `integer: true`). */

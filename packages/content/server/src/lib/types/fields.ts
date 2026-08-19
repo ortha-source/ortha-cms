@@ -5,6 +5,7 @@
  * validation, and the admin's dynamic form rendering.
  */
 
+import type { RichTextStructureMode } from '@ortha-cms/content-domain';
 import type { AnyContentType } from './content-type';
 
 /**
@@ -76,12 +77,25 @@ export interface AdminProps {
  * authority; the admin copy is a courtesy.
  */
 export interface FieldValidation {
-    /** Minimum string length (text/richtext). */
+    /**
+     * Minimum length (text/richtext). On a `richtext` field this counts the
+     * body's **text**, not its markup.
+     */
     minLength?: number;
-    /** Maximum string length (text/richtext). */
+    /**
+     * Maximum length (text/richtext). On a `richtext` field this counts the
+     * body's **text**, not its markup.
+     */
     maxLength?: number;
-    /** ECMAScript regex source the value must match (text). */
+    /** ECMAScript regex source the value must match (text/richtext). */
     pattern?: string;
+    /**
+     * Structural checking of a `richtext` body — heading order, table headers,
+     * link text, language markers. Defaults to `'on'`; `'off'` is the opt-out
+     * for a body that is not a document.
+     * @see RichTextStructureMode
+     */
+    structure?: RichTextStructureMode;
     /** Minimum numeric value (number/money). */
     min?: number;
     /** Maximum numeric value (number/money). */
@@ -151,6 +165,19 @@ export interface BaseFieldOptions {
     /** Reject empty values; the column becomes NOT NULL. */
     required?: boolean;
     /**
+     * BCP-47 tag naming the language this field's content is written in, when
+     * it is not the entry's own (WCAG 3.1.2 — language of parts). For the case
+     * where the *whole* field is in another language: an `originalTitle`, a
+     * `motto`. Inside a `richtext` body a passage carries its own `lang`, so
+     * this is not how a quotation is marked.
+     *
+     * Checked for well-formedness at define time — a POSIX locale (`en_US`) or
+     * a language name (`english`… well, that one is merely unregistered) is
+     * ignored outright by assistive tech, so it is caught at boot rather than
+     * shipped.
+     */
+    lang?: string;
+    /**
      * The value differs per locale (valid only on an `i18n` content type —
      * rejected at define time otherwise). A field without the flag is
      * **shared** across a translation group: the bound localization plugin
@@ -167,6 +194,21 @@ export interface TextFieldOptions extends BaseFieldOptions {
     maxLength?: number;
     /** Regex source the value must match. */
     pattern?: string;
+}
+
+/** Options for `field.richtext()` — a structured long-form body. */
+export interface RichTextFieldOptions extends BaseFieldOptions {
+    /** Minimum length, counted over the body's text (not its markup). */
+    minLength?: number;
+    /** Maximum length, counted over the body's text (not its markup). */
+    maxLength?: number;
+    /**
+     * Structural checking — heading order, table headers, link text, language
+     * markers. Defaults to `'on'`. Turn it `'off'` for a body that is not a
+     * document (a hand-maintained fragment, an email template), where the rules
+     * would be measuring the wrong thing.
+     */
+    structure?: RichTextStructureMode;
 }
 
 export interface NumberFieldOptions extends BaseFieldOptions {
@@ -281,6 +323,8 @@ export interface FieldSpec<
     readonly required: boolean;
     /** Value differs per locale — set only on fields of `i18n` types. */
     readonly localized?: boolean;
+    /** BCP-47 language of this field's content, when it has its own. */
+    readonly lang?: string;
     readonly validation: FieldValidation;
     readonly admin: AdminProps;
     /** Allowed values — select fields only. */

@@ -346,6 +346,18 @@ export const WYSIWYG_GERMAN_LOCALE = 'de';
 export const WYSIWYG_GERMAN_BODY =
     '<h2>Überschrift</h2><p>Der Fußgängerübergang wurde gestrichen.</p>';
 
+/**
+ * An article whose stored body is the one ORT-84 reported as validating clean:
+ * a heading level skipped over, an `<h1>` under an `<h4>`, and a table whose
+ * cells no header governs. Legacy HTML on purpose — this is what the bodies
+ * that already exist look like, and the rules have to reach them.
+ */
+export const WYSIWYG_INACCESSIBLE_ENTRY_ID = 'article-inaccessible';
+
+/** The stored HTML {@link WYSIWYG_INACCESSIBLE_ENTRY_ID} comes back with. */
+export const WYSIWYG_INACCESSIBLE_BODY =
+    '<h4>Intro</h4><h1>Title</h1><table><tr><td>a</td></tr></table>';
+
 /** An article whose `body` already embeds a picture. */
 export const WYSIWYG_MEDIA_ENTRY_ID = 'article-with-media';
 

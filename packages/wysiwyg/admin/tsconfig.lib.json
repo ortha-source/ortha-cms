@@ -15,6 +15,9 @@
     "exclude": ["dist", "**/*.spec.tsx", "**/*.test.tsx"],
     "references": [
         {
+            "path": "../../content/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../utils/admin/tsconfig.lib.json"
         },
         {

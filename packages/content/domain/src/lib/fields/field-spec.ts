@@ -7,14 +7,39 @@
  * so they feed the validator without an adapter.
  */
 
+/**
+ * How strictly a `richtext` body's **structure** is checked — heading order,
+ * table headers, link text, language markers (see `inspectRichText`).
+ *
+ * `'on'` (the default) fails the field on a structural **error**; warnings stay
+ * advisory either way, so a heuristic never blocks a save. `'off'` is the
+ * deliberate opt-out for a body that is not a document — a hand-maintained
+ * fragment, an email template — where the rules would be measuring the wrong
+ * thing.
+ */
+export type RichTextStructureMode = 'on' | 'off';
+
 /** Serialized validation rules for one field (a subset of the wire `validation`). */
 export interface FieldValidationRules {
-    /** Minimum string length (text/richtext). */
+    /**
+     * Minimum length (text/richtext). On a `richtext` field this counts the
+     * body's **text**, not its markup — see `richTextPlainText`.
+     */
     minLength?: number;
-    /** Maximum string length (text/richtext). */
+    /**
+     * Maximum length (text/richtext). On a `richtext` field this counts the
+     * body's **text**, not its markup: bolding a word used to cost an author
+     * `<strong></strong>` out of their budget.
+     */
     maxLength?: number;
-    /** ECMAScript regex source the value must match (text). */
+    /**
+     * ECMAScript regex source the value must match (text/richtext). On a
+     * `richtext` field it is matched against the body's text, for the same
+     * reason the lengths are counted there.
+     */
     pattern?: string;
+    /** Structural checking of a `richtext` body; defaults to `'on'`. */
+    structure?: RichTextStructureMode;
     /** Minimum numeric value (number/money). */
     min?: number;
     /** Maximum numeric value (number/money). */
@@ -33,6 +58,18 @@ export interface FieldValidationRules {
 export interface EntryFieldSpec {
     /** Field-type identifier (a `CONTENT_FIELD_TYPE` value). */
     type: string;
+    /**
+     * BCP-47 tag naming the language this field's content is written in, when
+     * it is not the entry's own — the *field-level* half of language of parts
+     * (WCAG 3.1.2). A `richtext` body additionally carries a per-node `lang`,
+     * so a quoted passage inside an otherwise-English body is expressible; this
+     * is for the case where the whole field is in another language (an
+     * `originalTitle`, a `motto`).
+     *
+     * Checked for well-formedness, not against a registry — see
+     * `isWellFormedLanguageTag`.
+     */
+    lang?: string;
     /** Whether an empty value is rejected. */
     required: boolean;
     /** Validation rules; absent/empty means no extra constraints. */

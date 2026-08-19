@@ -1,6 +1,8 @@
 import { defineMessages, type IntlShape } from 'react-intl';
 import {
+    CONTENT_FIELD_TYPE,
     isEmptyFieldValue,
+    isEmptyRichText,
     validateFieldValue,
     type ValidationIssue
 } from '@ortha-cms/content-domain';
@@ -86,6 +88,37 @@ const messages = defineMessages({
     patternRule: {
         id: 'content.form.error.patternRule',
         defaultMessage: "This field's pattern rule can't be applied"
+    },
+    richText: {
+        id: 'content.form.error.richText',
+        defaultMessage: 'Must be rich text'
+    },
+    // The structural rules (WCAG 1.3.1 / 2.4.6 / 3.1.2). Each names what is
+    // wrong with the document rather than restating the criterion — an author
+    // fixing a heading does not need the number, and the editor's own issue
+    // list carries it for anyone who does.
+    headingSkipped: {
+        id: 'content.form.error.headingSkipped',
+        defaultMessage:
+            'A heading skips a level — go one level at a time so the outline can be navigated'
+    },
+    headingEmpty: {
+        id: 'content.form.error.headingEmpty',
+        defaultMessage: 'A heading has no text'
+    },
+    tableHeader: {
+        id: 'content.form.error.tableHeader',
+        defaultMessage:
+            'A table has no header cells — without them a screen reader cannot say what a value means'
+    },
+    linkTextEmpty: {
+        id: 'content.form.error.linkTextEmpty',
+        defaultMessage: 'A link has no text'
+    },
+    languageTag: {
+        id: 'content.form.error.languageTag',
+        defaultMessage:
+            'A language marker is not a valid BCP-47 tag (for example “en”, “en-GB”, “zh-Hans”)'
     }
 });
 
@@ -153,6 +186,16 @@ function localizeIssue(
     if (m === 'must be an array of media asset ids')
         return t(messages.mediaIds);
     if (m === 'must be a media asset id') return t(messages.mediaId);
+    if (m === 'must be a rich-text document') return t(messages.richText);
+    if (m.startsWith('has a heading that skips'))
+        return t(messages.headingSkipped);
+    if (m.startsWith('has an empty h')) return t(messages.headingEmpty);
+    if (m === 'has a table with no header cells')
+        return t(messages.tableHeader);
+    if (m.startsWith('has a link with no text'))
+        return t(messages.linkTextEmpty);
+    if (m.startsWith('has an invalid language tag'))
+        return t(messages.languageTag);
     return m;
 }
 
@@ -190,7 +233,14 @@ export function validateEntryValues(
         // Draft view: an empty value is allowed (required is relaxed), so only a
         // present-but-malformed value is gated. A non-empty value still runs the
         // full kernel rules below.
-        if (!requireRequired && isEmptyFieldValue(value)) continue;
+        // A rich-text body's emptiness is a question about its document: the
+        // one an emptied editor leaves behind is a JSON object, so the generic
+        // test reads it as a value and the draft view would gate it.
+        const empty =
+            field.type === CONTENT_FIELD_TYPE.RichText
+                ? isEmptyRichText(value)
+                : isEmptyFieldValue(value);
+        if (!requireRequired && empty) continue;
         const issues = validateFieldValue(
             field.name,
             toFieldSpec(field),

@@ -132,8 +132,14 @@ export function valueTypeFor(
 ): GraphQLOutputType | null {
     switch (spec.type) {
         case CONTENT_FIELD_TYPE.Text:
-        case CONTENT_FIELD_TYPE.RichText:
             return GraphQLString;
+        case CONTENT_FIELD_TYPE.RichText:
+            // A body is a **structured document** (the editor's node tree), so
+            // it is JSON on the wire, not a string. A body written before that
+            // change is still an HTML string in the same column and comes back
+            // as a JSON string — which `JSON` covers and `String` would have
+            // made a serialisation error the day the first document was saved.
+            return GraphQLJSON;
         case CONTENT_FIELD_TYPE.Number:
             return spec.validation.integer === true ? GraphQLInt : GraphQLFloat;
         case CONTENT_FIELD_TYPE.Money:

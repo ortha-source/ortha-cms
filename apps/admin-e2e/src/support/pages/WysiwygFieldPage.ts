@@ -444,6 +444,32 @@ export class WysiwygFieldPage extends BasePage {
         await this.toolbar.waitFor({ state: 'hidden' });
     }
 
+    /**
+     * The editor's accessibility findings, under the document — the structural
+     * rules (`inspectRichText`) read live as the body is written.
+     */
+    get issues(): Locator {
+        return this.page.getByRole('listitem').filter({ hasText: /WCAG/ });
+    }
+
+    /**
+     * Mark the current selection as being written in `tag`, through the
+     * language-of-parts dialog behind **More formatting**.
+     */
+    async setPassageLanguage(tag: string): Promise<void> {
+        await this.openToolbarMenu('More formatting');
+        await this.menuItem('Language of this passage…').click();
+        const dialog = this.page.getByRole('dialog');
+        await dialog.getByLabel('Language tag').fill(tag);
+        await dialog.getByRole('button', { name: 'Apply' }).click();
+        await dialog.waitFor({ state: 'hidden' });
+    }
+
+    /** Select everything in the open editor, without clearing it. */
+    async selectAll(): Promise<void> {
+        await this.page.keyboard.press('ControlOrMeta+a');
+    }
+
     /** Collapse back to the form via the editor's header link. */
     async backToFields(): Promise<void> {
         await this.page.getByRole('button', { name: 'Back to fields' }).click();

@@ -32,6 +32,10 @@ export const post = collection('post', {
 - `field.*` field builders (`text`/`richtext`/`number`/`money`/`boolean`/`date`/
   `datetime`/`select`/`multiselect`/`json`/`relation`/`media`) each return a JSON-serializable
   `FieldSpec` carrying its value type as a phantom generic (for `InferEntry`).
+- Every builder takes an optional **`lang`** — the BCP-47 language this field's
+  content is written in, when it is not the entry's own (WCAG 3.1.2). A
+  malformed tag is rejected at **define time**, since a `lang` no user agent can
+  parse is worse than none.
 - `relation({ to })` takes a **lazy thunk** so mutually-referencing collection
   files can import each other. `onDelete` defaults to `'cascade'` when
   `required`, else `'set null'`. A **required single relation with
@@ -64,6 +68,34 @@ which carries no storage of its own — model it as the single relation on the
 `unique: true`. **many-to-many** is `many: true` (the generated join table). See
 the reference collections in `apps/server/src/collections` (`article` wires up
 `author`, `seo_meta`, `tag`, and `comment`).
+
+### Rich-text fields (`field.richtext`) — a structured document
+
+A `richtext` value is the **document** the admin editor produces (the
+ProseMirror/TipTap node tree), stored in a `jsonb` column — not an opaque HTML
+string. That is what lets the platform express and check a body's heading
+order, its tables' header cells, its link text, and the language of a quoted
+passage (WCAG 1.3.1 / 2.4.6 / 3.1.2); the rules themselves live once, in
+`@ortha-cms/content-domain`'s rich-text module, so the admin applies exactly
+what the server enforces.
+
+Three consequences worth knowing:
+
+- **A legacy HTML string is still a valid value.** Bodies written before this
+  change are stored as strings and read, validate and render as such; the
+  migration is `USING to_jsonb(col)`, so nothing was parsed and nothing could be
+  lost. The admin's editor rewrites one as a document the next time the record
+  is saved, so content upgrades as it is edited. Anything reading a `richtext`
+  value has to accept both — `richTextPlainText` / `asRichTextDocument` are how.
+- **`minLength`/`maxLength` count the body's text**, not its markup. Bolding a
+  word used to cost the author `<strong></strong>` out of their budget.
+  `validation: { structure: 'off' }` opts a field out of the structural rules,
+  for a body that is genuinely not a document.
+- **`richtext` is no longer filterable or sortable** (`scalarTypeFor` returns
+  `null`): `equals`/`starts with` over a document would compare serializations
+  of a tree, not prose. Free-text `?search=` still reaches it — the column is
+  cast to text for the `ILIKE`, which searches the serialized tree; a stored,
+  indexed text projection is the real answer when search is next revisited.
 
 ### Media fields (`field.media`)
 

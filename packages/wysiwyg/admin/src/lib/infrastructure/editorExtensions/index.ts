@@ -12,6 +12,7 @@ import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
 import { TableKit } from '@tiptap/extension-table';
 import { Callout } from '../extensions/callout';
+import { Language } from '../extensions/language';
 import { Column, ColumnBlock } from '../extensions/columns';
 import { ResizableImage, ResizableVideo } from '../extensions/media';
 
@@ -67,6 +68,10 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
             tableHeader: { HTMLAttributes: { scope: 'col' } }
         }),
         Callout,
+        // Language of parts (WCAG 3.1.2) — a run of text in another language
+        // carries its own `lang`, so a quoted passage is announced with the
+        // right phonemes instead of the page's.
+        Language,
         ColumnBlock,
         Column,
         // Media the author embeds. Where it *comes from* is not decided here —
@@ -75,10 +80,12 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
         ResizableImage,
         ResizableVideo,
         Placeholder.configure({ placeholder }),
-        // Powers the dialog's footer count. Informational only: a `richtext`
-        // field's `maxLength` is validated against the **HTML** string (tags
-        // included), so capping the editor at that number would cut authors off
-        // well before the real limit and still not guarantee they clear it.
+        // Powers the editor's footer count. Informational only, but it is now
+        // the **same** count the field's `maxLength` is measured in — a rich
+        // text value is a document, and its length rules are counted over the
+        // body's text rather than over the markup around it. (Still not a hard
+        // cap here: the limit belongs to the field, and the count is a reading
+        // of the document, not a gate on typing.)
         CharacterCount
         // No `TrailingNode` here on purpose — StarterKit already registers it,
         // and adding a second copy makes TipTap warn about a duplicate name and

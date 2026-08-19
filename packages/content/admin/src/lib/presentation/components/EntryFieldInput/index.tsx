@@ -15,6 +15,7 @@ import {
     SelectValue,
     Textarea
 } from '@ortha-cms/design-system';
+import { isRichTextDocument, richTextToHtml } from '@ortha-cms/content-domain';
 import type { ContentField } from '../../../domain/types/contentType';
 import { fieldLabel } from '../../../domain/entryColumns';
 import { adminProps } from '../../../domain/adminProps';
@@ -75,6 +76,21 @@ function asText(value: unknown): string {
     if (typeof value === 'string') return value;
     if (typeof value === 'number') return String(value);
     return '';
+}
+
+/**
+ * A rich-text value as the **HTML** the plain-textarea fallback edits.
+ *
+ * That fallback is what a schema asks for with `admin.widget: 'textarea'` — a
+ * body that isn't authored prose (a hand-maintained fragment, an email
+ * template), where a box of markup is the honest control. Its value is a
+ * string, which is still a valid rich-text value, so nothing here converts on
+ * the way *out*. On the way in, a document has to be serialized: printing one
+ * raw would show the author their node tree.
+ */
+function asRichTextSource(value: unknown): string {
+    if (typeof value === 'string') return value;
+    return isRichTextDocument(value) ? richTextToHtml(value) : '';
 }
 
 /**
@@ -173,6 +189,12 @@ export function EntryFieldInput({
     // this a preview rather than a greyed-out husk. Everything else in the
     // switch below uses `disabled` — see the component JSDoc.
     const readOnlyProps = readOnly ? { readOnly: true } : {};
+    // A field written in a language other than the entry's own carries it, so
+    // the value is announced with the right phonemes rather than read as if it
+    // were the page's language (WCAG 3.1.2). Only the prose controls take it —
+    // a date picker or a boolean's segments have no words of the author's in
+    // them to mispronounce.
+    const langProps = field.lang ? { lang: field.lang } : {};
     const admin = adminProps(field);
     // The author's hint and the validation error are **both** worth hearing, so
     // they are both rendered and both referenced. Previously the error replaced
@@ -395,7 +417,7 @@ export function EntryFieldInput({
                 ? typeof value === 'string'
                     ? value
                     : JSON.stringify(value, null, 2)
-                : asText(value);
+                : asRichTextSource(value);
             return (
                 <Field data-invalid={!!error}>
                     <FieldLabel
@@ -415,6 +437,7 @@ export function EntryFieldInput({
                         aria-invalid={!!error}
                         aria-describedby={describedBy}
                         placeholder={admin.placeholder}
+                        {...langProps}
                         onChange={(event) => onChange(event.target.value)}
                         onBlur={onBlur}
                     />
@@ -550,6 +573,7 @@ export function EntryFieldInput({
                     className={FLAT}
                     {...requiredProps}
                     {...readOnlyProps}
+                    {...(numeric ? {} : langProps)}
                     {...(numeric
                         ? { type: 'number', inputMode: 'decimal' as const }
                         : {})}

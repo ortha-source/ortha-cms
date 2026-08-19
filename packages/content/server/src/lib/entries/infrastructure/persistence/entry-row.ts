@@ -4,6 +4,7 @@
  * have one definition each. No DB access, no NestJS — just shape translation.
  */
 
+import { isEmptyRichText } from '@ortha-cms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, isEmptyFieldValue } from '../../../types/fields';
 import type { EntryRecord } from '../../types/entry-list-view';
@@ -49,8 +50,20 @@ export function toRecord(type: AnyContentType, row: Row): EntryRecord {
     return record;
 }
 
-/** The shared empty-value test (see {@link isEmptyFieldValue}). */
-const isEmpty = isEmptyFieldValue;
+/**
+ * The shared empty-value test (see {@link isEmptyFieldValue}), taught the one
+ * thing it cannot see on its own: a **rich-text document** is a JSON object, so
+ * the empty one an editor leaves behind (`{ doc: [paragraph] }`) is neither
+ * null, nor blank, nor an empty array. Storing that instead of `null` would
+ * make a cleared body read as content — `required` would pass, the publish gate
+ * would let it through, and the admin's "Changed" badge would disagree with
+ * what the author sees.
+ */
+function isEmpty(value: unknown, spec?: { type: string }): boolean {
+    return spec?.type === CONTENT_FIELD_TYPE.RichText
+        ? isEmptyRichText(value)
+        : isEmptyFieldValue(value);
+}
 
 /**
  * Normalize the admin's (string-shaped) `values` bag to the proper JS types the
@@ -68,7 +81,7 @@ export function coerceValues(
     const out: Record<string, unknown> = {};
     for (const [name, spec] of Object.entries(type.fields)) {
         let value = values[name];
-        if (isEmpty(value)) {
+        if (isEmpty(value, spec)) {
             out[name] = Array.isArray(value) ? value : null;
             continue;
         }
@@ -122,7 +135,7 @@ export function toColumns(
         )
             continue;
         let value = values[name];
-        if (isEmpty(value)) {
+        if (isEmpty(value, spec)) {
             columns[name] = null;
             continue;
         }
