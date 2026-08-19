@@ -13,6 +13,7 @@ import type { LoginCredentials } from '../../../../types/auth';
 import { useLoginSchema } from './useLoginSchema';
 import { AuthField } from '../AuthField';
 import { AuthAlert } from '../AuthAlert';
+import { AuthNotice } from '../AuthNotice';
 import { LoginActions } from './LoginActions';
 
 /** Intl descriptors for {@link LoginForm}, co-located with the component. */
@@ -61,6 +62,14 @@ type LoginFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
     isPending?: boolean;
     /** Error message to surface in the destructive alert, if any. */
     error?: string;
+    /**
+     * A standing explanation of how the visitor got here — today, that the
+     * session they were using ended underneath them. Unlike {@link error} it is
+     * not a failure of anything they just did, so it neither takes focus nor
+     * renders as destructive; it sits where a reader continuing from the
+     * heading meets it.
+     */
+    notice?: string;
 };
 
 /**
@@ -80,6 +89,7 @@ export function LoginForm({
     onSubmit,
     isPending = false,
     error,
+    notice,
     ...props
 }: LoginFormProps) {
     const intl = useIntl();
@@ -117,6 +127,15 @@ export function LoginForm({
                         }}
                     >
                         <FieldGroup>
+                            {/* Above the error, and never focused: the notice
+                                explains why the page changed under the visitor,
+                                which is context for the whole screen, while an
+                                error is about the submission they just made.
+                                AuthLayout has already put focus on the heading
+                                a reader continues from, so stealing it here
+                                would fight the arrival, not help it. */}
+                            {notice && <AuthNotice message={notice} />}
+
                             {/* Mounted only when there is a message: AuthAlert
                                 takes focus as it appears, so it must not sit
                                 mounted-and-empty. */}

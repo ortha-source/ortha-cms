@@ -121,14 +121,15 @@ owns auth). `src/lib` is organized into:
   **query string** (`?token=…`), never a path segment, so the secret is not part
   of a route pattern.
 
-  **`reset-password` deliberately does not end signed in.** Accepting an invite
-  lands the invitee inside the app, because the server sets a session cookie on
-  the way; the reset redemption sets none — it revokes every session on the
-  account instead — so the page finishes on a confirmation that hands off to the
-  sign-in form. The success state is also checked *before* the link-lookup
-  states, because the token is spent by definition once the reset succeeds and a
-  refetch would otherwise replace that confirmation with "this link no longer
-  works".
+    **`reset-password` deliberately does not end signed in.** Accepting an invite
+    lands the invitee inside the app, because the server sets a session cookie on
+    the way; the reset redemption sets none — it revokes every session on the
+    account instead — so the page finishes on a confirmation that hands off to the
+    sign-in form. The success state is also checked _before_ the link-lookup
+    states, because the token is spent by definition once the reset succeeds and a
+    refetch would otherwise replace that confirmation with "this link no longer
+    works".
+
 - **Presentation vs. container.** `LoginForm` is presentation only: it manages
   field state with TanStack Form and delegates submission to an
   `onSubmit(credentials)` prop, with `isPending`/`error` props driving the button
@@ -175,6 +176,30 @@ owns auth). `src/lib` is organized into:
       suspended is caught on return without waiting for the next action. The
       refetch is invisible: `AuthProvider` keeps reporting the cached user while
       it is in flight, so focus never flashes the root loader.
+- **A forced sign-out has to say so.** The redirect above replaces the whole
+  view: focus was on a control that no longer exists so the browser drops it to
+  `<body>`, a screen reader's virtual buffer still holds the unmounted page, and
+  anything typed into a form is gone — and until ORT-135 nothing anywhere said
+  why (WCAG 4.1.3 Status Messages, 2.4.3 Focus Order). Three pieces, none of them
+  in `utils-admin`, whose `setUnauthorizedHandler` seam is deliberately
+  meaning-free and owns no user-facing strings:
+    - `AuthProvider`'s handler fires a **toast** into the host's live region,
+      which lives outside the router and therefore survives the view being
+      replaced. It fires only when a user was actually cached a moment ago — a
+      `401` on a tab that never had a session is the ordinary signed-out state,
+      and claiming otherwise would be a lie to someone who just opened a
+      bookmark.
+    - It also sets the one-shot flag in `application/sessionEnded`, which
+      `LoginPage` latches into state on mount and renders as an `AuthNotice`.
+      The toast is the announcement; the notice is what is still readable once
+      it has expired. Module scope rather than router state because the two
+      halves sit on opposite sides of the gate: `AuthProvider` wraps the private
+      tree only, and `RequireAuth` — which issues the redirect — knows only that
+      nobody is signed in _now_.
+    - `AuthLayout` already moves focus to the screen's `<h1>` on arrival, so the
+      visitor lands on the heading with the explanation immediately after it in
+      reading order. `AuthNotice` therefore does **not** take focus (unlike
+      `AuthAlert`) — a second focus move on the same mount would fight it.
 - **An outage is not a sign-out.** `AuthState` has **four** statuses, not three:
   `loading`, `authenticated`, `unauthenticated`, and `unavailable`. The gateway
   turns a `401` on `/auth/me` into `data === null` (signed out) and rethrows
@@ -188,20 +213,25 @@ owns auth). `src/lib` is organized into:
   the browser does not treat as one — the gate redirecting an expired session,
   the invite lookup resolving from skeleton to form, a submission failing — so
   focus stays wherever it was (often `<body>`, or a control that just
-  unmounted) and nothing announces the change. Two pieces fix that, and both
-  live where the transition happens rather than in each screen:
+  unmounted) and nothing announces the change. Three pieces fix that, and each
+  lives where the transition happens rather than in every screen:
     - **`AuthLayout` takes a `surface` prop** and moves focus to the current
       screen's `<h1>` whenever it changes. It is a prop rather than something
-      inferred from `children` because these screens swap *inside one layout
-      instance* — `AcceptInvitePage` renders a skeleton, then a form or one of
+      inferred from `children` because these screens swap _inside one layout
+      instance_ — `AcceptInvitePage` renders a skeleton, then a form or one of
       two failure cards, and React keeps the same `AuthLayout` mounted
       throughout, so nothing in its own lifecycle marks the moment the user
       arrived somewhere new. The busy state deliberately has no heading and is
       skipped: it already announces through its `role="status"`, and stealing
       focus into something about to be replaced helps nobody.
+    - **`AuthNotice`** is the sign-in page's standing explanation of _how you
+      got here_ — today, a session that ended underneath you. It is the
+      deliberate opposite of `AuthAlert` below on both counts: it does not take
+      focus (the layout has already placed it on the heading) and it is not
+      destructive (nothing the visitor did failed).
     - **`AuthAlert`** is the shared submission-failure banner for both forms, and
       it **takes focus as it appears**. `role="alert"` alone was not enough —
-      focus stayed on the submit button, which sits *after* the banner in DOM
+      focus stayed on the submit button, which sits _after_ the banner in DOM
       order, so Tab moved further away and the banner (not being in the tab
       order) was reachable only in browse mode. Render it conditionally: it
       focuses on mount and on `message` change, so it must never sit mounted and
@@ -211,7 +241,7 @@ owns auth). `src/lib` is organized into:
   is what lets this plugin title its own routes without owning every route in the
   app: signing in hands the title back rather than stranding "Sign in" over the
   shell. One writer at a time is the rule; `copilot-admin`'s `useTabBadge`
-  snapshots the title when it mounts, so a second title hook added *inside* the
+  snapshots the title when it mounts, so a second title hook added _inside_ the
   shell would have to reckon with that (these screens render outside it, so they
   cannot collide today).
 - **A chunk that never arrives.** `AuthErrorBoundary` wraps the router's

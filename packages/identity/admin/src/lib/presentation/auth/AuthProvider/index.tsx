@@ -1,15 +1,26 @@
 import { useEffect, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { defineMessages, useIntl } from 'react-intl';
+import { toast } from '@ortha-cms/design-system';
 import { setUnauthorizedHandler } from '@ortha-cms/utils-admin';
 import {
     currentUserKey,
     useCurrentUser
 } from '../../../application/useCurrentUser';
+import { markSessionEnded } from '../../../application/sessionEnded';
 import {
     AuthProviderContext,
     AuthStatus,
     type AuthState
 } from '../authContext';
+
+/** Intl descriptors for {@link AuthProvider}, co-located with the component. */
+const messages = defineMessages({
+    sessionEnded: {
+        id: 'identity.auth.sessionEnded',
+        defaultMessage: 'Your session has ended. Please sign in again.'
+    }
+});
 
 /** What {@link AuthProvider} reads off the current-user query. */
 type CurrentUserQuery = ReturnType<typeof useCurrentUser>;
@@ -67,13 +78,36 @@ function toAuthState({
  * another device, expired, or the account suspended by an admin — drops the
  * cached user and lands the visitor on the sign-in page instead of leaving a
  * shell that 401s on every request.
+ *
+ * And it **says so**, which is the part the redirect alone never did. React
+ * Router replaces the whole view with the sign-in page: focus was on a control
+ * that no longer exists so the browser resets it to `<body>`, a screen reader's
+ * virtual buffer still holds the unmounted page, and anything typed into a form
+ * is gone — with no message anywhere explaining why (WCAG 4.1.3 Status
+ * Messages, 2.4.3 Focus Order). The toast is a real announcement in the host's
+ * live region and survives the route change; the flag it sets is what lets the
+ * sign-in page repeat the explanation in a place the visitor can still read
+ * after the toast has gone.
+ *
+ * The transport seam stays meaning-free on purpose — `setUnauthorizedHandler`
+ * exists so `utils-admin` does not decide what a `401` means, and that package
+ * owns no user-facing strings — so the message belongs here.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUser = useCurrentUser();
     const queryClient = useQueryClient();
+    const intl = useIntl();
 
     useEffect(() => {
         setUnauthorizedHandler(() => {
+            // Whether anyone was signed in a moment ago, read BEFORE the write
+            // below clears it. A cached user is what separates "the session you
+            // were using has ended" from the ordinary signed-out state a
+            // background request can also produce, and announcing the first
+            // over the second would tell a visitor who never signed in that
+            // something of theirs was taken away.
+            const hadSession = queryClient.getQueryData(currentUserKey) != null;
+
             // Answer the probe with "no user" rather than invalidating it: the
             // session is gone, so a refetch would only 401 again, and the null
             // settles the gate on `unauthenticated` at once. Deliberately not
@@ -82,9 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // into this handler. The redirect unmounts the private tree instead,
             // leaving its data inactive for the cache's own GC.
             queryClient.setQueryData(currentUserKey, null);
+
+            if (!hadSession) return;
+            // Two audiences, one fact. The toast is announced now, in the live
+            // region the host mounts outside the router — so it survives the
+            // view being replaced; the flag is what the sign-in page reads to
+            // keep the explanation on screen once the toast has expired.
+            markSessionEnded();
+            toast.warning(intl.formatMessage(messages.sessionEnded));
         });
         return () => setUnauthorizedHandler(null);
-    }, [queryClient]);
+    }, [queryClient, intl]);
 
     return (
         <AuthProviderContext value={toAuthState(currentUser)}>
