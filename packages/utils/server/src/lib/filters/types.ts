@@ -59,7 +59,15 @@ export const RelationKind = {
 /** Relation cardinality discriminants. */
 export type RelationKind = (typeof RelationKind)[keyof typeof RelationKind];
 
-/** Coercion rules for one column. Any declared field accepts any operator. */
+/**
+ * Coercion rules for one column.
+ *
+ * The declared `type` decides two things, not one: how an incoming string is
+ * coerced, and **which operators the field may be asked** (`operator-support.ts`
+ * holds the table). A field does not accept every operator — the pattern family
+ * (`like`/`ilike`/`nilike`) is text-only, because Postgres defines `~~` for text
+ * and nothing else.
+ */
 export interface ScalarFieldSchema {
     /** How incoming strings are coerced before hitting Drizzle. */
     type: ScalarFieldType;

@@ -119,7 +119,7 @@ export class TranslationProposalApplier implements ProposalApplier {
             undefined,
             locale,
             localeGroupId,
-            actor.userId
+            { id: actor.userId, email: actor.actorEmail }
         );
         return {
             entityId: entry.id,
@@ -285,7 +285,7 @@ export class BulkTranslationProposalApplier implements ProposalApplier {
                     undefined,
                     locale,
                     localeGroupId,
-                    actor.userId
+                    { id: actor.userId, email: actor.actorEmail }
                 );
                 created.push(entry.id);
                 locales.push(locale);

@@ -9,21 +9,21 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
+    type PublicUser,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
+import { toActor } from './to-actor';
 
 /**
  * Single-entry removal lifecycle, all gated on `content:delete`:
@@ -52,20 +52,22 @@ export class DeleteEntryController {
     async remove(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<void> {
         const type = resolveType(this.registry, typeName);
-        await this.writer.remove(type, id, workspaceId);
+        await this.writer.remove(type, id, workspaceId, toActor(user));
     }
 
     @Post(':typeName/:id/restore')
     restore(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryRecord> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.restore(type, id, workspaceId);
+        return this.writer.restore(type, id, workspaceId, toActor(user));
     }
 
     @Delete(':typeName/:id/permanent')
@@ -73,9 +75,10 @@ export class DeleteEntryController {
     async purge(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<void> {
         const type = resolveType(this.registry, typeName);
-        await this.writer.purge(type, id, workspaceId);
+        await this.writer.purge(type, id, workspaceId, toActor(user));
     }
 }

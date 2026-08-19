@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { EventActor } from '@ortha-cms/database';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import { EntryWriterService } from '../../../entries/infrastructure/persistence/entry-writer.service';
@@ -30,7 +31,12 @@ export class RestoreRevisionUseCase {
         id: string,
         number: number,
         workspaceId: string,
-        actorId: string | null,
+        /**
+         * The acting user — stamped on the new revision and on the
+         * `entry.updated` event the underlying save raises, so a restore is
+         * attributable in the audit log like any other edit.
+         */
+        actor: EventActor | null,
         options?: {
             /**
              * Whether this restore records a new version (default `true` — the
@@ -67,7 +73,7 @@ export class RestoreRevisionUseCase {
             values,
             workspaceId,
             undefined,
-            actorId,
+            actor,
             options
         );
     }

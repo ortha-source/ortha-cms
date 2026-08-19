@@ -18,7 +18,15 @@ import {
     type SQL
 } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import {
+    attachActor,
+    InjectDatabase,
+    OutboxWriter,
+    UnitOfWork,
+    type Database,
+    type DomainEvent,
+    type EventActor
+} from '@ortha-cms/database';
 import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
 import {
     isForeignKeyViolation,
@@ -57,6 +65,13 @@ import {
     InjectRevisionStore,
     type RevisionStore
 } from '../../../revisions/application/ports/revision-store';
+import {
+    entryCreated,
+    entryDeleted,
+    entryPurged,
+    entryRestored,
+    entryUpdated
+} from '../../domain/events/entry-events';
 import { Revision } from '../../../revisions/domain/revision';
 import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
 
@@ -99,6 +114,11 @@ const UUID_RE =
 export class EntryWriterService {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        // The transaction boundary every write now runs inside, and the outbox
+        // that joins it. Together they are what makes an entry's domain event
+        // commit with — and never without — the row it describes.
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly validation: EntryValidationService,
         private readonly relations: RelationLinkService,
         // The generic revision store — every save appends an immutable snapshot
@@ -118,6 +138,69 @@ export class EntryWriterService {
         @InjectMediaAssetResolver()
         private readonly mediaResolver?: MediaAssetResolver
     ) {}
+
+    /**
+     * The active unit-of-work transaction, typed as the handle drizzle hands a
+     * `db.transaction` callback.
+     *
+     * `UnitOfWork` stores exactly that object and publishes it as `Database`,
+     * because most callers only need the query surface — while this file's
+     * helpers, `RelationLinkService`, and the `CONTENT_ENTRY_EXTENSION` port are
+     * all typed against the transaction handle. Only ever called from inside
+     * `uow.run(...)`, where the two are the same object.
+     */
+    private tx(): DbTransaction {
+        return this.uow.current() as unknown as DbTransaction;
+    }
+
+    /** One event per affected row, built from each row's own id. */
+    private eventsFor(
+        rows: readonly Row[],
+        build: (id: string) => DomainEvent
+    ): DomainEvent[] {
+        return rows.map((row) => build(row['id'] as string));
+    }
+
+    /**
+     * Append `events` to the transactional outbox, stamped with the acting
+     * user, from inside the active unit of work.
+     *
+     * `actor` is `null` for a write made with an API token: revisions record a
+     * *user* id and a token is not one, and an audit row naming a person who
+     * did not do it is worse than one that says "System". Attributing a token's
+     * writes is a real gap that wants its own column, not a misused one.
+     */
+    private async emit(
+        events: readonly DomainEvent[],
+        actor?: EventActor | null
+    ): Promise<void> {
+        if (events.length === 0) return;
+        const stamped = [...events];
+        await this.outbox.append(actor ? attachActor(stamped, actor) : stamped);
+    }
+
+    /**
+     * The declared fields whose stored value differs between two rows — what
+     * `entry.updated` reports, and the test for whether it is raised at all.
+     *
+     * Compared by JSON shape rather than identity so a jsonb field (`json`,
+     * `multiselect`, a media array) is judged on content, and only over
+     * `type.fields`: the envelope columns a save always rewrites
+     * (`updated_at`, and `status` on a publishable type) are not editorial
+     * changes and would make every save look like one.
+     */
+    private changedFields(
+        type: AnyContentType,
+        before: Row | undefined,
+        after: Row
+    ): string[] {
+        if (!before) return Object.keys(type.fields);
+        return Object.keys(type.fields).filter(
+            (name) =>
+                JSON.stringify(before[name] ?? null) !==
+                JSON.stringify(after[name] ?? null)
+        );
+    }
 
     /**
      * Fold any `relations: { <singleField>: { set } }` entries into the values
@@ -312,8 +395,9 @@ export class EntryWriterService {
         relations?: Record<string, RelationDelta>,
         locale?: string,
         localeGroupId?: string,
-        actorId?: string | null
+        actor?: EventActor | null
     ): Promise<EntryRecord> {
+        const actorId = actor?.id ?? null;
         // `coerceValues` stamps every declared field onto the bag, so the
         // "sent in both places" check below has to read the RAW body — after
         // coercion every field looks present.
@@ -371,7 +455,8 @@ export class EntryWriterService {
         // type is a clean 409 rather than a 500.
         const row = await this.uniqueGuarded(
             () =>
-                this.db.transaction(async (tx) => {
+                this.uow.run(async () => {
+                    const tx = this.tx();
                     await lockWorkspaceShared(tx, workspaceId);
                     // Same seam as the update path: the extension locks the
                     // set it will rewrite in `afterUpdate` before any row of
@@ -453,6 +538,10 @@ export class EntryWriterService {
                         workspaceId,
                         actorId ?? null
                     );
+                    // Inside the transaction, so the fact and the row it
+                    // describes commit together or not at all — the whole point
+                    // of the outbox.
+                    await this.emit([entryCreated(id, type.name)], actor);
                     return inserted as Row;
                 }),
             type
@@ -583,7 +672,7 @@ export class EntryWriterService {
         values: Record<string, unknown>,
         workspaceId: string,
         relations?: Record<string, RelationDelta>,
-        actorId?: string | null,
+        actor?: EventActor | null,
         options?: {
             /**
              * Whether this write appends a version of its own (default `true`).
@@ -597,6 +686,7 @@ export class EntryWriterService {
             appendRevision?: boolean;
         }
     ): Promise<EntryRecord> {
+        const actorId = actor?.id ?? null;
         let coerced = coerceValues(type, values);
         // The row's own locale is what a relation link must match. Read up front
         // (one indexed lookup, and only on localized types) so the pre-transaction
@@ -636,7 +726,13 @@ export class EntryWriterService {
         // One transaction: replace the row's columns, re-sync a whole-set
         // many-relation submitted in `values`, and apply the staged relation
         // deltas — so a save is all-or-nothing.
-        const row = await this.db.transaction(async (tx) => {
+        const row = await this.uow.run(async () => {
+            const tx = this.tx();
+            // Read the stored row before the UPDATE rewrites it — inside the
+            // transaction, so it is the row this write actually replaces — so
+            // `entry.updated` can name the fields that changed instead of
+            // asserting only that a save happened.
+            const before = await this.findLive(type, id, workspaceId, tx);
             // Before the row is locked by the UPDATE below: the extension's
             // chance to take a deterministic lock over the wider set it will
             // rewrite in `afterUpdate` (the i18n plugin locks the translation
@@ -726,6 +822,12 @@ export class EntryWriterService {
                 workspaceId,
                 actorId ?? null
             );
+            // A save that changed no field value raises nothing: it is a round
+            // trip, not an editorial change, and the log is read by people.
+            const fields = this.changedFields(type, before, updated as Row);
+            if (fields.length > 0) {
+                await this.emit([entryUpdated(id, type.name, fields)], actor);
+            }
             return updated as Row;
         });
         return toRecord(type, row);
@@ -948,34 +1050,46 @@ export class EntryWriterService {
     async remove(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<void> {
         const t = this.columns(type);
         const scope = this.scope(type, workspaceId);
-        const [row] = await this.restrictGuarded(
-            () =>
-                type.paranoid
-                    ? this.db
-                          .update(type.table)
-                          .set({
-                              deletedAt: new Date(),
-                              updatedAt: new Date()
-                          } as never)
-                          .where(
-                              and(
-                                  eq(t['id'], id),
-                                  scope,
-                                  isNull(t['deletedAt'])
+        // In a unit of work purely so the `entry.deleted` event commits with
+        // the delete. Nothing else here needs a transaction — it is one
+        // statement — but an event that can outlive a rolled-back delete is the
+        // exact failure the outbox exists to prevent.
+        await this.uow.run(async () => {
+            const exec = this.uow.current();
+            const [row] = await this.restrictGuarded(
+                () =>
+                    type.paranoid
+                        ? exec
+                              .update(type.table)
+                              .set({
+                                  deletedAt: new Date(),
+                                  updatedAt: new Date()
+                              } as never)
+                              .where(
+                                  and(
+                                      eq(t['id'], id),
+                                      scope,
+                                      isNull(t['deletedAt'])
+                                  )
                               )
-                          )
-                          .returning()
-                    : this.db
-                          .delete(type.table)
-                          .where(and(eq(t['id'], id), scope))
-                          .returning(),
-            type
-        );
-        if (!row) throw this.notFound(type, id);
+                              .returning()
+                        : exec
+                              .delete(type.table)
+                              .where(and(eq(t['id'], id), scope))
+                              .returning(),
+                type
+            );
+            if (!row) throw this.notFound(type, id);
+            await this.emit(
+                [entryDeleted(id, type.name, Boolean(type.paranoid))],
+                actor
+            );
+        });
     }
 
     /**
@@ -987,113 +1101,150 @@ export class EntryWriterService {
     async restore(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<EntryRecord> {
         this.assertParanoid(type);
         const t = this.columns(type);
-        const [row] = await this.uniqueGuarded(
-            () =>
-                this.db
-                    .update(type.table)
-                    .set({ deletedAt: null, updatedAt: new Date() } as never)
-                    .where(
-                        and(
-                            eq(t['id'], id),
-                            this.scope(type, workspaceId),
-                            isNotNull(t['deletedAt'])
+        return this.uow.run(async () => {
+            const exec = this.uow.current();
+            const [row] = await this.uniqueGuarded(
+                () =>
+                    exec
+                        .update(type.table)
+                        .set({
+                            deletedAt: null,
+                            updatedAt: new Date()
+                        } as never)
+                        .where(
+                            and(
+                                eq(t['id'], id),
+                                this.scope(type, workspaceId),
+                                isNotNull(t['deletedAt'])
+                            )
                         )
-                    )
-                    .returning(),
-            type
-        );
-        if (!row) throw this.notFound(type, id);
-        return toRecord(type, row as Row);
+                        .returning(),
+                type
+            );
+            if (!row) throw this.notFound(type, id);
+            await this.emit([entryRestored(id, type.name)], actor);
+            return toRecord(type, row as Row);
+        });
     }
 
     /** Permanently delete a tombstoned entry (paranoid types only), or 404. */
     async purge(
         type: AnyContentType,
         id: string,
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<void> {
         this.assertParanoid(type);
         const t = this.columns(type);
-        const [row] = await this.restrictGuarded(
-            () =>
-                this.db
-                    .delete(type.table)
-                    .where(
-                        and(
-                            eq(t['id'], id),
-                            this.scope(type, workspaceId),
-                            isNotNull(t['deletedAt'])
+        await this.uow.run(async () => {
+            const exec = this.uow.current();
+            const [row] = await this.restrictGuarded(
+                () =>
+                    exec
+                        .delete(type.table)
+                        .where(
+                            and(
+                                eq(t['id'], id),
+                                this.scope(type, workspaceId),
+                                isNotNull(t['deletedAt'])
+                            )
                         )
-                    )
-                    .returning(),
-            type
-        );
-        if (!row) throw this.notFound(type, id);
+                        .returning(),
+                type
+            );
+            if (!row) throw this.notFound(type, id);
+            // The one content action that leaves nothing behind to inspect, so
+            // the event is the only remaining record that it happened.
+            await this.emit([entryPurged(id, type.name)], actor);
+        });
     }
 
     /** Delete a set of entries: soft for paranoid types, hard otherwise. */
     async bulkRemove(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<BulkActionResult> {
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
         const scope = this.scope(type, workspaceId);
-        const rows = await this.restrictGuarded(
-            () =>
-                type.paranoid
-                    ? this.db
-                          .update(type.table)
-                          .set({
-                              deletedAt: new Date(),
-                              updatedAt: new Date()
-                          } as never)
-                          .where(
-                              and(
-                                  inArray(t['id'], ids),
-                                  scope,
-                                  isNull(t['deletedAt'])
+        return this.uow.run(async () => {
+            const exec = this.uow.current();
+            const rows = await this.restrictGuarded(
+                () =>
+                    type.paranoid
+                        ? exec
+                              .update(type.table)
+                              .set({
+                                  deletedAt: new Date(),
+                                  updatedAt: new Date()
+                              } as never)
+                              .where(
+                                  and(
+                                      inArray(t['id'], ids),
+                                      scope,
+                                      isNull(t['deletedAt'])
+                                  )
                               )
-                          )
-                          .returning()
-                    : this.db
-                          .delete(type.table)
-                          .where(and(inArray(t['id'], ids), scope))
-                          .returning(),
-            type
-        );
-        return { count: rows.length };
+                              .returning()
+                        : exec
+                              .delete(type.table)
+                              .where(and(inArray(t['id'], ids), scope))
+                              .returning(),
+                type
+            );
+            // One event per row actually removed, not one per id asked for:
+            // batching is a way of asking, and the log records what happened.
+            await this.emit(
+                this.eventsFor(rows as Row[], (id) =>
+                    entryDeleted(id, type.name, Boolean(type.paranoid))
+                ),
+                actor
+            );
+            return { count: rows.length };
+        });
     }
 
     /** Permanently delete a set of tombstoned entries (paranoid types only). */
     async bulkPurge(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<BulkActionResult> {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
-        const rows = await this.restrictGuarded(
-            () =>
-                this.db
-                    .delete(type.table)
-                    .where(
-                        and(
-                            inArray(t['id'], ids),
-                            this.scope(type, workspaceId),
-                            isNotNull(t['deletedAt'])
+        return this.uow.run(async () => {
+            const exec = this.uow.current();
+            const rows = await this.restrictGuarded(
+                () =>
+                    exec
+                        .delete(type.table)
+                        .where(
+                            and(
+                                inArray(t['id'], ids),
+                                this.scope(type, workspaceId),
+                                isNotNull(t['deletedAt'])
+                            )
                         )
-                    )
-                    .returning(),
-            type
-        );
-        return { count: rows.length };
+                        .returning(),
+                type
+            );
+            await this.emit(
+                this.eventsFor(rows as Row[], (id) =>
+                    entryPurged(id, type.name)
+                ),
+                actor
+            );
+            return { count: rows.length };
+        });
     }
 
     /**
@@ -1105,27 +1256,40 @@ export class EntryWriterService {
     async bulkRestore(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor | null
     ): Promise<BulkActionResult> {
         this.assertParanoid(type);
         if (!ids.length) return { count: 0 };
         const t = this.columns(type);
-        const rows = await this.uniqueGuarded(
-            () =>
-                this.db
-                    .update(type.table)
-                    .set({ deletedAt: null, updatedAt: new Date() } as never)
-                    .where(
-                        and(
-                            inArray(t['id'], ids),
-                            this.scope(type, workspaceId),
-                            isNotNull(t['deletedAt'])
+        return this.uow.run(async () => {
+            const exec = this.uow.current();
+            const rows = await this.uniqueGuarded(
+                () =>
+                    exec
+                        .update(type.table)
+                        .set({
+                            deletedAt: null,
+                            updatedAt: new Date()
+                        } as never)
+                        .where(
+                            and(
+                                inArray(t['id'], ids),
+                                this.scope(type, workspaceId),
+                                isNotNull(t['deletedAt'])
+                            )
                         )
-                    )
-                    .returning(),
-            type
-        );
-        return { count: rows.length };
+                        .returning(),
+                type
+            );
+            await this.emit(
+                this.eventsFor(rows as Row[], (id) =>
+                    entryRestored(id, type.name)
+                ),
+                actor
+            );
+            return { count: rows.length };
+        });
     }
 
     /**

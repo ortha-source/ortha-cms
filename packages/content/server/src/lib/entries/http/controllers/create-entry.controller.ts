@@ -15,6 +15,7 @@ import { EntryWriterService } from '../../infrastructure/persistence/entry-write
 import { SaveEntryDto } from '../dto/save-entry.dto';
 import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
+import { toActor } from './to-actor';
 
 /**
  * `POST /api/content/:typeName` — create a draft entry from a validated values
@@ -50,7 +51,7 @@ export class CreateEntryController {
             body.relations,
             body.locale,
             body.localeGroupId,
-            user?.id ?? null
+            toActor(user)
         );
     }
 }

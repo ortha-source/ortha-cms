@@ -17,6 +17,13 @@ export class LoginPage extends BasePage {
      */
     readonly errorBanner: Locator;
     /**
+     * The standing explanation shown when this page was reached by a **forced**
+     * sign-out — the session was revoked or expired and the app replaced the
+     * page the visitor was on. Distinct from {@link errorBanner}: nothing they
+     * did failed, so it is not the destructive submission banner.
+     */
+    readonly sessionEndedNotice: Locator;
+    /**
      * The heading the auth error boundary shows when a lazily-loaded auth screen
      * fails to arrive — a chunk request that 404s after a deploy, which
      * `Suspense` cannot recover from on its own.
@@ -42,6 +49,9 @@ export class LoginPage extends BasePage {
         this.errorBanner = page
             .getByRole('alert')
             .filter({ hasText: 'Authentication failed' });
+        this.sessionEndedNotice = page
+            .getByRole('alert')
+            .filter({ hasText: /Your session has ended/ });
     }
 
     async goto() {

@@ -126,6 +126,77 @@ test.describe('Session lost mid-visit', () => {
         await expect(membersPage.nav).toBeHidden();
     });
 
+    test('announces the sign-out and explains it on the page it lands on', async ({
+        page,
+        hostPage,
+        loginPage,
+        membersPage
+    }) => {
+        // The whole view is replaced under the visitor: focus was on a control
+        // that no longer exists, so the browser resets it to `<body>`, a screen
+        // reader keeps reading the unmounted page, and anything typed is gone.
+        // Silence there is WCAG 4.1.3 / 2.4.3 — there has to be a message.
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        await mockUnauthorized(page, '**/api/users?*');
+        await membersPage.search.fill('ada');
+
+        // Announced as it happens, in the host's live region — which lives
+        // outside the router, so it survives the view being replaced.
+        await expect(
+            hostPage.toastHost.getByText(/Your session has ended/)
+        ).toBeVisible();
+        // …and repeated on the page, so it is still readable once the toast has
+        // expired. Not the destructive submission banner: nothing they did
+        // failed.
+        await expect(loginPage.sessionEndedNotice).toBeVisible();
+        await expect(loginPage.errorBanner).toBeHidden();
+
+        // Focus lands on the sign-in heading, next to that explanation, rather
+        // than being dropped to `<body>` at the top of a page nobody was told
+        // they had reached.
+        await expect(loginPage.heading).toBeFocused();
+    });
+
+    test('says nothing about a lost session when nobody was signed in', async ({
+        page,
+        loginPage
+    }) => {
+        // A `401` on a tab that never had a session is the ordinary signed-out
+        // state — telling that visitor something of theirs was taken away would
+        // be a lie.
+        await mockSignedOut(page);
+        await page.goto('/');
+
+        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.sessionEndedNotice).toBeHidden();
+    });
+
+    test('drops the explanation once the visitor comes back to sign-in', async ({
+        page,
+        loginPage,
+        membersPage
+    }) => {
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        await mockUnauthorized(page, '**/api/users?*');
+        await membersPage.search.fill('ada');
+        await expect(loginPage.sessionEndedNotice).toBeVisible();
+
+        // The signal is one-shot: a later visit to the same page is an ordinary
+        // arrival, not a second sign-out.
+        await mockSignedOut(page);
+        await page.goto('/identity/signin');
+        await expect(loginPage.heading).toBeVisible();
+        await expect(loginPage.sessionEndedNotice).toBeHidden();
+    });
+
     test('redirects when the session dies under a mutation, without an unhandled error', async ({
         page,
         loginPage,

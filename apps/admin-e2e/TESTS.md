@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_718 test cases across 73 spec files._
+_722 test cases across 73 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -32,6 +32,7 @@ _<sub>apps/admin-e2e/src/activity/activity-kinds.spec.ts</sub>_
 | a few labels read as the phrases they should be |
 | every subject type renders as a readable name, not a machine token |
 | the Details line reads the per-kind meta the server records |
+| the content editing lifecycle is labelled, not only publishing |
 | the home panel names an action the same way the table does |
 
 <!-- source: apps/admin-e2e/src/activity/audit-log.spec.ts -->
@@ -353,6 +354,9 @@ _<sub>apps/admin-e2e/src/auth/private-routes.spec.ts</sub>_
 | Test case |
 | --- |
 | redirects to the sign-in page when a request comes back 401 |
+| announces the sign-out and explains it on the page it lands on |
+| says nothing about a lost session when nobody was signed in |
+| drops the explanation once the visitor comes back to sign-in |
 | redirects when the session dies under a mutation, without an unhandled error |
 
 ## Auth still resolving

@@ -13,6 +13,14 @@ export const FilterErrorCode = {
     DepthExceeded: 'FILTER_DEPTH_EXCEEDED',
     /** Operator not in the global operator vocabulary. */
     UnknownOperator: 'FILTER_UNKNOWN_OPERATOR',
+    /**
+     * Operator is a real one, but not one the field's declared type can be
+     * asked — e.g. `ilike` against a `date`, a `number`, a `boolean` or a
+     * `uuid`. Postgres has no `~~` for those column types, so without this the
+     * rule reached the driver and came back as an unhandled 500 instead of a
+     * per-field issue.
+     */
+    OperatorNotAllowed: 'FILTER_OPERATOR_NOT_ALLOWED',
     /** Final segment names a field not declared on the schema. */
     UnknownField: 'FILTER_UNKNOWN_FIELD',
     /** Mid-path segment names a relation not declared on the schema. */

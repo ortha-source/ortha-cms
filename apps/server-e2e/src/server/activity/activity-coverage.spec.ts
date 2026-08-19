@@ -11,6 +11,7 @@ import {
     getActivityRows,
     resetDb,
     seedActiveUser,
+    seedAllContentGrants,
     seedMembership,
     seedWorkspace,
     type SeededUser,
@@ -61,6 +62,7 @@ describe('activity coverage — which write paths produce an audit row', () => {
             slug: 'coverage'
         });
         await seedMembership(admin.id, workspace.id);
+        await seedAllContentGrants(workspace.id);
     });
 
     async function login(email = ADMIN) {
@@ -173,6 +175,130 @@ describe('activity coverage — which write paths produce an audit row', () => {
             const [row] = await rowsOfKind('media.folder.created');
             expect(row.meta).not.toHaveProperty('actor');
             expect(row.actorId).toBe(admin.id);
+        });
+    });
+
+    describe('content entries', () => {
+        /** Create a draft `test_article` and return its id. */
+        async function createArticle(agent: request.Agent): Promise<string> {
+            const res = await agent
+                .post('/api/content/test_article')
+                .send({ values: { text: 'Draft one', select: 'article' } })
+                .expect(201);
+            return res.body.id as string;
+        }
+
+        it('audits a create, an edit, a soft delete and a restore', async () => {
+            // Publishing was the ONLY content action that reached the log:
+            // create, update, delete and restore raised no domain event at all,
+            // so an editor could create, rewrite and trash every entry in the
+            // product and the record of record stayed silent about the single
+            // most frequent action in a CMS.
+            const agent = await login();
+
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { text: 'Draft two', select: 'article' } })
+                .expect(200);
+            await agent.delete(`/api/content/test_article/${id}`).expect(204);
+            await agent
+                .post(`/api/content/test_article/${id}/restore`)
+                .expect(201);
+
+            expect(await rowsOfKind('entry.created')).toEqual([
+                {
+                    kind: 'entry.created',
+                    subjectType: 'content_entry',
+                    subjectId: id,
+                    actorId: admin.id,
+                    actorEmail: ADMIN,
+                    meta: { contentType: 'test_article' }
+                }
+            ]);
+            // The changed field names, not merely "something was saved" — the
+            // `workspace.updated` shape, and what makes the row reviewable.
+            expect(await rowsOfKind('entry.updated')).toMatchObject([
+                {
+                    subjectId: id,
+                    actorId: admin.id,
+                    meta: { contentType: 'test_article', fields: ['text'] }
+                }
+            ]);
+            // `soft: true` — `test_article` is paranoid, so this one is a
+            // tombstone the trash can undo rather than a row leaving the table.
+            expect(await rowsOfKind('entry.deleted')).toMatchObject([
+                {
+                    subjectId: id,
+                    meta: { contentType: 'test_article', soft: true }
+                }
+            ]);
+            expect(await rowsOfKind('entry.restored')).toMatchObject([
+                { subjectId: id, meta: { contentType: 'test_article' } }
+            ]);
+        });
+
+        it('records a permanent delete under its own kind', async () => {
+            // The one content action with nothing left behind to inspect
+            // afterwards, so the audit row is the only remaining record of it.
+            const agent = await login();
+            const id = await createArticle(agent);
+            await agent.delete(`/api/content/test_article/${id}`).expect(204);
+            await agent
+                .delete(`/api/content/test_article/${id}/permanent`)
+                .expect(204);
+
+            expect(await rowsOfKind('entry.purged')).toMatchObject([
+                { subjectType: 'content_entry', subjectId: id }
+            ]);
+        });
+
+        it('says nothing when a save changed no value', async () => {
+            // A re-submitted editor is a round trip, not an editorial change,
+            // and the log is read by people. This is also what bounds the
+            // volume of `entry.updated` without inventing a coalescing window.
+            const agent = await login();
+            const id = await createArticle(agent);
+            await agent
+                .patch(`/api/content/test_article/${id}`)
+                .send({ values: { text: 'Draft one', select: 'article' } })
+                .expect(200);
+
+            expect(await rowsOfKind('entry.updated')).toEqual([]);
+        });
+
+        it('audits a bulk delete once per row it actually removed', async () => {
+            // Batching is a way of asking, not a second set of rules — and the
+            // count follows the rows, not the ids the caller listed.
+            const agent = await login();
+            const first = await createArticle(agent);
+            const second = await createArticle(agent);
+
+            await agent
+                .post('/api/content/test_article/bulk/delete')
+                .send({ ids: [first, second] })
+                .expect(200);
+
+            const deleted = await rowsOfKind('entry.deleted');
+            expect(deleted.map((row) => row.subjectId).sort()).toEqual(
+                [first, second].sort()
+            );
+            expect(deleted.every((row) => row.actorId === admin.id)).toBe(true);
+        });
+
+        it('writes the event in the same transaction as the entry', async () => {
+            // The rule the whole outbox exists for: a rejected write leaves no
+            // event behind claiming it happened. `select` is a required enum,
+            // so this 422s inside the write transaction.
+            const agent = await login();
+            const before = await rowsOfKind('entry.created');
+
+            await agent
+                .post('/api/content/test_article')
+                .send({ values: { text: 'Never stored', select: 'nope' } })
+                .expect(422);
+
+            expect(await rowsOfKind('entry.created')).toEqual(before);
         });
     });
 

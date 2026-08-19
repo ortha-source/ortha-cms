@@ -135,15 +135,27 @@ function workspaceSubject(
 
 /**
  * A `'content_entry'`-subject facet. The audit kind mirrors the event kind
- * (`entry.published` / `entry.unpublished`), and the entry's content type rides
- * in `meta` so the log can name *what* was published without joining anything.
+ * (`entry.created`, `entry.published`, `entry.deleted`, …), and the entry's
+ * content type rides in `meta` so the log can name *what* happened to without
+ * joining anything.
+ *
+ * `extra` carries the few facts one kind has and the others do not — the
+ * changed `fields` on an update, and whether a delete was a recoverable
+ * tombstone (`soft`) or the row leaving the table. Everything else about an
+ * entry event is the same shape, which is why one mapper serves all seven.
  */
-function entrySubject(event: DomainEvent): AuditFacet {
+function entrySubject(
+    event: DomainEvent,
+    extra: Record<string, unknown> = {}
+): AuditFacet {
     return {
         kind: event.kind,
         subjectType: 'content_entry',
         subjectId: event.aggregateId,
-        meta: { contentType: nullableString(event.payload.contentType) }
+        meta: {
+            contentType: nullableString(event.payload.contentType),
+            ...extra
+        }
     };
 }
 
@@ -290,8 +302,13 @@ function payloadWithoutActor(event: DomainEvent): Record<string, unknown> {
  * | `api_token.revoked`        | `token.revoked`           | api_token / same shape                           |
  * | `auth.signed_in`           | `user.signed_in`          | user / `null`                                    |
  * | `auth.signed_out`          | `user.signed_out`         | user / `null`                                    |
+ * | `entry.created`            | `entry.created`           | content_entry / `{ contentType }`                |
+ * | `entry.updated`            | `entry.updated`           | content_entry / `{ contentType, fields }`        |
  * | `entry.published`          | `entry.published`         | content_entry / `{ contentType }`                |
  * | `entry.unpublished`        | `entry.unpublished`       | content_entry / `{ contentType }`                |
+ * | `entry.deleted`            | `entry.deleted`           | content_entry / `{ contentType, soft }`          |
+ * | `entry.restored`           | `entry.restored`          | content_entry / `{ contentType }`                |
+ * | `entry.purged`             | `entry.purged`            | content_entry / `{ contentType }`                |
  * | `media.asset.uploaded`     | `media.asset.uploaded`    | media_asset / payload minus `actor`              |
  * | `media.asset.updated`      | `media.asset.updated`     | media_asset / payload minus `actor`              |
  * | `media.asset.moved`        | `media.asset.moved`       | media_asset / payload minus `actor`              |
@@ -395,6 +412,23 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // activity at all.
     'entry.published': entrySubject,
     'entry.unpublished': entrySubject,
+
+    // …and the ordinary editing lifecycle, which raised nothing at all until
+    // the entry writes moved onto the unit of work. Publishing was the only
+    // content action the log could answer for, so an editor could create,
+    // rewrite and delete every entry in the product and it stayed silent about
+    // the single most frequent action in a CMS.
+    'entry.created': (e) => entrySubject(e),
+    // `fields` names what actually changed — the `workspace.updated` shape, and
+    // what makes the row a review rather than a bare "someone saved this".
+    'entry.updated': (e) => entrySubject(e, { fields: e.payload.fields ?? [] }),
+    // `soft` is the difference between a tombstone the trash can restore and a
+    // row that left the table when this committed.
+    'entry.deleted': (e) => entrySubject(e, { soft: e.payload.soft === true }),
+    'entry.restored': (e) => entrySubject(e),
+    // The one content action with nothing left behind to inspect afterwards,
+    // and therefore the one this row is the only remaining record of.
+    'entry.purged': (e) => entrySubject(e),
 
     // The media library. Every one of these was raised on the outbox and
     // dropped on the floor: the dispatcher found no subscriber for the kind,

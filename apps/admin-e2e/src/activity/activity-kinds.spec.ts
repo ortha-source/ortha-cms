@@ -90,6 +90,32 @@ test.describe('Activity Log kind catalogue', () => {
         // Media payloads differ per kind by design, so each reads one field.
         await activityLogPage.expandRow('Uploaded asset');
         await expect(page.getByText('hero.png').first()).toBeVisible();
+
+        // An entry edit names the fields it changed, the same shape a workspace
+        // update uses — the difference between "someone saved this" and a row a
+        // reviewer can act on.
+        await activityLogPage.expandRow('Edited content');
+        await expect(page.getByText('title, body').first()).toBeVisible();
+    });
+
+    test('the content editing lifecycle is labelled, not only publishing', async ({
+        activityLogPage
+    }) => {
+        // Publishing was the only content action the log could answer for:
+        // create, edit, delete and restore raised no domain event at all, so an
+        // editor could rewrite the whole product and the record of record
+        // stayed silent about the most frequent action in a CMS.
+        await activityLogPage.gotoWith('pageSize=100');
+        await expect(activityLogPage.table).toBeVisible();
+        const labels = await activityLogPage.actionLabels();
+
+        expect(labels).toContain('Created content');
+        expect(labels).toContain('Edited content');
+        expect(labels).toContain('Deleted content');
+        expect(labels).toContain('Restored content');
+        // Its own label, because it is the one content action that leaves
+        // nothing behind to inspect afterwards.
+        expect(labels).toContain('Permanently deleted content');
     });
 
     test('the home panel names an action the same way the table does', async ({
