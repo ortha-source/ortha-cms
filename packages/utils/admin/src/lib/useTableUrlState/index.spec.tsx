@@ -7,7 +7,10 @@ const DEBOUNCE_MS = 300;
 
 function Probe() {
     const navigate = useNavigate();
-    const state = useTableUrlState({ searchKey: 'search', defaultPageSize: 25 });
+    const state = useTableUrlState({
+        searchKey: 'search',
+        defaultPageSize: 25
+    });
     return (
         <div>
             <span data-testid="searchInput">{state.searchInput}</span>
@@ -27,12 +30,12 @@ function Probe() {
                 onChange={(event) => state.setSearchInput(event.target.value)}
             />
             <button onClick={() => navigate('/users')}>to bare list</button>
-            <button onClick={() => state.updateParams({ filter: 'role:admin' })}>
+            <button
+                onClick={() => state.updateParams({ filter: 'role:admin' })}
+            >
                 set filter
             </button>
-            <button
-                onClick={() => state.updateParams({ page: '3' }, false)}
-            >
+            <button onClick={() => state.updateParams({ page: '3' }, false)}>
                 go to page 3
             </button>
         </div>

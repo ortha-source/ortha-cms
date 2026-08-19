@@ -4,8 +4,7 @@ import { httpAuthGateway } from '../../infrastructure/httpAuthGateway';
 import type { InviteDetails } from '../../../types/auth';
 
 /** Query key for one invite link's details, scoped by its raw token. */
-export const inviteKey = (token: string) =>
-    ['auth', 'invite', token] as const;
+export const inviteKey = (token: string) => ['auth', 'invite', token] as const;
 
 /**
  * TanStack Query wrapper for "who is this invite for?", fetched through the

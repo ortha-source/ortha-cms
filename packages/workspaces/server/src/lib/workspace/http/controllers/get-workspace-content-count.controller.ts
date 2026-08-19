@@ -1,4 +1,10 @@
-import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Param,
+    ParseUUIDPipe,
+    UseGuards
+} from '@nestjs/common';
 import {
     PERMISSIONS,
     PermissionsGuard,

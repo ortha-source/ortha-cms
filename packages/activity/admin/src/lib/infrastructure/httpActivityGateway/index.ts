@@ -1,9 +1,6 @@
 import { apiClient, toApiError } from '@ortha-cms/utils-admin';
 import type { ActivityList } from '../../types/activityEvent';
-import {
-    toActivityEvent,
-    type ActivityEventResponse
-} from '../activityMapper';
+import { toActivityEvent, type ActivityEventResponse } from '../activityMapper';
 import type { ActivityListParams } from '../activityKeys';
 import type { ActivityGateway } from '../activityGateway';
 

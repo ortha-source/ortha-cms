@@ -4,7 +4,10 @@ import { AlertCircle, Database, FileText } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@ortha-cms/design-system';
 import { useContentTypes } from '../../../../application/useContentTypes';
 import { ContentTypesSkeleton } from '../../WorkspacesSkeleton';
-import type { ContentMode, ResourceSelection } from '../../../../domain/types/wizard';
+import type {
+    ContentMode,
+    ResourceSelection
+} from '../../../../domain/types/wizard';
 import { ModeTiles } from './ModeTiles';
 import {
     ResourceSection,

@@ -40,7 +40,7 @@ function assertOptions(options: MediaPluginOptions): void {
     if (names.length === 0) {
         throw new Error(
             'MediaServerPlugin requires at least one storage provider. Register one at the ' +
-                "composition root, e.g. `providers: { local: createLocalStorageProvider(…) }`."
+                'composition root, e.g. `providers: { local: createLocalStorageProvider(…) }`.'
         );
     }
     const { defaultProvider } = options.config;

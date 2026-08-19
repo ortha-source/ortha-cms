@@ -24,7 +24,10 @@ const request: ModelRequest = {
     maxOutputTokens: 1024
 };
 
-const config = { apiKey: 'sk-test', models: ['claude-opus-5', 'claude-haiku-4-5'] };
+const config = {
+    apiKey: 'sk-test',
+    models: ['claude-opus-5', 'claude-haiku-4-5']
+};
 
 function abortError(): Error {
     return Object.assign(new Error('Request was aborted.'), {

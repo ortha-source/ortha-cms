@@ -15,7 +15,12 @@ import {
     UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiHeader, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import {
+    ApiConsumes,
+    ApiHeader,
+    ApiOperation,
+    ApiSecurity
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Readable } from 'node:stream';
 import {

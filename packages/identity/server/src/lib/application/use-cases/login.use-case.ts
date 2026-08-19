@@ -1,7 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import { IDENTITY_EVENT_KINDS, identityEvent } from '../../domain/events/identity-events';
+import {
+    IDENTITY_EVENT_KINDS,
+    identityEvent
+} from '../../domain/events/identity-events';
 import type { SessionContext } from '../../domain/session';
 import {
     SESSION_REPOSITORY,
@@ -71,7 +74,12 @@ export class LoginUseCase {
             // the event to write the audit row.
             await this.outbox.append(
                 attachActor(
-                    [identityEvent(IDENTITY_EVENT_KINDS.SIGNED_IN, user.userId)],
+                    [
+                        identityEvent(
+                            IDENTITY_EVENT_KINDS.SIGNED_IN,
+                            user.userId
+                        )
+                    ],
                     { id: user.userId, email: user.email }
                 )
             );

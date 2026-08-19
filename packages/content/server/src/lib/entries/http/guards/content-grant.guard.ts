@@ -53,15 +53,11 @@ export class ContentGrantGuard implements CanActivate {
         if (!workspaceId) {
             // Only reachable if the guard is wired without `WorkspaceGuard`
             // ahead of it — refuse rather than fall open.
-            throw new NotFoundException(
-                `Unknown content type "${typeName}".`
-            );
+            throw new NotFoundException(`Unknown content type "${typeName}".`);
         }
         const granted = await this.grants.grantedSlugs(workspaceId);
         if (!granted.has(typeName)) {
-            throw new NotFoundException(
-                `Unknown content type "${typeName}".`
-            );
+            throw new NotFoundException(`Unknown content type "${typeName}".`);
         }
         return true;
     }

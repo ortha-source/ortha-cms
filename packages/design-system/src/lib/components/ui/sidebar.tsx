@@ -349,9 +349,7 @@ function Sidebar({
                 >
                     <SheetHeader className="sr-only">
                         <SheetTitle>{mobileTitle}</SheetTitle>
-                        <SheetDescription>
-                            {mobileDescription}
-                        </SheetDescription>
+                        <SheetDescription>{mobileDescription}</SheetDescription>
                     </SheetHeader>
                     <div className="flex h-full w-full flex-col">
                         {children}
@@ -509,8 +507,24 @@ function useInsetTopBarHost() {
 function SidebarInset({
     className,
     children,
+    scrollLabel,
     ...props
-}: React.ComponentProps<'main'>) {
+}: React.ComponentProps<'main'> & {
+    /**
+     * Accessible name for the scrollport tab stop. Omitted by default, so
+     * nothing changes for a consumer that has not thought about it.
+     *
+     * The scrollport is focusable on purpose (see below) and had no name and no
+     * role, so a screen-reader user reaching that stop was told nothing about
+     * what they had landed on or that arrow keys would now scroll (`ORT-150`).
+     * Naming it costs a role, and `region` would make it a **landmark** — a
+     * second one beside the `<main>` it sits inside, which is exactly the noise
+     * this component declines elsewhere. `group` names it without joining the
+     * landmark list. The design system carries no `react-intl`, so the string
+     * comes from the caller.
+     */
+    scrollLabel?: string;
+}) {
     const [barHost, setBarHost] = React.useState<HTMLElement | null>(null);
 
     return (
@@ -548,6 +562,14 @@ function SidebarInset({
                 <div
                     data-slot="sidebar-inset-scroll"
                     tabIndex={0}
+                    // `group`, not `region`: naming it must not add a second
+                    // landmark (see `scrollLabel`). Both are conditional on a
+                    // name existing — a bare `aria-label` with no role names an
+                    // element assistive tech has no role to announce it with,
+                    // and a `group` with no name is worse than the generic it
+                    // replaced.
+                    role={scrollLabel ? 'group' : undefined}
+                    aria-label={scrollLabel}
                     className="flex min-h-0 flex-1 flex-col overflow-y-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
                 >
                     {children}

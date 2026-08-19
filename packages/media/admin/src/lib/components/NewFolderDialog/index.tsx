@@ -16,7 +16,8 @@ const messages = defineMessages({
     title: { id: 'media.newFolder.title', defaultMessage: 'New folder' },
     description: {
         id: 'media.newFolder.description',
-        defaultMessage: 'Folders help you organise assets. It will be created in {location}.'
+        defaultMessage:
+            'Folders help you organise assets. It will be created in {location}.'
     },
     label: { id: 'media.newFolder.label', defaultMessage: 'Folder name' },
     placeholder: {

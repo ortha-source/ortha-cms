@@ -75,7 +75,12 @@ export class RevisionsController {
         @CurrentWorkspace() workspaceId: string
     ): Promise<RevisionDetail> {
         const type = resolveType(this.registry, typeName);
-        const detail = await this.revisions.get(type.name, id, workspaceId, number);
+        const detail = await this.revisions.get(
+            type.name,
+            id,
+            workspaceId,
+            number
+        );
         if (!detail) {
             throw new NotFoundException(
                 `No revision #${number} for entry "${id}".`

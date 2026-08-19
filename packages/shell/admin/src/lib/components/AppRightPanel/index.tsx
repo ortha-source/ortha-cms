@@ -101,6 +101,15 @@ export function AppRightPanel() {
             <aside
                 id={RIGHT_PANEL_ID}
                 aria-label={shown ? panel?.title : undefined}
+                // On a phone this is an overlay covering the page, so it says so
+                // — but only *here*, and only now. The attributes are a promise
+                // that everything outside is unreachable, and until `AppShell`
+                // started inerting the page behind it (`ORT-154`) that promise
+                // would have been false; a truthful `complementary` beats a
+                // `dialog` the markup does not keep. As a desktop column it
+                // covers nothing and stays a complementary landmark.
+                role={isMobile && shown ? 'dialog' : undefined}
+                aria-modal={isMobile && shown ? true : undefined}
                 inert={!shown}
                 className={cn(
                     'flex shrink-0 overflow-hidden motion-reduce:transition-none',

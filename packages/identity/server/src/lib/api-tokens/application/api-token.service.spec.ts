@@ -1,4 +1,8 @@
-import type { DomainEvent, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
+import type {
+    DomainEvent,
+    OutboxWriter,
+    UnitOfWork
+} from '@ortha-cms/database';
 import { HashingService } from '../../auth/services/hashing.service';
 import { ApiTokenService } from './api-token.service';
 import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';
@@ -65,13 +69,7 @@ describe('ApiTokenService', () => {
               }
             : undefined;
         return {
-            service: new ApiTokenService(
-                repo,
-                hashing,
-                uow,
-                outbox,
-                directory
-            ),
+            service: new ApiTokenService(repo, hashing, uow, outbox, directory),
             events
         };
     }

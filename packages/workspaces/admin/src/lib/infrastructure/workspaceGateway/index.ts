@@ -1,8 +1,5 @@
 import type { AvatarColor } from '@ortha-cms/design-system';
-import type {
-    Workspace,
-    WorkspaceStatus
-} from '../../domain/types/workspace';
+import type { Workspace, WorkspaceStatus } from '../../domain/types/workspace';
 import type {
     ContentType,
     CreateWorkspaceBody,

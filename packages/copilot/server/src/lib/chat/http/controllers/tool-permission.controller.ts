@@ -69,10 +69,15 @@ export class ToolPermissionController {
         @CurrentUser() user: PublicUser,
         @CurrentWorkspace() workspaceId: string
     ): void {
-        const delivered = this.broker.decide(runId, body.callId, body.decision, {
-            userId: user.id,
-            workspaceId
-        });
+        const delivered = this.broker.decide(
+            runId,
+            body.callId,
+            body.decision,
+            {
+                userId: user.id,
+                workspaceId
+            }
+        );
         if (!delivered) {
             throw new NotFoundException(
                 'That request is no longer waiting for an answer.'

@@ -74,9 +74,9 @@ describe('Member aggregate', () => {
 
         it('refuses to demote the last active admin', () => {
             const member = rehydrated();
-            expect(() =>
-                member.changeRole(Role.create('viewer'), 1)
-            ).toThrow(LastAdminProtectedError);
+            expect(() => member.changeRole(Role.create('viewer'), 1)).toThrow(
+                LastAdminProtectedError
+            );
         });
 
         it('allows demoting a non-last admin', () => {

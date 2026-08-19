@@ -41,7 +41,8 @@ function Shell({ children }: { children?: React.ReactNode }) {
 
 const panel = () =>
     document.querySelector('[data-slot="sidebar-container"]') as HTMLElement;
-const root = () => document.querySelector('[data-slot="sidebar"]') as HTMLElement;
+const root = () =>
+    document.querySelector('[data-slot="sidebar"]') as HTMLElement;
 
 beforeEach(clearCookie);
 afterEach(clearCookie);
@@ -114,7 +115,11 @@ describe('SidebarProvider', () => {
     it('leaves Ctrl+B alone inside a contenteditable editor', () => {
         render(
             <Shell>
-                <div contentEditable data-testid="editor" suppressContentEditableWarning />
+                <div
+                    contentEditable
+                    data-testid="editor"
+                    suppressContentEditableWarning
+                />
             </Shell>
         );
         const editor = screen.getByTestId('editor');
@@ -232,9 +237,9 @@ describe('SidebarProvider', () => {
         const { unmount } = render(<Shell />);
         unmount();
 
-        expect(
-            remove.mock.calls.some(([type]) => type === 'keydown')
-        ).toBe(true);
+        expect(remove.mock.calls.some(([type]) => type === 'keydown')).toBe(
+            true
+        );
         remove.mockRestore();
     });
 });

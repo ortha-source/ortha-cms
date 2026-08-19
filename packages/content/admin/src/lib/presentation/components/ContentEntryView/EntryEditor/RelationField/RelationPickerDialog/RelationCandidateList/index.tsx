@@ -19,7 +19,8 @@ const messages = defineMessages({
     },
     loadError: {
         id: 'content.relations.picker.loadError',
-        defaultMessage: 'Couldn’t load records. Check your connection and retry.'
+        defaultMessage:
+            'Couldn’t load records. Check your connection and retry.'
     }
 });
 
@@ -99,7 +100,9 @@ export function RelationCandidateList({
                                 many={many}
                                 targetName={targetName}
                                 checked={checkedIds.has(candidate.id)}
-                                isSelected={!many && selectedId === candidate.id}
+                                isSelected={
+                                    !many && selectedId === candidate.id
+                                }
                                 onPick={() => onPick(candidate)}
                             />
                         ))}

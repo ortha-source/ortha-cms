@@ -35,10 +35,7 @@ export function SidebarNavButton({ item }: SidebarNavButtonProps) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
-                <Link
-                    to={item.to}
-                    aria-current={isActive ? 'page' : undefined}
-                >
+                <Link to={item.to} aria-current={isActive ? 'page' : undefined}>
                     <Icon className={isActive ? item.iconColor : undefined} />
                     <span>{label}</span>
                 </Link>

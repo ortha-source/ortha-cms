@@ -56,9 +56,9 @@ function renderTable(props: React.ComponentProps<typeof Table> = {}) {
 describe('Table', () => {
     it('renders a real table with header cells', () => {
         renderTable();
-        expect(screen.getAllByRole('columnheader').map((c) => c.textContent)).toEqual(
-            ['Name', 'Role']
-        );
+        expect(
+            screen.getAllByRole('columnheader').map((c) => c.textContent)
+        ).toEqual(['Name', 'Role']);
     });
 
     // A11Y-design-system-03 — association must come from markup, not from the

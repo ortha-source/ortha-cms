@@ -21,7 +21,8 @@ const messages = defineMessages({
     title: { id: 'media.move.title', defaultMessage: 'Move items' },
     description: {
         id: 'media.move.description',
-        defaultMessage: 'Choose a destination for {count, plural, one {# item} other {# items}}.'
+        defaultMessage:
+            'Choose a destination for {count, plural, one {# item} other {# items}}.'
     },
     root: { id: 'media.move.root', defaultMessage: 'All media' },
     cancel: { id: 'media.move.cancel', defaultMessage: 'Cancel' },
@@ -85,7 +86,12 @@ export function MoveAssetsDialog({
                     <DestinationOption
                         value={ROOT_FOLDER_ID}
                         depth={0}
-                        icon={<Home className="size-4 text-muted-foreground" aria-hidden />}
+                        icon={
+                            <Home
+                                className="size-4 text-muted-foreground"
+                                aria-hidden
+                            />
+                        }
                         label={intl.formatMessage(messages.root)}
                         current={currentFolderId === ROOT_FOLDER_ID}
                     />
@@ -94,14 +100,22 @@ export function MoveAssetsDialog({
                             key={folder.id}
                             value={folder.id}
                             depth={depth + 1}
-                            icon={<Folder className="size-4 text-muted-foreground" aria-hidden />}
+                            icon={
+                                <Folder
+                                    className="size-4 text-muted-foreground"
+                                    aria-hidden
+                                />
+                            }
                             label={folder.name}
                             current={currentFolderId === folder.id}
                         />
                     ))}
                 </RadioGroup>
                 <DialogFooter className="mt-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                    >
                         {intl.formatMessage(messages.cancel)}
                     </Button>
                     <Button

@@ -75,7 +75,9 @@ describe('MultiSelect', () => {
         );
 
         open(trigger());
-        await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(2));
+        await waitFor(() =>
+            expect(screen.getAllByRole('option')).toHaveLength(2)
+        );
 
         fireEvent.click(screen.getByRole('option', { name: /Write/ }));
         expect(onChange).toHaveBeenCalledWith(['read', 'write']);
@@ -194,7 +196,9 @@ describe('MultiSelect', () => {
         );
 
         open(trigger());
-        await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(2));
+        await waitFor(() =>
+            expect(screen.getAllByRole('option')).toHaveLength(2)
+        );
 
         expect(
             screen
@@ -219,9 +223,7 @@ describe('MultiSelect', () => {
         );
 
         open(trigger());
-        await waitFor(() =>
-            expect(screen.getByRole('listbox')).toBeTruthy()
-        );
+        await waitFor(() => expect(screen.getByRole('listbox')).toBeTruthy());
         expect(
             screen.getByRole('listbox').getAttribute('aria-multiselectable')
         ).toBe('true');

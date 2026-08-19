@@ -150,10 +150,9 @@ describe('checkLimits', () => {
             const once = check('{ ...f } fragment f on Query { a b c }', {
                 maxFields: 2
             });
-            const twice = check(
-                '{ ...f ...f } fragment f on Query { a b c }',
-                { maxFields: 5 }
-            );
+            const twice = check('{ ...f ...f } fragment f on Query { a b c }', {
+                maxFields: 5
+            });
 
             expect(once[0].message).toMatch(/selects 3 fields/);
             expect(twice[0].message).toMatch(/selects 6 fields/);

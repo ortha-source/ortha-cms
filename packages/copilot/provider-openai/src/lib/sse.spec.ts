@@ -57,7 +57,11 @@ describe('readDataEvents', () => {
 
     it('stops at the [DONE] sentinel and ignores what follows', async () => {
         await expect(
-            collect(['data: {"a":1}\n\n', 'data: [DONE]\n\n', 'data: {"a":2}\n\n'])
+            collect([
+                'data: {"a":1}\n\n',
+                'data: [DONE]\n\n',
+                'data: {"a":2}\n\n'
+            ])
         ).resolves.toEqual(['{"a":1}']);
     });
 
@@ -79,7 +83,9 @@ describe('readDataEvents', () => {
         // silence: each line failed `JSON.parse` on its own and the answer
         // simply never arrived.
         await expect(
-            collect(['data: {"choices":\ndata: [{"delta":{"content":"hi"}}]}\n\n'])
+            collect([
+                'data: {"choices":\ndata: [{"delta":{"content":"hi"}}]}\n\n'
+            ])
         ).resolves.toEqual(['{"choices":\n[{"delta":{"content":"hi"}}]}']);
     });
 

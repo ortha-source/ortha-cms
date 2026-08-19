@@ -1,8 +1,4 @@
-import {
-    ArgumentsHost,
-    Catch,
-    PayloadTooLargeException
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, PayloadTooLargeException } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 
 /** Multer's error code when a part exceeds the configured `fileSize` limit. */

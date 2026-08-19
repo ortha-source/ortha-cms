@@ -13,7 +13,12 @@ export function DetailRow({
     return (
         <>
             <dt className="font-medium text-muted-foreground">{label}</dt>
-            <dd className={cn('min-w-0 break-words', mono && 'font-mono text-xs')}>
+            <dd
+                className={cn(
+                    'min-w-0 break-words',
+                    mono && 'font-mono text-xs'
+                )}
+            >
                 {value}
             </dd>
         </>

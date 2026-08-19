@@ -74,10 +74,7 @@ export function ActivityRow({
 
     return (
         <>
-            <TableRow
-                onClick={onRowClick}
-                className="cursor-pointer"
-            >
+            <TableRow onClick={onRowClick} className="cursor-pointer">
                 <TableCell>
                     <button
                         type="button"
@@ -168,7 +165,9 @@ export function ActivityRow({
                                         event.actor
                                             ? (event.actor.email ??
                                               event.actor.id)
-                                            : intl.formatMessage(messages.system)
+                                            : intl.formatMessage(
+                                                  messages.system
+                                              )
                                     }
                                 />
                                 <DetailRow

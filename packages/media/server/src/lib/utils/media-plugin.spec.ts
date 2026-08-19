@@ -43,13 +43,17 @@ describe('MediaServerPlugin()', () => {
 
     it('rejects a defaultProvider nobody registered, listing the ones that exist', () => {
         expect(() =>
-            MediaServerPlugin(options({ config: config({ defaultProvider: 's3' }) }))
+            MediaServerPlugin(
+                options({ config: config({ defaultProvider: 's3' }) })
+            )
         ).toThrow(/defaultProvider "s3" is not registered.*Registered: local/s);
     });
 
     it('rejects an empty defaultProvider', () => {
         expect(() =>
-            MediaServerPlugin(options({ config: config({ defaultProvider: '' }) }))
+            MediaServerPlugin(
+                options({ config: config({ defaultProvider: '' }) })
+            )
         ).toThrow(/defaultProvider/);
     });
 
@@ -64,10 +68,14 @@ describe('MediaServerPlugin()', () => {
         // Payload Too Large` to a 1 kB file. The host now rejects the value
         // too; this is the plugin refusing to be handed it by any caller.
         expect(() =>
-            MediaServerPlugin(options({ config: config({ maxUploadBytes: 0 }) }))
+            MediaServerPlugin(
+                options({ config: config({ maxUploadBytes: 0 }) })
+            )
         ).toThrow(/maxUploadBytes/);
         expect(() =>
-            MediaServerPlugin(options({ config: config({ maxUploadBytes: -1 }) }))
+            MediaServerPlugin(
+                options({ config: config({ maxUploadBytes: -1 }) })
+            )
         ).toThrow(/maxUploadBytes/);
     });
 

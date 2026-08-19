@@ -27,9 +27,12 @@ describe('slugify', () => {
         ['Łódź', 'odz'],
         ['Đorđe', 'or-e'],
         ['Søren', 's-ren']
-    ])('collapses the non-decomposing characters in %j to %j', (input, expected) => {
-        expect(slugify(input)).toBe(expected);
-    });
+    ])(
+        'collapses the non-decomposing characters in %j to %j',
+        (input, expected) => {
+            expect(slugify(input)).toBe(expected);
+        }
+    );
 
     it('always produces a value matching the documented shape', () => {
         for (const input of [

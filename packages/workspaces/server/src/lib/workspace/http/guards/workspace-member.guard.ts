@@ -1,8 +1,4 @@
-import {
-    CanActivate,
-    ExecutionContext,
-    Injectable
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { AuthenticatedRequest } from '@ortha-cms/identity-server';
 import { MembershipCheckQuery } from '../../infrastructure/queries/membership-check.query';
 import { authorizeWorkspaceAccess } from './workspace-access';

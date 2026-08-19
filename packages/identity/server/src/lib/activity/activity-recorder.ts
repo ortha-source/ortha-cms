@@ -43,7 +43,10 @@ export interface ActivityRecorder {
      * Appends one audit row. Pass `executor = tx` to record in-band with a
      * mutation; defaults to the root client and `at = now`.
      */
-    record(input: ActivityRecordInput, executor?: ActivityExecutor): Promise<void>;
+    record(
+        input: ActivityRecordInput,
+        executor?: ActivityExecutor
+    ): Promise<void>;
 }
 
 /**

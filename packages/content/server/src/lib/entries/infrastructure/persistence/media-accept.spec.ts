@@ -16,7 +16,9 @@ describe('acceptsAsset', () => {
     });
 
     it('matches an exact MIME type', () => {
-        expect(acceptsAsset({ mimeTypes: ['application/pdf'] }, pdf)).toBe(true);
+        expect(acceptsAsset({ mimeTypes: ['application/pdf'] }, pdf)).toBe(
+            true
+        );
         expect(acceptsAsset({ mimeTypes: ['application/pdf'] }, image)).toBe(
             false
         );
@@ -31,9 +33,9 @@ describe('acceptsAsset', () => {
     it('passes when it matches ANY listed kind or MIME (OR semantics)', () => {
         const accept = { kinds: ['video'], mimeTypes: ['application/pdf'] };
         expect(acceptsAsset(accept, pdf)).toBe(true); // matched by MIME
-        expect(acceptsAsset(accept, { kind: 'video', mimeType: 'video/mp4' })).toBe(
-            true
-        ); // matched by kind
+        expect(
+            acceptsAsset(accept, { kind: 'video', mimeType: 'video/mp4' })
+        ).toBe(true); // matched by kind
         expect(acceptsAsset(accept, image)).toBe(false); // neither
     });
 });

@@ -35,7 +35,9 @@ describe('LocaleSet value object', () => {
         ['two', [en, { slug: 'de', name: 'Deutsch', isDefault: true }], 2]
     ])('rejects %s defaults', (_label, defs, count) => {
         expect(() => LocaleSet.fromDefs(defs)).toThrow(
-            new RegExp(`Exactly one locale must set isDefault \\(got ${count}\\)`)
+            new RegExp(
+                `Exactly one locale must set isDefault \\(got ${count}\\)`
+            )
         );
     });
 
@@ -59,10 +61,7 @@ describe('LocaleSet value object', () => {
     });
 
     it('accepts pre-built Locale instances via create', () => {
-        const set = LocaleSet.create([
-            Locale.create(en),
-            Locale.create(de)
-        ]);
+        const set = LocaleSet.create([Locale.create(en), Locale.create(de)]);
         expect(set.default().slug).toBe('en');
     });
 });

@@ -86,7 +86,8 @@ export class DrizzleApiTokenRepository {
      * 401, no enumeration signal).
      */
     async findByHash(tokenHash: string): Promise<ApiTokenRecord | null> {
-        const [row] = await this.uow.current()
+        const [row] = await this.uow
+            .current()
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.tokenHash, tokenHash));
@@ -99,7 +100,8 @@ export class DrizzleApiTokenRepository {
 
     /** One token by id (with its bucket), or null. */
     async findById(id: string): Promise<ApiTokenRecord | null> {
-        const [row] = await this.uow.current()
+        const [row] = await this.uow
+            .current()
             .select()
             .from(apiTokens)
             .where(eq(apiTokens.id, id));
@@ -120,7 +122,8 @@ export class DrizzleApiTokenRepository {
         const where = options.workspaceId
             ? inArray(
                   apiTokens.id,
-                  this.uow.current()
+                  this.uow
+                      .current()
                       .select({ tokenId: apiTokenWorkspaces.tokenId })
                       .from(apiTokenWorkspaces)
                       .where(
@@ -132,8 +135,13 @@ export class DrizzleApiTokenRepository {
               )
             : undefined;
         const [[{ total }], rows] = await Promise.all([
-            this.uow.current().select({ total: count() }).from(apiTokens).where(where),
-            this.uow.current()
+            this.uow
+                .current()
+                .select({ total: count() })
+                .from(apiTokens)
+                .where(where),
+            this.uow
+                .current()
                 .select()
                 .from(apiTokens)
                 .where(where)
@@ -157,7 +165,8 @@ export class DrizzleApiTokenRepository {
      * means a second revoke is a no-op that returns `false`.
      */
     async revoke(id: string): Promise<boolean> {
-        const [row] = await this.uow.current()
+        const [row] = await this.uow
+            .current()
             .update(apiTokens)
             .set({ revokedAt: new Date() })
             .where(and(eq(apiTokens.id, id), isNull(apiTokens.revokedAt)))
@@ -167,7 +176,8 @@ export class DrizzleApiTokenRepository {
 
     /** Records the last time a token authenticated a request. */
     async touchLastUsed(id: string, at: Date): Promise<void> {
-        await this.uow.current()
+        await this.uow
+            .current()
             .update(apiTokens)
             .set({ lastUsedAt: at })
             .where(eq(apiTokens.id, id));
@@ -184,7 +194,8 @@ export class DrizzleApiTokenRepository {
         if (tokenIds.length === 0) {
             return buckets;
         }
-        const rows = await this.uow.current()
+        const rows = await this.uow
+            .current()
             .select()
             .from(apiTokenWorkspaces)
             .where(inArray(apiTokenWorkspaces.tokenId, [...tokenIds]));

@@ -31,7 +31,9 @@ describe('ApiError', () => {
     });
 
     it('composes a default message from the status', () => {
-        expect(new ApiError(500).message).toBe('Request failed with status 500');
+        expect(new ApiError(500).message).toBe(
+            'Request failed with status 500'
+        );
         expect(new ApiError(null).message).toBe('Network error');
     });
 });
@@ -78,12 +80,15 @@ describe('toApiError', () => {
     it.each([
         [new Error('x'), 'x'],
         [new TypeError('bad'), 'bad']
-    ])('wraps the plain error %j as a null-status ApiError', (input, message) => {
-        const normalized = toApiError(input);
-        expect(normalized.status).toBeNull();
-        expect(normalized.message).toBe(message);
-        expect(normalized.details).toBeUndefined();
-    });
+    ])(
+        'wraps the plain error %j as a null-status ApiError',
+        (input, message) => {
+            const normalized = toApiError(input);
+            expect(normalized.status).toBeNull();
+            expect(normalized.message).toBe(message);
+            expect(normalized.details).toBeUndefined();
+        }
+    );
 
     it.each([undefined, null, 'a string', 42, { status: 500 }])(
         'wraps the non-error thrown value %j without inventing a status',

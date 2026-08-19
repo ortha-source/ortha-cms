@@ -57,7 +57,9 @@ describe('TopBar', () => {
             </SidebarProvider>
         );
 
-        expect(screen.queryByRole('button', { name: 'Toggle Sidebar' })).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Toggle Sidebar' })
+        ).toBeNull();
 
         fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
 

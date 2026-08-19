@@ -10,7 +10,9 @@ import { ConfirmDialog } from './confirm-dialog';
  * not be able to fire twice. `busy` is the gate, and a page test can only see
  * it while a request happens to be in flight.
  */
-function renderDialog(props: Partial<React.ComponentProps<typeof ConfirmDialog>> = {}) {
+function renderDialog(
+    props: Partial<React.ComponentProps<typeof ConfirmDialog>> = {}
+) {
     const onConfirm = vi.fn();
     const onOpenChange = vi.fn();
     render(

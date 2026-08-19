@@ -8,7 +8,11 @@ import {
     varchar
 } from 'drizzle-orm/pg-core';
 import { relationExists } from '../relation-exists';
-import { RelationKind, type RelationSchema, type RelationScope } from '../types';
+import {
+    RelationKind,
+    type RelationSchema,
+    type RelationScope
+} from '../types';
 import type { DbLike } from '../table-helpers';
 
 /**
@@ -56,9 +60,10 @@ const serialize = (s: SQL): string =>
 /** Workspace + soft-delete guard resolved against whatever table is queried. */
 const scopeFor = (paranoid: boolean): RelationScope => {
     return (tbl) => {
-        const c = getTableColumns(
-            tbl as never
-        ) as unknown as Record<string, never>;
+        const c = getTableColumns(tbl as never) as unknown as Record<
+            string,
+            never
+        >;
         return and(
             eq(c['workspaceId'], WS),
             paranoid ? isNull(c['deletedAt']) : undefined

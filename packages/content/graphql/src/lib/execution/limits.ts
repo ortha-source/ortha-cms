@@ -107,7 +107,11 @@ export function checkLimits(
     }
 
     const sizes = pageSizesFor(operation, variables);
-    const complexity = cost.complexity(operation.selectionSet, fragments, sizes);
+    const complexity = cost.complexity(
+        operation.selectionSet,
+        fragments,
+        sizes
+    );
     if (complexity > limits.maxComplexity) {
         errors.push(
             new GraphQLError(
@@ -133,10 +137,7 @@ class CostMemo {
     private readonly complexities = new Map<string, number>();
 
     /** Deepest selection path, following fragments. */
-    depth(
-        selectionSet: SelectionSetNode,
-        fragments: Fragments
-    ): number {
+    depth(selectionSet: SelectionSetNode, fragments: Fragments): number {
         let deepest = 0;
         for (const selection of selectionSet.selections) {
             if (selection.kind === Kind.FIELD) {
@@ -431,10 +432,7 @@ function numericLiteral(
  * error a step later, so a caller cannot use it to buy a cheaper estimate for
  * a document that will actually run.
  */
-const LOCATOR_ARGUMENTS: ReadonlySet<string> = new Set([
-    'id',
-    'localeGroupId'
-]);
+const LOCATOR_ARGUMENTS: ReadonlySet<string> = new Set(['id', 'localeGroupId']);
 
 /** A field's declared page size, from a literal or a variable. */
 function pageSizeOf(

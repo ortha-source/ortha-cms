@@ -73,7 +73,12 @@ export function createFakeProvider(
         // before a tool call, and before `done`. A transport that has been torn
         // down cannot emit anything more, and a fake that kept going would let
         // a test assert events production would never have produced.
-        for (const event of playbackEvents(turn, request, chunkSize, callIndex)) {
+        for (const event of playbackEvents(
+            turn,
+            request,
+            chunkSize,
+            callIndex
+        )) {
             if (signal?.aborted) {
                 // Zero usage, per the port's third clause: a cancelled call
                 // never reaches a usage record anyone can trust, and the

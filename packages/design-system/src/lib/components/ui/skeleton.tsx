@@ -32,7 +32,6 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
     );
 }
 
-
 /**
  * Props for the {@link SkeletonRegion} component.
  */
@@ -73,8 +72,15 @@ export function SkeletonRegion({
                 skeleton table is still a `<table>` to a screen reader, and
                 announcing its empty rows under a "Loading…" status is noise.
                 Hidden here rather than at each call site so a consumer cannot
-                forget. */}
-            <div aria-hidden>{children}</div>
+                forget.
+
+                `contents` because this wrapper must not become a layout box: the
+                caller's `className` sits on the region, and a real `<div>` in
+                between would eat its `space-y-*`/`grid` and space *this* element
+                instead of the placeholders. */}
+            <div aria-hidden className="contents">
+                {children}
+            </div>
         </div>
     );
 }

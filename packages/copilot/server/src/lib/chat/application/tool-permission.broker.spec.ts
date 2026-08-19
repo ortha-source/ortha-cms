@@ -57,10 +57,7 @@ describe('ToolPermissionBroker', () => {
             'the same user naming another workspace',
             { userId: 'user-1', workspaceId: 'ws-2' }
         ],
-        [
-            'a stranger entirely',
-            { userId: 'user-2', workspaceId: 'ws-2' }
-        ]
+        ['a stranger entirely', { userId: 'user-2', workspaceId: 'ws-2' }]
     ])('refuses %s', async (_label, by: RunOwner) => {
         const pending = park();
 

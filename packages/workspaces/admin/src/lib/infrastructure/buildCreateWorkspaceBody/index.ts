@@ -1,4 +1,7 @@
-import type { CreateWorkspaceBody, WizardSnapshot } from '../../domain/types/wizard';
+import type {
+    CreateWorkspaceBody,
+    WizardSnapshot
+} from '../../domain/types/wizard';
 
 /**
  * Maps a {@link WizardSnapshot} to the `/api/workspaces` request body. Content

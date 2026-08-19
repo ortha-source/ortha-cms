@@ -92,9 +92,8 @@ export const WORKSPACE_NAV_SLOT = createSlot<WorkspaceNavItem>('workspace.nav');
  * them sorted by `order`. The Content Library contributes its content-type list
  * here.
  */
-export const WORKSPACE_SECTION_SLOT = createSlot<WorkspaceSectionItem>(
-    'workspace.section'
-);
+export const WORKSPACE_SECTION_SLOT =
+    createSlot<WorkspaceSectionItem>('workspace.section');
 
 /**
  * Workspace route slot — the pages mounted inside the workspace shell. A plugin

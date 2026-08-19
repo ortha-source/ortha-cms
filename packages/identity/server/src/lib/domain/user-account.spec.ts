@@ -59,7 +59,10 @@ describe('UserAccount aggregate', () => {
         });
 
         it('rejects disabling a non-active account', () => {
-            const account = rehydrated({ status: 'pending', passwordHash: null });
+            const account = rehydrated({
+                status: 'pending',
+                passwordHash: null
+            });
             expect(() => account.disable()).toThrow(InvalidUserStateError);
         });
     });

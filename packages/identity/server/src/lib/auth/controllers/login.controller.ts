@@ -42,10 +42,14 @@ export class LoginController {
     ): Promise<{ ok: true }> {
         let session;
         try {
-            session = await this.loginUseCase.execute(body.email, body.password, {
-                userAgent: req.headers['user-agent'] ?? null,
-                ipAddress: req.ip ?? null
-            });
+            session = await this.loginUseCase.execute(
+                body.email,
+                body.password,
+                {
+                    userAgent: req.headers['user-agent'] ?? null,
+                    ipAddress: req.ip ?? null
+                }
+            );
         } catch (error) {
             if (error instanceof InvalidCredentialsError) {
                 throw new UnauthorizedException('Invalid credentials');

@@ -38,7 +38,9 @@ describe('downloadHeadersFor', () => {
         const { headers } = downloadHeadersFor('image/png', 'logo.png');
 
         expect(headers['X-Content-Type-Options']).toBe('nosniff');
-        expect(headers['Content-Security-Policy']).toContain("default-src 'none'");
+        expect(headers['Content-Security-Policy']).toContain(
+            "default-src 'none'"
+        );
         expect(headers['Content-Security-Policy']).toContain('sandbox');
     });
 

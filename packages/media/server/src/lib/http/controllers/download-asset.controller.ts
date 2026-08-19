@@ -63,7 +63,10 @@ export class DownloadAssetController {
         const location = await this.query.locate(id, variant);
         // A non-member gets the same 404 as a missing asset — distinguishing
         // them would let anyone probe which asset ids exist in other workspaces.
-        if (!location || !(await this.members.isMember(user.id, location.workspaceId))) {
+        if (
+            !location ||
+            !(await this.members.isMember(user.id, location.workspaceId))
+        ) {
             throw new NotFoundException();
         }
 

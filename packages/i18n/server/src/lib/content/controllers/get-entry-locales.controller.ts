@@ -10,10 +10,7 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { InjectContentRegistry } from '@ortha-cms/content-server';
 import type { ContentTypeRegistry } from '@ortha-cms/content-server';
 import {

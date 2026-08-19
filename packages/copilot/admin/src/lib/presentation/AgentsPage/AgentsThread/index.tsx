@@ -6,7 +6,8 @@ import {
     AlertDescription,
     AlertTitle,
     Button,
-    Skeleton
+    Skeleton,
+    SkeletonRegion
 } from '@ortha-cms/design-system';
 import { useAgentThread } from '../../../application/useAgentThread';
 import { useHasPermission } from '@ortha-cms/identity-admin';
@@ -22,6 +23,10 @@ import { ModelPicker } from '../../ModelPicker';
 import { AgentsWelcome } from '../AgentsWelcome';
 
 const messages = defineMessages({
+    loadingThread: {
+        id: 'copilot.agents.thread.loading',
+        defaultMessage: 'Loading conversation…'
+    },
     failedTitle: {
         id: 'copilot.agents.thread.failedTitle',
         defaultMessage: 'Could not open this chat'
@@ -156,15 +161,20 @@ export function AgentsThread({
                 // A skeleton of the *shape* a transcript has — one right-aligned
                 // question, an answer under it — rather than a spinner, so the
                 // page does not change size the instant the thread lands.
-                <div
+                // Announced, not just drawn. The skeleton is correctly
+                // `aria-hidden` and nothing replaced it, so opening a thread was
+                // silent until the transcript landed — and "Thinking…" could not
+                // stand in for it, because it lives inside the transcript that
+                // has not arrived (`ORT-116`).
+                <SkeletonRegion
+                    label={intl.formatMessage(messages.loadingThread)}
                     className="mx-auto w-full max-w-3xl flex-1 space-y-3 px-4 py-6"
-                    aria-hidden
                 >
                     <Skeleton className="ml-auto h-9 w-1/2 rounded-lg" />
                     <Skeleton className="h-4 w-11/12" />
                     <Skeleton className="h-4 w-9/12" />
                     <Skeleton className="h-4 w-10/12" />
-                </div>
+                </SkeletonRegion>
             ) : chat.messages.length === 0 ? (
                 <AgentsWelcome
                     workspaceName={workspaceName}

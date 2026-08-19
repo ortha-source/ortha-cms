@@ -67,7 +67,9 @@ const messages = defineMessages({
  * (`window`, a text node).
  */
 function isComposingText(target: EventTarget | null): boolean {
-    const element = target as { closest?: (selector: string) => unknown } | null;
+    const element = target as {
+        closest?: (selector: string) => unknown;
+    } | null;
     if (!element || typeof element.closest !== 'function') return false;
     return Boolean(
         element.closest(
@@ -176,9 +178,7 @@ export function SidebarSearch() {
 
             <CommandDialog
                 open={open}
-                onOpenChange={(next) =>
-                    next ? openPalette() : closePalette()
-                }
+                onOpenChange={(next) => (next ? openPalette() : closePalette())}
                 title={intl.formatMessage(messages.title)}
                 description={intl.formatMessage(messages.description)}
             >

@@ -22,6 +22,9 @@ export const mediaFolder = pgTable(
             .$onUpdate(() => new Date())
     },
     (table) => [
-        index('media_folder_ws_parent_idx').on(table.workspaceId, table.parentId)
+        index('media_folder_ws_parent_idx').on(
+            table.workspaceId,
+            table.parentId
+        )
     ]
 );

@@ -19,7 +19,9 @@ import type {
  */
 
 /** Maps one wire type summary to the admin `ContentType` model. */
-export function toContentType(summary: ContentTypeSummaryResponse): ContentType {
+export function toContentType(
+    summary: ContentTypeSummaryResponse
+): ContentType {
     return {
         name: summary.name,
         kind: summary.kind,

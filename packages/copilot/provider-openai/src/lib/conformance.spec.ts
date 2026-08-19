@@ -127,7 +127,8 @@ describe('ModelProvider conformance', () => {
                 return { provider: provider(), request };
             },
             unknownModel: 'gpt-4o',
-            requestsIssued: () => jest.mocked(globalThis.fetch).mock.calls.length
+            requestsIssued: () =>
+                jest.mocked(globalThis.fetch).mock.calls.length
         });
     });
 

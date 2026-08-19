@@ -6,7 +6,11 @@ import {
     Container,
     Skeleton
 } from '@ortha-cms/design-system';
-import { ApiError, HTTP_STATUS, useDocumentTitle } from '@ortha-cms/utils-admin';
+import {
+    ApiError,
+    HTTP_STATUS,
+    useDocumentTitle
+} from '@ortha-cms/utils-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { PageTopBar, type PageTopBarCrumb } from '@ortha-cms/shell-admin';
 import { Users } from 'lucide-react';
@@ -68,7 +72,9 @@ export function UserDetailLayout() {
     // member*, and their name is the thing that tells one open tab from another
     // (WCAG 2.4.2, `ORT-140`). Falls back to a generic label until the read
     // lands, so the title never claims a name the page is not showing.
-    useDocumentTitle(member?.name ?? intl.formatMessage(messages.documentTitle));
+    useDocumentTitle(
+        member?.name ?? intl.formatMessage(messages.documentTitle)
+    );
 
     if (!canRead) {
         return (

@@ -221,10 +221,10 @@ export class OutboxDispatcher
                     this.logger.error(
                         attempts >= MAX_DELIVERY_ATTEMPTS
                             ? `Delivery failed for event ${row.id} (${row.kind}) ` +
-                              `${attempts} times; giving up. The row stays in ` +
-                              `outbox_events undispatched and is no longer claimed — ` +
-                              `query dispatched_at IS NULL AND attempts >= ` +
-                              `${MAX_DELIVERY_ATTEMPTS} for the dead letters.`
+                                  `${attempts} times; giving up. The row stays in ` +
+                                  `outbox_events undispatched and is no longer claimed — ` +
+                                  `query dispatched_at IS NULL AND attempts >= ` +
+                                  `${MAX_DELIVERY_ATTEMPTS} for the dead letters.`
                             : `Delivery failed for event ${row.id} (${row.kind}); will retry`,
                         error instanceof Error ? error.stack : String(error)
                     );

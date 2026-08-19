@@ -21,15 +21,18 @@ describe('initialsOf', () => {
         ['😀 Smith', '😀S'],
         ['𝒜da Lovelace', '𝒜L'],
         ['👩‍💻 Ops', '👩O']
-    ])('keeps the leading code point of %j whole, giving %j', (name, expected) => {
-        const initials = initialsOf(name);
-        expect(initials).toBe(expected);
-        // A lone surrogate — an unpaired half of an astral character — renders
-        // as a tofu box and announces as nothing.
-        expect(initials).not.toMatch(
-            /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
-        );
-    });
+    ])(
+        'keeps the leading code point of %j whole, giving %j',
+        (name, expected) => {
+            const initials = initialsOf(name);
+            expect(initials).toBe(expected);
+            // A lone surrogate — an unpaired half of an astral character — renders
+            // as a tofu box and announces as nothing.
+            expect(initials).not.toMatch(
+                /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/
+            );
+        }
+    );
 
     it('takes the first two parts only', () => {
         expect(initialsOf('a b c d e')).toBe('AB');

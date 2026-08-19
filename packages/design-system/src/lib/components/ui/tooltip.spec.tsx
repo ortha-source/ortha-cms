@@ -44,7 +44,9 @@ describe('Tooltip', () => {
         fireEvent.focus(trigger);
 
         await waitFor(() =>
-            expect(screen.getAllByText('Workspace settings').length).toBeGreaterThan(0)
+            expect(
+                screen.getAllByText('Workspace settings').length
+            ).toBeGreaterThan(0)
         );
         await waitFor(() =>
             expect(trigger.getAttribute('aria-describedby')).not.toBeNull()

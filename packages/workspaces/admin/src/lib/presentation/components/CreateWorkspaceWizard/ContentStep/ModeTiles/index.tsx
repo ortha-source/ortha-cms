@@ -1,9 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import {
-    cn,
-    RadioGroup,
-    RadioGroupItem
-} from '@ortha-cms/design-system';
+import { cn, RadioGroup, RadioGroupItem } from '@ortha-cms/design-system';
 import type { ContentMode } from '../../../../../domain/types/wizard';
 
 const messages = defineMessages({
@@ -78,10 +74,7 @@ export function ModeTiles({ value, onChange }: ModeTilesProps) {
                                 : 'hover:bg-accent'
                         )}
                     >
-                        <RadioGroupItem
-                            value={tile.value}
-                            className="mt-0.5"
-                        />
+                        <RadioGroupItem value={tile.value} className="mt-0.5" />
                         <div className="flex flex-col gap-1">
                             <span className="text-sm font-medium">
                                 {intl.formatMessage(tile.title)}

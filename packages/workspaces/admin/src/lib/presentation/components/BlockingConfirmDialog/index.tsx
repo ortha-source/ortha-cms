@@ -99,11 +99,7 @@ export function BlockingConfirmDialog({
                 ) : null}
 
                 <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={busy}
-                    >
+                    <Button variant="outline" onClick={onClose} disabled={busy}>
                         {cancelLabel}
                     </Button>
                     <Button

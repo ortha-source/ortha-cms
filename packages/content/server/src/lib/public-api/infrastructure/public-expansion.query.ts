@@ -355,7 +355,12 @@ export class PublicExpansionQuery {
                             ? { thumbUrl: publicAssetUrl(asset.id, 'thumb') }
                             : {}),
                         ...(asset.previewUrl
-                            ? { previewUrl: publicAssetUrl(asset.id, 'preview') }
+                            ? {
+                                  previewUrl: publicAssetUrl(
+                                      asset.id,
+                                      'preview'
+                                  )
+                              }
                             : {}),
                         kind: asset.kind,
                         mimeType: asset.mimeType,

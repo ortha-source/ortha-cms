@@ -37,9 +37,7 @@ export function LoginSkeleton() {
                 longest, so it is the one most likely to be navigated by heading
                 (`ORT-167`). It is not focused: `AuthLayout` deliberately skips
                 the focus move for a skeleton that is about to be replaced. */}
-            <h1 className="sr-only">
-                {intl.formatMessage(messages.heading)}
-            </h1>
+            <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
             <div role="status">
                 <span className="sr-only">
                     {intl.formatMessage(messages.loading)}

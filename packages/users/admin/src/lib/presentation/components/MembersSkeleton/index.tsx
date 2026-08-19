@@ -170,5 +170,7 @@ export function MembersPageSkeleton() {
 export function InviteMemberPageSkeleton() {
     const intl = useIntl();
 
-    return <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />;
+    return (
+        <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />
+    );
 }

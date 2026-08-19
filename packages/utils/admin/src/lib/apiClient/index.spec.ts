@@ -128,9 +128,7 @@ describe('apiClient', () => {
             const handler = vi.fn();
             setUnauthorizedHandler(handler);
 
-            await expect(
-                apiClient.get('/auth/me?fresh=1')
-            ).rejects.toThrow();
+            await expect(apiClient.get('/auth/me?fresh=1')).rejects.toThrow();
             expect(handler).not.toHaveBeenCalled();
         });
 

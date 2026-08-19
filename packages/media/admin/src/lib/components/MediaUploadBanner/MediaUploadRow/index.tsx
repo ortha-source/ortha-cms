@@ -46,7 +46,10 @@ export function MediaUploadRow({
         <li className="flex flex-col gap-1 py-1.5">
             <div className="flex items-center gap-2 text-sm">
                 {isDone ? (
-                    <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                    <Check
+                        className="size-4 shrink-0 text-primary"
+                        aria-hidden
+                    />
                 ) : isFailed ? (
                     <AlertCircle
                         className="size-4 shrink-0 text-destructive"

@@ -88,7 +88,9 @@ export class LocaleSet {
     remove(slug: string): LocaleSet {
         const target = this.bySlug.get(slug);
         if (!target) {
-            throw new InvalidLocaleSetError(`Locale "${slug}" is not a member.`);
+            throw new InvalidLocaleSetError(
+                `Locale "${slug}" is not a member.`
+            );
         }
         if (target.isDefault) {
             throw new InvalidLocaleSetError(

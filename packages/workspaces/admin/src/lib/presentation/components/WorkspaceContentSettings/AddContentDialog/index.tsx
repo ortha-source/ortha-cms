@@ -46,7 +46,8 @@ const messages = defineMessages({
     },
     save: {
         id: 'workspaces.settings.content.addDialog.save',
-        defaultMessage: '{count, plural, =0 {Add} one {Add # type} other {Add # types}}'
+        defaultMessage:
+            '{count, plural, =0 {Add} one {Add # type} other {Add # types}}'
     }
 });
 

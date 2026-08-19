@@ -31,6 +31,5 @@ export type HomeSectionItem = {
  * {@link HomeSectionItem} via its `slots`; {@link HomePage} reads it, splits by
  * `region`, and renders each sorted by `order`.
  */
-export const HOME_SECTION_SLOT = createSlot<HomeSectionItem>(
-    'shell.home.section'
-);
+export const HOME_SECTION_SLOT =
+    createSlot<HomeSectionItem>('shell.home.section');

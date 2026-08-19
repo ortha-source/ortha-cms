@@ -25,9 +25,6 @@ export class AssetViewQuery {
             .limit(1);
         if (!row) return null;
         const names = await resolveUploaderNames(this.db, [row.uploadedBy]);
-        return toAssetView(
-            row,
-            names.get(row.uploadedBy) ?? UNKNOWN_UPLOADER
-        );
+        return toAssetView(row, names.get(row.uploadedBy) ?? UNKNOWN_UPLOADER);
     }
 }

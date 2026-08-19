@@ -136,7 +136,9 @@ export class DuplicateAssetUseCase {
             });
         } catch (error) {
             await Promise.all(
-                written.map((key) => provider.remove(key).catch(() => undefined))
+                written.map((key) =>
+                    provider.remove(key).catch(() => undefined)
+                )
             );
             throw error;
         }
