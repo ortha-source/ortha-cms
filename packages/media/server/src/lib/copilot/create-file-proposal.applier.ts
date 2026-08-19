@@ -43,6 +43,7 @@ export class CreateFileProposalApplier implements ProposalApplier {
         const folderId = input.target['folderId'];
         const format = input.patch['format'];
         const content = input.patch['content'];
+        const alt = input.patch['alt'];
 
         // `target` and `patch` are opaque jsonb by design, so nothing between
         // the tool and here type-checks them. Re-validating is cheap and turns
@@ -66,6 +67,12 @@ export class CreateFileProposalApplier implements ProposalApplier {
                 fileName,
                 contentType: FILE_FORMATS[format].mimeType,
                 size: bytes.byteLength,
+                // The description the model was asked for, when it gave one —
+                // so a generated file has a real accessible name wherever it is
+                // linked instead of a file name (`ORT-120`). Blank is
+                // normalized to `null` by the aggregate, so it never counts as
+                // covered in the alt-coverage figure.
+                ...(typeof alt === 'string' && alt.trim() ? { alt } : {}),
                 // Node special-cases a Buffer here rather than iterating it
                 // byte by byte, so this is one chunk, not a stream of numbers.
                 body: Readable.from(bytes)

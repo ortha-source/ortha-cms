@@ -35,6 +35,64 @@ import type { AdminPlugin, CreateAdminOptions } from '../types/adminPlugin';
 /** The locale every descriptor's `defaultMessage` is authored in. */
 const DEFAULT_LOCALE = 'en';
 
+/**
+ * Language subtags whose script is written right-to-left, used when the runtime
+ * cannot say.
+ *
+ * A fallback for `Intl.Locale`'s text-info API, which is recent enough that a
+ * browser in the support window may not have it. Deliberately a short list of
+ * the languages an admin UI is plausibly translated into rather than every RTL
+ * script in Unicode: a wrong `dir` is worse than a missing one, and anything not
+ * listed simply gets the correct `ltr` it had before.
+ */
+const RTL_LANGUAGES = new Set([
+    'ar',
+    'arc',
+    'ckb',
+    'dv',
+    'fa',
+    'he',
+    'ks',
+    'ps',
+    'sd',
+    'ug',
+    'ur',
+    'yi'
+]);
+
+/**
+ * The writing direction of `locale`, for `<html dir>`.
+ *
+ * Nothing was setting it, so every `ml-`/`mr-`/`pl-`/`pr-` in the admin was a
+ * physical direction with no chance of mirroring, and a bidi run truncated the
+ * wrong end of a string at 320px (WCAG 1.3.2, 1.4.10 — `ORT-86`). Setting the
+ * attribute is the host's half and the prerequisite for the rest: a component
+ * that wants to mirror has nothing to mirror *against* until the document
+ * declares a direction.
+ *
+ * **This is the UI locale, not the content locale.** A content surface showing
+ * an Arabic entry inside a German admin is two directions on one page, and the
+ * per-field `dir` the entry editor already sets is what resolves that — the
+ * document says which way the *chrome* runs.
+ */
+function directionOf(locale: string): 'ltr' | 'rtl' {
+    try {
+        const info = new Intl.Locale(locale) as Intl.Locale & {
+            getTextInfo?: () => { direction?: string };
+            textInfo?: { direction?: string };
+        };
+        const direction =
+            info.getTextInfo?.().direction ?? info.textInfo?.direction;
+        if (direction === 'rtl' || direction === 'ltr') return direction;
+        const language = new Intl.Locale(locale).language;
+        return RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
+    } catch {
+        // An unparseable tag is the caller's bug, reported by the `IntlProvider`
+        // rather than here. Left-to-right is what the document already said.
+        return 'ltr';
+    }
+}
+
 function warnOnLayoutCollision(plugins: AdminPlugin[]): void {
     const contributors = plugins
         .filter((plugin) => plugin.layout)
@@ -150,6 +208,7 @@ export function createAdmin(options: CreateAdminOptions): void {
     // host's to fix. Set before render so assistive tech sees it with the first
     // paint rather than after a reconciliation.
     document.documentElement.lang = locale;
+    document.documentElement.dir = directionOf(locale);
 
     warnOnLayoutCollision(plugins);
     warnOnRouteCollisions(plugins);

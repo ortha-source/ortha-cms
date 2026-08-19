@@ -230,9 +230,16 @@ export function LocaleWidget({
         // The draft's shared fields come from the source values: the saved
         // entry (edit mode), or whatever the create form already carries
         // (create mode — a translation draft's prefill), preserved as-is.
+        // `translateFromLocale` rides with the values: the shared fields are
+        // about to be copied verbatim into a row of a *different* locale, and
+        // the destination editor has no other way to know what language they
+        // are actually in (WCAG 3.1.2 — `ORT-87`).
         const state = isCreate
             ? location.state
-            : { translateFrom: entry?.values };
+            : {
+                  translateFrom: entry?.values,
+                  translateFromLocale: entry?.locale
+              };
         // Play the switch flourish, then navigate **behind** the overlay once it
         // covers (see `beginLocaleSwitch`) so the editor doesn't visibly swap
         // under the blur. The module-level store carries the flourish across the

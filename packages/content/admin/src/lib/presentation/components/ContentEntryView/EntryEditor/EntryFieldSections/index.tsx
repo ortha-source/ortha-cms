@@ -24,6 +24,11 @@ const messages = defineMessages({
         defaultMessage:
             'These are the same in every locale — editing one here changes it everywhere.'
     },
+    sharedPrefilled: {
+        id: 'content.form.group.sharedPrefilled',
+        defaultMessage:
+            'These were copied from the {locale} version and are still written in that language. Translate them here and they change in every locale.'
+    },
     requiredLegend: {
         id: 'content.form.requiredLegend',
         defaultMessage:
@@ -91,12 +96,19 @@ export function EntryFieldSections({
     fields,
     form,
     isChanged,
-    contentLocale
+    contentLocale,
+    prefilledFromLocale
 }: {
     fields: ContentField[];
     form: EntryFormState;
     /** Whether a field has unsaved edits (drives its "Changed" badge). */
     isChanged?: (name: string) => boolean;
+    /**
+     * BCP-47 tag of the locale a translation prefill copied the **shared**
+     * values from — set only on a create seeded that way. Marks and explains
+     * that run; see the comment at its call site (`ORT-87`).
+     */
+    prefilledFromLocale?: string;
     /**
      * The row's own locale, on a localized type — a **BCP-47 language tag** by
      * the i18n plugin's wire contract, so it goes on the translated group
@@ -175,12 +187,28 @@ export function EntryFieldSections({
                 headings are what name the runs for a screen reader, and a rule
                 announced as content would only be noise between them. */}
             <Separator data-testid="entry-field-group-divider" />
+            {/* The shared run carries `lang` **only** on a fresh translation
+                prefill. #146 deliberately left it unmarked in general, and that
+                is right: a shared field holds one value for every locale, so
+                claiming this row's locale for it would be a worse assertion
+                than making none. A prefill is the one moment the language *is*
+                known — the values were copied verbatim from another row
+                seconds ago — so it is marked and said out loud (WCAG 3.1.2,
+                508 504.3 — `ORT-87`). It stops being true the moment the
+                author edits or saves, which is why nothing persists it. */}
             <FieldGroup
                 title={intl.formatMessage(messages.sharedTitle)}
-                description={intl.formatMessage(messages.sharedBody)}
+                description={
+                    prefilledFromLocale
+                        ? intl.formatMessage(messages.sharedPrefilled, {
+                              locale: prefilledFromLocale
+                          })
+                        : intl.formatMessage(messages.sharedBody)
+                }
                 fields={shared}
                 form={form}
                 isChanged={isChanged}
+                {...(prefilledFromLocale ? { lang: prefilledFromLocale } : {})}
                 dir="auto"
             />
         </div>
