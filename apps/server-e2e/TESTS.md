@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1222 test cases across 80 spec files._
+_1227 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -169,6 +169,16 @@ _<sub>apps/server-e2e/src/server/activity/activity-coverage.spec.ts</sub>_
 | audits a folder create, rename and delete |
 | audits an asset upload, edit, move and delete |
 | never repeats the actor inside meta — it has two columns of its own |
+
+### content entries
+
+| Test case |
+| --- |
+| audits a create, an edit, a soft delete and a restore |
+| records a permanent delete under its own kind |
+| says nothing when a save changed no value |
+| audits a bulk delete once per row it actually removed |
+| writes the event in the same transaction as the entry |
 
 ### invite acceptance
 

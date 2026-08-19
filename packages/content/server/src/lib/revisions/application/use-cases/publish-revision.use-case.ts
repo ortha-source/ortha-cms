@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { EventActor } from '@ortha-cms/database';
 import type { AnyContentType } from '../../../types/content-type';
 import { PublishEntryUseCase } from '../../../entries/application/use-cases/publish-entry.use-case';
 import type { EntryRecord } from '../../../entries/types/entry-list-view';
@@ -47,7 +48,7 @@ export class PublishRevisionUseCase {
         id: string,
         number: number,
         workspaceId: string,
-        actorId: string | null
+        actor: EventActor | null
     ): Promise<EntryRecord> {
         const detail = await this.store.get(type.name, id, workspaceId, number);
         if (!detail) {
@@ -64,7 +65,7 @@ export class PublishRevisionUseCase {
                 id,
                 number,
                 workspaceId,
-                actorId,
+                actor,
                 { appendRevision: false }
             );
         }
@@ -74,7 +75,7 @@ export class PublishRevisionUseCase {
             type,
             id,
             workspaceId,
-            undefined,
+            actor ?? undefined,
             number
         );
     }

@@ -132,7 +132,7 @@ answered with a 422, on publishable and non-publishable types alike. That is
 deliberate in one direction (a **stored revision snapshot** that outlived a
 removed field is still restorable) and a rough edge in the other (a client
 typo writes nothing and says nothing). The public API's `?fields=` and the
-copilot's propose tools *do* reject unknown names, because there the caller is
+copilot's propose tools _do_ reject unknown names, because there the caller is
 naming something they expect back. The
 flags are carried on `ContentType` and serialized in the schema summary
 (`i18n` on the summary, `localized` per field).
@@ -224,7 +224,7 @@ see below).
 
 **`describeFanout` answers "what else would this write touch", before it is
 written.** The pipeline never calls it: a save just saves. It exists for callers
-that must *describe* a change before making it — the copilot's `content_propose_*`
+that must _describe_ a change before making it — the copilot's `content_propose_*`
 tools, whose receipt is the only place a user learns their content moved. It
 reads only and takes **no locks** (it runs outside the write transaction, and a
 `FOR UPDATE` held for the length of a model's turn is not a trade worth making),
@@ -361,7 +361,7 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   fields that would not actually change, and refuses an edit that changes
   nothing.
 - **An edit that reaches other locales says so.** On a localized type a field the
-  type does not mark `localized` is *shared*, so writing it propagates to every
+  type does not mark `localized` is _shared_, so writing it propagates to every
   sibling in the translation group — correctly, since "shared" means shared, and
   refusing it would leave no way to edit a shared field at all
   (`i18n_propose_translation` rejects them outright, so the content tools are the
@@ -372,7 +372,7 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   `describeFanout` — against the **patched** values, so the disclosure names what
   will actually be written rather than everything the model sent — and fold the
   answer into the `summary` plus a structured `target.fanout`. The summary
-  because of where a summary *goes*: it is the card's title, the audit row's
+  because of where a summary _goes_: it is the card's title, the audit row's
   `output_summary`, and the run engine's `Applied: …` receipt, so one string
   reaches the person, the log and the model — and the model correcting itself
   ("that touched every language; a translation wants `i18n_propose_translation`")
@@ -544,7 +544,7 @@ missing a row means deleting a workspace that still holds data (see its JSDoc).
 - `GET /content-schema` — summaries of every type (wizard-compatible). The one
   route here with no workspace scope.
 - `GET /content-schema/:name` — the full field schema (types, validation, admin
-  props). **Workspace-scoped + grant-checked**: an unknown *and* an ungranted
+  props). **Workspace-scoped + grant-checked**: an unknown _and_ an ungranted
   name are the same 404.
 - `GET /content-schema/:name/filter-fields` — the type's **filterable surface**:
   every scalar path the records-table query builder may filter on, including
@@ -708,19 +708,19 @@ token is the only way in, and a session cookie is _not_ accepted):
 
 ### Writes (`full`-scope tokens)
 
-| Route                                                    | What it does                                                          |
-| -------------------------------------------------------- | --------------------------------------------------------------------- |
-| `POST /v1/content/:typeName`                             | create a **draft** (`values`, `relations`, `locale`, `localeGroupId`) |
-| `PATCH /v1/content/:typeName/:id`                        | **partial** update + relation deltas                                  |
-| `POST /v1/content/:typeName/:id/publish` \| `/unpublish` | the publish lifecycle                                                 |
-| `DELETE /v1/content/:typeName/:id`                       | soft delete (paranoid) or hard delete                                 |
-| `POST /v1/content/:typeName/bulk`                        | **batch save** — create and/or update many entries                   |
-| `POST /v1/content/:typeName/bulk/{publish,unpublish,delete}` | the batch forms of the lifecycle writes                          |
+| Route                                                        | What it does                                                          |
+| ------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `POST /v1/content/:typeName`                                 | create a **draft** (`values`, `relations`, `locale`, `localeGroupId`) |
+| `PATCH /v1/content/:typeName/:id`                            | **partial** update + relation deltas                                  |
+| `POST /v1/content/:typeName/:id/publish` \| `/unpublish`     | the publish lifecycle                                                 |
+| `DELETE /v1/content/:typeName/:id`                           | soft delete (paranoid) or hard delete                                 |
+| `POST /v1/content/:typeName/bulk`                            | **batch save** — create and/or update many entries                    |
+| `POST /v1/content/:typeName/bulk/{publish,unpublish,delete}` | the batch forms of the lifecycle writes                               |
 
 Plus `/v1/media/assets` (upload) and `/v1/media/assets/:id/raw` (bytes), which
 live in **media-server** — see its AGENTS.md.
 
-**Batches** exist because an external client is usually syncing a *list*, and
+**Batches** exist because an external client is usually syncing a _list_, and
 one HTTP round trip per record is the difference between a job that finishes and
 one that times out. They are a way of asking, never a second set of rules: each
 runs the same use-case its single-entry sibling does. Two contracts, and the
@@ -1232,10 +1232,52 @@ restore / purge and their bulk variants) stay on the engine directly — they ca
 no publish-state transition, so per ADR-0003 they are not forced through the
 lifecycle machinery; their domain rule (value validation) is already the kernel.
 There is **no in-band `ACTIVITY_RECORDER`** in content today, so nothing to keep
-in lockstep — the `entry.*` events are the audit seam a Wave-3 subscriber
-consumes. create/update/delete event emission is **deferred** until those writes
-move onto the `UnitOfWork` (they own their own advisory-lock/extension
-transaction today).
+in lockstep — the `entry.*` events are the audit seam the activity subscriber
+consumes.
+
+**Every entry write now runs inside the `UnitOfWork` and raises its event.**
+`create`/`update`/`remove`/`restore`/`purge` (and their bulk forms) used to own
+their own `db.transaction`, which is why event emission was deferred: an outbox
+append outside a unit of work commits on its own connection, so the event could
+outlive a rolled-back write. They call `uow.run(...)` instead and take the
+executor from `uow.current()` — the same transaction, the same advisory locks,
+the same extension hooks — so the fact and the row it describes commit together.
+The seven kinds are in `domain/events/entry-events.ts`:
+
+| kind                                    | raised by                 | payload                   |
+| --------------------------------------- | ------------------------- | ------------------------- |
+| `entry.created`                         | `create`                  | `{ contentType }`         |
+| `entry.updated`                         | `update`                  | `{ contentType, fields }` |
+| `entry.published` / `entry.unpublished` | the `Entry` model         | `{ contentType }`         |
+| `entry.deleted`                         | `remove` / `bulkRemove`   | `{ contentType, soft }`   |
+| `entry.restored`                        | `restore` / `bulkRestore` | `{ contentType }`         |
+| `entry.purged`                          | `purge` / `bulkPurge`     | `{ contentType }`         |
+
+Three decisions inside that:
+
+- **Only the publish pair goes through the `Entry` aggregate.** The other five
+  carry no invariant — nothing about "created" can be violated — and routing
+  them through the model would mean fabricating a publish status a
+  non-publishable type does not have. They are minted by builders in the same
+  domain module and raised by the write path.
+- **`entry.updated` names the changed fields, and is not raised at all when
+  nothing changed.** The writer reads the stored row inside the transaction and
+  diffs it against the written one over `type.fields` (envelope columns every
+  save rewrites are excluded). That is the `workspace.updated` precedent, and
+  it is also the answer to the volume question the event raises: a re-submitted
+  editor, or a restore of the version already live, is a round trip rather than
+  an editorial change, so it produces no row. No coalescing window is needed on
+  top — the admin has no autosave, so a save is a person pressing a button.
+- **A bulk write raises one event per row it actually changed**, not per id the
+  caller listed — the same rule bulk unpublish already followed.
+
+The acting user rides every one of them (`attachActor`), which is why the
+delete/restore/purge controllers gained `@CurrentUser()` and the writer takes an
+`EventActor` where it used to take a bare `actorId`. A **token-authenticated**
+write passes `null`: revisions record a user id and a token is not one, so
+`System` is the honest answer until token attribution gets a column of its own.
+Bulk **publish**/**unpublish** are the remaining unattributed writes — their
+use-cases take no actor yet.
 
 **`CONTENT_ENTRY_EXTENSION` stays SYNCHRONOUS and unchanged.** It is an
 **in-transaction open-host port** (i18n binds it for per-locale scoping,
@@ -1276,10 +1318,12 @@ a browsable version history and can be restored. Layered per ADR-0003
   revision **inside their existing transaction** (via the `REVISION_STORE` port),
   so the version commits atomically with the row + relation writes; the entry's
   advisory lock serializes concurrent savers so version numbers can't collide.
-  The live row still edits in place. Because these writes are **not yet on the
-  `UnitOfWork`**, no `entry.revision.created` outbox event is emitted (same reason
-  `entry.created`/`entry.updated` are still unemitted); the `Revision` model stays
-  event-ready.
+  The live row still edits in place. No `entry.revision.created` outbox event is
+  emitted — the save's own `entry.created`/`entry.updated` already records that
+  the document changed, and a second event per version would double every row in
+  the log; the `Revision` model stays event-ready if a version ever needs to be
+  addressable on its own. A **restore** of an earlier version reaches the log as
+  the `entry.updated` its save raises, naming the fields it put back.
 - **Publish transition.** A revision is born a `draft`; publishing the entry
   promotes its history too. The `publish` / `unpublish` use-cases (and their bulk
   variants) call `RevisionStore.markPublished` / `markUnpublished` **on the same

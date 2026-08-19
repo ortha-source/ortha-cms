@@ -8,15 +8,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
+    type PublicUser,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
@@ -31,6 +30,7 @@ import type {
     BulkPublishResult
 } from '../../types/bulk-publish';
 import { resolveType } from './resolve-type';
+import { toActor } from './to-actor';
 
 /**
  * Bulk entry actions over a set of `{ ids }`. **Registered before the
@@ -96,10 +96,16 @@ export class BulkEntriesController {
     remove(
         @Param('typeName') typeName: string,
         @Body() body: BulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkRemove(type, body.ids, workspaceId);
+        return this.writer.bulkRemove(
+            type,
+            body.ids,
+            workspaceId,
+            toActor(user)
+        );
     }
 
     @Post(':typeName/bulk/restore')
@@ -108,10 +114,16 @@ export class BulkEntriesController {
     restore(
         @Param('typeName') typeName: string,
         @Body() body: BulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkRestore(type, body.ids, workspaceId);
+        return this.writer.bulkRestore(
+            type,
+            body.ids,
+            workspaceId,
+            toActor(user)
+        );
     }
 
     @Post(':typeName/bulk/purge')
@@ -120,9 +132,15 @@ export class BulkEntriesController {
     purge(
         @Param('typeName') typeName: string,
         @Body() body: BulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.writer.bulkPurge(type, body.ids, workspaceId);
+        return this.writer.bulkPurge(
+            type,
+            body.ids,
+            workspaceId,
+            toActor(user)
+        );
     }
 }

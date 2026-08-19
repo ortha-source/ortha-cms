@@ -19,6 +19,7 @@ import { ContentGrantGuard } from '../../../entries/http/guards/content-grant.gu
 import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { resolveType } from '../../../entries/http/controllers/resolve-type';
+import { toActor } from '../../../entries/http/controllers/to-actor';
 import type { EntryRecord } from '../../../entries/types/entry-list-view';
 import { RestoreRevisionUseCase } from '../../application/use-cases/restore-revision.use-case';
 
@@ -52,7 +53,7 @@ export class RestoreRevisionController {
             id,
             number,
             workspaceId,
-            user?.id ?? null
+            toActor(user) ?? null
         );
     }
 }

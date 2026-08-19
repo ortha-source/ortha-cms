@@ -107,9 +107,10 @@ export class CreateEntryProposalApplier implements ProposalApplier {
             typeof locale === 'string' ? locale : undefined,
             // No group to join — a create here always starts its own.
             undefined,
-            // The human who accepted is the actor on the write and on its
-            // revision — never a copilot identity, which does not exist.
-            actor.userId
+            // The human who accepted is the actor on the write, on its revision
+            // and on the domain event it raises — never a copilot identity,
+            // which does not exist.
+            { id: actor.userId, email: actor.actorEmail }
         );
         return {
             entityId: entry.id,
@@ -176,7 +177,7 @@ export class UpdateEntryProposalApplier implements ProposalApplier {
             merged,
             actor.workspaceId,
             undefined,
-            actor.userId
+            { id: actor.userId, email: actor.actorEmail }
         );
         return {
             entityId: entry.id,
@@ -265,7 +266,7 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                         { ...(current.values ?? {}), ...values },
                         actor.workspaceId,
                         undefined,
-                        actor.userId
+                        { id: actor.userId, email: actor.actorEmail }
                     );
                     updated.push(entry.id);
                 } else {
@@ -280,7 +281,7 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                             : undefined,
                         // No group to join — see `assertStartsItsOwnGroup`.
                         undefined,
-                        actor.userId
+                        { id: actor.userId, email: actor.actorEmail }
                     );
                     created.push(entry.id);
                 }

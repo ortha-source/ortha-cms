@@ -111,8 +111,17 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
         { slug: 'author', kind: 'collection' }
     ],
     ['workspace.content_revoked', 'workspace', { slug: 'author' }],
+    ['entry.created', 'content_entry', { contentType: 'article' }],
+    [
+        'entry.updated',
+        'content_entry',
+        { contentType: 'article', fields: ['title', 'body'] }
+    ],
     ['entry.published', 'content_entry', { contentType: 'article' }],
     ['entry.unpublished', 'content_entry', { contentType: 'article' }],
+    ['entry.deleted', 'content_entry', { contentType: 'article', soft: true }],
+    ['entry.restored', 'content_entry', { contentType: 'article' }],
+    ['entry.purged', 'content_entry', { contentType: 'article' }],
     ['token.created', 'api_token', { name: 'CI', scope: 'full' }],
     ['token.revoked', 'api_token', { name: 'CI', scope: 'full' }],
     [

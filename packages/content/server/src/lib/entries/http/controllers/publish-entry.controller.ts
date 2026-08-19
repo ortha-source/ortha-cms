@@ -21,13 +21,7 @@ import { PublishEntryUseCase } from '../../application/use-cases/publish-entry.u
 import { UnpublishEntryUseCase } from '../../application/use-cases/unpublish-entry.use-case';
 import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
-
-/** The signed-in user as the outbox's actor envelope, or undefined. */
-function toActor(
-    user?: PublicUser
-): { id: string; email: string | null } | undefined {
-    return user ? { id: user.id, email: user.email ?? null } : undefined;
-}
+import { toActor } from './to-actor';
 
 /**
  * `POST /api/content/:typeName/:id/publish` and `.../unpublish` — the publish

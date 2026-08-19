@@ -99,6 +99,14 @@ const actionMessages = defineMessages({
         id: 'activity.action.workspace.content_revoked',
         defaultMessage: 'Revoked content access'
     },
+    entryCreated: {
+        id: 'activity.action.entry.created',
+        defaultMessage: 'Created content'
+    },
+    entryUpdated: {
+        id: 'activity.action.entry.updated',
+        defaultMessage: 'Edited content'
+    },
     entryPublished: {
         id: 'activity.action.entry.published',
         defaultMessage: 'Published content'
@@ -106,6 +114,18 @@ const actionMessages = defineMessages({
     entryUnpublished: {
         id: 'activity.action.entry.unpublished',
         defaultMessage: 'Unpublished content'
+    },
+    entryDeleted: {
+        id: 'activity.action.entry.deleted',
+        defaultMessage: 'Deleted content'
+    },
+    entryRestored: {
+        id: 'activity.action.entry.restored',
+        defaultMessage: 'Restored content'
+    },
+    entryPurged: {
+        id: 'activity.action.entry.purged',
+        defaultMessage: 'Permanently deleted content'
     },
     tokenCreated: {
         id: 'activity.action.token.created',
@@ -175,8 +195,13 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'workspace.member_removed': actionMessages.workspaceMemberRemoved,
     'workspace.content_granted': actionMessages.workspaceContentGranted,
     'workspace.content_revoked': actionMessages.workspaceContentRevoked,
+    'entry.created': actionMessages.entryCreated,
+    'entry.updated': actionMessages.entryUpdated,
     'entry.published': actionMessages.entryPublished,
     'entry.unpublished': actionMessages.entryUnpublished,
+    'entry.deleted': actionMessages.entryDeleted,
+    'entry.restored': actionMessages.entryRestored,
+    'entry.purged': actionMessages.entryPurged,
     'token.created': actionMessages.tokenCreated,
     'token.revoked': actionMessages.tokenRevoked,
     'media.asset.uploaded': actionMessages.assetUploaded,
@@ -349,10 +374,30 @@ export function formatActivityDetails(
         case 'workspace.member_added':
         case 'workspace.member_removed':
             return metaStr(meta, 'email') || metaStr(meta, 'userId');
+        case 'entry.updated': {
+            // The fields the save actually changed, the same shape (and the
+            // same reason) as `workspace.updated`: "Ada edited Article X" is a
+            // fact, "Ada edited the title and body" is a review. The server
+            // raises nothing at all when a save changed no value, so an empty
+            // list here means an older row, not a no-op.
+            const fields = meta?.['fields'];
+            return Array.isArray(fields) && fields.length > 0
+                ? intl.formatMessage(detailMessages.fields, {
+                      fields: fields.map(String).join(', ')
+                  })
+                : metaStr(meta, 'contentType');
+        }
+        case 'entry.created':
         case 'entry.published':
         case 'entry.unpublished':
-            // The entry's content type — what was published, without the log
-            // having to join anything to say it.
+        case 'entry.deleted':
+        case 'entry.restored':
+        case 'entry.purged':
+            // The entry's content type — what was acted on, without the log
+            // having to join anything to say it. A delete's `soft` flag is not
+            // folded in here: the Action column already reads "Deleted content"
+            // vs "Permanently deleted content", and the raw record stays
+            // visible in the expanded row's Metadata line.
             return metaStr(meta, 'contentType');
         case 'token.created':
         case 'token.revoked':

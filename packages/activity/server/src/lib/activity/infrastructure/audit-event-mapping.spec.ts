@@ -720,7 +720,7 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 32 expected kinds', () => {
+        it('audits exactly the 37 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'api_token.created',
@@ -736,8 +736,13 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'media.folder.renamed',
                     'user.activated',
                     'user.password_changed',
+                    'entry.created',
+                    'entry.deleted',
                     'entry.published',
+                    'entry.purged',
+                    'entry.restored',
                     'entry.unpublished',
+                    'entry.updated',
                     'member.disabled',
                     'member.invite_resent',
                     'member.invited',

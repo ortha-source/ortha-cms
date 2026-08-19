@@ -22,6 +22,7 @@ import { EntryWriterService } from '../../infrastructure/persistence/entry-write
 import { SaveEntryDto } from '../dto/save-entry.dto';
 import type { EntryRecord } from '../../types/entry-list-view';
 import { resolveType } from './resolve-type';
+import { toActor } from './to-actor';
 
 /**
  * `PATCH /api/content/:typeName/:id` — replace a live entry's values with a
@@ -55,7 +56,7 @@ export class UpdateEntryController {
             body.values,
             workspaceId,
             body.relations,
-            user?.id ?? null
+            toActor(user)
         );
     }
 }
