@@ -132,6 +132,14 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   therefore boots per test (`beforeEach`), or each test uses addresses no other
   test touches; otherwise the second test's expected status depends on the
   first, the file passes as a whole, and it fails under `-t`.
+- **Public-API rate limit:** a *second*, unrelated limit —
+  `createTestApp({ apiTokenRateLimit: { ttlSeconds, limit } })`, bucketed on the
+  **API token** rather than the address, and covering REST, GraphQL and MCP
+  together. It is **disabled by default** (`limit: 0`) because several suites
+  make hundreds of requests on one seeded token. Its own suite
+  (`api-tokens/public-api-rate-limit.spec.ts`) pins a tiny limit and mints a
+  **fresh token per test** — minting a token is minting a bucket, which buys the
+  order-independence a per-test app would, far more cheaply.
 - **`maxWorkers: 1`** — one shared container; suites run serially so they don't
   race on `resetDb`. Enforced in `global-setup`, not merely configured (see
   **Failure modes**). Parallelism would need a DB-per-worker scheme.

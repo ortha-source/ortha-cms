@@ -261,9 +261,22 @@ resolver, no database. The exemption is what makes "enabled" true: the standard
 introspection query is 15 levels deep and selects 220 fields, so costing it as
 content refused GraphiQL and every codegen tool at the defaults.
 
-**Rate limiting is absent** — and so it is on the REST public API, which has no
-throttle either (only login does). Worth its own issue; `request.apiToken.id` is
-the natural key.
+**Rate limiting is not this package's** — it happens one layer up, and covers
+this endpoint ([ADR-0012](../../../docs/adr/0012-one-rate-limit-per-credential.md)). A token's budget is one bucket in identity's
+`ApiTokenRateLimiter`, spent by `ApiTokenGuard` (which already runs here) and
+shared with the REST public API and MCP: 300 requests per 60 s by default,
+`PUBLIC_API_RATE_LIMIT` to change it, `0` to turn it off. Two consequences worth
+knowing when reading a failure here:
+
+- The refusal is a real **HTTP 429** with `Retry-After`, not a 200 carrying an
+  `errors` array. It is raised in the guard, before a document is parsed, so
+  there is no execution result to put an error in — and a client that only
+  throttles on `extensions.status` inside a 200 would never back off.
+- The cost budget above and the rate limit answer different questions. The
+  budget bounds **one document** (~1000 estimated rows); the rate limit bounds
+  **documents per second**. Neither substitutes for the other: before the limit
+  existed, 300 sequential `POST /v1/graphql` calls on one `read` token returned
+  300 × 200, every one of them inside the cost budget.
 
 ## The playground (`GET /v1/graphql/playground`)
 

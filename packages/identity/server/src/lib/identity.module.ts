@@ -1,7 +1,11 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
-import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
+import type {
+    ApiTokenRateLimitConfig,
+    IdentityPluginConfig,
+    IdentityRateLimitConfig
+} from './types';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/services/roles.service';
 import { PermissionsService } from './rbac/services/permissions.service';
@@ -45,6 +49,9 @@ import { ChangePasswordUseCase } from './application/use-cases/change-password.u
 import { ApiTokenService } from './api-tokens/application/api-token.service';
 import { DrizzleApiTokenRepository } from './api-tokens/infrastructure/persistence/drizzle-api-token.repository';
 import { ApiTokensController } from './api-tokens/http/controllers/api-tokens.controller';
+import { RateLimitPolicy } from './api-tokens/domain/rate-limit-policy';
+import { ApiTokenRateLimiter } from './api-tokens/application/api-token-rate-limiter';
+import { ApiTokenRateLimitFilter } from './api-tokens/http/api-token-rate-limit.filter';
 
 /**
  * NestJS module for the identity plugin. Registered globally so identity
@@ -69,11 +76,31 @@ const DEFAULT_RATE_LIMIT: IdentityRateLimitConfig = {
     limit: 10
 };
 
+/**
+ * Default public-API budget when the host supplies none: 300 requests / 60s,
+ * per API token, shared across REST, GraphQL and MCP.
+ *
+ * Two orders of magnitude above the login limit because the two protect against
+ * different things: login is guessing a secret (ten tries a minute is already
+ * generous), while this bounds amplification by a caller that has a valid
+ * credential and a legitimate reason to be busy. Five requests a second is
+ * comfortably above a site build fetching a few hundred entries, an incremental
+ * revalidation, or an agent working through an MCP session — and far below the
+ * sustained rate that makes a public read endpoint a useful lever against the
+ * database.
+ */
+const DEFAULT_API_TOKEN_RATE_LIMIT: ApiTokenRateLimitConfig = {
+    ttlSeconds: 60,
+    limit: 300
+};
+
 @Module({})
 export class IdentityModule {
     /** Creates the global dynamic module: config, services, and auth routes. */
     static forRoot(config: IdentityPluginConfig): DynamicModule {
         const rateLimit = config.rateLimit ?? DEFAULT_RATE_LIMIT;
+        const apiTokenRateLimit =
+            config.apiTokenRateLimit ?? DEFAULT_API_TOKEN_RATE_LIMIT;
         return {
             module: IdentityModule,
             global: true,
@@ -157,6 +184,25 @@ export class IdentityModule {
                 // mint/verify/list/revoke service behind `/api/api-tokens`.
                 DrizzleApiTokenRepository,
                 ApiTokenService,
+                // The public API's per-token request budget — the one counter
+                // the REST, GraphQL and MCP front doors all spend against, so a
+                // credential has a single ceiling however it is used. Built as
+                // a factory because the policy is a plain domain value object,
+                // configured from the host rather than scanned.
+                {
+                    provide: RateLimitPolicy,
+                    useFactory: () =>
+                        new RateLimitPolicy({
+                            windowMs: apiTokenRateLimit.ttlSeconds * 1000,
+                            limit: apiTokenRateLimit.limit
+                        })
+                },
+                ApiTokenRateLimiter,
+                // Global filter: gives every protocol's 429 the same
+                // `Retry-After` + `X-RateLimit-*` shape without the throw sites
+                // having to touch a response. APP_FILTER providers are
+                // collected globally, as APP_GUARD below is.
+                { provide: APP_FILTER, useClass: ApiTokenRateLimitFilter },
                 // App-wide guard: every route requires a valid session unless
                 // marked `@Public()`. Resolves the user and attaches it for
                 // `@CurrentUser()`. APP_GUARD providers are collected globally,
@@ -174,7 +220,13 @@ export class IdentityModule {
                 AccessPolicy,
                 // Exported so a consuming plugin can resolve the token store —
                 // the public content API's bearer guard depends on it.
-                ApiTokenService
+                ApiTokenService,
+                // Exported for the same reason, one layer up: the budget is
+                // consumed by `content-server`'s `ApiTokenGuard` (REST +
+                // GraphQL) and `mcp-server`'s `McpAuthService`, and both must
+                // reach *this* instance or a token would get a fresh ceiling
+                // per protocol.
+                ApiTokenRateLimiter
             ]
         };
     }

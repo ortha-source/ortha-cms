@@ -938,6 +938,19 @@ a write route later needs no guard change. A token acts as **itself**: the
 minting user's role grants are deliberately not consulted, so revoking the token
 is enough to revoke its access.
 
+**Rate limiting** ([ADR-0012](../../../docs/adr/0012-one-rate-limit-per-credential.md))
+is spent in this same guard, not a guard of its own, because
+every public route in the product reaches its handler through it — content,
+media and the GraphQL endpoint alike — so a route added later cannot forget it.
+The counter is identity's `ApiTokenRateLimiter`: one bucket per token, 300
+requests / 60 s by default, and the **same** bucket the MCP endpoint spends
+(a credential has one ceiling, not one per protocol). It is charged straight
+after `verify` and therefore **before** the permission check — a `read` token
+looping on write routes it can never use costs the server exactly as much as one
+doing legitimate work. A refusal is a 429 with `Retry-After`; every response
+that passes carries `X-RateLimit-Limit` / `-Remaining` / `-Reset` so a client
+can back off before it is refused.
+
 **Workspace resolution** (`ApiTokenWorkspaceGuard`, the token-authenticated
 counterpart of workspaces' membership-based `WorkspaceGuard`): a token now
 carries a **bucket** of workspaces. `X-Workspace-Id` picks one — malformed is a

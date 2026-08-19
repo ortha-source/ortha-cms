@@ -153,6 +153,28 @@ function readPositiveInt(name: string, fallback: number): number {
     return value ?? fallback;
 }
 
+/**
+ * As {@link readPositiveInt}, but `0` is a value rather than an error.
+ *
+ * For the one setting where zero is a deliberate policy instead of a typo: the
+ * public API's rate limit, where it means "unlimited, we throttle upstream".
+ * Everything else keeps the stricter reader — a `0` there is a mistake worth
+ * failing the boot for.
+ */
+function readNonNegativeInt(name: string, fallback: number): number {
+    const raw = process.env[name]?.trim();
+    if (!raw) {
+        return fallback;
+    }
+    if (!/^\d+$/.test(raw)) {
+        throw new Error(
+            `Environment variable ${name} must be a whole number ` +
+                `(got "${raw}").`
+        );
+    }
+    return Number(raw);
+}
+
 /** As {@link readPositiveInt}, but `undefined` when unset — no default to fall back to. */
 function readOptionalPositiveInt(name: string): number | undefined {
     const raw = process.env[name]?.trim();
@@ -359,6 +381,21 @@ const config: OrthaConfig = {
                     60
                 ),
                 limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
+            },
+            // The public API's per-token budget — one bucket per credential,
+            // shared by REST, GraphQL and MCP, because all three spend the same
+            // token and an operator raising the ceiling means the caller, not
+            // the protocol it happened to use. Defaults to 300 req / 60s;
+            // `PUBLIC_API_RATE_LIMIT=0` turns it off for a deployment that
+            // limits at its own gateway (which is why this one variable accepts
+            // a zero the login limit refuses — there, zero would mean "nobody
+            // may sign in", and it is a typo rather than a policy).
+            apiTokenRateLimit: {
+                ttlSeconds: readPositiveInt(
+                    'PUBLIC_API_RATE_LIMIT_TTL_SECONDS',
+                    60
+                ),
+                limit: readNonNegativeInt('PUBLIC_API_RATE_LIMIT', 300)
             },
             rootAdmin: {
                 email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',

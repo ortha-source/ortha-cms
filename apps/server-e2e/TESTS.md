@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1227 test cases across 80 spec files._
+_1238 test cases across 81 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -314,6 +314,47 @@ _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_
 | audits a replayed revoke once, not once per call |
 | writes nothing when the revoked id is unknown |
 | writes no audit row when the mint is rejected |
+
+<!-- source: apps/server-e2e/src/server/api-tokens/public-api-rate-limit.spec.ts -->
+_<sub>apps/server-e2e/src/server/api-tokens/public-api-rate-limit.spec.ts</sub>_
+
+## Public API rate limit (per API token)
+
+### REST (/api/v1/*)
+
+| Test case |
+| --- |
+| serves the budget, then refuses with 429 |
+| tells a refused caller when to come back |
+| advertises the remaining budget before the refusal, not only after |
+| meters a write route the token’s scope forbids |
+
+### GraphQL (POST /api/v1/graphql)
+
+| Test case |
+| --- |
+| refuses with a real 429, not a 200 carrying an error |
+| refuses the SDL route on the same budget |
+
+### MCP (POST /api/v1/mcp)
+
+| Test case |
+| --- |
+| refuses with an HTTP 429 rather than a JSON-RPC error |
+
+### one bucket per credential
+
+| Test case |
+| --- |
+| is shared by all three protocols |
+| does not spend another token’s budget |
+| is never allocated by a request that did not authenticate |
+
+### what it does not touch
+
+| Test case |
+| --- |
+| leaves the session-authenticated admin API alone |
 
 <!-- source: apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts -->
 _<sub>apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts</sub>_

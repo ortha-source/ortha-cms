@@ -8,11 +8,14 @@ import {
 import { Reflector } from '@nestjs/core';
 import {
     AccessPolicy,
+    ApiTokenRateLimiter,
     ApiTokenService,
+    applyRateLimitHeaders,
     Permission,
     PERMISSIONS_KEY,
     tokenActor,
-    type PermissionKey
+    type PermissionKey,
+    type RateLimitHeaderSink
 } from '@ortha-cms/identity-server';
 import type { ApiTokenRequest } from '../api-token-request';
 
@@ -39,13 +42,28 @@ const BEARER = 'bearer';
  * Every authentication failure — no header, wrong scheme, unknown/revoked/
  * expired token — is one bare 401, so the endpoint can't be used to probe which
  * tokens exist.
+ *
+ * **The rate limit is spent here, not in a guard of its own.** Every public
+ * route in the product — content, media, and the GraphQL endpoint — reaches its
+ * handler through this guard, so consuming the token's budget the moment the
+ * credential is known makes the limit impossible to forget on a route added
+ * later; a separate `@UseGuards(ApiTokenThrottleGuard)` would be one omission
+ * away from an unmetered surface. The counter lives in identity
+ * (`ApiTokenRateLimiter`), which is what lets the MCP endpoint — the one front
+ * door that is not a Nest route — spend the same bucket.
+ *
+ * It is consumed **before** the permission check on purpose: a token hammering
+ * an operation its scope forbids is exactly as expensive to refuse as one doing
+ * legitimate work, and metering only the allowed calls would leave a `read`
+ * token free to flood the write routes forever.
  */
 @Injectable()
 export class ApiTokenGuard implements CanActivate {
     constructor(
         private readonly reflector: Reflector,
         private readonly tokens: ApiTokenService,
-        private readonly accessPolicy: AccessPolicy
+        private readonly accessPolicy: AccessPolicy,
+        private readonly rateLimiter: ApiTokenRateLimiter
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -63,6 +81,16 @@ export class ApiTokenGuard implements CanActivate {
             // signal, and no hint about which of the three it was.
             throw new UnauthorizedException('Invalid API token.');
         }
+
+        // Throws a 429 (rendered with `Retry-After` by identity's global
+        // `ApiTokenRateLimitFilter`) once this token has spent the window's
+        // budget. The allowed path advertises what is left, so a client can
+        // back off *before* it is refused rather than only afterwards.
+        const budget = this.rateLimiter.assert(token.id, token.name);
+        applyRateLimitHeaders(
+            context.switchToHttp().getResponse<RateLimitHeaderSink>(),
+            budget
+        );
 
         request.apiToken = {
             id: token.id,

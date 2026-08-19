@@ -155,6 +155,20 @@ guard gates a route and this is one route carrying many operations:
 | `ApiTokenWorkspaceGuard`   | `McpAuthService.authenticate` (workspace half)  |
 | `@RequirePermissions(...)` | `ToolDefinition.requires` + `ToolRegistry.call` |
 
+There is a fourth shared rule, and it is the same bucket rather than a matching
+one: the **rate limit**
+([ADR-0012](../../../docs/adr/0012-one-rate-limit-per-credential.md)). `McpAuthService` spends identity's
+`ApiTokenRateLimiter` right after `verify`, so a token's budget (300 req / 60 s
+by default) covers REST, GraphQL and this endpoint together — otherwise a caller
+would treble its ceiling by spreading one credential across the three. This is
+the front door most likely to be driven in a loop, an agent retrying a tool call
+having no page to wait for. The refusal is a plain **HTTP 429 with
+`Retry-After`**, not a JSON-RPC error, for the reason the 401 above is a status
+too: a transport-level answer tells a client to back off, where a JSON-RPC error
+reads as a working connection returning something for the model to reason about.
+It is charged before the workspace is resolved, so a client looping on a
+malformed `X-Workspace-Id` is metered as well.
+
 A **session cookie is not accepted**, exactly as on `/api/v1`: a cookie rides
 along ambiently and would make this CSRF-able, and this endpoint writes content.
 

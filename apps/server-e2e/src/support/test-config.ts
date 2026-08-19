@@ -1,6 +1,7 @@
 import type { TrustProxySetting } from '@ortha-cms/bootstrap-server';
 import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
 import type {
+    ApiTokenRateLimitConfig,
     IdentityRateLimitConfig,
     IdentityRootAdminConfig,
     IdentitySessionConfig
@@ -30,10 +31,32 @@ const RELAXED_RATE_LIMIT: IdentityRateLimitConfig = {
     limit: 1000
 };
 
+/**
+ * The public API's per-token budget is **off** by default here.
+ *
+ * Every token-authenticated suite in this project shares one app and one
+ * in-memory bucket, and several of them make hundreds of requests against a
+ * single seeded token — a shipped-default 300 would make the last suite in a
+ * file fail because of what the first one spent, which is the order-dependence
+ * the login-throttle suite documents at length. The rate-limit suite pins its
+ * own low limit and boots its own app to assert the 429 path.
+ */
+const UNLIMITED_API_TOKEN_RATE_LIMIT: ApiTokenRateLimitConfig = {
+    ttlSeconds: 60,
+    limit: 0
+};
+
 /** Per-app config tweaks an individual suite may need. */
 export interface TestConfigOverrides {
     /** Replace the login rate limit (e.g. pin it low to test throttling). */
     rateLimit?: IdentityRateLimitConfig;
+    /**
+     * Pin the public API's per-token budget. Disabled by default (see
+     * {@link UNLIMITED_API_TOKEN_RATE_LIMIT}); the rate-limit suite sets a tiny
+     * limit to prove the 429, the `Retry-After` header, and that one bucket is
+     * shared by REST, GraphQL and MCP.
+     */
+    apiTokenRateLimit?: ApiTokenRateLimitConfig;
     /**
      * Express `trust proxy`. Unset by default (matching a directly-exposed
      * server, where `X-Forwarded-For` is ignored); the throttle suite boots a
@@ -180,6 +203,9 @@ export function buildTestConfig(
                     resetTtlSeconds: 60 * 60
                 },
                 rateLimit: overrides.rateLimit ?? RELAXED_RATE_LIMIT,
+                apiTokenRateLimit:
+                    overrides.apiTokenRateLimit ??
+                    UNLIMITED_API_TOKEN_RATE_LIMIT,
                 rootAdmin: overrides.rootAdmin
             },
             // The e2e content types (`test_article`, `test_author`,

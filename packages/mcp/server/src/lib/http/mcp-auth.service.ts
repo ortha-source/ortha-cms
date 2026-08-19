@@ -4,7 +4,11 @@ import {
     Injectable,
     UnauthorizedException
 } from '@nestjs/common';
-import { ApiTokenService, scopePermissions } from '@ortha-cms/identity-server';
+import {
+    ApiTokenRateLimiter,
+    ApiTokenService,
+    scopePermissions
+} from '@ortha-cms/identity-server';
 import {
     WORKSPACE_HEADER,
     WORKSPACE_ID_PATTERN
@@ -47,10 +51,26 @@ export interface McpRequestHeaders {
  * along ambiently, which is what makes cookie-authenticated writes CSRF-able; a
  * bearer token never does. Accepting both here would reintroduce that on an
  * endpoint whose whole purpose is letting an agent write content.
+ *
+ * There is a fourth thing it shares, and it is deliberate: the **rate limit**.
+ * A token's budget is one bucket in identity's `ApiTokenRateLimiter`, and this
+ * endpoint spends the same one the REST and GraphQL routes do. MCP is the front
+ * door most likely to be driven in a loop — an agent retrying a tool call has no
+ * page to wait for — so a separate ceiling here would have meant a credential
+ * quietly getting two, and an operator raising the limit for one protocol
+ * raising it for a surface they were not thinking about.
+ *
+ * The refusal is a plain HTTP **429** with `Retry-After`, not a JSON-RPC error,
+ * for the same reason the 401 above is: a transport-level answer is what tells
+ * a client to back off, where a JSON-RPC error reads as a working connection
+ * returning a failure the model should reason about.
  */
 @Injectable()
 export class McpAuthService {
-    constructor(private readonly tokens: ApiTokenService) {}
+    constructor(
+        private readonly tokens: ApiTokenService,
+        private readonly rateLimiter: ApiTokenRateLimiter
+    ) {}
 
     /**
      * Verify the bearer credential and resolve the target workspace.
@@ -79,6 +99,11 @@ export class McpAuthService {
             // must not be usable to probe which tokens exist.
             throw new UnauthorizedException('Invalid API token.');
         }
+
+        // Spend the credential's budget — the same bucket `/api/v1/*` and
+        // `/api/v1/graphql` count against. Before the workspace is resolved, so
+        // a caller looping on a malformed `X-Workspace-Id` is metered too.
+        this.rateLimiter.assert(token.id, token.name);
 
         const workspaceId = resolveWorkspace(
             token.workspaceIds,

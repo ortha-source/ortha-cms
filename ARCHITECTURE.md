@@ -145,7 +145,13 @@ without content knowing what a locale is). Keeps the package graph acyclic.
 
 - Sessions: DB-backed, revocable, signed token in an httpOnly cookie.
 - Passwords: bcrypt. Invite/reset tokens: SHA-256 hashed at rest.
-- Login is rate-limited (`@nestjs/throttler`).
+- Login is rate-limited (`@nestjs/throttler`), bucketed on the client address.
+- The public API is rate-limited **per API token** — one budget per credential
+  (300 req / 60 s by default, `PUBLIC_API_RATE_LIMIT`), shared by REST, GraphQL
+  and MCP, since all three spend the same token. Identity owns the counter
+  (`ApiTokenRateLimiter`); both front doors call it right after `verify`. Like
+  the login throttle it is in-memory per instance — a floor under a gateway
+  limit, not a replacement for one.
 - RBAC is a single global role per user (`admin` / `contributor` / `viewer`);
   memberships are M:N workspace links (no per-workspace role yet).
 

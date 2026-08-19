@@ -30,6 +30,14 @@ export interface IdentityPluginConfig {
      */
     rateLimit?: IdentityRateLimitConfig;
     /**
+     * Request budget one **API token** may spend per window, across every
+     * protocol the public API is served over — REST, GraphQL and MCP share one
+     * bucket per credential (see `ApiTokenRateLimiter`). Optional; when
+     * omitted, defaults to 300 requests per 60s. Set `limit: 0` to turn it off
+     * for a deployment that limits at its own gateway.
+     */
+    apiTokenRateLimit?: ApiTokenRateLimitConfig;
+    /**
      * Env-provisioned root administrator (self-hosted bootstrap). The seeder
      * validates it: an empty {@link IdentityRootAdminConfig.email} skips the
      * bootstrap, an email without a password fails boot. When provisioned, an
@@ -58,6 +66,26 @@ export interface IdentityRateLimitConfig {
     /** Sliding-window length, in seconds. */
     ttlSeconds: number;
     /** Maximum requests permitted per window, per client IP. */
+    limit: number;
+}
+
+/**
+ * The per-credential budget on the public API.
+ *
+ * Distinct from {@link IdentityRateLimitConfig}, which buckets `/auth/login` on
+ * the **client address**: an API token is a stable identifier the caller cannot
+ * change by moving hosts, so the two are tuned independently and neither
+ * default has anything to say about the other. A public content API serves
+ * build pipelines and edge caches that burst, so its ceiling is an order of
+ * magnitude higher than the login one.
+ */
+export interface ApiTokenRateLimitConfig {
+    /** Window length, in seconds. */
+    ttlSeconds: number;
+    /**
+     * Maximum requests permitted per window, per token. `0` disables the limit
+     * entirely — for a deployment that enforces one in front of the app.
+     */
     limit: number;
 }
 

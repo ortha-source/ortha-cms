@@ -3,6 +3,7 @@ export type {
     IdentitySessionConfig,
     IdentityTokenConfig,
     IdentityRateLimitConfig,
+    ApiTokenRateLimitConfig,
     IdentityRootAdminConfig
 } from './lib/types';
 export { IdentityPlugin } from './lib/utils/identity-plugin';
@@ -98,6 +99,20 @@ export type {
 // The workspace-existence port a token's bucket is validated against. Identity
 // owns it and the workspaces plugin binds it — the same inversion as
 // `ACTIVITY_RECORDER`, keeping the package graph acyclic.
+// The public API's per-token request budget. Exported because the front doors
+// that spend it live one layer up — `content-server`'s `ApiTokenGuard` (REST +
+// GraphQL) and `mcp-server`'s `McpAuthService` — and they must share this
+// instance, or one credential would get a separate ceiling per protocol.
+export { ApiTokenRateLimiter } from './lib/api-tokens/application/api-token-rate-limiter';
+export { ApiTokenRateLimitException } from './lib/api-tokens/application/api-token-rate-limit.exception';
+export { applyRateLimitHeaders } from './lib/api-tokens/http/rate-limit-headers';
+export type { RateLimitHeaderSink } from './lib/api-tokens/http/rate-limit-headers';
+export { RateLimitPolicy } from './lib/api-tokens/domain/rate-limit-policy';
+export type {
+    RateLimitDecision,
+    RateLimitSettings,
+    RateLimitWindow
+} from './lib/api-tokens/domain/rate-limit-policy';
 export { WORKSPACE_DIRECTORY } from './lib/api-tokens/application/ports/workspace-directory.port';
 export type { WorkspaceDirectory } from './lib/api-tokens/application/ports/workspace-directory.port';
 export { UnknownWorkspaceError } from './lib/api-tokens/domain/unknown-workspace.error';

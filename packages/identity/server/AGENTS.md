@@ -114,7 +114,7 @@ lint isn't wired yet — self-enforce it.
   aggregate models the single-account lifecycle only.
 - **Credential rotation revokes sessions.** `ChangePasswordUseCase` writes the
   new hash **and** revokes the account's live sessions in the same unit of work,
-  because a session is a bearer credential the *old* password opened and it
+  because a session is a bearer credential the _old_ password opened and it
   outlives that password by its full TTL — so changing a phished password
   without this would leave every session the attacker holds signed in for up to
   a week. `keepSessionId` spares the caller's own device. The
@@ -293,7 +293,9 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
       protects — `@ortha-cms/content-server`'s `public-api/`, which consumes
       `ApiTokenService` plus the RBAC primitives this barrel exports
       (`PERMISSIONS_KEY`, `Permission`, `AccessPolicy`, `Actor`) so its scope
-      check *is* the same decision the session `PermissionsGuard` makes.
+      check _is_ the same decision the session `PermissionsGuard` makes. The
+      **rate limit** on what a token may spend lives here too, for the same
+      reason the scope map does — see below.
     - `users/` — `controllers/` (`search` → `GET /api/users?q=`), `services/`
       (`UserService`), `dto/`. The directory the wizard's member typeahead reads.
     - `content/` — a `ListContentTypesController` (`GET /api/content-types`) and
@@ -324,6 +326,10 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   host merges into the OpenAPI document; identity owns authentication, so it
   owns their description too
 - `IdentityPluginConfig` — secrets + session/token settings (public contract)
+- `ApiTokenRateLimiter` / `ApiTokenRateLimitException` /
+  `applyRateLimitHeaders` — the public API's per-token request budget, exported
+  because the front doors that spend it live one layer up (`ApiTokenGuard` for
+  REST + GraphQL, `McpAuthService` for MCP) and must share this instance
 - `IDENTITY_CONFIG` / `InjectIdentityConfig()` — the config token, exported
   because `users-server`'s invite issuer reads `token.inviteTtlSeconds` from it
   (it previously hard-coded 7 days, silently ignoring the host's setting)
@@ -455,6 +461,50 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 - **CLI** — root-admin bootstrap is env/config-driven (`RootAdminService.ensure`
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.
+
+## The public API's rate limit (per token, all protocols)
+
+[ADR-0012](../../../docs/adr/0012-one-rate-limit-per-credential.md).
+`ApiTokenRateLimiter` is the request budget the public API is spent against:
+**one bucket per API token**, shared by every front door that token opens —
+REST (`/api/v1/*`), GraphQL (`POST /api/v1/graphql`) and MCP
+(`POST /api/v1/mcp`). Default 300 requests / 60 s, from
+`plugins.identity.apiTokenRateLimit` (`PUBLIC_API_RATE_LIMIT`,
+`PUBLIC_API_RATE_LIMIT_TTL_SECONDS`); `limit: 0` turns it off.
+
+Four decisions worth not re-litigating:
+
+- **The credential is the key, not the workspace or the address.** The token id
+  is already resolved before any handler runs, it survives a client changing
+  host, and it is the thing an operator can act on — a 429 naming a token says
+  which integration to slow down or split, where one naming an IP says something
+  about a NAT gateway. A workspace's traffic is the sum of its tokens, so
+  bucketing per tenant would make one runaway loop everybody else's problem.
+- **It lives in identity because identity owns the credential.** The three front
+  doors sit in `content-server`, `content-graphql` and `mcp-server`; none
+  depends on the others, and all three depend on this package. Putting the
+  counter in any of them would have meant a second implementation for the
+  third — and MCP is not even a Nest route, so a guard could not have covered
+  it. `ApiTokenGuard` (which every `/v1` route including GraphQL passes through)
+  and `McpAuthService` each call `assert` right after `verify`.
+- **Charged before the permission check**, so a `read` token looping on write
+  routes it can never use is metered like any other caller — and **never** for a
+  request that failed authentication, so an unauthenticated flood can neither
+  exhaust a real token's budget nor allocate a window (the map's cardinality is
+  the number of minted credentials).
+- **Fixed window, in memory, per instance.** The boundary burst (up to
+  `2 × limit` across two adjacent windows) is accepted rather than paying for a
+  per-request timestamp log on a hot path, and N replicas mean N buckets. This
+  is a floor under a gateway limit, not a replacement for one — the same
+  caveat the login throttle carries.
+
+The refusal is an `ApiTokenRateLimitException` (429). `ApiTokenRateLimitFilter`
+is registered globally (`APP_FILTER`) and gives every protocol's 429 the same
+shape — `Retry-After` plus the `X-RateLimit-*` trio — without the throw sites
+touching a response; the allowed path advertises the same trio through
+`applyRateLimitHeaders`, so a client can slow down before it is refused. The
+decision arithmetic is the framework-free `RateLimitPolicy` in `domain/`;
+`ApiTokenRateLimiter` is the state (and the lazy eviction) around it.
 
 ## Configuration
 

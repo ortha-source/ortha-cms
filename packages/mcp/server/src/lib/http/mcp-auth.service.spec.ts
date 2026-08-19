@@ -3,7 +3,13 @@ import {
     ForbiddenException,
     UnauthorizedException
 } from '@nestjs/common';
-import { PERMISSIONS, type ApiTokenService } from '@ortha-cms/identity-server';
+import {
+    ApiTokenRateLimiter,
+    ApiTokenRateLimitException,
+    PERMISSIONS,
+    RateLimitPolicy,
+    type ApiTokenService
+} from '@ortha-cms/identity-server';
 import { McpAuthService } from './mcp-auth.service';
 
 const WORKSPACE_A = '11111111-1111-4111-8111-111111111111';
@@ -29,10 +35,28 @@ function tokenRecord(overrides: Record<string, unknown> = {}) {
     };
 }
 
+/**
+ * A limiter with no ceiling — what every test that is not *about* the rate
+ * limit wants, so a suite of a dozen `authenticate` calls can never trip one.
+ */
+function unlimited(): ApiTokenRateLimiter {
+    return new ApiTokenRateLimiter(
+        new RateLimitPolicy({ windowMs: 60_000, limit: 0 })
+    );
+}
+
+/** The service under test, wired with an unlimited budget by default. */
+function authService(
+    tokenService: ApiTokenService,
+    rateLimiter: ApiTokenRateLimiter = unlimited()
+): McpAuthService {
+    return new McpAuthService(tokenService, rateLimiter);
+}
+
 describe('McpAuthService', () => {
     describe('bearer authentication', () => {
         it('rejects a request with no Authorization header', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(auth.authenticate({})).rejects.toBeInstanceOf(
                 UnauthorizedException
@@ -40,7 +64,7 @@ describe('McpAuthService', () => {
         });
 
         it('rejects a non-bearer scheme', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: 'Basic good-secret' })
@@ -48,7 +72,7 @@ describe('McpAuthService', () => {
         });
 
         it('rejects an empty bearer value', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: 'Bearer   ' })
@@ -56,7 +80,7 @@ describe('McpAuthService', () => {
         });
 
         it('accepts the scheme case-insensitively', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: 'bEaReR good-secret' })
@@ -64,7 +88,7 @@ describe('McpAuthService', () => {
         });
 
         it('tolerates repeated whitespace around the scheme', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: '  bearer   good-secret ' })
@@ -75,7 +99,7 @@ describe('McpAuthService', () => {
         // is malformed. Rejoining them would invent a secret the caller never
         // sent and then blame them for it.
         it('rejects whitespace inside the credential', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: 'Bearer good secret' })
@@ -85,7 +109,7 @@ describe('McpAuthService', () => {
         // Unknown, revoked and expired all resolve to null in `verify`, so a
         // flat 401 is what keeps the endpoint from being a token oracle.
         it('rejects an unrecognised token with a bare 401', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({ authorization: 'Bearer wrong-secret' })
@@ -95,9 +119,7 @@ describe('McpAuthService', () => {
 
     describe('actor', () => {
         it('derives permissions from the token scope, not the minting user', async () => {
-            const auth = new McpAuthService(
-                tokens(tokenRecord({ scope: 'read' }))
-            );
+            const auth = authService(tokens(tokenRecord({ scope: 'read' })));
 
             const context = await auth.authenticate({
                 authorization: 'Bearer good-secret'
@@ -112,9 +134,7 @@ describe('McpAuthService', () => {
         });
 
         it('gives a full-scope token the write permissions', async () => {
-            const auth = new McpAuthService(
-                tokens(tokenRecord({ scope: 'full' }))
-            );
+            const auth = authService(tokens(tokenRecord({ scope: 'full' })));
 
             const context = await auth.authenticate({
                 authorization: 'Bearer good-secret'
@@ -130,7 +150,7 @@ describe('McpAuthService', () => {
 
     describe('workspace resolution', () => {
         it('uses the only workspace when the token covers one', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             const context = await auth.authenticate({
                 authorization: 'Bearer good-secret'
@@ -140,7 +160,7 @@ describe('McpAuthService', () => {
         });
 
         it('requires a choice when the token covers several', async () => {
-            const auth = new McpAuthService(
+            const auth = authService(
                 tokens(
                     tokenRecord({ workspaceIds: [WORKSPACE_A, WORKSPACE_B] })
                 )
@@ -152,7 +172,7 @@ describe('McpAuthService', () => {
         });
 
         it('honours the X-Workspace-Id header', async () => {
-            const auth = new McpAuthService(
+            const auth = authService(
                 tokens(
                     tokenRecord({ workspaceIds: [WORKSPACE_A, WORKSPACE_B] })
                 )
@@ -169,7 +189,7 @@ describe('McpAuthService', () => {
         // MCP clients are configured with a URL, and several cannot send
         // custom headers — but the bucket check is identical either way.
         it('honours the ?workspaceId= query parameter', async () => {
-            const auth = new McpAuthService(
+            const auth = authService(
                 tokens(
                     tokenRecord({ workspaceIds: [WORKSPACE_A, WORKSPACE_B] })
                 )
@@ -184,7 +204,7 @@ describe('McpAuthService', () => {
         });
 
         it('prefers the header over the query parameter', async () => {
-            const auth = new McpAuthService(
+            const auth = authService(
                 tokens(
                     tokenRecord({ workspaceIds: [WORKSPACE_A, WORKSPACE_B] })
                 )
@@ -202,7 +222,7 @@ describe('McpAuthService', () => {
         });
 
         it('refuses a workspace outside the token bucket', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({
@@ -213,7 +233,7 @@ describe('McpAuthService', () => {
         });
 
         it('refuses a workspace outside the bucket named by query too', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate(
@@ -224,7 +244,7 @@ describe('McpAuthService', () => {
         });
 
         it('rejects a malformed workspace id', async () => {
-            const auth = new McpAuthService(tokens(tokenRecord()));
+            const auth = authService(tokens(tokenRecord()));
 
             await expect(
                 auth.authenticate({
@@ -232,6 +252,63 @@ describe('McpAuthService', () => {
                     'x-workspace-id': 'not-a-uuid'
                 })
             ).rejects.toBeInstanceOf(BadRequestException);
+        });
+    });
+
+    describe('rate limit', () => {
+        /** A limiter with a two-request budget, to make the refusal cheap. */
+        const limited = () =>
+            new ApiTokenRateLimiter(
+                new RateLimitPolicy({ windowMs: 60_000, limit: 2 })
+            );
+
+        it('refuses with a 429 once the token has spent its budget', async () => {
+            const auth = authService(tokens(tokenRecord()), limited());
+            const call = () =>
+                auth.authenticate({ authorization: 'Bearer good-secret' });
+
+            await call();
+            await call();
+
+            await expect(call()).rejects.toBeInstanceOf(
+                ApiTokenRateLimitException
+            );
+        });
+
+        it('meters a malformed workspace id too', async () => {
+            // The budget is spent before the workspace is resolved, so a client
+            // looping on a request that can only 400 is throttled rather than
+            // being handed a free channel to the token store.
+            const auth = authService(tokens(tokenRecord()), limited());
+            const call = () =>
+                auth.authenticate({
+                    authorization: 'Bearer good-secret',
+                    'x-workspace-id': 'not-a-uuid'
+                });
+
+            await expect(call()).rejects.toBeInstanceOf(BadRequestException);
+            await expect(call()).rejects.toBeInstanceOf(BadRequestException);
+            await expect(call()).rejects.toBeInstanceOf(
+                ApiTokenRateLimitException
+            );
+        });
+
+        it('does not meter a request that never authenticated', async () => {
+            // An unknown secret must not consume the budget of anything — the
+            // bucket is keyed on a verified token, so an unauthenticated flood
+            // can neither exhaust a real token's quota nor allocate a window.
+            const limiter = limited();
+            const auth = authService(tokens(tokenRecord()), limiter);
+
+            for (let i = 0; i < 5; i += 1) {
+                await expect(
+                    auth.authenticate({ authorization: 'Bearer wrong-secret' })
+                ).rejects.toBeInstanceOf(UnauthorizedException);
+            }
+
+            await expect(
+                auth.authenticate({ authorization: 'Bearer good-secret' })
+            ).resolves.toBeDefined();
         });
     });
 });

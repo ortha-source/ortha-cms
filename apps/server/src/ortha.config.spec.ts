@@ -100,6 +100,28 @@ describe('numeric settings', () => {
         );
     });
 
+    it('accepts zero for the one limit where it is a policy, not a typo', () => {
+        // `PUBLIC_API_RATE_LIMIT=0` means "we throttle the public API at our
+        // own gateway" — a real deployment shape, unlike "allow no logins".
+        expect(
+            loadConfig({ PUBLIC_API_RATE_LIMIT: '0' }).plugins.identity
+                .apiTokenRateLimit?.limit
+        ).toBe(0);
+        // …but it is still a NUMBER, not anything truthy-looking.
+        expect(loadError({ PUBLIC_API_RATE_LIMIT: 'off' })).toContain(
+            'PUBLIC_API_RATE_LIMIT'
+        );
+    });
+
+    it('defaults the public-API budget to 300 per 60s', () => {
+        const limit = loadConfig({
+            PUBLIC_API_RATE_LIMIT: undefined,
+            PUBLIC_API_RATE_LIMIT_TTL_SECONDS: undefined
+        }).plugins.identity.apiTokenRateLimit;
+
+        expect(limit).toEqual({ ttlSeconds: 60, limit: 300 });
+    });
+
     it('rejects exponent notation, which quietly removed the GraphQL cost budget', () => {
         // `Number('1e9')` is a finite integer, so `GRAPHQL_MAX_DEPTH=1e9` passed
         // every check and deleted the bound ADR-0008 relies on in place of the
