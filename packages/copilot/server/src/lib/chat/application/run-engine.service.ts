@@ -606,7 +606,13 @@ export class RunEngine {
                 runId: ctx.runId,
                 name: call.name,
                 ...(tool.title ? { title: tool.title } : {}),
-                input: call.input
+                input: call.input,
+                // Read here rather than inside `settle`, because the frame is
+                // emitted before the run parks — and the client needs the
+                // deadline to count down to from the moment the prompt appears.
+                expiresAt: new Date(
+                    Date.now() + this.permissions.budgetRemaining(ctx.runId)
+                ).toISOString()
             },
             settle: async () => {
                 const outcome = await this.permissions.ask(

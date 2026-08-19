@@ -132,7 +132,21 @@ export class CopilotModule {
                 ProposalRepository,
                 ProposalApplierRegistry,
                 DecideProposalService,
-                ToolPermissionBroker,
+                {
+                    // Constructed through a factory so the operator's
+                    // `permissionDecisionBudgetMs` reaches it — the wait for a
+                    // permission decision is an accessibility limit as much as a
+                    // resource one, and five minutes is not generous for a
+                    // screen-magnifier or switch-access user (`ORT-118`).
+                    provide: ToolPermissionBroker,
+                    useFactory: () => {
+                        const broker = new ToolPermissionBroker();
+                        broker.configure(
+                            options.config.permissionDecisionBudgetMs
+                        );
+                        return broker;
+                    }
+                },
                 SkillRepository,
                 SkillCatalogService,
                 RunEngine

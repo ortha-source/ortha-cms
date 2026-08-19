@@ -16,7 +16,17 @@ import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
  * the connection, the generator and the model context for two and a half
  * hours — while "they went to look and came back" is one absence, not thirty.
  */
-const RUN_DECISION_BUDGET_MS = 5 * 60_000;
+export const DEFAULT_RUN_DECISION_BUDGET_MS = 5 * 60_000;
+
+/**
+ * How much time one {@link ToolPermissionBroker.extend} grants.
+ *
+ * A full fresh budget rather than a token top-up: the user pressing "I need
+ * more time" is saying the first allowance was not enough, and WCAG 2.2.1 asks
+ * that a limit be extendable "at least ten times" over — which repeated
+ * extensions of the full amount satisfy without inventing a second number.
+ */
+const EXTENSION_MS = DEFAULT_RUN_DECISION_BUDGET_MS;
 
 /**
  * How long a run's spent budget is remembered after its last park.
@@ -26,7 +36,7 @@ const RUN_DECISION_BUDGET_MS = 5 * 60_000;
  * older than the budget can no longer constrain a live run, because a run that
  * parked that long ago has already exhausted it.
  */
-const BUDGET_TTL_MS = RUN_DECISION_BUDGET_MS;
+const BUDGET_TTL_MS = DEFAULT_RUN_DECISION_BUDGET_MS;
 
 /** A decision, plus how it was reached — the timeout is not a user's `deny`. */
 export interface PermissionOutcome {
@@ -53,6 +63,8 @@ export interface RunOwner {
 interface Waiter {
     owner: RunOwner;
     settle: (outcome: PermissionOutcome) => void;
+    /** Re-arms this waiter's timer for a further {@link EXTENSION_MS}. */
+    extend: () => number;
 }
 
 /**
@@ -83,6 +95,32 @@ interface Waiter {
 @Injectable()
 export class ToolPermissionBroker {
     private readonly logger = new Logger(ToolPermissionBroker.name);
+
+    /**
+     * The waiting budget, in ms. Set once from the plugin config at
+     * composition; {@link DEFAULT_RUN_DECISION_BUDGET_MS} when the operator
+     * said nothing.
+     */
+    private budgetMs = DEFAULT_RUN_DECISION_BUDGET_MS;
+
+    /**
+     * Applies the operator's configured budget. Called by the plugin module at
+     * startup — a setter rather than constructor injection because the broker
+     * is also constructed directly in tests, where the default is what is
+     * wanted.
+     */
+    configure(budgetMs: number | undefined): void {
+        if (budgetMs !== undefined && budgetMs > 0) this.budgetMs = budgetMs;
+    }
+
+    /**
+     * What is left of `runId`'s waiting budget, in ms — what the run engine puts
+     * on the permission frame as a deadline, so the prompt can show a countdown
+     * and warn before it expires instead of simply vanishing (`ORT-118`).
+     */
+    budgetRemaining(runId: string): number {
+        return this.remainingBudget(runId);
+    }
 
     /** Waiters by `runId:callId`. */
     private readonly waiting = new Map<string, Waiter>();
@@ -122,13 +160,28 @@ export class ToolPermissionBroker {
                 cleanup();
                 resolve(outcome);
             };
-            const timer = setTimeout(() => {
-                this.logger.warn(
-                    `Run ${runId}: nobody answered the permission request for ` +
-                        `call ${callId} within ${remaining}ms; refusing.`
-                );
-                settle({ decision: 'deny', timedOut: true });
-            }, remaining);
+            let timer: ReturnType<typeof setTimeout>;
+            const expire = (after: number) => {
+                timer = setTimeout(() => {
+                    this.logger.warn(
+                        `Run ${runId}: nobody answered the permission request ` +
+                            `for call ${callId} within ${after}ms; refusing.`
+                    );
+                    settle({ decision: 'deny', timedOut: true });
+                }, after);
+            };
+            expire(remaining);
+
+            // Re-arms the timer and tells the caller how long they now have.
+            // The budget already spent is *not* refunded: this grants a fresh
+            // allowance rather than rewinding the clock, so a run cannot be
+            // held open indefinitely by a client that never stops asking
+            // without a user pressing the button each time.
+            const extend = () => {
+                clearTimeout(timer);
+                expire(EXTENSION_MS);
+                return EXTENSION_MS;
+            };
             const onAbort = () => {
                 cleanup();
                 reject(signal.reason ?? new Error('aborted'));
@@ -145,7 +198,7 @@ export class ToolPermissionBroker {
                 return;
             }
             signal.addEventListener('abort', onAbort, { once: true });
-            this.waiting.set(key, { owner, settle });
+            this.waiting.set(key, { owner, settle, extend });
         });
     }
 
@@ -183,6 +236,28 @@ export class ToolPermissionBroker {
         return true;
     }
 
+    /**
+     * Grants a parked call more time, at the user's request. Returns the new
+     * allowance in ms, or `null` when nothing is waiting or the caller does not
+     * own the run — the same conflation, for the same reason, as
+     * {@link decide}.
+     */
+    extend(runId: string, callId: string, by: RunOwner): number | null {
+        const waiter = this.waiting.get(`${runId}:${callId}`);
+        if (!waiter) return null;
+        if (
+            waiter.owner.userId !== by.userId ||
+            waiter.owner.workspaceId !== by.workspaceId
+        ) {
+            this.logger.warn(
+                `Run ${runId}: user ${by.userId} tried to extend a permission ` +
+                    'request for a run they do not own; refused.'
+            );
+            return null;
+        }
+        return waiter.extend();
+    }
+
     /** What is left of `runId`'s waiting budget, pruning stale entries first. */
     private remainingBudget(runId: string): number {
         const now = Date.now();
@@ -191,7 +266,7 @@ export class ToolPermissionBroker {
                 this.spent.delete(id);
             }
         }
-        return RUN_DECISION_BUDGET_MS - (this.spent.get(runId)?.ms ?? 0);
+        return this.budgetMs - (this.spent.get(runId)?.ms ?? 0);
     }
 
     /** Charges `ms` of waiting to `runId`. */

@@ -638,7 +638,11 @@ function PanelBody({
                 />
             </div>
 
-            <MessageList messages={chat.messages} onAnswer={chat.answer} />
+            <MessageList
+                messages={chat.messages}
+                onAnswer={chat.answer}
+                onExtend={chat.extendAnswer}
+            />
 
             {/* "Your message, plus where you are" (design §2) — but only when
                 the user asked for it. See ContextChip for why this is opt-in. */}

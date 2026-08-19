@@ -15,6 +15,7 @@ import type { ChatAction } from './chatReducer';
 import { conversationsScopeKey } from './useConversations';
 import { CopilotRunError, streamRun, type StartRunRequest } from './runStream';
 import { useDecideToolPermission } from './useDecideToolPermission';
+import { useExtendToolPermission } from './useExtendToolPermission';
 import type { ToolPermissionDecision } from '@ortha-cms/copilot-domain';
 import type {
     ChatAttachment,
@@ -117,6 +118,8 @@ export interface CopilotChat {
         callId: string,
         decision: ToolPermissionDecision
     ): void;
+    /** Asks for more time to answer a parked tool call. */
+    extendAnswer(runId: string, callId: string): void;
     /** True while the run is waiting on the user rather than on the model. */
     awaitingPermission: boolean;
 }
@@ -148,6 +151,7 @@ export function useCopilotChat(
     const intl = useIntl();
     const queryClient = useQueryClient();
     const decidePermission = useDecideToolPermission();
+    const extendPermission = useExtendToolPermission();
     const dispatch = useCallback(
         (action: ChatAction) => dispatchChat(sessionId, action),
         [sessionId]
@@ -335,6 +339,29 @@ export function useCopilotChat(
         [decidePermission, workspaceId]
     );
 
+    const extendAnswer = useCallback(
+        (runId: string, callId: string) => {
+            extendPermission.mutate(
+                { runId, callId, workspaceId },
+                {
+                    onSuccess: ({ expiresAt }) =>
+                        dispatch({
+                            type: 'permission-extended',
+                            callId,
+                            expiresAt
+                        }),
+                    // A 404 means the deadline had already passed, or the run is
+                    // parked on another instance. Nothing to update: the prompt
+                    // keeps counting down to the deadline it already has, which
+                    // is the honest state rather than a longer one the server
+                    // never agreed to.
+                    onError: () => undefined
+                }
+            );
+        },
+        [dispatch, extendPermission, workspaceId]
+    );
+
     // The three-argument form every existing caller uses. Kept as a shim over
     // `sendWith` rather than duplicated: one send path means one place where a
     // run's body is assembled.
@@ -361,6 +388,7 @@ export function useCopilotChat(
         sendWith,
         stop,
         answer,
+        extendAnswer,
         // Drives the dock's marker: a chat parked on a question is exactly the
         // one worth coming back to, and `busy` alone cannot say so — it is true
         // for "thinking" too.

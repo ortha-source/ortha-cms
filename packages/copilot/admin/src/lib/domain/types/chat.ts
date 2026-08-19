@@ -77,6 +77,12 @@ export interface ChatPermissionRequest {
     title?: string;
     /** The arguments the model supplied, shown so the user can judge them. */
     input: unknown;
+    /**
+     * When the run stops waiting, as an ISO instant — what the prompt counts
+     * down to, warns before, and re-reads when the user asks for more time
+     * (`ORT-118`).
+     */
+    expiresAt?: string;
     /** True while an answer is in flight. */
     deciding?: boolean;
     /** Set when the answer did not reach the run (it had already moved on). */

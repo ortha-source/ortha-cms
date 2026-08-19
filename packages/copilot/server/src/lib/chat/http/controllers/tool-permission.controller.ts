@@ -20,6 +20,7 @@ import {
 import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ToolPermissionBroker } from '../../application/tool-permission.broker';
 import { DecideToolPermissionDto } from '../../application/dto/decide-tool-permission.dto';
+import { ExtendToolPermissionDto } from '../../application/dto/extend-tool-permission.dto';
 
 /**
  * `POST /api/copilot/runs/:runId/permission` — the answer to a parked run.
@@ -83,5 +84,42 @@ export class ToolPermissionController {
                 'That request is no longer waiting for an answer.'
             );
         }
+    }
+
+    /**
+     * `POST /api/copilot/runs/:runId/permission/extend` — "I need more time".
+     *
+     * The prompt used to have a five-minute limit with no warning, no countdown
+     * and no way to ask for longer: it simply disappeared, and the model
+     * reported that nobody had answered. WCAG 2.2.1 requires that a time limit
+     * set by the content can be turned off, adjusted, or **extended after a
+     * warning** — and none of its exceptions apply here, since
+     * [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * justifies the limit as cost, not correctness (`ORT-118`).
+     *
+     * Same guards, same ownership check and same 404 as {@link decide}: this
+     * grants time on a parked run, so who may ask is exactly who may answer.
+     */
+    @Post('runs/:runId/permission/extend')
+    @UseGuards(OriginGuard)
+    @ApiOperation({
+        summary: 'Give the user more time to answer a parked tool call'
+    })
+    extend(
+        @Param('runId', ParseUUIDPipe) runId: string,
+        @Body() body: ExtendToolPermissionDto,
+        @CurrentUser() user: PublicUser,
+        @CurrentWorkspace() workspaceId: string
+    ): { expiresAt: string } {
+        const grantedMs = this.broker.extend(runId, body.callId, {
+            userId: user.id,
+            workspaceId
+        });
+        if (grantedMs === null) {
+            throw new NotFoundException(
+                'That request is no longer waiting for an answer.'
+            );
+        }
+        return { expiresAt: new Date(Date.now() + grantedMs).toISOString() };
     }
 }

@@ -184,7 +184,11 @@ export function AgentsThread({
                     }}
                 />
             ) : (
-                <MessageList messages={chat.messages} onAnswer={chat.answer} />
+                <MessageList
+                    messages={chat.messages}
+                    onAnswer={chat.answer}
+                    onExtend={chat.extendAnswer}
+                />
             )}
 
             <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-4">

@@ -247,7 +247,8 @@ function TranscriptStatus({ turns }: { turns: ChatMessage[] }) {
  */
 export function MessageList({
     messages: turns,
-    onAnswer
+    onAnswer,
+    onExtend
 }: {
     messages: ChatMessage[];
     /** Answers a parked tool call. Omitted, prompts render read-only. */
@@ -256,6 +257,8 @@ export function MessageList({
         callId: string,
         decision: ToolPermissionDecision
     ): void;
+    /** Asks a parked run for more time. Omitted, the prompt offers no extension. */
+    onExtend?(runId: string, callId: string): void;
 }) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
@@ -330,6 +333,7 @@ export function MessageList({
                             key={turn.id}
                             turn={turn}
                             {...(onAnswer ? { onAnswer } : {})}
+                            {...(onExtend ? { onExtend } : {})}
                         />
                     ))}
                     <div ref={endRef} />
@@ -341,7 +345,8 @@ export function MessageList({
 
 function Turn({
     turn,
-    onAnswer
+    onAnswer,
+    onExtend
 }: {
     turn: ChatMessage;
     onAnswer?(
@@ -349,6 +354,7 @@ function Turn({
         callId: string,
         decision: ToolPermissionDecision
     ): void;
+    onExtend?(runId: string, callId: string): void;
 }) {
     const intl = useIntl();
     const reason = turn.stopReason
@@ -456,6 +462,12 @@ function Turn({
                         onDecide={(decision) =>
                             onAnswer?.(request.runId, request.id, decision)
                         }
+                        {...(onExtend
+                            ? {
+                                  onExtend: () =>
+                                      onExtend(request.runId, request.id)
+                              }
+                            : {})}
                     />
                 ))}
 

@@ -35,4 +35,21 @@ export interface CopilotPluginConfig {
      * `propose` tool still records its row before it applies anything.
      */
     limits?: Partial<RunLimits>;
+    /**
+     * How long a parked run waits for the user to answer a permission request,
+     * in milliseconds — **for the whole run**, not per call. Defaults to
+     * {@link DEFAULT_RUN_DECISION_BUDGET_MS}.
+     *
+     * Configurable because the default was a bare five minutes with no warning,
+     * no countdown and nothing to press for more time, and five minutes to read
+     * a JSON argument block, decide, and click is not generous for a
+     * screen-magnifier or switch-access user (WCAG 2.2.1, `ORT-118`). The user
+     * can now extend it themselves from the prompt, which is what actually
+     * satisfies the criterion; this is the operator's floor underneath that.
+     *
+     * What the limit protects is a held connection, a live generator and a
+     * model context — the *operator's* cost, not the user's — so an operator
+     * who can afford more should be able to say so.
+     */
+    permissionDecisionBudgetMs?: number;
 }
