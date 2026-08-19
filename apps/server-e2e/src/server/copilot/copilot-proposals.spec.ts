@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -497,6 +498,175 @@ describe('Copilot changes', () => {
 
             expect(result.ok).toBe(false);
             expect(result.error).toContain('Unknown content type');
+        });
+    });
+
+    // ------------------------------------------------- the blast radius
+    /**
+     * A localized type stores one row per language, and a field it does not
+     * mark `localized` is **shared** — so writing one propagates to every
+     * sibling in the translation group. `i18n_propose_translation` refuses
+     * shared fields outright; the content tools cannot, because they are the
+     * only way to edit one at all.
+     *
+     * What they owe instead is disclosure. Under ADR-0009 the change applies
+     * the moment it is drafted, so the proposal's summary is the only place a
+     * person learns that one accepted edit moved their content in four
+     * languages — and it used to read as an ordinary single-entry edit.
+     */
+    describe('a change that reaches other locales says so', () => {
+        /** Seed one record as two locale rows of a single translation group. */
+        async function seedTranslated(
+            values: Record<string, unknown>
+        ): Promise<{ en: string; de: string }> {
+            const localeGroupId = randomUUID();
+            const [en, de] = await seedArticles(
+                [
+                    { ...values, locale: 'en', localeGroupId },
+                    { ...values, locale: 'de', localeGroupId }
+                ],
+                workspace.id
+            );
+            return { en, de };
+        }
+
+        it('names the sibling locales and the shared field on an edit', async () => {
+            const { en } = await seedTranslated({
+                text: 'Headline',
+                select: 'article'
+            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id: en,
+                    // `select` is not marked `localized`, so it is the record's
+                    // category in every language.
+                    values: { select: 'tutorial' },
+                    summary: 'Recategorise the article'
+                }
+            );
+
+            expect(proposal.summary).toContain('Recategorise the article');
+            expect(proposal.summary).toContain('de');
+            expect(proposal.summary).toContain('select');
+            expect(proposal.summary).toContain('shared across locales');
+            // Structured beside the prose: "which changes reached more than the
+            // row they named" is a question an audit asks of the table.
+            expect(proposal.target).toMatchObject({
+                fanout: { fields: ['select'], locales: ['de'] }
+            });
+        });
+
+        it('says nothing when the edit touches only localized fields', async () => {
+            const { en } = await seedTranslated({
+                text: 'Headline',
+                select: 'article'
+            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id: en,
+                    values: { text: 'Better headline' },
+                    summary: 'Fix the headline'
+                }
+            );
+
+            // This is what a translation *is*, and it is the common case. A
+            // caveat on every edit teaches the reader to skim past it on the
+            // one that matters.
+            expect(proposal.summary).toBe('Fix the headline');
+            expect(proposal.target).not.toHaveProperty('fanout');
+        });
+
+        it('says nothing when the record has no other locales', async () => {
+            const [id] = await seedArticles(
+                [{ text: 'Alone', select: 'article' }],
+                workspace.id
+            );
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id,
+                    values: { select: 'tutorial' },
+                    summary: 'Recategorise the article'
+                }
+            );
+
+            expect(proposal.summary).toBe('Recategorise the article');
+            expect(proposal.target).not.toHaveProperty('fanout');
+        });
+
+        it('the disclosure is true — the sibling really is rewritten', async () => {
+            const { en, de } = await seedTranslated({
+                text: 'Headline',
+                select: 'article'
+            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await propose(
+                agent,
+                'content_propose_update',
+                {
+                    typeName: 'test_article',
+                    id: en,
+                    values: { select: 'changelog' },
+                    summary: 'Recategorise'
+                }
+            );
+            expect(proposal.status).toBe('accepted');
+
+            // The whole point: the card named `de`, and the German row moved.
+            // If this assertion ever fails the disclosure has become a lie,
+            // which is worse than not having made it.
+            const sibling = await readEntry(agent, de);
+            expect(sibling.values['select']).toBe('changelog');
+        });
+
+        it('merges the disclosure across a batch, and counts the records', async () => {
+            const first = await seedTranslated({
+                text: 'One',
+                select: 'article'
+            });
+            const second = await seedTranslated({
+                text: 'Two',
+                select: 'article'
+            });
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+
+            const { proposal } = await propose(
+                agent,
+                'content_propose_bulk_save',
+                {
+                    typeName: 'test_article',
+                    items: [
+                        { id: first.en, values: { select: 'tutorial' } },
+                        { id: second.en, values: { number: 7 } }
+                    ],
+                    summary: 'Tidy up two articles'
+                }
+            );
+
+            // "Translate these eight posts" is the instruction this tool exists
+            // for, and the one most likely to reach a shared field — so a
+            // single accepted card could rewrite eight records in every
+            // language they have.
+            expect(proposal.summary).toContain('2 of these records');
+            expect(proposal.summary).toContain('de');
+            expect(proposal.target).toMatchObject({
+                fanout: { fields: ['number', 'select'], locales: ['de'] }
+            });
         });
     });
 

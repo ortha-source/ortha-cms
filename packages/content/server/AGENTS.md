@@ -218,7 +218,19 @@ fields resolved via the engine's `extensionFields` + `resolveExtension` seam),
 validate a group id against the DB), `beforeWrite` (**optional**; the first
 statement in the write transaction), `afterUpdate` (in-tx side-effects after a
 save — runs on **both create and update**, e.g. syncing shared fields and
-relation links to locale siblings; must no-op when nothing applies).
+relation links to locale siblings; must no-op when nothing applies),
+`describeFanout` (**optional**; the read-only counterpart of `afterUpdate` —
+see below).
+
+**`describeFanout` answers "what else would this write touch", before it is
+written.** The pipeline never calls it: a save just saves. It exists for callers
+that must *describe* a change before making it — the copilot's `content_propose_*`
+tools, whose receipt is the only place a user learns their content moved. It
+reads only and takes **no locks** (it runs outside the write transaction, and a
+`FOR UPDATE` held for the length of a model's turn is not a trade worth making),
+so its answer is advisory by construction. Returning `undefined` — never an empty
+description — is how an extension says "an ordinary single-row edit", which is
+the common case and must stay silent.
 
 **`beforeWrite` exists so an extension can order its locks, and nothing else
 can.** By the time `afterUpdate` runs, the transaction already holds a row lock
@@ -347,7 +359,25 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   entry, so a prompt-injected "just save it" has nowhere to land. `proposeEdit`
   reads the live entry so the proposal carries a real before/after diff, drops
   fields that would not actually change, and refuses an edit that changes
-  nothing. An unknown field name is an **error** here, unlike the reads'
+  nothing.
+- **An edit that reaches other locales says so.** On a localized type a field the
+  type does not mark `localized` is *shared*, so writing it propagates to every
+  sibling in the translation group — correctly, since "shared" means shared, and
+  refusing it would leave no way to edit a shared field at all
+  (`i18n_propose_translation` rejects them outright, so the content tools are the
+  only route). What was missing is that nobody was told: under ADR-0009 the
+  change applies as it is drafted, so one accepted proposal could rewrite a
+  record in four languages while `copilot_proposals` recorded a single-entry
+  edit. `proposeEdit` and `proposeBulk` now ask the bound extension's
+  `describeFanout` — against the **patched** values, so the disclosure names what
+  will actually be written rather than everything the model sent — and fold the
+  answer into the `summary` plus a structured `target.fanout`. The summary
+  because of where a summary *goes*: it is the card's title, the audit row's
+  `output_summary`, and the run engine's `Applied: …` receipt, so one string
+  reaches the person, the log and the model — and the model correcting itself
+  ("that touched every language; a translation wants `i18n_propose_translation`")
+  is worth as much as the card. `content_propose_create` does not ask: a create
+  starts its own group and has no siblings to reach. An unknown field name is an **error** here, unlike the reads'
   `fields`: the cost is a human approving a change they believe writes a field
   that does not exist. Join-backed relations are refused for the same reason —
   their links never travel in the values bag, so a value for one would be

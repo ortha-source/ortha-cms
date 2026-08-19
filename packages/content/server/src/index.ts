@@ -37,7 +37,8 @@ export type {
     EntryFilterExtension,
     EntryScopeParams,
     EntryTransaction,
-    EntryWriteContext
+    EntryWriteContext,
+    EntryWriteFanout
 } from './lib/extension/entry-extension';
 export {
     RELATION_LOCALE_SYNC,

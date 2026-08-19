@@ -33,7 +33,8 @@ import {
     type EntryFilterExtension,
     type EntryScopeParams,
     type EntryTransaction,
-    type EntryWriteContext
+    type EntryWriteContext,
+    type EntryWriteFanout
 } from '@ortha-cms/content-server';
 import {
     FilterOperator,
@@ -264,6 +265,91 @@ export class EntryLocaleExtensionService implements ContentEntryExtension {
         return this.propagateToSiblings(tx, type, row, values, workspaceId, {
             relations: !context.created
         });
+    }
+
+    /** @inheritdoc */
+    async describeFanout(
+        type: AnyContentType,
+        entryId: string,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<EntryWriteFanout | undefined> {
+        if (!type.i18n) return undefined;
+
+        // Cheapest question first, and the one that decides the rest: a save
+        // touching only per-locale fields is exactly what a translation is, and
+        // it must not read the database — the copilot calls this on every
+        // proposed edit, including the many that concern one language only.
+        const fields = Object.keys(values).filter((name) =>
+            this.travelsToSiblings(type, name)
+        );
+        if (!fields.length) return undefined;
+
+        const table = type.table as unknown as ContentTable;
+        const sibling = aliasedTable(type.table, 'fanout_sibling');
+        const siblingColumns = sibling as unknown as ContentTable;
+        // One self-join rather than "read the group id, then read the group":
+        // the bulk tool describes up to BULK_MAX_SAVE_ITEMS items in a turn, so
+        // halving the round trips per item is worth the denser query.
+        //
+        // No lock and no `deletedAt` filter, both on purpose. The lock is
+        // covered in the port's JSDoc; the trashed rows are here because
+        // `propagateToSiblings` rewrites them too (so a restore comes back
+        // consistent with its group), and a description that quietly omitted
+        // them would understate the change it exists to disclose.
+        const rows = (await this.db
+            .select({ locale: sql<string>`${siblingColumns['locale']}` })
+            .from(type.table)
+            .innerJoin(
+                sibling,
+                and(
+                    eq(siblingColumns['localeGroupId'], table['localeGroupId']),
+                    ne(siblingColumns['id'], table['id']),
+                    eq(siblingColumns['workspaceId'], workspaceId)
+                )
+            )
+            .where(
+                and(
+                    eq(table['id'], entryId),
+                    eq(table['workspaceId'], workspaceId)
+                )
+            )) as { locale: string }[];
+
+        const locales = [...new Set(rows.map((row) => row.locale))].sort();
+        // An entry alone in its group is an ordinary single-row edit. Saying so
+        // would put a caveat on the majority of edits and teach the reader to
+        // skim past it on the one that matters.
+        if (!locales.length) return undefined;
+        return { fields, locales };
+    }
+
+    /**
+     * Whether this field's value reaches the row's siblings when it is saved —
+     * the predicate behind {@link describeFanout}, stated once against the same
+     * three rules {@link propagateToSiblings} applies.
+     *
+     * It is broader than {@link sharedColumns}, deliberately: that method
+     * answers "which columns copy across verbatim", because shared columns,
+     * mirrored FKs and join-backed link sets are *applied* by three different
+     * mechanisms. To a person being told what their change will do, the three
+     * are one fact — the value they set here lands over there.
+     *
+     * A **mirrored** relation counts even though each sibling ends up holding a
+     * different id: the sibling's link is being repointed at the record this
+     * save chose, which is a change to that row whatever id expresses it.
+     */
+    private travelsToSiblings(type: AnyContentType, name: string): boolean {
+        const spec = type.fields[name];
+        if (!spec) return false;
+        // Checked ahead of the relation rules for the same reason
+        // `sharedColumns` checks it first: `localized` is the author's explicit
+        // "this varies per language", and a field carrying it never propagates
+        // however its relation options happen to read.
+        if (spec.localized) return false;
+        if (spec.type === CONTENT_FIELD_TYPE.Relation) {
+            return relationLocaleSync(type, spec) !== RELATION_LOCALE_SYNC.None;
+        }
+        return true;
     }
 
     /**

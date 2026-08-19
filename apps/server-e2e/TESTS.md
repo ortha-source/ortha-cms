@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1217 test cases across 80 spec files._
+_1222 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1594,6 +1594,16 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-proposals.spec.ts</sub>_
 | refuses an edit that would change nothing |
 | refuses a field the type does not declare |
 | refuses a content type the workspace was not granted |
+
+### a change that reaches other locales says so
+
+| Test case |
+| --- |
+| names the sibling locales and the shared field on an edit |
+| says nothing when the edit touches only localized fields |
+| says nothing when the record has no other locales |
+| the disclosure is true — the sibling really is rewritten |
+| merges the disclosure across a batch, and counts the records |
 
 ### applying runs the ordinary use-case
 

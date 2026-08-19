@@ -1,9 +1,15 @@
-import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    Optional,
+    type OnModuleInit
+} from '@nestjs/common';
 import { PERMISSIONS } from '@ortha-cms/identity-server';
 import type { ProposalChange, ProposalDraft } from '@ortha-cms/copilot-domain';
 import { ToolRegistry } from '@ortha-cms/tools-server';
 import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
+import type { AnyContentType } from '../types/content-type';
 import type {
     ContentTypeRegistry,
     SerializedField
@@ -11,6 +17,11 @@ import type {
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
 import { BULK_MAX_SAVE_ITEMS } from '../entries/entries.constants';
+import {
+    CONTENT_ENTRY_EXTENSION,
+    type ContentEntryExtension,
+    type EntryWriteFanout
+} from '../extension/entry-extension';
 import { CONTENT_PROPOSAL_KINDS } from './proposal-kinds';
 
 /**
@@ -44,7 +55,15 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
         private readonly registry: ContentTypeRegistry,
         private readonly writer: EntryWriterService,
         private readonly grants: WorkspaceGrantsQuery,
-        @Optional() private readonly toolRegistry?: ToolRegistry
+        @Optional() private readonly toolRegistry?: ToolRegistry,
+        // The entries extension port, for the one question these tools cannot
+        // answer alone: whether the change they are about to describe also
+        // rewrites rows the caller never named. `@Optional()` because a
+        // deployment may bind no extension, in which case a save is exactly
+        // the single-row edit it looks like.
+        @Optional()
+        @Inject(CONTENT_ENTRY_EXTENSION)
+        private readonly extension?: ContentEntryExtension
     ) {}
 
     /**
@@ -147,6 +166,77 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
             );
         }
         return { values, fields };
+    }
+
+    /**
+     * Asks the bound entries extension what a write of `values` onto this entry
+     * would rewrite **besides** that row.
+     *
+     * A localized type stores one row per language, and a field the type does
+     * not mark `localized` is *shared* — so saving it propagates to every
+     * sibling in the translation group. That is the contract working, not a
+     * bug: "shared" means shared, and refusing the write would leave no way to
+     * edit a shared field at all. What was missing is that nobody was told.
+     * Under [ADR-0009](../../../../../../docs/adr/0009-copilot-applies-directly.md)
+     * the change applies the moment it is drafted, so the proposal's own
+     * summary is the only place a person learns that one accepted edit moved
+     * their content in four languages — and it read as a single-entry edit.
+     *
+     * An error is deliberately **not** swallowed. This is a read against the
+     * same rows the write is about to take, so a failure here is a failure
+     * there; drafting the change anyway would drop the disclosure at exactly
+     * the moment something is wrong.
+     */
+    private async fanoutOf(
+        type: AnyContentType,
+        entryId: string,
+        values: Record<string, unknown>,
+        workspaceId: string
+    ): Promise<EntryWriteFanout | undefined> {
+        return this.extension?.describeFanout?.(
+            type,
+            entryId,
+            values,
+            workspaceId
+        );
+    }
+
+    /**
+     * Appends the blast radius to the model's own summary.
+     *
+     * The summary rather than a field of its own because of where a summary
+     * *goes*: it is the card's title, the audit row's `output_summary`, and —
+     * via the run engine's `Applied: …` receipt — the sentence the model reads
+     * back and reports to the user. One string reaches the person, the log and
+     * the model, and the model correcting itself ("that touched every
+     * language — for a translation I should use `i18n_propose_translation`") is
+     * worth as much here as the card is.
+     */
+    private discloseFanout(
+        summary: string,
+        fanout?: EntryWriteFanout,
+        records = 1
+    ): string {
+        if (!fanout) return summary;
+        // Plural on either axis: two locales of one record and one locale of
+        // two records are both several rows, and "the de row of 2 of these
+        // records" reads as a single row shared between them.
+        const rows = `${fanout.locales.join(', ')} ${
+            fanout.locales.length === 1 && records === 1 ? 'row' : 'rows'
+        }`;
+        // A batch names how many of its records fan out, because "some of
+        // them" is the part a reader needs and the count is the only honest
+        // way to say it — the card lists one diff row per item, and matching
+        // them up by hand is exactly the work the summary exists to save.
+        const scope =
+            records === 1
+                ? `this record’s ${rows}`
+                : `the ${rows} of ${records} of these records`;
+        const fields = fanout.fields.join(', ');
+        return (
+            `${summary} — also changes ${scope}, because ${fields} ` +
+            `${fanout.fields.length === 1 ? 'is' : 'are'} shared across locales.`
+        );
     }
 
     /** `content_propose_create` — a new draft entry, for a human to accept. */
@@ -367,20 +457,33 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     );
                 }
 
+                // Only the genuinely-changed fields are carried, so an
+                // accepted proposal writes exactly what the reviewer saw — and
+                // so the fan-out below is described against what will actually
+                // be written, not against everything the model sent.
+                const patched = Object.fromEntries(
+                    changes.map((change) => [change.field, change.after])
+                );
+                const fanout = await this.fanoutOf(
+                    type,
+                    args.id,
+                    patched,
+                    ctx.workspaceId
+                );
+
                 return {
                     kind: CONTENT_PROPOSAL_KINDS.updateEntry,
-                    target: { typeName: type.name, entryId: args.id },
-                    // Only the genuinely-changed fields are carried, so an
-                    // accepted proposal writes exactly what the reviewer saw.
-                    patch: {
-                        values: Object.fromEntries(
-                            changes.map((change) => [
-                                change.field,
-                                change.after
-                            ])
-                        )
+                    target: {
+                        typeName: type.name,
+                        entryId: args.id,
+                        // Structured alongside the prose, so the receipt is
+                        // queryable: "which changes reached more than the row
+                        // they named" is a question an audit asks of the table,
+                        // not of a sentence.
+                        ...(fanout ? { fanout } : {})
                     },
-                    summary: args.summary,
+                    patch: { values: patched },
+                    summary: this.discloseFanout(args.summary, fanout),
                     changes
                 };
             }
@@ -597,11 +700,37 @@ export class EntryProposalToolProvider implements ToolProvider, OnModuleInit {
                     );
                 }
 
+                // The batch is where this matters most. "Translate these eight
+                // posts" is the instruction this tool was built for, and it is
+                // also the one most likely to reach for a shared field — so a
+                // single accepted card could rewrite eight records in every
+                // language they have. Described per item, then merged: the
+                // card carries one summary, not eight.
+                const fanouts: EntryWriteFanout[] = [];
+                for (const item of patched) {
+                    if (!item.id) continue;
+                    const fanout = await this.fanoutOf(
+                        type,
+                        item.id,
+                        item.values,
+                        ctx.workspaceId
+                    );
+                    if (fanout) fanouts.push(fanout);
+                }
+                const merged = mergeFanouts(fanouts);
+
                 return {
                     kind: CONTENT_PROPOSAL_KINDS.bulkSaveEntries,
-                    target: { typeName: type.name },
+                    target: {
+                        typeName: type.name,
+                        ...(merged ? { fanout: merged } : {})
+                    },
                     patch: { items: patched },
-                    summary: args.summary,
+                    summary: this.discloseFanout(
+                        args.summary,
+                        merged,
+                        fanouts.length
+                    ),
                     changes
                 };
             }
@@ -617,6 +746,31 @@ interface BulkProposalItem {
     values: Record<string, unknown>;
     /** Locale of a created row. */
     locale?: string;
+}
+
+/**
+ * Folds one fan-out description per batch item into the single one a card
+ * carries — the union of the fields that travel and of the rows they reach.
+ *
+ * A union rather than a per-item list because the reader's question is "what
+ * else did this touch", not "which item touched what". Both lists are sorted so
+ * two batches describing the same spread read identically, and `locales`
+ * arrives already sorted from the extension.
+ */
+function mergeFanouts(
+    fanouts: readonly EntryWriteFanout[]
+): EntryWriteFanout | undefined {
+    if (!fanouts.length) return undefined;
+    const fields = new Set<string>();
+    const locales = new Set<string>();
+    for (const fanout of fanouts) {
+        for (const field of fanout.fields) fields.add(field);
+        for (const locale of fanout.locales) locales.add(locale);
+    }
+    return {
+        fields: [...fields].sort(),
+        locales: [...locales].sort()
+    };
 }
 
 /** The field's admin label, when it has one — for the diff's row heading. */
