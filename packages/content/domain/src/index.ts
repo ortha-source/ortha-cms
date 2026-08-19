@@ -4,7 +4,8 @@
  * Pure TypeScript (no React, no NestJS, no Drizzle): the rules both the server
  * and the admin must apply identically. Per ADR-0003 this is the single
  * sanctioned FE↔BE code share, and it holds only what genuinely needs to agree:
- * the entry-status state machine, field-value validation, and the publish gate.
+ * the entry-status state machine, the rich-text document model, field-value
+ * validation, and the publish gate.
  */
 
 export {
@@ -24,8 +25,44 @@ export type { FieldType } from './lib/fields/field-type';
 export type {
     EntryFieldSpec,
     EntryFieldSpecMap,
-    FieldValidationRules
+    FieldValidationRules,
+    RichTextStructureMode
 } from './lib/fields/field-spec';
+
+export { RICH_TEXT_MARK, RICH_TEXT_NODE } from './lib/richtext/rich-text-node';
+export type {
+    RichTextDocument,
+    RichTextMark,
+    RichTextNode
+} from './lib/richtext/rich-text-node';
+export {
+    isRichTextDocument,
+    isRichTextNode,
+    langOf,
+    walkRichText
+} from './lib/richtext/rich-text-node';
+export {
+    asRichTextDocument,
+    isEmptyRichText,
+    isEmptyRichTextDocument,
+    richTextDocumentText,
+    richTextPlainText
+} from './lib/richtext/rich-text-document';
+export {
+    htmlToPlainText,
+    htmlToRichTextDocument
+} from './lib/richtext/html-to-document';
+export { richTextToHtml } from './lib/richtext/document-to-html';
+export { isWellFormedLanguageTag } from './lib/richtext/language-tag';
+export {
+    RICH_TEXT_ISSUE,
+    inspectRichText
+} from './lib/richtext/rich-text-structure';
+export type {
+    RichTextIssueCode,
+    RichTextIssueSeverity,
+    RichTextStructureIssue
+} from './lib/richtext/rich-text-structure';
 
 export {
     validateEntryValues,

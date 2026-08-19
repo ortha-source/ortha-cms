@@ -15,6 +15,13 @@ import {
     isEmptyFieldValue
 } from '../fields/field-type';
 import type { EntryFieldSpec, EntryFieldSpecMap } from '../fields/field-spec';
+import { isWellFormedLanguageTag } from '../richtext/language-tag';
+import {
+    isEmptyRichText,
+    richTextPlainText
+} from '../richtext/rich-text-document';
+import { isRichTextDocument } from '../richtext/rich-text-node';
+import { inspectRichText } from '../richtext/rich-text-structure';
 import type { ValidationIssue, ValidationResult } from './validation-result';
 import { compilePattern } from './safe-pattern';
 
@@ -108,44 +115,91 @@ export function validateFieldValue(
         return issues;
     }
 
-    if (isEmpty(value)) {
+    // A field may declare the language its content is written in (3.1.2). It is
+    // a fact about the *field*, not about this value, so it is checked whether
+    // or not there is a value to check.
+    if (spec.lang !== undefined && !isWellFormedLanguageTag(spec.lang))
+        fail(`has an invalid language tag ("${spec.lang}")`);
+
+    // A rich-text body's emptiness is a question about its document, not about
+    // its JSON: `{ doc: [paragraph] }` is what an emptied editor leaves behind,
+    // and a `required` field cleared by its author has to fail rather than pass
+    // on the strength of the wrapper still being there.
+    const empty =
+        spec.type === CONTENT_FIELD_TYPE.RichText
+            ? isEmptyRichText(value)
+            : isEmpty(value);
+    if (empty) {
         if (spec.required) fail('is required');
         return issues; // nothing else to check on an empty value
     }
 
     const v = spec.validation ?? {};
+
+    /**
+     * The length/pattern rules, over the text a rule is actually about. Shared
+     * by `text` (where the value *is* the text) and `richtext` (where it is the
+     * body's words, markup excluded).
+     */
+    const checkText = (text: string) => {
+        // Length is counted in **user-perceived characters**, not UTF-16
+        // code units: `'👍'.length` is 2 and a family emoji is 11, so a
+        // code-unit count spends an author's budget on encoding rather than
+        // on text (see {@link countCharacters}).
+        const length =
+            v.minLength !== undefined || v.maxLength !== undefined
+                ? countCharacters(text)
+                : 0;
+        if (v.minLength !== undefined && length < v.minLength)
+            fail(`must be at least ${v.minLength} characters`);
+        if (v.maxLength !== undefined && length > v.maxLength)
+            fail(`must be at most ${v.maxLength} characters`);
+        if (v.pattern) {
+            // An author-supplied pattern is untrusted: it may not compile,
+            // and it may backtrack exponentially. Both fail the field
+            // rather than throwing out of the validator or hanging it.
+            const compiled = compilePattern(v.pattern);
+            if (compiled.rejected)
+                fail(
+                    compiled.rejected === 'invalid'
+                        ? 'has an invalid pattern rule'
+                        : 'has an unsafe pattern rule'
+                );
+            else if (!compiled.regex.test(text))
+                fail(`must match pattern ${v.pattern}`);
+        }
+    };
+
     switch (spec.type) {
-        case CONTENT_FIELD_TYPE.Text:
-        case CONTENT_FIELD_TYPE.RichText: {
+        case CONTENT_FIELD_TYPE.Text: {
             if (typeof value !== 'string') {
                 fail('must be a string');
                 break;
             }
-            // Length is counted in **user-perceived characters**, not UTF-16
-            // code units: `'👍'.length` is 2 and a family emoji is 11, so a
-            // code-unit count spends an author's budget on encoding rather than
-            // on text (see {@link countCharacters}).
-            const length =
-                v.minLength !== undefined || v.maxLength !== undefined
-                    ? countCharacters(value)
-                    : 0;
-            if (v.minLength !== undefined && length < v.minLength)
-                fail(`must be at least ${v.minLength} characters`);
-            if (v.maxLength !== undefined && length > v.maxLength)
-                fail(`must be at most ${v.maxLength} characters`);
-            if (v.pattern) {
-                // An author-supplied pattern is untrusted: it may not compile,
-                // and it may backtrack exponentially. Both fail the field
-                // rather than throwing out of the validator or hanging it.
-                const compiled = compilePattern(v.pattern);
-                if (compiled.rejected)
-                    fail(
-                        compiled.rejected === 'invalid'
-                            ? 'has an invalid pattern rule'
-                            : 'has an unsafe pattern rule'
-                    );
-                else if (!compiled.regex.test(value))
-                    fail(`must match pattern ${v.pattern}`);
+            checkText(value);
+            break;
+        }
+        case CONTENT_FIELD_TYPE.RichText: {
+            // A body is a **document** — the node tree the editor produces —
+            // or, for content written before it was one, the HTML string it
+            // was stored as. Both are read as a document below, so every rule
+            // is written once; nothing else is a rich-text value at all.
+            if (typeof value !== 'string' && !isRichTextDocument(value)) {
+                fail('must be a rich-text document');
+                break;
+            }
+            // Counted over the body's words, so `<strong>` costs an author
+            // nothing — the markup-counts-as-text problem that made a length
+            // rule on rich text mean something different from what it said.
+            checkText(richTextPlainText(value));
+            // Heading order, table headers, link text and language markers.
+            // Only the errors fail the field: a warning is a judgement about
+            // phrasing, and the editor is where those belong (it shows the
+            // whole list while the author can still act on it).
+            if (v.structure !== 'off') {
+                for (const issue of inspectRichText(value)) {
+                    if (issue.severity === 'error') fail(issue.message);
+                }
             }
             break;
         }

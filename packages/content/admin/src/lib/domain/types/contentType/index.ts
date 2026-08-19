@@ -74,6 +74,13 @@ export type ContentField = {
     required: boolean;
     /** Value differs per locale — present only when true (i18n types). */
     localized?: boolean;
+    /**
+     * BCP-47 tag naming the language this field's content is written in, when
+     * it is not the entry's own (WCAG 3.1.2) — present only when the field
+     * declares one. The control carries it as a `lang` attribute, so the value
+     * is announced with the right phonemes.
+     */
+    lang?: string;
     /** Type-specific validation (minLength, max, pattern, …); opaque here. */
     validation: Record<string, unknown>;
     /** Admin display hints (label, description, placeholder, widget, hidden, …). */

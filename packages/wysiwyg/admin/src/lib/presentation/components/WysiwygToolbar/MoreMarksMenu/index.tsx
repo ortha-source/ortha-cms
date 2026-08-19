@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/react';
 import {
     Code,
     Ellipsis,
+    Languages,
     Quote,
     RemoveFormatting,
     Strikethrough,
@@ -34,6 +35,10 @@ const messages = defineMessages({
     clearFormat: {
         id: 'wysiwyg.toolbar.clearFormat',
         defaultMessage: 'Clear formatting'
+    },
+    language: {
+        id: 'wysiwyg.toolbar.language',
+        defaultMessage: 'Language of this passage…'
     }
 });
 
@@ -48,8 +53,20 @@ const messages = defineMessages({
  * Bold and italic stay out on the bar; underline is here because the bar was
  * ~40px over its one-row budget and underline is the least-reached of the trio.
  * If the bar ever gains room, this is the first item to promote back.
+ *
+ * **Language of this passage…** is here for the same budget reason, and it is
+ * the one item that opens something rather than toggling: the dialog is mounted
+ * by the toolbar (this menu unmounts the moment it closes, which is precisely
+ * when the dialog would need to appear), so the item only asks for it.
  */
-export function MoreMarksMenu({ editor }: { editor: Editor }) {
+export function MoreMarksMenu({
+    editor,
+    onOpenLanguage
+}: {
+    editor: Editor;
+    /** Ask the toolbar to open its language dialog. */
+    onOpenLanguage: () => void;
+}) {
     const intl = useIntl();
     const state = useLiveEditorState(
         editor,
@@ -57,13 +74,24 @@ export function MoreMarksMenu({ editor }: { editor: Editor }) {
             underline: instance.isActive('underline'),
             strike: instance.isActive('strike'),
             code: instance.isActive('code'),
-            blockquote: instance.isActive('blockquote')
+            blockquote: instance.isActive('blockquote'),
+            language: instance.isActive('language')
         }),
-        { underline: false, strike: false, code: false, blockquote: false }
+        {
+            underline: false,
+            strike: false,
+            code: false,
+            blockquote: false,
+            language: false
+        }
     );
 
     const anyActive =
-        state.underline || state.strike || state.code || state.blockquote;
+        state.underline ||
+        state.strike ||
+        state.code ||
+        state.blockquote ||
+        state.language;
 
     return (
         <DropdownMenu>
@@ -111,6 +139,21 @@ export function MoreMarksMenu({ editor }: { editor: Editor }) {
                     <Quote className="size-4" />
                     {intl.formatMessage(messages.blockquote)}
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={onOpenLanguage}>
+                    <Languages className="size-4" />
+                    {intl.formatMessage(messages.language)}
+                    {/* The marker is a state, like the toggles above — but it
+                        carries a value, so it is reported as the tag itself
+                        rather than as a tick nobody can read a language off. */}
+                    {state.language ? (
+                        <span className="ml-auto text-xs text-muted-foreground">
+                            {String(
+                                editor.getAttributes('language')['lang'] ?? ''
+                            )}
+                        </span>
+                    ) : null}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     onSelect={() =>

@@ -288,25 +288,25 @@ describe('Content relation filtering (GET /api/content/:typeName?filter=)', () =
 
         it('a negated ROOT column still matches rows where it is NULL', async () => {
             const agent = await login(ADMIN_EMAIL);
-            // `richtext` is optional, so Bravo/Charlie leave it NULL.
+            // `number` is optional, so Bravo/Charlie leave it NULL.
             await agent
                 .patch(`/api/content/test_article/${articleId.Alpha}`)
                 .send({
                     values: {
                         text: 'Alpha',
                         select: 'article',
-                        richtext: 'about widgets'
+                        number: 7
                     }
                 })
                 .expect(200);
 
             const res = await agent
                 .get('/api/content/test_article')
-                .query({ filter: rule('richtext', 'nilike', '%widgets%') })
+                .query({ filter: rule('number', 'ne', 7) })
                 .expect(200);
 
-            // Plain `NOT ILIKE` is NULL for a NULL column, i.e. not matched —
-            // which would hide every article that simply has no body yet.
+            // Plain `<>` is NULL for a NULL column, i.e. not matched — which
+            // would hide every article that simply has no number yet.
             expect(textsOf(res)).toEqual(['Bravo', 'Charlie']);
         });
     });

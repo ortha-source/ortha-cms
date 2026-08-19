@@ -3,7 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@ortha-cms/design-system';
 import type { EntryFieldControlContext } from '@ortha-cms/content-admin';
-import { asRichTextHtml } from '../../../domain/richTextValue';
+import { asEditorContent } from '../../../domain/richTextValue';
 import { WysiwygEditorPanel } from '../WysiwygEditorPanel';
 
 const messages = defineMessages({
@@ -140,7 +140,7 @@ export function WysiwygFieldFullView({
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-input bg-card">
                 <WysiwygEditorPanel
                     fieldLabel={label}
-                    initialHtml={asRichTextHtml(value)}
+                    initialContent={asEditorContent(value)}
                     placeholder={
                         typeof placeholder === 'string' ? placeholder : ''
                     }

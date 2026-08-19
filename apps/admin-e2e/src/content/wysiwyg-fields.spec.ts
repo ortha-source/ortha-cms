@@ -12,6 +12,8 @@ import {
     WYSIWYG_GERMAN_BODY,
     WYSIWYG_MEDIA_ENTRY_ID,
     WYSIWYG_MEDIA_ENTRY_BODY,
+    WYSIWYG_INACCESSIBLE_ENTRY_ID,
+    WYSIWYG_INACCESSIBLE_BODY,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
@@ -27,6 +29,12 @@ import {
     type MediaUploadSpy
 } from '../support/api/media';
 import { expectNoA11yViolations } from '../support/a11y';
+import {
+    attr,
+    savedDocument,
+    savedNodesOfType,
+    savedText
+} from '../support/richText';
 
 const WS = WYSIWYG_WORKSPACE.id;
 
@@ -75,6 +83,12 @@ test.describe('Entry editor — rich text field', () => {
                     title: 'Ausgabe 2.0',
                     body: WYSIWYG_GERMAN_BODY,
                     summary: '<p>Kurz und knapp.</p>',
+                    rawHtml: ''
+                },
+                [`article/${WYSIWYG_INACCESSIBLE_ENTRY_ID}`]: {
+                    title: 'Needs work',
+                    body: WYSIWYG_INACCESSIBLE_BODY,
+                    summary: '<p>Short and sweet.</p>',
                     rawHtml: ''
                 }
             },
@@ -245,12 +259,28 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            expect(saves.bodies[0].values?.['body']).toBe(
-                '<p><strong>Loud</strong> and quiet</p>'
-            );
+            // The stored value is the **document**, so the mark is a fact
+            // about the run rather than a tag around it.
+            expect(savedDocument(saves.bodies[0].values?.['body'])).toEqual({
+                type: 'doc',
+                content: [
+                    {
+                        type: 'paragraph',
+                        attrs: { textAlign: null },
+                        content: [
+                            {
+                                type: 'text',
+                                marks: [{ type: 'bold' }],
+                                text: 'Loud'
+                            },
+                            { type: 'text', text: ' and quiet' }
+                        ]
+                    }
+                ]
+            });
         });
 
-        test('stores a callout as semantic HTML, not admin classes', async ({
+        test('stores a callout as its own node, carrying its tone', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -266,12 +296,19 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            // The tone travels as data, so whatever renders this HTML styles it
-            // itself — no admin styling leaks into published content. The
-            // trailing paragraph is the editor's own: a document ending in a
-            // callout would otherwise have nowhere left to type.
-            expect(saves.bodies[0].values?.['body']).toBe(
-                '<aside data-tone="warning" data-callout=""><p>Mind the gap</p></aside><p></p>'
+            // The tone travels as an attribute on the node, so whatever
+            // renders this document styles it itself — no admin styling leaks
+            // into published content. (The document also ends in an empty
+            // paragraph, the editor's own: a body ending in a callout would
+            // otherwise have nowhere left to type.)
+            const callouts = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'callout'
+            );
+            expect(callouts).toHaveLength(1);
+            expect(attr(callouts[0], 'tone')).toBe('warning');
+            expect(savedText(saves.bodies[0].values?.['body'])).toContain(
+                'Mind the gap'
             );
         });
 
@@ -291,20 +328,17 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            // A resizable table carries its own column sizing, so match the
-            // structure rather than an exact string.
-            const body = String(saves.bodies[0].values?.['body']);
-            expect(body).toContain('<table');
-            expect(body).toContain('<th');
-            expect(body.match(/<tr>/g)).toHaveLength(3);
-            // `<th>` alone leaves a screen reader to *infer* which cells a
-            // header governs from where they sit — usually right for a plain
-            // grid, unreliable the moment a cell spans (WCAG 1.3.1). The insert
-            // always builds a header **row**, so every header cell is `col`.
-            expect(body.match(/<th[^>]*scope="col"/g)).toHaveLength(3);
+            // The header row is now a **modelled** fact: three `tableHeader`
+            // cells, not three `<th>` tags to grep for. That is what makes it
+            // checkable — `inspectRichText` refuses a table without them
+            // (WCAG 1.3.1), and this is the shape it reads.
+            const body = saves.bodies[0].values?.['body'];
+            expect(savedNodesOfType(body, 'table')).toHaveLength(1);
+            expect(savedNodesOfType(body, 'tableRow')).toHaveLength(3);
+            expect(savedNodesOfType(body, 'tableHeader')).toHaveLength(3);
         });
 
-        test('stores a paragraph’s alignment as text-align', async ({
+        test('stores a paragraph’s alignment on the block', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -319,15 +353,20 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            // Text aligns by `text-align`; media, which is a block and has no
-            // inline children to position, aligns by its margins instead. The
-            // one menu picks the right one — this is the text half.
-            expect(String(saves.bodies[0].values?.['body'])).toContain(
-                'text-align: center'
+            // Text aligns by `textAlign` on the block; media, which is a block
+            // and has no inline children to position, aligns by its own
+            // attribute instead. The one menu picks the right one — this is the
+            // text half.
+            const paragraphs = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'paragraph'
             );
+            expect(
+                paragraphs.some((node) => attr(node, 'textAlign') === 'center')
+            ).toBe(true);
         });
 
-        test('stores a column layout as nested divs', async ({
+        test('stores a column layout as nested nodes', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -342,9 +381,11 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            const body = String(saves.bodies[0].values?.['body']);
-            expect(body).toContain('data-columns="3"');
-            expect(body.match(/data-column=""/g)).toHaveLength(3);
+            const body = saves.bodies[0].values?.['body'];
+            const blocks = savedNodesOfType(body, 'columnBlock');
+            expect(blocks).toHaveLength(1);
+            expect(attr(blocks[0], 'count')).toBe(3);
+            expect(savedNodesOfType(body, 'column')).toHaveLength(3);
         });
 
         test('stores an emptied field as empty, not as a blank paragraph', async ({
@@ -364,6 +405,137 @@ test.describe('Entry editor — rich text field', () => {
                 'Required'
             );
             expect(saves.bodies).toHaveLength(0);
+        });
+    });
+
+    test.describe('structure and language', () => {
+        test('upgrades a legacy HTML body to a document on save', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            // The stored body is still an HTML string — every body written
+            // before rich text became structured is. Opening it parses it
+            // through the editor's own schema, and saving commits the document,
+            // so content upgrades as it is edited rather than in one migration
+            // that has to guess.
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.type(' Also this.');
+            await wysiwygFieldPage.done();
+
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            const body = saves.bodies[0].values?.['body'];
+            // A document, and nothing of the original was lost on the way.
+            expect(savedNodesOfType(body, 'heading')).toHaveLength(1);
+            expect(savedNodesOfType(body, 'listItem')).toHaveLength(2);
+            expect(savedText(body)).toContain('Release notes');
+            expect(savedText(body)).toContain('Also this.');
+        });
+
+        test('names the structural problems in a body it is handed', async ({
+            wysiwygFieldPage
+        }) => {
+            // The ORT-84 repro, opened in the editor. The insert command always
+            // builds a header row, so this table could only have come from
+            // somewhere else — which is exactly the content the rules have to
+            // reach.
+            await wysiwygFieldPage.gotoArticle(
+                WS,
+                WYSIWYG_INACCESSIBLE_ENTRY_ID
+            );
+            await wysiwygFieldPage.open('Body');
+
+            // Named under the document, while the author can still act on it —
+            // which is the whole of 504.2: a rule nobody meets until a save is
+            // refused enables nothing.
+            await expect(
+                wysiwygFieldPage.issues.filter({ hasText: 'header cells' })
+            ).toBeVisible();
+            await expect(
+                wysiwygFieldPage.issues.filter({ hasText: 'above the level' })
+            ).toBeVisible();
+        });
+
+        test('refuses to save a body a screen reader could not follow', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoArticle(
+                WS,
+                WYSIWYG_INACCESSIBLE_ENTRY_ID
+            );
+            // Dirty the record without touching the body, so what is judged is
+            // the stored value itself.
+            await contentLibraryPage
+                .fieldTextbox('Title')
+                .fill('Still needs work');
+
+            await contentLibraryPage.editorSave.click();
+            await expect(wysiwygFieldPage.fieldError('body')).toContainText(
+                'header cells'
+            );
+            // Nothing was sent: the same rule the server applies, applied here
+            // first, so the author is told by the form rather than by a 422.
+            expect(saves.bodies).toHaveLength(0);
+        });
+
+        test('stores the language a passage is written in', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.type('Bonjour');
+            await wysiwygFieldPage.selectAll();
+            await wysiwygFieldPage.setPassageLanguage('fr');
+            await wysiwygFieldPage.done();
+
+            await contentLibraryPage.saveDraft();
+            await expect.poll(() => saves.bodies).toHaveLength(1);
+
+            // The marker rides the run in the stored document, which is what
+            // makes language of parts expressible at all (WCAG 3.1.2) — and
+            // what a consumer needs to render `<span lang="fr">`.
+            const runs = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'text'
+            );
+            const marked = runs.find((node) =>
+                node.marks?.some((mark) => mark.type === 'language')
+            );
+            expect(marked?.text).toBe('Bonjour');
+            expect(
+                marked?.marks?.find((mark) => mark.type === 'language')?.attrs
+            ).toEqual({ lang: 'fr' });
+        });
+
+        test('refuses a language tag assistive tech would ignore', async ({
+            wysiwygFieldPage,
+            contentLibraryPage
+        }) => {
+            await wysiwygFieldPage.gotoNewArticle(WS);
+            await contentLibraryPage.fieldTextbox('Title').fill('Draft');
+
+            await wysiwygFieldPage.open('Body');
+            await wysiwygFieldPage.type('Bonjour');
+            await wysiwygFieldPage.selectAll();
+            await wysiwygFieldPage.openToolbarMenu('More formatting');
+            await wysiwygFieldPage
+                .menuItem('Language of this passage…')
+                .click();
+
+            // A POSIX locale is not a BCP-47 tag, and a screen reader ignores
+            // it outright — so the dialog says so rather than storing a marker
+            // that does nothing.
+            const dialog = wysiwygFieldPage.page.getByRole('dialog');
+            await dialog.getByLabel('Language tag').fill('fr_FR');
+            await dialog.getByRole('button', { name: 'Apply' }).click();
+            await expect(dialog).toBeVisible();
+            await expect(dialog.getByRole('alert')).toContainText('BCP-47');
         });
     });
 
@@ -417,10 +589,15 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            const body = String(saves.bodies[0].values?.['body']);
-            expect(body).toContain(
-                '<img src="https://example.com/photo.jpg" alt="A photo">'
+            const images = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'image'
             );
+            expect(images).toHaveLength(1);
+            expect(attr(images[0], 'src')).toBe(
+                'https://example.com/photo.jpg'
+            );
+            expect(attr(images[0], 'alt')).toBe('A photo');
         });
 
         test('refuses a URL the editor would not publish', async ({
@@ -455,10 +632,15 @@ test.describe('Entry editor — rich text field', () => {
 
             // The stored `src` points at the library asset, and the asset's own
             // pixel width seeds the node — so it lands at its natural size.
-            const body = String(saves.bodies[0].values?.['body']);
-            expect(body).toContain(`/api/media/assets/${MEDIA_ASSET_IDS.hero}`);
-            expect(body).toContain('<img ');
-            expect(body).toContain('width="1200"');
+            const images = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'image'
+            );
+            expect(images).toHaveLength(1);
+            expect(String(attr(images[0], 'src'))).toContain(
+                `/api/media/assets/${MEDIA_ASSET_IDS.hero}`
+            );
+            expect(attr(images[0], 'width')).toBe(1200);
             // Nothing was uploaded: an existing asset is already in the library.
             expect(uploads.count).toBe(0);
         });
@@ -485,9 +667,15 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            expect(String(saves.bodies[0].values?.['body'])).toMatch(
-                /<img[^>]*width="\d+"/
-            );
+            expect(
+                attr(
+                    savedNodesOfType(
+                        saves.bodies[0].values?.['body'],
+                        'image'
+                    )[0],
+                    'width'
+                )
+            ).toEqual(expect.any(Number));
         });
 
         test('centres a selected image, and stores where it sits', async ({
@@ -524,9 +712,15 @@ test.describe('Entry editor — rich text field', () => {
 
             // Where a picture sits is published layout, so it has to survive the
             // round-trip — the editor agreeing is only half of it.
-            expect(String(saves.bodies[0].values?.['body'])).toContain(
-                'data-align="center"'
-            );
+            expect(
+                attr(
+                    savedNodesOfType(
+                        saves.bodies[0].values?.['body'],
+                        'image'
+                    )[0],
+                    'align'
+                )
+            ).toBe('center');
         });
 
         test('prompts for alt text, and stores what the author writes', async ({
@@ -558,9 +752,15 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            expect(String(saves.bodies[0].values?.['body'])).toContain(
-                'alt="Ada at her desk"'
-            );
+            expect(
+                attr(
+                    savedNodesOfType(
+                        saves.bodies[0].values?.['body'],
+                        'image'
+                    )[0],
+                    'alt'
+                )
+            ).toBe('Ada at her desk');
         });
 
         test('records a decorative image as answered, not as missing', async ({
@@ -587,9 +787,13 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            const body = String(saves.bodies[0].values?.['body']);
-            expect(body).toContain('alt=""');
-            expect(body).toContain('data-decorative=""');
+            const images = savedNodesOfType(
+                saves.bodies[0].values?.['body'],
+                'image'
+            );
+            expect(images).toHaveLength(1);
+            expect(attr(images[0], 'alt')).toBe('');
+            expect(attr(images[0], 'decorative')).toBe(true);
         });
 
         test('never saves the record from an overlay’s own form', async ({
@@ -641,9 +845,15 @@ test.describe('Entry editor — rich text field', () => {
             await contentLibraryPage.saveDraft();
             await expect.poll(() => saves.bodies).toHaveLength(1);
 
-            expect(String(saves.bodies[0].values?.['body'])).toContain(
-                `alt="${MEDIA_HERO_ALT}"`
-            );
+            expect(
+                attr(
+                    savedNodesOfType(
+                        saves.bodies[0].values?.['body'],
+                        'image'
+                    )[0],
+                    'alt'
+                )
+            ).toBe(MEDIA_HERO_ALT);
         });
 
         test('shows a stored image in the collapsed preview', async ({

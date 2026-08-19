@@ -64,6 +64,13 @@
       "when": 1786801489974,
       "tag": "0008_comment_seo_note_restrict",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787129060137,
+      "tag": "0009_richtext_structured_documents",
+      "breakpoints": true
     }
   ]
 }

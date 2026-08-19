@@ -14,12 +14,15 @@ import type { ContentField } from '../../domain/types/contentType';
  * one that bites: the validator branches on it to expect a `uuid[]` on a media
  * field, so dropping it made the admin judge a gallery's list against the
  * single-asset rule and refuse to save ("must be a media asset id") over a value
- * the server would have accepted.
+ * the server would have accepted. `lang` is the same shape of mistake in the
+ * other direction: leaving it out would let the admin pass a field the server
+ * then refuses for a malformed language tag.
  */
 export function toFieldSpec(field: ContentField): EntryFieldSpec {
     return {
         type: field.type,
         required: field.required,
+        lang: field.lang,
         validation: field.validation as EntryFieldSpec['validation'],
         options: field.options,
         relation: field.relation,

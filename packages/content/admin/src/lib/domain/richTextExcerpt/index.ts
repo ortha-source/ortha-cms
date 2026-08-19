@@ -1,56 +1,24 @@
 /**
- * A `richtext` value's plain-text summary. Rich text is stored as **HTML**
- * (the storage layer already calls it "potentially huge HTML"), so the raw
- * value is useless anywhere a single line of text is what fits — a table cell,
- * a revision diff row, a search result. `String(value)` there renders the
- * markup itself (`<p>Hello <strong>world</strong></p>`), which is what the
- * reader sees instead of their sentence.
+ * A `richtext` value's plain-text summary — what a table cell, a revision diff
+ * row or a search result shows, where one line of text is all that fits.
  *
- * Pure, DOM-free, and deliberately not a parser: the result is only ever
- * rendered as **text**, never as HTML, so tag-stripping by regex carries no
- * injection risk — a leftover `<` is displayed, not executed.
+ * The reading itself lives in the shared kernel (`richTextPlainText`), because
+ * it is the same reading a `maxLength` counts and the server applies: rich text
+ * is a **document**, and a body written before it was one is HTML. Printing
+ * either raw shows the reader their markup — or their JSON — instead of their
+ * sentence. This module exists so the admin has one name for that, and so the
+ * whitespace collapsing a single line needs happens in one place.
  */
 
-/** Elements whose content is markup/metadata, not prose — dropped wholesale. */
-const NON_PROSE_RE = /<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi;
-
-/** Tags that end a line of prose, so the text either side doesn't run together. */
-const BLOCK_BOUNDARY_RE =
-    /<\/?(p|div|br|li|ul|ol|h[1-6]|blockquote|pre|tr|td|th|table|thead|tbody|section|article|aside|figure|figcaption|hr)\b[^>]*>/gi;
-
-/** Any remaining tag — inline marks (`<strong>`, `<em>`, `<a>`) carry no break. */
-const TAG_RE = /<[^>]*>/g;
-
-/** The named/numeric entities a rich-text body realistically contains. */
-const ENTITIES: Record<string, string> = {
-    '&nbsp;': ' ',
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&#39;': "'",
-    '&apos;': "'",
-    '&mdash;': '—',
-    '&ndash;': '–',
-    '&hellip;': '…'
-};
-
-const ENTITY_RE = /&(?:nbsp|amp|lt|gt|quot|apos|mdash|ndash|hellip|#39);/g;
+import { richTextPlainText } from '@ortha-cms/content-domain';
 
 /**
- * The readable text inside a rich-text (HTML) value, collapsed to a single
- * line. Block-level tags become a space so "…end.</p><p>Next…" doesn't read as
- * "end.Next"; inline marks vanish without one. Returns `''` for a non-string or
- * a body with no text (e.g. an empty `<p></p>`), which is what lets a caller
- * treat "markup but no words" as empty rather than printing blank markup.
+ * The readable text inside a rich-text value, collapsed to a single line.
+ * Returns `''` for a value with no words (an empty document, `<p></p>`, or
+ * anything that is not rich text at all), which is what lets a caller treat
+ * "structure but no words" as empty rather than printing a blank cell's worth
+ * of markup.
  */
 export function richTextExcerpt(value: unknown): string {
-    if (typeof value !== 'string') return '';
-    return value
-        .replace(NON_PROSE_RE, ' ')
-        .replace(BLOCK_BOUNDARY_RE, ' ')
-        .replace(TAG_RE, '')
-        .replace(ENTITY_RE, (entity) => ENTITIES[entity] ?? entity)
-        .replace(/\s+/g, ' ')
-        .trim();
+    return richTextPlainText(value).replace(/\s+/g, ' ').trim();
 }

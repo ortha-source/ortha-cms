@@ -3,6 +3,7 @@ import type { IntlShape } from 'react-intl';
 import { Badge } from '@ortha-cms/design-system';
 import type { ContentField } from '../../../../../../domain/types/contentType';
 import { CONTENT_FIELD_TYPE } from '../../../../../../domain/constants';
+import { richTextExcerpt } from '../../../../../../domain/richTextExcerpt';
 
 /** True for a null / undefined / blank / empty-array value. */
 function isEmpty(value: unknown): boolean {
@@ -81,7 +82,24 @@ export function formatRevisionValue(
                     {JSON.stringify(value, null, 2)}
                 </code>
             );
-        case CONTENT_FIELD_TYPE.RichText:
+        case CONTENT_FIELD_TYPE.RichText: {
+            // A body is a document, and `String(value)` on one prints
+            // `[object Object]` — the reader's own words are what a
+            // before/after pair is for, so show the text and treat a body with
+            // structure but no words as empty (the check above cannot see it,
+            // since the object is neither null nor blank).
+            const text = richTextExcerpt(value);
+            return text === '' ? (
+                <span className="text-muted-foreground">
+                    {intl.formatMessage({
+                        id: 'content.revisions.preview.empty',
+                        defaultMessage: 'Empty'
+                    })}
+                </span>
+            ) : (
+                <span className="whitespace-pre-wrap break-words">{text}</span>
+            );
+        }
         case CONTENT_FIELD_TYPE.Text:
         default:
             return (

@@ -15,8 +15,18 @@ tab and inside a localized type's Translated/Shared groups — without knowing
 about any of them.
 
 There is **no server counterpart**. `richtext` is an existing content field type
-(`@ortha-cms/content-server`) that already stores HTML in a text column; this
-plugin changes the *control*, not the schema, the wire format, or the API.
+(`@ortha-cms/content-server`); this plugin changes the *control*, not the
+schema, the wire format, or the API.
+
+What it stores is the **document** — `editor.getJSON()`, the ProseMirror node
+tree — because a `richtext` value is a structured document rather than an
+opaque HTML string (see
+[`content-domain`](../../content/domain/AGENTS.md) and
+[ORT-84](https://linear.app/ortha-source/issue/ORT-84)). A body written before
+that change is still an HTML string in the column; opening it seeds TipTap,
+which parses it through this editor's own schema, and the first save commits the
+document — so content upgrades as it is edited rather than in one migration that
+has to guess what an unknown tag meant.
 
 ## Which fields it claims
 
@@ -44,12 +54,14 @@ Written layered from the start, like `content/admin`:
 
 - **`domain/`** — pure TS, no React and no TipTap. `constants` (the widget
   values, callout tones, the color/size palettes, the prose class) and
-  `richTextValue` (what "empty" means for a stored value, and the storage
-  normalization that follows from it).
+  `richTextValue` (the editor-facing half of a stored value: what to seed TipTap
+  with, and the storage normalization a closed editor's output goes through —
+  emptiness itself is the kernel's, and re-exported from here).
 - **`infrastructure/`** — the TipTap layer. `editorExtensions` (the one place
   that decides what an author can write), `extensions/callout`,
-  `extensions/columns`, and `extensions/media` (nodes TipTap doesn't ship — the
-  last one keeps its React node view beside it, since a node view is the
+  `extensions/columns`, `extensions/language` (the BCP-47 marker on a run of
+  text — language of parts), and `extensions/media` (nodes TipTap doesn't ship —
+  the last one keeps its React node view beside it, since a node view is the
   extension's own plumbing and putting it under `presentation/` would have this
   layer importing upward), and `renderRichText` (the read-only renderer — see
   **Trust boundary** below).
@@ -57,9 +69,10 @@ Written layered from the start, like `content/admin`:
   `components/WysiwygFieldControl` (the field as it sits in the form) and
   `components/WysiwygFieldFullView` (what it expands into) — the slot item's
   `Component` and `FullView` — plus `WysiwygPreview`, `WysiwygEditorPanel`,
+  `WysiwygIssueList` (the structural findings under the document),
   `WysiwygToolbar` with a folder per menu, and `hooks/useLiveEditorState`.
 
-## Five decisions worth knowing before you change anything
+## Six decisions worth knowing before you change anything
 
 ### 1. Trust boundary: the preview never renders the stored HTML as-is
 
@@ -71,8 +84,12 @@ via `innerHTML`, but `<img src=x onerror=…>` does, and a contributor could aim
 it at an admin.
 
 So `renderRichText` round-trips the value through the **editor's own ProseMirror
-schema** — parsed out of an inert `DOMParser` document, re-serialized from the
-parsed nodes. Only what the schema declares survives; event handlers are
+schema** — a document rebuilt from its JSON, a legacy HTML string parsed out of
+an inert `DOMParser` document — and re-serializes from the resulting nodes. (A
+document carrying a node type this install has no extension for cannot be
+rebuilt; it falls back to the kernel's `richTextToHtml` and takes the string
+path, so the parts this editor *does* understand still render instead of a blank
+card.) Only what the schema declares survives; event handlers are
 dropped, and the Link extension blanks any href outside its protocol allowlist
 (`javascript:`). The allowlist is therefore the *same definition* as "what this
 editor can write", so the preview is exactly what the author sees once the
@@ -155,16 +172,40 @@ boundary. So leaving the view — by either exit — can never lose work.
 
 ### 5. "Empty" is defined as what empty *is*
 
-`isEmptyRichText` matches the exact markup an emptied editor leaves behind —
-paragraph wrappers, `<br>`, whitespace — and calls **everything else** content.
-It is deliberately not the inverse rule ("no text and no `<img>/<hr>/<table>`"),
-which has to name every element that can carry meaning without carrying words,
-and will always be one short: it was, and a column layout the author had just
-inserted but not yet typed into read as empty and was thrown away on save.
+`isEmptyRichText` (the kernel's — `richTextValue` re-exports it, since the
+server's `required` and the publish gate ask the same question) matches the
+exact document an emptied editor leaves behind — a paragraph, a `hardBreak`,
+whitespace — and calls **everything else** content. It is deliberately not the
+inverse rule ("no text and no image/divider/table"), which has to name every
+node that can carry meaning without carrying words, and will always be one
+short: it was, and a column layout the author had just inserted but not yet
+typed into read as empty and was thrown away on save.
 
 The normalization matters beyond that bug — a `required` field whose editor was
-cleared has to fail validation, and it only does if what we store is `''` rather
-than `<p></p>`.
+cleared has to fail validation, and it only does if what we store is `null`
+rather than a document holding an empty paragraph.
+
+### 6. The editor names what is structurally wrong, while it can still be fixed
+
+`WysiwygIssueList` sits under the document and reports `inspectRichText`'s
+findings on it — a skipped heading level, a table with no header cells, a link
+whose text says nothing, a `lang` no user agent can parse. The rules are the
+**kernel's**, so this is never a second opinion: an error here is exactly what
+will refuse the save, and a warning is exactly what will not.
+
+Both are shown, and that is the point. Section 508's 504.2 asks whether an
+authoring tool *enables* the production of conformant content; a rule an author
+only meets as a rejected save enables nothing.
+
+**Language of parts** (WCAG 3.1.2) is the writing half of the same criterion:
+the `Language` mark (`infrastructure/extensions/language`) carries a BCP-47
+`lang` on a run of text, so a French quotation inside an English body is
+announced with French phonemes. It is reached through **More formatting ▸
+Language of this passage…**, whose dialog is mounted by the toolbar rather than
+by the menu item — a `DropdownMenuContent` unmounts exactly when the dialog
+needs to appear, the same reason the media sources are mounted there. The tag is
+validated with the kernel's `isWellFormedLanguageTag`, so the editor can never
+accept one the save then refuses.
 
 ## Bundle: keep TipTap out of the entry chunk
 

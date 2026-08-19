@@ -20,6 +20,13 @@ export interface SerializedField {
     required: boolean;
     /** Value differs per locale — present only when true (i18n types). */
     localized?: boolean;
+    /**
+     * BCP-47 tag naming the language this field's content is written in, when
+     * it is not the entry's own (WCAG 3.1.2). Present only when the field
+     * declares one; the admin renders the control with it so the value is
+     * announced in the right language, and the kernel validates it.
+     */
+    lang?: string;
     validation: Record<string, unknown>;
     admin: Record<string, unknown>;
     options?: readonly string[];
@@ -170,6 +177,7 @@ export class ContentTypeRegistry {
             type: spec.type,
             required: spec.required,
             ...(localized ? { localized: true } : {}),
+            ...(spec.lang ? { lang: spec.lang } : {}),
             validation: { ...spec.validation },
             admin: { ...spec.admin },
             ...(spec.options ? { options: spec.options } : {}),

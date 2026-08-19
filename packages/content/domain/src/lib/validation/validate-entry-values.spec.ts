@@ -631,3 +631,160 @@ describe('validateEntryValues — media fields', () => {
         });
     });
 });
+
+describe('validateFieldValue — richtext', () => {
+    /** The messages a value trips on a `richtext` field. */
+    const check = (value: unknown, spec: Partial<EntryFieldSpec> = {}) =>
+        validateFieldValue(
+            'body',
+            { type: CONTENT_FIELD_TYPE.RichText, required: false, ...spec },
+            value
+        ).map((issue) => issue.message);
+
+    /** A `doc` around one paragraph of the given text. */
+    const body = (text: string) => ({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text }] }]
+    });
+
+    it('accepts a structured document', () => {
+        expect(check(body('Hello'))).toEqual([]);
+    });
+
+    it('accepts a legacy HTML string', () => {
+        // Bodies written before rich text became structured are stored as
+        // HTML, and stay that way until the record is next saved.
+        expect(check('<p>Hello</p>')).toEqual([]);
+    });
+
+    it('rejects a value that is neither', () => {
+        expect(check(42)).toEqual(['must be a rich-text document']);
+        expect(check({ type: 'paragraph' })).toEqual([
+            'must be a rich-text document'
+        ]);
+        expect(check({ type: 'doc', content: ['nope'] })).toEqual([
+            'must be a rich-text document'
+        ]);
+    });
+
+    it('counts the body’s text, not its markup', () => {
+        // The related symptom in ORT-84: bolding a word used to spend the
+        // author's budget on `<strong></strong>`.
+        const spec = { validation: { maxLength: 5 } };
+        expect(check('<p>Hello</p>', spec)).toEqual([]);
+        expect(check('<p><strong>Hello</strong></p>', spec)).toEqual([]);
+        expect(
+            check(
+                {
+                    type: 'doc',
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: 'Hello',
+                                    marks: [{ type: 'bold' }]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                spec
+            )
+        ).toEqual([]);
+        expect(check(body('Hello!'), spec)).toEqual([
+            'must be at most 5 characters'
+        ]);
+    });
+
+    it('matches a pattern against the text, for the same reason', () => {
+        expect(
+            check('<p>hello</p>', { validation: { pattern: '^[a-z]+$' } })
+        ).toEqual([]);
+    });
+
+    it('trips required on the document an emptied editor leaves behind', () => {
+        const spec = { required: true };
+        expect(
+            check({ type: 'doc', content: [{ type: 'paragraph' }] }, spec)
+        ).toEqual(['is required']);
+        expect(check('<p><br></p>', spec)).toEqual(['is required']);
+        expect(check(body('Hi'), spec)).toEqual([]);
+    });
+
+    it('does not trip required on a body that means something without words', () => {
+        expect(
+            check(
+                { type: 'doc', content: [{ type: 'table' }] },
+                { required: true }
+            )
+        ).toEqual([]);
+    });
+
+    it('fails a structural error', () => {
+        expect(check('<h2>A</h2><h4>B</h4>')).toEqual([
+            'has a heading that skips from h2 to h4'
+        ]);
+        expect(check('<table><tr><td>a</td></tr></table>')).toEqual([
+            'has a table with no header cells'
+        ]);
+        expect(check('<p lang="en_US">Hi</p>')).toEqual([
+            'has an invalid language tag ("en_US")'
+        ]);
+    });
+
+    it('never fails a structural warning', () => {
+        // "click here" is poor link text, but whether a body means it badly is
+        // not decidable from the string — the editor surfaces it, the gate
+        // does not block on it.
+        expect(check('<p><a href="/d">click here</a></p>')).toEqual([]);
+    });
+
+    it('can be opted out of, per field', () => {
+        expect(
+            check('<h2>A</h2><h4>B</h4>', { validation: { structure: 'off' } })
+        ).toEqual([]);
+    });
+
+    it('sees what the ORT-84 repro reported as clean', () => {
+        expect(
+            check(
+                '<h4>Intro</h4><h1>Title</h1><table><tr><td>a</td></tr></table>',
+                { required: true }
+            )
+        ).toEqual(['has a table with no header cells']);
+    });
+});
+
+describe('validateFieldValue — field language', () => {
+    it('accepts a well-formed tag on any field', () => {
+        expect(
+            validateFieldValue(
+                'motto',
+                { type: CONTENT_FIELD_TYPE.Text, required: false, lang: 'la' },
+                'Semper idem'
+            )
+        ).toEqual([]);
+    });
+
+    it('rejects a tag no user agent can parse, value or no value', () => {
+        const spec: EntryFieldSpec = {
+            type: CONTENT_FIELD_TYPE.Text,
+            required: false,
+            lang: 'latin_1'
+        };
+        expect(validateFieldValue('motto', spec, 'Semper idem')).toEqual([
+            {
+                field: 'motto',
+                message: 'has an invalid language tag ("latin_1")'
+            }
+        ]);
+        expect(validateFieldValue('motto', spec, null)).toEqual([
+            {
+                field: 'motto',
+                message: 'has an invalid language tag ("latin_1")'
+            }
+        ]);
+    });
+});

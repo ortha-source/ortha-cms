@@ -194,7 +194,8 @@ happened to be granted both.
 
 | Field kind                  | GraphQL                                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `text`, `richtext`          | `String`                                                                                                      |
+| `text`                      | `String`                                                                                                      |
+| `richtext`                  | `JSON` — a structured document (ORT-84); a legacy HTML body comes back as a JSON string                       |
 | `number`                    | `Int` when `validation.integer`, else `Float`                                                                 |
 | `money`                     | see the open question in §13 — minor units, so `Int` overflows above ~$21.4M                                  |
 | `boolean`                   | `Boolean`                                                                                                     |

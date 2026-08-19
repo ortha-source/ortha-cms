@@ -4,7 +4,7 @@
  * more importantly — on how the needle is escaped.
  */
 
-import { ilike, or, type AnyColumn, type SQL } from 'drizzle-orm';
+import { ilike, or, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
 
@@ -18,6 +18,23 @@ export function isTextLike(spec: AnyFieldSpec): boolean {
         spec.type === CONTENT_FIELD_TYPE.RichText ||
         spec.type === CONTENT_FIELD_TYPE.Select
     );
+}
+
+/**
+ * The expression a text-like column is matched against.
+ *
+ * A `richtext` body is a **document** in a `jsonb` column, and `ILIKE` has no
+ * meaning against `jsonb` — so it is cast to text and the search runs over the
+ * serialized tree. That reaches the words, which is what a reader is looking
+ * for; the cost is that a needle spelling one of the tree's own key names
+ * (`paragraph`, `heading`) can match a body that never says it. Searching the
+ * *text* properly wants a stored, indexed projection of it — worth doing when
+ * search is next revisited, and much more than a cast.
+ */
+function searchable(spec: AnyFieldSpec, column: AnyColumn): AnyColumn | SQL {
+    return spec.type === CONTENT_FIELD_TYPE.RichText
+        ? sql`${column}::text`
+        : column;
 }
 
 /**
@@ -39,6 +56,6 @@ export function buildSearchPredicate(
     const pattern = `%${needle.replace(/[\\%_]/g, '\\$&')}%`;
     const clauses = Object.entries(type.fields)
         .filter(([, spec]) => isTextLike(spec))
-        .map(([name]) => ilike(table[name], pattern));
+        .map(([name, spec]) => ilike(searchable(spec, table[name]), pattern));
     return clauses.length ? or(...clauses) : undefined;
 }

@@ -24,8 +24,8 @@ function isEmpty(value: unknown): boolean {
  * Render one field value into a table cell, by field type: scalars inline
  * (truncated), `boolean`/`select`/`status` as badges, dates via the intl
  * formatter, relations as a label with a `+N` overflow, `json` as a muted,
- * iconified summary, and `richtext` as a plain-text excerpt of its HTML (the
- * markup itself doesn't fit — or read as — a cell). An empty value renders a
+ * iconified summary, and `richtext` as a plain-text excerpt of its document
+ * (the tree itself doesn't fit — or read as — a cell). An empty value renders a
  * muted em-dash. `intl` is passed in so the function stays a pure renderer (no
  * hook).
  */
@@ -119,10 +119,12 @@ export function renderCell(
                 </span>
             );
         case CONTENT_FIELD_TYPE.RichText: {
-            // Rich text is HTML: printed raw, the cell shows the reader their
-            // markup instead of their sentence. Excerpt it to the words, and
-            // treat "markup with no words" (an empty `<p></p>`) as empty —
-            // `isEmpty` above can't see that, since the string isn't blank.
+            // Rich text is a document (or, for a body not yet re-saved, the
+            // HTML string it used to be): printed raw, the cell shows the
+            // reader their node tree or their markup instead of their
+            // sentence. Excerpt it to the words, and treat "structure with no
+            // words" (an empty paragraph) as empty — `isEmpty` above can't see
+            // that, since neither an object nor `<p></p>` is blank.
             const text = richTextExcerpt(value);
             if (text === '')
                 return <span className="text-muted-foreground">{EMPTY}</span>;

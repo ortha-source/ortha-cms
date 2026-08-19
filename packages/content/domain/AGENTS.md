@@ -23,12 +23,40 @@ needing a framework belongs in the consuming package.
 draft` is unpublish. There is **no** separate `unpublished`/`archived` status
   — unpublish is the reverse transition, and archival is the paranoid
   soft-delete tombstone, not a status.
+- **The rich-text document** (`lib/richtext/`) — a `richtext` value is a
+  **structured document** (the ProseMirror/TipTap node tree the admin editor
+  produces), not an opaque HTML string, which is what makes its heading order,
+  table headers, link text and language markers checkable
+  (WCAG 1.3.1 / 2.4.6 / 3.1.2 — see
+  [ORT-84](https://linear.app/ortha-source/issue/ORT-84)). Five modules:
+    - `rich-text-node.ts` — the vocabulary (`RICH_TEXT_NODE`, `RICH_TEXT_MARK`),
+      the types, the guards (`isRichTextDocument`) and the walk. The vocabulary
+      is **open**: it names what the kernel reasons about, not what a document
+      may contain, so an editor extension (a callout, a column layout) rides
+      through untouched.
+    - `rich-text-document.ts` — the readings: `richTextPlainText` (what a
+      length rule counts — the body's **text**, markup excluded),
+      `isEmptyRichText`, `asRichTextDocument`.
+    - `html-to-document.ts` — a **legacy HTML string** read as a document, so
+      every rule below reaches bodies written before this change. Deliberately
+      lossy and **analysis-only**: a legacy value is stored as the string it is,
+      never as this output.
+    - `document-to-html.ts` — `richTextToHtml`, the serializer (escapes text,
+      emits a fixed vocabulary, keeps every `lang`).
+    - `rich-text-structure.ts` — `inspectRichText`, the structural rules. An
+      **error** (a skipped heading level, a header-less table, an empty link, a
+      malformed `lang`) fails validation; a **warning** ("click here") is
+      surfaced by the editor and never blocks a save. A field opts out with
+      `validation: { structure: 'off' }`.
+    - `language-tag.ts` — `isWellFormedLanguageTag`, BCP-47 **well-formedness**
+      (a registry check would need the IANA data set).
+
 - **Field-value validation** (`lib/validation/validate-entry-values.ts`) — the
   pure rules (`validateFieldValue`, `validateEntryValues`) extracted from the
   server's original `EntryValidationService`, operating on a serialized
   `EntryFieldSpec` map (`lib/fields/`).
 
-    Four rules here are **not** what a naive reading of JavaScript gives you, and
+    Six rules here are **not** what a naive reading of JavaScript gives you, and
     each has a test that pins it:
     - **Own keys only.** Both the unknown-key check and the value read use
       `Object.hasOwn`, never `key in fields` / `values[name]`. `in` would accept
@@ -45,6 +73,15 @@ draft` is unpublish. There is **no** separate `unpublished`/`archived` status
       uncompilable source and one at risk of catastrophic backtracking are both
       refused up front and fail the field, because a synchronous `RegExp.test`
       cannot be interrupted.
+    - **`richtext` is a document, and its length rules count text.** A value may
+      be a document **or** a legacy HTML string; both are read as a document, so
+      a `maxLength` no longer spends the author's budget on `<strong>` and the
+      structural rules apply to content written before them. Emptiness is the
+      document's, not the JSON's — `{ doc: [paragraph] }` is what an emptied
+      editor leaves behind and has to trip `required`.
+    - **A field may declare its own `lang`** (`EntryFieldSpec.lang`), checked for
+      BCP-47 well-formedness whether or not there is a value — the field-level
+      half of language of parts; a passage inside a body carries its own.
 
 - **The publish gate** (`lib/validation/publish-gate.ts`) — `canPublish`, the
   predicate derived from the same validator ("are the values complete + valid to

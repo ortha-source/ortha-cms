@@ -16,6 +16,58 @@ export type OpenApiSchema = Record<string, unknown>;
 const UUID_SCHEMA: OpenApiSchema = { type: 'string', format: 'uuid' };
 
 /**
+ * A rich-text body: the **document** the editor produces, or — for a body
+ * written before rich text became structured, and not yet re-saved — the HTML
+ * string it is still stored as. Both are accepted on a write and either may
+ * come back on a read, which is what `oneOf` says here.
+ *
+ * The node tree is described one level deep and left open (`additionalProperties`
+ * on `attrs`, a self-`$ref`-free `content`): the node vocabulary is the
+ * editor's, not this schema's, and pinning it here would make every editor
+ * extension a change to the published API description.
+ *
+ * `minLength`/`maxLength` are deliberately **not** copied onto it. They are
+ * real rules, but they count the body's *text*, and a JSON Schema `maxLength`
+ * on this value would be read as a bound on the serialized document — a
+ * different, wrong promise. The field's description carries them in words.
+ */
+const RICH_TEXT_SCHEMA: OpenApiSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            title: 'RichTextDocument',
+            required: ['type'],
+            properties: {
+                type: { type: 'string', enum: ['doc'] },
+                content: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        required: ['type'],
+                        properties: {
+                            type: { type: 'string' },
+                            attrs: {
+                                type: 'object',
+                                additionalProperties: true
+                            },
+                            marks: { type: 'array', items: { type: 'object' } },
+                            text: { type: 'string' },
+                            content: {
+                                type: 'array',
+                                items: { type: 'object' }
+                            }
+                        },
+                        additionalProperties: true
+                    }
+                }
+            },
+            additionalProperties: true
+        },
+        { type: 'string', description: 'Legacy HTML body (read-compatible).' }
+    ]
+};
+
+/**
  * The schema of a field's **value**, before the nullability and description
  * wrapping {@link fieldSchema} adds.
  *
@@ -35,10 +87,7 @@ function valueSchema(field: SerializedField): OpenApiSchema {
                     : {})
             };
         case CONTENT_FIELD_TYPE.RichText:
-            return {
-                type: 'string',
-                ...pick(validation, ['minLength', 'maxLength'])
-            };
+            return RICH_TEXT_SCHEMA;
         case CONTENT_FIELD_TYPE.Number:
             return {
                 type: validation['integer'] === true ? 'integer' : 'number',
@@ -93,6 +142,15 @@ function pick(
         }
     }
     return out;
+}
+
+/** One numeric validation rule off a field, when it has one. */
+function validationNumber(
+    field: SerializedField,
+    key: string
+): number | undefined {
+    const value = field.validation[key];
+    return typeof value === 'number' ? value : undefined;
 }
 
 /** `min`/`max` are JSON Schema's `minimum`/`maximum`. */
@@ -151,6 +209,27 @@ export function fieldSchema(field: SerializedField): OpenApiSchema {
     }
     if (field.type === CONTENT_FIELD_TYPE.Json) {
         notes.push('Arbitrary JSON.');
+    }
+    if (field.type === CONTENT_FIELD_TYPE.RichText) {
+        notes.push(
+            'Rich text as a structured document (ProseMirror/TipTap JSON); a ' +
+                'legacy HTML string is still accepted and still read back until ' +
+                'the entry is next saved from the editor.'
+        );
+        const min = validationNumber(field, 'minLength');
+        const max = validationNumber(field, 'maxLength');
+        if (min !== undefined || max !== undefined) {
+            // Said in words rather than as a JSON Schema `maxLength`, which
+            // would bound the serialized document instead of the prose.
+            notes.push(
+                `Length rules count the body's text, not its markup${
+                    min !== undefined ? `; at least ${min} characters` : ''
+                }${max !== undefined ? `; at most ${max} characters` : ''}.`
+            );
+        }
+    }
+    if (field.lang) {
+        notes.push(`Written in \`${field.lang}\` (BCP-47).`);
     }
 
     const label =

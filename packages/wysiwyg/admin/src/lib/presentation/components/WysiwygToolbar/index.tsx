@@ -17,6 +17,7 @@ import { BlockTypeMenu } from './BlockTypeMenu';
 import { COLOR_KIND, ColorMenu } from './ColorMenu';
 import { FontSizeMenu } from './FontSizeMenu';
 import { InsertMenu } from './InsertMenu';
+import { LanguageDialog } from './LanguageDialog';
 import { LinkPopover } from './LinkPopover';
 import { MediaUrlDialog } from './MediaUrlDialog';
 import { MoreMarksMenu } from './MoreMarksMenu';
@@ -118,6 +119,8 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
     const [openSource, setOpenSource] = useState<string | null>(null);
     /** Which built-in URL dialog is open, by the kind it inserts. */
     const [urlKind, setUrlKind] = useState<WysiwygMediaKind | null>(null);
+    /** Whether the language-of-parts dialog is open. */
+    const [languageOpen, setLanguageOpen] = useState(false);
 
     const insertMedia = (embeds: WysiwygMediaEmbed[]) => {
         editor.chain().focus().insertMedia(embeds).run();
@@ -162,7 +165,10 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
                     active={state.italic}
                     onClick={() => editor.chain().focus().toggleItalic().run()}
                 />
-                <MoreMarksMenu editor={editor} />
+                <MoreMarksMenu
+                    editor={editor}
+                    onOpenLanguage={() => setLanguageOpen(true)}
+                />
 
                 <ToolbarSeparator />
 
@@ -199,6 +205,14 @@ export function WysiwygToolbar({ editor }: { editor: Editor }) {
                     onOpenMediaUrl={setUrlKind}
                 />
             </div>
+
+            {/* Mounted outside the menu that opens it, for the same reason the
+            media sources are — see below. */}
+            <LanguageDialog
+                editor={editor}
+                open={languageOpen}
+                onOpenChange={setLanguageOpen}
+            />
 
             {/* Media sources are mounted **here**, outside the menu that opens
             them. `DropdownMenuContent` unmounts the moment the menu closes —
