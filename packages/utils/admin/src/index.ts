@@ -12,6 +12,7 @@ export type { Slot, SlotContribution } from './lib/slot';
 export { byOrder } from './lib/byOrder';
 export { slugify } from './lib/slugify';
 export { useDebouncedValue } from './lib/useDebouncedValue';
+export { isComposingText } from './lib/isComposingText';
 export {
     useTableUrlState,
     type TableUrlState,

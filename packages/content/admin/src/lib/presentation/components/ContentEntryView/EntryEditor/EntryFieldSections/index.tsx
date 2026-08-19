@@ -23,8 +23,35 @@ const messages = defineMessages({
         id: 'content.form.group.sharedBody',
         defaultMessage:
             'These are the same in every locale — editing one here changes it everywhere.'
+    },
+    requiredLegend: {
+        id: 'content.form.requiredLegend',
+        defaultMessage:
+            'Fields marked * are required before this entry can be published.'
     }
 });
+
+/**
+ * States what the `*` beside a field label means, once, above the fields.
+ *
+ * `RequiredMark` used to say it in a native `title` on an `aria-hidden` span —
+ * mouse-only, not dismissible, and unreachable by assistive tech (`ORT-90`).
+ * A form-wide convention belongs to the form, not to each of its labels: said
+ * here it is visible to everyone, announced once instead of on every field, and
+ * there is nothing to hover.
+ *
+ * Rendered only when something on screen is actually marked.
+ */
+function RequiredLegend({ fields }: { fields: ContentField[] }) {
+    const intl = useIntl();
+    if (!fields.some((field) => field.required)) return null;
+
+    return (
+        <p className="text-muted-foreground text-xs">
+            {intl.formatMessage(messages.requiredLegend)}
+        </p>
+    );
+}
 
 /**
  * Field ordering, by control shape. Fields flow top-to-bottom in three tiers
@@ -100,6 +127,7 @@ export function EntryFieldSections({
     if (translated.length === 0 || shared.length === 0) {
         return (
             <div className="flex flex-col gap-5">
+                <RequiredLegend fields={ordered} />
                 {ordered.map((field) => (
                     <EntryFieldInput
                         key={field.name}
@@ -122,6 +150,7 @@ export function EntryFieldSections({
         // between them and still clear of the `gap-5` between fields inside a
         // group, so the stronger break reads as the group boundary.
         <div className="flex flex-col gap-6">
+            <RequiredLegend fields={ordered} />
             {/* Only the translated run carries the row's language: by
                 definition it holds this locale's text. A shared field holds one
                 value for every locale — usually still in the language it was

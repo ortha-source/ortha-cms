@@ -7,6 +7,7 @@ import {
     type UIEvent
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { TriangleAlert } from 'lucide-react';
 import {
     Button,
     Checkbox,
@@ -401,14 +402,28 @@ export function RelationPickerDialog({
                                 })}
                             </span>
                         ) : null}
+                        {/* A **status change**, so it says so out loud and in
+                            words. This was a bare `<span title="…">⚠</span>`:
+                            not focusable, no role, and its only accessible name
+                            the emoji itself — a screen reader announced "warning
+                            sign" and nothing else, while the sentence explaining
+                            what had just happened to the user's selection sat in
+                            a mouse-only `title` (1.4.13, 4.1.2 — `ORT-90`).
+                            `role="status"` announces it politely when the cap is
+                            hit, which is the moment it is true. */}
                         {many && !selectingAll && someSelected && hasMore ? (
                             <span
-                                title={intl.formatMessage(
-                                    messages.selectAllCapped,
-                                    { loaded: items.length, total }
-                                )}
+                                role="status"
+                                className="text-warning-soft-foreground inline-flex items-center gap-1"
                             >
-                                ⚠
+                                <TriangleAlert
+                                    aria-hidden
+                                    className="size-3.5 shrink-0"
+                                />
+                                {intl.formatMessage(messages.selectAllCapped, {
+                                    loaded: items.length,
+                                    total
+                                })}
                             </span>
                         ) : null}
                     </div>
