@@ -21,11 +21,7 @@ test.describe('Members accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('table — loading skeleton', async ({
-        membersPage,
-        page,
-        makeAxe
-    }) => {
+    test('table — loading skeleton', async ({ membersPage, page, makeAxe }) => {
         // Hold the list response open so the table skeleton stays on screen
         // (the header + toolbar are already live) while axe scans it.
         await mockMembers(page, DEFAULT_MEMBERS, { delayMs: 30_000 });

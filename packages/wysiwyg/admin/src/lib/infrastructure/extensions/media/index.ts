@@ -94,7 +94,9 @@ function sizingAttributes() {
             },
             renderHTML: (attributes: Record<string, unknown>) => {
                 const width = attributes['width'];
-                return typeof width === 'number' ? { width: String(width) } : {};
+                return typeof width === 'number'
+                    ? { width: String(width) }
+                    : {};
             }
         },
         /**
@@ -115,7 +117,9 @@ function sizingAttributes() {
                 const align = asMediaAlign(attributes['align']);
                 // Left is where a block already sits; writing it would add an
                 // attribute that changes nothing.
-                return align === MEDIA_ALIGN.Left ? {} : { 'data-align': align };
+                return align === MEDIA_ALIGN.Left
+                    ? {}
+                    : { 'data-align': align };
             }
         }
     };

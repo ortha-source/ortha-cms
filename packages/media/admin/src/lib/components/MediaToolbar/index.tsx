@@ -26,20 +26,44 @@ const messages = defineMessages({
         id: 'media.toolbar.searchPlaceholder',
         defaultMessage: 'Search name or tag…'
     },
-    kindLabel: { id: 'media.toolbar.kindLabel', defaultMessage: 'Filter by type' },
+    kindLabel: {
+        id: 'media.toolbar.kindLabel',
+        defaultMessage: 'Filter by type'
+    },
     kindAll: { id: 'media.toolbar.kindAll', defaultMessage: 'All types' },
     kindImage: { id: 'media.toolbar.kindImage', defaultMessage: 'Images' },
     kindVideo: { id: 'media.toolbar.kindVideo', defaultMessage: 'Videos' },
     kindAudio: { id: 'media.toolbar.kindAudio', defaultMessage: 'Audio' },
-    kindDocument: { id: 'media.toolbar.kindDocument', defaultMessage: 'Documents' },
-    kindArchive: { id: 'media.toolbar.kindArchive', defaultMessage: 'Archives' },
+    kindDocument: {
+        id: 'media.toolbar.kindDocument',
+        defaultMessage: 'Documents'
+    },
+    kindArchive: {
+        id: 'media.toolbar.kindArchive',
+        defaultMessage: 'Archives'
+    },
     sortLabel: { id: 'media.toolbar.sortLabel', defaultMessage: 'Sort' },
-    sortNewest: { id: 'media.toolbar.sortNewest', defaultMessage: 'Newest first' },
-    sortOldest: { id: 'media.toolbar.sortOldest', defaultMessage: 'Oldest first' },
-    sortNameAsc: { id: 'media.toolbar.sortNameAsc', defaultMessage: 'Name A–Z' },
-    sortNameDesc: { id: 'media.toolbar.sortNameDesc', defaultMessage: 'Name Z–A' },
+    sortNewest: {
+        id: 'media.toolbar.sortNewest',
+        defaultMessage: 'Newest first'
+    },
+    sortOldest: {
+        id: 'media.toolbar.sortOldest',
+        defaultMessage: 'Oldest first'
+    },
+    sortNameAsc: {
+        id: 'media.toolbar.sortNameAsc',
+        defaultMessage: 'Name A–Z'
+    },
+    sortNameDesc: {
+        id: 'media.toolbar.sortNameDesc',
+        defaultMessage: 'Name Z–A'
+    },
     sortLargest: { id: 'media.toolbar.sortLargest', defaultMessage: 'Largest' },
-    sortSmallest: { id: 'media.toolbar.sortSmallest', defaultMessage: 'Smallest' },
+    sortSmallest: {
+        id: 'media.toolbar.sortSmallest',
+        defaultMessage: 'Smallest'
+    },
     newFolder: { id: 'media.toolbar.newFolder', defaultMessage: 'New folder' },
     upload: { id: 'media.toolbar.upload', defaultMessage: 'Upload' }
 });

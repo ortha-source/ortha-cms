@@ -39,7 +39,9 @@ export function toggle(
 
 /** Switches the whole resource between "all" and an empty "specific" list. */
 export function setAll(all: boolean): ResourceSelection {
-    return all ? { mode: 'all', excludedIds: [] } : { mode: 'specific', ids: [] };
+    return all
+        ? { mode: 'all', excludedIds: [] }
+        : { mode: 'specific', ids: [] };
 }
 
 /** Count of selected items given the total number available. */

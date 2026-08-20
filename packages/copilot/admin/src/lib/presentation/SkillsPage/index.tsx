@@ -34,6 +34,7 @@ import {
 import type { CopilotSkill } from '../../application/useSkills';
 import { COPILOT_SKILLS_MANAGE, agentsPath } from '../../domain/agentsRoute';
 import { SkillFormDialog, type SkillFormValues } from './SkillFormDialog';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 const messages = defineMessages({
     title: { id: 'copilot.skills.page.title', defaultMessage: 'Skills' },
@@ -47,6 +48,10 @@ const messages = defineMessages({
         defaultMessage: 'Back to Ortha AI'
     },
     create: { id: 'copilot.skills.page.create', defaultMessage: 'New skill' },
+    tableLabel: {
+        id: 'copilot.skills.page.tableLabel',
+        defaultMessage: 'Skills'
+    },
     colName: { id: 'copilot.skills.page.colName', defaultMessage: 'Skill' },
     colWhen: {
         id: 'copilot.skills.page.colWhen',
@@ -141,6 +146,10 @@ const messages = defineMessages({
  */
 export function SkillsPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.title));
     const workspace = useCurrentWorkspace();
     const canManage = useHasPermission(COPILOT_SKILLS_MANAGE);
 
@@ -256,7 +265,12 @@ export function SkillsPage() {
                 </Empty>
             ) : (
                 <div className="overflow-x-auto rounded-lg border">
-                    <Table>
+                    {/* Named, like every other table in the admin: a screen
+                        reader's table list otherwise reads "table" with no way
+                        to tell one page's from another's (`ORT-160`). The
+                        `Table` scroll wrapper also takes its own name from
+                        this. */}
+                    <Table aria-label={intl.formatMessage(messages.tableLabel)}>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>

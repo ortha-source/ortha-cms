@@ -134,7 +134,9 @@ export function ActivityPagination({
                                     className="size-8 shadow-none"
                                     disabled={page >= pageCount}
                                     onClick={() => onPageChange(page + 1)}
-                                    aria-label={intl.formatMessage(messages.next)}
+                                    aria-label={intl.formatMessage(
+                                        messages.next
+                                    )}
                                 >
                                     <ChevronRight />
                                 </Button>

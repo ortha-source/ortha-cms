@@ -18,12 +18,37 @@ import {
     validateRule,
     type RuleValidationCode
 } from '../../../../utils/validateRule';
+import { fieldPath } from '../../../../utils/fieldPath';
 import { FieldPicker } from './FieldPicker';
 import { OperatorPicker } from './OperatorPicker';
 import { ValueEditor } from './ValueEditor';
 
 const messages = defineMessages({
-    removeRule: { id: 'qb.row.remove', defaultMessage: 'Remove rule' }
+    // Every one of these is scoped to the rule's own field path. Five buttons
+    // all called "Remove rule" told a screen-reader user nothing about which
+    // one they were on, or which one had gone once they pressed it — 4.1.2 and
+    // 2.4.6 (`ORT-157`). `QueryBuilderSummary` already named its chips this
+    // way; the builder's own rows did not.
+    removeRule: {
+        id: 'qb.row.remove',
+        defaultMessage: 'Remove condition: {path}'
+    },
+    fieldFor: {
+        id: 'qb.row.fieldFor',
+        defaultMessage: 'Field for {path}'
+    },
+    operatorFor: {
+        id: 'qb.row.operatorFor',
+        defaultMessage: 'Operator for {path}'
+    },
+    // 3.3.1 requires the item in error to be identified. A failed Apply
+    // inserted three bare `role="alert"` paragraphs at once ("Value required",
+    // three times) — which screen readers coalesce or drop, and which named
+    // nothing even when they were read.
+    errorForField: {
+        id: 'qb.row.errorForField',
+        defaultMessage: '{path}: {message}'
+    }
 });
 
 const errorMessages = defineMessages({
@@ -98,6 +123,12 @@ export type RuleRowProps = {
     showErrors?: boolean;
     /** Value editor for a relation-id rule; forwarded to {@link ValueEditor}. */
     renderRelationValue?: RelationValueEditor;
+    /**
+     * Called after this row's remove button is activated, with the button
+     * element that was pressed — so the parent can put focus somewhere real
+     * before the row unmounts underneath it.
+     */
+    onRemoveFocus?: (trigger: HTMLElement) => void;
 };
 
 /**
@@ -114,7 +145,8 @@ export function RuleRow({
     onUpdate,
     onRemove,
     showErrors = false,
-    renderRelationValue
+    renderRelationValue,
+    onRemoveFocus
 }: RuleRowProps) {
     const intl = useIntl();
     // No `?? fields[0]` fallback: substituting an unrelated field would drive
@@ -141,6 +173,8 @@ export function RuleRow({
             ? validation
             : null;
     const errorId = useId();
+    // The row's identity, used by every control's name and by its error text.
+    const path = fieldPath(intl, fields, rule.fieldId);
 
     return (
         <div className="flex flex-col gap-1">
@@ -151,6 +185,7 @@ export function RuleRow({
             <div className="flex flex-wrap items-start gap-2">
                 <div className="min-w-[7rem] flex-1 basis-0">
                     <FieldPicker
+                        label={intl.formatMessage(messages.fieldFor, { path })}
                         fields={fields}
                         value={rule.fieldId}
                         onChange={(fieldId) => {
@@ -170,6 +205,9 @@ export function RuleRow({
                 {field && (
                     <div className="min-w-[7rem] flex-1 basis-0">
                         <OperatorPicker
+                            label={intl.formatMessage(messages.operatorFor, {
+                                path
+                            })}
                             ops={ops}
                             value={rule.op}
                             onChange={(op: OpId) =>
@@ -197,8 +235,19 @@ export function RuleRow({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={intl.formatMessage(messages.removeRule)}
-                    onClick={onRemove}
+                    data-qb-remove
+                    aria-label={intl.formatMessage(messages.removeRule, {
+                        path
+                    })}
+                    onClick={(event) => {
+                        // Hand focus on *before* the row goes: the focused
+                        // button unmounts with it, so focus fell to `<body>`
+                        // and the next Tab restarted at the top of the document
+                        // — removing the third of five conditions cost a full
+                        // re-traverse (2.4.3, `ORT-157`).
+                        onRemoveFocus?.(event.currentTarget);
+                        onRemove();
+                    }}
                     className="size-7 shrink-0"
                 >
                     <X aria-hidden className="size-3.5" />
@@ -211,7 +260,10 @@ export function RuleRow({
                     className="text-destructive text-xs pl-1"
                     data-testid="qb-rule-error"
                 >
-                    {intl.formatMessage(ERROR_BY_CODE[errorCode])}
+                    {intl.formatMessage(messages.errorForField, {
+                        path,
+                        message: intl.formatMessage(ERROR_BY_CODE[errorCode])
+                    })}
                 </p>
             )}
         </div>

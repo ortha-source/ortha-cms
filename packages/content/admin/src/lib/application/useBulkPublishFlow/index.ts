@@ -42,7 +42,10 @@ export function useBulkPublishFlow(typeName: string): BulkPublishFlow {
     const { previewPublish, publish } = useBulkEntryActions(typeName);
     const { mutate: runPreview, reset: resetPreview } = previewPublish;
 
-    const preview = useCallback((ids: string[]) => runPreview(ids), [runPreview]);
+    const preview = useCallback(
+        (ids: string[]) => runPreview(ids),
+        [runPreview]
+    );
 
     const commit = useCallback(
         (ids: string[]) => publish.mutateAsync(ids),

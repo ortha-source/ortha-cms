@@ -70,9 +70,15 @@ export function AppRightPanel() {
         if (!isMobile || !shown || !toggle) return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'Escape') return;
+            //
+            // `:not(#RIGHT_PANEL_ID)` because the panel is **itself** a
+            // `role="dialog"` on this breakpoint now (`ORT-154`) — without the
+            // exclusion this handler found the panel, concluded something was
+            // stacked on top of it, and yielded to itself, so `Esc` stopped
+            // working the moment the attribute was added.
             if (
                 document.querySelector(
-                    '[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]'
+                    `[role="dialog"]:not(#${RIGHT_PANEL_ID}),[role="alertdialog"],[role="menu"],[role="listbox"]`
                 )
             ) {
                 return;
@@ -101,6 +107,15 @@ export function AppRightPanel() {
             <aside
                 id={RIGHT_PANEL_ID}
                 aria-label={shown ? panel?.title : undefined}
+                // On a phone this is an overlay covering the page, so it says so
+                // — but only *here*, and only now. The attributes are a promise
+                // that everything outside is unreachable, and until `AppShell`
+                // started inerting the page behind it (`ORT-154`) that promise
+                // would have been false; a truthful `complementary` beats a
+                // `dialog` the markup does not keep. As a desktop column it
+                // covers nothing and stays a complementary landmark.
+                role={isMobile && shown ? 'dialog' : undefined}
+                aria-modal={isMobile && shown ? true : undefined}
                 inert={!shown}
                 className={cn(
                     'flex shrink-0 overflow-hidden motion-reduce:transition-none',

@@ -19,16 +19,27 @@ export type OperatorPickerProps = {
     ops: readonly OpId[];
     value: OpId;
     onChange: (next: OpId) => void;
+    /**
+     * Accessible name, scoped to the rule this picker belongs to — e.g.
+     * "Operator for Author · Name". Defaults to a bare "Operator", which is
+     * what every row on screen used to be called (`ORT-157`).
+     */
+    label?: string;
 };
 
 /** Dropdown selector over the operators valid for the current field. */
-export function OperatorPicker({ ops, value, onChange }: OperatorPickerProps) {
+export function OperatorPicker({
+    ops,
+    value,
+    onChange,
+    label
+}: OperatorPickerProps) {
     const intl = useIntl();
     return (
         <Select value={value} onValueChange={(v) => onChange(v as OpId)}>
             <SelectTrigger
                 className="w-full"
-                aria-label={intl.formatMessage(messages.label)}
+                aria-label={label ?? intl.formatMessage(messages.label)}
             >
                 <SelectValue />
             </SelectTrigger>

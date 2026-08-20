@@ -39,9 +39,7 @@ export function toActivityEvent(dto: ActivityEventResponse): ActivityEvent {
         kind: dto.kind as ActivityKind,
         subjectType: dto.subjectType,
         subjectId: dto.subjectId,
-        actor: dto.actorId
-            ? { id: dto.actorId, email: dto.actorEmail }
-            : null,
+        actor: dto.actorId ? { id: dto.actorId, email: dto.actorEmail } : null,
         meta: dto.meta ?? null,
         at: new Date(dto.at)
     };

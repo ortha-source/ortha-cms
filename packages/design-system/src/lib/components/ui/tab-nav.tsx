@@ -9,19 +9,18 @@ import { cn } from '../../utils';
  * `<nav>` of links instead of a Radix tablist — use it when the active pane is
  * decided by the router, not component state. Pass an `aria-label`.
  */
-const TabNav = React.forwardRef<
-    HTMLElement,
-    React.HTMLAttributes<HTMLElement>
->(({ className, ...props }, ref) => (
-    <nav
-        ref={ref}
-        className={cn(
-            'flex w-full items-center gap-5 overflow-x-auto border-b border-border text-muted-foreground',
-            className
-        )}
-        {...props}
-    />
-));
+const TabNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+    ({ className, ...props }, ref) => (
+        <nav
+            ref={ref}
+            className={cn(
+                'flex w-full items-center gap-5 overflow-x-auto border-b border-border text-muted-foreground',
+                className
+            )}
+            {...props}
+        />
+    )
+);
 TabNav.displayName = 'TabNav';
 
 export type TabNavLinkProps = React.HTMLAttributes<HTMLElement> & {

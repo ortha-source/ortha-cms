@@ -319,3 +319,49 @@ test.describe('the app-wide scrollport', () => {
         expect(indicator.hasIndicator).toBe(true);
     });
 });
+
+test.describe('the shell chrome is inside landmarks', () => {
+    /**
+     * The guard `region` was providing, kept after the rule itself had to go
+     * back into `AXE_KNOWN_GAPS`.
+     *
+     * That rule caught exactly two real things on this app — the app sidebar and
+     * the copilot dock were plain `<div>`s, so a brand label, every group a
+     * plugin contributes below the primary `<nav>`, and every pill on the dock
+     * were content a screen-reader user could not reach by landmark and had to
+     * tab the page for (`ORT-170`). Both are named `complementary` landmarks
+     * now. The rule cannot stay on because an open Radix menu is portalled to
+     * `<body>` and axe's `regionMatcher` exempts dialogs but not menus — see the
+     * note on `AXE_KNOWN_GAPS` — so the two findings are pinned by name instead,
+     * which is a sharper assertion than the rule was making anyway.
+     *
+     * The **dock** half is pinned where the dock actually mounts: it needs a
+     * workspace, so it never renders on this route, and `CopilotDockPage.dock` /
+     * `AgentsPage.dock` both resolve it by the same landmark role and name — a
+     * regression there fails every copilot suite rather than one assertion here.
+     */
+    test('the sidebar is a named landmark', async ({ page, homePage }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        await expect(
+            page.getByRole('complementary', { name: 'Sidebar' })
+        ).toBeVisible();
+    });
+
+    test('the brand label sits inside the sidebar landmark, not beside it', async ({
+        page,
+        homePage
+    }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        // The specific node `region` reported: the header's product name, which
+        // is outside the primary `<nav>` and was therefore outside every
+        // landmark until the panel itself became one.
+        const sidebar = page.getByRole('complementary', { name: 'Sidebar' });
+        await expect(sidebar.getByText('Ortha CMS').first()).toBeVisible();
+    });
+});

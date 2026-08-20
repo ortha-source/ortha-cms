@@ -352,7 +352,9 @@ describe('ToolRegistry', () => {
             registry.register(gated([PERMISSIONS.USERS_READ]));
             const permitted = contextWith(PERMISSIONS.USERS_READ);
 
-            await expect(registry.resources(permitted)).resolves.toHaveLength(1);
+            await expect(registry.resources(permitted)).resolves.toHaveLength(
+                1
+            );
             await expect(
                 registry.readResource('ortha://secret', permitted)
             ).resolves.toMatchObject({ text: '{"secret":true}' });
@@ -503,7 +505,12 @@ describe('ToolRegistry', () => {
             // and an MCP client learning the copilot's propose tools exist
             // would only invite it to keep naming them.
             await expect(
-                registry.call('content_propose_update', {}, contextWith(), 'mcp')
+                registry.call(
+                    'content_propose_update',
+                    {},
+                    contextWith(),
+                    'mcp'
+                )
             ).rejects.toBeInstanceOf(NotFoundException);
             expect(ran.value).toBe(false);
         });
@@ -525,7 +532,12 @@ describe('ToolRegistry', () => {
                 })
             );
 
-            await registry.call('media_assets_search', {}, contextWith(), 'mcp');
+            await registry.call(
+                'media_assets_search',
+                {},
+                contextWith(),
+                'mcp'
+            );
 
             expect(seen?.surface).toBe('mcp');
             // …and the rest of the context is passed through untouched.

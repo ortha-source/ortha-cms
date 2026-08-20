@@ -25,6 +25,26 @@ export const MEDIA_ASSET_RESOLVER = Symbol('MEDIA_ASSET_RESOLVER');
 export const InjectMediaAssetResolver = (): ParameterDecorator =>
     Inject(MEDIA_ASSET_RESOLVER);
 
+/**
+ * One timed-text track on a video or audio asset — what a consumer needs to
+ * emit a `<track>`.
+ *
+ * Declared here rather than imported from media-server because the dependency
+ * runs the other way: media binds this port, content declares it (`ORT-92`).
+ */
+export interface ResolvedMediaTrack {
+    /** `captions` / `subtitles` / `descriptions` / `chapters`. */
+    kind: string;
+    /** BCP-47 tag of the track's language. */
+    srclang: string;
+    /** The label a player shows in its track menu. */
+    label: string;
+    /** Route the WebVTT bytes stream from. */
+    src: string;
+    /** Whether a player should enable this one by default. */
+    default?: boolean;
+}
+
 /** The subset of a media asset content-server needs to enforce a media field. */
 export interface ResolvedMediaAsset {
     /** Asset id (uuid). */
@@ -48,6 +68,15 @@ export interface ResolvedMediaAsset {
     previewUrl?: string;
     /** Alt text, when set. */
     alt: string | null;
+    /**
+     * Timed-text tracks for a video or audio asset. Empty for everything else,
+     * and for a video nobody has captioned yet.
+     *
+     * Without these a published video had no caption track available **at any
+     * layer**, because the CMS could not represent one — WCAG 1.2.2 / 1.2.3,
+     * 508 503.4 (`ORT-92`).
+     */
+    tracks: ResolvedMediaTrack[];
 }
 
 /**

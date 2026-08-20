@@ -46,7 +46,9 @@ describe('LocalePolicy', () => {
     describe('fallbackChain', () => {
         it('is [requested, default] when widening', () => {
             expect(
-                policy.fallbackChain(policy.resolve('de'), true).map((l) => l.slug)
+                policy
+                    .fallbackChain(policy.resolve('de'), true)
+                    .map((l) => l.slug)
             ).toEqual(['de', 'en']);
         });
 
@@ -60,7 +62,9 @@ describe('LocalePolicy', () => {
 
         it('is [default] when the requested locale is the default', () => {
             expect(
-                policy.fallbackChain(policy.resolve('en'), true).map((l) => l.slug)
+                policy
+                    .fallbackChain(policy.resolve('en'), true)
+                    .map((l) => l.slug)
             ).toEqual(['en']);
         });
     });

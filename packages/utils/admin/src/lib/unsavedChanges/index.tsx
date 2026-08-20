@@ -131,23 +131,54 @@ export function UnsavedChangesProvider({
 
             const anchor = (event.target as HTMLElement | null)?.closest?.('a');
             if (!anchor) return;
-            const href = anchor.getAttribute('href');
-            if (!href || href.startsWith('#')) return;
+            // `closest('a')` matches an `<a>` inside an SVG too, and an
+            // `SVGAElement` has none of `HTMLAnchorElement`'s parsed URL parts:
+            // `origin`, `pathname` and `search` are all `undefined`, so the
+            // origin check below returned early and the link navigated with no
+            // prompt at all. No SVG links exist in the admin today, which is
+            // exactly why this was a silent hole rather than a deliberate
+            // exemption (`ORT-136`). Resolving the href against the document
+            // gives one shape to reason about, whichever element it came from —
+            // and `href.baseVal` is where an `SVGAElement` keeps it.
+            const rawHref =
+                anchor.getAttribute('href') ??
+                (anchor as unknown as { href?: { baseVal?: string } }).href
+                    ?.baseVal ??
+                null;
+            if (!rawHref || rawHref.startsWith('#')) return;
             if (anchor.hasAttribute('download')) return;
             const target = anchor.getAttribute('target');
             if (target && target !== '_self') return;
+
+            let destination: URL;
+            try {
+                destination = new URL(rawHref, window.location.href);
+            } catch {
+                // Not a URL this browser can resolve (a `javascript:` scheme, a
+                // malformed value). Nothing to navigate to, so nothing to guard.
+                return;
+            }
+
             // External destinations unload the page; `beforeunload` covers those.
-            if (anchor.origin !== window.location.origin) return;
+            if (destination.origin !== window.location.origin) return;
             // Already here — nothing would be lost.
             if (
-                anchor.pathname === window.location.pathname &&
-                anchor.search === window.location.search
+                destination.pathname === window.location.pathname &&
+                destination.search === window.location.search
             )
                 return;
 
             event.preventDefault();
-            event.stopPropagation();
-            const url = anchor.pathname + anchor.search + anchor.hash;
+            // Deliberately **not** `stopPropagation()`. This is a capture-phase
+            // listener, so stopping the event hid the click from every other
+            // capture listener on the page — a dropdown's close-on-outside-click,
+            // an analytics hook, a future route-announcer — and only while a form
+            // happened to be dirty, which made any resulting difference
+            // intermittent and near-impossible to attribute (`ORT-136`).
+            // `preventDefault()` alone is what stops the navigation; suppressing
+            // the event for everyone else was never part of that.
+            const url =
+                destination.pathname + destination.search + destination.hash;
             setPending(() => () => {
                 // Hand the confirmed navigation to the router, which is what
                 // the intercepted `<Link>` would have done. A raw

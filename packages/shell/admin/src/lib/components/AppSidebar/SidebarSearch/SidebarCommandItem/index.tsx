@@ -16,7 +16,10 @@ type SidebarCommandItemProps = {
  * permission-gated and the user lacks it — the palette mirrors the sidebar, so
  * you can only jump to what you could click.
  */
-export function SidebarCommandItem({ item, onNavigate }: SidebarCommandItemProps) {
+export function SidebarCommandItem({
+    item,
+    onNavigate
+}: SidebarCommandItemProps) {
     const intl = useIntl();
     const label = intl.formatMessage({
         id: item.labelId,

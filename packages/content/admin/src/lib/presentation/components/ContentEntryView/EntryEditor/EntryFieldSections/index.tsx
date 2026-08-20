@@ -23,8 +23,40 @@ const messages = defineMessages({
         id: 'content.form.group.sharedBody',
         defaultMessage:
             'These are the same in every locale — editing one here changes it everywhere.'
+    },
+    sharedPrefilled: {
+        id: 'content.form.group.sharedPrefilled',
+        defaultMessage:
+            'These were copied from the {locale} version and are still written in that language. Translate them here and they change in every locale.'
+    },
+    requiredLegend: {
+        id: 'content.form.requiredLegend',
+        defaultMessage:
+            'Fields marked * are required before this entry can be published.'
     }
 });
+
+/**
+ * States what the `*` beside a field label means, once, above the fields.
+ *
+ * `RequiredMark` used to say it in a native `title` on an `aria-hidden` span —
+ * mouse-only, not dismissible, and unreachable by assistive tech (`ORT-90`).
+ * A form-wide convention belongs to the form, not to each of its labels: said
+ * here it is visible to everyone, announced once instead of on every field, and
+ * there is nothing to hover.
+ *
+ * Rendered only when something on screen is actually marked.
+ */
+function RequiredLegend({ fields }: { fields: ContentField[] }) {
+    const intl = useIntl();
+    if (!fields.some((field) => field.required)) return null;
+
+    return (
+        <p className="text-muted-foreground text-xs">
+            {intl.formatMessage(messages.requiredLegend)}
+        </p>
+    );
+}
 
 /**
  * Field ordering, by control shape. Fields flow top-to-bottom in three tiers
@@ -64,12 +96,19 @@ export function EntryFieldSections({
     fields,
     form,
     isChanged,
-    contentLocale
+    contentLocale,
+    prefilledFromLocale
 }: {
     fields: ContentField[];
     form: EntryFormState;
     /** Whether a field has unsaved edits (drives its "Changed" badge). */
     isChanged?: (name: string) => boolean;
+    /**
+     * BCP-47 tag of the locale a translation prefill copied the **shared**
+     * values from — set only on a create seeded that way. Marks and explains
+     * that run; see the comment at its call site (`ORT-87`).
+     */
+    prefilledFromLocale?: string;
     /**
      * The row's own locale, on a localized type — a **BCP-47 language tag** by
      * the i18n plugin's wire contract, so it goes on the translated group
@@ -100,6 +139,7 @@ export function EntryFieldSections({
     if (translated.length === 0 || shared.length === 0) {
         return (
             <div className="flex flex-col gap-5">
+                <RequiredLegend fields={ordered} />
                 {ordered.map((field) => (
                     <EntryFieldInput
                         key={field.name}
@@ -122,6 +162,7 @@ export function EntryFieldSections({
         // between them and still clear of the `gap-5` between fields inside a
         // group, so the stronger break reads as the group boundary.
         <div className="flex flex-col gap-6">
+            <RequiredLegend fields={ordered} />
             {/* Only the translated run carries the row's language: by
                 definition it holds this locale's text. A shared field holds one
                 value for every locale — usually still in the language it was
@@ -146,12 +187,28 @@ export function EntryFieldSections({
                 headings are what name the runs for a screen reader, and a rule
                 announced as content would only be noise between them. */}
             <Separator data-testid="entry-field-group-divider" />
+            {/* The shared run carries `lang` **only** on a fresh translation
+                prefill. #146 deliberately left it unmarked in general, and that
+                is right: a shared field holds one value for every locale, so
+                claiming this row's locale for it would be a worse assertion
+                than making none. A prefill is the one moment the language *is*
+                known — the values were copied verbatim from another row
+                seconds ago — so it is marked and said out loud (WCAG 3.1.2,
+                508 504.3 — `ORT-87`). It stops being true the moment the
+                author edits or saves, which is why nothing persists it. */}
             <FieldGroup
                 title={intl.formatMessage(messages.sharedTitle)}
-                description={intl.formatMessage(messages.sharedBody)}
+                description={
+                    prefilledFromLocale
+                        ? intl.formatMessage(messages.sharedPrefilled, {
+                              locale: prefilledFromLocale
+                          })
+                        : intl.formatMessage(messages.sharedBody)
+                }
                 fields={shared}
                 form={form}
                 isChanged={isChanged}
+                {...(prefilledFromLocale ? { lang: prefilledFromLocale } : {})}
                 dir="auto"
             />
         </div>

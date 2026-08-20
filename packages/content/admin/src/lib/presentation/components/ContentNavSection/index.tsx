@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMatch } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
 import { useWorkspaces } from '@ortha-cms/workspaces-admin';
+import { isComposingText } from '@ortha-cms/utils-admin';
 import { useContentTypes } from '../../../application/useContentTypes';
 import { useContentFavorites } from '../../hooks/useContentFavorites';
 import { ContentSidebar } from '../ContentSidebar';
@@ -12,33 +13,6 @@ import {
     CONTENT_SEGMENT,
     SEARCH_SHORTCUT_KEY
 } from '../../../domain/constants';
-
-/**
- * Whether the keystroke landed in something the user is **writing** in — a
- * field, or a `contenteditable` host such as the rich-text body.
- *
- * The ⌘K binding is on `window`, so it fires wherever focus is. Opening the
- * palette out from under a caret is a change of context in response to input
- * into a *different* control (WCAG 3.2.2), and the `preventDefault()` destroys
- * the keystroke the user meant — ⌘K is "insert link" in every editor an author
- * has used. The global sidebar's palette already guards this way; this one did
- * not, and it is the palette that is live inside a workspace, which is where the
- * rich-text editor is. Same collision the sidebar's ⌘B toggle had with **bold**.
- *
- * Typed structurally, because the target may not be an element at all (`window`,
- * a text node).
- */
-function isComposingText(target: EventTarget | null): boolean {
-    const element = target as {
-        closest?: (selector: string) => unknown;
-    } | null;
-    if (!element || typeof element.closest !== 'function') return false;
-    return Boolean(
-        element.closest(
-            'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
-        )
-    );
-}
 
 /**
  * The Content Library's "Content" section of the workspace sidebar — the

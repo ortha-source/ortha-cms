@@ -12,6 +12,7 @@ import {
 import { countRules } from '../../utils/countRules';
 import { OP_LABELS } from '../../utils/operators';
 import { removeNode } from '../../utils/treeOps';
+import { fieldPath } from '../../utils/fieldPath';
 
 const messages = defineMessages({
     remove: {
@@ -90,14 +91,10 @@ export function QueryBuilderSummary({
     return (
         <div className={cn('flex flex-wrap items-center gap-2', className)}>
             {rules.map((rule) => {
-                const field = fields.find((f) => f.id === rule.fieldId);
-                const crumbs = (field?.group ?? []).map((g) =>
-                    intl.formatMessage(g)
-                );
-                const leaf = field
-                    ? intl.formatMessage(field.label)
-                    : rule.fieldId;
-                const path = [...crumbs, leaf].join(' · ');
+                // The same composition the builder's rows now use for their
+                // control names — one implementation, so a chip and the row it
+                // came from cannot drift into two names for one rule.
+                const path = fieldPath(intl, fields, rule.fieldId);
                 const op = intl.formatMessage(OP_LABELS[rule.op]);
                 const value = formatValue(rule);
 
@@ -126,7 +123,19 @@ export function QueryBuilderSummary({
                             aria-label={intl.formatMessage(messages.remove, {
                                 label: `${path} ${op}`.trim()
                             })}
-                            onClick={() => remove(rule.id)}
+                            data-qb-chip-remove
+                            onClick={(event) => {
+                                // Hand focus on before the chip unmounts with
+                                // it, or focus falls to `<body>` and the next
+                                // Tab restarts at the top of the document —
+                                // the same defect as the builder's own remove
+                                // buttons (2.4.3, `ORT-157`). Prefers the next
+                                // chip, then the previous; the remaining chips
+                                // keep their DOM nodes across the re-render
+                                // because the list is keyed.
+                                focusAfterChipRemoval(event.currentTarget);
+                                remove(rule.id);
+                            }}
                             className="shrink-0 text-muted-foreground hover:text-foreground"
                         >
                             <X aria-hidden className="size-3.5" />
@@ -143,4 +152,28 @@ export function QueryBuilderSummary({
             </button>
         </div>
     );
+}
+
+/**
+ * Moves focus off a chip's remove button before the chip goes.
+ *
+ * Walks the chip row for the next remove button, then the previous. When the
+ * last chip is removed the whole summary unmounts and there is nothing here to
+ * land on — the consumer's own "clear filters" control is what remains, and
+ * naming a target across that boundary would couple this to every host.
+ */
+function focusAfterChipRemoval(trigger: HTMLElement): void {
+    const row = trigger.closest('div');
+    if (!row) return;
+
+    const removes = Array.from(
+        row.querySelectorAll<HTMLElement>('[data-qb-chip-remove]')
+    );
+    const position = removes.indexOf(trigger);
+    const target =
+        (position >= 0 ? removes[position + 1] : undefined) ??
+        (position > 0 ? removes[position - 1] : undefined);
+
+    if (!target) return;
+    requestAnimationFrame(() => target.focus());
 }

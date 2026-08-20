@@ -31,9 +31,14 @@ import {
     TRASH_SEGMENT,
     TYPE_PARAM
 } from '../../../domain/constants';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 /** Intl descriptors for the page-level states, co-located here. */
 const messages = defineMessages({
+    documentTitle: {
+        id: 'content.library.documentTitle',
+        defaultMessage: 'Content Library'
+    },
     forbiddenTitle: {
         id: 'content.library.forbiddenTitle',
         defaultMessage: 'No access'
@@ -69,6 +74,10 @@ const messages = defineMessages({
  */
 export function ContentLibraryPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.documentTitle));
     const workspace = useCurrentWorkspace();
     const canRead = useHasPermission(CONTENT_READ);
     const {

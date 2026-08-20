@@ -51,6 +51,12 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 - **`InputField`** — label + input + error, with `htmlFor`/`aria-invalid`/`FieldError`
   wired. Feed it `label`, `invalid`, `errors`. This is how `LoginField` binds a
   TanStack Form field.
+- **`SkeletonRegion`** — the announced wrapper a block of `Skeleton`s belongs
+  in: one named `role="status"`, `aria-busy`, placeholders hidden inside it.
+  A bare `Skeleton` now reads as "I am handling the announcement myself". A
+  **route-level** skeleton (a lazy page's `Suspense` fallback) also passes
+  `heading`, because that state is a whole page with no `<h1>` until the real
+  one mounts — and it is the state a slow connection sits in longest.
 - **`FieldError`** renders `role="alert"` so new errors are announced — note this
   collides with the `Alert` banner's role (see the `admin-e2e` gotchas).
 - **`Button`** — real `<button>`; pass `type="submit"|"button"`.
@@ -136,8 +142,11 @@ WCAG issues — they guard against regressions, they don't prove conformance.
 
 ## Other
 
-- **Set `<html lang>`** to the active locale (it should track the host
-  `IntlProvider`; WCAG 3.1.1) so assistive tech picks the right pronunciation.
+- **`<html lang>` and `<html dir>` are the host's**, and `createAdmin` sets both
+  from its `locale` (WCAG 3.1.1, 1.3.2) — don't set them from a component. A
+  *content* locale that differs from the chrome's is marked per field instead
+  (`EntryFieldSections` puts `lang`/`dir` on the translated run), because one
+  page can legitimately hold two languages.
 - **Respect `prefers-reduced-motion`** for non-essential animation.
 - **Images/icons:** meaningful → `alt`/accessible name; decorative → empty
   `alt`/`aria-hidden`.

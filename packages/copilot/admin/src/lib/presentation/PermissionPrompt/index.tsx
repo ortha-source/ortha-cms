@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, ShieldQuestion, X } from 'lucide-react';
+import { Check, Clock, ShieldQuestion, X } from 'lucide-react';
 import {
     Alert,
     AlertDescription,
@@ -39,8 +39,38 @@ const messages = defineMessages({
         id: 'copilot.permission.failed',
         defaultMessage:
             'That answer did not reach the run — it may have already moved on.'
+    },
+    // The time limit, said out loud. It used to be invisible: the prompt showed
+    // no time at all and simply vanished when the broker gave up (`ORT-118`).
+    remaining: {
+        id: 'copilot.permission.remaining',
+        defaultMessage:
+            'Waiting {minutes, plural, =0 {} one {# minute } other {# minutes }}{seconds, plural, one {# second} other {# seconds}} more for your answer.'
+    },
+    expiringSoon: {
+        id: 'copilot.permission.expiringSoon',
+        defaultMessage:
+            'This request expires in {seconds, plural, one {# second} other {# seconds}}. Choose an answer, or ask for more time.'
+    },
+    expired: {
+        id: 'copilot.permission.expired',
+        defaultMessage:
+            'Time ran out, so nothing was run. Ask again if you still want this change.'
+    },
+    moreTime: {
+        id: 'copilot.permission.moreTime',
+        defaultMessage: 'I need more time'
     }
 });
+
+/**
+ * How long before the deadline the countdown turns into an assertive warning.
+ *
+ * WCAG 2.2.1 requires **at least twenty seconds'** notice before a
+ * content-imposed limit expires, and that the user be able to extend it with a
+ * simple action. Twenty exactly is the floor; this is the floor.
+ */
+const WARN_AT_MS = 20_000;
 
 /**
  * The in-the-moment "may I?" — **the gate ADR-0009 left owing.**
@@ -66,13 +96,17 @@ const messages = defineMessages({
  */
 export function PermissionPrompt({
     request,
-    onDecide
+    onDecide,
+    onExtend
 }: {
     request: ChatPermissionRequest;
     onDecide(decision: ToolPermissionDecision): void;
+    /** Asks the run for more time. Omitted, the extension control is not shown. */
+    onExtend?(): void;
 }) {
     const intl = useIntl();
     const busy = request.deciding === true;
+    const remainingMs = useRemainingMs(request.expiresAt);
     const primaryRef = useRef<HTMLButtonElement>(null);
     const describedById = useId();
 
@@ -141,10 +175,63 @@ export function PermissionPrompt({
                 </div>
             )}
 
+            {/* The countdown, and — inside the last twenty seconds — the
+                warning WCAG 2.2.1 asks for. Two regions rather than one because
+                they are different urgencies: the running countdown is polite
+                and must not interrupt, while the warning is the user's last
+                chance to act and is assertive. Only one is ever mounted, so
+                they cannot both speak. */}
+            {remainingMs !== null && (
+                <div className="px-3 pt-2">
+                    {remainingMs <= 0 ? (
+                        <p
+                            role="status"
+                            className="text-muted-foreground text-[11px]"
+                        >
+                            {intl.formatMessage(messages.expired)}
+                        </p>
+                    ) : remainingMs <= WARN_AT_MS ? (
+                        <p
+                            role="alert"
+                            className="text-destructive flex items-center gap-1.5 text-[11px]"
+                        >
+                            <Clock aria-hidden className="size-3.5 shrink-0" />
+                            {intl.formatMessage(messages.expiringSoon, {
+                                seconds: Math.ceil(remainingMs / 1000)
+                            })}
+                        </p>
+                    ) : (
+                        <p
+                            role="status"
+                            className="text-muted-foreground flex items-center gap-1.5 text-[11px]"
+                        >
+                            <Clock aria-hidden className="size-3.5 shrink-0" />
+                            {intl.formatMessage(messages.remaining, {
+                                minutes: Math.floor(remainingMs / 60_000),
+                                seconds: Math.ceil(
+                                    (remainingMs % 60_000) / 1000
+                                )
+                            })}
+                        </p>
+                    )}
+                </div>
+            )}
+
             <footer className="mt-3 flex flex-wrap items-center gap-2 border-t px-3 py-2">
                 <span className="text-muted-foreground mr-auto text-[11px]">
                     {intl.formatMessage(messages.nothingYet)}
                 </span>
+                {onExtend && remainingMs !== null && remainingMs > 0 && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busy}
+                        onClick={onExtend}
+                    >
+                        <Clock aria-hidden className="size-3.5" />
+                        {intl.formatMessage(messages.moreTime)}
+                    </Button>
+                )}
                 <Button
                     size="sm"
                     variant="ghost"
@@ -200,4 +287,30 @@ function stringify(value: unknown): string {
     } catch {
         return String(value);
     }
+}
+
+/**
+ * Milliseconds left until `expiresAt`, ticking once a second — or `null` when
+ * the run did not say (an older server, or a replayed transcript).
+ *
+ * Ticks on a **one-second** interval rather than an animation frame: the number
+ * on screen changes once a second, and the polite live region beside it should
+ * not be re-rendered sixty times for each of those. Clamped at zero so a prompt
+ * left open past its deadline reads "time ran out" instead of counting into
+ * negative numbers.
+ */
+function useRemainingMs(expiresAt: string | undefined): number | null {
+    const deadline = expiresAt ? Date.parse(expiresAt) : Number.NaN;
+    const valid = Number.isFinite(deadline);
+
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (!valid) return;
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, [valid, deadline]);
+
+    if (!valid) return null;
+    return Math.max(0, deadline - now);
 }

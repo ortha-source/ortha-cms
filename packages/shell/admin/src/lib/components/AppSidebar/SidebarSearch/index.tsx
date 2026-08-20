@@ -10,7 +10,7 @@ import {
     CommandList,
     Kbd
 } from '@ortha-cms/design-system';
-import { byOrder } from '@ortha-cms/utils-admin';
+import { byOrder, isComposingText } from '@ortha-cms/utils-admin';
 import { SIDEBAR_NAV_SLOT } from '../../../slots/sidebarSlots';
 import { COMMAND_SLOT } from '../../../slots/commandSlots';
 import { SidebarCommandItem } from './SidebarCommandItem';
@@ -54,27 +54,6 @@ const messages = defineMessages({
         defaultMessage: 'to close'
     }
 });
-
-/**
- * Whether `target` is somewhere the user is composing text — a field, or any
- * `contenteditable` host (the rich-text body).
- *
- * The ⌘K binding is on `window`, so it fires wherever focus is. Opening the
- * palette out from under a caret is a change of context in response to input into
- * a *different* control (WCAG 3.2.2), and the `preventDefault()` destroys the
- * keystroke the user meant. Typed structurally: this package compiles against the
- * DOM lib, but the check has to tolerate a target that is not an element at all
- * (`window`, a text node).
- */
-function isComposingText(target: EventTarget | null): boolean {
-    const element = target as { closest?: (selector: string) => unknown } | null;
-    if (!element || typeof element.closest !== 'function') return false;
-    return Boolean(
-        element.closest(
-            'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
-        )
-    );
-}
 
 /**
  * The sidebar's search affordance and the ⌘K command palette behind it. The
@@ -176,9 +155,7 @@ export function SidebarSearch() {
 
             <CommandDialog
                 open={open}
-                onOpenChange={(next) =>
-                    next ? openPalette() : closePalette()
-                }
+                onOpenChange={(next) => (next ? openPalette() : closePalette())}
                 title={intl.formatMessage(messages.title)}
                 description={intl.formatMessage(messages.description)}
             >

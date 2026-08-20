@@ -53,8 +53,39 @@ export interface PublicMediaRef {
     kind: string;
     /** MIME type, e.g. `image/png`. */
     mimeType: string;
-    /** Alt text, when set. */
+    /**
+     * The text alternative for **this usage** — the entry value's own `alt`
+     * where it has one, the asset row's default otherwise, and `''` when the
+     * usage is {@link decorative}.
+     *
+     * `''` and `null` mean different things and a consumer should treat them
+     * differently: `''` is "render `alt=\"\"`, this image says nothing", while
+     * `null` is "nobody has supplied one" — which is a gap to report, not an
+     * instruction to hide the image from assistive tech (`ORT-83`).
+     */
     alt: string | null;
+    /** The author marked this usage purely presentational. */
+    decorative?: true;
+    /**
+     * Timed-text tracks for a video or audio asset — everything a consumer
+     * needs to emit `<track>` elements. Empty for an image, and for a video
+     * nobody has captioned (`ORT-92`).
+     */
+    tracks: PublicMediaTrack[];
+}
+
+/** One timed-text track on a published video or audio asset. */
+export interface PublicMediaTrack {
+    /** `captions` / `subtitles` / `descriptions` / `chapters`. */
+    kind: string;
+    /** BCP-47 tag of the track's language. */
+    srclang: string;
+    /** The label a player shows in its track menu. */
+    label: string;
+    /** Route the WebVTT bytes stream from — same bearer token as the query. */
+    src: string;
+    /** Whether a player should enable this one by default. */
+    default?: boolean;
 }
 
 /** One media field's assets, in their stored order. */

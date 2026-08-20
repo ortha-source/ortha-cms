@@ -10,7 +10,12 @@ import {
     PaginationPrevious
 } from './pagination';
 import { Sheet, SheetContent, SheetTitle } from './sheet';
-import { Sidebar, SidebarProvider, SidebarRail, SidebarTrigger } from './sidebar';
+import {
+    Sidebar,
+    SidebarProvider,
+    SidebarRail,
+    SidebarTrigger
+} from './sidebar';
 
 /**
  * QA ORT-49 · F20/F21/F33 — `🐞 BUG-design-system-03` / `♿ A11Y-design-system-01`.

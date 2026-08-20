@@ -45,5 +45,7 @@ export function describeAccept(accept: MediaAccept | undefined): string {
     const parts: string[] = [];
     if (accept.kinds?.length) parts.push(accept.kinds.join(' / '));
     if (accept.mimeTypes?.length) parts.push(accept.mimeTypes.join(' / '));
-    return parts.length ? `an allowed asset (${parts.join(', ')})` : 'an allowed asset';
+    return parts.length
+        ? `an allowed asset (${parts.join(', ')})`
+        : 'an allowed asset';
 }

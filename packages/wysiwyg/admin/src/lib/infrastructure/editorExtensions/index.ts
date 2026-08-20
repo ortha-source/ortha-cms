@@ -14,6 +14,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { Callout } from '../extensions/callout';
 import { Language } from '../extensions/language';
 import { Column, ColumnBlock } from '../extensions/columns';
+import { TableTab } from '../extensions/tableTab';
 import { ResizableImage, ResizableVideo } from '../extensions/media';
 
 /** Heading levels the editor offers. Deeper than h4 has no place in a CMS body. */
@@ -67,6 +68,11 @@ export function editorExtensions(placeholder: string): AnyExtension[] {
             table: { resizable: true },
             tableHeader: { HTMLAttributes: { scope: 'col' } }
         }),
+        // Bounds Tab at the end of a table so it adds **one** row rather than
+        // one per press — see `TableTab`. Listed after `TableKit` for reading
+        // order only; which binding is offered the key first is decided by
+        // `priority`, not by position here.
+        TableTab,
         Callout,
         // Language of parts (WCAG 3.1.2) — a run of text in another language
         // carries its own `lang`, so a quoted passage is announced with the

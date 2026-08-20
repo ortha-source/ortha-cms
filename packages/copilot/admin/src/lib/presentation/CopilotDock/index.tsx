@@ -108,8 +108,19 @@ export function CopilotDock({
             // keyboard model that does not exist, and a screen-reader user was
             // told to press arrows that do nothing. `group` is what it actually
             // is: every pill is its own tab stop, in DOM order, which is also
-            // what the dock's own docs and e2e suite describe.
-            role="group"
+            // what the dock's own docs and e2e suite describe. (`complementary`
+            // keeps that property — it is a landmark, not a composite widget, so
+            // every pill is still its own tab stop.)
+            //
+            // …and a **landmark**, because it is portalled to `<body>`: it sits
+            // outside the shell's `<main>` and outside its sidebar, so with a
+            // plain `group` every pill on it was content a screen-reader user
+            // could not reach by landmark and had to tab the whole page for
+            // (`ORT-170`). `complementary` is the same call the app sidebar
+            // makes — persistent chrome beside the page's content, related to it
+            // but not part of it. The name is what makes it navigable rather
+            // than one more unlabelled region.
+            role="complementary"
             aria-label={intl.formatMessage(messages.label)}
             className={cn(
                 'bg-background text-foreground fixed right-4 bottom-3 z-40',

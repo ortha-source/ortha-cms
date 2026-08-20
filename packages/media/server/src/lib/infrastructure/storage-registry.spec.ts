@@ -16,7 +16,9 @@ describe('buildRegistry', () => {
         const registry = buildRegistry({ local: provider });
 
         expect(registry.has('s3')).toBe(false);
-        expect(() => registry.get('s3')).toThrow('Unknown storage provider: s3');
+        expect(() => registry.get('s3')).toThrow(
+            'Unknown storage provider: s3'
+        );
     });
 
     it.each(['constructor', 'toString', '__proto__', 'hasOwnProperty'])(

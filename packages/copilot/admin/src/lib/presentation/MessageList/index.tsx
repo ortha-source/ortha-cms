@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     defineMessages,
     useIntl,
@@ -91,8 +91,52 @@ const messages = defineMessages({
     transcript: {
         id: 'copilot.chat.transcript',
         defaultMessage: 'Conversation'
+    },
+    // The speaker labels. Colour and alignment carried this alone: a user turn
+    // was a right-aligned `bg-primary` bubble and an assistant turn was
+    // left-aligned markdown, which is 1.4.1 Use of Colour and is also why the
+    // `role="log"` bought so little — a log whose entries have no names is a log
+    // you cannot navigate (`ORT-116`).
+    youSaid: {
+        id: 'copilot.chat.turn.you',
+        defaultMessage: 'You'
+    },
+    assistantSaid: {
+        id: 'copilot.chat.turn.assistant',
+        defaultMessage: 'Ortha AI'
+    },
+    // The phases the status region announces.
+    statusLabel: {
+        id: 'copilot.chat.status.label',
+        defaultMessage: 'Conversation status'
+    },
+    statusThinking: {
+        id: 'copilot.chat.status.thinking',
+        defaultMessage: 'Thinking'
+    },
+    statusAwaitingDecision: {
+        id: 'copilot.chat.status.awaitingDecision',
+        defaultMessage: 'Waiting for your decision'
+    },
+    statusComplete: {
+        id: 'copilot.chat.status.complete',
+        defaultMessage: 'Answer complete'
+    },
+    statusFailed: {
+        id: 'copilot.chat.status.failed',
+        defaultMessage: 'The answer failed'
     }
 });
+
+/**
+ * How long a phase has to hold before it is announced, in ms.
+ *
+ * The phases change as fast as the run does — a search can start and finish
+ * between two frames — and a live region that speaks every one of them is the
+ * flood this replaced, moved somewhere else. Announcing only what is still true
+ * a moment later is what makes it a status rather than a transcript.
+ */
+const STATUS_SETTLE_MS = 700;
 
 /**
  * How far from the bottom still counts as "following the answer", in px.
@@ -117,13 +161,94 @@ const TRUNCATING_STOP_REASONS: Record<string, MessageDescriptor> = {
 };
 
 /**
+ * The phase the run is in, as one short sentence — or `null` when there is
+ * nothing to say (an idle transcript the user is simply reading).
+ *
+ * Derived from the newest turn only. Everything above it has already been
+ * announced, or was there before the user arrived.
+ */
+function currentPhase(turns: ChatMessage[], intl: IntlShape): string | null {
+    const last = turns[turns.length - 1];
+    if (!last || last.role === 'user') return null;
+
+    if (last.error) return intl.formatMessage(messages.statusFailed);
+
+    if (last.permissions?.some((request) => !request.answered)) {
+        return intl.formatMessage(messages.statusAwaitingDecision);
+    }
+
+    if (!last.streaming) return intl.formatMessage(messages.statusComplete);
+
+    const running = last.blocks.find(
+        (block) => block.kind === 'step' && block.step.status === 'running'
+    );
+    if (running && running.kind === 'step') {
+        return stepAction(intl, running.step);
+    }
+
+    const activity = turnActivity(last);
+    if (activity?.kind === 'after-step') {
+        return stepAction(intl, activity.step);
+    }
+    return intl.formatMessage(messages.statusThinking);
+}
+
+/**
+ * The one live region for the whole conversation: a named, polite
+ * `role="status"` **outside** the transcript, carrying the run's current phase.
+ *
+ * The transcript used to be the live region — `role="log"` *and*
+ * `aria-live="polite"`, with `aria-relevant` defaulting to `additions text`. A
+ * `text-delta` frame arrives dozens to hundreds of times per answer and each one
+ * mutates the last text block, so from the first token to the last the speech
+ * queue was saturated with one sentence being re-read as it grew, and nothing
+ * else could be announced while it happened (`ORT-116`). Meanwhile opening a
+ * thread announced nothing at all, because the skeleton it replaced is
+ * (correctly) `aria-hidden`.
+ *
+ * One region rather than several is the point: two would argue, which is the
+ * failure the `Spinner` clean-up removed elsewhere in the design system.
+ */
+function TranscriptStatus({ turns }: { turns: ChatMessage[] }) {
+    const intl = useIntl();
+    const phase = currentPhase(turns, intl);
+    const [announced, setAnnounced] = useState<string | null>(phase);
+
+    useEffect(() => {
+        // Terminal phases are announced immediately: "Answer complete" arriving
+        // 700ms late is the one announcement a reader is actually waiting for.
+        const terminal =
+            phase === intl.formatMessage(messages.statusComplete) ||
+            phase === intl.formatMessage(messages.statusFailed) ||
+            phase === intl.formatMessage(messages.statusAwaitingDecision);
+        if (terminal) {
+            setAnnounced(phase);
+            return;
+        }
+        const timer = setTimeout(() => setAnnounced(phase), STATUS_SETTLE_MS);
+        return () => clearTimeout(timer);
+    }, [phase, intl]);
+
+    return (
+        <p
+            role="status"
+            aria-label={intl.formatMessage(messages.statusLabel)}
+            className="sr-only"
+        >
+            {announced ?? ''}
+        </p>
+    );
+}
+
+/**
  * The transcript. Each turn shows the message, the tool steps it ran, and —
  * when the run ended for a reason other than a finished answer — a line saying
  * so, because a truncated answer that looks complete is worse than a short one.
  */
 export function MessageList({
     messages: turns,
-    onAnswer
+    onAnswer,
+    onExtend
 }: {
     messages: ChatMessage[];
     /** Answers a parked tool call. Omitted, prompts render read-only. */
@@ -132,6 +257,8 @@ export function MessageList({
         callId: string,
         decision: ToolPermissionDecision
     ): void;
+    /** Asks a parked run for more time. Omitted, the prompt offers no extension. */
+    onExtend?(runId: string, callId: string): void;
 }) {
     const intl = useIntl();
     const endRef = useRef<HTMLDivElement>(null);
@@ -168,6 +295,7 @@ export function MessageList({
     if (turns.length === 0) {
         return (
             <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+                <TranscriptStatus turns={turns} />
                 <p className="text-sm">{intl.formatMessage(messages.empty)}</p>
                 <p className="text-xs">
                     {intl.formatMessage(messages.emptyHint)}
@@ -177,35 +305,48 @@ export function MessageList({
     }
 
     return (
-        <div
-            ref={scrollerRef}
-            onScroll={onScroll}
-            className="flex-1 overflow-y-auto px-4 py-4"
-            role="log"
-            aria-label={intl.formatMessage(messages.transcript)}
-            aria-live="polite"
-        >
-            {/* The scroller runs the full width so the scrollbar sits at the
+        <>
+            {/* Outside the log, and `sr-only` — `sr-only` is absolutely
+                positioned, so it is not a flex item that changes the layout. */}
+            <TranscriptStatus turns={turns} />
+            <div
+                ref={scrollerRef}
+                onScroll={onScroll}
+                className="flex-1 overflow-y-auto px-4 py-4"
+                role="log"
+                // **Not a live region.** `role="log"` is kept for navigation —
+                // it is what lets a screen reader treat the turns as a readable
+                // sequence — but the announcing is `TranscriptStatus`'s job now.
+                // Streaming text mutates this subtree on every token, and a
+                // polite live region over it re-read the growing sentence from
+                // the top each time (`ORT-116`).
+                aria-live="off"
+                aria-label={intl.formatMessage(messages.transcript)}
+            >
+                {/* The scroller runs the full width so the scrollbar sits at the
                 edge of the surface, but the text does not: a transcript read
                 across a 1400px page is a transcript nobody finishes a line of.
                 A no-op in the 420px docked panel, which never reaches the cap. */}
-            <div className="mx-auto w-full max-w-3xl space-y-4">
-                {turns.map((turn) => (
-                    <Turn
-                        key={turn.id}
-                        turn={turn}
-                        {...(onAnswer ? { onAnswer } : {})}
-                    />
-                ))}
-                <div ref={endRef} />
+                <div className="mx-auto w-full max-w-3xl space-y-4">
+                    {turns.map((turn) => (
+                        <Turn
+                            key={turn.id}
+                            turn={turn}
+                            {...(onAnswer ? { onAnswer } : {})}
+                            {...(onExtend ? { onExtend } : {})}
+                        />
+                    ))}
+                    <div ref={endRef} />
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
 function Turn({
     turn,
-    onAnswer
+    onAnswer,
+    onExtend
 }: {
     turn: ChatMessage;
     onAnswer?(
@@ -213,6 +354,7 @@ function Turn({
         callId: string,
         decision: ToolPermissionDecision
     ): void;
+    onExtend?(runId: string, callId: string): void;
 }) {
     const intl = useIntl();
     const reason = turn.stopReason
@@ -225,7 +367,14 @@ function Turn({
 
     if (turn.role === 'user') {
         return (
-            <div className="flex flex-col items-end gap-1.5">
+            // An `<article>` with a name, not a bare `<div>`: the speaker was
+            // carried by fill colour and alignment alone (1.3.1, 1.4.1), and
+            // naming the entries is what makes the surrounding `role="log"`
+            // navigable at all (`ORT-116`).
+            <article
+                aria-label={intl.formatMessage(messages.youSaid)}
+                className="flex flex-col items-end gap-1.5"
+            >
                 <div className="bg-primary text-primary-foreground max-w-[85%] rounded-lg rounded-br-sm px-3 py-2 text-sm whitespace-pre-wrap">
                     {turn.text}
                 </div>
@@ -270,12 +419,15 @@ function Turn({
                         ))}
                     </ul>
                 ) : null}
-            </div>
+            </article>
         );
     }
 
     return (
-        <div className="space-y-2">
+        <article
+            aria-label={intl.formatMessage(messages.assistantSaid)}
+            className="space-y-2"
+        >
             {/* **In the order the run produced them.** These were three
                 buckets — every step, then all the prose, then every change card
                 — and the layout could not say when anything happened: a model
@@ -310,6 +462,12 @@ function Turn({
                         onDecide={(decision) =>
                             onAnswer?.(request.runId, request.id, decision)
                         }
+                        {...(onExtend
+                            ? {
+                                  onExtend: () =>
+                                      onExtend(request.runId, request.id)
+                              }
+                            : {})}
                     />
                 ))}
 
@@ -371,7 +529,7 @@ function Turn({
                     </AlertDescription>
                 </Alert>
             )}
-        </div>
+        </article>
     );
 }
 

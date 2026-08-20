@@ -531,7 +531,7 @@ test.describe('Entry editor — rich text field', () => {
             // A POSIX locale is not a BCP-47 tag, and a screen reader ignores
             // it outright — so the dialog says so rather than storing a marker
             // that does nothing.
-            const dialog = wysiwygFieldPage.page.getByRole('dialog');
+            const dialog = wysiwygFieldPage.languageDialog;
             await dialog.getByLabel('Language tag').fill('fr_FR');
             await dialog.getByRole('button', { name: 'Apply' }).click();
             await expect(dialog).toBeVisible();

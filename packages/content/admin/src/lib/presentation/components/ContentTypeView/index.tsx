@@ -10,7 +10,11 @@ import {
 } from '@ortha-cms/design-system';
 import { FileQuestion } from 'lucide-react';
 import type { ContentType } from '../../../domain/types/contentType';
-import { CONTENT_TYPE_KIND, ENTRY_MODE, TYPE_PARAM } from '../../../domain/constants';
+import {
+    CONTENT_TYPE_KIND,
+    ENTRY_MODE,
+    TYPE_PARAM
+} from '../../../domain/constants';
 import { CollectionRecordsView } from '../CollectionRecordsView';
 import { ContentEntryView } from '../ContentEntryView';
 
@@ -40,7 +44,10 @@ type ContentTypeViewProps = {
  * ({@link ContentEntryView} in `single` mode). An unknown param renders a
  * distinct not-found state.
  */
-export function ContentTypeView({ types, trashed = false }: ContentTypeViewProps) {
+export function ContentTypeView({
+    types,
+    trashed = false
+}: ContentTypeViewProps) {
     const intl = useIntl();
     const typeName = useParams()[TYPE_PARAM];
     const type = types.find((candidate) => candidate.name === typeName);

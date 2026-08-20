@@ -18,6 +18,18 @@ type AuthLayoutProps = {
      * somewhere new.
      */
     surface: string;
+    /**
+     * Whether arriving on this surface should move focus to its `<h1>`.
+     * Defaults to `true`.
+     *
+     * A busy surface passes `false`. The skeletons grew an `<h1>` of their own
+     * under `ORT-167` (a loading state with no heading is the state a slow
+     * connection sits in longest), and without this the focus move below would
+     * start finding it — landing the user on a heading that is about to be
+     * unmounted and replaced by the real page's, which is the one case this
+     * layout deliberately never took focus for.
+     */
+    focusHeading?: boolean;
 };
 
 /**
@@ -34,16 +46,21 @@ type AuthLayoutProps = {
  * discovers it only on hitting a field labelled "Email". Moving focus to the
  * new heading names the page and puts the first control one Tab away.
  */
-export function AuthLayout({ children, surface }: AuthLayoutProps) {
+export function AuthLayout({
+    children,
+    surface,
+    focusHeading = true
+}: AuthLayoutProps) {
     const columnRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (!focusHeading) return;
+
         const heading = columnRef.current?.querySelector('h1');
         if (!heading) {
-            // The busy state is a skeleton with no heading — it already
-            // announces itself through its `role="status"` region, and stealing
-            // focus mid-load would only move the user somewhere that is about to
-            // be replaced.
+            // Nothing to land on. A busy state already announces itself through
+            // its `role="status"` region, and stealing focus mid-load would only
+            // move the user somewhere that is about to be replaced.
             return;
         }
 
@@ -65,10 +82,19 @@ export function AuthLayout({ children, surface }: AuthLayoutProps) {
         // it and need the indicator. The announcement is the feedback.
         heading.style.outline = 'none';
         heading.focus();
-    }, [surface]);
+    }, [surface, focusHeading]);
 
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+        // A `<main>` rather than a `<div>`: the signed-out shell had no landmark
+        // at all, so every one of these screens put its whole content outside
+        // the structure a screen-reader user navigates by — no "main content" to
+        // jump to, and `region` firing on everything on the page. The
+        // authenticated side gets its landmark from the shell's `SidebarInset`;
+        // these routes mount as top-level siblings of that layout and so have to
+        // bring their own (`ORT-166`). It wraps the centering wrapper, not the
+        // inner column, so the brand mark is inside the landmark too and nothing
+        // is left over for `region` to report.
+        <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
             <div
                 ref={columnRef}
                 className="flex w-full max-w-sm flex-col gap-6"
@@ -76,6 +102,6 @@ export function AuthLayout({ children, surface }: AuthLayoutProps) {
                 <Logo className="self-center" />
                 {children}
             </div>
-        </div>
+        </main>
     );
 }

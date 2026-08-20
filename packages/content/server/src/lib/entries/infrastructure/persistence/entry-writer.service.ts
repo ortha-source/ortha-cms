@@ -32,6 +32,7 @@ import {
     isForeignKeyViolation,
     violatedConstraint
 } from '@ortha-cms/utils-server';
+import { mediaValueIds } from '@ortha-cms/content-domain';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
@@ -1672,15 +1673,13 @@ export class EntryWriterService {
         const refs: { field: string; id: string }[] = [];
         for (const [name, spec] of Object.entries(type.fields)) {
             if (spec.type !== CONTENT_FIELD_TYPE.Media) continue;
-            const value = values[name];
-            const ids = Array.isArray(value)
-                ? value
-                : typeof value === 'string' && value
-                  ? [value]
-                  : [];
-            for (const id of ids) {
-                if (typeof id === 'string' && id)
-                    refs.push({ field: name, id });
+            // Through the kernel, because a media value is `{ id, alt?,
+            // decorative? }` as well as a bare id since `ORT-83` — and a
+            // hand-rolled `typeof value === 'string'` silently skipped the
+            // object form, so an asset attached with alt text was never checked
+            // for existence or against `accept`.
+            for (const id of mediaValueIds(values[name])) {
+                if (id) refs.push({ field: name, id });
             }
         }
         if (!refs.length) return;

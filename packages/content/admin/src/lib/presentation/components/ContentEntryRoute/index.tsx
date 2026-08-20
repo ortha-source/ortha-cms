@@ -1,7 +1,11 @@
 import { Navigate, useParams } from 'react-router-dom';
 import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
 import type { ContentType } from '../../../domain/types/contentType';
-import { CONTENT_SEGMENT, ENTRY_PARAM, TYPE_PARAM } from '../../../domain/constants';
+import {
+    CONTENT_SEGMENT,
+    ENTRY_PARAM,
+    TYPE_PARAM
+} from '../../../domain/constants';
 import { ContentEntryView, type EntryMode } from '../ContentEntryView';
 
 /**

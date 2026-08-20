@@ -58,7 +58,9 @@ export const AuthProviderContext = AuthContext.Provider;
  * resolved yet, so the gate stays closed until a user is confirmed — fail-closed.
  */
 export function useAuth(): AuthState {
-    return useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null };
+    return (
+        useContext(AuthContext) ?? { status: AuthStatus.Loading, user: null }
+    );
 }
 
 /**

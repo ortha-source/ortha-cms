@@ -98,9 +98,7 @@ describe('CopilotPlugin config validation', () => {
             CopilotPlugin(
                 options({ config: config({ limits: { [key]: value } }) })
             )
-        ).toThrow(
-            new RegExp(`limits\\.${key} must be a positive number`)
-        );
+        ).toThrow(new RegExp(`limits\\.${key} must be a positive number`));
     });
 
     it('accepts a raised maxSteps — the one an operator actually sets', () => {

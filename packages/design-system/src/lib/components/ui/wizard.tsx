@@ -22,7 +22,7 @@ export type StepperStep = {
     optional?: boolean;
     /** Summary chip shown once the step is complete (e.g. the entered name). */
     summary?: string;
-}
+};
 
 /** Props for {@link Stepper}. */
 export type StepperProps = {
@@ -38,7 +38,7 @@ export type StepperProps = {
     optionalLabel?: string;
     /** Localized accessible label for a marker, e.g. `Step 2: Members`. */
     stepAriaLabel: (step: StepperStep, number: number) => string;
-}
+};
 
 /**
  * The vertical progress rail: a numbered marker per step (a check once
@@ -147,7 +147,7 @@ export type WizardStepCardProps = {
     children: ReactNode;
     /** Extra classes. */
     className?: string;
-}
+};
 
 /**
  * Card wrapper for a wizard step. Give it `key={step}` so it remounts on each
@@ -176,7 +176,7 @@ export type WizardFooterProps = {
     skipLabel?: string;
     /** The primary action (already a Button with its own label/state). */
     primary: ReactNode;
-}
+};
 
 /**
  * The contextual footer shared by every step: an optional Back button or hint on

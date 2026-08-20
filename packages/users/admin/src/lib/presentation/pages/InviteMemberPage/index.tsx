@@ -37,6 +37,7 @@ import type { MemberRole } from '../../../domain/types/member';
 import { MemberAvatar } from '../../components/MemberAvatar';
 import { InviteSent } from '../../components/InviteSent';
 import { WorkspaceOptionsSkeleton } from '../../components/MembersSkeleton';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 const messages = defineMessages({
     title: { id: 'users.invitePage.title', defaultMessage: 'Invite a member' },
@@ -262,6 +263,10 @@ function InfoNote({ children }: { children: ReactNode }) {
  */
 export function InviteMemberPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.title));
     const canInvite = useHasPermission('users:create');
     const flow = useInviteMemberFlow();
 

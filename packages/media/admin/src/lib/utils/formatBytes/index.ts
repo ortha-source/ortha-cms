@@ -11,6 +11,7 @@ export function formatBytes(bytes: number): string {
         value /= 1024;
         unit += 1;
     }
-    const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+    const rounded =
+        value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
     return `${rounded} ${units[unit]}`;
 }

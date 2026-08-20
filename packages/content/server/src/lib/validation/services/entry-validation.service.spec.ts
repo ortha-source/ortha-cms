@@ -59,9 +59,9 @@ describe('EntryValidationService', () => {
 
     it('enforces text length and pattern', () => {
         expect(fieldsWithIssues({ title: 'no' })).toContain('title');
-        expect(fieldsWithIssues({ title: 'hello', slug: 'Bad Slug' })).toContain(
-            'slug'
-        );
+        expect(
+            fieldsWithIssues({ title: 'hello', slug: 'Bad Slug' })
+        ).toContain('slug');
     });
 
     it('enforces integer and number bounds', () => {
@@ -95,9 +95,9 @@ describe('EntryValidationService', () => {
     });
 
     it('restricts select to its options', () => {
-        expect(
-            fieldsWithIssues({ title: 'hello', color: 'green' })
-        ).toContain('color');
+        expect(fieldsWithIssues({ title: 'hello', color: 'green' })).toContain(
+            'color'
+        );
     });
 
     it('requires a uuid for a single relation', () => {

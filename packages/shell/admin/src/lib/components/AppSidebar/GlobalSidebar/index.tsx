@@ -22,6 +22,10 @@ import { SidebarSearch } from '../SidebarSearch';
 
 /** Intl descriptors for the global sidebar, co-located here. */
 const messages = defineMessages({
+    hideNav: {
+        id: 'shell.sidebar.hide',
+        defaultMessage: 'Hide navigation'
+    },
     primaryNav: {
         id: 'shell.sidebar.primaryLabel',
         defaultMessage: 'Primary'
@@ -77,7 +81,12 @@ export function GlobalSidebar() {
                         <Logo showLabel={false} aria-hidden />
                         <span className="text-sm font-semibold">Ortha CMS</span>
                     </span>
-                    <SidebarTrigger className="text-sidebar-foreground/70" />
+                    {/* In-header trigger, only reachable while the sidebar is
+                        open — so it always *hides* (`ORT-159`). */}
+                    <SidebarTrigger
+                        label={intl.formatMessage(messages.hideNav)}
+                        className="text-sidebar-foreground/70"
+                    />
                 </div>
                 <SidebarSearch />
             </SidebarHeader>

@@ -27,7 +27,7 @@ states.
    with the browser context (the FE analog of `resetDb()`).
 4. **Accessibility.** `fixtures.ts` also provides `makeAxe` — an
    `@axe-core/playwright` scanner tagged WCAG 2.1 A/AA **+ `best-practice`**,
-   with five rules excluded by name in `AXE_KNOWN_GAPS`. `support/a11y.ts`
+   with **one** rule excluded by name in `AXE_KNOWN_GAPS`. `support/a11y.ts`
    (`expectNoA11yViolations`) asserts a clean scan with a readable failure
    summary. `src/auth/a11y.spec.ts` scans pages **and dynamic states** (errors,
    banner); `keyboard.spec.ts` covers keyboard operability axe can't.
@@ -55,10 +55,19 @@ states.
   because no rule had been _disabled_. A route with no `<h1>`, no `<main>` and a
   nameless dialog scanned green. If you are ever tempted to trim that tag list,
   read `src/harness/axe-fixture.spec.ts` first — it exists to stop exactly this.
-- **Five rules are excluded, in one place, with tickets.** `AXE_KNOWN_GAPS` in
-  `support/fixtures.ts` names each, its measured node count and the surfaces it
-  fires on. They are real product debt, not rules the project disagrees with, and
-  deleting an entry is the last step of the fix. `harness/axe-fixture.spec.ts` pins the
+- **One rule is excluded, in one place, with its reason.** `AXE_KNOWN_GAPS` in
+  `support/fixtures.ts` held five when `best-practice` was switched on. Four
+  were real product debt and are **fixed**, so `landmark-one-main`,
+  `page-has-heading-one`, `heading-order` and `aria-dialog-name` all run again.
+  What remains is `region`, and it is the rule rather than the product: an open
+  Radix menu is portalled to `<body>`, and axe's default `regionMatcher`
+  (`dialog, [role=dialog], [role=alertdialog], svg`) exempts a Popover but not a
+  menu — which is a **check** option `AxeBuilder` has no way to set, since it can
+  pass only `RunOptions`. Excluding the wrapper instead would drop the menu's
+  subtree from every rule, losing the contrast and naming checks that run inside
+  it. The two real findings `region` caught are pinned by name in
+  `host/host.spec.ts` (the sidebar and the copilot dock are `complementary`
+  landmarks) rather than left to the rule. `harness/axe-fixture.spec.ts` pins the
   list so it cannot quietly grow. Never exclude a rule anywhere else.
 - **`incomplete` is not a pass.** `expectNoA11yViolations` records axe's
   "could not decide" bucket as a test annotation (visible per case in the HTML

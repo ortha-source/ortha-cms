@@ -32,6 +32,7 @@ export class AssetMapper {
             variants: row.variants ?? {},
             tags: row.tags ?? [],
             alt: row.alt,
+            tracks: row.tracks ?? [],
             uploadedBy: row.uploadedBy
         });
     }
@@ -55,6 +56,7 @@ export class AssetMapper {
             variants: asset.variants,
             tags: asset.tags,
             alt: asset.alt,
+            tracks: asset.tracks,
             uploadedBy: asset.uploadedBy
         };
     }

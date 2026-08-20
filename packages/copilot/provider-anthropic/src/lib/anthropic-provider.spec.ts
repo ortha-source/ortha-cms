@@ -549,7 +549,11 @@ describe('createAnthropicProvider', () => {
                     ]
                 });
             }
-            return { system: 'You are the copilot.', messages, maxOutputTokens: 512 };
+            return {
+                system: 'You are the copilot.',
+                messages,
+                maxOutputTokens: 512
+            };
         }
 
         it('caches the static prefix on the system block, which covers the tools', async () => {

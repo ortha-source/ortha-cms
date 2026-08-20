@@ -9,6 +9,7 @@ import { Button } from '@ortha-cms/design-system';
 import { WYSIWYG_PROSE_CLASS } from '../../../domain/constants';
 import { normalizeRichText } from '../../../domain/richTextValue';
 import { editorExtensions } from '../../../infrastructure/editorExtensions';
+import { transformPastedHTML } from '../../../infrastructure/transformPastedHTML';
 import { useLiveEditorState } from '../../hooks/useLiveEditorState';
 import { WysiwygIssueList } from '../WysiwygIssueList';
 import { WysiwygToolbar } from '../WysiwygToolbar';
@@ -36,9 +37,10 @@ const messages = defineMessages({
  * The chord that takes focus out of the document.
  *
  * Tab cannot be it. Inside a table `TableKit` binds Tab to "next cell", and at
- * the last cell it appends a **row** and moves into that instead of returning
- * `false` — so Tab never falls through, and an author trying to leave grows the
- * table one row per press. A nested list swallows it too (`sinkListItem`).
+ * the last cell it appends a **row** and moves into that. `TableTab` now bounds
+ * that to a single row — a second Tab through the empty row it just made falls
+ * through — but the first press still does not leave, and a nested list swallows
+ * Tab outright (`sinkListItem`).
  * Shift-Tab does escape backwards, and Tab escapes from an ordinary paragraph,
  * but WCAG 2.1.2 asks that the user be *advised* of the way out, and nothing
  * said so — hence this, plus the visually-hidden instruction the surface points
@@ -167,7 +169,11 @@ export function WysiwygEditorPanel({
                 event.preventDefault();
                 exitRef.current?.focus();
                 return true;
-            }
+            },
+            // Strips the source app's colour and font-size out of a paste, so
+            // Word's and Google Docs' typography does not ride into the
+            // published body — see `transformPastedHTML` (`ORT-164`).
+            transformPastedHTML
         },
         onUpdate: ({ editor: instance }) => {
             // Belt-and-braces: `editable: false` already refuses every

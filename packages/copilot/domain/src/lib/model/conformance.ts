@@ -172,8 +172,9 @@ async function checkCompletedStream(
 /** Clause: a tool call reaches the engine once, whole, and already parsed. */
 async function checkToolCall(
     subject: ModelProviderConformanceCase
-): Promise<Pick<ModelProviderConformanceReport, 'tool-call-is-whole-and-parsed'>>
-{
+): Promise<
+    Pick<ModelProviderConformanceReport, 'tool-call-is-whole-and-parsed'>
+> {
     const scenario = await subject.toolCall();
     const events = await drain(
         scenario.provider.stream(scenario.request)

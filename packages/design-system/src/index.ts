@@ -27,7 +27,12 @@ export type { InputFieldProps } from './lib/components/ui/input-field';
 export { Label } from './lib/components/ui/label';
 export { Separator } from './lib/components/ui/separator';
 export { Spinner } from './lib/components/ui/spinner';
-export { Skeleton } from './lib/components/ui/skeleton';
+export { Skeleton, SkeletonRegion } from './lib/components/ui/skeleton';
+export {
+    DesignSystemLabelsProvider,
+    useDesignSystemLabels
+} from './lib/labels';
+export type { DesignSystemLabels } from './lib/labels';
 export { AppLoader } from './lib/components/ui/app-loader';
 export { WizardPageSkeleton } from './lib/components/ui/wizard-page-skeleton';
 export {

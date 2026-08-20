@@ -34,7 +34,8 @@ const messages = defineMessages({
     emailLabel: { id: 'users.general.emailLabel', defaultMessage: 'Email' },
     emailHint: {
         id: 'users.general.emailHint',
-        defaultMessage: 'Email is the sign-in identifier and can’t be changed here.'
+        defaultMessage:
+            'Email is the sign-in identifier and can’t be changed here.'
     },
     save: { id: 'users.general.save', defaultMessage: 'Save changes' },
     discard: { id: 'users.general.discard', defaultMessage: 'Discard' },
@@ -127,7 +128,10 @@ export function UserGeneralPage() {
                     >
                         {intl.formatMessage(messages.discard)}
                     </Button>
-                    <Button onClick={save} disabled={!canSave || update.isPending}>
+                    <Button
+                        onClick={save}
+                        disabled={!canSave || update.isPending}
+                    >
                         {update.isPending ? <Spinner /> : null}
                         {intl.formatMessage(messages.save)}
                     </Button>

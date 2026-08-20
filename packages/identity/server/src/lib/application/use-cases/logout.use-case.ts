@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import { IDENTITY_EVENT_KINDS, identityEvent } from '../../domain/events/identity-events';
+import {
+    IDENTITY_EVENT_KINDS,
+    identityEvent
+} from '../../domain/events/identity-events';
 import {
     SESSION_REPOSITORY,
     type SessionRepository

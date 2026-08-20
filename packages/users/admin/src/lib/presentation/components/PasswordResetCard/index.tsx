@@ -120,7 +120,9 @@ export function PasswordResetCard({ member }: { member: Member }) {
                 // carries the wait, so the admin is told to hold rather than
                 // told "something conflicted" and left to guess.
                 if (error.status === HTTP_STATUS.CONFLICT) {
-                    const body = error.details as MemberConflictBody | undefined;
+                    const body = error.details as
+                        | MemberConflictBody
+                        | undefined;
                     toast.error(
                         body?.code === 'PASSWORD_RESET_RECENTLY_SENT'
                             ? intl.formatMessage(messages.recentlyIssued, {

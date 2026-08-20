@@ -89,6 +89,17 @@ export interface RunPermissionRequestEvent {
     title?: string;
     /** The arguments the model supplied, so the user can see what it would do. */
     input: unknown;
+    /**
+     * When the run stops waiting, as an ISO instant — the deadline the client
+     * counts down to.
+     *
+     * The prompt used to simply disappear, replaced by a failed step and the
+     * model reporting that nobody answered: no countdown, no warning, and
+     * nothing to press for more time (WCAG 2.2.1, `ORT-118`). A client that
+     * knows the deadline can show the remaining time, warn before it lands, and
+     * offer the extension the broker now grants.
+     */
+    expiresAt: string;
 }
 
 /**

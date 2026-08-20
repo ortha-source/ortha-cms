@@ -52,10 +52,7 @@ export class DrizzleMemberRepository implements MemberRepository {
             .from(users)
             .innerJoin(roles, eq(users.roleId, roles.id))
             .where(
-                and(
-                    eq(roles.key, ADMIN_ROLE_KEY),
-                    eq(users.status, 'active')
-                )
+                and(eq(roles.key, ADMIN_ROLE_KEY), eq(users.status, 'active'))
             );
         return total;
     }

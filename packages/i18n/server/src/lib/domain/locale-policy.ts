@@ -31,7 +31,10 @@ export class LocalePolicy {
      * otherwise). The pure form of the extension's `listScope` strict-vs-widen
      * branch.
      */
-    shouldWidenToDefault(requested: Locale, fallbackRequested: boolean): boolean {
+    shouldWidenToDefault(
+        requested: Locale,
+        fallbackRequested: boolean
+    ): boolean {
         return fallbackRequested && !requested.equals(this.locales.default());
     }
 

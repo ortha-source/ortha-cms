@@ -1,8 +1,25 @@
+import { defineMessages, useIntl } from 'react-intl';
 import { Sidebar, SidebarFooter } from '@ortha-cms/design-system';
 import { byOrder } from '@ortha-cms/utils-admin';
 import { SIDEBAR_FOOTER_SLOT } from '../../slots/sidebarSlots';
 import { useSidebarContentOverride } from '../../utils/sidebarContent';
 import { GlobalSidebar } from './GlobalSidebar';
+
+/** Intl descriptors for {@link AppSidebar}, co-located with the component. */
+const messages = defineMessages({
+    mobileTitle: {
+        id: 'shell.sidebar.mobileTitle',
+        defaultMessage: 'Navigation'
+    },
+    mobileDescription: {
+        id: 'shell.sidebar.mobileDescription',
+        defaultMessage: 'The main navigation for Ortha CMS.'
+    },
+    label: {
+        id: 'shell.sidebar.label',
+        defaultMessage: 'Sidebar'
+    }
+});
 
 /**
  * The single left sidebar that is the admin's app chrome (replacing the old top
@@ -32,11 +49,24 @@ import { GlobalSidebar } from './GlobalSidebar';
  * the `TopBar`'s inline reveal trigger, and ⌘B.
  */
 export function AppSidebar() {
+    const intl = useIntl();
     const override = useSidebarContentOverride();
     const footerItems = byOrder(SIDEBAR_FOOTER_SLOT.getItems());
 
     return (
-        <Sidebar collapsible="offcanvas">
+        // On mobile the sidebar *is* a dialog, and it announced itself as the
+        // design system's English default ("Sidebar") in every locale — the name
+        // was there, but no consumer could translate it (`ORT-159`). Named for
+        // what it holds rather than for the component that draws it.
+        <Sidebar
+            collapsible="offcanvas"
+            mobileTitle={intl.formatMessage(messages.mobileTitle)}
+            mobileDescription={intl.formatMessage(messages.mobileDescription)}
+            // Makes the panel a named `complementary` landmark. The brand label
+            // in the header, and every group a plugin contributes below the
+            // primary `<nav>`, were otherwise outside every landmark (`ORT-170`).
+            label={intl.formatMessage(messages.label)}
+        >
             {override ?? <GlobalSidebar />}
             {footerItems.length > 0 ? (
                 <SidebarFooter className="border-t border-sidebar-border">

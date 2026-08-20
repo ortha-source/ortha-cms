@@ -62,6 +62,13 @@ export type FieldPickerProps = {
     fields: readonly FilterField[];
     value: string;
     onChange: (next: string) => void;
+    /**
+     * Accessible name for the trigger, scoped to the rule this picker belongs to
+     * — e.g. "Field for Author · Name". Defaults to a bare "Field", which is what
+     * every row on screen used to be called (`ORT-157`). The popover's listbox
+     * keeps the generic name: once it is open there is only one of them.
+     */
+    label?: string;
 };
 
 /** The type tag shown beside a field — a relation `id` reads as "relation". */
@@ -135,7 +142,12 @@ const isNavigable = (row: Row): boolean =>
  * keys would move a highlight that assistive tech never hears about. Rows are
  * `tabIndex={-1}` so Tab leaves the popover instead of walking every field.
  */
-export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
+export function FieldPicker({
+    fields,
+    value,
+    onChange,
+    label
+}: FieldPickerProps) {
     const intl = useIntl();
     const container = usePortalContainer();
     const [open, setOpen] = useState(false);
@@ -302,7 +314,7 @@ export function FieldPicker({ fields, value, onChange }: FieldPickerProps) {
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
-                    aria-label={intl.formatMessage(messages.label)}
+                    aria-label={label ?? intl.formatMessage(messages.label)}
                     className="w-full justify-between gap-1 px-2 font-normal"
                 >
                     {selected ? (

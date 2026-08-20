@@ -1,4 +1,5 @@
 import type { DomainEvent } from '@ortha-cms/database';
+import type { StoredMediaTrack } from '../infrastructure/schema/media-asset';
 import { AssetId } from './value-objects/asset-id';
 import { FolderId } from './value-objects/folder-id';
 import { FileName } from './value-objects/file-name';
@@ -71,6 +72,7 @@ export interface AssetState {
     variants: AssetVariants;
     tags: string[];
     alt: string | null;
+    tracks: StoredMediaTrack[];
     uploadedBy: string;
 }
 
@@ -100,6 +102,7 @@ export class Asset {
         private readonly _variants: AssetVariants,
         private _tags: string[],
         private _alt: string | null,
+        private _tracks: StoredMediaTrack[],
         private readonly _uploadedBy: string,
         private readonly _isNew: boolean
     ) {}
@@ -125,6 +128,8 @@ export class Asset {
             props.variants ?? {},
             [],
             normalizeAlt(props.alt),
+            // A fresh upload has none: captioning is a later act.
+            [],
             props.uploadedBy,
             true
         );
@@ -157,6 +162,7 @@ export class Asset {
             state.variants,
             [...state.tags],
             state.alt,
+            [...(state.tracks ?? [])],
             state.uploadedBy,
             false
         );
@@ -222,6 +228,10 @@ export class Asset {
         return [...this._tags];
     }
     /** Alt text, or `null`. */
+    get tracks(): StoredMediaTrack[] {
+        return [...this._tracks];
+    }
+
     get alt(): string | null {
         return this._alt;
     }
@@ -263,6 +273,32 @@ export class Asset {
         );
         this._tags = normalized;
         this.raise(MEDIA_EVENT_KINDS.ASSET_UPDATED, { tags: normalized });
+    }
+
+    /**
+     * Replaces the asset's timed-text tracks.
+     *
+     * Whole-set replacement rather than add/remove, matching {@link retag}: the
+     * editor shows the list and saves the list, and a partial mutator would need
+     * an identity for a track that has no natural key beyond `(kind, srclang)`.
+     *
+     * A track's `srclang` is required by the storage type and trimmed here: a
+     * `<track>` with a blank `srclang` cannot be selected by a player and is
+     * announced with the page's phonemes, which is worse than no track at all
+     * (`ORT-92`).
+     */
+    setTracks(tracks: StoredMediaTrack[]): void {
+        const normalized = tracks
+            .map((track) => ({
+                kind: track.kind,
+                srclang: track.srclang.trim(),
+                label: track.label.trim(),
+                assetId: track.assetId,
+                ...(track.default ? { default: true as const } : {})
+            }))
+            .filter((track) => track.srclang && track.assetId);
+        this._tracks = normalized;
+        this.raise(MEDIA_EVENT_KINDS.ASSET_UPDATED, { tracks: normalized });
     }
 
     /** Sets or clears alt text (idempotent). */

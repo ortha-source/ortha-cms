@@ -19,6 +19,10 @@ import { useComboboxList } from '../../../../hooks/useComboboxList';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const messages = defineMessages({
+    popoverLabel: {
+        id: 'workspaces.create.members.popoverLabel',
+        defaultMessage: 'People search results'
+    },
     placeholder: {
         id: 'workspaces.create.members.searchPlaceholder',
         defaultMessage: 'Add people by name or email'
@@ -154,6 +158,13 @@ export function MemberTypeahead({ excludeIds, onAdd }: MemberTypeaheadProps) {
                 align="start"
                 // Keep focus in the input so typing isn't interrupted.
                 onOpenAutoFocus={(event) => event.preventDefault()}
+                // Radix gives this `role="dialog"`. Focus stays in the input, so
+                // the name is rarely announced on entry — but it is what a
+                // screen-reader user gets when they navigate *into* the results,
+                // and it was a bare "dialog" (`ORT-169`). Named for what the
+                // surface holds, not for the field that opened it, which is
+                // already named by its own label.
+                aria-label={intl.formatMessage(messages.popoverLabel)}
                 className="w-[var(--radix-popover-trigger-width)] p-1"
             >
                 {loading ? (

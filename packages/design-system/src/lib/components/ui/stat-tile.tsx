@@ -18,7 +18,12 @@ export type StatTileProps = {
  * A compact dashboard metric card: a large value over a muted label, with an
  * optional leading icon. Used to build a stat row (e.g. on the home page).
  */
-export function StatTile({ label, value, icon: Icon, className }: StatTileProps) {
+export function StatTile({
+    label,
+    value,
+    icon: Icon,
+    className
+}: StatTileProps) {
     return (
         <Card className={cn('shadow-none', className)}>
             <CardContent className="flex flex-col gap-1 p-4">

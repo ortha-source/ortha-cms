@@ -117,9 +117,12 @@ export function RelationFieldSection({
             <div className="flex items-start gap-2 px-4 pt-3.5">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium">
+                        {/* `<h2>` for the same reason as `FieldGroup`'s: a
+                            relation card is a top-level section under the
+                            editor's `<h1>`, so `<h3>` skipped a level. */}
+                        <h2 className="text-sm font-medium">
                             {fieldLabel(field)}
-                        </h3>
+                        </h2>
                         {/* Read off THIS field's own schema, not the target's
                             i18n flag: what matters to the editor is whether a
                             save here reaches the other locales, and only the

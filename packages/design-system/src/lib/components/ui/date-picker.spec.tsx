@@ -20,7 +20,9 @@ const iso = (d: Date) =>
 
 describe('DatePicker', () => {
     it('reads the placeholder and is marked empty when there is no value', () => {
-        render(<DatePicker onChange={() => undefined} placeholder="Pick a day" />);
+        render(
+            <DatePicker onChange={() => undefined} placeholder="Pick a day" />
+        );
 
         const button = screen.getByRole('button');
         expect(button.textContent).toContain('Pick a day');
@@ -29,7 +31,10 @@ describe('DatePicker', () => {
 
     it('formats the selected date onto the trigger', () => {
         render(
-            <DatePicker value={new Date(2026, 2, 14)} onChange={() => undefined} />
+            <DatePicker
+                value={new Date(2026, 2, 14)}
+                onChange={() => undefined}
+            />
         );
 
         const button = screen.getByRole('button');
@@ -43,7 +48,11 @@ describe('DateTimePicker', () => {
 
     async function openPicker(value?: Date, onChange = vi.fn()) {
         render(
-            <DateTimePicker id="publishedAt" value={value} onChange={onChange} />
+            <DateTimePicker
+                id="publishedAt"
+                value={value}
+                onChange={onChange}
+            />
         );
         fireEvent.click(screen.getAllByRole('button')[0]);
         await waitFor(() => expect(time()).toBeTruthy());
@@ -73,7 +82,10 @@ describe('DateTimePicker', () => {
     it('carries the whole time across a day change', async () => {
         const onChange = await openPicker(new Date(2026, 2, 14, 10, 30, 45));
 
-        fireEvent.click(screen.getByRole('gridcell', { name: '20' }).firstChild as HTMLElement);
+        fireEvent.click(
+            screen.getByRole('gridcell', { name: '20' })
+                .firstChild as HTMLElement
+        );
 
         await waitFor(() => expect(onChange).toHaveBeenCalled());
         expect(iso(onChange.mock.calls[0][0] as Date)).toBe(

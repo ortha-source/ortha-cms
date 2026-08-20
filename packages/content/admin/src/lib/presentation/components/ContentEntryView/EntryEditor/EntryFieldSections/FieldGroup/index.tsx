@@ -32,7 +32,14 @@ export function FieldGroup({
     return (
         <section className="flex flex-col gap-5">
             <div>
-                <h3 className="text-sm font-medium">{title}</h3>
+                {/* `<h2>`, not `<h3>`. This is a top-level section of the
+                    editor, and the page's only heading above it is the
+                    `ContainerHeader`'s `<h1>` — so an `<h3>` jumped a level and
+                    told a screen-reader user navigating by heading that the run
+                    was subordinate to something that is not there (`ORT-168` is
+                    the same rule, caught here once `heading-order` was switched
+                    on). The size is a class, not the rank. */}
+                <h2 className="text-sm font-medium">{title}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                     {description}
                 </p>

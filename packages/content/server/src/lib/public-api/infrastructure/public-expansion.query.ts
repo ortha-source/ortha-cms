@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { toMediaValueRef, type MediaValueRef } from '@ortha-cms/content-domain';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import {
@@ -49,6 +50,21 @@ export const MAX_EXPANDED_FIELDS = 10;
  * default `publicBasePath` the media config already hardcodes.
  */
 const PUBLIC_MEDIA_BASE_PATH = '/api/v1/media/assets';
+
+/**
+ * Rewrites a track's admin URL to the public one.
+ *
+ * The resolver builds `/api/media/assets/<id>/raw`, whose scope comes from the
+ * caller's workspace **membership** — which a bearer token does not have. The
+ * id is the only part worth keeping, so it is lifted out and re-addressed
+ * against the public base, same as {@link publicAssetUrl} does for the asset
+ * itself. A src that does not match is passed through: an unexpected shape is
+ * better published as-is than silently rewritten to a 404.
+ */
+function publicTrackUrl(src: string): string {
+    const id = /\/assets\/([^/]+)\/raw/.exec(src)?.[1];
+    return id ? publicAssetUrl(id) : src;
+}
 
 /** The public download URL for one asset, optionally a generated derivative. */
 function publicAssetUrl(id: string, variant?: 'thumb' | 'preview'): string {
@@ -307,17 +323,21 @@ export class PublicExpansionQuery {
         }
 
         // Collect every id on the page first, so the resolver is hit once.
-        const idsByRowField = new Map<string, Map<string, string[]>>();
+        // Refs rather than ids: a media value carries a per-usage `alt` and a
+        // `decorative` flag since `ORT-83`, and those are what a public consumer
+        // needs to emit a correct `<img alt>` — the asset row's own description
+        // is only the fallback.
+        const idsByRowField = new Map<string, Map<string, MediaValueRef[]>>();
         const all = new Set<string>();
         for (const row of rows) {
             const entryId = row['id'];
             if (typeof entryId !== 'string') continue;
-            const byField = new Map<string, string[]>();
+            const byField = new Map<string, MediaValueRef[]>();
             for (const field of fields) {
-                const ids = mediaIdsOf(row[field]);
-                if (!ids.length) continue;
-                byField.set(field, ids);
-                for (const id of ids) all.add(id);
+                const refs = mediaRefsOf(row[field]);
+                if (!refs.length) continue;
+                byField.set(field, refs);
+                for (const ref of refs) all.add(ref.id);
             }
             idsByRowField.set(entryId, byField);
         }
@@ -328,22 +348,26 @@ export class PublicExpansionQuery {
         const resolved = await this.media.resolve([...all], workspaceId);
         for (const [entryId, byField] of idsByRowField) {
             const view: Record<string, PublicMediaFieldView> = {};
-            for (const [field, ids] of byField) {
+            for (const [field, refs] of byField) {
                 // An id the resolver didn't return names an asset that is gone
                 // or lives in another workspace. The admin keeps it as a
                 // `missing` placeholder to preserve ordering in an editor; a
                 // public read has no such need and simply omits it, so every
                 // ref it returns is a real asset.
-                const present = ids
-                    .map((id) => resolved.get(id))
-                    .filter((asset): asset is NonNullable<typeof asset> =>
-                        Boolean(asset)
+                const present = refs
+                    .map((ref) => {
+                        const asset = resolved.get(ref.id);
+                        return asset ? { ref, asset } : null;
+                    })
+                    .filter(
+                        (pair): pair is NonNullable<typeof pair> =>
+                            pair !== null
                     );
                 // `total` counts every asset actually attached, before the
                 // limit — so a lowered limit is visible as `items.length <
                 // total` rather than silently passing off a slice as the whole.
                 const items = present.slice(0, limit).map(
-                    (asset): PublicMediaRef => ({
+                    ({ ref, asset }): PublicMediaRef => ({
                         id: asset.id,
                         name: asset.name,
                         // The resolver's own URLs are the admin's; rewrite to
@@ -355,11 +379,29 @@ export class PublicExpansionQuery {
                             ? { thumbUrl: publicAssetUrl(asset.id, 'thumb') }
                             : {}),
                         ...(asset.previewUrl
-                            ? { previewUrl: publicAssetUrl(asset.id, 'preview') }
+                            ? {
+                                  previewUrl: publicAssetUrl(
+                                      asset.id,
+                                      'preview'
+                                  )
+                              }
                             : {}),
                         kind: asset.kind,
                         mimeType: asset.mimeType,
-                        alt: asset.alt
+                        alt: publicAlt(ref, asset.alt),
+                        // Rewritten to the token-fetchable route, exactly like
+                        // `url` above: the resolver hands back the admin's
+                        // addresses, which a bearer cannot reach (`ORT-92`).
+                        tracks: asset.tracks.map((track) => ({
+                            kind: track.kind,
+                            srclang: track.srclang,
+                            label: track.label,
+                            src: publicTrackUrl(track.src),
+                            ...(track.default ? { default: true } : {})
+                        })),
+                        ...(ref.decorative === true
+                            ? { decorative: true as const }
+                            : {})
                     })
                 );
                 view[field] = { items, total: present.length };
@@ -429,11 +471,23 @@ export class PublicExpansionQuery {
 }
 
 /** The asset ids stored in a media field — one id, or an ordered list. */
-function mediaIdsOf(value: unknown): string[] {
-    if (Array.isArray(value)) {
-        return value.filter(
-            (id): id is string => typeof id === 'string' && !!id
-        );
-    }
-    return typeof value === 'string' && value ? [value] : [];
+function mediaRefsOf(value: unknown): MediaValueRef[] {
+    return (Array.isArray(value) ? value : [value])
+        .map(toMediaValueRef)
+        .filter((ref): ref is MediaValueRef => ref !== null && !!ref.id);
+}
+
+/**
+ * The alt text a public consumer should render for one usage.
+ *
+ * `decorative` resolves to `''` — the value an `<img alt="">` needs to be
+ * skipped by a screen reader, which is a different claim from omitting the
+ * attribute. A per-usage `alt` otherwise overrides the asset row's default,
+ * because alt text is per usage: the same logo is "Acme logo" in a header and
+ * decorative in a footer strip (`ORT-83`).
+ */
+function publicAlt(ref: MediaValueRef, assetAlt: string | null): string | null {
+    if (ref.decorative === true) return '';
+    if (typeof ref.alt === 'string' && ref.alt.trim() !== '') return ref.alt;
+    return assetAlt;
 }

@@ -1,4 +1,14 @@
+import type * as React from 'react';
+import { defineMessages, useIntl } from 'react-intl';
 import { SidebarTrigger, useSidebar } from '@ortha-cms/design-system';
+
+/** Intl descriptors for {@link SidebarToggle}, co-located with the component. */
+const messages = defineMessages({
+    show: {
+        id: 'shell.sidebarToggle.show',
+        defaultMessage: 'Show navigation'
+    }
+});
 
 /**
  * The floating reveal button for the collapsed sidebar. Fixed to the top-left,
@@ -11,7 +21,10 @@ import { SidebarTrigger, useSidebar } from '@ortha-cms/design-system';
  * floating fallback also hides itself (via `:has()`) whenever the open page
  * has one — it only ever shows on bar-less pages (the Home dashboard).
  */
-export function SidebarToggle() {
+export function SidebarToggle({
+    ...props
+}: React.ComponentProps<typeof SidebarTrigger>) {
+    const intl = useIntl();
     const { state, isMobile } = useSidebar();
 
     if (!isMobile && state === 'expanded') {
@@ -19,6 +32,13 @@ export function SidebarToggle() {
     }
 
     return (
-        <SidebarTrigger className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm [main:has([data-slot=top-bar])~&]:hidden" />
+        // This button only ever renders while the sidebar is hidden, so it
+        // always *shows* — a generic "Toggle Sidebar" would name the component
+        // rather than what pressing it does (`ORT-159`).
+        <SidebarTrigger
+            label={intl.formatMessage(messages.show)}
+            className="fixed left-2 top-2 z-30 size-8 rounded-lg border border-border bg-background shadow-sm [main:has([data-slot=top-bar])~&]:hidden"
+            {...props}
+        />
     );
 }

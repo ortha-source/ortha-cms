@@ -1,4 +1,11 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+    index,
+    jsonb,
+    pgTable,
+    text,
+    timestamp,
+    uuid
+} from 'drizzle-orm/pg-core';
 
 /**
  * The append-only audit trail. One row per recorded action.

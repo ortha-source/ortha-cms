@@ -1,10 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { useAuth } from '@ortha-cms/identity-admin';
-import {
-    Avatar,
-    AvatarFallback,
-    Separator
-} from '@ortha-cms/design-system';
+import { Avatar, AvatarFallback, Separator } from '@ortha-cms/design-system';
 import { initialsOf } from '@ortha-cms/utils-admin';
 import type { MemberDraft } from '../../../../domain/types/wizard';
 import { MemberRow } from './MemberRow';
@@ -50,12 +46,10 @@ export function MembersStep({
     const auth = useAuth();
     const user = 'user' in auth ? auth.user : undefined;
 
-    const ownerName = user?.name ?? user?.email ?? intl.formatMessage(messages.you);
+    const ownerName =
+        user?.name ?? user?.email ?? intl.formatMessage(messages.you);
     const ownerId = user?.id ?? 'me';
-    const excludeIds = new Set<string>([
-        ownerId,
-        ...members.map((m) => m.id)
-    ]);
+    const excludeIds = new Set<string>([ownerId, ...members.map((m) => m.id)]);
 
     return (
         <div className="flex flex-col gap-5">

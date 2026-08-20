@@ -57,9 +57,17 @@ export function LocaleTitleChip({ schema, entry }: EntrySlotContext) {
             {/* The display name is written *in* that locale, so it declares
                 its own language and direction (`locale` is a BCP-47 tag by
                 contract). The uppercased code above is a machine token and
-                stays in the page's language. */}
+                stays in the page's language.
+
+                The separator sits **outside** the marked span, in the chip's
+                own direction. Inside it, a right-to-left name dragged the ` · `
+                to the wrong side of itself — the separator belongs to the chip's
+                layout, not to the name (`ORT-86`). */}
             {name ? (
-                <span {...localeAttrs(locales, slug)}>{` · ${name}`}</span>
+                <>
+                    {' · '}
+                    <span {...localeAttrs(locales, slug)}>{name}</span>
+                </>
             ) : null}
         </Badge>
     );

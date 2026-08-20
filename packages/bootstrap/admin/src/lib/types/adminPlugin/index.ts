@@ -48,6 +48,21 @@ export type CreateAdminOptions = {
     plugins: AdminPlugin[];
     /** DOM element id to mount into. Defaults to "root". */
     rootElement?: string;
-    /** Active locale for `react-intl`. Defaults to "en". */
+    /**
+     * Active locale for `react-intl`, and the value written to `<html lang>`.
+     * Defaults to `'en'`.
+     *
+     * **It does not translate anything yet.** The admin ships exactly one
+     * catalogue — the `defaultMessage` on each descriptor — and no `messages`
+     * are passed to `IntlProvider`, so every string resolves to its English
+     * default whatever this is set to. What *does* follow it is `Intl`
+     * formatting (dates, numbers, plurals) and the document language, which is
+     * why setting it is still better than not.
+     *
+     * It is typed `string` rather than a union of shipped locales because there
+     * is no set of shipped locales to name yet; when catalogues land, this
+     * should narrow so the option cannot promise something it does not do
+     * (`ORT-141`).
+     */
     locale?: string;
 };

@@ -13,6 +13,10 @@ import {
 
 /** Intl descriptors for the members skeletons, co-located here. */
 const messages = defineMessages({
+    heading: {
+        id: 'users.skeleton.heading',
+        defaultMessage: 'Loading members'
+    },
     loading: {
         id: 'users.skeleton.loading',
         defaultMessage: 'Loading members…'
@@ -144,8 +148,22 @@ export function MembersTableSkeleton({ rows = 5 }: { rows?: number }) {
  * while the chunk loads. Reuses {@link MembersTableSkeleton} for the body.
  */
 export function MembersPageSkeleton() {
+    const intl = useIntl();
+
     return (
         <Container>
+            {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
+                fallback is a whole page with no heading at all until the real
+                one mounts — and it is the state a slow connection sits in
+                longest, so it is the one most likely to be navigated by heading
+                (`ORT-167`).
+
+                It names the **state**, not the page, and deliberately: an `<h1>`
+                repeating the loaded page's would put two identically-named
+                level-one headings on screen across the swap, which is ambiguous
+                to a reader and to anything locating by heading. "Loading X" is
+                also the more useful thing to hear here. */}
+            <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-2">
                     <Skeleton className="h-8 w-40" />
@@ -170,5 +188,7 @@ export function MembersPageSkeleton() {
 export function InviteMemberPageSkeleton() {
     const intl = useIntl();
 
-    return <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />;
+    return (
+        <WizardPageSkeleton label={intl.formatMessage(messages.loadingForm)} />
+    );
 }

@@ -35,7 +35,10 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
  * title.
  */
 const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
-    ({ className, title, subtitle, actions, titleClassName, ...props }, ref) => (
+    (
+        { className, title, subtitle, actions, titleClassName, ...props },
+        ref
+    ) => (
         <div
             ref={ref}
             className={cn(

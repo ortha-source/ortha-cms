@@ -453,6 +453,19 @@ export class WysiwygFieldPage extends BasePage {
     }
 
     /**
+     * The language-of-parts dialog, open.
+     *
+     * Exposed because a spec asserting the dialog's *rejection* of a bad tag
+     * needs the dialog while it is still up — {@link setPassageLanguage} waits
+     * for it to close, which never happens on a value it refuses. Reaching for
+     * `page` from the spec is not the alternative: it is `protected`, and a spec
+     * that touches it stops the whole suite typechecking.
+     */
+    get languageDialog(): Locator {
+        return this.page.getByRole('dialog');
+    }
+
+    /**
      * Mark the current selection as being written in `tag`, through the
      * language-of-parts dialog behind **More formatting**.
      */

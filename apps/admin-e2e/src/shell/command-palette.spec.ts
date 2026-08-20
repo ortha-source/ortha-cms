@@ -62,7 +62,9 @@ test.describe('Command palette', () => {
         await homePage.commandInput().fill('blog');
         await homePage.commandItem('Blog posts Marketing site').click();
 
-        await expect(page).toHaveURL(/\/workspaces\/ws_marketing\/content\/blog_post$/);
+        await expect(page).toHaveURL(
+            /\/workspaces\/ws_marketing\/content\/blog_post$/
+        );
     });
 
     test('arrow keys move the announced selection, not just the highlight', async ({

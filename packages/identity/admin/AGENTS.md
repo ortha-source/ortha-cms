@@ -221,9 +221,12 @@ owns auth). `src/lib` is organized into:
       instance_ — `AcceptInvitePage` renders a skeleton, then a form or one of
       two failure cards, and React keeps the same `AuthLayout` mounted
       throughout, so nothing in its own lifecycle marks the moment the user
-      arrived somewhere new. The busy state deliberately has no heading and is
-      skipped: it already announces through its `role="status"`, and stealing
-      focus into something about to be replaced helps nobody.
+      arrived somewhere new. A busy state passes `focusHeading={false}`: the
+      skeletons grew a visually-hidden `<h1>` of their own under `ORT-167` (a
+      loading state is the state a slow connection sits in longest, so it is the
+      one most likely to be navigated by heading), and without the opt-out the
+      focus move would land the visitor on a heading that is about to be
+      unmounted and replaced by the real page's.
     - **`AuthNotice`** is the sign-in page's standing explanation of _how you
       got here_ — today, a session that ended underneath you. It is the
       deliberate opposite of `AuthAlert` below on both counts: it does not take
@@ -236,14 +239,16 @@ owns auth). `src/lib` is organized into:
       order) was reachable only in browse mode. Render it conditionally: it
       focuses on mount and on `message` change, so it must never sit mounted and
       empty.
-- **The tab title names the screen.** `useDocumentTitle` sets `document.title`
-  while a page is mounted and **restores the previous value on unmount** — which
-  is what lets this plugin title its own routes without owning every route in the
-  app: signing in hands the title back rather than stranding "Sign in" over the
-  shell. One writer at a time is the rule; `copilot-admin`'s `useTabBadge`
-  snapshots the title when it mounts, so a second title hook added _inside_ the
-  shell would have to reckon with that (these screens render outside it, so they
-  cannot collide today).
+- **The tab title names the screen**, through `utils-admin`'s shared
+  `useDocumentTitle`. This plugin used to carry a **second, naive copy** that
+  snapshot `document.title` on mount and restored it on unmount, bypassing the
+  registry entirely — which is why the sign-in tab said "Ortha CMS" where every
+  registry-composed title said "Admin", and why losing a session on `/workspaces`
+  and signing back in restored "Workspaces · Admin" over the home page. It is
+  deleted (`ORT-140`); the descriptors here are page names now
+  (`'Sign in'`), and the registry composes `{page} · {app}` and cooperates with
+  `copilot-admin`'s unread badge through `setTitleDecorator` instead of fighting
+  it.
 - **A chunk that never arrives.** `AuthErrorBoundary` wraps the router's
   `Suspense`. `Suspense` handles waiting, not failing: when a deploy lands while
   a tab is open the old `index.html`'s content-hashed chunk is gone, the dynamic

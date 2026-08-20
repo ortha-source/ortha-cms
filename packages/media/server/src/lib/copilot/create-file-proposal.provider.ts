@@ -103,6 +103,15 @@ export class CreateFileProposalToolProvider
                         description:
                             'Destination folder id from media_folders_list. Omit for the top level.'
                     },
+                    alt: {
+                        type: 'string',
+                        maxLength: 1000,
+                        description:
+                            'A one-line description of what this file is, stored as its ' +
+                            'alternative text. It becomes the accessible name wherever the ' +
+                            'file is linked or embedded, so write it for someone who cannot ' +
+                            'open it — not a repeat of the file name.'
+                    },
                     summary: {
                         type: 'string',
                         maxLength: 200,
@@ -111,6 +120,13 @@ export class CreateFileProposalToolProvider
                             'e.g. “Q3 content audit as Markdown”.'
                     }
                 },
+                // `alt` is offered but not required, and that is a deliberate
+                // narrowing of `ORT-120`'s first bullet. Every `format` this
+                // tool writes is **text** (md/csv/json/html/txt), so there is no
+                // image here whose meaning would otherwise be lost — 1.1.1 is
+                // not at stake the way it is for `media_propose_alt_text`. What
+                // it does buy is a real accessible name wherever the file is
+                // linked, instead of a file name.
                 required: ['fileName', 'format', 'content', 'summary'],
                 additionalProperties: false
             },
@@ -127,6 +143,7 @@ export class CreateFileProposalToolProvider
                     format: string;
                     content: string;
                     folderId?: string;
+                    alt?: string;
                     summary: string;
                 };
 
@@ -180,16 +197,32 @@ export class CreateFileProposalToolProvider
                     }
                 }
 
+                const alt = (args.alt ?? '').trim();
+
                 return {
                     kind: MEDIA_PROPOSAL_KINDS.createFile,
                     target: { fileName, folderId },
-                    patch: { format, content: args.content },
+                    patch: {
+                        format,
+                        content: args.content,
+                        ...(alt ? { alt } : {})
+                    },
                     summary: args.summary,
                     changes: [
                         {
                             field: 'fileName',
                             label: 'File',
                             after: `${fileName} · ${FILE_FORMATS[format].label} · ${size} bytes`
+                        },
+                        // On the card whether or not it was supplied. The card
+                        // is a receipt rather than a review since ADR-0009, but
+                        // a receipt is still where someone notices — and an
+                        // accessibility gap nobody is shown is one nobody
+                        // fixes (`ORT-120`).
+                        {
+                            field: 'alt',
+                            label: 'Description',
+                            after: alt || '(none supplied)'
                         },
                         {
                             field: 'content',

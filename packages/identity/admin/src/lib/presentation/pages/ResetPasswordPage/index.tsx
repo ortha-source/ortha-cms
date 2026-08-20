@@ -6,7 +6,7 @@ import {
     CardHeader,
     Skeleton
 } from '@ortha-cms/design-system';
-import { HTTP_STATUS } from '@ortha-cms/utils-admin';
+import { HTTP_STATUS, useDocumentTitle } from '@ortha-cms/utils-admin';
 import { AuthLayout } from '../../components/AuthLayout';
 import { ResetLinkUnavailable } from '../../components/ResetLinkUnavailable';
 import { ResetLinkLookupFailed } from '../../components/ResetLinkLookupFailed';
@@ -17,17 +17,20 @@ import {
 } from '../../components/ResetPasswordForm';
 import { usePasswordReset } from '../../../application/usePasswordReset';
 import { useResetPasswordMutation } from '../../../application/useResetPasswordMutation';
-import { useDocumentTitle } from '../../useDocumentTitle';
 
 /** Intl descriptors for {@link ResetPasswordPage}, co-located with the component. */
 const messages = defineMessages({
     documentTitle: {
         id: 'identity.resetPassword.documentTitle',
-        defaultMessage: 'Reset your password · Ortha CMS'
+        defaultMessage: 'Reset your password'
     },
     loading: {
         id: 'identity.resetPassword.loading',
         defaultMessage: 'Checking your reset link…'
+    },
+    loadingHeading: {
+        id: 'identity.resetPassword.loadingHeading',
+        defaultMessage: 'Reset your password'
     },
     linkExpired: {
         id: 'identity.resetPassword.error.linkExpired',
@@ -96,7 +99,13 @@ export function ResetPasswordPage() {
 
     if (reset.isPending) {
         return (
-            <AuthLayout surface="reset-loading">
+            <AuthLayout surface="reset-loading" focusHeading={false}>
+                {/* The busy state's `<h1>`, visually hidden: it is a
+                    full page like any other and was reporting none
+                    (`ORT-167`). */}
+                <h1 className="sr-only">
+                    {intl.formatMessage(messages.loadingHeading)}
+                </h1>
                 <div role="status">
                     <span className="sr-only">
                         {intl.formatMessage(messages.loading)}

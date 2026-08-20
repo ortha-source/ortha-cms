@@ -364,8 +364,9 @@ describe('createOpenAiProvider', () => {
 
         await drain(provider().stream(request, controller.signal));
 
-        const signal = jest.mocked(globalThis.fetch).mock.calls.at(-1)?.[1]
-            ?.signal;
+        const signal = jest
+            .mocked(globalThis.fetch)
+            .mock.calls.at(-1)?.[1]?.signal;
         expect(signal).toBeInstanceOf(AbortSignal);
         expect(signal?.aborted).toBe(false);
         controller.abort();

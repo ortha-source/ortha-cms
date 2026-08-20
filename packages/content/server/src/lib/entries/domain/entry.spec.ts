@@ -14,7 +14,9 @@ describe('Entry publish lifecycle', () => {
         entry.publish(okGate);
         expect(entry.status).toBe(ENTRY_STATUS.Published);
         const events = entry.pullEvents();
-        expect(events.map((e) => e.kind)).toEqual([ENTRY_EVENT_KINDS.PUBLISHED]);
+        expect(events.map((e) => e.kind)).toEqual([
+            ENTRY_EVENT_KINDS.PUBLISHED
+        ]);
         expect(events[0].aggregateId).toBe('e1');
         expect(events[0].payload).toEqual({ contentType: 'post' });
     });

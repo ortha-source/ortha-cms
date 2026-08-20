@@ -7,15 +7,15 @@ import {
 
 describe('entry-status state machine', () => {
     it('allows draft → published (publish)', () => {
-        expect(
-            canTransition(ENTRY_STATUS.Draft, ENTRY_STATUS.Published)
-        ).toBe(true);
+        expect(canTransition(ENTRY_STATUS.Draft, ENTRY_STATUS.Published)).toBe(
+            true
+        );
     });
 
     it('allows published → draft (unpublish)', () => {
-        expect(
-            canTransition(ENTRY_STATUS.Published, ENTRY_STATUS.Draft)
-        ).toBe(true);
+        expect(canTransition(ENTRY_STATUS.Published, ENTRY_STATUS.Draft)).toBe(
+            true
+        );
     });
 
     it('treats a same-state pair as a non-transition (idempotent no-op)', () => {

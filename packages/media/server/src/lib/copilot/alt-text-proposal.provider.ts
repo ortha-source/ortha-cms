@@ -62,10 +62,21 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
                     },
                     alt: {
                         type: 'string',
+                        minLength: 1,
                         maxLength: 1000,
                         description:
-                            'The alternative text to set. Send an empty string only for a ' +
-                            'genuinely decorative image.'
+                            'The alternative text to set — what the image says, for someone ' +
+                            'who cannot see it. Required unless `decorative` is true. Do not ' +
+                            'send an empty string: use `decorative` to say an image says ' +
+                            'nothing.'
+                    },
+                    decorative: {
+                        type: 'boolean',
+                        description:
+                            'True only for an image that carries no information — a divider, ' +
+                            'a texture, a shape behind text — so it should be skipped by a ' +
+                            'screen reader entirely. Never true for a photo, a chart, a ' +
+                            'screenshot, or a logo.'
                     },
                     summary: {
                         type: 'string',
@@ -75,7 +86,10 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
                             'e.g. “Alt text for hero.jpg”.'
                     }
                 },
-                required: ['assetId', 'alt', 'summary'],
+                // `alt` is deliberately **not** required: `decorative` is the
+                // other way to answer, and requiring both would force a model
+                // to send the empty string this change exists to reject.
+                required: ['assetId', 'summary'],
                 additionalProperties: false
             },
             requires: [PERMISSIONS.MEDIA_UPDATE],
@@ -88,9 +102,31 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
             handler: async (input, ctx): Promise<ProposalDraft> => {
                 const args = (input ?? {}) as {
                     assetId: string;
-                    alt: string;
+                    alt?: string;
+                    decorative?: boolean;
                     summary: string;
                 };
+
+                // "Decorative" and "nobody wrote one" used to be the same
+                // bytes: `alt` was `type: string` with no `minLength`, and an
+                // empty string was documented as meaning decorative with
+                // nothing checking that it was deliberate. That is exactly the
+                // distinction WCAG 1.1.1 turns on, so it is now an explicit
+                // answer rather than an absence (`ORT-120`).
+                const decorative = args.decorative === true;
+                const alt = decorative ? '' : (args.alt ?? '').trim();
+                if (!decorative && !alt) {
+                    throw new Error(
+                        'Alt text is required. Describe what the image says, or set ' +
+                            '`decorative: true` if it carries no information at all.'
+                    );
+                }
+                if (decorative && (args.alt ?? '').trim()) {
+                    throw new Error(
+                        'An image cannot be decorative and carry alt text. Send one or ' +
+                            'the other.'
+                    );
+                }
 
                 // Workspace-scoped, so an id from another workspace reads as
                 // absent — and the failure lands here rather than after a human
@@ -102,7 +138,7 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
                 if (!asset) {
                     throw new Error(`No asset "${args.assetId}".`);
                 }
-                if ((asset.alt ?? '') === args.alt) {
+                if ((asset.alt ?? '') === alt) {
                     throw new Error(
                         `"${asset.name}" already has exactly that alt text.`
                     );
@@ -111,14 +147,18 @@ export class AltTextProposalToolProvider implements ToolProvider, OnModuleInit {
                 return {
                     kind: MEDIA_PROPOSAL_KINDS.setAltText,
                     target: { assetId: asset.id, name: asset.name },
-                    patch: { alt: args.alt },
+                    patch: { alt },
                     summary: args.summary,
                     changes: [
                         {
                             field: 'alt',
                             label: 'Alternative text',
                             before: asset.alt,
-                            after: args.alt
+                            // Spelled out on the card rather than shown as an
+                            // empty cell: "(decorative)" is a decision a
+                            // reviewer can disagree with, whereas blank reads
+                            // as the model having failed to write anything.
+                            after: decorative ? '(decorative)' : alt
                         }
                     ]
                 };

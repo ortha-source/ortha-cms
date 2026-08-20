@@ -182,9 +182,15 @@ export function ContentEntryView({
     // A slot may open a blank create form pre-seeded from a source record (the
     // i18n plugin's "create a translation" flow passes the source's values as
     // `translateFrom`); the shared (non-localized) fields are copied in.
-    const translateFrom = (
-        location.state as { translateFrom?: Record<string, unknown> } | null
-    )?.translateFrom;
+    const prefillState = location.state as {
+        translateFrom?: Record<string, unknown>;
+        translateFromLocale?: string;
+    } | null;
+    const translateFrom = prefillState?.translateFrom;
+    // The locale the copied shared values were written in. Only meaningful
+    // while they are still a prefill — once saved, `values` is just this row's
+    // data and nothing distinguishes a translated field from an untouched one.
+    const translateFromLocale = prefillState?.translateFromLocale;
 
     const schemaQuery = useContentSchema(type.name);
     const schema = schemaQuery.data;
@@ -597,6 +603,9 @@ export function ContentEntryView({
                             : `${typePath}${entryQuerySuffix}`
                     }
                     availableTypeNames={workspace.content}
+                    {...(isCreate && translateFromLocale
+                        ? { prefilledFromLocale: translateFromLocale }
+                        : {})}
                     presave={presaveHandles}
                     tab={tab}
                     onTabChange={onTabChange}

@@ -113,8 +113,11 @@ test.describe('Activity filter (query builder)', () => {
         // The panel stays open, the rule shows its validation error, and
         // nothing was committed to the URL.
         await expect(activityLogPage.filterSurface()).toBeVisible();
+        // Prefixed with the rule's field path since `ORT-157`: a burst of bare
+        // "Value required" alerts named nothing, and 3.3.1 requires the item in
+        // error to be identified.
         await expect(activityLogPage.ruleError()).toHaveText(
-            'Must be a valid UUID'
+            'Actor ID: Must be a valid UUID'
         );
         await expect(page).not.toHaveURL(/filter=/);
     });

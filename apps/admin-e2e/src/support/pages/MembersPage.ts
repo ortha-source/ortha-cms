@@ -21,8 +21,14 @@ export class MembersPage extends BasePage {
 
     constructor(page: Page) {
         super(page);
+        // `exact`, because the route's `Suspense` fallback now carries an
+        // `<h1>` of its own ("Loading members" — `ORT-167`), and Playwright's
+        // default name matching is a case-insensitive **substring**. Without it
+        // this resolved during the skeleton, before the page had even issued its
+        // list request, and every spec that waited on it was racing the load.
         this.heading = page.getByRole('heading', {
             name: 'Members',
+            exact: true,
             level: 1
         });
         this.nav = page.getByRole('navigation', { name: 'Primary' });

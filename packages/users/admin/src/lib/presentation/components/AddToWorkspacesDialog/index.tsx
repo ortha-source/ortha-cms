@@ -19,7 +19,10 @@ import { MemberAvatar } from '../MemberAvatar';
 
 /** Intl descriptors for {@link AddToWorkspacesDialog}. */
 const messages = defineMessages({
-    title: { id: 'users.addWorkspaces.title', defaultMessage: 'Add to workspaces' },
+    title: {
+        id: 'users.addWorkspaces.title',
+        defaultMessage: 'Add to workspaces'
+    },
     description: {
         id: 'users.addWorkspaces.description',
         defaultMessage: 'Pick the workspaces this member should join.'
@@ -43,8 +46,7 @@ const messages = defineMessages({
     cancel: { id: 'users.addWorkspaces.cancel', defaultMessage: 'Cancel' },
     add: {
         id: 'users.addWorkspaces.add',
-        defaultMessage:
-            'Add{count, plural, =0 {} other { (#)}}'
+        defaultMessage: 'Add{count, plural, =0 {} other { (#)}}'
     }
 });
 
@@ -176,7 +178,9 @@ export function AddToWorkspacesDialog({
                                                     }
                                                 />
                                                 <MemberAvatar
-                                                    initials={workspace.initials}
+                                                    initials={
+                                                        workspace.initials
+                                                    }
                                                     color={workspace.color}
                                                     className="size-9 shrink-0 text-xs"
                                                 />

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_722 test cases across 73 spec files._
+_731 test cases across 73 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -626,6 +626,8 @@ _<sub>apps/admin-e2e/src/content/media-fields.spec.ts</sub>_
 | --- |
 | renders a card per media field, each with its empty state |
 | attaches an asset picked from the library and saves its id |
+| prompts for alt text, and round-trips it with the attachment |
+| takes "decorative" as an answer, and it is not the same as blank |
 | restricts the picker to the kinds the field accepts |
 | walks into a folder and back out through the breadcrumb |
 | stages an upload and sends it only when the record is saved |
@@ -777,11 +779,21 @@ _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
 | returns to the form from either exit |
 | writes edits back to the form as they are made |
 | stores the formatting the toolbar applied |
-| stores a callout as semantic HTML, not admin classes |
+| stores a callout as its own node, carrying its tone |
 | stores a table with its header row |
-| stores a paragraph’s alignment as text-align |
-| stores a column layout as nested divs |
+| stores a paragraph’s alignment on the block |
+| stores a column layout as nested nodes |
 | stores an emptied field as empty, not as a blank paragraph |
+
+### structure and language
+
+| Test case |
+| --- |
+| upgrades a legacy HTML body to a document on save |
+| names the structural problems in a body it is handed |
+| refuses to save a body a screen reader could not follow |
+| stores the language a passage is written in |
+| refuses a language tag assistive tech would ignore |
 
 ### media
 
@@ -1116,6 +1128,13 @@ _<sub>apps/admin-e2e/src/host/host.spec.ts</sub>_
 | --- |
 | is a tab stop, because a scrolling region must be reachable by keyboard |
 | shows a focus indicator when it holds focus |
+
+## the shell chrome is inside landmarks
+
+| Test case |
+| --- |
+| the sidebar is a named landmark |
+| the brand label sits inside the sidebar landmark, not beside it |
 
 <!-- source: apps/admin-e2e/src/host/platform-preferences.spec.ts -->
 _<sub>apps/admin-e2e/src/host/platform-preferences.spec.ts</sub>_

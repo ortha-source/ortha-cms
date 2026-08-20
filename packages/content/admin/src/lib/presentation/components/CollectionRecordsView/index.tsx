@@ -75,7 +75,5 @@ export function CollectionRecordsView({
         );
     }
 
-    return (
-        <LoadedRecordsView type={type} schema={schema} trashed={trashed} />
-    );
+    return <LoadedRecordsView type={type} schema={schema} trashed={trashed} />;
 }

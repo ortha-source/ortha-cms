@@ -114,8 +114,21 @@ export interface MediaRef {
     kind: string;
     /** MIME type, e.g. `image/png`. */
     mimeType: string;
-    /** Alt text, when set. */
+    /**
+     * The text alternative **this usage** publishes with — the value's own
+     * `alt` where it has one, the asset row's default otherwise, and `''` when
+     * the usage is marked {@link decorative} (`ORT-83`).
+     */
     alt?: string | null;
+    /**
+     * The author marked this usage purely presentational, so it publishes with
+     * an empty `alt` and a screen reader skips it.
+     *
+     * Distinct from an absent {@link alt}, which means nobody has answered the
+     * question yet — the distinction WCAG 1.1.1 turns on, and what a required
+     * media field's publish gate checks for.
+     */
+    decorative?: true;
     /** The asset could not be resolved (deleted or outside the workspace). */
     missing?: true;
 }

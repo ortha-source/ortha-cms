@@ -61,8 +61,6 @@ describe('deriveTitle', () => {
         // Move it one character earlier, to index 36, and it is no longer
         // "most of the budget" — the clip is hard at 60 instead.
         const early = `${'a'.repeat(36)} ${'b'.repeat(24)}`;
-        expect(deriveTitle(early)).toBe(
-            `${'a'.repeat(36)} ${'b'.repeat(23)}…`
-        );
+        expect(deriveTitle(early)).toBe(`${'a'.repeat(36)} ${'b'.repeat(23)}…`);
     });
 });

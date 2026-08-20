@@ -51,7 +51,10 @@ export class CreateWorkspaceUseCase {
             await this.slugUniqueness.assertAvailable(slug);
 
             const memberUserIds = await this.provisioner.resolve(dto.members);
-            const grants = resolveGrants(dto.content, this.catalog.knownSlugs());
+            const grants = resolveGrants(
+                dto.content,
+                this.catalog.knownSlugs()
+            );
 
             const workspace = Workspace.create({
                 name: dto.name,

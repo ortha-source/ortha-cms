@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@ortha-cms/identity-admin';
+import { isComposingText } from '@ortha-cms/utils-admin';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
 import { badgeCount } from '../../application/tabBadge';
@@ -85,6 +86,14 @@ export function CopilotLauncher() {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key.toLowerCase() !== 'j') return;
             if (!event.metaKey && !event.ctrlKey) return;
+            // Yield while the user is writing. The binding is on `window`, so it
+            // fired wherever focus was: putting the caret in a rich-text body
+            // and pressing ⌘J took focus out of the document and opened the dock
+            // — a change of context in response to input into a different
+            // control (WCAG 3.2.2), with the keystroke destroyed by the
+            // `preventDefault` below (`ORT-163`). ⌘B and ⌘K already yield this
+            // way; no editor binds ⌘J, so nothing is lost by being consistent.
+            if (isComposingText(event.target)) return;
             event.preventDefault();
             start();
         };

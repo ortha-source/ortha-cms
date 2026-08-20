@@ -6,6 +6,8 @@ import type { Workspace } from '../types/workspace';
  * the table all agree on what "active" means instead of each re-testing the
  * `'Active'` string literal.
  */
-export function isActiveWorkspace(workspace: Pick<Workspace, 'status'>): boolean {
+export function isActiveWorkspace(
+    workspace: Pick<Workspace, 'status'>
+): boolean {
     return workspace.status === 'Active';
 }

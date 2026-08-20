@@ -18,7 +18,7 @@ import {
     type FilterGroup
 } from '@ortha-cms/query-builder-admin';
 import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useTableUrlState } from '@ortha-cms/utils-admin';
+import { useTableUrlState, useDocumentTitle } from '@ortha-cms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -104,6 +104,10 @@ const MAX_PAGE_SIZE = Math.max(...PAGE_SIZE_OPTIONS);
  */
 export function ActivityLogPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.title));
     const canRead = useHasPermission('activity:read');
 
     const {

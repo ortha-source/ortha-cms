@@ -111,7 +111,9 @@ export class ActivityLogPage extends BasePage {
      * skeleton's `role="status"`, which only exists while pending.
      */
     resultsStatus(): Locator {
-        return this.page.getByRole('status').filter({ hasText: /events? found/ });
+        return this.page
+            .getByRole('status')
+            .filter({ hasText: /events? found/ });
     }
 
     /** The pagination button by its accessible name. */
@@ -121,7 +123,9 @@ export class ActivityLogPage extends BasePage {
 
     /** The error state's alert (distinct from the empty state). */
     errorAlert(): Locator {
-        return this.page.getByRole('alert').filter({ hasText: /Couldn’t load/ });
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: /Couldn’t load/ });
     }
 
     /**

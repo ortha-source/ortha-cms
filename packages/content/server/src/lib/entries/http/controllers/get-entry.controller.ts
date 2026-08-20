@@ -11,10 +11,7 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@ortha-cms/identity-server';
-import {
-    CurrentWorkspace,
-    WorkspaceGuard
-} from '@ortha-cms/workspaces-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
 import { ContentGrantGuard } from '../guards/content-grant.guard';
 import { clampInt } from '@ortha-cms/utils-server';
 import { MAX_PAGE_SIZE } from '../../entries.constants';

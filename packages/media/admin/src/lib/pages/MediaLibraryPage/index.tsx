@@ -36,6 +36,7 @@ import { RenameDialog } from '../../components/RenameDialog';
 import { MoveAssetsDialog } from '../../components/MoveAssetsDialog';
 import { UploadDialog } from '../../components/UploadDialog';
 import { folderContents } from '../../utils/folderContents';
+import { useDocumentTitle } from '@ortha-cms/utils-admin';
 
 /** Intl descriptors for the Media Library page + its toasts, co-located. */
 const messages = defineMessages({
@@ -191,6 +192,10 @@ type DeleteTarget =
  */
 export function MediaLibraryPage() {
     const intl = useIntl();
+    // Names this route in the tab strip, the window list, the history
+    // and a screen reader's window announcement. Every private route but
+    // Workspaces was still titled a bare "Admin" (WCAG 2.4.2, `ORT-140`).
+    useDocumentTitle(intl.formatMessage(messages.title));
     // Mirror the server's RBAC: reads gate the queries, writes gate controls.
     const canRead = useHasPermission(MEDIA_READ);
     const canCreate = useHasPermission(MEDIA_CREATE);

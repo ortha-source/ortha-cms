@@ -55,9 +55,8 @@ export function WorkspaceStats() {
     const members = new Set(
         (workspaces ?? []).flatMap((w) => w.members.map((m) => m.id))
     ).size;
-    const contentTypes = new Set(
-        (workspaces ?? []).flatMap((w) => w.content)
-    ).size;
+    const contentTypes = new Set((workspaces ?? []).flatMap((w) => w.content))
+        .size;
 
     return (
         <div className="contents">

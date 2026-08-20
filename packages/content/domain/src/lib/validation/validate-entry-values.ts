@@ -15,6 +15,12 @@ import {
     isEmptyFieldValue
 } from '../fields/field-type';
 import type { EntryFieldSpec, EntryFieldSpecMap } from '../fields/field-spec';
+import {
+    hasTextAlternative,
+    toMediaValueRef,
+    MEDIA_ALT_MAX_LENGTH,
+    type MediaValueRef
+} from '../fields/media-value';
 import { isWellFormedLanguageTag } from '../richtext/language-tag';
 import {
     isEmptyRichText,
@@ -282,20 +288,87 @@ export function validateFieldValue(
                 fail('must be an entry id');
             break;
         case CONTENT_FIELD_TYPE.Media: {
-            // Shape only — an asset id is a uuid (single) or a uuid[] (multiple).
-            // Existence in the workspace and the kind/MIME `accept` restriction
-            // need the media table, so they're enforced server-side, not here.
-            if (spec.multiple) {
-                if (
-                    !Array.isArray(value) ||
-                    value.some(
-                        (id) => typeof id !== 'string' || !UUID_RE.test(id)
-                    )
-                )
-                    fail('must be an array of media asset ids');
-            } else if (typeof value !== 'string' || !UUID_RE.test(value)) {
-                fail('must be a media asset id');
+            // Shape, plus the text alternative. Existence in the workspace and
+            // the kind/MIME `accept` restriction need the media table, so those
+            // stay server-side.
+            //
+            // A value is a bare asset id (the legacy form, still accepted) or
+            // `{ id, alt?, decorative? }`. The shape used to be *only* the id,
+            // which left nowhere to put a text alternative and no way to tell
+            // "decorative" from "missing" — the distinction WCAG 1.1.1 turns on
+            // (`ORT-83`).
+            const refs = spec.multiple
+                ? Array.isArray(value)
+                    ? value.map(toMediaValueRef)
+                    : null
+                : [toMediaValueRef(value)];
+
+            // One message for every shape failure, unchanged from before the
+            // shape widened: to an author, "this is not a media asset" is one
+            // problem whether the value was the wrong container, the wrong type
+            // inside it, or an id that is not a uuid.
+            const shapeError = spec.multiple
+                ? 'must be an array of media asset ids'
+                : 'must be a media asset id';
+
+            if (refs === null || refs.some((ref) => ref === null)) {
+                fail(shapeError);
+                break;
             }
+
+            const present = refs as MediaValueRef[];
+            if (present.some((ref) => !UUID_RE.test(ref.id))) {
+                fail(shapeError);
+                break;
+            }
+            if (
+                present.some(
+                    (ref) =>
+                        ref.alt !== undefined && typeof ref.alt !== 'string'
+                )
+            ) {
+                fail('alt text must be a string');
+                break;
+            }
+            if (
+                present.some(
+                    (ref) =>
+                        typeof ref.alt === 'string' &&
+                        countCharacters(ref.alt) > MEDIA_ALT_MAX_LENGTH
+                )
+            ) {
+                fail(
+                    `alt text must be at most ${MEDIA_ALT_MAX_LENGTH} characters`
+                );
+                break;
+            }
+            // Both at once is a contradiction the author has to resolve: an
+            // image cannot be presentational *and* carry a description, and
+            // silently preferring one would publish the other's meaning.
+            if (
+                present.some(
+                    (ref) =>
+                        ref.decorative === true &&
+                        typeof ref.alt === 'string' &&
+                        ref.alt.trim() !== ''
+                )
+            ) {
+                fail('cannot be marked decorative and carry alt text');
+                break;
+            }
+            // The publish gate, expressed as validation because that is what
+            // `canPublish` reads. Only **required** media fields: an optional
+            // image the author chose to attach is still an image somebody has to
+            // read, but forcing the answer on every optional field would make
+            // the rule an obstacle rather than a prompt — and `required` is the
+            // author's own statement that this image matters to the entry.
+            if (
+                spec.required &&
+                present.some((ref) => !hasTextAlternative(ref))
+            )
+                fail(
+                    'needs alt text, or to be marked decorative, before it can be published'
+                );
             break;
         }
     }

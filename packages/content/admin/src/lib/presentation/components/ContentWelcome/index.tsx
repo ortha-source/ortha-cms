@@ -41,8 +41,12 @@ export function ContentWelcome({ workspaceName }: ContentWelcomeProps) {
                     <EmptyMedia variant="icon">
                         <LibraryBig />
                     </EmptyMedia>
-                    <EmptyTitle>
-                        {intl.formatMessage(messages.title)}
+                    {/* The page's `<h1>`. This pane *is* the Content
+                        Library route until a type is picked, so the heading it
+                        owes is this one — it was rendering none, and a screen
+                        reader pressing `1` found nothing (`ORT-167`). */}
+                    <EmptyTitle asChild>
+                        <h1>{intl.formatMessage(messages.title)}</h1>
                     </EmptyTitle>
                     <EmptyDescription>
                         {intl.formatMessage(messages.body, {

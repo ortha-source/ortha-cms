@@ -171,6 +171,7 @@ export function EntryEditor({
     onDelete,
     backTo,
     availableTypeNames,
+    prefilledFromLocale,
     presave,
     tab,
     onTabChange
@@ -212,6 +213,14 @@ export function EntryEditor({
      * Undefined = unrestricted (show every relation).
      */
     availableTypeNames?: readonly string[];
+    /**
+     * BCP-47 tag of the locale a translation prefill copied this form's
+     * **shared** values from — set only on a create seeded that way.
+     *
+     * The shared fields are, at that moment, verbatim text in another language
+     * about to be served under this row's locale (WCAG 3.1.2 — `ORT-87`).
+     */
+    prefilledFromLocale?: string;
     /**
      * The presave contributions' opaque handles, keyed by item id — passed
      * straight through to a contributed tab, which reads only its own key. The
@@ -906,6 +915,11 @@ export function EntryEditor({
                                                 form={form}
                                                 isChanged={isFieldDirty}
                                                 contentLocale={entry?.locale}
+                                                {...(prefilledFromLocale
+                                                    ? {
+                                                          prefilledFromLocale
+                                                      }
+                                                    : {})}
                                             />
                                         </TabsContent>
 

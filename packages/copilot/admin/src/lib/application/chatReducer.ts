@@ -32,7 +32,9 @@ export type ChatAction =
     /** An answer to a permission request is in flight. */
     | { type: 'answering'; callId: string }
     /** The answer landed, or failed to reach the run. */
-    | { type: 'answered'; callId: string; error?: string };
+    | { type: 'answered'; callId: string; error?: string }
+    /** The server granted the user more time to answer. */
+    | { type: 'permission-extended'; callId: string; expiresAt: string };
 
 /** The empty panel. */
 export const initialChatState: ChatState = {
@@ -102,6 +104,31 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                         streaming: true
                     }
                 ]
+            };
+
+        case 'permission-extended':
+            // The server granted more time; the prompt re-reads its deadline
+            // from here rather than guessing one client-side, so the countdown
+            // and the broker's timer cannot disagree (`ORT-118`).
+            return {
+                ...state,
+                messages: state.messages.map((message) =>
+                    message.permissions?.some(
+                        (request) => request.id === action.callId
+                    )
+                        ? {
+                              ...message,
+                              permissions: message.permissions.map((request) =>
+                                  request.id === action.callId
+                                      ? {
+                                            ...request,
+                                            expiresAt: action.expiresAt
+                                        }
+                                      : request
+                              )
+                          }
+                        : message
+                )
             };
 
         case 'failed':
@@ -204,7 +231,8 @@ function applyEvent(state: ChatState, event: CopilotRunEvent): ChatState {
                             runId: event.runId,
                             name: event.name,
                             ...(event.title ? { title: event.title } : {}),
-                            input: event.input
+                            input: event.input,
+                            expiresAt: event.expiresAt
                         }
                     ]
                 }))

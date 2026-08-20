@@ -29,6 +29,15 @@ export type {
     RichTextStructureMode
 } from './lib/fields/field-spec';
 
+export {
+    isMediaValueRef,
+    toMediaValueRef,
+    mediaValueIds,
+    hasTextAlternative,
+    MEDIA_ALT_MAX_LENGTH
+} from './lib/fields/media-value';
+export type { MediaValueRef, MediaValueInput } from './lib/fields/media-value';
+
 export { RICH_TEXT_MARK, RICH_TEXT_NODE } from './lib/richtext/rich-text-node';
 export type {
     RichTextDocument,

@@ -1,5 +1,10 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Badge } from '@ortha-cms/design-system';
+import {
+    Badge,
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger
+} from '@ortha-cms/design-system';
 import {
     entryStatusView,
     ENTRY_STATUS_VIEW,
@@ -67,16 +72,37 @@ export function EntryStatusBadge({
 }) {
     const intl = useIntl();
     const view = isCreate ? ENTRY_STATUS_VIEW.New : entryStatusView(entry);
-    return (
-        <Badge
-            variant={ENTRY_STATUS_VIEW_VARIANT[view]}
-            title={
-                view === ENTRY_STATUS_VIEW.Modified
-                    ? intl.formatMessage(messages.modifiedHint)
-                    : undefined
-            }
-        >
+    const badge = (
+        <Badge variant={ENTRY_STATUS_VIEW_VARIANT[view]}>
             {intl.formatMessage(LABEL[view])}
         </Badge>
+    );
+
+    if (view !== ENTRY_STATUS_VIEW.Modified) return badge;
+
+    // "Modified" is the repo's most confusing status and the one sentence that
+    // disambiguates it used to live in a native `title` on the badge: mouse-only,
+    // not dismissible, not hoverable (1.4.13), and announced to nobody — the
+    // badge said "Modified" and stopped there (`ORT-90`).
+    //
+    // The trigger is a real `<button>` because Radix needs a focusable element to
+    // open on focus, and because a keyboard user has to be able to *reach* the
+    // explanation at all. It is inert as a control — there is nothing to activate
+    // — so it only ever opens the tooltip.
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <button
+                    type="button"
+                    onClick={(event) => event.preventDefault()}
+                    className="inline-flex rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    {badge}
+                </button>
+            </TooltipTrigger>
+            <TooltipContent>
+                {intl.formatMessage(messages.modifiedHint)}
+            </TooltipContent>
+        </Tooltip>
     );
 }

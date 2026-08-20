@@ -32,7 +32,5 @@ export async function resolveUploaderNames(
         .select({ id: users.id, name: users.name, email: users.email })
         .from(users)
         .where(inArray(users.id, unique));
-    return new Map(
-        rows.map((row) => [row.id, row.name?.trim() || row.email])
-    );
+    return new Map(rows.map((row) => [row.id, row.name?.trim() || row.email]));
 }

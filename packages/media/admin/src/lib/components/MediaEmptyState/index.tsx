@@ -18,7 +18,8 @@ const messages = defineMessages({
     },
     emptyBody: {
         id: 'media.empty.emptyBody',
-        defaultMessage: 'Upload images, video, audio, or documents to get started.'
+        defaultMessage:
+            'Upload images, video, audio, or documents to get started.'
     },
     upload: { id: 'media.empty.upload', defaultMessage: 'Upload assets' },
     noResultsTitle: {

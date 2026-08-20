@@ -29,6 +29,14 @@ export function AgentsRail({ workspaceId }: { workspaceId: string }) {
             aria-label={intl.formatMessage(messages.label)}
             className="bg-muted/30 hidden w-72 shrink-0 flex-col border-r md:flex"
         >
+            {/* The rail's own heading, visually hidden. Its date buckets are
+                `<h3>`s, and with the page's `<h1>` now in place they would jump
+                straight from 1 to 3 — the rank they have is right relative to
+                *this* column, so the column supplies the level in between
+                rather than the buckets being demoted (`ORT-168` is the same
+                rule, from the other end). It reuses the landmark's own name, so
+                the rail is announced identically whichever way it is reached. */}
+            <h2 className="sr-only">{intl.formatMessage(messages.label)}</h2>
             <AgentsRailList workspaceId={workspaceId} />
         </aside>
     );

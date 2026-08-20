@@ -19,6 +19,10 @@ import type { ComposerAttachments } from '../../application/useComposerAttachmen
 import type { ComposerSkills } from '../../application/useComposerSkills';
 
 const messages = defineMessages({
+    hintLabel: {
+        id: 'copilot.composer.hintLabel',
+        defaultMessage: 'Composer status'
+    },
     placeholder: {
         id: 'copilot.composer.placeholder',
         defaultMessage: 'Ask about your content…'
@@ -430,6 +434,12 @@ export function Composer({
                 // not happen, which a screen-reader user otherwise meets as
                 // silence.
                 role="status"
+                // Named, because it is no longer the only status region in the
+                // view: `MessageList` added one for the run's phase (`ORT-116`).
+                // Two unnamed live regions in one surface is precisely the
+                // ambiguity that fix was about — a screen-reader user hears two
+                // voices and cannot tell which is which.
+                aria-label={intl.formatMessage(messages.hintLabel)}
             >
                 {attachments?.error ??
                     (attachments?.uploading

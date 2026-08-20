@@ -51,7 +51,8 @@ const TYPEAHEAD_PAGE_SIZE = 10;
 export const httpWorkspaceGateway: WorkspaceGateway = {
     async list(): Promise<Workspace[]> {
         try {
-            const { data } = await apiClient.get<WorkspaceView[]>('/workspaces');
+            const { data } =
+                await apiClient.get<WorkspaceView[]>('/workspaces');
             return data.map(toWorkspace);
         } catch (error) {
             throw toApiError(error);

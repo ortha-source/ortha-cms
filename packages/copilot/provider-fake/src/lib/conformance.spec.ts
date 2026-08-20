@@ -66,7 +66,10 @@ describe('ModelProvider conformance', () => {
             }),
             unknownModel: 'gpt-4o',
             requestsIssued: () =>
-                built.reduce((total, provider) => total + provider.calls.length, 0)
+                built.reduce(
+                    (total, provider) => total + provider.calls.length,
+                    0
+                )
         });
     });
 

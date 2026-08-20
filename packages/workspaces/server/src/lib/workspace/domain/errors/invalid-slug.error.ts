@@ -5,9 +5,7 @@
  */
 export class InvalidSlugError extends Error {
     constructor(public readonly slug: string) {
-        super(
-            'slug must contain only lowercase letters, digits, and hyphens'
-        );
+        super('slug must contain only lowercase letters, digits, and hyphens');
         this.name = 'InvalidSlugError';
     }
 }

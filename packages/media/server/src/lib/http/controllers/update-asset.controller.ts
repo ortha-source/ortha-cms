@@ -24,7 +24,8 @@ import { toHttp } from '../to-http';
 
 /**
  * `PATCH /api/media/assets/:id` — edit an asset (rename / move / retag / set
- * alt). Gated on `media:update`. Returns the updated asset view.
+ * alt / attach captions). Gated on `media:update`. Returns the updated asset
+ * view.
  */
 @UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard)
 @RequirePermissions(PERMISSIONS.MEDIA_UPDATE)
@@ -51,7 +52,8 @@ export class UpdateAssetController {
                     name: body.name,
                     folderId: body.folderId,
                     tags: body.tags,
-                    alt: body.alt
+                    alt: body.alt,
+                    tracks: body.tracks
                 },
                 user
             );
