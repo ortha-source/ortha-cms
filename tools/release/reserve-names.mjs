@@ -114,7 +114,11 @@ for (const pkg of staged) {
     const failure = publish(pkg);
 
     if (failure) {
-        stopped = { name: pkg.name, output: failure };
+        stopped = {
+            name: pkg.name,
+            output: failure,
+            reason: diagnose(failure)
+        };
         pending.push(pkg.name);
         continue;
     }
@@ -132,13 +136,9 @@ console.log(
 
 if (stopped) {
     console.error(
-        `\nreserve: stopped at ${stopped.name}. Every refused creation is a signal to the\n` +
-            '        rate limiter, so the rest of the queue was left alone rather than\n' +
-            '        spending a request each to be told the same thing. Wait for the\n' +
-            '        limit to roll over and run this again — the names already created\n' +
-            '        are skipped by the probe, not republished.\n\n' +
-            indent(stopped.output)
+        `\nreserve: stopped at ${stopped.name} — ${explain(stopped.reason)}\n`
     );
+    console.error(indent(stopped.output));
     process.exit(1);
 }
 
@@ -153,6 +153,63 @@ if (pending.length > 0) {
             ? '\nreserve: nothing left to create once this run is done for real.'
             : '\nreserve: every name exists — `npm run release` now only bumps versions.'
     );
+}
+
+/**
+ * Why npm said no. The three answers call for three different things from
+ * whoever is reading, and calling them all "rate limited" — as this did at
+ * first — sends you to wait out a limit that was never the problem.
+ */
+function diagnose(output) {
+    const text = output.toLowerCase();
+
+    if (
+        text.includes('e429') ||
+        text.includes('too many requests') ||
+        text.includes('rate limit')
+    ) {
+        return 'rate-limit';
+    }
+
+    // A `PUT` to a scope the authenticated account has no rights on comes back
+    // 404, not 403: npm will not confirm that a package it will not let you
+    // write even exists. For a scope that has never been published, that is
+    // almost always the organisation missing or the token not being in it.
+    if (
+        text.includes('e404') ||
+        text.includes('e403') ||
+        text.includes('eneedauth') ||
+        text.includes('do not have permission')
+    ) {
+        return 'access';
+    }
+
+    return 'other';
+}
+
+/** The advice that goes with each verdict from `diagnose`. */
+function explain(reason) {
+    return {
+        'rate-limit': [
+            'npm is rationing new package names.',
+            '        Every refused creation is a signal to the rate limiter, so the rest of',
+            '        the queue was left alone rather than spending a request each to be told',
+            '        the same thing. Wait for the limit to roll over and run this again; the',
+            '        names already created are skipped by the probe, not republished.'
+        ].join('\n'),
+        access: [
+            'npm refused the write for lack of access.',
+            '        This is not a limit and waiting will not clear it. For a scope, npm',
+            '        answers a write it will not authorise with 404 rather than 403, so the',
+            '        usual causes are that the organisation does not exist yet, or that the',
+            '        token authenticates as an account that is not a publishing member of',
+            '        it — a granular token issued before the organisation existed cannot',
+            '        name its scope, and has to be reissued.',
+            '',
+            '        Check with: npm whoami | npm org ls <scope> | npm access list packages'
+        ].join('\n'),
+        other: 'npm rejected the publish. Its output follows.'
+    }[reason];
 }
 
 /* --------------------------------------------------------------- helpers */
