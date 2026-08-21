@@ -1,5 +1,5 @@
-import type { EventActor } from '@ortha-cms/database';
-import type { PublicUser } from '@ortha-cms/identity-server';
+import type { EventActor } from '@orthacms/database';
+import type { PublicUser } from '@orthacms/identity-server';
 
 /**
  * The signed-in user as the {@link EventActor} an entry write stamps onto its

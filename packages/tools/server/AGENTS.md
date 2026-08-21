@@ -1,4 +1,4 @@
-# @ortha-cms/tools-server
+# @orthacms/tools-server
 
 The shared, transport-neutral catalogue of everything an agent can do to this
 CMS — and the **single place a tool call is authorized**.
@@ -236,6 +236,6 @@ every audit row.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/tools-server`
-- `npx nx lint @ortha-cms/tools-server`
-- `npx nx test @ortha-cms/tools-server`
+- `npx nx typecheck @orthacms/tools-server`
+- `npx nx lint @orthacms/tools-server`
+- `npx nx test @orthacms/tools-server`

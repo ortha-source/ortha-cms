@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@ortha-cms/database';
+import type { DomainEvent } from '@orthacms/database';
 import { FolderId } from './value-objects/folder-id';
 import { hasControlCharacters } from './value-objects/control-characters';
 import { InvalidFolderNameError } from './errors/invalid-folder-name.error';

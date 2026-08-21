@@ -9,7 +9,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { FolderPlus, Search, UploadCloud } from 'lucide-react';
 import {
     KIND_FILTER_ALL,

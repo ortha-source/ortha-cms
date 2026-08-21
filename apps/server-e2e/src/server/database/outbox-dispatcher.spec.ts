@@ -10,7 +10,7 @@ import {
     type Database,
     type DomainEvent,
     type DomainEventSubscriber
-} from '@ortha-cms/database';
+} from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,

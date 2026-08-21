@@ -4,7 +4,7 @@ import type {
     PutObject,
     StorageProvider,
     StoredObject
-} from '@ortha-cms/media-server';
+} from '@orthacms/media-server';
 
 /** Reads a stream fully into a Buffer (the test provider buffers in memory). */
 async function drain(stream: Readable): Promise<Buffer> {

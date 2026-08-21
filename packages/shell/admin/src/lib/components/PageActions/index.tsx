@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { PanelRightOpen } from 'lucide-react';
-import { Button, TopBarActions } from '@ortha-cms/design-system';
+import { Button, TopBarActions } from '@orthacms/design-system';
 import {
     RIGHT_PANEL_ID,
     usePageChromeHosts,

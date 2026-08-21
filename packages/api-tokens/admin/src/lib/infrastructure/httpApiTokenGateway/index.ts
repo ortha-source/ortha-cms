@@ -3,7 +3,7 @@ import {
     asAvatarColor,
     initialsOf,
     toApiError
-} from '@ortha-cms/utils-admin';
+} from '@orthacms/utils-admin';
 import type {
     ApiTokenList,
     CreatedApiToken

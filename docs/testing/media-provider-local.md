@@ -1,6 +1,6 @@
-# @ortha-cms/media-provider-local — Test Artifact
+# @orthacms/media-provider-local — Test Artifact
 
-> **Unit:** `packages/media/provider-local` · **Package:** `@ortha-cms/media-provider-local` · **Kind:** adapter (storage provider)
+> **Unit:** `packages/media/provider-local` · **Package:** `@orthacms/media-provider-local` · **Kind:** adapter (storage provider)
 > **Source of truth:** `packages/media/provider-local/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -15,7 +15,7 @@ sanitizer, the size + sha256 metering, and the direct-URL string.
 
 **Does NOT own:** anything about assets, folders, workspaces, permissions,
 transactions, MIME types, size caps, or derivative generation — all of that is
-`media-server`'s. It imports **no framework** and depends on `@ortha-cms/media-server`
+`media-server`'s. It imports **no framework** and depends on `@orthacms/media-server`
 only for the port *type* (erased at runtime) plus node built-ins. It is
 constructed at the composition root (`apps/server/src/plugins.ts:88`), never by
 `media-server` itself.
@@ -50,7 +50,7 @@ every CI job and every dev session exercises this adapter and never the other on
   In isolation:
   ```bash
   node --input-type=module -e "
-    const { createLocalStorageProvider } = await import('@ortha-cms/media-provider-local');
+    const { createLocalStorageProvider } = await import('@orthacms/media-provider-local');
     const p = createLocalStorageProvider({ rootDir: '/tmp/blobs', publicBasePath: '/api/media' });
     const { Readable } = await import('node:stream');
     console.log(await p.put({ workspaceId: 'w', assetId: 'a', fileName: 'x y.png',
@@ -303,7 +303,7 @@ whoever implements static serving does not do it as a bare `express.static` on
 | a11y | — | — | ❌ NONE (Not Applicable) |
 
 There is **no spec file, unit test, or fixture anywhere that imports
-`@ortha-cms/media-provider-local`** other than the composition root. Its entire
+`@orthacms/media-provider-local`** other than the composition root. Its entire
 verification is "the media e2e suites pass, and they could not if `put`/`get` were
 broken".
 

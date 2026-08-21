@@ -1,6 +1,6 @@
 # apps/admin — Test Artifact
 
-> **Unit:** `apps/admin` · **Package:** `@ortha-cms/admin` (private) · **Kind:** app (composition root)
+> **Unit:** `apps/admin` · **Package:** `@orthacms/admin` (private) · **Kind:** app (composition root)
 > **Source of truth:** `apps/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 4 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -58,8 +58,8 @@ npx nx e2e admin-e2e -- --project=chromium
 npx nx e2e admin-e2e -- --project=chromium src/**/a11y.spec.ts src/**/keyboard.spec.ts
 ```
 
-**Dependencies.** Every `@ortha-cms/*-admin` plugin (see the manifest caveat in
-`🐞 BUG-app-admin-01`), `@ortha-cms/bootstrap-admin`, Vite 7 + `@vitejs/plugin-react`,
+**Dependencies.** Every `@orthacms/*-admin` plugin (see the manifest caveat in
+`🐞 BUG-app-admin-01`), `@orthacms/bootstrap-admin`, Vite 7 + `@vitejs/plugin-react`,
 `@tailwindcss/vite`, and — at runtime — the server on `:3000`.
 
 ## 2. Feature Inventory
@@ -189,8 +189,8 @@ explanation at all.
   React duplicate-key warning. Insights works around this with its own last-wins merge
   (`src/main.tsx:21-26`), which is evidence the primitive's behaviour surprises people.
 - **EC-05 — Manifest drift.** `❌ NONE` `apps/admin/package.json` lists eleven
-  `@ortha-cms/*-admin` dependencies but `src/main.tsx` imports **thirteen**;
-  `@ortha-cms/i18n-admin` and `@ortha-cms/copilot-admin` are undeclared.
+  `@orthacms/*-admin` dependencies but `src/main.tsx` imports **thirteen**;
+  `@orthacms/i18n-admin` and `@orthacms/copilot-admin` are undeclared.
   → `🐞 BUG-app-admin-01`.
 - **EC-06 — `CopilotPlugin()` when the server has `COPILOT_ENABLED=false`.** `⚠️ PARTIAL`
   The admin surface is registered regardless; the copilot's own UI must degrade. Covered by
@@ -540,17 +540,17 @@ server side, there is no parallel composition root.
 **Location:** `apps/admin/package.json` `dependencies` versus `apps/admin/src/main.tsx:6,13`
 **Category:** correctness
 
-**What the code does:** `main.tsx` imports thirteen `@ortha-cms/*` packages:
+**What the code does:** `main.tsx` imports thirteen `@orthacms/*` packages:
 
 ```ts
-import { I18nPlugin } from '@ortha-cms/i18n-admin';        // line 6
-import { CopilotPlugin } from '@ortha-cms/copilot-admin';  // line 13
+import { I18nPlugin } from '@orthacms/i18n-admin';        // line 6
+import { CopilotPlugin } from '@orthacms/copilot-admin';  // line 13
 ```
 
 but the manifest declares eleven — `activity-admin`, `api-tokens-admin`, `bootstrap-admin`,
 `content-admin`, `identity-admin`, `insights-admin`, `media-admin`, `shell-admin`,
-`users-admin`, `workspaces-admin`, `wysiwyg-admin`. **`@ortha-cms/i18n-admin` and
-`@ortha-cms/copilot-admin` are absent.** (Verified programmatically by diffing the import
+`users-admin`, `workspaces-admin`, `wysiwyg-admin`. **`@orthacms/i18n-admin` and
+`@orthacms/copilot-admin` are absent.** (Verified programmatically by diffing the import
 list against the dependency keys; the reverse check finds no unused declarations, so the
 list was clearly meant to be exhaustive.)
 
@@ -569,18 +569,18 @@ ship a broken tarball.
 node -e "
 const pkg=require('./apps/admin/package.json');
 const src=require('fs').readFileSync('apps/admin/src/main.tsx','utf8');
-const imports=[...src.matchAll(/from '(@ortha-cms\/[^']+)'/g)].map(m=>m[1]);
+const imports=[...src.matchAll(/from '(@orthacms\/[^']+)'/g)].map(m=>m[1]);
 console.log(imports.filter(i=>!Object.keys(pkg.dependencies).includes(i)));
 "
 ```
-→ Observed: `[ '@ortha-cms/i18n-admin', '@ortha-cms/copilot-admin' ]`.
+→ Observed: `[ '@orthacms/i18n-admin', '@orthacms/copilot-admin' ]`.
 → Expected: `[]`.
 
 **Blast radius:** no runtime impact in this repo's layout; a correctness and
 tooling-integrity issue that would become real for a non-hoisted install or a published
 consumer.
 **Suggested fix:** add both to `apps/admin/package.json`, and add a CI check (or an
-`nx sync`-style lint) that every `@ortha-cms/*` import in an app or package is declared in
+`nx sync`-style lint) that every `@orthacms/*` import in an app or package is declared in
 its manifest.
 
 ### 🐞 BUG-app-admin-02 — Plugin order silently decides slot item order and which section override wins, and `main.tsx`'s comments describe a stronger constraint than the code actually has · Severity: Low
@@ -729,7 +729,7 @@ And `apps/admin/AGENTS.md`'s claim that this app "holds almost no logic" is accu
 | 2 | `apps/admin-e2e` | `apps/admin-e2e/src/media/a11y.spec.ts`, `shell/a11y.spec.ts`, `content/wysiwyg-a11y.spec.ts`, `content/i18n-a11y.spec.ts` | ♿ axe (via `makeAxe`, following `apps/admin-e2e/src/support/a11y.ts`) over the four surfaces with **no** suite today — including the WYSIWYG editor **open**, the media upload dialog **open**, and the locale switcher **open**, since a scan with an overlay closed proves nothing about it | The four ❌ a11y coverage gaps |
 | 3 | `apps/admin-e2e` | extend `apps/admin-e2e/src/auth/keyboard.spec.ts` | ♿ First `Tab` after load focuses a **visible** "Skip to main content" link; `Enter` moves focus into `<main id="main-content">`; the next `Tab` is page content. Also assert every tab stop between them has a visible focus indicator — which will surface `♿ A11Y-app-admin-04` | `♿ A11Y-app-admin-07`, `♿ A11Y-app-admin-04` |
 | 4 | Unit (`apps/admin/src/__test__/plugins.spec.ts`, vitest — the app currently has **zero** tests) | registry invariants | `ShellPlugin` is the only plugin contributing a `layout` (the one genuinely order-sensitive slot); every plugin `name` is unique; and — the assertion that matters — reordering `ContentPlugin`/`I18nPlugin` leaves every content slot's item **set** unchanged, so the comments' "must follow" claim is either enforced or corrected | `🐞 BUG-app-admin-02`, F4, F5, F6 |
-| 5 | Unit (`apps/admin/src/__test__/manifest.spec.ts`) | manifest integrity | Every `@ortha-cms/*` specifier imported by `src/main.tsx` appears in `package.json` `dependencies`. Currently fails with two entries | `🐞 BUG-app-admin-01`, EC-05 |
+| 5 | Unit (`apps/admin/src/__test__/manifest.spec.ts`) | manifest integrity | Every `@orthacms/*` specifier imported by `src/main.tsx` appears in `package.json` `dependencies`. Currently fails with two entries | `🐞 BUG-app-admin-01`, EC-05 |
 | 6 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/dark-theme.spec.ts` | ♿ Re-run every existing axe suite with the app forced to Dark, so `color-contrast` is enforced in both palettes — the `styles.css:22-24` claim currently holds for one theme only | `♿ A11Y-app-admin-03`, EC-14 |
 | 7 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/reflow.spec.ts` | ♿ At 320 × 256 CSS px and at 400 % zoom, `document.documentElement.scrollWidth <= clientWidth` on the home, members, records and media pages, and the sidebar remains reachable; plus a text-spacing override pass asserting no clipping | `♿ A11Y-app-admin-05` (1.4.4 / 1.4.10 / 1.4.12) |
 | 8 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/forced-colors.spec.ts` | ♿ With `forced-colors: active` emulated, focus indicators and control borders remain perceivable on the sidebar, buttons and table rows | `♿ A11Y-app-admin-06` (508 503.2) |

@@ -5,7 +5,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
     Spinner
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type { ChatToolStep } from '../../domain/types/chat';
 import { humanizeToolName, toolPhrase, toolSubject } from './labels';
 

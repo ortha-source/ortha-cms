@@ -1,6 +1,6 @@
-# @ortha-cms/bootstrap-admin — Test Artifact
+# @orthacms/bootstrap-admin — Test Artifact
 
-> **Unit:** `packages/bootstrap/admin` · **Package:** `@ortha-cms/bootstrap-admin` · **Kind:** host
+> **Unit:** `packages/bootstrap/admin` · **Package:** `@orthacms/bootstrap-admin` · **Kind:** host
 > **Source of truth:** `packages/bootstrap/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 11 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -24,7 +24,7 @@
 **Does NOT own.** Anything auth — no `RequireAuth`, no auth context, no `signInPath`
 (`AGENTS.md`: "The host is **auth-agnostic**"). No chrome (the shell contributes it as a
 `layout`). No concrete slot. No `apiClient`/`queryClient` *definition* (those live in
-`@ortha-cms/utils-admin`; the host only imports `queryClient` to mount the provider). No
+`@orthacms/utils-admin`; the host only imports `queryClient` to mount the provider). No
 global styles (imported by `apps/admin/src/main.tsx:14`). No page, no data hook.
 
 **Entry points**
@@ -70,8 +70,8 @@ npx nx e2e admin-e2e -- --project=chromium src/auth/routing.spec.ts src/auth/pri
 **Dependencies.** `react` 19, `react-dom` 19, `react-router-dom` **pinned 6.30.3**
 (`package.json:44` — the `UnsavedChangesGuard` depends on `BrowserRouter`'s history
 behaviour), `react-intl` ^7, `@tanstack/react-query` ^5,
-`@ortha-cms/design-system` (`AppearanceProvider`, `TooltipProvider`, `Toaster`,
-`ConfirmDialog`), `@ortha-cms/utils-admin` (`queryClient`, `UnsavedChangesProvider`,
+`@orthacms/design-system` (`AppearanceProvider`, `TooltipProvider`, `Toaster`,
+`ConfirmDialog`), `@orthacms/utils-admin` (`queryClient`, `UnsavedChangesProvider`,
 `SlotContribution`).
 
 ## 2. Feature Inventory
@@ -253,7 +253,7 @@ announced by its label "Leave and discard", which states the consequence — sat
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `import type { AdminPlugin } from '@ortha-cms/bootstrap-admin'` and construct `{ name: 'x' }` | Type-checks — `routes`, `layout` and `slots` are all optional |
+| 1 | `import type { AdminPlugin } from '@orthacms/bootstrap-admin'` and construct `{ name: 'x' }` | Type-checks — `routes`, `layout` and `slots` are all optional |
 | 2 | Construct a `RouteItem` with no `path` | Type error |
 | 3 | Compare the type with `AGENTS.md` "Key exports" | The doc says `{ name, routes?, layout? }` and omits `slots?` — the type (`types/adminPlugin/index.ts:42`) has it. Doc drift |
 

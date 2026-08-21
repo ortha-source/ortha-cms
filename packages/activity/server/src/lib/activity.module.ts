@@ -1,5 +1,5 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ACTIVITY_RECORDER } from '@ortha-cms/identity-server';
+import { ACTIVITY_RECORDER } from '@orthacms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
 import { ActivityService } from './activity/services/activity.service';
 import { AuditEventSubscriber } from './activity/infrastructure/audit-event.subscriber';
@@ -15,7 +15,7 @@ import { ActivityCopilotToolProvider } from './copilot/activity-tool.provider';
  * **Global**, so any plugin can read/record without re-importing the module. It
  * still binds `ActivityService` to the `ACTIVITY_RECORDER` token — kept for a
  * stable public surface but **deprecated**; nothing writes through it anymore.
- * The Drizzle client comes from `@ortha-cms/database`'s global `DatabaseModule`
+ * The Drizzle client comes from `@orthacms/database`'s global `DatabaseModule`
  * (which also provides the `OutboxDispatcher`); authorization from identity's
  * `PermissionsGuard`.
  */

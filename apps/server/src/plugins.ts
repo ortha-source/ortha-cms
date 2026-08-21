@@ -1,23 +1,23 @@
 import { join } from 'node:path';
-import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import { ActivityPlugin } from '@ortha-cms/activity-server';
-import { ContentPlugin } from '@ortha-cms/content-server';
-import { ContentGraphqlPlugin } from '@ortha-cms/content-graphql';
+import type { ServerPlugin } from '@orthacms/bootstrap-server';
+import { ActivityPlugin } from '@orthacms/activity-server';
+import { ContentPlugin } from '@orthacms/content-server';
+import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import {
     CopilotPlugin,
     type ProviderRegistration
-} from '@ortha-cms/copilot-server';
-import { createAnthropicProvider } from '@ortha-cms/copilot-provider-anthropic';
-import { createFakeProvider } from '@ortha-cms/copilot-provider-fake';
-import { createOpenAiProvider } from '@ortha-cms/copilot-provider-openai';
-import { DatabasePlugin } from '@ortha-cms/database';
-import { I18nServerPlugin } from '@ortha-cms/i18n-server';
-import { IdentityPlugin } from '@ortha-cms/identity-server';
-import { McpPlugin } from '@ortha-cms/mcp-server';
-import { MediaServerPlugin } from '@ortha-cms/media-server';
-import { createLocalStorageProvider } from '@ortha-cms/media-provider-local';
-import { UsersPlugin } from '@ortha-cms/users-server';
-import { WorkspacesPlugin } from '@ortha-cms/workspaces-server';
+} from '@orthacms/copilot-server';
+import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
+import { createFakeProvider } from '@orthacms/copilot-provider-fake';
+import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
+import { DatabasePlugin } from '@orthacms/database';
+import { I18nServerPlugin } from '@orthacms/i18n-server';
+import { IdentityPlugin } from '@orthacms/identity-server';
+import { McpPlugin } from '@orthacms/mcp-server';
+import { MediaServerPlugin } from '@orthacms/media-server';
+import { createLocalStorageProvider } from '@orthacms/media-provider-local';
+import { UsersPlugin } from '@orthacms/users-server';
+import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
 import { contentTypes } from './content';
 

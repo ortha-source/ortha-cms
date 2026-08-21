@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import { ENTRY_STATUS } from '@ortha-cms/content-domain';
+import { OutboxWriter, UnitOfWork } from '@orthacms/database';
+import { ENTRY_STATUS } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import type { BulkActionResult } from '../../types/bulk-publish';

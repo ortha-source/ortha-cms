@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { STALE_TIME } from '@ortha-cms/utils-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import type { FilterField } from '@ortha-cms/query-builder-admin';
+import { STALE_TIME } from '@orthacms/utils-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import type { FilterField } from '@orthacms/query-builder-admin';
 import { filterFieldsKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';
 import { toFilterField } from '../../infrastructure/contentMapper';

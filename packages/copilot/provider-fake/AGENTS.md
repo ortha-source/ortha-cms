@@ -1,4 +1,4 @@
-# @ortha-cms/copilot-provider-fake
+# @orthacms/copilot-provider-fake
 
 A scripted, deterministic `ModelProvider`. **Shipped, not test scaffolding**
 ([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3): it
@@ -11,7 +11,7 @@ configuration. The first registered provider serves a run that names none, so
 being last is also what keeps it out of the way of a deployment that has a real
 one.
 
-Depends only on `@ortha-cms/copilot-domain`. No network, no clock, no randomness
+Depends only on `@orthacms/copilot-domain`. No network, no clock, no randomness
 — the run engine is a non-deterministic multi-step loop, and a flaky fake would
 make every assertion downstream of it flaky too.
 
@@ -94,6 +94,6 @@ const provider = createFakeProvider({
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/copilot-provider-fake`
-- `npx nx lint @ortha-cms/copilot-provider-fake`
-- `npx nx test @ortha-cms/copilot-provider-fake`
+- `npx nx typecheck @orthacms/copilot-provider-fake`
+- `npx nx lint @orthacms/copilot-provider-fake`
+- `npx nx test @orthacms/copilot-provider-fake`

@@ -8,7 +8,7 @@ import {
     type ModelStopReason,
     type ModelStreamEvent,
     type ModelUsage
-} from '@ortha-cms/copilot-domain';
+} from '@orthacms/copilot-domain';
 import {
     DEFAULT_TIMEOUT_MS,
     resolveCapabilities,

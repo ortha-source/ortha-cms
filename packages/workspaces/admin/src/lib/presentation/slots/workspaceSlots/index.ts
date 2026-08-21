@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import { createSlot } from '@ortha-cms/utils-admin';
+import { createSlot } from '@orthacms/utils-admin';
 
 /**
  * A navigation entry in the workspace sidebar's "Workspace" section, rendered

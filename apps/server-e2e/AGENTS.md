@@ -1,4 +1,4 @@
-# @ortha-cms/server-e2e
+# @orthacms/server-e2e
 
 End-to-end tests for the NestJS API (`apps/server`). They boot the **real**
 server **in-process** against a throwaway Postgres **testcontainer** and drive
@@ -118,7 +118,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   deliberately imports the host app and a plugin internal); **specs are not** —
   keep cross-project imports in the support harness. (This is why the copilot
   suite reaches DI through `registerCopilotTools` / `copilotToolCallRows`
-  helpers rather than importing `@ortha-cms/copilot-server` directly.)
+  helpers rather than importing `@orthacms/copilot-server` directly.)
 
 ## Gotchas
 
@@ -138,7 +138,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
 - Each spec **file** gets its own module registry (own app instance, own pool,
   own throttler) — that's why `closeTestApp` closes the pool per file. Two apps
   *in sequence* in one file are fine; two apps *open at once* are not, because
-  the `@ortha-cms/database` handle is a module singleton.
+  the `@orthacms/database` handle is a module singleton.
 
 ## Test catalog
 

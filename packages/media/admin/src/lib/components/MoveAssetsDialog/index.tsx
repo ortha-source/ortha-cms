@@ -9,7 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
     RadioGroup
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { Folder, Home } from 'lucide-react';
 import { ROOT_FOLDER_ID } from '../../constants';
 import type { MediaFolder } from '../../types/mediaFolder';

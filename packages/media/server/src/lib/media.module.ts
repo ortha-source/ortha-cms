@@ -1,6 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { MEDIA_ASSET_RESOLVER } from '@ortha-cms/content-server';
+import { MEDIA_ASSET_RESOLVER } from '@orthacms/content-server';
 import {
     STORAGE_REGISTRY,
     STORAGE_RESOLVER,
@@ -17,8 +17,8 @@ import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
 import { DrizzleAssetRepository } from './infrastructure/persistence/drizzle-asset.repository';
 import { DrizzleFolderRepository } from './infrastructure/persistence/drizzle-folder.repository';
-import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
-import { COPILOT_ATTACHMENT_RESOLVER } from '@ortha-cms/copilot-domain';
+import { copilotAppliersRegistrar } from '@orthacms/copilot-server';
+import { COPILOT_ATTACHMENT_RESOLVER } from '@orthacms/copilot-domain';
 import { ListAssetsQuery } from './infrastructure/queries/list-assets.query';
 import { MediaInsightsQuery } from './infrastructure/queries/media-insights.query';
 import { MediaInsightsController } from './http/controllers/media-insights.controller';

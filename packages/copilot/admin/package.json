@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/copilot-admin",
+    "name": "@orthacms/copilot-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -15,13 +15,13 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/copilot-domain": "*",
-        "@ortha-cms/design-system": "*",
-        "@ortha-cms/identity-admin": "*",
-        "@ortha-cms/shell-admin": "*",
-        "@ortha-cms/utils-admin": "*",
-        "@ortha-cms/workspaces-admin": "*",
+        "@orthacms/bootstrap-admin": "*",
+        "@orthacms/copilot-domain": "*",
+        "@orthacms/design-system": "*",
+        "@orthacms/identity-admin": "*",
+        "@orthacms/shell-admin": "*",
+        "@orthacms/utils-admin": "*",
+        "@orthacms/workspaces-admin": "*",
         "@tanstack/react-query": "^5.0.0",
         "lucide-react": "^1.17.0",
         "react-intl": "^7.0.0"

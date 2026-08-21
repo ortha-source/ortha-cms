@@ -33,11 +33,11 @@ export default {
     // Workspace packages are consumed from source; map the entry points the
     // harness (and `buildPlugins`) pull in to their `src/index.ts`.
     moduleNameMapper: {
-        '^@ortha-cms/bootstrap-server$':
+        '^@orthacms/bootstrap-server$':
             '<rootDir>/../../packages/bootstrap/server/src/index.ts',
-        '^@ortha-cms/database$':
+        '^@orthacms/database$':
             '<rootDir>/../../packages/database/src/index.ts',
-        '^@ortha-cms/identity-server$':
+        '^@orthacms/identity-server$':
             '<rootDir>/../../packages/identity/server/src/index.ts'
     },
     moduleFileExtensions: ['ts', 'js', 'html'],

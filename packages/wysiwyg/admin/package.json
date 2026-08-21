@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/wysiwyg-admin",
+    "name": "@orthacms/wysiwyg-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -16,10 +16,10 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/content-admin": "*",
-        "@ortha-cms/design-system": "*",
-        "@ortha-cms/utils-admin": "*",
+        "@orthacms/bootstrap-admin": "*",
+        "@orthacms/content-admin": "*",
+        "@orthacms/design-system": "*",
+        "@orthacms/utils-admin": "*",
         "@tiptap/core": "^3.29.2",
         "@tiptap/extension-highlight": "^3.29.2",
         "@tiptap/extension-table": "^3.29.2",

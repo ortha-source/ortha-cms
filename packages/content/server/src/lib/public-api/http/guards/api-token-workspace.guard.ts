@@ -9,7 +9,7 @@ import {
 import {
     WORKSPACE_HEADER,
     WORKSPACE_ID_PATTERN
-} from '@ortha-cms/workspaces-server';
+} from '@orthacms/workspaces-server';
 import type { ApiTokenRequest } from '../api-token-request';
 
 /**

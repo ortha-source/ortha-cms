@@ -1,6 +1,6 @@
-# @ortha-cms/design-system — Test Artifact
+# @orthacms/design-system — Test Artifact
 
-> **Unit:** `packages/design-system` · **Package:** `@ortha-cms/design-system` · **Kind:** library
+> **Unit:** `packages/design-system` · **Package:** `@orthacms/design-system` · **Kind:** library
 > **Source of truth:** `packages/design-system/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 4 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -16,7 +16,7 @@ no permission awareness.
 here — only the `wizard-step-in` animation ships in `packages/design-system/src/styles.css`);
 any copy that a user reads (consumers pass localized nodes — with the exceptions
 catalogued in §6); layout of any page; the sidebar's *content* (that is
-`@ortha-cms/shell-admin`); the durable theme preference (server-side, hydrated in
+`@orthacms/shell-admin`); the durable theme preference (server-side, hydrated in
 by a plugin through `setTheme`).
 
 - **Entry points** — everything is re-exported from
@@ -31,7 +31,7 @@ by a plugin through `setTheme`).
 - **Runtime prerequisites** — a browser DOM (`localStorage`, `matchMedia`,
   `document.cookie`, `navigator.clipboard` for consumers). No env vars, no feature
   flags, no Postgres, no login. The library is consumed **from source**
-  (`customConditions: ["@ortha-cms/source"]`), so there is no build step to run
+  (`customConditions: ["@orthacms/source"]`), so there is no build step to run
   before exercising it.
 - **How to exercise it manually** — the library ships no story/demo harness. The
   only way to drive it is through the admin app:

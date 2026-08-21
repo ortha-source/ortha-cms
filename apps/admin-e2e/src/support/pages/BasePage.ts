@@ -2,7 +2,7 @@ import { type Locator, type Page } from '@playwright/test';
 
 /**
  * Common base for all page objects: holds the Playwright `page` and the shared
- * query-builder **filter drawer** helpers (`@ortha-cms/query-builder-admin`),
+ * query-builder **filter drawer** helpers (`@orthacms/query-builder-admin`),
  * since the drawer is the same component wherever a list page mounts it.
  */
 export abstract class BasePage {

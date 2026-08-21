@@ -1,6 +1,6 @@
-# @ortha-cms/activity-server — Test Artifact
+# @orthacms/activity-server — Test Artifact
 
-> **Unit:** `packages/activity/server` · **Package:** `@ortha-cms/activity-server` · **Kind:** server plugin
+> **Unit:** `packages/activity/server` · **Package:** `@orthacms/activity-server` · **Kind:** server plugin
 > **Source of truth:** `packages/activity/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -19,10 +19,10 @@ It does **NOT** own:
 
 - Any of the events. Identity emits `auth.*`, users emits `member.*`, workspaces emits
   `workspace.*`, content emits `entry.*`. Activity only maps them.
-- The `ACTIVITY_RECORDER` port — that symbol lives in `@ortha-cms/identity-server`
+- The `ACTIVITY_RECORDER` port — that symbol lives in `@orthacms/identity-server`
   (activity merely binds it) and is `@deprecated`: **nothing writes through it**
   (`activity.service.ts:52-55`).
-- The outbox itself, its dispatcher, or its retry policy — `@ortha-cms/database`.
+- The outbox itself, its dispatcher, or its retry policy — `@orthacms/database`.
 - Any workspace scoping. `activity_events` has no `workspace_id` column, by design.
 
 ### Entry points
@@ -78,10 +78,10 @@ Admin UI: `http://localhost:4200/activity`.
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/database` (`OutboxDispatcher` — **if it stalls, the audit trail stops**),
-`@ortha-cms/identity-server` (`PermissionsGuard`, `PERMISSIONS`,
-`IDENTITY_ACTIVITY_KINDS`), `@ortha-cms/utils-server` (`parseFilterTree` /
-`applyFilterTree`), optionally `@ortha-cms/tools-server` (copilot registry — injected
+`@orthacms/database` (`OutboxDispatcher` — **if it stalls, the audit trail stops**),
+`@orthacms/identity-server` (`PermissionsGuard`, `PERMISSIONS`,
+`IDENTITY_ACTIVITY_KINDS`), `@orthacms/utils-server` (`parseFilterTree` /
+`applyFilterTree`), optionally `@orthacms/tools-server` (copilot registry — injected
 `@Optional()`).
 
 ## 2. Feature Inventory
@@ -748,7 +748,7 @@ parked after N attempts and the queue drains past them.
 application appears entirely healthy. The only signal is `logger.error` lines and a
 growing `outbox_events` table. Nothing surfaces it in the admin.
 
-**Note on ownership:** the retry policy lives in `@ortha-cms/database`, not this package.
+**Note on ownership:** the retry policy lives in `@orthacms/database`, not this package.
 It is filed here because `AuditEventSubscriber` is its only consumer and the audit log is
 where the consequence is visible; the fix belongs in the dispatcher.
 

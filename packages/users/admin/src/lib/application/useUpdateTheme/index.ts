@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type ApiError } from '@ortha-cms/utils-admin';
-import type { ThemePreference } from '@ortha-cms/design-system';
-import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
+import { type ApiError } from '@orthacms/utils-admin';
+import type { ThemePreference } from '@orthacms/design-system';
+import { AuthStatus, useAuth } from '@orthacms/identity-admin';
 import {
     httpPreferencesGateway,
     preferencesKeys,

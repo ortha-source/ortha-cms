@@ -27,14 +27,14 @@ import {
     PERMISSIONS,
     Public,
     RequirePermissions
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import {
     ApiTokenGuard,
     ApiTokenWorkspaceGuard,
     CurrentApiToken,
     type PublicApiToken
-} from '@ortha-cms/content-server';
-import { CurrentWorkspace } from '@ortha-cms/workspaces-server';
+} from '@orthacms/content-server';
+import { CurrentWorkspace } from '@orthacms/workspaces-server';
 import { UploadAssetUseCase } from '../../application/use-cases/upload-asset.use-case';
 import { AssetViewQuery } from '../../infrastructure/queries/asset-view.query';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';

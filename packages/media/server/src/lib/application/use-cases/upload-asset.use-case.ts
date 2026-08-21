@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Readable } from 'node:stream';
-import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import type { EventActor } from '@ortha-cms/database';
+import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import type { EventActor } from '@orthacms/database';
 import { Asset, type AssetMedia, type AssetVariants } from '../../domain/asset';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import { FolderId } from '../../domain/value-objects/folder-id';

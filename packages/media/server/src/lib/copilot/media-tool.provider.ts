@@ -5,13 +5,13 @@ import {
     Optional,
     type OnModuleInit
 } from '@nestjs/common';
-import { PERMISSIONS } from '@ortha-cms/identity-server';
-import { ToolRegistry } from '@ortha-cms/tools-server';
+import { PERMISSIONS } from '@orthacms/identity-server';
+import { ToolRegistry } from '@orthacms/tools-server';
 import type {
     ToolDefinition,
     ToolProvider,
     ToolSurface
-} from '@ortha-cms/tools-server';
+} from '@orthacms/tools-server';
 import { ListAssetsQuery } from '../infrastructure/queries/list-assets.query';
 import { ListFoldersQuery } from '../infrastructure/queries/list-folders.query';
 import { DownloadAssetQuery } from '../infrastructure/queries/download-asset.query';

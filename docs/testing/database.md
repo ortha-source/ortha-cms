@@ -1,6 +1,6 @@
-# @ortha-cms/database — Test Artifact
+# @orthacms/database — Test Artifact
 
-> **Unit:** `packages/database` · **Package:** `@ortha-cms/database` · **Kind:** server plugin (shared infrastructure)
+> **Unit:** `packages/database` · **Package:** `@orthacms/database` · **Kind:** server plugin (shared infrastructure)
 > **Source of truth:** `packages/database/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 3 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -21,7 +21,7 @@ tactical-DDD infrastructure of [ADR-0003](../adr/0003-tactical-ddd-inside-plugin
   `drizzle.config.ts`, `migrations/`).
 
 **Does NOT own.** Any domain schema (every feature plugin ships its own), the migration
-*tooling* (`@ortha-cms/nx` owns `db:generate`/`db:migrate`), retries/backoff policy,
+*tooling* (`@orthacms/nx` owns `db:generate`/`db:migrate`), retries/backoff policy,
 a dead-letter queue, a health endpoint, connection-pool tuning, or shutdown
 (`packages/bootstrap/server` never calls `enableShutdownHooks` — see
 `docs/testing/bootstrap-server.md` `🐞 BUG-bootstrap-server-04`).
@@ -81,7 +81,7 @@ psql "$DATABASE_URL" -c "select count(*), state from pg_stat_activity group by s
 
 **Dependencies.** `pg` ^8.13, `drizzle-orm` ^0.45 (the `.for('update', { skipLocked: true })`
 builder and `db.transaction` are both drizzle APIs the dispatcher depends on),
-`@nestjs/common` ^11, and `@ortha-cms/bootstrap-server` for the `ServerPlugin` type.
+`@nestjs/common` ^11, and `@orthacms/bootstrap-server` for the `ServerPlugin` type.
 
 ## 2. Feature Inventory
 
@@ -154,7 +154,7 @@ builder and `db.transaction` are both drizzle APIs the dispatcher depends on),
 | 1 | `npx nx run server:db:migrate` on an empty DB | A line `Applying migrations: database → __drizzle_migrations_database` appears **first** (registration order) |
 | 2 | `psql "$DATABASE_URL" -c "\d outbox_events"` | Columns `id uuid pk`, `kind text not null`, `aggregate_type`, `aggregate_id`, `payload jsonb not null`, `occurred_at timestamptz not null`, `dispatched_at timestamptz null`, `attempts int not null default 0`; index `outbox_events_dispatched_at_idx` |
 | 3 | Re-run `db:migrate` | Same log, no DDL, exit 0 |
-| 4 | `npx nx run @ortha-cms/database:db:generate --name=noop` | "No schema changes" — generation never connects to a DB |
+| 4 | `npx nx run @orthacms/database:db:generate --name=noop` | "No schema changes" — generation never connects to a DB |
 
 ### F9 / F10 — Event envelope
 
@@ -360,7 +360,7 @@ builder and `db.transaction` are both drizzle APIs the dispatcher depends on),
 
 ### 4A. Accessibility & Section 508 Conformance
 
-`@ortha-cms/database` renders nothing, serves no route and owns exactly **one** table —
+`@orthacms/database` renders nothing, serves no route and owns exactly **one** table —
 `outbox_events` (`packages/database/src/lib/schema/outbox-events.ts:22`). Every WCAG 2.1 AA
 success criterion describes perceivable, operable content; none of them reach a connection
 pool, an `AsyncLocalStorage` and an event queue. All of 1.x–4.x, plus 502.2/502.3, 503.2 and

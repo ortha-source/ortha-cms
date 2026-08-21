@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     InjectIdentityConfig,
     tokens,
     type IdentityPluginConfig
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import { PasswordResetRecentlySentError } from '../../domain/errors';
 
 /**

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { ExecutorContext } from '@nx/devkit';
-import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
+import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { applyPluginMigrations } from '../../lib/drizzle/apply';
 import { createTsJiti } from '../../lib/jiti';
 

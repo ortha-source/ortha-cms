@@ -1,6 +1,6 @@
-# @ortha-cms/identity-admin — Test Artifact
+# @orthacms/identity-admin — Test Artifact
 
-> **Unit:** `packages/identity/admin` · **Package:** `@ortha-cms/identity-admin` · **Kind:** admin plugin
+> **Unit:** `packages/identity/admin` · **Package:** `@orthacms/identity-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/identity/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -66,8 +66,8 @@ from the reveal dialog, open it in a **private window** (the flow must work with
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/utils-admin` (`apiClient`, `toApiError`, `HTTP_STATUS`, `STALE_TIME`,
-`setUnauthorizedHandler`), `@ortha-cms/design-system` (`Card`, `InputField`, `Field`,
+`@orthacms/utils-admin` (`apiClient`, `toApiError`, `HTTP_STATUS`, `STALE_TIME`,
+`setUnauthorizedHandler`), `@orthacms/design-system` (`Card`, `InputField`, `Field`,
 `Alert`, `Button`, `Spinner`, `Skeleton`, `AppLoader`, `Logo`), `@tanstack/react-form`,
 `zod`, `react-intl`, `react-router-dom`, and the shell (which mounts the layout).
 

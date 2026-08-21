@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/activity-server",
+    "name": "@orthacms/activity-server",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -18,13 +18,13 @@
     "dependencies": {
         "@nestjs/common": "^11.0.0",
         "@nestjs/swagger": "^11.4.6",
-        "@ortha-cms/bootstrap-server": "*",
-        "@ortha-cms/copilot-domain": "*",
-        "@ortha-cms/copilot-server": "*",
-        "@ortha-cms/database": "*",
-        "@ortha-cms/identity-server": "*",
-        "@ortha-cms/tools-server": "*",
-        "@ortha-cms/utils-server": "*",
+        "@orthacms/bootstrap-server": "*",
+        "@orthacms/copilot-domain": "*",
+        "@orthacms/copilot-server": "*",
+        "@orthacms/database": "*",
+        "@orthacms/identity-server": "*",
+        "@orthacms/tools-server": "*",
+        "@orthacms/utils-server": "*",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.15.1",
         "drizzle-orm": "^0.45.0"

@@ -1,4 +1,4 @@
-import { cn } from '@ortha-cms/design-system';
+import { cn } from '@orthacms/design-system';
 
 /** One label/value pair in the detail panel's definition list. */
 export function DetailRow({

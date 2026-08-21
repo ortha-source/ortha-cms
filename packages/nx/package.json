@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/nx",
+    "name": "@orthacms/nx",
     "version": "0.0.1",
     "private": true,
     "main": "./src/index.ts",
@@ -15,7 +15,7 @@
     "executors": "./executors.json",
     "dependencies": {
         "@nx/devkit": "22.7.5",
-        "@ortha-cms/bootstrap-server": "*",
+        "@orthacms/bootstrap-server": "*",
         "@swc/core": "~1.15.5",
         "drizzle-kit": "^0.31.0",
         "drizzle-orm": "^0.45.0",

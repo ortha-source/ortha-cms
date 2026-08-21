@@ -1,8 +1,4 @@
-import type {
-    DomainEvent,
-    OutboxWriter,
-    UnitOfWork
-} from '@ortha-cms/database';
+import type { DomainEvent, OutboxWriter, UnitOfWork } from '@orthacms/database';
 import { HashingService } from '../../auth/services/hashing.service';
 import { ApiTokenService } from './api-token.service';
 import { UnknownWorkspaceError } from '../domain/unknown-workspace.error';

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
+import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import type {
     StorageProvider,
     StorageResolver

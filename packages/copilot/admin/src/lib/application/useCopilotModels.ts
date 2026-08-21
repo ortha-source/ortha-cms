@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, STALE_TIME } from '@ortha-cms/utils-admin';
+import { apiClient, STALE_TIME } from '@orthacms/utils-admin';
 
 /** One selectable backend: a registered provider plus one of its models. */
 export interface CopilotModelChoice {

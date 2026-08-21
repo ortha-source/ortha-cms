@@ -1,5 +1,5 @@
-import { initialsOf } from '@ortha-cms/utils-admin';
-import { AVATAR_COLORS, type AvatarColor } from '@ortha-cms/design-system';
+import { initialsOf } from '@orthacms/utils-admin';
+import { AVATAR_COLORS, type AvatarColor } from '@orthacms/design-system';
 import type {
     Workspace,
     WorkspaceMember,

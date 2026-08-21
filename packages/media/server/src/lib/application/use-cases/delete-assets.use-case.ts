@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import type { PublicUser } from '@ortha-cms/identity-server';
+import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import type { PublicUser } from '@orthacms/identity-server';
 import { AssetId } from '../../domain/value-objects/asset-id';
 import {
     ASSET_REPOSITORY,

@@ -7,7 +7,7 @@ import {
     TriangleAlert,
     Users
 } from 'lucide-react';
-import { TabNav, TabNavLink } from '@ortha-cms/design-system';
+import { TabNav, TabNavLink } from '@orthacms/design-system';
 
 /** Intl descriptors for {@link WorkspaceSettingsTabs}, co-located here. */
 const messages = defineMessages({

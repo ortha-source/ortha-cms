@@ -3,7 +3,7 @@ import {
     CONTENT_CATALOG,
     CONTENT_ENTRY_COUNTER,
     type ContentCatalog
-} from '@ortha-cms/workspaces-server';
+} from '@orthacms/workspaces-server';
 import { CONTENT_REGISTRY } from './content.tokens';
 import type { ContentTypeRegistry } from './registry/content-type-registry';
 import { ListContentSchemaController } from './content-types/controllers/list-content-schema.controller';
@@ -19,7 +19,7 @@ import { UpdateEntryController } from './entries/http/controllers/update-entry.c
 import { PublishEntryController } from './entries/http/controllers/publish-entry.controller';
 import { DeleteEntryController } from './entries/http/controllers/delete-entry.controller';
 import { EntryExtensionBootCheck } from './extension/entry-extension-boot-check';
-import { copilotAppliersRegistrar } from '@ortha-cms/copilot-server';
+import { copilotAppliersRegistrar } from '@orthacms/copilot-server';
 import { ContentCopilotToolProvider } from './copilot/content-tool.provider';
 import { RevisionCopilotToolProvider } from './copilot/revision-tool.provider';
 import { EntryProposalToolProvider } from './copilot/entry-proposal.provider';
@@ -204,7 +204,7 @@ export class ContentModule {
                 // The agent-facing tools — the same CRUD as the public API,
                 // over the same services, for the MCP endpoint and (once its
                 // run engine lands) the copilot. Registers itself with
-                // `@ortha-cms/tools-server`'s registry when the MCP plugin is
+                // `@orthacms/tools-server`'s registry when the MCP plugin is
                 // installed, and is inert when it isn't.
                 ContentToolProvider,
                 // Fails boot when an i18n type has no CONTENT_ENTRY_EXTENSION
@@ -236,7 +236,7 @@ export class ContentModule {
                 EntryValidationService,
                 // The public API's collaborators, exported so another plugin can
                 // put a SECOND PROTOCOL in front of the same surface without
-                // re-implementing any of it — `@ortha-cms/content-graphql` does
+                // re-implementing any of it — `@orthacms/content-graphql` does
                 // exactly that. The module is already `global: true`, so
                 // exporting is all that is needed for it to inject these.
                 // Everything a `/v1` request is authorized and answered by lives

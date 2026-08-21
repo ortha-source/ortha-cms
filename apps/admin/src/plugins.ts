@@ -1,16 +1,16 @@
-import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { IdentityPlugin } from '@ortha-cms/identity-admin';
-import { ShellPlugin } from '@ortha-cms/shell-admin';
-import { WorkspacesPlugin } from '@ortha-cms/workspaces-admin';
-import { ContentPlugin } from '@ortha-cms/content-admin';
-import { I18nPlugin } from '@ortha-cms/i18n-admin';
-import { WysiwygPlugin } from '@ortha-cms/wysiwyg-admin';
-import { MediaPlugin } from '@ortha-cms/media-admin';
-import { InsightsPlugin } from '@ortha-cms/insights-admin';
-import { UsersPlugin } from '@ortha-cms/users-admin';
-import { ActivityPlugin } from '@ortha-cms/activity-admin';
-import { ApiTokensPlugin } from '@ortha-cms/api-tokens-admin';
-import { CopilotPlugin } from '@ortha-cms/copilot-admin';
+import type { AdminPlugin } from '@orthacms/bootstrap-admin';
+import { IdentityPlugin } from '@orthacms/identity-admin';
+import { ShellPlugin } from '@orthacms/shell-admin';
+import { WorkspacesPlugin } from '@orthacms/workspaces-admin';
+import { ContentPlugin } from '@orthacms/content-admin';
+import { I18nPlugin } from '@orthacms/i18n-admin';
+import { WysiwygPlugin } from '@orthacms/wysiwyg-admin';
+import { MediaPlugin } from '@orthacms/media-admin';
+import { InsightsPlugin } from '@orthacms/insights-admin';
+import { UsersPlugin } from '@orthacms/users-admin';
+import { ActivityPlugin } from '@orthacms/activity-admin';
+import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
+import { CopilotPlugin } from '@orthacms/copilot-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring

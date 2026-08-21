@@ -1,6 +1,6 @@
-# @ortha-cms/content-graphql — Test Artifact
+# @orthacms/content-graphql — Test Artifact
 
-> **Unit:** `packages/content/graphql` · **Package:** `@ortha-cms/content-graphql` · **Kind:** server plugin (protocol adapter)
+> **Unit:** `packages/content/graphql` · **Package:** `@orthacms/content-graphql` · **Kind:** server plugin (protocol adapter)
 > **Source of truth:** `packages/content/graphql/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -107,18 +107,18 @@ open http://localhost:3000/api/v1/graphql/playground
 Suites:
 
 ```bash
-npx nx test @ortha-cms/content-graphql                       # unit
+npx nx test @orthacms/content-graphql                       # unit
 npx nx e2e server-e2e -- --testPathPatterns public-graphql   # needs Docker
 ```
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/content-server` (the registry, the two guards, `PublicEntriesQuery`,
+`@orthacms/content-server` (the registry, the two guards, `PublicEntriesQuery`,
 `PublicEntryWritesService`, `WorkspaceGrantsQuery`, `resolveGrantedType`, the
 query DTOs and their constants — **a supported export surface; changing one
-changes both protocols at once**), `@ortha-cms/identity-server` (`AccessPolicy`,
+changes both protocols at once**), `@orthacms/identity-server` (`AccessPolicy`,
 `tokenActor`, `PERMISSIONS`, `@Public`, `@RequirePermissions`),
-`@ortha-cms/workspaces-server` (`@CurrentWorkspace`), `@ortha-cms/database`
+`@orthacms/workspaces-server` (`@CurrentWorkspace`), `@orthacms/database`
 (transitively), `graphql` **pinned at 16**, and
 `@graphql-yoga/render-graphiql` (playground only).
 

@@ -12,10 +12,10 @@ domain logic — no auth, no users, no content. All capability lives in plugins.
 
 There are two hosts, one per runtime:
 
-- **`@ortha-cms/bootstrap-admin`** — `createAdmin({ plugins })` mounts the React
+- **`@orthacms/bootstrap-admin`** — `createAdmin({ plugins })` mounts the React
   root, the router, the providers (TanStack Query, `IntlProvider`), and the
   routes each plugin contributes.
-- **`@ortha-cms/bootstrap-server`** — `createServer({ plugins })` runs each
+- **`@orthacms/bootstrap-server`** — `createServer({ plugins })` runs each
   plugin's `onPluginInit`, imports its NestJS module, and applies the global
   `/api` prefix + `ValidationPipe`.
 
@@ -36,7 +36,7 @@ packages/<group>/server   → ServerPlugin (NestJS module, schema, migrations)
 
 Some are single-runtime (`design-system`, `query-builder/admin`, `database`,
 `nx`). The npm name is always hyphenated regardless of nesting:
-`packages/bootstrap/admin` → `@ortha-cms/bootstrap-admin`.
+`packages/bootstrap/admin` → `@orthacms/bootstrap-admin`.
 
 ### Server plugin contract
 
@@ -74,13 +74,13 @@ Authoring rules live in the **`admin-plugin`** skill: the per-module
 
 Workspace packages are consumed **without a build step**. Their `exports` point
 at `./src/index.ts`, and `tsconfig.base.json` sets
-`customConditions: ["@ortha-cms/source"]`. The admin app's Vite transpiles
+`customConditions: ["@orthacms/source"]`. The admin app's Vite transpiles
 design-system (and every other package's) source directly. Run `npx nx sync`
 after changing cross-project dependencies to update TS project references.
 
 ## 4. The data layer
 
-- **One connection.** `packages/database` (`@ortha-cms/database`) owns a single
+- **One connection.** `packages/database` (`@orthacms/database`) owns a single
   Drizzle/`pg` pool, opened in its `onPluginInit` (which must run first). It is
   exposed via DI (`@InjectDatabase()`, a global `DatabaseModule`) and via plain
   `getDatabase()` / `getPool()`. It owns **no schemas and no migrations**.
@@ -89,7 +89,7 @@ after changing cross-project dependencies to update TS project references.
   with its own `drizzle.config.ts`. Generate per-plugin
   (`nx run <plugin>:db:generate --name=<name>`); the host applies all pending
   migrations (`nx run server:db:migrate`).
-- **Migration tooling** is provided by the `@ortha-cms/nx` workspace plugin,
+- **Migration tooling** is provided by the `@orthacms/nx` workspace plugin,
   which infers the `db:generate` / `db:migrate` targets.
 
 ## 5. Request flow (admin → API → DB)

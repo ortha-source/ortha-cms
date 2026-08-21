@@ -1,4 +1,4 @@
-# @ortha-cms/utils-admin
+# @orthacms/utils-admin
 
 Shared **admin frontend library** — the cross-plugin data/HTTP layer. Not a
 plugin (it contributes no routes or module) and not the host: it's a small leaf
@@ -7,8 +7,8 @@ singletons live in one place instead of inside `bootstrap-admin`.
 
 ## Package
 
-- Name: `@ortha-cms/utils-admin`
-- Import: `import { apiClient, queryClient } from '@ortha-cms/utils-admin'`
+- Name: `@orthacms/utils-admin`
+- Import: `import { apiClient, queryClient } from '@orthacms/utils-admin'`
 - Grouped package (`packages/utils/admin`), admin-only. Consumed from source
   (`exports` → `./src/index.ts`); no build step.
 
@@ -108,7 +108,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
   uses to distinguish two people.
 
 > Auth state is **not** here — context, gate, and `/auth/me` all live in
-> `@ortha-cms/identity-admin`. This package is the shared HTTP/data + generic
+> `@orthacms/identity-admin`. This package is the shared HTTP/data + generic
 > utility leaf, not a home for feature state.
 
 ## Layout
@@ -119,7 +119,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
 
 ## Architecture
 
-- **Leaf, not host.** The host (`@ortha-cms/bootstrap-admin`) imports
+- **Leaf, not host.** The host (`@orthacms/bootstrap-admin`) imports
   `queryClient` to mount the provider; plugins import `apiClient`. Keeping these
   here (rather than in the host) means a plugin never has to depend on the
   composition root just to make a request.
@@ -134,7 +134,7 @@ singletons live in one place instead of inside `bootstrap-admin`.
 
 ## Tests
 
-`npm exec nx test @ortha-cms/utils-admin` (vitest + jsdom, co-located
+`npm exec nx test @orthacms/utils-admin` (vitest + jsdom, co-located
 `index.spec.ts(x)` beside each module). Every admin plugin inherits this
 package, so a defect here is a defect everywhere at once — which is why the
 seams are pinned here rather than in whichever page happened to notice: the
@@ -145,6 +145,6 @@ still belongs in `admin-e2e`.
 
 ## Commands
 
-- `npm exec nx typecheck @ortha-cms/utils-admin`
-- `npm exec nx lint @ortha-cms/utils-admin`
-- `npm exec nx test @ortha-cms/utils-admin`
+- `npm exec nx typecheck @orthacms/utils-admin`
+- `npm exec nx lint @orthacms/utils-admin`
+- `npm exec nx test @orthacms/utils-admin`

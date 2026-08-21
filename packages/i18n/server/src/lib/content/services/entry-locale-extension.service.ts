@@ -18,7 +18,7 @@ import {
     type AnyColumn,
     type SQL
 } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     EntryValidationService,
     RelationLinkService,
@@ -35,14 +35,14 @@ import {
     type EntryTransaction,
     type EntryWriteContext,
     type EntryWriteFanout
-} from '@ortha-cms/content-server';
+} from '@orthacms/content-server';
 import {
     FilterOperator,
     ScalarFieldType,
     type FieldSchema,
     type ParsedRule
-} from '@ortha-cms/utils-server';
-import { CONTENT_FIELD_TYPE, ENTRY_STATUS } from '@ortha-cms/content-server';
+} from '@orthacms/utils-server';
+import { CONTENT_FIELD_TYPE, ENTRY_STATUS } from '@orthacms/content-server';
 import { LOCALE_FALLBACK_DEFAULT } from '../../i18n.constants';
 import { LocaleRegistryService } from '../../locales/services/locale-registry.service';
 import { lockLocaleGroup } from '../locale-group-lock';

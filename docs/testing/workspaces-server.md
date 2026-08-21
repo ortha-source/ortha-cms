@@ -1,6 +1,6 @@
-# @ortha-cms/workspaces-server — Test Artifact
+# @orthacms/workspaces-server — Test Artifact
 
-> **Unit:** `packages/workspaces/server` · **Package:** `@ortha-cms/workspaces-server` · **Kind:** server plugin
+> **Unit:** `packages/workspaces/server` · **Package:** `@orthacms/workspaces-server` · **Kind:** server plugin
 > **Source of truth:** `packages/workspaces/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -16,7 +16,7 @@ that every workspace-scoped route in *other* plugins is protected by; and the
 binds.
 
 **Does NOT own:** users/roles/sessions (identity), permission *definitions*
-(`PERMISSIONS` comes from `@ortha-cms/identity-server`), content entries or the
+(`PERMISSIONS` comes from `@orthacms/identity-server`), content entries or the
 content catalogue itself (content-server, reached only through the two ports),
 audit rows (activity-server subscribes to the outbox), or any per-workspace role
 — membership is a pure link with no role
@@ -96,15 +96,15 @@ audit rows (activity-server subscribes to the outbox), or any per-workspace role
     OpenAPI reference: `http://localhost:3000/reference`.
 
 - **Dependencies that must be healthy**
-    - `@ortha-cms/database` — `UnitOfWork`, `OutboxWriter`, `attachActor`,
+    - `@orthacms/database` — `UnitOfWork`, `OutboxWriter`, `attachActor`,
       `@InjectDatabase()`. Every use case runs inside `uow.run`.
-    - `@ortha-cms/identity-server` — `AuthGuard`, `PermissionsGuard`,
+    - `@orthacms/identity-server` — `AuthGuard`, `PermissionsGuard`,
       `OriginGuard`, `PERMISSIONS`, `CurrentUser`, and the `users` / `roles`
       tables read by `MemberLookupQuery` and `DrizzleMemberProvisioner`.
-    - `@ortha-cms/activity-server` — subscribes to the outbox and writes the
+    - `@orthacms/activity-server` — subscribes to the outbox and writes the
       audit rows the e2e suites assert on
       (`packages/activity/server/src/lib/activity/infrastructure/audit-event.subscriber.ts:13`).
-    - `@ortha-cms/content-server` — binds both content ports. When absent, the
+    - `@orthacms/content-server` — binds both content ports. When absent, the
       readers fall back to the mock catalogue and a **zero** entry count.
 
 ## 2. Feature Inventory
@@ -540,7 +540,7 @@ Common preconditions for every block: Postgres up, migrations applied, server on
 - **EC-44 — `WorkspaceColor.create('nope')`.** `❌ NONE` Expected `InvalidWorkspaceColorError`. No unit spec exists for colour, id, or status VOs — only `Slug` and `Workspace` have one.
 - **EC-45 — Value-object immutability & equality.** `⚠️ PARTIAL`
   `WorkspaceId.equals` and `WorkspaceStatus.equals` implement value equality (`workspace-id.ts:42`, `workspace-status.ts:48`); **`Slug` and `WorkspaceColor` have no `equals`** — comparing two `Slug`s uses reference identity. All four hold their state in `private readonly` fields with no setters, so they are effectively immutable. Low-severity asymmetry, noted not filed.
-- **EC-46 — `domain/` imports no framework.** `✅` Verified by reading every file under `domain/`: the only non-relative import in the whole layer is `import type { DomainEvent } from '@ortha-cms/database'` (`domain/workspace.ts:1`) plus `createDomainEvent` (`domain/events/workspace-events.ts:1`) and `node:crypto` (`workspace-id.ts:1`) — exactly what AGENTS.md sanctions. No `@nestjs/*`, no `drizzle-orm`, no `class-validator`, no `infrastructure/`.
+- **EC-46 — `domain/` imports no framework.** `✅` Verified by reading every file under `domain/`: the only non-relative import in the whole layer is `import type { DomainEvent } from '@orthacms/database'` (`domain/workspace.ts:1`) plus `createDomainEvent` (`domain/events/workspace-events.ts:1`) and `node:crypto` (`workspace-id.ts:1`) — exactly what AGENTS.md sanctions. No `@nestjs/*`, no `drizzle-orm`, no `class-validator`, no `infrastructure/`.
 
 ### 4A. Accessibility & Section 508 Conformance
 

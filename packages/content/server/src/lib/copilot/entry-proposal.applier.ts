@@ -4,7 +4,7 @@ import type {
     ProposalApplier,
     ProposalApplyResult,
     ProposalTarget
-} from '@ortha-cms/copilot-domain';
+} from '@orthacms/copilot-domain';
 import { InjectContentRegistry } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
 import { EntryWriterService } from '../entries/infrastructure/persistence/entry-writer.service';

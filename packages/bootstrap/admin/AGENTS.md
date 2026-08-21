@@ -1,4 +1,4 @@
-# @ortha-cms/bootstrap-admin
+# @orthacms/bootstrap-admin
 
 The admin-side **host** for the Ortha CMS. Turns a list of plugins into a
 running React SPA. Owns the mount + router shell that must exist exactly once;
@@ -6,8 +6,8 @@ contains no features.
 
 ## Package
 
-- Name: `@ortha-cms/bootstrap-admin`
-- Import: `import { createAdmin, type AdminPlugin } from '@ortha-cms/bootstrap-admin'`
+- Name: `@orthacms/bootstrap-admin`
+- Import: `import { createAdmin, type AdminPlugin } from '@orthacms/bootstrap-admin'`
 - Admin-only. Consumed from source; the admin app's Vite transpiles it directly.
 - Lives at `packages/bootstrap/admin` (grouped layout); npm name stays
   hyphenated.
@@ -34,7 +34,7 @@ contains no features.
 
 The host is **auth-agnostic** — it owns no `RequireAuth`, no auth context, no
 `signInPath`. Authentication (state + gate) lives entirely in
-[`@ortha-cms/identity-admin`](../../identity/admin/AGENTS.md); the shell composes
+[`@orthacms/identity-admin`](../../identity/admin/AGENTS.md); the shell composes
 identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
 
 ## Architecture
@@ -85,14 +85,14 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
   not guarantee a gate. This keeps the host free of any auth code; the trade is
   that gating is an application choice (the shell opts in), not a host guarantee.
 - **Data.** The `QueryClient` and the axios `apiClient` live in
-  [`@ortha-cms/utils-admin`](../../utils/admin/AGENTS.md), a shared leaf library.
+  [`@orthacms/utils-admin`](../../utils/admin/AGENTS.md), a shared leaf library.
   The host only imports `queryClient` to mount `<QueryClientProvider>`; plugins
   import `apiClient`/`queryClient` from there directly. Keeping these out of the
   host means a plugin never depends on the composition root just to make a
   request — the host stays purely the app shell.
 - **Slots.** The plugin contract carries an optional `slots` — each a
   `{ slot, items }` contribution to a `createSlot` extension point (the primitive
-  lives in `@ortha-cms/utils-admin`). Before render, `createAdmin` wires every
+  lives in `@orthacms/utils-admin`). Before render, `createAdmin` wires every
   plugin's contributions into their target slots (`slot._register(items)`). The
   host is **slot-agnostic**: it only wires; it never defines or reads a slot. A
   consuming plugin owns each concrete slot (e.g. the shell owns the sidebar's
@@ -110,7 +110,7 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
 
 ```typescript
 // apps/admin/src/main.tsx
-import { createAdmin } from '@ortha-cms/bootstrap-admin';
+import { createAdmin } from '@orthacms/bootstrap-admin';
 import './styles.css';
 
 createAdmin({
@@ -123,9 +123,9 @@ createAdmin({
 ## Not owned here (deferred until a plugin needs it)
 
 - Anything auth — state, gate, and `/api/auth/me` all live in
-  `@ortha-cms/identity-admin`; the host never imports them
+  `@orthacms/identity-admin`; the host never imports them
 - The authenticated shell/chrome — contributed via a plugin's `layout`
-  (see `@ortha-cms/shell-admin`); the host only mounts it
+  (see `@orthacms/shell-admin`); the host only mounts it
 - Concrete slots & nav items — the host wires `slots` contributions but defines
   none; the shell owns the sidebar's `SIDEBAR_NAV_SLOT` and its nav items
 - Providers beyond `AppearanceProvider`, `QueryClientProvider`, `IntlProvider`,
@@ -137,5 +137,5 @@ createAdmin({
 
 ## Commands
 
-- `npm exec nx typecheck @ortha-cms/bootstrap-admin`
-- `npm exec nx build @ortha-cms/bootstrap-admin`
+- `npm exec nx typecheck @orthacms/bootstrap-admin`
+- `npm exec nx build @orthacms/bootstrap-admin`

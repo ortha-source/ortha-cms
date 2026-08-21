@@ -13,7 +13,7 @@
  * paths this plugin owns.
  */
 
-import type { OpenApiDocument } from '@ortha-cms/bootstrap-server';
+import type { OpenApiDocument } from '@orthacms/bootstrap-server';
 import type { SerializedContentType } from '../registry/content-type-registry';
 import type { OpenApiSchema } from './field-schema';
 import { buildContentSchemas, ref, schemaNamesOf } from './content-schemas';

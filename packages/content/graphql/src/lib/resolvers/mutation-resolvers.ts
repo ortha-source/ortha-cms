@@ -3,8 +3,8 @@ import {
     PublicSaveEntryDto,
     type EntryLocator,
     type RelationDelta
-} from '@ortha-cms/content-server';
-import { PERMISSIONS } from '@ortha-cms/identity-server';
+} from '@orthacms/content-server';
+import { PERMISSIONS } from '@orthacms/identity-server';
 import { validateSync } from 'class-validator';
 import type { GraphQLFieldResolver } from 'graphql';
 import type { GraphqlContext } from './context';

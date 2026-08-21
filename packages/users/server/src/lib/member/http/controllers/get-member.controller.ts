@@ -10,7 +10,7 @@ import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import { MemberViewQuery } from '../../infrastructure/queries/member-view.query';
 import type { MemberView } from '../../application/queries/member.view';
 

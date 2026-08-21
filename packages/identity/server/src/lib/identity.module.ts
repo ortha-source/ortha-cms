@@ -53,7 +53,7 @@ import { ApiTokensController } from './api-tokens/http/controllers/api-tokens.co
  *
  * Provides the resolved config and the RBAC services, and mounts the auth
  * controllers (`/auth/login`, `/auth/me`). The Drizzle client is injected
- * straight from `@ortha-cms/database`'s global `DatabaseModule`
+ * straight from `@orthacms/database`'s global `DatabaseModule`
  * (`@InjectDatabase()`), so identity registers no db provider of its own.
  *
  * The invariant-bearing core is layered per ADR-0003: the auth use-cases

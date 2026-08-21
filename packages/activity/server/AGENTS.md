@@ -1,4 +1,4 @@
-# @ortha-cms/activity-server
+# @orthacms/activity-server
 
 The audit-log **plugin** for the Ortha CMS server. It owns the
 `activity_events` schema (and **ships its own migrations**), records events by
@@ -37,7 +37,7 @@ Under `/api/activity`:
 
 `activity/infrastructure/audit-event.subscriber.ts` (`AuditEventSubscriber`) is
 the **single live audit writer**. It self-registers with the
-`OutboxDispatcher` (from `@ortha-cms/database`) on `OnApplicationBootstrap`; the
+`OutboxDispatcher` (from `@orthacms/database`) on `OnApplicationBootstrap`; the
 dispatcher then delivers every audited domain event to it. `handle(event)` maps
 the event to the same `activity_events` row the old in-band recorder wrote, via
 the **pure** `audit-event-mapping.ts` (`toAuditRow`) — the event-kind → audit-kind
@@ -64,7 +64,7 @@ unreadable one that no client can repair; refusing makes the gap loud instead.
 kind's produced row equals what the in-band `recorder.record(...)` wrote.
 
 `ActivityService.record(...)` and the `ACTIVITY_RECORDER` token (the port lives
-in **`@ortha-cms/identity-server`**, the foundational package; this module binds
+in **`@orthacms/identity-server`**, the foundational package; this module binds
 it) are **retained but `@deprecated`** — nothing writes through them anymore.
 They keep the public surface stable. That indirection kept the package graph
 acyclic (identity never depended on this package); the outbox now decouples them
@@ -115,5 +115,5 @@ The fence is what makes that safe; omission would only make the tool less useful
 
 ## Commands
 
-- `npx nx run @ortha-cms/activity-server:db:generate --name=<change>` (commit the SQL)
-- `npx nx typecheck @ortha-cms/activity-server` / `npx nx lint @ortha-cms/activity-server`
+- `npx nx run @orthacms/activity-server:db:generate --name=<change>` (commit the SQL)
+- `npx nx typecheck @orthacms/activity-server` / `npx nx lint @orthacms/activity-server`

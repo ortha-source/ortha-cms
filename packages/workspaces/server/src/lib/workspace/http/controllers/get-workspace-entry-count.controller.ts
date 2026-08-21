@@ -9,7 +9,7 @@ import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { ContentEntryCounterReader } from '../../application/content/content-entry-counter.reader';
 

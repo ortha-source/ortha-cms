@@ -1,6 +1,6 @@
 # Releasing to npm
 
-Every package under `packages/` is published to the `@ortha-cms` scope in one
+Every package under `packages/` is published to the `@orthacms` scope in one
 lockstep release: one version, one tag, one GitHub Release, 37 tarballs.
 
 ## Running a release from your machine
@@ -26,10 +26,10 @@ Both live in `.env` at the workspace root, which is git-ignored.
 loads the file before handing off; anything already exported in your shell
 wins over it.
 
-|                |                                                                                                                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NPM_TOKEN`    | An npm automation token with publish rights on the `@ortha-cms` scope. It is handed to npm as configuration in the child process, never written to an `.npmrc`. Leave it empty to publish as whoever `npm login` logged in as. |
-| `GITHUB_TOKEN` | A token with `repo` access. `nx release` creates the GitHub Release with it.                                                                                                                                                   |
+|                |                                                                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NPM_TOKEN`    | An npm automation token with publish rights on the `@orthacms` scope. It is handed to npm as configuration in the child process, never written to an `.npmrc`. Leave it empty to publish as whoever `npm login` logged in as. |
+| `GITHUB_TOKEN` | A token with `repo` access. `nx release` creates the GitHub Release with it.                                                                                                                                                  |
 
 ### What it refuses to do
 
@@ -50,13 +50,13 @@ tick **dry-run** to rehearse. It needs one repository secret, `NPM_TOKEN`.
 
 |            |                                                                     |
 | ---------- | ------------------------------------------------------------------- |
-| Scope      | every project matching `@ortha-cms/*` except `@ortha-cms/nx`        |
+| Scope      | every project matching `@orthacms/*` except `@orthacms/nx`          |
 | Versioning | **fixed** — all packages move together, always the same version     |
 | Specifier  | conventional commits (`feat:` → minor, `fix:` → patch, `!` → major) |
 | Tag        | `v{version}`                                                        |
 | Changelog  | one workspace-level `CHANGELOG.md`, no per-project files            |
 
-`@ortha-cms/nx` is `private` and stays out: it is workspace tooling, wired
+`@orthacms/nx` is `private` and stays out: it is workspace tooling, wired
 into this repo's `nx.json`, not something a consumer installs.
 
 The apps (`apps/admin`, `apps/server`) are private and never publish. They are
@@ -65,13 +65,13 @@ the reference host, not a distributable.
 ## How a tarball is built
 
 Workspace packages are consumed **from source** — their `exports` point at
-`./src/index.ts` and `tsconfig.base.json` supplies the `@ortha-cms/source`
+`./src/index.ts` and `tsconfig.base.json` supplies the `@orthacms/source`
 condition (see [AGENTS.md](../AGENTS.md), "How packages resolve"). A consumer
 installing from npm has neither, so the checked-in manifest is not the one
 that ships.
 
 Three inferred targets do the work; all three come from
-[`@ortha-cms/nx`](../packages/nx/AGENTS.md), so a new package gets them by
+[`@orthacms/nx`](../packages/nx/AGENTS.md), so a new package gets them by
 existing.
 
 1. **`build`** — `tsc --build tsconfig.lib.json`, emitting JS and `.d.ts` into
@@ -86,7 +86,7 @@ existing.
    **rewritten `package.json`** whose `exports` point at `./dist` and whose
    workspace dependencies are pinned to the released version instead of `"*"`.
 3. **`nx-release-publish`** — publishes that staging directory rather than the
-   project root, via `packageRoot`. It runs `@ortha-cms/nx:release-publish`
+   project root, via `packageRoot`. It runs `@orthacms/nx:release-publish`
    rather than the `@nx/js` one, because 37 publishes in a row is more than
    npm will take at full speed — see [Rate limits](#rate-limits) below.
 
@@ -165,12 +165,12 @@ unanswered, stop letting the release be the thing that creates names.
 
 #### Seeding the names ahead of the release
 
-`npm run release:reserve` creates the missing `@ortha-cms/*` names on its own,
+`npm run release:reserve` creates the missing `@orthacms/*` names on its own,
 in batches, so that by the time a release runs every publish is a version bump
 — the case the gap and the backoff above already handle.
 
 ```sh
-npx nx run-many -t build,pack --projects=@ortha-cms/*
+npx nx run-many -t build,pack --projects=@orthacms/*
 npm run release:reserve -- --dry-run        # probe and report, write nothing
 npm run release:reserve -- --limit=20       # create at most 20 names
 ```
@@ -178,7 +178,7 @@ npm run release:reserve -- --limit=20       # create at most 20 names
 Each run probes the registry, skips every name that is already there, and
 publishes the **real staged tarball** at `0.0.0-reserve.0` under the `reserve`
 dist-tag. Two things follow from that choice. `latest` stays unset, so
-`npm install @ortha-cms/<name>` finds nothing until the real release rather
+`npm install @orthacms/<name>` finds nothing until the real release rather
 than installing a husk; and what goes out is a genuine package rather than an
 empty placeholder, which is what an anti-abuse system reads as squatting — the
 last thing to do while rationed. The reserved version does not disturb

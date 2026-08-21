@@ -1,4 +1,4 @@
-import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
+import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import type { I18nPluginConfig } from '../types/locale';
 import { LocaleSet } from '../domain/value-objects/locale-set';
 import { I18nModule } from '../i18n.module';

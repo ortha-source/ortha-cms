@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, Plus } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
-import { EntryStatusBadge, type EntryStatus } from '@ortha-cms/content-admin';
+import { cn } from '@orthacms/design-system';
+import { EntryStatusBadge, type EntryStatus } from '@orthacms/content-admin';
 
 const messages = defineMessages({
     add: { id: 'i18n.widget.add', defaultMessage: 'Add' },

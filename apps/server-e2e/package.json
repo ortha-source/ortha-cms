@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/server-e2e",
+    "name": "@orthacms/server-e2e",
     "version": "0.0.1",
     "private": true,
     "nx": {

@@ -18,7 +18,7 @@ import {
     contentEntryRevisions,
     joinTableOf,
     type AnyContentType
-} from '@ortha-cms/content-server/define';
+} from '@orthacms/content-server/define';
 
 import { article } from './collections/article';
 import { author } from './collections/author';

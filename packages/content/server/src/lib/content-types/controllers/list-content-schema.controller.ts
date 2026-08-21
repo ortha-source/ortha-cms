@@ -3,7 +3,7 @@ import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type {
     ContentTypeRegistry,

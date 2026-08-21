@@ -4,7 +4,7 @@ import { type BrowserGlobals } from '../browserGlobals';
 
 /**
  * Page object for the Content Library at `/workspaces/:id/content` (from
- * `@ortha-cms/content-admin`) — the second-sidebar nav (collapsible Collections
+ * `@orthacms/content-admin`) — the second-sidebar nav (collapsible Collections
  * and Pages groups, a Favorites section), the ⌘K search palette, and the
  * selected-type pane. Seed it with
  * `mockSignedIn`, `mockWorkspaces`, and `mockContentSchema`.
@@ -646,7 +646,7 @@ export class ContentLibraryPage extends BasePage {
             .getByRole('button', { name: 'Try again' });
     }
 
-    // --- i18n (from @ortha-cms/i18n-admin, via the content library slots) ---
+    // --- i18n (from @orthacms/i18n-admin, via the content library slots) ---
 
     /**
      * The records-toolbar locale switcher trigger (label reads "Locale: {name}").

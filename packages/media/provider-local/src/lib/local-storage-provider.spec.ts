@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
-import type { StorageProvider } from '@ortha-cms/media-server';
+import type { StorageProvider } from '@orthacms/media-server';
 import {
     createLocalStorageProvider,
     StorageKeyOutsideRootError

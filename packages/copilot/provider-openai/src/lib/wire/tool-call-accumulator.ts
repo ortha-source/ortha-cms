@@ -1,4 +1,4 @@
-import type { ToolCallEvent } from '@ortha-cms/copilot-domain';
+import type { ToolCallEvent } from '@orthacms/copilot-domain';
 import type { ToolCallDelta } from './types';
 
 /** An in-flight tool call, assembled from `arguments` fragments. */

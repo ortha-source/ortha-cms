@@ -1,4 +1,4 @@
-# @ortha-cms/activity-admin
+# @orthacms/activity-admin
 
 The audit-log **admin plugin**: the global **Activity Log** page at `/activity`,
 its sidebar nav entry, and the home dashboard's recent-activity panel. Mirrors
@@ -124,5 +124,5 @@ the home slots). Every `<time datetime>` in this plugin therefore goes through
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/activity-admin` / `npx nx lint @ortha-cms/activity-admin`
+- `npx nx typecheck @orthacms/activity-admin` / `npx nx lint @orthacms/activity-admin`
 - `npx nx e2e admin-e2e -- --project=chromium` — exercises `/activity` in a browser.

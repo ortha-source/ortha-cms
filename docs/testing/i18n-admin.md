@@ -1,6 +1,6 @@
-# @ortha-cms/i18n-admin — Test Artifact
+# @orthacms/i18n-admin — Test Artifact
 
-> **Unit:** `packages/i18n/admin` · **Package:** `@ortha-cms/i18n-admin` · **Kind:** admin plugin
+> **Unit:** `packages/i18n/admin` · **Package:** `@orthacms/i18n-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/i18n/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 16 confirmed · 0 deleted · 2 corrected · 2 unverified
 > **Generated:** 2026-08-11
@@ -17,9 +17,9 @@ the locale into the single read / the create body / the relation picker, and the
 
 **Does NOT own:** any route, any nav item, any layout — this plugin contributes
 **only** slot items (`utils/i18nPlugin/index.tsx:159-193`). It does not own the
-API (`@ortha-cms/i18n-server`), the entry form or the records table
-(`@ortha-cms/content-admin` owns every slot but one), the Insights page shell
-(`@ortha-cms/insights-admin`), the publish/unpublish endpoints (content's own
+API (`@orthacms/i18n-server`), the entry form or the records table
+(`@orthacms/content-admin` owns every slot but one), the Insights page shell
+(`@orthacms/insights-admin`), the publish/unpublish endpoints (content's own
 bulk routes are reused), or any authorization — `useHasPermission` only hides
 affordances; the server guard is the boundary (`.cursor/BUGBOT.md`, "Permission
 gating only in the UI"). There is also **no create-translation call**: a sibling
@@ -80,16 +80,16 @@ is created by the content editor's ordinary Save/Publish
   - Mocked alternative (no backend): `npx nx e2e admin-e2e -- --project=chromium
     src/content/i18n.spec.ts`, whose seed is `apps/admin-e2e/src/support/api/i18n.ts`.
 
-- **Dependencies that must be healthy:** `@ortha-cms/content-admin` (every slot
+- **Dependencies that must be healthy:** `@orthacms/content-admin` (every slot
   but one, plus `EntrySidebarSection`, `EntryStatusBadge`, `entryStatusView`,
-  `BulkPublishDialog`, `useBulkEntryActions`), `@ortha-cms/insights-admin`
+  `BulkPublishDialog`, `useBulkEntryActions`), `@orthacms/insights-admin`
   (`WidgetCard`, `BarRows`, `WidgetChip`, `toneBackground`,
-  `INSIGHTS_SECTION_IDS`), `@ortha-cms/query-builder-admin` (`FilterField`,
-  `FIELD_TYPE`), `@ortha-cms/design-system` (`Popover`, `Input`, `Badge`,
+  `INSIGHTS_SECTION_IDS`), `@orthacms/query-builder-admin` (`FilterField`,
+  `FIELD_TYPE`), `@orthacms/design-system` (`Popover`, `Input`, `Badge`,
   `Tooltip`, `Spinner`, `SegmentedControl`, `ConfirmDialog`, `toast`),
-  `@ortha-cms/identity-admin` (`useHasPermission`), `@ortha-cms/workspaces-admin`
+  `@orthacms/identity-admin` (`useHasPermission`), `@orthacms/workspaces-admin`
   (`useCurrentWorkspace` — three of the four query keys are workspace-scoped),
-  `@ortha-cms/utils-admin` (`apiClient`, `useUnsavedChangesApi`, `STALE_TIME`).
+  `@orthacms/utils-admin` (`apiClient`, `useUnsavedChangesApi`, `STALE_TIME`).
 
 ## 2. Feature Inventory
 

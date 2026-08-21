@@ -7,7 +7,7 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuTrigger
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     modelChoiceKey,
     useCopilotModels,

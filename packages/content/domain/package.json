@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/content-domain",
+    "name": "@orthacms/content-domain",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",

@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Save, Send } from 'lucide-react';
-import { Button, Spinner } from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+import { Button, Spinner } from '@orthacms/design-system';
+import { useHasPermission } from '@orthacms/identity-admin';
 import type { EntryRecord } from '../../../../../domain/types/contentType';
 import {
     CONTENT_CREATE,

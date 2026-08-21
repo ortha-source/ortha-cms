@@ -6,7 +6,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     FIELD_TYPE,
     type FieldType,

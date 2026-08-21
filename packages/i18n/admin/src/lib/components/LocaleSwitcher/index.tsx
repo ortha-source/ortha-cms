@@ -8,8 +8,8 @@ import {
     PopoverContent,
     PopoverTrigger,
     cn
-} from '@ortha-cms/design-system';
-import type { RecordsToolbarContext } from '@ortha-cms/content-admin';
+} from '@orthacms/design-system';
+import type { RecordsToolbarContext } from '@orthacms/content-admin';
 import { LOCALE_PARAM } from '../../constants';
 import {
     findLocale,

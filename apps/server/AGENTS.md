@@ -2,7 +2,7 @@
 
 The **API** — a NestJS application. Like the admin app, this is a thin entry
 point: it holds almost no logic. It assembles the product by handing a list of
-**server plugins** to the `@ortha-cms/bootstrap-server` host.
+**server plugins** to the `@orthacms/bootstrap-server` host.
 
 ## What's here
 
@@ -62,7 +62,7 @@ generic version of this problem, for any plugin's schema barrel, is ORT-130.
 - Cross-cutting guards are global: `AuthGuard` (session), `PermissionsGuard`
   (RBAC), `OriginGuard` (CSRF on state-changing POSTs).
 - Each plugin owns its Drizzle schema + migrations; the shared
-  `@ortha-cms/database` plugin owns the single connection.
+  `@orthacms/database` plugin owns the single connection.
 
 ## Working here
 

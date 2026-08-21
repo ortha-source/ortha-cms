@@ -1,4 +1,4 @@
-# @ortha-cms/copilot-admin
+# @orthacms/copilot-admin
 
 The admin-side copilot plugin — **two surfaces onto one chat**.
 
@@ -1041,6 +1041,6 @@ thread" instead of loading straight into the chat.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/copilot-admin`
-- `npx nx lint @ortha-cms/copilot-admin`
-- `npx nx test @ortha-cms/copilot-admin`
+- `npx nx typecheck @orthacms/copilot-admin`
+- `npx nx lint @orthacms/copilot-admin`
+- `npx nx test @orthacms/copilot-admin`

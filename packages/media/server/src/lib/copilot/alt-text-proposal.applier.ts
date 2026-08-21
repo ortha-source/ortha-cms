@@ -4,7 +4,7 @@ import type {
     ProposalApplier,
     ProposalApplyResult,
     ProposalTarget
-} from '@ortha-cms/copilot-domain';
+} from '@orthacms/copilot-domain';
 import { UpdateAssetUseCase } from '../application/use-cases/update-asset.use-case';
 import { MEDIA_PROPOSAL_KINDS } from './proposal-kinds';
 

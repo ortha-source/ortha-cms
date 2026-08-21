@@ -1,4 +1,4 @@
-import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
+import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { IdentityRouter } from '../router';
 
 /**

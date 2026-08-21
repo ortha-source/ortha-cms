@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-provider-fake — Test Artifact
+# @orthacms/copilot-provider-fake — Test Artifact
 
-> **Unit:** `packages/copilot/provider-fake` · **Package:** `@ortha-cms/copilot-provider-fake` · **Kind:** adapter (model-provider)
+> **Unit:** `packages/copilot/provider-fake` · **Package:** `@orthacms/copilot-provider-fake` · **Kind:** adapter (model-provider)
 > **Source of truth:** `packages/copilot/provider-fake/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 4 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -27,9 +27,9 @@ a contributor runs the admin offline.
 - **Any network, clock or randomness.** Deliberate — the run engine is a
   non-deterministic multi-step loop and a flaky fake would make every assertion
   downstream flaky too.
-- **Any vendor SDK.** Its only dependency is `@ortha-cms/copilot-domain`
+- **Any vendor SDK.** Its only dependency is `@orthacms/copilot-domain`
   (`package.json:17-19`), verified by grep: the five source files under `src/lib`
-  import from `@ortha-cms/copilot-domain` and from each other, nothing else.
+  import from `@orthacms/copilot-domain` and from each other, nothing else.
 - **Model selection.** `resolveModel` is `copilot-domain`'s
   (`packages/copilot/domain/src/lib/model/resolve-model.ts:16-32`).
 - **Registration.** `buildModelRegistry` in `copilot/server` owns the name → provider map.
@@ -66,9 +66,9 @@ at the composition root and handed to `CopilotPlugin`.
 ### How to exercise it manually
 
 ```bash
-npx nx test @ortha-cms/copilot-provider-fake     # 🧪 10 cases
-npx nx typecheck @ortha-cms/copilot-provider-fake
-npx nx lint @ortha-cms/copilot-provider-fake
+npx nx test @orthacms/copilot-provider-fake     # 🧪 10 cases
+npx nx typecheck @orthacms/copilot-provider-fake
+npx nx lint @orthacms/copilot-provider-fake
 ```
 
 Through the whole stack, in **dev mode** (no script):
@@ -106,7 +106,7 @@ for await (const e of p.stream({ model: 'fake', messages: [], maxOutputTokens: 1
 
 ### Dependencies that must be healthy
 
-- `@ortha-cms/copilot-domain` — `resolveModel`, `abortedEvent`, and the
+- `@orthacms/copilot-domain` — `resolveModel`, `abortedEvent`, and the
   `ModelProvider` / `ModelRequest` / `ModelStreamEvent` / `ModelCapabilities`
   types. A change to the `ModelStreamEvent` union is a change here.
 - Nothing else. There is no runtime dependency to be unhealthy.
@@ -270,11 +270,11 @@ const req = { model: 'fake', messages: [{ role: 'user', content: [{ type: 'text'
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `cat packages/copilot/provider-fake/package.json` | Exactly one dependency: `@ortha-cms/copilot-domain` |
-| 2 | `grep -rn "^import\|require(" packages/copilot/provider-fake/src` | Eight `import` statements across `src/lib` (five in `fake-provider.ts`, one each in `config.ts`, `script.ts`, `usage.ts`), every one resolving to `@ortha-cms/copilot-domain` or a sibling file; `src/index.ts` only re-exports |
+| 1 | `cat packages/copilot/provider-fake/package.json` | Exactly one dependency: `@orthacms/copilot-domain` |
+| 2 | `grep -rn "^import\|require(" packages/copilot/provider-fake/src` | Eight `import` statements across `src/lib` (five in `fake-provider.ts`, one each in `config.ts`, `script.ts`, `usage.ts`), every one resolving to `@orthacms/copilot-domain` or a sibling file; `src/index.ts` only re-exports |
 | 3 | `grep -rn "fetch\|http\|https\|axios\|Anthropic\|openai" packages/copilot/provider-fake/src` | No matches |
 | 4 | `grep -rn "Date\.\|Math.random\|setTimeout\|performance" packages/copilot/provider-fake/src` | No matches — no clock, no randomness |
-| 5 | Run `npx nx test @ortha-cms/copilot-provider-fake` with the network disabled | Passes |
+| 5 | Run `npx nx test @orthacms/copilot-provider-fake` with the network disabled | Passes |
 
 ### F21 / F22 — can it be selected in production by accident?
 
@@ -757,7 +757,7 @@ and yield `abortedEvent()`.
 Specifically hunted, specifically not a defect:
 
 - **Does it import a vendor SDK?** No. `package.json:17-19` lists exactly one
-  dependency, `@ortha-cms/copilot-domain`; grepping every import in `src/lib` finds
+  dependency, `@orthacms/copilot-domain`; grepping every import in `src/lib` finds
   eight statements, all resolving to that package or a sibling file. No `fetch`,
   no `http`, no `Date`, no `Math.random`, no timers. **ADR-0004 §1 holds.**
 - **Do the scripted responses cover the tool-call path?** Yes, and thoroughly at
@@ -825,7 +825,7 @@ route to drive and no page to render. The two exceptions are marked.
 | 8 | 🧪 same | `text.spec.ts` (new) | `chunkText` at length ± 1 and at exactly `size`; `chunkSize` 0 and negative floor to 1; the astral-plane split is pinned so a future switch to `Array.from` is a deliberate change | F19, EC-07, EC-08 |
 | 9 | 🧪 same | `fake-provider.spec.ts` (extend) | An unlisted model leaves `calls` empty **and** the script unadvanced (so a rejected model does not silently consume a turn) | F15 |
 | 10 | 🧪 same | `fake-provider.spec.ts` (extend) | `DEV_MODE_REPLY`'s content — export it first, so a change to the sentence has to be a deliberate one | F2 |
-| 11 | Lint / CI rule, not a spec | eslint `no-restricted-imports` or an Nx dependency constraint on `provider-fake` | The package may import only `@ortha-cms/copilot-domain` — ADR-0004 §1 enforced by a machine rather than by review | F20 |
+| 11 | Lint / CI rule, not a spec | eslint `no-restricted-imports` or an Nx dependency constraint on `provider-fake` | The package may import only `@orthacms/copilot-domain` — ADR-0004 §1 enforced by a machine rather than by review | F20 |
 | 12 | 🧪 same | `fake-provider.spec.ts` (extend) | Two overlapping `stream()` calls on one instance are documented as unsupported (assert the interleaving, or add a guard that throws) | EC-14 |
 | 13 | `apps/server-e2e` | `server/copilot/copilot-chat.spec.ts` (extend) | Script `stopReason: 'max_tokens'` and `'refusal'` and assert the run's `max-output-tokens` / `refusal` stop reasons — the two provider stop reasons no spec currently produces | F9, and `docs/testing/copilot-server.md` F20 |
 | 14 | Documentation, not a test | `packages/copilot/provider-fake/AGENTS.md` | Record the divergence table from §4 — particularly that OpenAI assembles tool calls from fragments and the fake does not, so a CI-green tool-call path proves nothing about the OpenAI adapter | EC-17 |

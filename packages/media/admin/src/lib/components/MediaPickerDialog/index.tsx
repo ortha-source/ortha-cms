@@ -30,7 +30,7 @@ import {
     SelectTrigger,
     SelectValue,
     Skeleton
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     KIND_FILTER_ALL,
     MEDIA_KIND,

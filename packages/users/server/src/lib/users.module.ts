@@ -35,8 +35,8 @@ import { DrizzleWorkspaceLinker } from './member/infrastructure/persistence/driz
  * {@link DrizzleMemberRepository}, {@link SESSION_REVOKER} →
  * {@link DrizzleSessionRevoker}, {@link WORKSPACE_LINKER} →
  * {@link DrizzleWorkspaceLinker}. The unit-of-work / outbox primitives come from
- * `@ortha-cms/database`'s global module; identity's tables are reached through
- * `@ortha-cms/identity-server`. Auditing is no longer in-band — the member
+ * `@orthacms/database`'s global module; identity's tables are reached through
+ * `@orthacms/identity-server`. Auditing is no longer in-band — the member
  * lifecycle facts drain to the outbox, where the activity plugin's subscriber
  * records them.
  *

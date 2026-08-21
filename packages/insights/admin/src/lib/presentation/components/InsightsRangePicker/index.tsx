@@ -2,7 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import {
     SegmentedControl,
     SegmentedControlItem
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     INSIGHTS_RANGES,
     useInsightsRange,

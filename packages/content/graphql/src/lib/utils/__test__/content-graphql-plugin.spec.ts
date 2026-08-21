@@ -1,5 +1,5 @@
-import { ContentPlugin, type AnyContentType } from '@ortha-cms/content-server';
-import { collection, field } from '@ortha-cms/content-server/define';
+import { ContentPlugin, type AnyContentType } from '@orthacms/content-server';
+import { collection, field } from '@orthacms/content-server/define';
 import { ContentGraphqlPlugin } from '../content-graphql-plugin';
 
 /**

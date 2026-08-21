@@ -126,7 +126,7 @@ export const DEFAULT_PAGE_SIZE = 10;
 
 /**
  * Content field type identifiers — the admin mirror of the server's
- * `CONTENT_FIELD_TYPE` (`@ortha-cms/content-server`). Kept as a local constant
+ * `CONTENT_FIELD_TYPE` (`@orthacms/content-server`). Kept as a local constant
  * (the admin deliberately doesn't import across the server boundary, like its
  * wire types) so every `switch (field.type)` references a named member instead
  * of a bare string literal. Must stay in lock-step with the server set.
@@ -148,7 +148,7 @@ export const CONTENT_FIELD_TYPE = {
 
 /**
  * Per-entry verdicts in a bulk-publish dry run — the admin mirror of the
- * server's `BULK_VERDICT` (`@ortha-cms/content-server`). Drives the icon/label
+ * server's `BULK_VERDICT` (`@orthacms/content-server`). Drives the icon/label
  * for each row in the {@link BulkPublishDialog}. Must stay in lock-step.
  */
 export const BULK_VERDICT = {

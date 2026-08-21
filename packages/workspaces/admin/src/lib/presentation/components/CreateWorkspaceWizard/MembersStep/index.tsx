@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { useAuth } from '@ortha-cms/identity-admin';
-import { Avatar, AvatarFallback, Separator } from '@ortha-cms/design-system';
-import { initialsOf } from '@ortha-cms/utils-admin';
+import { useAuth } from '@orthacms/identity-admin';
+import { Avatar, AvatarFallback, Separator } from '@orthacms/design-system';
+import { initialsOf } from '@orthacms/utils-admin';
 import type { MemberDraft } from '../../../../domain/types/wizard';
 import { MemberRow } from './MemberRow';
 import { MemberTypeahead } from './MemberTypeahead';

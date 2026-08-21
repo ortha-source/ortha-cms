@@ -10,7 +10,7 @@ import {
     PopoverContent,
     PopoverTrigger,
     cn
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type { CopilotSkill } from '../../application/useSkills';
 
 const messages = defineMessages({

@@ -1,6 +1,6 @@
-# @ortha-cms/media-provider-s3 — Test Artifact
+# @orthacms/media-provider-s3 — Test Artifact
 
-> **Unit:** `packages/media/provider-s3` · **Package:** `@ortha-cms/media-provider-s3` · **Kind:** adapter (storage provider) — **stub**
+> **Unit:** `packages/media/provider-s3` · **Package:** `@orthacms/media-provider-s3` · **Kind:** adapter (storage provider) — **stub**
 > **Source of truth:** `packages/media/provider-s3/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 5 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -58,7 +58,7 @@ findings are about *contract divergence* rather than about S3 itself.
   edit; no step in this artifact requires AWS.
 
 - **Dependencies that must be healthy:** only the `StorageProvider` type from
-  `@ortha-cms/media-server` (erased at runtime). The package has no runtime deps.
+  `@orthacms/media-server` (erased at runtime). The package has no runtime deps.
 
 ## 2. Feature Inventory
 
@@ -113,7 +113,7 @@ Every block below assumes the temporary registration from §1.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Upload a video with `s3` routing | `500`; the response body carries a generic message, the log carries `S3NotImplementedError: @ortha-cms/media-provider-s3 is a stub …` |
+| 1 | Upload a video with `s3` routing | `500`; the response body carries a generic message, the log carries `S3NotImplementedError: @orthacms/media-provider-s3 is a stub …` |
 | 2 | Confirm no row is written | `SELECT * FROM media_asset WHERE name = 'clip.mp4'` → empty |
 | 3 | Confirm the reclamation path | `written` is empty, so the `catch` at `upload-asset.use-case.ts:170` has nothing to remove — **but see `🐞 BUG-media-provider-s3-01` for what happens when it is not empty** |
 
@@ -282,7 +282,7 @@ persist a signed URL into a `richtext` body.
 | F5 `remove` | — | — | ❌ NONE |
 | F6 `url` | — | — | ❌ NONE |
 | F7 config ignored | — | — | ❌ NONE |
-| F8 signature parity | `npx nx typecheck @ortha-cms/media-provider-s3` | that the object satisfies `StorageProvider` **structurally** | ⚠️ PARTIAL — a typecheck is the only verification this package has |
+| F8 signature parity | `npx nx typecheck @orthacms/media-provider-s3` | that the object satisfies `StorageProvider` **structurally** | ⚠️ PARTIAL — a typecheck is the only verification this package has |
 | a11y | — | — | ❌ NONE (Not Applicable) |
 
 `grep -rn "media-provider-s3\|createS3StorageProvider" apps packages` matches only

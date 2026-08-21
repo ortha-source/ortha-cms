@@ -9,8 +9,8 @@ import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
-import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+} from '@orthacms/identity-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { InjectContentRegistry } from '../../content.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { buildEntryFilterSurface } from '../../entries/infrastructure/queries/entry-filter-surface';

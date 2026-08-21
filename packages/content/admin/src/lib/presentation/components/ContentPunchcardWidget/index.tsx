@@ -4,7 +4,7 @@ import {
     RampLegend,
     WidgetCard,
     type HeatRow
-} from '@ortha-cms/insights-admin';
+} from '@orthacms/insights-admin';
 import { useContentPunchcard } from '../../../application/useContentInsights';
 
 /** Intl descriptors for the punchcard widget, co-located here. */

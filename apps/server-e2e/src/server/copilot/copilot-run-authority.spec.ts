@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { getPool } from '@ortha-cms/database';
+import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
@@ -23,7 +23,7 @@ import {
 import { FixtureToolProvider } from '../../support/copilot-fixture-tools';
 import { framesOfType, parseSse, streamSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
-import { UNTRUSTED_DATA_RULE } from '@ortha-cms/copilot-domain';
+import { UNTRUSTED_DATA_RULE } from '@orthacms/copilot-domain';
 
 const ADMIN_EMAIL = 'authority-admin@example.com';
 const VIEWER_EMAIL = 'authority-viewer@example.com';

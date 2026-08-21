@@ -1,6 +1,6 @@
-# @ortha-cms/tools-server — Test Artifact
+# @orthacms/tools-server — Test Artifact
 
-> **Unit:** `packages/tools/server` · **Package:** `@ortha-cms/tools-server` · **Kind:** library (shared registry + authorization point)
+> **Unit:** `packages/tools/server` · **Package:** `@orthacms/tools-server` · **Kind:** library (shared registry + authorization point)
 > **Source of truth:** `packages/tools/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 3 confirmed · 0 deleted · 6 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -23,7 +23,7 @@ exactly one registry instance to both consumers (`src/lib/tools.module.ts`).
 - **Any transport.** No HTTP, no JSON-RPC, no SSE. `mcp/server` and
   `copilot/server` are the two adapters.
 - **Permission *definitions*.** `PermissionKey` is imported as a type from
-  `@ortha-cms/identity-server` (`src/lib/tool.ts:1`); the catalogue lives there.
+  `@orthacms/identity-server` (`src/lib/tool.ts:1`); the catalogue lives there.
 - **Permission *resolution*.** `createToolContext` explicitly never derives
   permissions — the caller hands `grantedPermissions` over already resolved
   (`src/lib/tool-context.ts:12-15`).
@@ -59,9 +59,9 @@ exactly one registry instance to both consumers (`src/lib/tools.module.ts`).
 
 ```bash
 docker compose up -d                       # Postgres
-npx nx test @ortha-cms/tools-server        # 🧪 the registry + error-mapping specs
-npx nx typecheck @ortha-cms/tools-server
-npx nx lint @ortha-cms/tools-server
+npx nx test @orthacms/tools-server        # 🧪 the registry + error-mapping specs
+npx nx typecheck @orthacms/tools-server
+npx nx lint @orthacms/tools-server
 ```
 
 For the wire-level behaviour (both surfaces, one registry):
@@ -74,7 +74,7 @@ npx nx e2e server-e2e --testPathPatterns=copilot
 
 ### Dependencies that must be healthy
 
-- `@ortha-cms/identity-server` — only for the `PermissionKey` type and, at
+- `@orthacms/identity-server` — only for the `PermissionKey` type and, at
   runtime for the consumers, `PERMISSIONS` constants and `scopePermissions`.
 - `@nestjs/common` — `Injectable`, `Global`, `Module`, `HttpException`,
   `ForbiddenException`, `NotFoundException`, `Logger`.
@@ -299,7 +299,7 @@ renders no UI. See §4A.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx test @ortha-cms/tools-server` | The `contextWith(...)` helper (`tool-registry.spec.ts:9-20`) builds a context from a bare `Set` and every authorization assertion passes off it — proving no re-derivation from `actor.id` |
+| 1 | `npx nx test @orthacms/tools-server` | The `contextWith(...)` helper (`tool-registry.spec.ts:9-20`) builds a context from a bare `Set` and every authorization assertion passes off it — proving no re-derivation from `actor.id` |
 
 ### F16–F19 — `toToolError`
 
@@ -1010,7 +1010,7 @@ Things I specifically went looking for and did **not** find a defect in:
 
 ## 7. Recommended E2E Tests
 
-Prose only. Harness key: **unit** = `npx nx test @ortha-cms/tools-server`;
+Prose only. Harness key: **unit** = `npx nx test @orthacms/tools-server`;
 **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 
 | Priority | Harness | Proposed spec | Asserts | Closes |

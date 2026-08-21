@@ -16,8 +16,8 @@ import {
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
-} from '@ortha-cms/identity-server';
-import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+} from '@orthacms/identity-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { ToolPermissionBroker } from '../../application/tool-permission.broker';
 import { DecideToolPermissionDto } from '../../application/dto/decide-tool-permission.dto';
 import { ExtendToolPermissionDto } from '../../application/dto/extend-tool-permission.dto';

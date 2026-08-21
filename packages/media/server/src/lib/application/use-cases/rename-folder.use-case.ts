@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import type { PublicUser } from '@ortha-cms/identity-server';
+import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import type { PublicUser } from '@orthacms/identity-server';
 import { FolderId } from '../../domain/value-objects/folder-id';
 import { FolderNotFoundError } from '../../domain/errors/folder-not-found.error';
 import {

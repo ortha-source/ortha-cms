@@ -9,8 +9,8 @@ import {
     CommandInput,
     CommandList,
     Kbd
-} from '@ortha-cms/design-system';
-import { byOrder, isComposingText } from '@ortha-cms/utils-admin';
+} from '@orthacms/design-system';
+import { byOrder, isComposingText } from '@orthacms/utils-admin';
 import { SIDEBAR_NAV_SLOT } from '../../../slots/sidebarSlots';
 import { COMMAND_SLOT } from '../../../slots/commandSlots';
 import { SidebarCommandItem } from './SidebarCommandItem';

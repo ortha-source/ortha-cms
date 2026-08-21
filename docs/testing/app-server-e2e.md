@@ -1,6 +1,6 @@
 # server-e2e — Test Artifact
 
-> **Unit:** `apps/server-e2e` · **Package:** `@ortha-cms/server-e2e` (private) · **Kind:** app (test harness)
+> **Unit:** `apps/server-e2e` · **Package:** `@orthacms/server-e2e` (private) · **Kind:** app (test harness)
 > **Source of truth:** `apps/server-e2e/AGENTS.md`, `.agents/skills/server-e2e/SKILL.md`
 > **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 8 corrected · 2 unverified
 > **Generated:** 2026-08-11

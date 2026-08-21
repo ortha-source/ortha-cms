@@ -4,7 +4,7 @@ import {
     Field,
     FieldDescription,
     Spinner
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 
 /** Intl descriptors for {@link LoginActions}, co-located with the component. */
 const messages = defineMessages({

@@ -1,4 +1,4 @@
-import { slugify } from '@ortha-cms/utils-admin';
+import { slugify } from '@orthacms/utils-admin';
 import { useSlugAvailability } from '../../../application/useSlugAvailability';
 import type { SlugStatus, WizardData } from '../../../domain/types/wizard';
 

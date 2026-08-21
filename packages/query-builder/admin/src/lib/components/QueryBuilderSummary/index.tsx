@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { X } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
+import { cn } from '@orthacms/design-system';
 import type { FilterField } from '../../types/filter-field.type';
 import {
     isRule,

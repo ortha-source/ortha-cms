@@ -1,8 +1,8 @@
 import { useEffect, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { defineMessages, useIntl } from 'react-intl';
-import { toast } from '@ortha-cms/design-system';
-import { setUnauthorizedHandler } from '@ortha-cms/utils-admin';
+import { toast } from '@orthacms/design-system';
+import { setUnauthorizedHandler } from '@orthacms/utils-admin';
 import {
     currentUserKey,
     useCurrentUser

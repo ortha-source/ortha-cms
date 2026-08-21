@@ -1,6 +1,6 @@
-# @ortha-cms/activity-admin — Test Artifact
+# @orthacms/activity-admin — Test Artifact
 
-> **Unit:** `packages/activity/admin` · **Package:** `@ortha-cms/activity-admin` · **Kind:** admin plugin
+> **Unit:** `packages/activity/admin` · **Package:** `@orthacms/activity-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/activity/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -15,7 +15,7 @@ entry, the home dashboard's **Recent activity** panel, and the exported
 `useActivityLog` hook + `activityKeys` factory that `users-admin`'s per-user
 Activity tab consumes.
 
-**Does NOT own:** the API or the audit **write** path — `@ortha-cms/activity-server`
+**Does NOT own:** the API or the audit **write** path — `@orthacms/activity-server`
 owns `GET /api/activity`, the `AuditEventSubscriber`, and the kind→row mapping
 (`docs/testing/activity-server.md`). It owns **no mutations at all**: the log is
 an append-only read-side projection, which is why (per
@@ -79,13 +79,13 @@ performs no authorization: `useHasPermission` hides affordances, the server's
   - Mocked, no backend:
     `npx nx e2e admin-e2e -- --project=chromium src/activity`
 
-- **Dependencies that must be healthy:** `@ortha-cms/utils-admin` (`apiClient`,
+- **Dependencies that must be healthy:** `@orthacms/utils-admin` (`apiClient`,
   `toApiError`, `useTableUrlState`, `avatarColorForId`, `initialsFromEmail`),
-  `@ortha-cms/identity-admin` (`useHasPermission`), `@ortha-cms/shell-admin`
+  `@orthacms/identity-admin` (`useHasPermission`), `@orthacms/shell-admin`
   (`PageTopBar`, `SIDEBAR_NAV_SLOT`, `HOME_SECTION_SLOT`),
-  `@ortha-cms/query-builder-admin` (`QueryBuilderPanel`, `QueryBuilderSummary`,
+  `@orthacms/query-builder-admin` (`QueryBuilderPanel`, `QueryBuilderSummary`,
   `jsonFilterToTree`, `treeToJsonFilter`, `countRules`),
-  `@ortha-cms/design-system` (`Table*`, `Alert`, `Empty*`, `Pagination`,
+  `@orthacms/design-system` (`Table*`, `Alert`, `Empty*`, `Pagination`,
   `Select`, `SearchToolbar`, `Skeleton`, `Avatar`, `Badge`, `Card`).
   **Not** workspace-scoped: the audit table has no `workspace_id`
   (`docs/testing/activity-server.md`, EC-26), so no `useCurrentWorkspace`

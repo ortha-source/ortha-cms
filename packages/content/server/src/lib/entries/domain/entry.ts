@@ -1,10 +1,10 @@
-import type { DomainEvent } from '@ortha-cms/database';
+import type { DomainEvent } from '@orthacms/database';
 import {
     ENTRY_STATUS,
     assertTransition,
     type EntryStatus,
     type ValidationIssue
-} from '@ortha-cms/content-domain';
+} from '@orthacms/content-domain';
 import { ENTRY_EVENT_KINDS, entryEvent } from './events/entry-events';
 import { EntryPublishBlockedError } from './entry-publish-blocked.error';
 
@@ -40,8 +40,8 @@ export interface PublishGate {
  * applies a transition here (raising the domain event), and the infrastructure
  * persists the new status.
  *
- * Framework-free: imports only `@ortha-cms/content-domain` (the pure kernel) and
- * `@ortha-cms/database`'s framework-free `createDomainEvent`/`DomainEvent` —
+ * Framework-free: imports only `@orthacms/content-domain` (the pure kernel) and
+ * `@orthacms/database`'s framework-free `createDomainEvent`/`DomainEvent` —
  * nothing from `@nestjs/*`, `drizzle-orm`, `class-validator`, or the
  * infrastructure layer (ADR-0003's one hard rule).
  */

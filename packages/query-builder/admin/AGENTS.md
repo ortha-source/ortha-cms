@@ -1,17 +1,17 @@
-# @ortha-cms/query-builder-admin
+# @orthacms/query-builder-admin
 
 Admin-side React component for visually composing filter trees against a
 typed schema. Emits the JSON tree grammar consumed by `parseFilterTree`
-in `@ortha-cms/utils-server`:
+in `@orthacms/utils-server`:
 `?filter={"and":[{"field":"email","op":"ilike","value":"%@x"}]}`.
 The state shape, wire format, and UI all round-trip OR + nested groups
 end-to-end. Each group owns an AND/OR toggle and an Add group action.
 
 ## Package
 
-- Name: `@ortha-cms/query-builder-admin`
-- Import: `import { QueryBuilder, QueryBuilderDrawer, type FilterField } from '@ortha-cms/query-builder-admin'`
-- Pure UI library — depends only on `@ortha-cms/design-system`,
+- Name: `@orthacms/query-builder-admin`
+- Import: `import { QueryBuilder, QueryBuilderDrawer, type FilterField } from '@orthacms/query-builder-admin'`
+- Pure UI library — depends only on `@orthacms/design-system`,
   `lucide-react`, `react-intl` (+ React peers). No router / data layer.
 
 ## Conventions
@@ -145,4 +145,4 @@ the injected `renderRelationValue` seam.)
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/query-builder-admin`
+- `npx nx typecheck @orthacms/query-builder-admin`

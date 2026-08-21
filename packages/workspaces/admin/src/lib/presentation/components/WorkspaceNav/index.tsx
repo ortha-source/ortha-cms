@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowLeft } from 'lucide-react';
-import { AuthStatus, useAuth } from '@ortha-cms/identity-admin';
+import { AuthStatus, useAuth } from '@orthacms/identity-admin';
 import {
     SidebarContent,
     SidebarGroup,
@@ -10,8 +10,8 @@ import {
     SidebarHeader,
     SidebarMenu,
     SidebarTrigger
-} from '@ortha-cms/design-system';
-import { byOrder } from '@ortha-cms/utils-admin';
+} from '@orthacms/design-system';
+import { byOrder } from '@orthacms/utils-admin';
 import { useWorkspaces } from '../../../application/useWorkspaces';
 import {
     WORKSPACE_NAV_SLOT,

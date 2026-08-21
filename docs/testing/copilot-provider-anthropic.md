@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-provider-anthropic — Test Artifact
+# @orthacms/copilot-provider-anthropic — Test Artifact
 
-> **Unit:** `packages/copilot/provider-anthropic` · **Package:** `@ortha-cms/copilot-provider-anthropic` · **Kind:** adapter (`ModelProvider` implementation)
+> **Unit:** `packages/copilot/provider-anthropic` · **Package:** `@orthacms/copilot-provider-anthropic` · **Kind:** adapter (`ModelProvider` implementation)
 > **Source of truth:** `packages/copilot/provider-anthropic/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 7 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -22,7 +22,7 @@ files here — and **nowhere else in the monorepo**.
 
 - **The port.** `ModelProvider`, `ModelRequest`, `ModelStreamEvent`,
   `resolveModel`, `isAbortError`, `abortedEvent` all come from
-  `@ortha-cms/copilot-domain`.
+  `@orthacms/copilot-domain`.
 - **Registration.** The composition root constructs it
   (`apps/server/src/plugins.ts:114-120`) and `CopilotPlugin` never learns which
   adapters exist.
@@ -90,9 +90,9 @@ ANTHROPIC_BASE_URL=https://my-gateway.internal/v1 COPILOT_PROVIDER=claude npm ru
 Automated:
 
 ```bash
-npx nx test @ortha-cms/copilot-provider-anthropic   # 🧪 anthropic-provider.spec.ts (mocked SDK)
-npx nx typecheck @ortha-cms/copilot-provider-anthropic
-npx nx lint @ortha-cms/copilot-provider-anthropic
+npx nx test @orthacms/copilot-provider-anthropic   # 🧪 anthropic-provider.spec.ts (mocked SDK)
+npx nx typecheck @orthacms/copilot-provider-anthropic
+npx nx lint @orthacms/copilot-provider-anthropic
 ```
 
 Note: `AGENTS.md`'s Commands section lists only `typecheck` and `lint`, but
@@ -102,7 +102,7 @@ Note: `AGENTS.md`'s Commands section lists only `typecheck` and `lint`, but
 
 - `@anthropic-ai/sdk` `^0.115.0` — the streaming helper
   (`client.messages.stream`), `finalMessage()`, and `models.retrieve`.
-- `@ortha-cms/copilot-domain` — the port, `resolveModel`, `isAbortError`,
+- `@orthacms/copilot-domain` — the port, `resolveModel`, `isAbortError`,
   `abortedEvent`.
 - The Anthropic API, or whatever `baseUrl` points at, for **both** `/v1/messages`
   and `/v1/models` — a gateway that proxies only the first degrades capabilities
@@ -226,7 +226,7 @@ Watch the wire for every step.
 
 | Step | Action | Expected result / **Observed** |
 | --- | --- | --- |
-| 1 | `npx nx test @ortha-cms/copilot-provider-anthropic` | `:420` asserts the probe runs once and is cached; `:442` that each model caches independently; `:463` the fallback |
+| 1 | `npx nx test @orthacms/copilot-provider-anthropic` | `:420` asserts the probe runs once and is cached; `:442` that each model caches independently; `:463` the fallback |
 | 2 | In a REPL: `const p = createAnthropicProvider({apiKey, models:['claude-opus-5']}); await p.capabilities()` | `{model:'claude-opus-5', toolCalling:true, streaming:true, vision:<live>, contextWindow:<live>, maxOutputTokens:<live>}` |
 | 3 | Call it again with the proxy down | The **cached** value, no second request |
 | 4 | Restart the process, take the network down, call `capabilities()` | `FALLBACK_CAPABILITIES` — `contextWindow: 200 000`, `maxOutputTokens: 8 192`, `vision: true` |
@@ -806,7 +806,7 @@ the SDK's own accumulated block rather than raw fragments. Do NOT implement.
 
 ## 7. Recommended E2E Tests
 
-Harness: **unit** = `npx nx test @ortha-cms/copilot-provider-anthropic` (mocked
+Harness: **unit** = `npx nx test @orthacms/copilot-provider-anthropic` (mocked
 SDK, no network); **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 
 | Priority | Harness | Proposed spec | Asserts | Closes |
@@ -822,4 +822,4 @@ SDK, no network); **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 | 9 | server-e2e | new `apps/server-e2e/src/server/copilot/copilot-provider-wire.spec.ts` | Against a **local HTTP stub** standing in for the Anthropic API (via `ANTHROPIC_BASE_URL`), a full run through the real adapter: frame order, tool round trip, `is_error` on a failed tool, and the persisted `model`/`provider` columns. This is the missing end-to-end layer — every current e2e runs on `fake` | "Any e2e at all" ❌ |
 | 10 | unit | `anthropic-provider.spec.ts` — new case | Two concurrent `capabilities()` calls for one model issue **one** request — pinning the promise-cache property that EC-24 relies on | EC-24 |
 | 11 | unit | `anthropic-provider.spec.ts` — extend `:327` | A `tool_result` block with `isError: true` maps to `is_error: true` on the wire, and one without omits the key | F22 partial, EC in §4 |
-| 12 | doc | `packages/copilot/provider-anthropic/AGENTS.md` | Add `npx nx test @ortha-cms/copilot-provider-anthropic` to Commands — the target exists and is not listed | doc drift noted in §1 |
+| 12 | doc | `packages/copilot/provider-anthropic/AGENTS.md` | Add `npx nx test @orthacms/copilot-provider-anthropic` to Commands — the target exists and is not listed | doc drift noted in §1 |

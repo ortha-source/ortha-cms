@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-server — Test Artifact
+# @orthacms/copilot-server — Test Artifact
 
-> **Unit:** `packages/copilot/server` · **Package:** `@ortha-cms/copilot-server` · **Kind:** server plugin
+> **Unit:** `packages/copilot/server` · **Package:** `@orthacms/copilot-server` · **Kind:** server plugin
 > **Source of truth:** `packages/copilot/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 0 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -29,7 +29,7 @@ and the five Drizzle tables migrated under `__drizzle_migrations_copilot`.
 
 **Does NOT own:**
 
-- **Any tool.** ADR-0007: the catalogue is `@ortha-cms/tools-server`'s
+- **Any tool.** ADR-0007: the catalogue is `@orthacms/tools-server`'s
   `ToolRegistry`, imported (`copilot.module.ts:75`), never provided. Every
   `ToolDefinition` is contributed by `content` / `media` / `i18n` / `activity` /
   `users`.
@@ -146,22 +146,22 @@ curl -s -b cookies.txt -X POST \
 Automated:
 
 ```bash
-npx nx test @ortha-cms/copilot-server                        # 🧪 3 spec files
+npx nx test @orthacms/copilot-server                        # 🧪 3 spec files
 npx nx e2e server-e2e --testPathPatterns=copilot             # needs Docker
-npx nx typecheck @ortha-cms/copilot-server
-npx nx run @ortha-cms/copilot-server:db:generate --name=x    # must emit nothing
+npx nx typecheck @orthacms/copilot-server
+npx nx run @orthacms/copilot-server:db:generate --name=x    # must emit nothing
 ```
 
 ### Dependencies that must be healthy
 
-- `@ortha-cms/identity-server` — `PermissionsService.forRole` is the *only*
+- `@orthacms/identity-server` — `PermissionsService.forRole` is the *only*
   source of a run's grants (`capability-profile.service.ts:58`); `AuthGuard`,
   `PermissionsGuard`, `OriginGuard`.
-- `@ortha-cms/workspaces-server` — `WorkspaceGuard` is what makes
+- `@orthacms/workspaces-server` — `WorkspaceGuard` is what makes
   `X-Workspace-Id` trustworthy; without it every tool would run with an
   unvalidated header (`create-run.controller.ts:38-45`).
-- `@ortha-cms/tools-server` — `ToolRegistry.call` is the authorization boundary.
-- `@ortha-cms/database` — one shared `pg` pool.
+- `@orthacms/tools-server` — `ToolRegistry.call` is the authorization boundary.
+- `@orthacms/database` — one shared `pg` pool.
 - The **capability plugins** must have booted and registered, or the offer is
   empty and the run correctly answers "I have no tools".
 - The **appliers** must be registered by whichever plugin owns each `kind`, or
@@ -744,7 +744,7 @@ below is an assertion about that string.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx run @ortha-cms/copilot-server:db:generate --name=drift-check` | **No new SQL emitted** — the schema and the migrations agree |
+| 1 | `npx nx run @orthacms/copilot-server:db:generate --name=drift-check` | **No new SQL emitted** — the schema and the migrations agree |
 | 2 | `npx nx run server:db:migrate` twice on a fresh database | The second run is a no-op; `__drizzle_migrations_copilot` has 6 rows |
 | 3 | `\d copilot_skills` | `copilot_skills_workspace_name_idx` is `UNIQUE (workspace_id, name)` |
 | 4 | Confirm `copilot_workspace_policies` is gone | `\dt copilot_*` lists exactly five tables |
@@ -1831,6 +1831,6 @@ All server-side, in `apps/server-e2e` (testcontainer + supertest, per the
 | 14 | `apps/server-e2e` | `copilot/copilot-chat.spec.ts` (extend) | `content.contentType` containing a newline and an injected `SYSTEM:` line is escaped or rejected before it reaches the prompt | 🐞 BUG-copilot-server-08, EC-54 |
 | 15 | 🧪 unit | `copilot-plugin.spec.ts` (extend) | `limits: {maxSteps: 0}` and negative ceilings are refused at construction | EC-08, F94 |
 | 16 | `apps/server-e2e` | `copilot/copilot-skills.spec.ts` (extend) | A CMS row shadowed by a code skill is listed by `manageList` with `enabled: false` | F80 |
-| 17 | CI job (not a spec) | `nx run @ortha-cms/copilot-server:db:generate` in a drift check | Generating a migration on a clean tree emits nothing | F97 |
+| 17 | CI job (not a spec) | `nx run @orthacms/copilot-server:db:generate` in a drift check | Generating a migration on a clean tree emits nothing | F97 |
 | 18 | `apps/server-e2e` | `copilot/copilot-media-files.spec.ts` (extend) | An **accessibility** pass on the write path: `media_propose_file` creating an image records `alt` (once the parameter exists), and an entry proposal carrying a media field is refused without one | ♿ A11Y-copilot-server-01, ♿ A11Y-copilot-server-02 |
 | 19 | `apps/server-e2e` | `copilot/copilot-chat.spec.ts` (extend) | A run that fails before the first token still leaves a readable transcript — an assistant turn carrying `stopReason` and the error | ♿ A11Y-copilot-server-03, EC-48 |

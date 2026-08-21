@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/query-builder-admin",
+    "name": "@orthacms/query-builder-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -15,7 +15,7 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/design-system": "*",
+        "@orthacms/design-system": "*",
         "lucide-react": "^1.17.0",
         "react-intl": "^7.0.0"
     },

@@ -1,7 +1,7 @@
-# @ortha-cms/content-admin
+# @orthacms/content-admin
 
 The **Content Library feature plugin** for the Ortha CMS admin UI. It is the
-admin counterpart to `@ortha-cms/content-server` (which owns the content
+admin counterpart to `@orthacms/content-server` (which owns the content
 registry, schema, and `CONTENT_CATALOG`). It mounts **inside a workspace** at
 `/workspaces/:id/content/*` and ships the library's **navigation + landing**:
 the **Content section of the app sidebar** (listing the workspace's content
@@ -54,8 +54,8 @@ per-hook `api/` + `utils/` layout:
 ### Single validation source — the shared kernel
 
 Field-value validation and the publish gate are **not** hand-mirrored in the
-admin anymore. They live once, in `@ortha-cms/content-domain` (the shared
-**kernel**, per ADR-0003), which `@ortha-cms/content-server` validates against
+admin anymore. They live once, in `@orthacms/content-domain` (the shared
+**kernel**, per ADR-0003), which `@orthacms/content-server` validates against
 too — so the admin and server can't drift. `presentation/entryValidation` is a
 thin **i18n anti-corruption layer**: it runs the kernel's `validateFieldValue`
 over each field (via the `entryFieldSpec` adapter) and renders the kernel's
@@ -117,7 +117,7 @@ global ⌘K / Ctrl+K shortcut (both owned by `ContentNavSection`).
   same `permission`).
 - **Scoped to the workspace.** The schema list is global, so the page filters it
   to the open workspace's granted content slugs — `Workspace.content` from
-  `@ortha-cms/workspaces-admin` (surfaced by `GET /api/workspaces`, sourced from
+  `@orthacms/workspaces-admin` (surfaced by `GET /api/workspaces`, sourced from
   the `workspace_content` grants written by the create wizard). Only related
   collections/pages show; an ungranted `:typeName` renders the not-found state.
 - `useContentFavorites` (`presentation/hooks/useContentFavorites/`) persists pinned
@@ -167,7 +167,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   (`?sort=<columnId>` asc, `?sort=-<columnId>`
   desc); a header click cycles asc → desc → off, sets `aria-sort` on the
   `<th>`, and resets the page. URL state (search/filter/sort/page) is owned by
-  `useTableUrlState` (`@ortha-cms/utils-admin`),
+  `useTableUrlState` (`@orthacms/utils-admin`),
   mirroring the Members page. `useEntryColumns` holds the **ordered** visible
   columns in component state (**not persisted** — the choice lasts the session
   and resets on reload) — the array is both the visibility set and the display
@@ -211,7 +211,7 @@ favorites:<workspaceId>`), with guarded reads/writes. There is no favorites
   that case, since the string isn't blank. The excerpt is only ever rendered as
   text, so tag-stripping by regex carries no injection risk; rendering rich text
   as _markup_ is a different problem with a different answer
-  (`@ortha-cms/wysiwyg-admin`'s `renderRichText`).
+  (`@orthacms/wysiwyg-admin`'s `renderRichText`).
 - Column **order and visibility** are both chosen in
   `CollectionRecordsColumnPicker` — a `Popover` (not a `DropdownMenu`, whose menu
   semantics fight dnd-kit's keyboard sensor) listing visible columns first as
@@ -408,12 +408,12 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
       being absent, and a bug that dropped the whole form would pass them all.
 - The design-system `command` + `collapsible` + `tabs` + `calendar` +
   `multi-select` primitives this plugin relies on were added there via the
-  shadcn skill (consumed from `@ortha-cms/design-system`).
+  shadcn skill (consumed from `@orthacms/design-system`).
 
 ## The Properties panel + the editor's actions live in the app chrome
 
 The entry editor no longer draws its own rail or its own action bar. Both render
-into **shell-owned regions** (`@ortha-cms/shell-admin`), filled by portal from
+into **shell-owned regions** (`@orthacms/shell-admin`), filled by portal from
 inside the editor:
 
 - **`RightPanelPortal title="Properties"`** ← `EntrySidebar`, the panel body.
@@ -588,7 +588,7 @@ above), not an in-form staging preview; restore remains the switch-back path.
 ## Insights widgets
 
 This plugin contributes the **content cards** on the Insights page via
-`@ortha-cms/insights-admin`'s `INSIGHTS_WIDGET_SLOT` — content owns the data, so
+`@orthacms/insights-admin`'s `INSIGHTS_WIDGET_SLOT` — content owns the data, so
 it owns the widgets; the Insights plugin ships only the page, the grid and the
 card shell and knows nothing about entries.
 
@@ -632,9 +632,9 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 The library exposes eleven named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
-`@ortha-cms/i18n-admin` fills eight; `@ortha-cms/media-admin` fills two
+`@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
-`@ortha-cms/wysiwyg-admin` fills the last (`ENTRY_FIELD_CONTROL_SLOT`, the
+`@orthacms/wysiwyg-admin` fills the last (`ENTRY_FIELD_CONTROL_SLOT`, the
 rich-text editor).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
@@ -693,7 +693,7 @@ fetching internally.
       entry's resolved `mediaRefs` — so a contributed tab renders controls bound to
       the editor's shared form: a field edited there rides Save, the Changed badge,
       the publish gate, and the 422→field mapping exactly like a General-tab field.
-      `@ortha-cms/media-admin` fills it with the **Media** tab (media fields live in
+      `@orthacms/media-admin` fills it with the **Media** tab (media fields live in
       the values bag; the tab is only their rendering surface). `useSaveEntry` also
       invalidates the entry-media cache so the tab reflects the saved set. The
       context also carries **`presave`** — the handles below, so a tab reaches state
@@ -715,7 +715,7 @@ fetching internally.
       menu content unmounts the instant the menu closes — precisely when a
       dialog opened from it is meant to appear — so an item's dialog cannot live
       inside it.
-    - `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
+    - `@orthacms/i18n-admin` fills it with **Publish all locales** / **Unpublish
       all locales**.
 - **`ENTRY_PRESAVE_SLOT`** — a plugin's participation in the **save itself**:
   `usePresave()` is mounted once per `ContentEntryView` and returns
@@ -725,7 +725,7 @@ fetching internally.
   own failure). `settle()` runs once the write succeeded. `handle` is published
   to contributed tabs as `EntryTabContext.presave[id]`, opaque, each tab reading
   only its own key.
-  This is what lets `@ortha-cms/media-admin` **defer uploads to Save**: files
+  This is what lets `@orthacms/media-admin` **defer uploads to Save**: files
   chosen on a media field are staged under a placeholder uuid (which the values
   bag holds, so validation and the publish gate treat them like any asset id),
   and `commit` uploads them and swaps in the real ids. The staging lives in the
@@ -762,7 +762,7 @@ fetching internally.
       `EntryFieldSections` and `FieldGroup`, neither of which has any interest in
       it. An item with no `FullView` never expands, and its control's
       `setExpanded` is a no-op.
-    - `@ortha-cms/wysiwyg-admin` fills it for `richtext`: the `Component` is a
+    - `@orthacms/wysiwyg-admin` fills it for `richtext`: the `Component` is a
       rendered preview of the body, the `FullView` is the TipTap editor it
       expands into.
     - **A contributed control's own `<form>` cannot submit the record.** The
@@ -828,14 +828,14 @@ already surfaces `required`), so a locale plugin needs no field-level slot:
 
 ## Package
 
-- Name: `@ortha-cms/content-admin`
-- Import: `import { ContentPlugin } from '@ortha-cms/content-admin'`
+- Name: `@orthacms/content-admin`
+- Import: `import { ContentPlugin } from '@orthacms/content-admin'`
 - Grouped package (`packages/content/admin`), admin-only. Consumed from source
   (`exports` → `./src/index.ts`); no build step.
 - Register it in `createAdmin({ plugins })` **after** `WorkspacesPlugin()` — it
   contributes only to the workspace shell's slots
   (`WORKSPACE_SECTION_SLOT` + `WORKSPACE_ROUTE_SLOT`), which `WorkspacesPlugin`
-  owns, so it depends on `@ortha-cms/workspaces-admin`.
+  owns, so it depends on `@orthacms/workspaces-admin`.
 
 ## Lives strictly inside a workspace
 
@@ -845,7 +845,7 @@ the **Content section** (`WORKSPACE_SECTION_SLOT`, its `ContentNavSection`) and 
 workspace's default landing) to the workspace shell — so it only ever renders
 under `/workspaces/:id/content`. The page reads the open workspace via
 `useCurrentWorkspace()` from
-`@ortha-cms/workspaces-admin`.
+`@orthacms/workspaces-admin`.
 
 ## Refusal, absence, and failure are three different states
 
@@ -899,7 +899,7 @@ offers no per-option label to use instead.
 Follows the workspaces-admin conventions: `type` over `interface`; JSDoc on
 exports; `<name>/index.ts(x)` folders (pages in `presentation/pages/<Name>/`, the
 factory in `presentation/contentPlugin/`); co-located `react-intl` messages
-namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
+namespaced `content.<area>.<key>`; UI from `@orthacms/design-system` only.
 
 - **One component per file.** Never define a second React component in the same
   file — not as a `renderItem` closure, not as a sibling `function Foo()` above
@@ -922,5 +922,5 @@ namespaced `content.<area>.<key>`; UI from `@ortha-cms/design-system` only.
 
 ## Commands
 
-- `npm exec nx typecheck @ortha-cms/content-admin`
-- `npm exec nx lint @ortha-cms/content-admin`
+- `npm exec nx typecheck @orthacms/content-admin`
+- `npm exec nx lint @orthacms/content-admin`

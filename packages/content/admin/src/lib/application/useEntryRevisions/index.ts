@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { type ApiError } from '@ortha-cms/utils-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { type ApiError } from '@orthacms/utils-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import type { RevisionListView } from '../../domain/types/contentType';
 import { entryRevisionsKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';

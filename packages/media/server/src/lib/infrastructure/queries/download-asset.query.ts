@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Readable } from 'node:stream';
 import { eq } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     STORAGE_REGISTRY,
     type StorageRegistry

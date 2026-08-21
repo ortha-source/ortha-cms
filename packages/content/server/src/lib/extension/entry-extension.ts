@@ -22,8 +22,8 @@
  */
 
 import type { SQL } from 'drizzle-orm';
-import type { Database } from '@ortha-cms/database';
-import type { FieldSchema, ParsedRule } from '@ortha-cms/utils-server';
+import type { Database } from '@orthacms/database';
+import type { FieldSchema, ParsedRule } from '@orthacms/utils-server';
 import type { AnyContentType } from '../types/content-type';
 
 /** DI token an extension plugin binds its {@link ContentEntryExtension} to. */

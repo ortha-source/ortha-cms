@@ -1,5 +1,5 @@
-import type { DomainEvent } from '@ortha-cms/database';
-import { IDENTITY_ACTIVITY_KINDS } from '@ortha-cms/identity-server';
+import type { DomainEvent } from '@orthacms/database';
+import { IDENTITY_ACTIVITY_KINDS } from '@orthacms/identity-server';
 
 /**
  * The values one audit row needs, derived purely from a {@link DomainEvent}.
@@ -37,7 +37,7 @@ interface AuditFacet {
 
 /**
  * The **user.\*** audit kinds owned by the users context
- * (`USER_ACTIVITY_KINDS` in `@ortha-cms/users-server`). Duplicated here as
+ * (`USER_ACTIVITY_KINDS` in `@orthacms/users-server`). Duplicated here as
  * literals rather than imported, so the audit sink stays decoupled from every
  * producer (activity depends on identity only); the parity unit test pins these
  * strings against the exact rows the old in-band recorder wrote.

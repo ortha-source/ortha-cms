@@ -86,24 +86,24 @@
             },
             "exclude": ["apps/server-e2e/**/*"]
         },
-        "@ortha-cms/nx"
+        "@orthacms/nx"
     ],
     "targetDefaults": {
         "test": {
             "dependsOn": ["^build"]
         },
         "nx-release-publish": {
-            "executor": "@ortha-cms/nx:release-publish",
+            "executor": "@orthacms/nx:release-publish",
             "dependsOn": ["pack"]
         }
     },
     "release": {
-        "projects": ["@ortha-cms/*", "!@ortha-cms/nx"],
+        "projects": ["@orthacms/*", "!@orthacms/nx"],
         "projectsRelationship": "fixed",
         "releaseTagPattern": "v{version}",
         "version": {
             "conventionalCommits": true,
-            "preVersionCommand": "npx nx run-many -t build --projects=@ortha-cms/*",
+            "preVersionCommand": "npx nx run-many -t build --projects=@orthacms/*",
             "fallbackCurrentVersionResolver": "disk"
         },
         "changelog": {

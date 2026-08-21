@@ -1,4 +1,4 @@
-# @ortha-cms/i18n-server
+# @orthacms/i18n-server
 
 > **Layout: layered (ADR-0003).** A **light** application of tactical DDD — this
 > is a small, low-invariant context, so it gets a `domain/` layer for value
@@ -449,18 +449,18 @@ Two rules the tools apply that the HTTP path does not:
 - Feature-then-kind layout (`locales/`, `content/{services,controllers,dto}`),
   thin controllers, permission-by-constant, `interface` for contracts, JSDoc on
   exports — the `server-plugin` skill.
-- Depends on `@ortha-cms/content-server` (the port + `toColumns`/`toRecord` +
+- Depends on `@orthacms/content-server` (the port + `toColumns`/`toRecord` +
   `EntryValidationService` + `RelationLinkService` + the `relationLocaleSync`
-  helpers + `CONTENT_REGISTRY`), `@ortha-cms/identity-server`
-  (guards + `lockWorkspaceShared`), `@ortha-cms/database` (`@InjectDatabase()`),
-  `@ortha-cms/utils-server` (`isUniqueViolation`), `@ortha-cms/bootstrap-server`.
+  helpers + `CONTENT_REGISTRY`), `@orthacms/identity-server`
+  (guards + `lockWorkspaceShared`), `@orthacms/database` (`@InjectDatabase()`),
+  `@orthacms/utils-server` (`isUniqueViolation`), `@orthacms/bootstrap-server`.
 - **No `drizzle.config.ts`, no `migrations/`** — nothing to own. A future
   per-locale settings table would be the first candidate.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/i18n-server` / `npx nx lint @ortha-cms/i18n-server`
-- `npx nx test @ortha-cms/i18n-server` (config-validation unit tests)
+- `npx nx typecheck @orthacms/i18n-server` / `npx nx lint @orthacms/i18n-server`
+- `npx nx test @orthacms/i18n-server` (config-validation unit tests)
 - End-to-end: `apps/server-e2e/src/server/i18n/` (needs Docker), plus
   `apps/server-e2e/src/server/insights/localization-insights.spec.ts` for the
   coverage aggregate — the record-vs-row fold is exactly what a mocked admin

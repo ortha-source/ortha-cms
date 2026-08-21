@@ -15,11 +15,11 @@ without the hosts accumulating domain logic or features becoming entangled.
 
 ## Decision
 
-We will keep the application **hosts** (`@ortha-cms/bootstrap-admin`,
-`@ortha-cms/bootstrap-server`) free of domain logic. Each host turns a *list of
+We will keep the application **hosts** (`@orthacms/bootstrap-admin`,
+`@orthacms/bootstrap-server`) free of domain logic. Each host turns a *list of
 plugins* into a running app. Capability lives in plugins, usually shipped as an
 `admin`/`server` pair under `packages/<group>/{admin,server}`. Server plugins own
-their own Drizzle schema and migrations; the shared `@ortha-cms/database` plugin
+their own Drizzle schema and migrations; the shared `@orthacms/database` plugin
 owns the single connection but no schema. Plugins integrate through explicit
 contracts (`AdminPlugin`, `ServerPlugin`) and named UI **slots**, never by
 reaching into each other.

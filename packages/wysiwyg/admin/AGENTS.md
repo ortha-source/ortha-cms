@@ -1,4 +1,4 @@
-# @ortha-cms/wysiwyg-admin
+# @orthacms/wysiwyg-admin
 
 The **rich-text editing plugin** for the Ortha CMS admin UI. It owns how a
 `richtext` field looks and behaves in the entry form: the field shows the
@@ -15,7 +15,7 @@ tab and inside a localized type's Translated/Shared groups — without knowing
 about any of them.
 
 There is **no server counterpart**. `richtext` is an existing content field type
-(`@ortha-cms/content-server`); this plugin changes the *control*, not the
+(`@orthacms/content-server`); this plugin changes the *control*, not the
 schema, the wire format, or the API.
 
 What it stores is the **document** — `editor.getJSON()`, the ProseMirror node
@@ -254,7 +254,7 @@ The editor knows how to **hold** an image or a video: `extensions/media` defines
 a resizable `<img>` and a resizable `<video controls>`, and ships one way to
 name one — paste a URL. It deliberately knows nothing about the Media Library.
 
-Browsing folders, filtering by kind, and uploading are `@ortha-cms/media-admin`'s
+Browsing folders, filtering by kind, and uploading are `@orthacms/media-admin`'s
 whole job. Importing it here would make rich text unusable in an install without
 a media plugin, and pin the editor to one library's shape forever. So the editor
 declares `WYSIWYG_MEDIA_SLOT` and media-admin fills it — the same inversion
@@ -421,8 +421,8 @@ is an ordinary tab stop.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/wysiwyg-admin`
-- `npx nx lint @ortha-cms/wysiwyg-admin`
+- `npx nx typecheck @orthacms/wysiwyg-admin`
+- `npx nx lint @orthacms/wysiwyg-admin`
 - `npx nx e2e admin-e2e -- --project=chromium wysiwyg-fields` — the suite that
   covers this plugin (`apps/admin-e2e/src/content/wysiwyg-fields.spec.ts`),
   including two axe scans and the saved-HTML assertions. The visible editor is

@@ -6,12 +6,12 @@ import {
     Optional
 } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { UnitOfWork } from '@ortha-cms/database';
+import { UnitOfWork } from '@orthacms/database';
 import {
     WorkspacePurgeRegistry,
     type WorkspacePurger,
     type WorkspacePurgeOutcome
-} from '@ortha-cms/workspaces-server';
+} from '@orthacms/workspaces-server';
 import {
     STORAGE_REGISTRY,
     type StorageRegistry

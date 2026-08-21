@@ -1,4 +1,4 @@
-# @ortha-cms/nx
+# @orthacms/nx
 
 The Ortha CMS **Nx plugin**. Adds first-class `nx` targets for database
 work and is the home for any future Ortha-specific Nx commands. Sits
@@ -6,8 +6,8 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 
 ## Package
 
-- Name: `@ortha-cms/nx`
-- Registered in `nx.json` under `plugins` (`"@ortha-cms/nx"`).
+- Name: `@orthacms/nx`
+- Registered in `nx.json` under `plugins` (`"@orthacms/nx"`).
 - Consumed from source like the other workspace packages. Loaded directly
   as a TypeScript Nx plugin (no build step).
 

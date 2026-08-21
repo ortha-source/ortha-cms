@@ -26,13 +26,13 @@ import {
     type Database,
     type DomainEvent,
     type EventActor
-} from '@ortha-cms/database';
-import { lockWorkspaceShared } from '@ortha-cms/workspaces-server';
+} from '@orthacms/database';
+import { lockWorkspaceShared } from '@orthacms/workspaces-server';
 import {
     isForeignKeyViolation,
     violatedConstraint
-} from '@ortha-cms/utils-server';
-import { mediaValueIds } from '@ortha-cms/content-domain';
+} from '@orthacms/utils-server';
+import { mediaValueIds } from '@orthacms/content-domain';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension

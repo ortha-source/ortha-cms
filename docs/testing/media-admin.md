@@ -1,6 +1,6 @@
-# @ortha-cms/media-admin — Test Artifact
+# @orthacms/media-admin — Test Artifact
 
-> **Unit:** `packages/media/admin` · **Package:** `@ortha-cms/media-admin` · **Kind:** admin plugin
+> **Unit:** `packages/media/admin` · **Package:** `@orthacms/media-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/media/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 10 confirmed · 0 deleted · 4 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -15,9 +15,9 @@ both; the three media **Insights** widgets; and the two **WYSIWYG media sources*
 (`Media Library…` and `Upload files…`) that fill `wysiwyg-admin`'s
 `WYSIWYG_MEDIA_SLOT`.
 
-**Does NOT own:** the API (`@ortha-cms/media-server`), the rich-text editor
-(`@ortha-cms/wysiwyg-admin` — the dependency runs media → wysiwyg, never back),
-the entry form itself (`@ortha-cms/content-admin` owns the slots this fills), or
+**Does NOT own:** the API (`@orthacms/media-server`), the rich-text editor
+(`@orthacms/wysiwyg-admin` — the dependency runs media → wysiwyg, never back),
+the entry form itself (`@orthacms/content-admin` owns the slots this fills), or
 any authorization (`useHasPermission` hides affordances; the server guard is the
 boundary — `.cursor/BUGBOT.md`).
 
@@ -56,12 +56,12 @@ boundary — `.cursor/BUGBOT.md`).
   - WYSIWYG: open a `richtext` field → **Insert ▸ Media ▸ Media Library…**
   - Insights: `http://localhost:4200/workspaces/<id>/insights`
 
-- **Dependencies that must be healthy:** `@ortha-cms/design-system` (Dialog,
-  Drawer, DropdownMenu, ConfirmDialog, Progress, toast), `@ortha-cms/utils-admin`
-  (`apiClient`, `ApiError`, `toApiError`), `@ortha-cms/workspaces-admin`
+- **Dependencies that must be healthy:** `@orthacms/design-system` (Dialog,
+  Drawer, DropdownMenu, ConfirmDialog, Progress, toast), `@orthacms/utils-admin`
+  (`apiClient`, `ApiError`, `toApiError`), `@orthacms/workspaces-admin`
   (`useCurrentWorkspace` — the query keys are workspace-scoped),
-  `@ortha-cms/identity-admin` (`useHasPermission`), `@ortha-cms/content-admin`,
-  `@ortha-cms/insights-admin`, `@ortha-cms/wysiwyg-admin`.
+  `@orthacms/identity-admin` (`useHasPermission`), `@orthacms/content-admin`,
+  `@orthacms/insights-admin`, `@orthacms/wysiwyg-admin`.
 
 ## 2. Feature Inventory
 

@@ -13,8 +13,8 @@ import {
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
-} from '@ortha-cms/identity-server';
-import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+} from '@orthacms/identity-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { RenameFolderUseCase } from '../../application/use-cases/rename-folder.use-case';
 import { RenameFolderDto } from '../../application/dto/rename-folder.dto';
 import { toHttp } from '../to-http';

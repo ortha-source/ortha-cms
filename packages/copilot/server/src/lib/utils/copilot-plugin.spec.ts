@@ -1,4 +1,4 @@
-import type { ModelProvider } from '@ortha-cms/copilot-domain';
+import type { ModelProvider } from '@orthacms/copilot-domain';
 import { CopilotPlugin, type CopilotPluginOptions } from './copilot-plugin';
 import type { CopilotPluginConfig } from '../types/copilot-config';
 

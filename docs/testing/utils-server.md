@@ -1,6 +1,6 @@
-# @ortha-cms/utils-server — Test Artifact
+# @orthacms/utils-server — Test Artifact
 
-> **Unit:** `packages/utils/server` · **Package:** `@ortha-cms/utils-server` · **Kind:** library
+> **Unit:** `packages/utils/server` · **Package:** `@orthacms/utils-server` · **Kind:** library
 > **Source of truth:** `packages/utils/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 3 confirmed · 1 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -75,7 +75,7 @@ curl -si -H "$COOKIE" --get localhost:3000/api/users \
   --data-urlencode 'filter={"field":"passwordHash","op":"eq","value":"x"}' | head -1
 
 # unit suites
-npx nx test @ortha-cms/utils-server
+npx nx test @orthacms/utils-server
 ```
 
 **Dependencies.** `drizzle-orm` ^0.45 (`eq`/`and`/`or`/`not`/`exists`/`inArray`/`ilike`… and
@@ -422,7 +422,7 @@ the JSON contains characters the shell and URL both mangle.
 
 ### 4A. Accessibility & Section 508 Conformance
 
-`@ortha-cms/utils-server` is a pure library: a filter parser/translator, `clampInt`, and two
+`@orthacms/utils-server` is a pure library: a filter parser/translator, `clampInt`, and two
 Postgres error predicates. It has no module, no route, no schema, no string shown to a user,
 and no markup (`src/index.ts`). Every WCAG 2.1 AA success criterion, and Chapter 5's
 502.2/502.3 and 503.4, are **Not Applicable** on that basis alone — enumerating them

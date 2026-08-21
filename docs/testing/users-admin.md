@@ -1,6 +1,6 @@
-# @ortha-cms/users-admin — Test Artifact
+# @orthacms/users-admin — Test Artifact
 
-> **Unit:** `packages/users/admin` · **Package:** `@ortha-cms/users-admin` · **Kind:** admin plugin
+> **Unit:** `packages/users/admin` · **Package:** `@orthacms/users-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/users/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 14 confirmed · 0 deleted · 4 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -72,12 +72,12 @@ Your own profile: sidebar Account menu → "My profile".
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/identity-admin` (`useHasPermission`, `useAuth`, `useLogoutMutation`),
-`@ortha-cms/shell-admin` (`PageTopBar`, the slots), `@ortha-cms/design-system`
+`@orthacms/identity-admin` (`useHasPermission`, `useAuth`, `useLogoutMutation`),
+`@orthacms/shell-admin` (`PageTopBar`, the slots), `@orthacms/design-system`
 (`Table`, `Dialog`, `ConfirmDialog`, `DropdownMenu`, `RadioGroup`, `Pagination`, `toast`,
-`useAppearance`), `@ortha-cms/query-builder-admin` (`QueryBuilderDrawer`),
-`@ortha-cms/utils-admin` (`apiClient`, `useTableUrlState`, `toApiError`, `HTTP_STATUS`,
-`initialsOf`, `avatarColorForId`), `@ortha-cms/activity-admin` (the Activity tab).
+`useAppearance`), `@orthacms/query-builder-admin` (`QueryBuilderDrawer`),
+`@orthacms/utils-admin` (`apiClient`, `useTableUrlState`, `toApiError`, `HTTP_STATUS`,
+`initialsOf`, `avatarColorForId`), `@orthacms/activity-admin` (the Activity tab).
 
 ## 2. Feature Inventory
 

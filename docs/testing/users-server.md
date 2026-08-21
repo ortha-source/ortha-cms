@@ -1,6 +1,6 @@
-# @ortha-cms/users-server — Test Artifact
+# @orthacms/users-server — Test Artifact
 
-> **Unit:** `packages/users/server` · **Package:** `@ortha-cms/users-server` · **Kind:** server plugin
+> **Unit:** `packages/users/server` · **Package:** `@orthacms/users-server` · **Kind:** server plugin
 > **Source of truth:** `packages/users/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 2 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -13,8 +13,8 @@ page, layered per ADR-0003 (`domain / application / infrastructure / http`). It 
 the invite-**issuing** half of the invite flow.
 
 It owns **no tables and ships no migrations**. Every table it touches
-(`users`, `roles`, `tokens`, `sessions`) belongs to `@ortha-cms/identity-server`;
-`workspaces` / `memberships` belong to `@ortha-cms/workspaces-server`. It reaches them
+(`users`, `roles`, `tokens`, `sessions`) belongs to `@orthacms/identity-server`;
+`workspaces` / `memberships` belong to `@orthacms/workspaces-server`. It reaches them
 through those packages' exported Drizzle schema objects.
 
 It does **NOT** own:
@@ -75,10 +75,10 @@ Admin UI: `http://localhost:4200/users`.
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/identity-server` (guards, `users`/`roles`/`tokens`/`sessions` schema, config),
-`@ortha-cms/workspaces-server` (`workspaces`/`memberships`), `@ortha-cms/database`
-(`UnitOfWork` + `OutboxWriter`), `@ortha-cms/utils-server` (`parseFilterTree` /
-`applyFilterTree`), `@ortha-cms/activity-server` (optional — without it every member
+`@orthacms/identity-server` (guards, `users`/`roles`/`tokens`/`sessions` schema, config),
+`@orthacms/workspaces-server` (`workspaces`/`memberships`), `@orthacms/database`
+(`UnitOfWork` + `OutboxWriter`), `@orthacms/utils-server` (`parseFilterTree` /
+`applyFilterTree`), `@orthacms/activity-server` (optional — without it every member
 mutation is unaudited).
 
 ## 2. Feature Inventory
@@ -729,7 +729,7 @@ worked example, alongside `workspaces/server`, which does it correctly).
 
 **Blast radius:** maintenance only. No runtime authorization gap.
 
-**Suggested fix:** import `PERMISSIONS` from `@ortha-cms/identity-server` (already a
+**Suggested fix:** import `PERMISSIONS` from `@orthacms/identity-server` (already a
 dependency for the guard) and swap the seven literals. Do NOT implement.
 
 ---

@@ -1,4 +1,4 @@
-import { getPool } from '@ortha-cms/database';
+import { getPool } from '@orthacms/database';
 
 /**
  * Telling "the database went away" apart from "the code is wrong".

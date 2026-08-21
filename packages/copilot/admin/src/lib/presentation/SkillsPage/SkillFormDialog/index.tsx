@@ -17,12 +17,12 @@ import {
     SelectTrigger,
     SelectValue,
     Textarea
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     MAX_SKILL_DESCRIPTION_LENGTH,
     MAX_SKILL_INSTRUCTIONS_LENGTH,
     SKILL_NAME_PATTERN
-} from '@ortha-cms/copilot-domain';
+} from '@orthacms/copilot-domain';
 import type { CopilotSkillDetail } from '../../../application/useManageSkills';
 
 const messages = defineMessages({

@@ -15,7 +15,7 @@ import {
     toast,
     useAppearance,
     type ThemePreference
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { usePreferences } from '../../../application/usePreferences';
 import { useUpdateTheme } from '../../../application/useUpdateTheme';
 import { ThemePreview } from './ThemePreview';

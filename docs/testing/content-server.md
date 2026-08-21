@@ -1,6 +1,6 @@
-# @ortha-cms/content-server — Test Artifact
+# @orthacms/content-server — Test Artifact
 
-> **Unit:** `packages/content/server` · **Package:** `@ortha-cms/content-server` · **Kind:** server plugin
+> **Unit:** `packages/content/server` · **Package:** `@orthacms/content-server` · **Kind:** server plugin
 > **Source of truth:** `packages/content/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -22,15 +22,15 @@ copilot + MCP tool providers over its own services.
   re-exports them into its drizzle-kit schema and ships the SQL. This plugin has
   no `drizzle.config.ts`.
 - **Field-value rules or the publish gate** — those live in
-  `@ortha-cms/content-domain` and are delegated to
+  `@orthacms/content-domain` and are delegated to
   (`validation/services/entry-validation.service.ts`).
 - **What a locale means.** Locale slugs, scoping, sibling sync and fallbacks are
   behind the `CONTENT_ENTRY_EXTENSION` port that `i18n/server` binds; this
   package forwards `?locale=` / `localeGroupId` as opaque strings.
 - **Media assets** — behind `MEDIA_ASSET_RESOLVER`, bound by the media plugin.
 - **The tenancy boundary** — `WorkspaceGuard` / `CurrentWorkspace` come from
-  `@ortha-cms/workspaces-server`.
-- **The GraphQL protocol** — `@ortha-cms/content-graphql` adapts this package's
+  `@orthacms/workspaces-server`.
+- **The GraphQL protocol** — `@orthacms/content-graphql` adapts this package's
   `public-api/`.
 
 - **Entry points — HTTP routes**
@@ -112,12 +112,12 @@ copilot + MCP tool providers over its own services.
     curl -H "Authorization: Bearer $TOKEN" -H "X-Workspace-Id: $WS" localhost:3000/api/v1/content/test_article
     ```
 
-- **Dependencies that must be healthy:** `@ortha-cms/database` (connection,
-  `UnitOfWork`, `OutboxWriter`), `@ortha-cms/identity-server` (guards,
-  `PERMISSIONS`, `AccessPolicy`, API-token model), `@ortha-cms/workspaces-server`
+- **Dependencies that must be healthy:** `@orthacms/database` (connection,
+  `UnitOfWork`, `OutboxWriter`), `@orthacms/identity-server` (guards,
+  `PERMISSIONS`, `AccessPolicy`, API-token model), `@orthacms/workspaces-server`
   (`WorkspaceGuard`, `CurrentWorkspace`, `workspaceContent` schema,
-  `lockWorkspaceShared`), `@ortha-cms/content-domain` (validation, publish gate,
-  status machine), `@ortha-cms/utils-server` (`clampInt`, `violatedConstraint`,
+  `lockWorkspaceShared`), `@orthacms/content-domain` (validation, publish gate,
+  status machine), `@orthacms/utils-server` (`clampInt`, `violatedConstraint`,
   the filter engine), and — optionally — `i18n/server`, `media/server`,
   `copilot/server`, `tools/server`.
 

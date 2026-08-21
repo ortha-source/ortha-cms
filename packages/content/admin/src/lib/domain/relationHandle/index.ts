@@ -4,7 +4,7 @@
  * slugified title so a handle always renders (matching the mockup).
  */
 
-import { slugify } from '@ortha-cms/utils-admin';
+import { slugify } from '@orthacms/utils-admin';
 import type { ContentField } from '../types/contentType';
 
 /**

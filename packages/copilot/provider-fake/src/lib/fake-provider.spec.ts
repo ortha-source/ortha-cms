@@ -1,4 +1,4 @@
-import type { ModelRequest, ModelStreamEvent } from '@ortha-cms/copilot-domain';
+import type { ModelRequest, ModelStreamEvent } from '@orthacms/copilot-domain';
 import { createFakeProvider } from './fake-provider';
 
 const request: ModelRequest = {

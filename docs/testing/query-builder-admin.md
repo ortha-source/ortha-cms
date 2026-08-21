@@ -1,6 +1,6 @@
-# @ortha-cms/query-builder-admin — Test Artifact
+# @orthacms/query-builder-admin — Test Artifact
 
-> **Unit:** `packages/query-builder/admin` · **Package:** `@ortha-cms/query-builder-admin` · **Kind:** admin library (pure UI)
+> **Unit:** `packages/query-builder/admin` · **Package:** `@orthacms/query-builder-admin` · **Kind:** admin library (pure UI)
 > **Source of truth:** `packages/query-builder/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 14 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -51,10 +51,10 @@ the server's `FilterSchema`, which is the real boundary.
     All three read the tree from `?filter=` via
     `useMemo(() => jsonFilterToTree(filterParam), [filterParam])` and write it
     back on Apply, so a filter is a shareable deep link.
-- **Dependencies that must be healthy** — `@ortha-cms/design-system`
+- **Dependencies that must be healthy** — `@orthacms/design-system`
   (`Select`, `Input`, `Checkbox`, `Popover`, `Drawer`, `Alert`, `Button`,
   `SegmentedControl`, `Spinner`), `react-intl`, `lucide-react`. On the server
-  side, `parseFilterTree` in `@ortha-cms/utils-server` and each collection's
+  side, `parseFilterTree` in `@orthacms/utils-server` and each collection's
   `FilterSchema` — if the wire vocabulary drifts from `WIRE_OP`, every filter
   starts 400ing and nothing in this package would notice.
 

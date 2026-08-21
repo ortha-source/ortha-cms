@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { cn } from '@ortha-cms/design-system';
+import { cn } from '@orthacms/design-system';
 import { Pin, PinOff } from 'lucide-react';
 import type { ContentType } from '../../../../domain/types/contentType';
 

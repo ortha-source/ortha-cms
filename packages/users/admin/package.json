@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/users-admin",
+    "name": "@orthacms/users-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -15,13 +15,13 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/activity-admin": "*",
-        "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/design-system": "*",
-        "@ortha-cms/identity-admin": "*",
-        "@ortha-cms/query-builder-admin": "*",
-        "@ortha-cms/shell-admin": "*",
-        "@ortha-cms/utils-admin": "*",
+        "@orthacms/activity-admin": "*",
+        "@orthacms/bootstrap-admin": "*",
+        "@orthacms/design-system": "*",
+        "@orthacms/identity-admin": "*",
+        "@orthacms/query-builder-admin": "*",
+        "@orthacms/shell-admin": "*",
+        "@orthacms/utils-admin": "*",
         "@tanstack/react-form": "^1.0.0",
         "@tanstack/react-query": "^5.0.0",
         "lucide-react": "^1.17.0",

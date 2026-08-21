@@ -4,12 +4,12 @@ import {
     MODEL_REGISTRY,
     type ModelChoice,
     type ModelRegistry
-} from '@ortha-cms/copilot-domain';
+} from '@orthacms/copilot-domain';
 import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 
 /** What the model picker renders. */
 export interface ModelCatalogue {

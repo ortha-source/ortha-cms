@@ -8,7 +8,7 @@ import type {
     PutObject,
     StorageProvider,
     StoredObject
-} from '@ortha-cms/media-server';
+} from '@orthacms/media-server';
 
 /** Local filesystem provider settings. */
 export interface LocalStorageConfig {

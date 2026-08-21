@@ -16,8 +16,8 @@ import {
     PermissionsGuard,
     RequirePermissions,
     type PublicUser
-} from '@ortha-cms/identity-server';
-import { MembershipCheckQuery } from '@ortha-cms/workspaces-server';
+} from '@orthacms/identity-server';
+import { MembershipCheckQuery } from '@orthacms/workspaces-server';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import { downloadHeadersFor } from '../download-headers';
 

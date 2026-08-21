@@ -10,7 +10,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { TriangleAlert } from 'lucide-react';
 import { PasswordResetLinkPanel } from '../PasswordResetLinkPanel';
 

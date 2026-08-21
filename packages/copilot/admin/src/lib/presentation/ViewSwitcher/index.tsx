@@ -6,8 +6,8 @@ import {
     SegmentedControl,
     SegmentedControlItem,
     SidebarGroup
-} from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+} from '@orthacms/design-system';
+import { useHasPermission } from '@orthacms/identity-admin';
 import {
     COPILOT_USE,
     agentsPath,

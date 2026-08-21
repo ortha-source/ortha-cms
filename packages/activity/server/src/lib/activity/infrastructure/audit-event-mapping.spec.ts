@@ -3,8 +3,8 @@ import {
     createDomainEvent,
     type DomainEvent,
     type EventActor
-} from '@ortha-cms/database';
-import { IDENTITY_ACTIVITY_KINDS } from '@ortha-cms/identity-server';
+} from '@orthacms/database';
+import { IDENTITY_ACTIVITY_KINDS } from '@orthacms/identity-server';
 import {
     AUDITED_EVENT_KINDS,
     toAuditRow,

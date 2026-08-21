@@ -1,6 +1,6 @@
-# @ortha-cms/wysiwyg-admin — Test Artifact
+# @orthacms/wysiwyg-admin — Test Artifact
 
-> **Unit:** `packages/wysiwyg/admin` · **Package:** `@ortha-cms/wysiwyg-admin` · **Kind:** admin plugin
+> **Unit:** `packages/wysiwyg/admin` · **Package:** `@orthacms/wysiwyg-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/wysiwyg/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 4 confirmed · 0 deleted · 9 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -19,7 +19,7 @@ contribution to content-admin's `ENTRY_FIELD_CONTROL_SLOT`**. It owns no server
 counterpart: `richtext` is an existing content field type storing HTML in a text
 column, and this plugin changes the *control*, not the schema, the wire format, or
 the API. It does not own the Media Library (that fills its slot from
-`@ortha-cms/media-admin`; the dependency runs media → wysiwyg), nor the entry
+`@orthacms/media-admin`; the dependency runs media → wysiwyg), nor the entry
 form's Save/Publish, nor the unsaved-changes guard.
 
 - **Entry points**
@@ -41,7 +41,7 @@ form's Save/Publish, nor the unsaved-changes guard.
     **after** the design system's — every rule hangs off `.ortha-wysiwyg`.
   - `content:update` (or `content:create` on a create form) for the editable
     variant; without it the control renders the read-only **View** variant.
-  - `@ortha-cms/media-admin` registered for the two media sources; without it the
+  - `@orthacms/media-admin` registered for the two media sources; without it the
     Insert ▸ Media menu offers only **From a URL**.
 
 - **How to exercise it manually**
@@ -53,11 +53,11 @@ form's Save/Publish, nor the unsaved-changes guard.
   `npx nx e2e admin-e2e -- --project=chromium wysiwyg-fields`.
 
 - **Dependencies that must be healthy:** `@tiptap/*` (StarterKit, text-style,
-  highlight, text-align, table, extensions), `@ortha-cms/design-system` (Button,
+  highlight, text-align, table, extensions), `@orthacms/design-system` (Button,
   Popover, DropdownMenu, Dialog, Tooltip, Checkbox, Input, Label),
-  `@ortha-cms/content-admin` (`EntryFieldControlContext`, the slot, the
+  `@orthacms/content-admin` (`EntryFieldControlContext`, the slot, the
   `<FieldError>` the control points `aria-describedby` at),
-  `@ortha-cms/utils-admin` (`createSlot`, `byOrder`), `react-intl`.
+  `@orthacms/utils-admin` (`createSlot`, `byOrder`), `react-intl`.
 
 - **The bundle guard is a number:** the admin's entry chunk is ~255 kB with TipTap
   out in `editorExtensions-*.js` at ~420 kB. If the entry chunk moves, the lazy

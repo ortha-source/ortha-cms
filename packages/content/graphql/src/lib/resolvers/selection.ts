@@ -7,7 +7,7 @@ import {
     PublicEntryQueryDto,
     PublicListEntriesQueryDto,
     type AnyContentType
-} from '@ortha-cms/content-server';
+} from '@orthacms/content-server';
 import { validateSync } from 'class-validator';
 import {
     Kind,

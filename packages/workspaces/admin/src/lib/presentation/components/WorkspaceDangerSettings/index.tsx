@@ -11,7 +11,7 @@ import {
     ConfirmDialog,
     Separator,
     toast
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type { Workspace } from '../../../domain/types/workspace';
 import { useSetWorkspaceStatus } from '../../../application/useSetWorkspaceStatus';
 import { useDeleteWorkspace } from '../../../application/useDeleteWorkspace';

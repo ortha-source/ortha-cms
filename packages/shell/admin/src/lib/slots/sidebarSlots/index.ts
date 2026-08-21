@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { createSlot } from '@ortha-cms/utils-admin';
+import { createSlot } from '@orthacms/utils-admin';
 
 /**
  * The section a {@link SidebarItem} belongs to in the global sidebar's primary

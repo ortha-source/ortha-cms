@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { UnitOfWork } from '@ortha-cms/database';
-import { roles, users } from '@ortha-cms/identity-server';
+import { UnitOfWork } from '@orthacms/database';
+import { roles, users } from '@orthacms/identity-server';
 import type {
     MemberInput,
     MemberProvisioner

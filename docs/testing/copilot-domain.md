@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-domain — Test Artifact
+# @orthacms/copilot-domain — Test Artifact
 
-> **Unit:** `packages/copilot/domain` · **Package:** `@ortha-cms/copilot-domain` · **Kind:** library (framework-free core)
+> **Unit:** `packages/copilot/domain` · **Package:** `@orthacms/copilot-domain` · **Kind:** library (framework-free core)
 > **Source of truth:** `packages/copilot/domain/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 6 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -29,7 +29,7 @@ relative. In particular **no vendor SDK**, which is ADR-0004 §1's whole point.
 **Does NOT own:**
 
 - **The tool contract or the registry.** `ToolSpec`, `ToolContext` and
-  `COPILOT_TOOL_PROVIDER` are gone — they live in `@ortha-cms/tools-server`
+  `COPILOT_TOOL_PROVIDER` are gone — they live in `@orthacms/tools-server`
   ([ADR-0007](../adr/0007-one-tool-registry-two-surfaces.md)). What is left here
   is the *offer-time policy*, generic over a three-field structural type
   (`AuthorizableTool`) so this package still imports nothing.
@@ -80,16 +80,16 @@ the property to protect.
 ### How to exercise it manually
 
 ```bash
-npx nx test @ortha-cms/copilot-domain     # 🧪 six spec files
-npx nx typecheck @ortha-cms/copilot-domain
-npx nx lint @ortha-cms/copilot-domain
+npx nx test @orthacms/copilot-domain     # 🧪 six spec files
+npx nx typecheck @orthacms/copilot-domain
+npx nx lint @orthacms/copilot-domain
 ```
 
 To check the one hard rule has not been broken:
 
 ```bash
 cat packages/copilot/domain/package.json | grep -c dependencies   # must be 0
-grep -rn "from '@" packages/copilot/domain/src | grep -v "@ortha-cms/copilot-domain"
+grep -rn "from '@" packages/copilot/domain/src | grep -v "@orthacms/copilot-domain"
 # must print nothing — every import is relative
 ```
 
@@ -211,7 +211,7 @@ below for the two things that *are* this unit's business.
 
 | Step | Action | Expected result / **Observed** |
 | --- | --- | --- |
-| 1 | `npx nx test @ortha-cms/copilot-domain` | `model-capabilities.spec.ts` passes: a frontier model has no shortfalls, a laptop model has all three |
+| 1 | `npx nx test @orthacms/copilot-domain` | `model-capabilities.spec.ts` passes: a frontier model has no shortfalls, a laptop model has all three |
 | 2 | Configure `createOpenAiProvider({ capabilities: { toolCalling: false }, … })` and make it the default; restart | **Expected** per ADR-0004 §4: the engine falls back to "a constrained single-shot protocol with a reduced tool set", and "the UI states the active mode in words". **Observed:** nothing. Tools are sent anyway, the model ignores them, and the UI says nothing → 🐞 BUG-copilot-domain-01 |
 | 3 | `grep -rn "baselineShortfalls\|meetsSupportedBaseline" packages apps \| grep -v copilot/domain` | **No results.** Also `grep -rn "\.capabilities(" packages apps \| grep -v spec` returns only `apps/server-e2e/src/support/copilot.ts:37` |
 
@@ -1014,7 +1014,7 @@ run — which would also close EC-39, EC-40 and EC-41.
 
 ## 7. Recommended E2E Tests
 
-Harness: **unit** = `npx nx test @ortha-cms/copilot-domain`;
+Harness: **unit** = `npx nx test @orthacms/copilot-domain`;
 **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 
 | Priority | Harness | Proposed spec | Asserts | Closes |

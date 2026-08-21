@@ -1,8 +1,8 @@
-# @ortha-cms/media-provider-local
+# @orthacms/media-provider-local
 
 The **default** storage provider for the Media Library — a filesystem
 `StorageProvider` that streams blobs to a directory on disk. Depends only on
-`@ortha-cms/media-server` (for the port **type**, erased at runtime) and node
+`@orthacms/media-server` (for the port **type**, erased at runtime) and node
 built-ins; it imports no framework.
 
 ## What it exports
@@ -88,11 +88,11 @@ at a persistent volume for a real deployment (a fresh container's disk is wiped)
 
 ## Commands
 
-- `npx nx test @ortha-cms/media-provider-local` — the unit suite. It runs against
+- `npx nx test @orthacms/media-provider-local` — the unit suite. It runs against
   a **real temporary directory**, not a mocked `fs`: every claim worth making
   here is about bytes, modes, and what survives a failure, and a mock can only
   confirm which calls were made. Assert on the disk.
-- `npx nx typecheck @ortha-cms/media-provider-local` / `npx nx lint @ortha-cms/media-provider-local`
+- `npx nx typecheck @orthacms/media-provider-local` / `npx nx lint @orthacms/media-provider-local`
 - The cross-package half lives in `apps/server-e2e/src/server/media/media-local-storage.spec.ts`,
   which boots the app with `createTestApp({ localMediaRoot })` so the media
   routes run on this provider instead of the harness's in-memory `Map`.

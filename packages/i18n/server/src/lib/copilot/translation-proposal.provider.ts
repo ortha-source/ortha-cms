@@ -1,15 +1,15 @@
 import { Injectable, Optional, type OnModuleInit } from '@nestjs/common';
-import { PERMISSIONS } from '@ortha-cms/identity-server';
+import { PERMISSIONS } from '@orthacms/identity-server';
 import {
     BULK_MAX_SAVE_ITEMS,
     InjectContentRegistry,
     WorkspaceGrantsQuery,
     type ContentTypeRegistry,
     type SerializedField
-} from '@ortha-cms/content-server';
-import type { ProposalChange, ProposalDraft } from '@ortha-cms/copilot-domain';
-import { ToolRegistry } from '@ortha-cms/tools-server';
-import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
+} from '@orthacms/content-server';
+import type { ProposalChange, ProposalDraft } from '@orthacms/copilot-domain';
+import { ToolRegistry } from '@orthacms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
 import { LocaleRegistryService } from '../locales/services/locale-registry.service';
 import {
     LocaleGroupService,

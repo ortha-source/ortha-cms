@@ -20,9 +20,9 @@ import {
     TableHeader,
     TableRow,
     toast
-} from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+} from '@orthacms/design-system';
+import { useHasPermission } from '@orthacms/identity-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import {
     skillWriteMessage,
     useCreateSkill,
@@ -34,7 +34,7 @@ import {
 import type { CopilotSkill } from '../../application/useSkills';
 import { COPILOT_SKILLS_MANAGE, agentsPath } from '../../domain/agentsRoute';
 import { SkillFormDialog, type SkillFormValues } from './SkillFormDialog';
-import { useDocumentTitle } from '@ortha-cms/utils-admin';
+import { useDocumentTitle } from '@orthacms/utils-admin';
 
 const messages = defineMessages({
     title: { id: 'copilot.skills.page.title', defaultMessage: 'Skills' },

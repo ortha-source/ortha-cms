@@ -12,7 +12,7 @@ import {
     DialogHeader,
     DialogTitle,
     toast
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 
 const messages = defineMessages({
     title: {

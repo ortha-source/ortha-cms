@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { cn } from '@ortha-cms/design-system';
+import { cn } from '@orthacms/design-system';
 import type { ResizeEdge } from '../../application/panelFrame';
 import {
     keyboardStep,

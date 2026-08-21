@@ -1,4 +1,4 @@
-# @ortha-cms/utils-server
+# @orthacms/utils-server
 
 Server-side shared utilities for Ortha CMS. Two concerns:
 
@@ -17,8 +17,8 @@ plugin can import.
 
 ## Package
 
-- Name: `@ortha-cms/utils-server`
-- Import: `import { applyFilterTree, parseFilterTree } from '@ortha-cms/utils-server'`
+- Name: `@orthacms/utils-server`
+- Import: `import { applyFilterTree, parseFilterTree } from '@orthacms/utils-server'`
 
 ## Conventions
 
@@ -148,5 +148,5 @@ Internal files (not exported): `parse-filter-tree.ts`, `tree-to-drizzle.ts`,
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/utils-server`
-- `npx nx test @ortha-cms/utils-server`
+- `npx nx typecheck @orthacms/utils-server`
+- `npx nx test @orthacms/utils-server`

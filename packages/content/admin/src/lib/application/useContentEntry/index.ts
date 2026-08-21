@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { STALE_TIME } from '@ortha-cms/utils-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
+import { STALE_TIME } from '@orthacms/utils-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import type { EntryRecord } from '../../domain/types/contentType';
 import { contentEntryKey } from '../../infrastructure/contentKeys';
 import { httpContentGateway } from '../../infrastructure/httpContentGateway';

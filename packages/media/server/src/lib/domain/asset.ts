@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@ortha-cms/database';
+import type { DomainEvent } from '@orthacms/database';
 import type { StoredMediaTrack } from '../infrastructure/schema/media-asset';
 import { AssetId } from './value-objects/asset-id';
 import { FolderId } from './value-objects/folder-id';

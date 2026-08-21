@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/shell-admin",
+    "name": "@orthacms/shell-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -15,10 +15,10 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/bootstrap-admin": "*",
-        "@ortha-cms/design-system": "*",
-        "@ortha-cms/identity-admin": "*",
-        "@ortha-cms/utils-admin": "*",
+        "@orthacms/bootstrap-admin": "*",
+        "@orthacms/design-system": "*",
+        "@orthacms/identity-admin": "*",
+        "@orthacms/utils-admin": "*",
         "lucide-react": "^1.17.0",
         "react-intl": "^7.0.0"
     },

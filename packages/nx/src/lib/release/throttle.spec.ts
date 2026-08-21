@@ -231,9 +231,9 @@ describe('withPublishSlot', () => {
 
 describe('the new-name circuit breaker', () => {
     it('reads back the package that first hit the limit', () => {
-        tripCreationLimit(dir, '@ortha-cms/media-server');
+        tripCreationLimit(dir, '@orthacms/media-server');
 
-        expect(creationLimitTrippedBy(dir)).toBe('@ortha-cms/media-server');
+        expect(creationLimitTrippedBy(dir)).toBe('@orthacms/media-server');
     });
 
     it('is closed until something trips it', () => {
@@ -242,8 +242,8 @@ describe('the new-name circuit breaker', () => {
 
     it('creates its directory rather than failing a publish over bookkeeping', () => {
         const fresh = join(dir, 'not', 'there', 'yet');
-        tripCreationLimit(fresh, '@ortha-cms/x');
+        tripCreationLimit(fresh, '@orthacms/x');
 
-        expect(creationLimitTrippedBy(fresh)).toBe('@ortha-cms/x');
+        expect(creationLimitTrippedBy(fresh)).toBe('@orthacms/x');
     });
 });

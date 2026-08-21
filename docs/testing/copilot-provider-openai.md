@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-provider-openai — Test Artifact
+# @orthacms/copilot-provider-openai — Test Artifact
 
-> **Unit:** `packages/copilot/provider-openai` · **Package:** `@ortha-cms/copilot-provider-openai` · **Kind:** adapter (`ModelProvider` implementation)
+> **Unit:** `packages/copilot/provider-openai` · **Package:** `@orthacms/copilot-provider-openai` · **Kind:** adapter (`ModelProvider` implementation)
 > **Source of truth:** `packages/copilot/provider-openai/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 10 corrected · 2 unverified
 > **Generated:** 2026-08-11
@@ -23,7 +23,7 @@ LiteLLM, OpenRouter, Azure and OpenAI itself are all reachable through it.
 | Wire types | `src/lib/wire/types.ts` |
 
 **No SDK.** `package.json` declares exactly one dependency,
-`@ortha-cms/copilot-domain`, which is a **type-only** import erased at runtime.
+`@orthacms/copilot-domain`, which is a **type-only** import erased at runtime.
 Everything else is Node built-ins: `fetch`, `TextDecoder`, `AbortSignal`,
 `ReadableStream`. This is the ADR-0004 §1 rule holding in the strongest possible
 form — this package could not import a vendor SDK if it wanted to.
@@ -119,16 +119,16 @@ COPILOT_OPENAI_BASE_URL=http://localhost:8099/v1 COPILOT_PROVIDER=ollama npm run
 Automated:
 
 ```bash
-npx nx test @ortha-cms/copilot-provider-openai   # 🧪 two specs, fetch mocked
-npx nx typecheck @ortha-cms/copilot-provider-openai
-npx nx lint @ortha-cms/copilot-provider-openai
+npx nx test @orthacms/copilot-provider-openai   # 🧪 two specs, fetch mocked
+npx nx typecheck @orthacms/copilot-provider-openai
+npx nx lint @orthacms/copilot-provider-openai
 ```
 
 ### Dependencies that must be healthy
 
 - Node ≥ 20 for `fetch`, `AbortSignal.timeout` and `AbortSignal.any`
   (`openai-provider.ts:60-61`).
-- `@ortha-cms/copilot-domain` — the port, `resolveModel`, `isAbortError`,
+- `@orthacms/copilot-domain` — the port, `resolveModel`, `isAbortError`,
   `abortedEvent`.
 - The configured endpoint, which must accept `POST /chat/completions` with
   `stream: true` and answer `text/event-stream`.
@@ -952,7 +952,7 @@ endpoint fails on the second turn.
 ### Checked and cleared
 
 - **Does this package import a vendor SDK?** No. `package.json` declares only
-  `@ortha-cms/copilot-domain`, a type-only dependency. ADR-0004 §1 holds in the
+  `@orthacms/copilot-domain`, a type-only dependency. ADR-0004 §1 holds in the
   strongest form.
 - **Can a *caller* influence `baseUrl`, `headers` or `apiKey`?** No. None is on
   `CreateRunDto` (`packages/copilot/server/src/lib/chat/application/dto/create-run.dto.ts:135-231`);
@@ -985,7 +985,7 @@ endpoint fails on the second turn.
 
 ## 7. Recommended E2E Tests
 
-Harness: **unit** = `npx nx test @ortha-cms/copilot-provider-openai` (`fetch`
+Harness: **unit** = `npx nx test @orthacms/copilot-provider-openai` (`fetch`
 mocked); **server-e2e** = `apps/server-e2e` testcontainer + supertest with a
 local HTTP stub standing in for the endpoint.
 

@@ -3,8 +3,8 @@ import {
     PERMISSIONS,
     PermissionsGuard,
     RequirePermissions
-} from '@ortha-cms/identity-server';
-import { CurrentWorkspace, WorkspaceGuard } from '@ortha-cms/workspaces-server';
+} from '@orthacms/identity-server';
+import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import { MediaInsightsQuery } from '../../infrastructure/queries/media-insights.query';
 import type {
     MediaAltCoverageView,

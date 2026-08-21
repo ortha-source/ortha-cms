@@ -9,8 +9,8 @@ import {
     type PublicEntry,
     type PublicMediaRef,
     type PublicRelationFieldView
-} from '@ortha-cms/content-server';
-import { PERMISSIONS } from '@ortha-cms/identity-server';
+} from '@orthacms/content-server';
+import { PERMISSIONS } from '@orthacms/identity-server';
 import type { GraphQLFieldResolver } from 'graphql';
 import type { GraphqlContext } from './context';
 import {

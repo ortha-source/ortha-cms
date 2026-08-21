@@ -1,6 +1,6 @@
-# @ortha-cms/bootstrap-server — Test Artifact
+# @orthacms/bootstrap-server — Test Artifact
 
-> **Unit:** `packages/bootstrap/server` · **Package:** `@ortha-cms/bootstrap-server` · **Kind:** host
+> **Unit:** `packages/bootstrap/server` · **Package:** `@orthacms/bootstrap-server` · **Kind:** host
 > **Source of truth:** `packages/bootstrap/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -15,7 +15,7 @@ reference (`utils/setup-api-docs.ts`), and `app.listen` (`create-server.ts:40`).
 
 **Does NOT own.** No guards (`AGENTS.md` "Not owned here"), no auth, no sessions, no CORS
 call, no exception filter, no interceptor, no shutdown hook, no schema, no migrations
-(it only *declares* the `migrations` descriptor shape — `@ortha-cms/nx` applies them), no
+(it only *declares* the `migrations` descriptor shape — `@orthacms/nx` applies them), no
 health endpoint, no logger configuration, no rate limiting, and no plugin registry: the
 list is handed in by `apps/server/src/plugins.ts`.
 
@@ -332,7 +332,7 @@ render — outbound access to the jsDelivr CDN unless `docs.cdn` points at a loc
 
 ### 4A. Accessibility & Section 508 Conformance
 
-`@ortha-cms/bootstrap-server` is the **API** host. It renders no UI, ships no template, and
+`@orthacms/bootstrap-server` is the **API** host. It renders no UI, ships no template, and
 emits no HTML of its own — `createServer` sets a prefix, a `ValidationPipe`, mounts docs and
 listens (`packages/bootstrap/server/src/lib/create-server.ts:13-44`). The admin-host
 questions this section usually asks are therefore answered elsewhere and are recorded here

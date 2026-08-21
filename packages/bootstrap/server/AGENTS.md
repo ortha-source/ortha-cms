@@ -1,4 +1,4 @@
-# @ortha-cms/bootstrap-server
+# @orthacms/bootstrap-server
 
 The server-side **host** for the Ortha CMS. Turns a list of plugins into a
 running NestJS app. Owns the cross-cutting wiring that must exist exactly once;
@@ -6,8 +6,8 @@ contains no features.
 
 ## Package
 
-- Name: `@ortha-cms/bootstrap-server`
-- Import: `import { createServer, type ServerPlugin } from '@ortha-cms/bootstrap-server'`
+- Name: `@orthacms/bootstrap-server`
+- Import: `import { createServer, type ServerPlugin } from '@orthacms/bootstrap-server'`
 - Server-only. Consumed from source like the other workspace packages.
 - Lives at `packages/bootstrap/server` (grouped layout); npm name stays
   hyphenated.
@@ -53,7 +53,7 @@ contains no features.
 - **Lifecycle.** Before `NestFactory.create`, `createServer` runs each plugin's
   `onPluginInit()` **in array order**. This is the hook a plugin uses for setup
   that must complete before the app boots (e.g.
-  [`@ortha-cms/database`](../../database/AGENTS.md) opens its connection here).
+  [`@orthacms/database`](../../database/AGENTS.md) opens its connection here).
   List resource-providing plugins (database) first — but be precise about what
   that buys, because it is easy to over-claim: **every** hook runs before
   `NestFactory.create`, so by the time any provider is instantiated the database
@@ -158,12 +158,12 @@ registered **first**, so it still wins when it lives under the UI mount.
 - **Auth is plugin-described.** The host has no guards, so it doesn't invent
   security schemes: a plugin declares its own through `ServerPlugin.docs`
   (`securitySchemes` + `defaultSecurity`), and `setupApiDocs` merges every
-  plugin's contribution. `@ortha-cms/identity-server` contributes the
+  plugin's contribution. `@orthacms/identity-server` contributes the
   `ortha_session` cookie and the bearer API token.
 - **A plugin with a dynamic contract describes itself.** `ServerPlugin.docs`
   also takes a `decorate(document)` hook, run last (after tagging), in
   registration order. It exists because the scanner only sees static
-  TypeScript: `@ortha-cms/content-server` serves every code-defined content type
+  TypeScript: `@orthacms/content-server` serves every code-defined content type
   through one generic controller set, so it uses this hook to add a schema per
   registered type and attach them to its own routes — see that package's
   `AGENTS.md`. A plugin amends only what it owns; the document is shared.
@@ -196,7 +196,7 @@ createServer({
   document, but `@ApiOperation`/`@ApiResponse` belong on the plugins' controllers
 - Lifecycle beyond `onPluginInit` and `enableShutdownHooks`. The host turns
   shutdown hooks **on**, so a plugin gets `onModuleDestroy` on `SIGTERM`; what
-  it does with it is the plugin's business. Note `@ortha-cms/database` binds
+  it does with it is the plugin's business. Note `@orthacms/database` binds
   none, so the pg pool is not drained on shutdown — harmless when the process
   is about to exit anyway, and the reason an embedding host that keeps running
   must call `closeDatabase()` itself.
@@ -231,5 +231,5 @@ itself without ending the run.
 
 ## Commands
 
-- `npm exec nx typecheck @ortha-cms/bootstrap-server`
-- `npm exec nx build @ortha-cms/bootstrap-server`
+- `npm exec nx typecheck @orthacms/bootstrap-server`
+- `npm exec nx build @orthacms/bootstrap-server`

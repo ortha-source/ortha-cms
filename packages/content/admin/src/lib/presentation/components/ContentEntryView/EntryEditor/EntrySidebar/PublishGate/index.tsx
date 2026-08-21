@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Check, X } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
+import { cn } from '@orthacms/design-system';
 import { EntrySidebarSection } from '../../../../EntrySidebarSection';
 
 /** One row of the publish gate: a field check with its live pass/fail. */

@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { GitCompare, Rocket, RotateCcw } from 'lucide-react';
-import { Badge, Button } from '@ortha-cms/design-system';
+import { Badge, Button } from '@orthacms/design-system';
 import type {
     RevisionStatus,
     RevisionSummary

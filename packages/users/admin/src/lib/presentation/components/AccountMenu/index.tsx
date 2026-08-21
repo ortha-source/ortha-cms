@@ -10,13 +10,13 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem
-} from '@ortha-cms/design-system';
-import { avatarColorForId, initialsOf } from '@ortha-cms/utils-admin';
+} from '@orthacms/design-system';
+import { avatarColorForId, initialsOf } from '@orthacms/utils-admin';
 import {
     AuthStatus,
     useAuth,
     useLogoutMutation
-} from '@ortha-cms/identity-admin';
+} from '@orthacms/identity-admin';
 import { MemberAvatar } from '../MemberAvatar';
 
 /** Intl descriptors for {@link AccountMenu}, co-located with the component. */

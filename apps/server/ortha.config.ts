@@ -10,15 +10,15 @@
 import type {
     ApiDocsOptions,
     TrustProxySetting
-} from '@ortha-cms/bootstrap-server';
-import type { CopilotPluginConfig } from '@ortha-cms/copilot-server';
-import type { AnthropicProviderConfig } from '@ortha-cms/copilot-provider-anthropic';
-import type { OpenAiProviderConfig } from '@ortha-cms/copilot-provider-openai';
-import type { ContentGraphqlPluginConfig } from '@ortha-cms/content-graphql';
-import type { IdentityPluginConfig } from '@ortha-cms/identity-server';
-import type { I18nPluginConfig } from '@ortha-cms/i18n-server';
-import type { McpPluginConfig } from '@ortha-cms/mcp-server';
-import type { MediaPluginConfig } from '@ortha-cms/media-server';
+} from '@orthacms/bootstrap-server';
+import type { CopilotPluginConfig } from '@orthacms/copilot-server';
+import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
+import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
+import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
+import type { IdentityPluginConfig } from '@orthacms/identity-server';
+import type { I18nPluginConfig } from '@orthacms/i18n-server';
+import type { McpPluginConfig } from '@orthacms/mcp-server';
+import type { MediaPluginConfig } from '@orthacms/media-server';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this

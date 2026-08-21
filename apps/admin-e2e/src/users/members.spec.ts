@@ -17,7 +17,7 @@ const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
 )[0];
 
 /**
- * The Members page (`/users`, `@ortha-cms/users-admin`): rendering the roster,
+ * The Members page (`/users`, `@orthacms/users-admin`): rendering the roster,
  * search, the invite wizard, status-dependent row actions, the guardrail
  * tooltips for the sole admin, and permission gating. The backend is the
  * `GET /api/users` mock; `mockSignedIn` satisfies the shell's auth probe.

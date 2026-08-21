@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { OrphanedLocaleChecker } from '@ortha-cms/i18n-server';
+import { OrphanedLocaleChecker } from '@orthacms/i18n-server';
 import {
     closeTestApp,
     createTestApp,

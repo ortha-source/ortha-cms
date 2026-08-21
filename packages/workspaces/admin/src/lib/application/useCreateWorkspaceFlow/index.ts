@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@ortha-cms/identity-admin';
-import { initialsOf } from '@ortha-cms/utils-admin';
-import { toast } from '@ortha-cms/design-system';
+import { useAuth } from '@orthacms/identity-admin';
+import { initialsOf } from '@orthacms/utils-admin';
+import { toast } from '@orthacms/design-system';
 import { Slug } from '../../domain/slug';
 import type { WorkspaceMember } from '../../domain/types/workspace';
 import type { WizardSnapshot } from '../../domain/types/wizard';

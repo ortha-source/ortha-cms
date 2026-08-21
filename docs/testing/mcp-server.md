@@ -1,6 +1,6 @@
-# @ortha-cms/mcp-server — Test Artifact
+# @orthacms/mcp-server — Test Artifact
 
-> **Unit:** `packages/mcp/server` · **Package:** `@ortha-cms/mcp-server` · **Kind:** server plugin (protocol adapter)
+> **Unit:** `packages/mcp/server` · **Package:** `@orthacms/mcp-server` · **Kind:** server plugin (protocol adapter)
 > **Source of truth:** `packages/mcp/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -20,7 +20,7 @@ validation (`src/lib/utils/mcp-plugin.ts`).
 
 - **The tool registry.** `ToolDefinition` / `ToolContext` / `ToolProvider` /
   `ToolRegistry` / `createToolContext` / `toToolError` all moved to
-  `@ortha-cms/tools-server` ([ADR-0007](../adr/0007-one-tool-registry-two-surfaces.md)).
+  `@orthacms/tools-server` ([ADR-0007](../adr/0007-one-tool-registry-two-surfaces.md)).
   This module **imports** `ToolsModule` (`src/lib/mcp.module.ts:30`), never
   provides it. See `docs/testing/tools-server.md`.
 - **Any tool.** All 12 MCP content tools come from `content/server`
@@ -123,17 +123,17 @@ Through a real client:
 Automated:
 
 ```bash
-npx nx test @ortha-cms/mcp-server                    # 🧪 unit: auth rules + plugin validation
+npx nx test @orthacms/mcp-server                    # 🧪 unit: auth rules + plugin validation
 npx nx e2e server-e2e --testPathPatterns=mcp         # wire-level, needs Docker
 ```
 
 ### Dependencies that must be healthy
 
-- `@ortha-cms/identity-server` — `ApiTokenService.verify`, `scopePermissions`,
+- `@orthacms/identity-server` — `ApiTokenService.verify`, `scopePermissions`,
   `@Public()`. A revoked token must fail **immediately** (`mcp.spec.ts:198`).
-- `@ortha-cms/workspaces-server` — `WORKSPACE_HEADER` (`'x-workspace-id'`,
+- `@orthacms/workspaces-server` — `WORKSPACE_HEADER` (`'x-workspace-id'`,
   `workspace.guard.ts:7`) and `WORKSPACE_ID_PATTERN` (`workspace-access.ts:10`).
-- `@ortha-cms/tools-server` — the registry. If it holds a duplicate tool name,
+- `@orthacms/tools-server` — the registry. If it holds a duplicate tool name,
   **every** method here 500s (see `docs/testing/tools-server.md`
   🐞 BUG-tools-server-03).
 - `@modelcontextprotocol/sdk` — the only runtime dependency ADR-0006 accepted,
@@ -311,7 +311,7 @@ terminal emulator. This unit renders no UI — see §4A.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx test @ortha-cms/mcp-server` | The `mcp-plugin.spec.ts` cases pass: blank name and blank version each throw at construction |
+| 1 | `npx nx test @orthacms/mcp-server` | The `mcp-plugin.spec.ts` cases pass: blank name and blank version each throw at construction |
 | 2 | Set `MCP_ENABLED=false`, `COPILOT_ENABLED=true`, restart | `POST /api/v1/mcp` 404s; a copilot run still calls `media_assets_search` successfully. The registry is bound either way |
 
 ### F34 — argument validation (the gap)
@@ -886,7 +886,7 @@ token format changes.
 ## 7. Recommended E2E Tests
 
 Harness: **server-e2e** = `apps/server-e2e` testcontainer + supertest, driving
-raw JSON-RPC as `mcp.spec.ts` already does. **unit** = `npx nx test @ortha-cms/mcp-server`.
+raw JSON-RPC as `mcp.spec.ts` already does. **unit** = `npx nx test @orthacms/mcp-server`.
 
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |

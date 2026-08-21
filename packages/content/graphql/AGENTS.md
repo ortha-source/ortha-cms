@@ -1,9 +1,9 @@
-# @ortha-cms/content-graphql
+# @orthacms/content-graphql
 
 The public content API **over GraphQL** — `POST /api/v1/graphql`. Same bearer
 tokens, same workspace bucket, same scopes, same visibility rules as
 `/api/v1/content`: a second **protocol** in front of the surface
-[`@ortha-cms/content-server`](../server/AGENTS.md)'s `public-api/` already
+[`@orthacms/content-server`](../server/AGENTS.md)'s `public-api/` already
 serves over REST, not a second API.
 
 Owns no schema, ships no migrations, and adds no credential. A token minted
@@ -315,8 +315,8 @@ also what the wider tooling ecosystem expects. See `coercedVariables` in
 
 ## Commands
 
-- `npx nx test @ortha-cms/content-graphql` — the unit suite (schema build,
+- `npx nx test @orthacms/content-graphql` — the unit suite (schema build,
   naming, selection derivation, limits, error mapping, cache).
-- `npx nx typecheck @ortha-cms/content-graphql` / `npx nx lint @ortha-cms/content-graphql`
+- `npx nx typecheck @orthacms/content-graphql` / `npx nx lint @orthacms/content-graphql`
 - `npx nx e2e server-e2e -- --testPathPatterns public-graphql` — the endpoint
   suites (needs Docker for the testcontainer).

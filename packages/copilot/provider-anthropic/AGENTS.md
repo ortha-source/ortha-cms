@@ -1,4 +1,4 @@
-# @ortha-cms/copilot-provider-anthropic
+# @orthacms/copilot-provider-anthropic
 
 The **native Claude** adapter — a `ModelProvider` over `@anthropic-ai/sdk`. The
 default for tool-heavy work, and the path on which native capabilities stay
@@ -151,6 +151,6 @@ calling, so the adapter reports `true`.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/copilot-provider-anthropic`
-- `npx nx lint @ortha-cms/copilot-provider-anthropic`
-- `npx nx test @ortha-cms/copilot-provider-anthropic`
+- `npx nx typecheck @orthacms/copilot-provider-anthropic`
+- `npx nx lint @orthacms/copilot-provider-anthropic`
+- `npx nx test @orthacms/copilot-provider-anthropic`

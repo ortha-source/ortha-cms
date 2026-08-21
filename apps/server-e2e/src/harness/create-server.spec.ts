@@ -5,8 +5,8 @@ import {
     setupApiDocs,
     type ApiDocsOptions,
     type ServerPlugin
-} from '@ortha-cms/bootstrap-server';
-import { closeDatabase } from '@ortha-cms/database';
+} from '@orthacms/bootstrap-server';
+import { closeDatabase } from '@orthacms/database';
 import request from 'supertest';
 import { buildTestPlugins } from '../support/plugins';
 import { resolveDatabaseUrl } from '../support/db-url';

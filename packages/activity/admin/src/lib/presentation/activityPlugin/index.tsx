@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
-import type { AdminPlugin } from '@ortha-cms/bootstrap-admin';
-import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@ortha-cms/shell-admin';
+import type { AdminPlugin } from '@orthacms/bootstrap-admin';
+import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../components/ActivityLogSkeleton';
 import { RecentActivityPanel } from '../components/RecentActivityPanel';

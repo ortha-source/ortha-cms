@@ -1,5 +1,5 @@
 import { defineMessages } from 'react-intl';
-import { FIELD_TYPE, type FilterField } from '@ortha-cms/query-builder-admin';
+import { FIELD_TYPE, type FilterField } from '@orthacms/query-builder-admin';
 
 /**
  * Field labels for the activity query builder, co-located per the admin i18n

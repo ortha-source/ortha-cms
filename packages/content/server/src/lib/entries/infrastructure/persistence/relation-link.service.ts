@@ -17,7 +17,7 @@ import {
     type AnyColumn
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
+import { InjectDatabase, type Database } from '@orthacms/database';
 import {
     ENTRY_STATUS,
     type AnyContentType,

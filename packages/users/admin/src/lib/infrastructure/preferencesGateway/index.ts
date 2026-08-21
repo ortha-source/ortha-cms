@@ -1,5 +1,5 @@
-import { apiClient, toApiError } from '@ortha-cms/utils-admin';
-import type { ThemePreference } from '@ortha-cms/design-system';
+import { apiClient, toApiError } from '@orthacms/utils-admin';
+import type { ThemePreference } from '@orthacms/design-system';
 
 /**
  * The current user's own preferences, as carried over `/api/preferences`.

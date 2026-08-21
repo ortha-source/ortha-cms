@@ -1,6 +1,6 @@
 /**
  * The Content Library's **extension slots** — the named seams another admin
- * plugin (e.g. `@ortha-cms/i18n-admin`) contributes UI and behavior into,
+ * plugin (e.g. `@orthacms/i18n-admin`) contributes UI and behavior into,
  * with no coupling beyond these contracts. Mirrors the workspace shell's
  * `WORKSPACE_SIDEBAR_SLOT` idiom: this package declares and renders the
  * slots; contributors register items via their `AdminPlugin.slots`.
@@ -17,8 +17,8 @@
 
 import type { ComponentType, ReactNode } from 'react';
 import type { MessageDescriptor } from 'react-intl';
-import { createSlot } from '@ortha-cms/utils-admin';
-import type { FilterField } from '@ortha-cms/query-builder-admin';
+import { createSlot } from '@orthacms/utils-admin';
+import type { FilterField } from '@orthacms/query-builder-admin';
 import type {
     ContentField,
     ContentTypeDetail,
@@ -400,7 +400,7 @@ export type EntryMenuItem = {
  * Extra actions in the entry editor's **⋯ menu**, beside the built-in Save /
  * Publish / Delete. Grouped by {@link ENTRY_MENU_GROUP} and rendered by
  * `EntryActions`, which also renders each item's `overlay` outside the menu.
- * `@ortha-cms/i18n-admin` fills it with **Publish all locales** / **Unpublish
+ * `@orthacms/i18n-admin` fills it with **Publish all locales** / **Unpublish
  * all locales**.
  */
 export const ENTRY_MENU_SLOT = createSlot<EntryMenuItem>('content.entry.menu');
@@ -579,7 +579,7 @@ export type EntryFieldControlItem = {
  *
  * This is a plain (non-hook) slot, so the render site resolves it with a `find`
  * rather than calling every item: a control is a component, and mounting it is
- * what runs its hooks. `@ortha-cms/wysiwyg-admin` fills it with the TipTap
+ * what runs its hooks. `@orthacms/wysiwyg-admin` fills it with the TipTap
  * editor for `richtext` fields.
  */
 export const ENTRY_FIELD_CONTROL_SLOT = createSlot<EntryFieldControlItem>(

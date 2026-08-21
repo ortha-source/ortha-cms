@@ -33,13 +33,13 @@ import {
     CardTitle,
     Skeleton,
     cn
-} from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+} from '@orthacms/design-system';
+import { useHasPermission } from '@orthacms/identity-admin';
 import {
     formatActivityAction,
     useActivityLog,
     type ActivityEvent
-} from '@ortha-cms/activity-admin';
+} from '@orthacms/activity-admin';
 import { MembersPagination } from '../../components/MembersPagination';
 import { useUserDetailContext } from '../../userDetailContext';
 

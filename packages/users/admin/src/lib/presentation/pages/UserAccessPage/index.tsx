@@ -11,12 +11,12 @@ import {
     CardHeader,
     CardTitle,
     toast
-} from '@ortha-cms/design-system';
-import { useAuth } from '@ortha-cms/identity-admin';
+} from '@orthacms/design-system';
+import { useAuth } from '@orthacms/identity-admin';
 import { useSetMemberStatus } from '../../../application/useSetMemberStatus';
 import { useUserDetailContext } from '../../userDetailContext';
 import { MemberEntity } from '../../../domain/member';
-import { ConfirmDialog } from '@ortha-cms/design-system';
+import { ConfirmDialog } from '@orthacms/design-system';
 import { PasswordResetCard } from '../../components/PasswordResetCard';
 
 /** Intl descriptors for {@link UserAccessPage}, co-located with the component. */

@@ -6,7 +6,7 @@ import {
     Popover,
     PopoverContent,
     PopoverTrigger
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type {
     ContentField,
     RelationFieldView

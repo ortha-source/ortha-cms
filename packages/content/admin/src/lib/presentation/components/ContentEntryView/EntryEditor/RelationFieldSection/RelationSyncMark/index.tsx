@@ -4,7 +4,7 @@ import {
     Tooltip,
     TooltipContent,
     TooltipTrigger
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type { RelationLocaleSync } from '../../../../../../domain/types/contentType';
 
 const messages = defineMessages({

@@ -1,6 +1,6 @@
-# @ortha-cms/workspaces-admin — Test Artifact
+# @orthacms/workspaces-admin — Test Artifact
 
-> **Unit:** `packages/workspaces/admin` · **Package:** `@ortha-cms/workspaces-admin` · **Kind:** admin plugin
+> **Unit:** `packages/workspaces/admin` · **Package:** `@orthacms/workspaces-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/workspaces/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 17 confirmed · 1 deleted · 3 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -86,15 +86,15 @@ guidance). It is deliberately **thin**: no client aggregates, no repositories.
     ```
 
 - **Dependencies that must be healthy**
-    - `@ortha-cms/shell-admin` — `useSidebarContent`, `PageTopBar`, the slots.
+    - `@orthacms/shell-admin` — `useSidebarContent`, `PageTopBar`, the slots.
       Register `WorkspacesPlugin()` **after** `ShellPlugin()`.
-    - `@ortha-cms/identity-admin` — `useAuth`, `useHasPermission`.
-    - `@ortha-cms/design-system` — `Table`, `Dialog`/`ConfirmDialog`, `Popover`,
+    - `@orthacms/identity-admin` — `useAuth`, `useHasPermission`.
+    - `@orthacms/design-system` — `Table`, `Dialog`/`ConfirmDialog`, `Popover`,
       `Stepper`/`WizardStepCard`/`WizardFooter`, `Field`/`FieldLabel`/`FieldError`,
       `toast`.
-    - `@ortha-cms/utils-admin` — `apiClient`, `queryClient`, `createSlot`,
+    - `@orthacms/utils-admin` — `apiClient`, `queryClient`, `createSlot`,
       `slugify`, `useDebouncedValue`, `ApiError`, `initialsOf`.
-    - `@ortha-cms/workspaces-server` — the API contract above.
+    - `@orthacms/workspaces-server` — the API contract above.
 
 ## 2. Feature Inventory
 

@@ -1,4 +1,4 @@
-import { getDatabase, getPool } from '@ortha-cms/database';
+import { getDatabase, getPool } from '@orthacms/database';
 import {
     PERMISSION_KEYS,
     SYSTEM_ROLES,
@@ -6,7 +6,7 @@ import {
     permissions,
     rolePermissions,
     roles
-} from '@ortha-cms/identity-server';
+} from '@orthacms/identity-server';
 import { and, eq } from 'drizzle-orm';
 import {
     closeTestApp,

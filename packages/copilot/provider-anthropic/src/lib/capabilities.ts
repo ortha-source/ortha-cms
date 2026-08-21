@@ -1,4 +1,4 @@
-import type { ModelCapabilities } from '@ortha-cms/copilot-domain';
+import type { ModelCapabilities } from '@orthacms/copilot-domain';
 import type { LazyClient } from './client';
 import { FALLBACK_CAPABILITIES } from './config';
 

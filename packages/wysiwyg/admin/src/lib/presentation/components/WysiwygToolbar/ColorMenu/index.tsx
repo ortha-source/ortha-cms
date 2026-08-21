@@ -8,7 +8,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
     cn
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     HIGHLIGHT_COLORS,
     TEXT_COLORS,

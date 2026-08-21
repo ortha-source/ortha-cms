@@ -1,6 +1,6 @@
-# @ortha-cms/insights-admin — Test Artifact
+# @orthacms/insights-admin — Test Artifact
 
-> **Unit:** `packages/insights/admin` · **Package:** `@ortha-cms/insights-admin` · **Kind:** admin plugin (a frame, no widgets)
+> **Unit:** `packages/insights/admin` · **Package:** `@orthacms/insights-admin` · **Kind:** admin plugin (a frame, no widgets)
 > **Source of truth:** `packages/insights/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 16 confirmed · 0 deleted · 0 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -45,10 +45,10 @@ endpoint — the aggregates live in `content-server`, `media-server` and
 
     The endpoints behind the shipped widgets: `GET /api/insights/content/*`,
     `GET /api/insights/media/*`, `GET /api/insights/i18n/coverage`.
-- **Dependencies that must be healthy** — `@ortha-cms/workspaces-admin`
+- **Dependencies that must be healthy** — `@orthacms/workspaces-admin`
   (`WORKSPACE_NAV_SLOT`, `WORKSPACE_ROUTE_SLOT`, `useCurrentWorkspace`),
-  `@ortha-cms/identity-admin` (`useAuth`, `AuthStatus`), `@ortha-cms/utils-admin`
-  (`createSlot`), `@ortha-cms/design-system` (`Card`, `Skeleton`,
+  `@orthacms/identity-admin` (`useAuth`, `AuthStatus`), `@orthacms/utils-admin`
+  (`createSlot`), `@orthacms/design-system` (`Card`, `Skeleton`,
   `SegmentedControl`, `TopBar*`, `Container`, `Breadcrumb`), and the design
   tokens `--color-chart-*` in `apps/admin/src/styles.css`. **Registration order
   matters:** `InsightsPlugin()` must come before any package that overrides one

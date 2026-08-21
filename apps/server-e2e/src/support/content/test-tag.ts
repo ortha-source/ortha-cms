@@ -2,7 +2,7 @@ import {
     collection,
     field,
     type AnyContentType
-} from '@ortha-cms/content-server/define';
+} from '@orthacms/content-server/define';
 import { testArticle } from './test-article';
 
 /**

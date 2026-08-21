@@ -1,6 +1,6 @@
-# @ortha-cms/shell-admin — Test Artifact
+# @orthacms/shell-admin — Test Artifact
 
-> **Unit:** `packages/shell/admin` · **Package:** `@ortha-cms/shell-admin` · **Kind:** admin plugin (the app shell)
+> **Unit:** `packages/shell/admin` · **Package:** `@orthacms/shell-admin` · **Kind:** admin plugin (the app shell)
 > **Source of truth:** `packages/shell/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 14 confirmed · 1 deleted · 1 corrected · 2 unverified
 > **Generated:** 2026-08-11
@@ -15,11 +15,11 @@ bar's trailing actions and the right panel). It **defines four extension slots**
 plus a fifth for the palette, and fills exactly one item into one of them (the
 Home nav entry).
 
-**Does NOT own:** authentication itself (`@ortha-cms/identity-admin` supplies
+**Does NOT own:** authentication itself (`@orthacms/identity-admin` supplies
 `AuthProvider`, `RequireAuth`, `useHasPermission` and the sign-in screen); the
-public/private route split (that is `@ortha-cms/bootstrap-admin`); any feature
-page; the sidebar primitives (`@ortha-cms/design-system`); the per-workspace
-sidebar (`@ortha-cms/workspaces-admin` injects it via `useSidebarContent`); the
+public/private route split (that is `@orthacms/bootstrap-admin`); any feature
+page; the sidebar primitives (`@orthacms/design-system`); the per-workspace
+sidebar (`@orthacms/workspaces-admin` injects it via `useSidebarContent`); the
 Home dashboard's *content* (every tile and panel arrives through
 `HOME_SECTION_SLOT` from `workspaces-admin` and `activity-admin`).
 
@@ -56,10 +56,10 @@ Home dashboard's *content* (every tile and panel arrives through
     - `⌘B` / `Ctrl+B`: collapse/expand the sidebar
     - a page with a right panel: `/workspaces/:id/content/<collection>/<entryId>`
       (the entry editor's Properties panel)
-- **Dependencies that must be healthy** — `@ortha-cms/identity-admin`
+- **Dependencies that must be healthy** — `@orthacms/identity-admin`
   (`AuthProvider`, `RequireAuth`, `useAuth`, `useHasPermission`, `AuthStatus`),
-  `@ortha-cms/design-system` (`Sidebar*`, `TopBar*`, `Command*`, `Container`,
-  `Logo`, `Kbd`, `Button`, `useIsMobile`), `@ortha-cms/utils-admin`
+  `@orthacms/design-system` (`Sidebar*`, `TopBar*`, `Command*`, `Container`,
+  `Logo`, `Kbd`, `Button`, `useIsMobile`), `@orthacms/utils-admin`
   (`createSlot`, `byOrder`), `react-router-dom`, `react-intl`. If
   `bootstrap-admin` stops mounting `layout` as the parent of private routes, the
   whole gate disappears. **Verified correct today:**
@@ -815,7 +815,7 @@ rendered anywhere. Nothing warns, in dev or otherwise.
 **Why it is wrong:** `SidebarGroupId` is a TypeScript union, so *within* the
 monorepo a bad value is a compile error — but the whole point of the slot is that
 **npm-installed plugins** contribute to it, and a plugin compiled against an
-older `@ortha-cms/shell-admin` (or written in JS) can hand over any string. The
+older `@orthacms/shell-admin` (or written in JS) can hand over any string. The
 sibling extension point in this repo made the opposite decision deliberately:
 "Nothing is silently dropped. A widget naming a section nobody registered does
 *not* vanish — it lands in a trailing catch-all band. A missing card with no

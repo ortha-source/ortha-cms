@@ -239,7 +239,7 @@ Every block assumes the prerequisites in §1 are satisfied and that you are at t
 | 1 | `npx nx e2e admin-e2e -- src/auth/login.spec.ts` | All cases pass. `mockLogin(page, { status: 401 })` produces the banner titled **"Authentication failed"**. |
 | 2 | `npx nx e2e admin-e2e -- src/auth/private-routes.spec.ts` | `mockSignedOut` → every private route redirects to `/identity/signin`. |
 | 3 | `npx nx e2e admin-e2e -- src/workspaces/permissions.spec.ts --headed` | `mockSignedIn(page, { permissions: [] })` hides the create button and renders the no-access state. |
-| 4 | Verify the permission catalogue | `src/support/api/auth.ts:39-67` lists 20 keys including `copilot:use` and `copilot:skills:manage`. Compare against `PERMISSIONS` in `@ortha-cms/identity-server` — a key added there and not here silently blinds every "admin sees everything" suite (the comment at `auth.ts:58-62` records exactly that happening once). |
+| 4 | Verify the permission catalogue | `src/support/api/auth.ts:39-67` lists 20 keys including `copilot:use` and `copilot:skills:manage`. Compare against `PERMISSIONS` in `@orthacms/identity-server` — a key added there and not here silently blinds every "admin sees everything" suite (the comment at `auth.ts:58-62` records exactly that happening once). |
 
 ### F14 — Call spies
 

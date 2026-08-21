@@ -1,6 +1,6 @@
-# @ortha-cms/identity-server — Test Artifact
+# @orthacms/identity-server — Test Artifact
 
-> **Unit:** `packages/identity/server` · **Package:** `@ortha-cms/identity-server` · **Kind:** server plugin
+> **Unit:** `packages/identity/server` · **Package:** `@orthacms/identity-server` · **Kind:** server plugin
 > **Source of truth:** `packages/identity/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -14,12 +14,12 @@ Drizzle schema and its migrations.
 
 It does **NOT** own:
 
-- Issuing invites, editing members, disabling accounts — that is `@ortha-cms/users-server`.
-- Workspaces / memberships — moved to `@ortha-cms/workspaces-server`. **`AGENTS.md` is stale
+- Issuing invites, editing members, disabling accounts — that is `@orthacms/users-server`.
+- Workspaces / memberships — moved to `@orthacms/workspaces-server`. **`AGENTS.md` is stale
   here**: it documents a `workspaces/`, `users/` and `content/` feature folder under
   `src/lib/`, none of which exist in the tree (`find packages/identity/server/src -type d`).
   Treat the AGENTS.md §Conventions inventory as historical.
-- The DB connection or migration execution (`@ortha-cms/database` + `@ortha-cms/nx`).
+- The DB connection or migration execution (`@orthacms/database` + `@orthacms/nx`).
 - Writing audit rows — since Wave 3 that is `activity/server`'s `AuditEventSubscriber`.
   `ACTIVITY_RECORDER` is retained but `@deprecated` and **nothing writes through it**
   (`packages/identity/server/src/lib/activity/activity-recorder.ts:53-57`).
@@ -86,10 +86,10 @@ Interactive API reference: `http://localhost:3000/reference`.
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/database` (pool + `UnitOfWork` + `OutboxWriter`; registered **before**
-identity), `@ortha-cms/bootstrap-server` (global `/api` prefix +
+`@orthacms/database` (pool + `UnitOfWork` + `OutboxWriter`; registered **before**
+identity), `@orthacms/bootstrap-server` (global `/api` prefix +
 `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })`),
-`@ortha-cms/activity-server` (the outbox subscriber that turns `auth.*` events
+`@orthacms/activity-server` (the outbox subscriber that turns `auth.*` events
 into audit rows — **optional**; without it logins are simply unaudited).
 
 ## 2. Feature Inventory

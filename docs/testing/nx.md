@@ -1,6 +1,6 @@
-# @ortha-cms/nx — Test Artifact
+# @orthacms/nx — Test Artifact
 
-> **Unit:** `packages/nx` · **Package:** `@ortha-cms/nx` · **Kind:** library (Nx plugin — developer tooling, no UI)
+> **Unit:** `packages/nx` · **Package:** `@orthacms/nx` · **Kind:** library (Nx plugin — developer tooling, no UI)
 > **Source of truth:** `packages/nx/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 6 corrected · 4 unverified
 > **Generated:** 2026-08-11
@@ -18,7 +18,7 @@ runtime, and the whole throttled/retried npm publish path.
 **Does NOT own:** the schemas (each plugin owns its own `drizzle.config.ts` and
 `migrations/`), the migration **content** (drizzle-kit generates the SQL), the
 host's plugin list or its order (`apps/server/src/plugins.ts`), the
-runtime database connection (`@ortha-cms/database` opens that in
+runtime database connection (`@orthacms/database` opens that in
 `onPluginInit` — this package opens its own short-lived `pg.Pool` for migrations
 only), the staging of a publishable package (`tools/release/pack.mjs`), or the
 release orchestration (`nx release`, driven by `tools/release/release.mjs` and
@@ -48,7 +48,7 @@ UI steps, and §4A is short by design.
     `withPublishSlot` / `tripCreationLimit` / `creationLimitTrippedBy` /
     `throttleStateDir` (`src/lib/release/throttle.ts`), `probeRegistry` /
     `registryTokenFromEnv` (`src/lib/release/registry.ts`).
-  - Registration: `nx.json:89` (`"@ortha-cms/nx"` in `plugins`), plus the
+  - Registration: `nx.json:89` (`"@orthacms/nx"` in `plugins`), plus the
     `nx-release-publish` executor **repeated** in `nx.json:95-98` (see F7).
 
 - **Runtime prerequisites**
@@ -72,7 +72,7 @@ UI steps, and §4A is short by design.
   docker compose up -d
   cp .env.example .env            # ensure DATABASE_URL is set
   npx nx run server:db:migrate                     # apply every plugin's SQL
-  npx nx run @ortha-cms/identity-server:db:generate --name=my_change
+  npx nx run @orthacms/identity-server:db:generate --name=my_change
   npx nx run server:db:studio --port=4990          # Ctrl+C to stop
   npx nx show project server --json | jq '.targets | keys'   # see the inferred targets
   npx nx reset && npx nx graph --file=/tmp/graph.json        # re-run inference cold
@@ -82,7 +82,7 @@ UI steps, and §4A is short by design.
 - **Dependencies that must be healthy:** `drizzle-kit`'s `bin.cjs` must be
   resolvable beside its main entry (both `generate.ts:20` and `studio.ts:37`
   reach for it that way, because drizzle-kit's `exports` map blocks a direct
-  `./bin.cjs` resolution); `@ortha-cms/bootstrap-server` for the `ServerPlugin`
+  `./bin.cjs` resolution); `@orthacms/bootstrap-server` for the `ServerPlugin`
   type; `apps/server/ortha.config.ts` and `apps/server/src/plugins.ts` must be
   loadable by jiti+swc; `tools/release/pack.mjs` must have staged
   `dist/pack/<projectRoot>/package.json` before a publish.
@@ -131,10 +131,10 @@ Commands are exactly as a QA engineer would type them.
 | --- | --- | --- |
 | 1 | `npx nx reset` | the Nx daemon and project graph cache are cleared, so inference re-runs |
 | 2 | `npx nx show project server --json \| jq '.targets \| keys'` | includes `db:generate`, `db:migrate`, `db:studio` — `apps/server` has **both** a `drizzle.config.ts` and an `ortha.config.ts` |
-| 3 | `npx nx show project @ortha-cms/identity-server --json \| jq '.targets \| keys'` | includes `db:generate`, `build`, `pack`, `nx-release-publish` — **not** `db:migrate`/`db:studio` |
-| 4 | `npx nx show project @ortha-cms/nx --json \| jq '.targets \| keys'` | includes `build`; **excludes `pack` and `nx-release-publish`** (`"private": true`, guard at `src/index.ts:127`) |
+| 3 | `npx nx show project @orthacms/identity-server --json \| jq '.targets \| keys'` | includes `db:generate`, `build`, `pack`, `nx-release-publish` — **not** `db:migrate`/`db:studio` |
+| 4 | `npx nx show project @orthacms/nx --json \| jq '.targets \| keys'` | includes `build`; **excludes `pack` and `nx-release-publish`** (`"private": true`, guard at `src/index.ts:127`) |
 | 5 | `npx nx show project admin --json \| jq '.targets \| keys'` | no `build` from this plugin — `apps/admin` is outside `packages/` (guard at `:97`) |
-| 6 | `npx nx show project @ortha-cms/design-system --json \| jq '.targets.build.options'` | `{ command: 'tsc --build tsconfig.lib.json --pretty', cwd: 'packages/design-system' }` |
+| 6 | `npx nx show project @orthacms/design-system --json \| jq '.targets.build.options'` | `{ command: 'tsc --build tsconfig.lib.json --pretty', cwd: 'packages/design-system' }` |
 | 7 | `npx nx show project server-e2e --json \| jq '.targets["db:generate"].options'` | `{ cwd: 'apps/server-e2e', config: 'drizzle.config.ts' }` — inference does not care that the project is a test app |
 
 ### F2 / F9 / F10 — `db:generate`
@@ -143,14 +143,14 @@ Commands are exactly as a QA engineer would type them.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx run @ortha-cms/identity-server:db:generate --name=qa_probe` | drizzle-kit runs with `cwd=packages/identity/server`; prints its diff; either emits `migrations/NNNN_qa_probe.sql` or says "No schema changes, nothing to migrate" |
+| 1 | `npx nx run @orthacms/identity-server:db:generate --name=qa_probe` | drizzle-kit runs with `cwd=packages/identity/server`; prints its diff; either emits `migrations/NNNN_qa_probe.sql` or says "No schema changes, nothing to migrate" |
 | 2 | `git status packages/identity/server/migrations` | shows the new `.sql` **and** the updated `migrations/meta/_journal.json` + snapshot |
 | 3 | Re-run the identical command | Nx reports a **cache hit** and "existing outputs match the cache"; drizzle-kit is not invoked |
 | 4 | Add a column to `packages/identity/server/src/lib/schema/…`, then re-run with the **same** `--name` | the cache is **missed** and a new migration is generated — the declared input `{projectRoot}/src/lib/schema/**/*` covers identity's schema |
-| 5 | Repeat step 4 for `@ortha-cms/media-server` (schema at `src/lib/infrastructure/schema/`) | **cache HIT — nothing is generated** → `🐞 BUG-nx-01` |
-| 6 | `npx nx run @ortha-cms/media-server:db:generate --name=another_name` | a different `--name` changes the target's options and therefore the hash, so this *does* run — which is what usually masks the bug |
-| 7 | `npx nx run @ortha-cms/identity-server:db:generate` (no `--name`) | drizzle-kit picks its own generated name |
-| 8 | `npx nx run @ortha-cms/identity-server:db:generate --name='a b; echo hi'` | the name is passed as a single `execFileSync` argv element — **no shell**, so nothing is interpreted (`generate.ts:21-25`) |
+| 5 | Repeat step 4 for `@orthacms/media-server` (schema at `src/lib/infrastructure/schema/`) | **cache HIT — nothing is generated** → `🐞 BUG-nx-01` |
+| 6 | `npx nx run @orthacms/media-server:db:generate --name=another_name` | a different `--name` changes the target's options and therefore the hash, so this *does* run — which is what usually masks the bug |
+| 7 | `npx nx run @orthacms/identity-server:db:generate` (no `--name`) | drizzle-kit picks its own generated name |
+| 8 | `npx nx run @orthacms/identity-server:db:generate --name='a b; echo hi'` | the name is passed as a single `execFileSync` argv element — **no shell**, so nothing is interpreted (`generate.ts:21-25`) |
 | 9 | Stop Postgres entirely, then run any `db:generate` | it still succeeds — generation never connects |
 | 10 | Break the schema (a TypeScript syntax error) and re-run | drizzle-kit exits non-zero; `execFileSync` throws; Nx prints a **stack trace**, not a one-line diagnosis (see `🐞 BUG-nx-06`) |
 
@@ -192,11 +192,11 @@ pointing at a **disposable** database.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npx nx run @ortha-cms/utils-admin:build` | `tsc --build tsconfig.lib.json --pretty` runs with `cwd=packages/utils/admin`, emitting JS + `.d.ts` into `packages/utils/admin/dist/` and building its project references first (`dependsOn: ['^build']`) |
+| 1 | `npx nx run @orthacms/utils-admin:build` | `tsc --build tsconfig.lib.json --pretty` runs with `cwd=packages/utils/admin`, emitting JS + `.d.ts` into `packages/utils/admin/dist/` and building its project references first (`dependsOn: ['^build']`) |
 | 2 | Re-run | a cache hit (`inputs: ['production','^production']`) |
-| 3 | `npx nx run @ortha-cms/utils-admin:pack` | `node tools/release/pack.mjs packages/utils/admin` stages `dist/pack/packages/utils/admin/` with a **rewritten** manifest pointing at built output, not `./src/index.ts` |
+| 3 | `npx nx run @orthacms/utils-admin:pack` | `node tools/release/pack.mjs packages/utils/admin` stages `dist/pack/packages/utils/admin/` with a **rewritten** manifest pointing at built output, not `./src/index.ts` |
 | 4 | Re-run `pack` | it runs again — `cache: false` deliberately, because it reads `dist/`, which is not one of its declared inputs (`src/index.ts:137-139`) |
-| 5 | `npx nx show project @ortha-cms/utils-admin --json \| jq '.targets["nx-release-publish"]'` | `executor: '@ortha-cms/nx:release-publish'`, `options.packageRoot: 'dist/pack/packages/utils/admin'`, and `dependsOn: ['pack']` inherited from `targetDefaults` |
+| 5 | `npx nx show project @orthacms/utils-admin --json \| jq '.targets["nx-release-publish"]'` | `executor: '@orthacms/nx:release-publish'`, `options.packageRoot: 'dist/pack/packages/utils/admin'`, and `dependsOn: ['pack']` inherited from `targetDefaults` |
 | 6 | Temporarily change **only** `nx.json:96`'s executor to `@nx/js:release-publish`, re-run step 5 | Nx's implicit target wins and `packageRoot` disappears — the release would publish the **source-pointing project root**. Restore it. This is the trap `src/index.ts:146-153` documents |
 
 ### F16–F25 — the publish path
@@ -206,8 +206,8 @@ everything except step 8.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | `npm run release:dry-run` | every package logs `Would publish @ortha-cms/x@V — [dry-run] was set`; **no waiting between packages** (`spacing: () => 0` under dry run) and **no registry probe** |
-| 2 | `npx nx run @ortha-cms/nx:nx-release-publish` (if it existed) | it does not — the plugin is private and gets no publish target (F8) |
+| 1 | `npm run release:dry-run` | every package logs `Would publish @orthacms/x@V — [dry-run] was set`; **no waiting between packages** (`spacing: () => 0` under dry run) and **no registry probe** |
+| 2 | `npx nx run @orthacms/nx:nx-release-publish` (if it existed) | it does not — the plugin is private and gets no publish target (F8) |
 | 3 | Stage a package whose manifest carries `"private": true` and publish it | `Skipped …, because it is marked private` and `success: true` |
 | 4 | Publish a package Nx resolved no new version for | `Skipped …, because no new version was resolved` (`executor:104-107`) |
 | 5 | Re-run a **real** publish of a version already on the registry | the probe answers `version-published`, so `Skipped …, because that version is already on the registry` — **and no `PUT` is sent** (`executor:127-132`) |
@@ -228,7 +228,7 @@ everything except step 8.
 
 - **EC-01 — A project whose Drizzle schema is not under `src/lib/schema/`.** `❌ NONE`
   Trigger: edit `packages/media/server/src/lib/infrastructure/schema/media-asset.ts`,
-  then `nx run @ortha-cms/media-server:db:generate --name=<the same name as last time>`.
+  then `nx run @orthacms/media-server:db:generate --name=<the same name as last time>`.
   Expected: a fresh migration. Suspected: a **cache hit**, no drizzle-kit run, and
   the previously-cached `migrations/` restored over your working tree. Five of the
   eight `drizzle.config.ts` files in the repo point outside the declared input glob
@@ -253,8 +253,8 @@ everything except step 8.
   have to load the environment itself. Recorded so the assumption is written down.
 - **EC-06 — Two plugins infer `build` for the same project.** `❌ NONE`
   `nx.json:29-34` configures `@nx/js/typescript` with a `build` target named
-  `build` and `configName: tsconfig.lib.json`; `@ortha-cms/nx` infers its own
-  `build` for the same projects. `@ortha-cms/nx` is **last** in the `plugins`
+  `build` and `configName: tsconfig.lib.json`; `@orthacms/nx` infers its own
+  `build` for the same projects. `@orthacms/nx` is **last** in the `plugins`
   array (`nx.json:89`), so it wins. The AGENTS.md asserts `@nx/js` "infers no
   `build` here because our manifests point at source" — plausible but **I could
   not verify `@nx/js`'s gating without running it**; the ordering makes the
@@ -377,7 +377,7 @@ everything except step 8.
 - **EC-31 — `retryableReason` matches the bare substring `network`.** `❌ NONE`
   `publish.ts:193` — any npm output containing "network" anywhere becomes
   retryable. The other clauses are anchored (`\be50[0-9]\b`, explicit error codes);
-  this one is not. No `@ortha-cms/*` name or dependency contains it, so it is not
+  this one is not. No `@orthacms/*` name or dependency contains it, so it is not
   reachable here. Recorded, not filed.
 - **EC-32 — `isAlreadyPublished` false positives.** `❌ NONE`
   Three narrow phrases, all npm's own wording (`:142-152`). Cleared.
@@ -408,7 +408,7 @@ everything except step 8.
 
 ### 4A. Accessibility & Section 508 Conformance
 
-**Applicability first, because most of it does not apply.** `@ortha-cms/nx`
+**Applicability first, because most of it does not apply.** `@orthacms/nx`
 renders no user interface, produces no electronic content, and is `private`
 developer tooling that ships to nobody. WCAG 2.1 is scoped to web content, so
 **every perceivable/operable success criterion in the §4A checklist — 1.1.1,
@@ -479,8 +479,8 @@ determination was made rather than skipped.
 
 **There is no automated coverage of this package of any kind.**
 `find packages/nx -name "*.spec.ts"` returns nothing; no file under
-`apps/admin-e2e/src/**` or `apps/server-e2e/src/**` imports `@ortha-cms/nx`
-(`grep -rn "@ortha-cms/nx" apps` matches only prose in `apps/server/drizzle.config.ts:6`
+`apps/admin-e2e/src/**` or `apps/server-e2e/src/**` imports `@orthacms/nx`
+(`grep -rn "@orthacms/nx" apps` matches only prose in `apps/server/drizzle.config.ts:6`
 and `apps/server-e2e/drizzle.config.ts:11`); and neither harness is capable of
 driving it — `apps/admin-e2e` is Playwright against the SPA and `apps/server-e2e`
 is supertest against a booted Nest app. The whole table below is therefore ❌, and
@@ -529,7 +529,7 @@ that is the finding, not an omission.
 **What the code does:**
 ```typescript
 'db:generate': {
-    executor: '@ortha-cms/nx:db-generate',
+    executor: '@orthacms/nx:db-generate',
     options: { cwd: projectRoot, config: 'drizzle.config.ts' },
     cache: true,
     inputs: ['{projectRoot}/src/lib/schema/**/*'],
@@ -568,16 +568,16 @@ drift.** After editing a plugin's Drizzle schema, generate its migration
 tells you to run is the one that can silently do nothing.
 
 **Repro:**
-1. `npx nx run @ortha-cms/media-server:db:generate --name=qa_one` → a migration is
+1. `npx nx run @orthacms/media-server:db:generate --name=qa_one` → a migration is
    emitted (first run, cold cache).
 2. Realise the schema was wrong. Edit
    `packages/media/server/src/lib/infrastructure/schema/media-asset.ts`.
-3. `npx nx run @ortha-cms/media-server:db:generate --name=qa_one` (same name).
+3. `npx nx run @orthacms/media-server:db:generate --name=qa_one` (same name).
 → Observed: Nx reports the task as cached; drizzle-kit is never invoked; no new
 SQL is written; and the cached `migrations/` is restored, discarding the file
 from step 1 if you had edited it. → Expected: a cache miss and a regenerated
 migration.
-4. Contrast: `npx nx run @ortha-cms/identity-server:db:generate --name=qa_one`
+4. Contrast: `npx nx run @orthacms/identity-server:db:generate --name=qa_one`
 after editing identity's schema **does** miss the cache — the glob covers it.
 
 **Why it has not bitten yet:** the usual workflow passes a *new* `--name` each
@@ -931,7 +931,7 @@ descriptor "**exactly as `server:db:migrate` does**, so the schema under test is
 the real shipped schema for every plugin".
 
 **Why it is wrong:** the claim is a promise the code cannot keep, because nothing
-enforces it. `@ortha-cms/nx`'s AGENTS.md gives the rationale for keeping this
+enforces it. `@orthacms/nx`'s AGENTS.md gives the rationale for keeping this
 logic in `src/lib/` as plain functions: "This keeps the logic testable without Nx
 and lets a standalone CLI reuse it later." The one consumer in the repo that
 could reuse it — a harness whose whole purpose is to reproduce production
@@ -942,7 +942,7 @@ EC-13, an ordering fix for `🐞 BUG-nx-03`, the "applied N of M" summary from
 code path than production migrations.
 
 **Repro:**
-1. `grep -rn "@ortha-cms/nx" apps/server-e2e` → no import; only prose in
+1. `grep -rn "@orthacms/nx" apps/server-e2e` → no import; only prose in
    `apps/server-e2e/drizzle.config.ts:11`.
 2. Add a `console.log('marker')` to `applyPluginMigrations` and run the server
    e2e suite. → Observed: never printed. → Expected, given the comment's claim:
@@ -954,7 +954,7 @@ already differ in their logging (`apply.ts:19, 32-34, 40` vs
 `global-setup.ts:54`), which is the drift starting.
 
 **Suggested fix:** have `global-setup.ts` import `applyPluginMigrations` from
-`@ortha-cms/nx` (it is a plain function with no Nx dependency, which is exactly
+`@orthacms/nx` (it is a plain function with no Nx dependency, which is exactly
 what the AGENTS.md designed for), deleting the copy. That also gives the function
 its first real exercise, on every e2e run.
 
@@ -1008,7 +1008,7 @@ up (`@nx/jest` already excludes only `apps/server-e2e/**`, `nx.json:87`).
 | 6 | package unit | `src/lib/release/publish.spec.ts` | `retryableReason` / `isRateLimit` / `isAlreadyPublished` against captured real npm output for a 429, a 503, an `EPUBLISHCONFLICT`, `ECONNRESET`, and a plain manifest error; assert a creation 429 returns `creation-blocked` after **one** attempt; assert the `network` substring does not match an unrelated payload | 🐞 (EC-31), F21–F22 ❌ |
 | 7 | package unit | `src/lib/release/registry.spec.ts` | `probeRegistry` against a stubbed `fetch`: 404 → `name-absent`, 200 with the version → `version-published`, 200 without → `name-exists`, 500/throw → `unknown`; a scoped name is escaped once; `registryTokenFromEnv` precedence | F17–F18 ❌ |
 | 8 | package unit | `src/executors/release-publish/executor.spec.ts` | the breaker: a `creation-blocked` outcome writes the flag; a peer creating a different new name returns `blocked-by-peer` **without** calling publish; an existing name is unaffected; a dry run skips the probe, the spacing and the breaker | F20 ❌, F25 ❌ |
-| 9 | integration (replace the copy) | `apps/server-e2e/src/support/global-setup.ts` | import `applyPluginMigrations` from `@ortha-cms/nx` instead of re-implementing it, so every e2e run exercises the shipped function | 🐞 BUG-nx-07, F12 ❌ |
+| 9 | integration (replace the copy) | `apps/server-e2e/src/support/global-setup.ts` | import `applyPluginMigrations` from `@orthacms/nx` instead of re-implementing it, so every e2e run exercises the shipped function | 🐞 BUG-nx-07, F12 ❌ |
 | 10 | package unit | `src/executors/db-studio/executor.spec.ts` | a blank/absent URL throws the actionable message; `--port=0` is (or is not) forwarded — pinning the intent; a non-loopback `--host` emits a warning | 🐞 BUG-nx-05, EC-18, F13 ❌ |
 | 11 | package unit | `src/lib/drizzle/studio.spec.ts` | the ephemeral config contains `process.env.DATABASE_URL` and **not** the URL itself; the temp dir is removed on a normal exit **and** on a signal | 🐞 BUG-nx-06, F14 ❌ |
 | 12 | package unit | `src/lib/jiti.spec.ts` | `createTsJiti` loads a fixture module using legacy decorators with a definite-assignment field (`@IsString() email!: string`) — the exact construct `jiti.ts:8-12` says the default transform crashes on | F15 ❌ |

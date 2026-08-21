@@ -1,6 +1,6 @@
-# @ortha-cms/i18n-server — Test Artifact
+# @orthacms/i18n-server — Test Artifact
 
-> **Unit:** `packages/i18n/server` · **Package:** `@ortha-cms/i18n-server` · **Kind:** server plugin
+> **Unit:** `packages/i18n/server` · **Package:** `@orthacms/i18n-server` · **Kind:** server plugin
 > **Source of truth:** `packages/i18n/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 2 confirmed · 0 deleted · 5 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -69,12 +69,12 @@ authorization (identity's guards).
   Creating a sibling is content-server's route, not one of this plugin's:
   `POST /api/content/article` with `{ values, locale: "de", localeGroupId: "<gid>" }`.
 
-- **Dependencies that must be healthy:** `@ortha-cms/content-server` (the port,
+- **Dependencies that must be healthy:** `@orthacms/content-server` (the port,
   `toColumns`/`toRecord`, `EntryValidationService`, `RelationLinkService`,
   `relationLocaleSync`, `CONTENT_REGISTRY`, `WorkspaceGrantsQuery`),
-  `@ortha-cms/identity-server` (guards, `lockWorkspaceShared`),
-  `@ortha-cms/workspaces-server` (`WorkspaceGuard`), `@ortha-cms/database`,
-  `@ortha-cms/utils-server` (`isUniqueViolation`, the filter engine).
+  `@orthacms/identity-server` (guards, `lockWorkspaceShared`),
+  `@orthacms/workspaces-server` (`WorkspaceGuard`), `@orthacms/database`,
+  `@orthacms/utils-server` (`isUniqueViolation`, the filter engine).
 
 ## 2. Feature Inventory
 

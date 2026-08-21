@@ -1,4 +1,4 @@
-# @ortha-cms/content-server
+# @orthacms/content-server
 
 The content-modeling **plugin** for the Ortha CMS server. It turns
 **code-defined** content types into physical Postgres tables, holds them in a
@@ -76,7 +76,7 @@ ProseMirror/TipTap node tree), stored in a `jsonb` column — not an opaque HTML
 string. That is what lets the platform express and check a body's heading
 order, its tables' header cells, its link text, and the language of a quoted
 passage (WCAG 1.3.1 / 2.4.6 / 3.1.2); the rules themselves live once, in
-`@ortha-cms/content-domain`'s rich-text module, so the admin applies exactly
+`@orthacms/content-domain`'s rich-text module, so the admin applies exactly
 what the server enforces.
 
 Three consequences worth knowing:
@@ -239,7 +239,7 @@ occupied" would send the caller to fix the wrong thing.
 
 `src/lib/extension/entry-extension.ts` declares a DI port (a `Symbol` + the
 `ContentEntryExtension` interface) that a downstream plugin (e.g.
-`@ortha-cms/i18n-server`) **binds** to extend the generic entries pipeline —
+`@orthacms/i18n-server`) **binds** to extend the generic entries pipeline —
 the same inversion as identity's `CONTENT_CATALOG`, roles swapped: the consumer
 of the behavior declares the port here, the provider binds it. `EntriesService`
 and `EntryWriterService` inject it with `@Optional()` and call it
@@ -373,7 +373,7 @@ null value false`. It was not _reachable_, though: **`admin_content_types`
   collapse, link sets compare order-sensitively. The duplication is deliberate
   until the two sides' schema types are unified — noted at the call site.
 - Both providers are registered by `copilotToolsRegistrar('content', …)` from
-  `@ortha-cms/copilot-server`, in `ContentModule.forRoot`'s `providers`.
+  `@orthacms/copilot-server`, in `ContentModule.forRoot`'s `providers`.
   Registration is a **runtime `register(...)` call**, not a multi-provider
   binding: Nest cannot merge a multi-provider token across independent dynamic
   modules, so a second binder (media, i18n, …) would silently replace this one.
@@ -523,7 +523,7 @@ isn't enforced.
 ## The `/define` vs main-barrel split — IMPORTANT
 
 Collection files and the host's drizzle-kit schema entry MUST import from
-`@ortha-cms/content-server/define`, **not** the main barrel. drizzle-kit bundles
+`@orthacms/content-server/define`, **not** the main barrel. drizzle-kit bundles
 the schema's whole import graph with plain esbuild, which rejects the NestJS
 decorators the main barrel pulls in via its controllers. `/define` re-exports
 only the decorator-free DSL (`collection`, `single`, `field`, `joinTableOf`, types).
@@ -785,7 +785,7 @@ names a record across languages, and publishing "the record" would publish
 translations the caller never listed.
 
 **This same surface is also served over GraphQL** at `POST /api/v1/graphql`, by
-[`@ortha-cms/content-graphql`](../graphql/AGENTS.md). That package is an
+[`@orthacms/content-graphql`](../graphql/AGENTS.md). That package is an
 _adapter_, not a second API: its resolvers assemble the DTOs below and call
 `PublicEntriesQuery` / `PublicEntryWritesService`, so everything documented here
 — the bearer guards, the grant gate, `readableWhere`, the draft rule, the write
@@ -1109,7 +1109,7 @@ types.
 ## Agent tools (`src/lib/mcp/`)
 
 The same content CRUD, contributed to the shared **tool registry** in
-`@ortha-cms/mcp-server` — so an MCP client (and, once its run engine lands, the
+`@orthacms/mcp-server` — so an MCP client (and, once its run engine lands, the
 copilot) can do what the public API does. [ADR-0006](../../../docs/adr/0006-cms-as-an-mcp-server.md).
 
 ```
@@ -1235,22 +1235,22 @@ backs _every_ content type, with no per-aggregate table or fixed field set. A
 classic row⇄aggregate aggregate + mapper would fight that metamodel (ADR-0003:
 "DDD where it pays, CRUD where it doesn't"). So the part with real invariants —
 the **publish lifecycle** — is modelled by the `Entry` domain object
-(`draft ↔ published` via the `@ortha-cms/content-domain` state machine + publish
+(`draft ↔ published` via the `@orthacms/content-domain` state machine + publish
 gate, raising `entry.published`/`entry.unpublished`), while the heavy,
 battle-tested column/relation/extension persistence stays as the
 `EntryWriterService` **infrastructure engine**. `domain/` imports nothing from
 `@nestjs/*`, `drizzle-orm`, `class-validator`, or `infrastructure/`
-(grep-enforced) — only the pure kernel and `@ortha-cms/database`'s framework-free
+(grep-enforced) — only the pure kernel and `@orthacms/database`'s framework-free
 `createDomainEvent`/`DomainEvent`.
 
-**The kernel (`@ortha-cms/content-domain`).** Field-value validation and the
+**The kernel (`@orthacms/content-domain`).** Field-value validation and the
 publish gate live in the shared kernel; `EntryValidationService` delegates to it
 (no behavior change) and the `Entry` model uses its `assertTransition`. See that
 package's `AGENTS.md`.
 
 **Use-cases + unit-of-work + outbox.** `publish`/`unpublish`/`bulk-publish`/
 `bulk-unpublish` run through use-cases inside a `UnitOfWork` (from
-`@ortha-cms/database`), so the status write and the `entry.*` outbox event commit
+`@orthacms/database`), so the status write and the `entry.*` outbox event commit
 **atomically**; the status SQL is small executor-parameterized primitives on the
 engine (`markPublished`/`markDraft`/`loadLiveByIdsForUpdate`/…). Bulk publish
 keeps its **single locked (`FOR UPDATE`) transaction** (the TOCTOU protection the
@@ -1403,7 +1403,7 @@ a browsable version history and can be restored. Layered per ADR-0003
 ## Insights read-model (`/api/insights/content/*`, `src/lib/insights/`)
 
 The aggregates behind the content widgets on the Insights page
-(`@ortha-cms/insights-admin`). Six routes, all `content:read` +
+(`@orthacms/insights-admin`). Six routes, all `content:read` +
 `WorkspaceGuard`, all read-only:
 
 | Route       | Answers                                                                                                        |
@@ -1480,9 +1480,9 @@ that it stopped — so a change figure for drafts could only be invented.
   binds it.
 - Register **after** `DatabasePlugin` + `IdentityPlugin` (it uses identity's
   `PermissionsGuard` and, for the entries list, the shared Drizzle client).
-  Depends on `@ortha-cms/identity-server` (guards), `@ortha-cms/bootstrap-server`,
-  `@ortha-cms/database` (`@InjectDatabase()` in `EntriesService`), and
-  `@ortha-cms/utils-server` (the `?filter=` engine).
+  Depends on `@orthacms/identity-server` (guards), `@orthacms/bootstrap-server`,
+  `@orthacms/database` (`@InjectDatabase()` in `EntriesService`), and
+  `@orthacms/utils-server` (the `?filter=` engine).
 - `EntryValidationService` is the server-side authority for entry values (the
   admin renders the same rules as a courtesy). `EntryWriterService` calls it on
   every create/update and re-checks the stored row before any publish, so nothing
@@ -1494,5 +1494,5 @@ that it stopped — so a change figure for drafts could only be invented.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/content-server` / `npx nx lint @ortha-cms/content-server`
+- `npx nx typecheck @orthacms/content-server` / `npx nx lint @orthacms/content-server`
 - Migrations are generated on the **host**: `npx nx run server:db:generate --name=<change>`

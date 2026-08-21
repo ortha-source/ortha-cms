@@ -38,13 +38,13 @@ function stage(manifest: Record<string, unknown>): string {
 function context(): ExecutorContext {
     return {
         root,
-        projectName: '@ortha-cms/media-server',
+        projectName: '@orthacms/media-server',
         isVerbose: false,
         projectsConfigurations: { projects: {} }
     } as unknown as ExecutorContext;
 }
 
-const manifest = { name: '@ortha-cms/media-server', version: '0.3.0' };
+const manifest = { name: '@orthacms/media-server', version: '0.3.0' };
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -82,7 +82,7 @@ describe('skipping without a write', () => {
             {
                 packageRoot,
                 nxReleaseVersionData: {
-                    '@ortha-cms/media-server': { newVersion: null }
+                    '@orthacms/media-server': { newVersion: null }
                 }
             },
             context()
@@ -171,13 +171,13 @@ describe('the creation-limit breaker', () => {
             releasePublishExecutor({ packageRoot }, context())
         ).resolves.toEqual({ success: false });
         expect(creationLimitTrippedBy(throttleStateDir(root))).toBe(
-            '@ortha-cms/media-server'
+            '@orthacms/media-server'
         );
     });
 
     it('makes a later new name bow out without spending a request', async () => {
         probeRegistry.mockResolvedValue('name-absent');
-        tripCreationLimit(throttleStateDir(root), '@ortha-cms/other');
+        tripCreationLimit(throttleStateDir(root), '@orthacms/other');
         const packageRoot = stage(manifest);
 
         await expect(
@@ -185,12 +185,12 @@ describe('the creation-limit breaker', () => {
         ).resolves.toEqual({ success: false });
         expect(publishWithRetry).not.toHaveBeenCalled();
         expect((console.error as jest.Mock).mock.calls[0][0]).toContain(
-            '@ortha-cms/other'
+            '@orthacms/other'
         );
     });
 
     it('leaves an existing name publishing normally while the breaker is open', async () => {
-        tripCreationLimit(throttleStateDir(root), '@ortha-cms/other');
+        tripCreationLimit(throttleStateDir(root), '@orthacms/other');
         const packageRoot = stage(manifest);
 
         await expect(
@@ -265,7 +265,7 @@ describe('reporting', () => {
             releasePublishExecutor({ packageRoot }, context())
         ).resolves.toEqual({ success: false });
         expect((console.error as jest.Mock).mock.calls[0][0]).toContain(
-            '@ortha-cms/media-server@0.3.0'
+            '@orthacms/media-server@0.3.0'
         );
     });
 });

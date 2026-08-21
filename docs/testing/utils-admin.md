@@ -1,6 +1,6 @@
-# @ortha-cms/utils-admin — Test Artifact
+# @orthacms/utils-admin — Test Artifact
 
-> **Unit:** `packages/utils/admin` · **Package:** `@ortha-cms/utils-admin` · **Kind:** library (shared admin plumbing)
+> **Unit:** `packages/utils/admin` · **Package:** `@orthacms/utils-admin` · **Kind:** library (shared admin plumbing)
 > **Source of truth:** `packages/utils/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 10 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -27,7 +27,7 @@ helpers. Not a plugin (contributes no route, slot or module) and not the host
   `asAvatarColor` / `avatarColorForId`.
 
 **Does NOT own.** Auth state — "context, gate, and `/auth/me` all live in
-`@ortha-cms/identity-admin`" (`AGENTS.md`). No copy: the unsaved-changes dialog is injected
+`@orthacms/identity-admin`" (`AGENTS.md`). No copy: the unsaved-changes dialog is injected
 by the host so this package stays `react-intl`-free
 (`packages/bootstrap/admin/src/lib/UnsavedChangesGuard/index.tsx:34-53`). No concrete slot.
 No page, no route, no design-system component (it imports only `AVATAR_COLORS`).
@@ -76,12 +76,12 @@ open http://localhost:4200/workspaces            # enter a workspace, watch X-Wo
 open 'http://localhost:4200/users?search=ada&page=2&pageSize=10'
 # unsaved-changes guard
 #   open a content entry, edit a field, then click a sidebar link
-npx nx lint @ortha-cms/utils-admin
-npx nx typecheck @ortha-cms/utils-admin
+npx nx lint @orthacms/utils-admin
+npx nx typecheck @orthacms/utils-admin
 ```
 
 **Dependencies.** `axios` ^1.6, `@tanstack/react-query` ^5, `react` ^19,
-`@ortha-cms/design-system` (only for `AVATAR_COLORS`), and `react-router-dom` ^6 as a peer.
+`@orthacms/design-system` (only for `AVATAR_COLORS`), and `react-router-dom` ^6 as a peer.
 
 ## 2. Feature Inventory
 
@@ -546,7 +546,7 @@ other than the debounce (see `🐞 BUG-utils-admin-01`'s suggested fix).
 | 1.1.1 Non-text Content (A) | Partially Supports | Only via the initials helpers — `♿ A11Y-utils-admin-03` |
 | 1.3.1 / 1.3.2 / 1.3.5 | Not Applicable | The package renders no structural markup; the one element it renders is a caller-injected dialog |
 | 1.4.1 Use of Colour (A) | Partially Supports | `avatarColorForId` assigns colour as an identity cue; consumers must not let colour be the **only** differentiator between two people (a real risk given the collision rate in `🐞 BUG-utils-admin-08`) |
-| 1.4.3 / 1.4.11 Contrast (AA) | Not Applicable | Palette values come from `@ortha-cms/design-system`'s `AVATAR_COLORS`; this package only selects among them |
+| 1.4.3 / 1.4.11 Contrast (AA) | Not Applicable | Palette values come from `@orthacms/design-system`'s `AVATAR_COLORS`; this package only selects among them |
 | 1.4.4 / 1.4.10 / 1.4.12 / 1.4.13 | Not Applicable | No layout, no hover content |
 | 2.1.1 Keyboard (A) | Supports | The click interceptor handles keyboard-dispatched clicks identically (`unsavedChanges/index.tsx:113-125`) — see `♿ A11Y-utils-admin-02` |
 | 2.1.2 No Keyboard Trap (A) | Supports | The confirm dialog is the injected Radix component; cancelling via `Esc` releases (`:181-183`) |

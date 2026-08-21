@@ -4,10 +4,10 @@ import {
     Optional,
     type OnModuleInit
 } from '@nestjs/common';
-import { PERMISSIONS } from '@ortha-cms/identity-server';
-import type { ProposalChange, ProposalDraft } from '@ortha-cms/copilot-domain';
-import { ToolRegistry } from '@ortha-cms/tools-server';
-import type { ToolDefinition, ToolProvider } from '@ortha-cms/tools-server';
+import { PERMISSIONS } from '@orthacms/identity-server';
+import type { ProposalChange, ProposalDraft } from '@orthacms/copilot-domain';
+import { ToolRegistry } from '@orthacms/tools-server';
+import type { ToolDefinition, ToolProvider } from '@orthacms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
 import type { AnyContentType } from '../types/content-type';
 import type {

@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/identity-server",
+    "name": "@orthacms/identity-server",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -20,8 +20,8 @@
         "@nestjs/core": "^11.0.0",
         "@nestjs/swagger": "^11.4.6",
         "@nestjs/throttler": "^6.4.0",
-        "@ortha-cms/bootstrap-server": "*",
-        "@ortha-cms/database": "*",
+        "@orthacms/bootstrap-server": "*",
+        "@orthacms/database": "*",
         "bcrypt": "^5.1.1",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.15.1",

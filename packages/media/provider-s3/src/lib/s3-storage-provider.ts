@@ -1,5 +1,5 @@
 import type { Readable } from 'node:stream';
-import type { StorageProvider, StoredObject } from '@ortha-cms/media-server';
+import type { StorageProvider, StoredObject } from '@orthacms/media-server';
 
 /** AWS S3 provider settings. */
 export interface S3StorageConfig {
@@ -11,7 +11,7 @@ export interface S3StorageConfig {
 class S3NotImplementedError extends Error {
     constructor() {
         super(
-            '@ortha-cms/media-provider-s3 is a stub — the AWS S3 adapter is not implemented yet.'
+            '@orthacms/media-provider-s3 is a stub — the AWS S3 adapter is not implemented yet.'
         );
         this.name = 'S3NotImplementedError';
     }

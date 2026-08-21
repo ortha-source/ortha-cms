@@ -2,23 +2,23 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { Filter, UserPlus, Users } from 'lucide-react';
-import { PageTopBar } from '@ortha-cms/shell-admin';
+import { PageTopBar } from '@orthacms/shell-admin';
 import {
     QueryBuilderDrawer,
     countRules,
     jsonFilterToTree,
     treeToJsonFilter,
     type FilterGroup
-} from '@ortha-cms/query-builder-admin';
-import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useTableUrlState, useDocumentTitle } from '@ortha-cms/utils-admin';
+} from '@orthacms/query-builder-admin';
+import { useHasPermission } from '@orthacms/identity-admin';
+import { useTableUrlState, useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
     Button,
     Container,
     ContainerHeader
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../../application/useMembers';
 import { MembersTableSkeleton } from '../../components/MembersSkeleton';
 import { MembersEmpty } from '../../components/MembersEmpty';

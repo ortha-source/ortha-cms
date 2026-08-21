@@ -1,4 +1,4 @@
-# @ortha-cms/media-server
+# @orthacms/media-server
 
 The **media** bounded context — folders and assets for the Media Library, and
 the provider-agnostic storage seam. It owns its schema (`media_folder`,
@@ -31,7 +31,7 @@ http/            # thin controllers (one per use case) + to-http error mapper
 ## The one hard rule
 
 **`domain/` imports NOTHING from `@nestjs/*`, `drizzle-orm`, `class-validator`,
-or `infrastructure/`.** Only `@ortha-cms/database`'s framework-free
+or `infrastructure/`.** Only `@orthacms/database`'s framework-free
 `createDomainEvent`/`DomainEvent` and node built-ins. Self-enforce it (the
 layer-boundary lint isn't wired yet).
 
@@ -39,7 +39,7 @@ layer-boundary lint isn't wired yet).
 
 - **`StorageProvider`** (`domain/storage-provider.ts`) is a NestJS-free port:
   `put` / `get` / `remove` / `url`. Implementations ship as **separate
-  packages** (`@ortha-cms/media-provider-local`, `-s3`) and are constructed at
+  packages** (`@orthacms/media-provider-local`, `-s3`) and are constructed at
   the host's composition root (`apps/server/src/plugins.ts`) — this package
   never imports a concrete backend.
 - **`StorageRegistry`** holds the named providers; **`StorageResolver`** is an
@@ -212,14 +212,14 @@ carries the **derivative** routes too (`thumbUrl` / `previewUrl`, the same
 editor a thumbnail rather than a full-size original; an asset with no derivative
 (non-image, SVG, tiny) omits them and the admin falls back to `url`. Same open-host
 inversion as i18n binding content's `CONTENT_ENTRY_EXTENSION`: content declares
-the port, media binds it (hence the `@ortha-cms/content-server` dependency; no
+the port, media binds it (hence the `@orthacms/content-server` dependency; no
 cycle — content doesn't depend on media). Both modules are global, so content's
 `EntryWriterService` resolves the binding regardless of registration order.
 
 ## The agent tools (`src/lib/copilot/`)
 
 This package contributes to the shared tool registry
-([`@ortha-cms/tools-server`](../../tools/server/AGENTS.md)). Each binder injects
+([`@orthacms/tools-server`](../../tools/server/AGENTS.md)). Each binder injects
 `ToolRegistry` **`@Optional()`** and registers itself from `onModuleInit`: a
 deployment running neither the copilot nor MCP is normal, and media must boot
 without either.
@@ -415,7 +415,7 @@ MediaServerPlugin({
 ## Migrations
 
 Owns its schema, ships its migrations:
-`npx nx run @ortha-cms/media-server:db:generate --name=<change>` then
+`npx nx run @orthacms/media-server:db:generate --name=<change>` then
 `npx nx run server:db:migrate`.
 
 ## Image derivatives
@@ -445,7 +445,7 @@ variant serving, and the admin side has `media-library.spec.ts` +
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/media-server` / `npx nx lint @ortha-cms/media-server`
+- `npx nx typecheck @orthacms/media-server` / `npx nx lint @orthacms/media-server`
 
 ## Insights read-model (`/api/insights/media/*`)
 

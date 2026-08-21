@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { STALE_TIME } from '@ortha-cms/utils-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useInsightsRange } from '@ortha-cms/insights-admin';
+import { STALE_TIME } from '@orthacms/utils-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { useHasPermission } from '@orthacms/identity-admin';
+import { useInsightsRange } from '@orthacms/insights-admin';
 import { httpMediaInsightsGateway } from '../../infrastructure/httpMediaInsightsGateway';
 
 /** Permission every media Insights read is gated on. */

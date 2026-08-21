@@ -4,7 +4,7 @@ import {
     CardContent,
     CardHeader,
     Skeleton
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import { AuthLayout } from '../AuthLayout';
 
 /** Intl descriptors for {@link LoginSkeleton}, co-located with the component. */

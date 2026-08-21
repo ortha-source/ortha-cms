@@ -1,6 +1,6 @@
-# @ortha-cms/copilot-admin — Test Artifact
+# @orthacms/copilot-admin — Test Artifact
 
-> **Unit:** `packages/copilot/admin` · **Package:** `@ortha-cms/copilot-admin` · **Kind:** admin plugin
+> **Unit:** `packages/copilot/admin` · **Package:** `@orthacms/copilot-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/copilot/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 22 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -85,25 +85,25 @@ docker compose up -d && COPILOT_ENABLED=true npm run dev
 Automated:
 
 ```bash
-npx nx test @ortha-cms/copilot-admin     # 🧪 chatReducer, sessions, panelFrame,
+npx nx test @orthacms/copilot-admin     # 🧪 chatReducer, sessions, panelFrame,
                                          #    groupConversations, agentsRoute,
                                          #    tabBadge, parseBlocks, labels,
                                          #    routeContext, useCopilotModels
 npx nx e2e admin-e2e -- --project=chromium src/copilot/
-npx nx typecheck @ortha-cms/copilot-admin
+npx nx typecheck @orthacms/copilot-admin
 ```
 
 ### Dependencies that must be healthy
 
-- `@ortha-cms/identity-admin` — `useHasPermission` (fail-closed).
-- `@ortha-cms/workspaces-admin` — `useCurrentWorkspace` (usable **only** inside
+- `@orthacms/identity-admin` — `useHasPermission` (fail-closed).
+- `@orthacms/workspaces-admin` — `useCurrentWorkspace` (usable **only** inside
   the workspace shell's inset; the launcher must not call it — it *throws*
   outside the provider, taking the whole admin down, which is why
   `useRouteContext` reads the URL instead).
-- `@ortha-cms/design-system` — `Button`, `Textarea`, `Alert`, `Collapsible`,
+- `@orthacms/design-system` — `Button`, `Textarea`, `Alert`, `Collapsible`,
   `Dialog`, `Sheet`, `DropdownMenu`, `SegmentedControl`, `TopBar`, `Spinner`,
   `Toaster`, `Kbd`, `Skeleton`.
-- `@ortha-cms/copilot-domain` — `CopilotRunEvent`, `ToolPermissionDecision`.
+- `@orthacms/copilot-domain` — `CopilotRunEvent`, `ToolPermissionDecision`.
 - `react-intl` (host `IntlProvider`), TanStack Query, React Router.
 - The **shell** must render the sidebar footer slot and the workspace route/section
   slots, or nothing here mounts at all.

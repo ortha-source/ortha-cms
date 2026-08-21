@@ -1,4 +1,4 @@
-/** Public API of @ortha-cms/content-server. */
+/** Public API of @orthacms/content-server. */
 
 export { ContentPlugin } from './lib/utils/content-plugin';
 export type {
@@ -132,7 +132,7 @@ export type {
 } from './lib/public-api/http/api-token-request';
 
 // --- The public API's engine, for a second protocol over the same surface ---
-// `@ortha-cms/content-graphql` serves `/v1/graphql` by assembling these exact
+// `@orthacms/content-graphql` serves `/v1/graphql` by assembling these exact
 // DTOs and calling these exact services, so GraphQL and REST cannot drift on
 // what a token may see or write. Everything below is the *implementation* of
 // the public API rather than its wire contract: it is exported for that reuse,

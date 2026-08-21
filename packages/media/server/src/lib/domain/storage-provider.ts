@@ -30,7 +30,7 @@ export interface PutObject {
 
 /**
  * The storage boundary. Implementations live in separate packages
- * (`@ortha-cms/media-provider-local`, `@ortha-cms/media-provider-s3`) and are
+ * (`@orthacms/media-provider-local`, `@orthacms/media-provider-s3`) and are
  * registered at the composition root. The media core depends only on this
  * interface — never on a concrete backend.
  */

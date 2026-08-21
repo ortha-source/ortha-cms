@@ -11,8 +11,8 @@ import {
     InputField,
     Spinner,
     toast
-} from '@ortha-cms/design-system';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+} from '@orthacms/design-system';
+import { useHasPermission } from '@orthacms/identity-admin';
 import { useUpdateMember } from '../../../application/useUpdateMember';
 import { useUserDetailContext } from '../../userDetailContext';
 

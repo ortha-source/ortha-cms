@@ -1,5 +1,5 @@
-import type { ServerPlugin } from '@ortha-cms/bootstrap-server';
-import type { ContentServerPlugin } from '@ortha-cms/content-server';
+import type { ServerPlugin } from '@orthacms/bootstrap-server';
+import type { ContentServerPlugin } from '@orthacms/content-server';
 import { ContentGraphqlModule } from '../content-graphql.module';
 import { assertNoEnvelopeCollisions } from '../schema/build-schema';
 import { assertNoNameCollisions } from '../schema/naming';
@@ -43,7 +43,7 @@ export interface ContentGraphqlServerPlugin extends ServerPlugin {
 
 /**
  * The public content API over GraphQL — a second protocol in front of the
- * surface `@ortha-cms/content-server` already serves over REST, with the same
+ * surface `@orthacms/content-server` already serves over REST, with the same
  * bearer tokens, the same workspace bucket, the same scopes, and the same
  * visibility rules.
  *

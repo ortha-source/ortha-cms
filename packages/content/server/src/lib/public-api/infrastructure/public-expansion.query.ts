@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@ortha-cms/database';
-import { toMediaValueRef, type MediaValueRef } from '@ortha-cms/content-domain';
+import { InjectDatabase, type Database } from '@orthacms/database';
+import { toMediaValueRef, type MediaValueRef } from '@orthacms/content-domain';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../types/fields';
 import {

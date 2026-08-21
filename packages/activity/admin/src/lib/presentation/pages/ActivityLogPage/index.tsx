@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Activity, ChevronDown, Filter } from 'lucide-react';
-import { PageTopBar } from '@ortha-cms/shell-admin';
+import { PageTopBar } from '@orthacms/shell-admin';
 import {
     QueryBuilderPanel,
     QueryBuilderSummary,
@@ -16,9 +16,9 @@ import {
     jsonFilterToTree,
     treeToJsonFilter,
     type FilterGroup
-} from '@ortha-cms/query-builder-admin';
-import { useHasPermission } from '@ortha-cms/identity-admin';
-import { useTableUrlState, useDocumentTitle } from '@ortha-cms/utils-admin';
+} from '@orthacms/query-builder-admin';
+import { useHasPermission } from '@orthacms/identity-admin';
+import { useTableUrlState, useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -26,7 +26,7 @@ import {
     Container,
     ContainerHeader,
     cn
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import {
     useActivityLog,
     DEFAULT_PAGE_SIZE

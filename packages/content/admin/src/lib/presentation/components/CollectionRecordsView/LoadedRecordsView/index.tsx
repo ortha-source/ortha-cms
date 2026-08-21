@@ -16,10 +16,10 @@ import {
     jsonFilterToTree,
     treeToJsonFilter,
     type FilterGroup
-} from '@ortha-cms/query-builder-admin';
-import { useTableUrlState } from '@ortha-cms/utils-admin';
-import { useCurrentWorkspace } from '@ortha-cms/workspaces-admin';
-import { useHasPermission } from '@ortha-cms/identity-admin';
+} from '@orthacms/query-builder-admin';
+import { useTableUrlState } from '@orthacms/utils-admin';
+import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { useHasPermission } from '@orthacms/identity-admin';
 import {
     Alert,
     AlertDescription,
@@ -28,7 +28,7 @@ import {
     ContainerHeader,
     SearchToolbar,
     cn
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 import type {
     ContentType,
     ContentTypeDetail

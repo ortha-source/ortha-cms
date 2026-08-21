@@ -10,7 +10,7 @@ import {
     InputGroupButton,
     InputGroupInput,
     toast
-} from '@ortha-cms/design-system';
+} from '@orthacms/design-system';
 
 /** How long the button shows its "copied" check before reverting. */
 const COPIED_RESET_MS = 2000;

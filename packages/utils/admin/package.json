@@ -1,5 +1,5 @@
 {
-    "name": "@ortha-cms/utils-admin",
+    "name": "@orthacms/utils-admin",
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -15,7 +15,7 @@
         "src"
     ],
     "dependencies": {
-        "@ortha-cms/design-system": "*",
+        "@orthacms/design-system": "*",
         "@tanstack/react-query": "^5.0.0",
         "axios": "^1.6.0",
         "react": "^19.0.0"

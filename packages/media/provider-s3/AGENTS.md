@@ -1,4 +1,4 @@
-# @ortha-cms/media-provider-s3
+# @orthacms/media-provider-s3
 
 A **stub** AWS S3 storage provider for the Media Library. It proves the routing
 seam end-to-end — the host can register it under a name and a resolver can route
@@ -20,4 +20,4 @@ register it as the `defaultProvider`.
 
 ## Commands
 
-- `npx nx typecheck @ortha-cms/media-provider-s3` / `npx nx lint @ortha-cms/media-provider-s3`
+- `npx nx typecheck @orthacms/media-provider-s3` / `npx nx lint @orthacms/media-provider-s3`

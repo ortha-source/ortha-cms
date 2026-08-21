@@ -3,8 +3,8 @@ import {
     Injectable,
     NotFoundException
 } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@ortha-cms/database';
-import { type EntryStatus } from '@ortha-cms/content-domain';
+import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import { type EntryStatus } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import { toRecord } from '../../infrastructure/persistence/entry-row';

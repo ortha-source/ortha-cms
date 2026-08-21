@@ -1,6 +1,6 @@
-# @ortha-cms/content-domain — Test Artifact
+# @orthacms/content-domain — Test Artifact
 
-> **Unit:** `packages/content/domain` · **Package:** `@ortha-cms/content-domain` · **Kind:** library (shared kernel)
+> **Unit:** `packages/content/domain` · **Package:** `@orthacms/content-domain` · **Kind:** library (shared kernel)
 > **Source of truth:** `packages/content/domain/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 9 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -50,9 +50,9 @@ migrations.
 - **How to exercise it manually**
 
     ```bash
-    npx nx test @ortha-cms/content-domain      # the three DB-free unit suites
-    npx nx typecheck @ortha-cms/content-domain
-    npx nx lint @ortha-cms/content-domain
+    npx nx test @orthacms/content-domain      # the three DB-free unit suites
+    npx nx typecheck @orthacms/content-domain
+    npx nx lint @orthacms/content-domain
     ```
 
     Or interactively, since it is pure:
@@ -280,7 +280,7 @@ keyboard or screen-reader path applies — see §4A.
 | 1 | `cat packages/content/domain/package.json` | no `dependencies`, `peerDependencies` or `devDependencies` block at all |
 | 2 | `grep -rn "from '" packages/content/domain/src --include=*.ts \| grep -v "from '\."` | no output — every import is relative |
 | 3 | Grep for `@nestjs`, `drizzle-orm`, `react`, `class-validator`, `node:` | no matches |
-| 4 | `npx nx typecheck @ortha-cms/content-domain` in isolation | passes with no workspace project references beyond itself |
+| 4 | `npx nx typecheck @orthacms/content-domain` in isolation | passes with no workspace project references beyond itself |
 
 ## 4. Edge Cases & Negative Paths
 

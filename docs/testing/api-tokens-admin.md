@@ -1,6 +1,6 @@
-# @ortha-cms/api-tokens-admin — Test Artifact
+# @orthacms/api-tokens-admin — Test Artifact
 
-> **Unit:** `packages/api-tokens/admin` · **Package:** `@ortha-cms/api-tokens-admin` · **Kind:** admin plugin
+> **Unit:** `packages/api-tokens/admin` · **Package:** `@orthacms/api-tokens-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/api-tokens/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 12 confirmed · 0 deleted · 6 corrected · 1 unverified
 > **Generated:** 2026-08-11
@@ -17,9 +17,9 @@ workspaces are chosen in the create dialog from `GET /api/workspaces`.
 It does **NOT** own:
 
 - The token model, the hashing, or the `tokens:*` permissions — those are
-  `@ortha-cms/identity-server`'s `api-tokens/` feature.
-- The public content API the tokens are spent against — `@ortha-cms/content-server`'s
-  `public-api/` and `@ortha-cms/content-graphql`.
+  `@orthacms/identity-server`'s `api-tokens/` feature.
+- The public content API the tokens are spent against — `@orthacms/content-server`'s
+  `public-api/` and `@orthacms/content-graphql`.
 - `X-Workspace-Id` selection. The dialog's hint mentions the header
   (`CreateApiTokenDialog/index.tsx:56-60`); enforcement is entirely server-side.
 - Any authorization decision. `useHasPermission` hides affordances only.
@@ -65,10 +65,10 @@ curl -s http://localhost:3000/api/v1/entries/posts \
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/identity-admin` (`useHasPermission`), `@ortha-cms/shell-admin`
-(`PageTopBar`, `SIDEBAR_NAV_SLOT`), `@ortha-cms/design-system` (`Table`, `Dialog`,
+`@orthacms/identity-admin` (`useHasPermission`), `@orthacms/shell-admin`
+(`PageTopBar`, `SIDEBAR_NAV_SLOT`), `@orthacms/design-system` (`Table`, `Dialog`,
 `ConfirmDialog`, `DropdownMenu`, `MultiSelect`, `Select`, `Label`, `Input`, `toast`),
-`@ortha-cms/utils-admin` (`apiClient`, `toApiError`), and the workspaces API for the
+`@orthacms/utils-admin` (`apiClient`, `toApiError`), and the workspaces API for the
 selector.
 
 ## 2. Feature Inventory

@@ -1,6 +1,6 @@
-# @ortha-cms/content-admin — Test Artifact
+# @orthacms/content-admin — Test Artifact
 
-> **Unit:** `packages/content/admin` · **Package:** `@ortha-cms/content-admin` · **Kind:** admin plugin
+> **Unit:** `packages/content/admin` · **Package:** `@orthacms/content-admin` · **Kind:** admin plugin
 > **Source of truth:** `packages/content/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 4 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -21,14 +21,14 @@ actions portalled into the shell chrome), eight **Insights widgets**, and the
 **Does NOT own:**
 
 - the content model, validation rules or the publish gate — those live in
-  `@ortha-cms/content-domain` (the kernel) and `@ortha-cms/content-server`
+  `@orthacms/content-domain` (the kernel) and `@orthacms/content-server`
   ([ADR-0003](../adr/0003-tactical-ddd-inside-plugins.md)); this package's
   `presentation/entryValidation` is only an **i18n anti-corruption layer**
   (`src/lib/presentation/entryValidation/index.ts:96-134`);
-- the rich-text control (`@ortha-cms/wysiwyg-admin` fills
+- the rich-text control (`@orthacms/wysiwyg-admin` fills
   `ENTRY_FIELD_CONTROL_SLOT`), the **Media tab** and staged uploads
-  (`@ortha-cms/media-admin` fills `ENTRY_TAB_SLOT` + `ENTRY_PRESAVE_SLOT`), and
-  all locale behaviour (`@ortha-cms/i18n-admin` fills eight slots);
+  (`@orthacms/media-admin` fills `ENTRY_TAB_SLOT` + `ENTRY_PRESAVE_SLOT`), and
+  all locale behaviour (`@orthacms/i18n-admin` fills eight slots);
 - the sidebar chrome, right panel and page-actions region (`shell/admin` —
   this package only portals into `RightPanelPortal` / `PageActionsPortal`);
 - the workspace shell and `useCurrentWorkspace` (`workspaces-admin`);
@@ -96,8 +96,8 @@ view types.
   (`ContentLibraryPage/index.tsx:112-113`, `ContentNavSection/index.tsx:59-60`);
   a workspace granted nothing renders `ContentLibraryEmpty` and **no sidebar
   section at all**.
-- For the entry editor's Media tab you additionally need `@ortha-cms/media-admin`
-  registered; for rich text, `@ortha-cms/wysiwyg-admin`. **Both are optional
+- For the entry editor's Media tab you additionally need `@orthacms/media-admin`
+  registered; for rich text, `@orthacms/wysiwyg-admin`. **Both are optional
   plugins** — see `🐞 BUG-content-admin-02`.
 - e2e needs no server: `apps/admin-e2e` mocks `/api` with `page.route`
   (`apps/admin-e2e/src/support/api/content.ts`).
@@ -124,14 +124,14 @@ npx nx e2e admin-e2e -- --project=chromium src/content
 
 ### Dependencies that must be healthy
 
-`@ortha-cms/workspaces-admin` (`useCurrentWorkspace`, `useWorkspaces`, the
+`@orthacms/workspaces-admin` (`useCurrentWorkspace`, `useWorkspaces`, the
 workspace slots — register `ContentPlugin()` **after** `WorkspacesPlugin()`),
-`@ortha-cms/shell-admin` (`RightPanelPortal`, `PageActionsPortal`,
-`COMMAND_SLOT`), `@ortha-cms/identity-admin` (`useHasPermission`),
-`@ortha-cms/content-domain` (the validation kernel + `canPublish`),
-`@ortha-cms/query-builder-admin`, `@ortha-cms/insights-admin`,
-`@ortha-cms/utils-admin` (`apiClient`, `createSlot`, `useTableUrlState`,
-`useUnsavedChanges`, `ApiError`), `@ortha-cms/design-system`, `@dnd-kit/*`.
+`@orthacms/shell-admin` (`RightPanelPortal`, `PageActionsPortal`,
+`COMMAND_SLOT`), `@orthacms/identity-admin` (`useHasPermission`),
+`@orthacms/content-domain` (the validation kernel + `canPublish`),
+`@orthacms/query-builder-admin`, `@orthacms/insights-admin`,
+`@orthacms/utils-admin` (`apiClient`, `createSlot`, `useTableUrlState`,
+`useUnsavedChanges`, `ApiError`), `@orthacms/design-system`, `@dnd-kit/*`.
 
 ## 2. Feature Inventory
 
@@ -619,7 +619,7 @@ unlikely to have meant as "publish".
 
 ### F71 / F72 / F75 — The extension slots
 
-**Preconditions:** `ADMIN`, with `@ortha-cms/i18n-admin` registered (it fills
+**Preconditions:** `ADMIN`, with `@orthacms/i18n-admin` registered (it fills
 eight of the eleven), plus a throwaway plugin registered after `ContentPlugin()`
 for the negative cases.
 
@@ -1353,7 +1353,7 @@ const generalFields = visible.filter(
 link-managed relations. So `useEntryForm` — and therefore `form.submit()` —
 validates **every** field in `schema.fields`, including (a) fields marked
 `admin.hidden`, which `visible` drops, and (b) `media` fields, which
-`generalFields` drops and which render only if `@ortha-cms/media-admin` has
+`generalFields` drops and which render only if `@orthacms/media-admin` has
 contributed an `ENTRY_TAB_SLOT` item. `fieldGate` (`:379-386`) filters on
 `visible`, so a hidden required field never even appears in the publish gate.
 

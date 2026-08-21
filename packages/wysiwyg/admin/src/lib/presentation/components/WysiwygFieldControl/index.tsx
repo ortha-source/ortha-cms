@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Eye, Pencil } from 'lucide-react';
-import { cn } from '@ortha-cms/design-system';
-import type { EntryFieldControlContext } from '@ortha-cms/content-admin';
+import { cn } from '@orthacms/design-system';
+import type { EntryFieldControlContext } from '@orthacms/content-admin';
 import { isEmptyRichText } from '../../../domain/richTextValue';
 import { WysiwygPreview } from '../WysiwygPreview';
 

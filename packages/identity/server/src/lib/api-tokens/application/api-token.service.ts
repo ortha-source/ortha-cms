@@ -5,7 +5,7 @@ import {
     OutboxWriter,
     UnitOfWork,
     type EventActor
-} from '@ortha-cms/database';
+} from '@orthacms/database';
 import {
     apiTokenEvent,
     IDENTITY_EVENT_KINDS

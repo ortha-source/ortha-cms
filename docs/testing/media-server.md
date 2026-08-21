@@ -1,6 +1,6 @@
-# @ortha-cms/media-server — Test Artifact
+# @orthacms/media-server — Test Artifact
 
-> **Unit:** `packages/media/server` · **Package:** `@ortha-cms/media-server` · **Kind:** server plugin
+> **Unit:** `packages/media/server` · **Package:** `@orthacms/media-server` · **Kind:** server plugin
 > **Source of truth:** `packages/media/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 11 confirmed · 0 deleted · 3 corrected · 0 unverified
 > **Generated:** 2026-08-11
@@ -17,7 +17,7 @@ token-authenticated pair at `/api/v1/media`; the media Insights read-model at
 
 **Does NOT own:** the bytes (a `StorageProvider` package holds them —
 `provider-local` / `provider-s3`, constructed at `apps/server/src/plugins.ts`);
-the admin UI (`@ortha-cms/media-admin`); the `field.media` content field type
+the admin UI (`@orthacms/media-admin`); the `field.media` content field type
 (that is content-server's — this only binds the resolver port); authentication or
 workspace membership (identity + workspaces); and **any HTTP security headers**
 (there is no helmet/CSP/nosniff anywhere in the repo — verified by grep, see
@@ -79,10 +79,10 @@ workspace membership (identity + workspaces); and **any HTTP security headers**
   ```
   The admin surface lives at `http://localhost:4200/workspaces/:id/media`.
 
-- **Dependencies that must be healthy**: `@ortha-cms/database` (the pool,
-  `UnitOfWork`, `OutboxWriter`), `@ortha-cms/identity-server` (`PermissionsGuard`,
-  `OriginGuard`, `PERMISSIONS`), `@ortha-cms/workspaces-server`
-  (`WorkspaceGuard`, `MembershipCheckQuery`), `@ortha-cms/content-server`
+- **Dependencies that must be healthy**: `@orthacms/database` (the pool,
+  `UnitOfWork`, `OutboxWriter`), `@orthacms/identity-server` (`PermissionsGuard`,
+  `OriginGuard`, `PERMISSIONS`), `@orthacms/workspaces-server`
+  (`WorkspaceGuard`, `MembershipCheckQuery`), `@orthacms/content-server`
   (`ApiTokenGuard`, `ApiTokenWorkspaceGuard`, `MEDIA_ASSET_RESOLVER`), a
   registered storage provider under `config.defaultProvider` (the host registers
   **only `local`** — `apps/server/src/plugins.ts:88`).

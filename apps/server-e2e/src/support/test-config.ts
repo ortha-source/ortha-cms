@@ -1,12 +1,12 @@
-import type { TrustProxySetting } from '@ortha-cms/bootstrap-server';
-import type { ContentGraphqlLimits } from '@ortha-cms/content-graphql';
+import type { TrustProxySetting } from '@orthacms/bootstrap-server';
+import type { ContentGraphqlLimits } from '@orthacms/content-graphql';
 import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig,
     IdentitySessionConfig
-} from '@ortha-cms/identity-server';
-import type { RunLimits } from '@ortha-cms/copilot-domain';
-import type { LocaleDef, OrphanedLocalePolicy } from '@ortha-cms/i18n-server';
+} from '@orthacms/identity-server';
+import type { RunLimits } from '@orthacms/copilot-domain';
+import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
 /**
