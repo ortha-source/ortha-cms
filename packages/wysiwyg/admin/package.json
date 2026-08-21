@@ -18,6 +18,7 @@
     "dependencies": {
         "@orthacms/bootstrap-admin": "*",
         "@orthacms/content-admin": "*",
+        "@orthacms/content-domain": "*",
         "@orthacms/design-system": "*",
         "@orthacms/utils-admin": "*",
         "@tiptap/core": "^3.29.2",
