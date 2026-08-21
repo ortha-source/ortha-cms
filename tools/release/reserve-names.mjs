@@ -19,11 +19,16 @@
  *     node tools/release/reserve-names.mjs --limit=20
  *
  * What goes out is the **real staged tarball** at a prerelease version under a
- * non-`latest` dist-tag — not an empty placeholder. Two reasons: an empty stub
- * is what an anti-abuse system reads as name squatting, which is the last
- * thing to do while rationed; and `latest` stays unset, so
- * `npm install @orthacms/<name>` finds nothing until the real release rather
- * than installing a husk.
+ * `reserve` dist-tag — not an empty placeholder, because an empty stub is what
+ * an anti-abuse system reads as name squatting, which is the last thing to do
+ * while rationed.
+ *
+ * `--tag reserve` does **not** keep `latest` unset. npm points `latest` at the
+ * first version a name ever receives whatever tag it was given, so until the
+ * real release overwrites it, `npm install @orthacms/<name>` installs the
+ * reserved version. That is the price of seeding names ahead of time; it lasts
+ * only until the release, and only matters if the packages are announced
+ * before then.
  *
  * The reserved version does not disturb versioning: `nx.json` derives the next
  * version from conventional commits against the git tag, with a `disk`
@@ -88,6 +93,7 @@ console.log(
 const created = [];
 const existing = [];
 const pending = [];
+let attempts = 0;
 let stopped = null;
 
 for (const pkg of staged) {
@@ -109,17 +115,28 @@ for (const pkg of staged) {
     }
 
     // The gap belongs *between* writes; the first one waits for nothing.
-    if (created.length > 0) await sleep(DEFAULTS.gap);
+    // Counted in attempts rather than creations, because a write npm refuses
+    // is still a write it saw.
+    if (attempts > 0) await sleep(DEFAULTS.gap);
 
-    const failure = publish(pkg);
+    attempts++;
+    const outcome = publish(pkg);
 
-    if (failure) {
+    if (outcome.status === 'failed') {
         stopped = {
             name: pkg.name,
-            output: failure,
-            reason: diagnose(failure)
+            output: outcome.output,
+            reason: diagnose(outcome.output)
         };
         pending.push(pkg.name);
+        continue;
+    }
+
+    if (outcome.status === 'already-there') {
+        existing.push(pkg.name);
+        console.log(
+            `  · ${pkg.name} — already on the registry (the probe read a stale 404)`
+        );
         continue;
     }
 
@@ -152,6 +169,21 @@ if (pending.length > 0) {
         dryRun
             ? '\nreserve: nothing left to create once this run is done for real.'
             : '\nreserve: every name exists — `npm run release` now only bumps versions.'
+    );
+}
+
+/**
+ * npm's answer to a version that is already on the registry: 403
+ * EPUBLISHCONFLICT. The publish executor reads it the same way — for a resumed
+ * release it is what every already-published package says — and so does this,
+ * because a name cannot be created twice and being told so is not a failure.
+ */
+function isAlreadyPublished(output) {
+    const text = output.toLowerCase();
+
+    return (
+        text.includes('epublishconflict') ||
+        text.includes('cannot publish over')
     );
 }
 
@@ -257,6 +289,10 @@ async function nameExists(name) {
         const response = await fetch(new URL(name.replace('/', '%2f'), base), {
             headers: {
                 accept: 'application/vnd.npm.install-v1+json, application/json',
+                // A name created minutes ago can still read as 404 from a
+                // cache that answered before it existed. Ask past it.
+                'cache-control': 'no-cache',
+                pragma: 'no-cache',
                 ...(token ? { authorization: `Bearer ${token}` } : {})
             }
         });
@@ -297,9 +333,16 @@ function publish(pkg) {
             { cwd: workspaceRoot, env, encoding: 'utf8', stdio: 'pipe' }
         );
 
-        return null;
+        return { status: 'created' };
     } catch (error) {
-        return `${error.stdout ?? ''}\n${error.stderr ?? ''}`.trim();
+        const output = `${error.stdout ?? ''}\n${error.stderr ?? ''}`.trim();
+
+        // The name is there after all — the probe was reading a stale 404.
+        // A rejected republish creates nothing and costs no name quota, so
+        // this is the same outcome as the probe having answered correctly.
+        return isAlreadyPublished(output)
+            ? { status: 'already-there' }
+            : { status: 'failed', output };
     } finally {
         writeFileSync(pkg.manifest, original);
     }

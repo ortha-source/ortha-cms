@@ -177,19 +177,29 @@ npm run release:reserve -- --limit=20       # create at most 20 names
 
 Each run probes the registry, skips every name that is already there, and
 publishes the **real staged tarball** at `0.0.0-reserve.0` under the `reserve`
-dist-tag. Two things follow from that choice. `latest` stays unset, so
-`npm install @orthacms/<name>` finds nothing until the real release rather
-than installing a husk; and what goes out is a genuine package rather than an
-empty placeholder, which is what an anti-abuse system reads as squatting — the
-last thing to do while rationed. The reserved version does not disturb
-versioning: `nx release` derives the next one from conventional commits against
-the git tag and never asks the registry.
+dist-tag. A genuine package rather than an empty placeholder, because an empty
+stub is what an anti-abuse system reads as squatting — the last thing to do
+while rationed. The reserved version does not disturb versioning: `nx release`
+derives the next one from conventional commits against the git tag and never
+asks the registry.
+
+**`--tag reserve` does not keep `latest` unset.** npm points `latest` at the
+first version a name ever receives, whichever tag it was given, so between the
+seeding and the release `npm install @orthacms/<name>` installs the reserved
+version. The release overwrites it. Seed names before announcing packages, not
+after.
 
 The first refusal ends the run. The names queued behind it are reported, not
 attempted: every rejected creation is a signal to the rate limiter, and
 spending one per package to be told the same thing is how a soft limit becomes
 a hard one. Run it again when the limit rolls over — what already exists is
 skipped by the probe.
+
+A name created minutes earlier can still read as 404, because the packument
+`GET` is cached and may answer from before it existed. The run therefore does
+not trust the probe alone: npm's own 403 for a version that already exists is
+read as "already there" rather than as a failure, and the run carries on to
+the names that really are missing.
 
 `--limit` is also how you find out what the limit actually _is_, which npm does
 not document. Start at 20; where the refusal lands is the answer, and it costs
