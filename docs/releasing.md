@@ -159,10 +159,45 @@ publish would create a name or add a version to one, and:
   queued behind it bow out without spending a request of their own. One blocked
   release costs **one** rejected write, not one per package.
 
-When you hit it, the release is telling you something it cannot fix. Either ask
-npm support to raise the new-package limit for the account, or create the
-remaining names by hand as the limit allows, and then finish the release with
-`npm run release:publish`.
+When you hit it, the release is telling you something it cannot fix. Ask npm
+support to raise the new-package limit for the account — and, while that is
+unanswered, stop letting the release be the thing that creates names.
+
+#### Seeding the names ahead of the release
+
+`npm run release:reserve` creates the missing `@ortha-cms/*` names on its own,
+in batches, so that by the time a release runs every publish is a version bump
+— the case the gap and the backoff above already handle.
+
+```sh
+npx nx run-many -t build,pack --projects=@ortha-cms/*
+npm run release:reserve -- --dry-run        # probe and report, write nothing
+npm run release:reserve -- --limit=20       # create at most 20 names
+```
+
+Each run probes the registry, skips every name that is already there, and
+publishes the **real staged tarball** at `0.0.0-reserve.0` under the `reserve`
+dist-tag. Two things follow from that choice. `latest` stays unset, so
+`npm install @ortha-cms/<name>` finds nothing until the real release rather
+than installing a husk; and what goes out is a genuine package rather than an
+empty placeholder, which is what an anti-abuse system reads as squatting — the
+last thing to do while rationed. The reserved version does not disturb
+versioning: `nx release` derives the next one from conventional commits against
+the git tag and never asks the registry.
+
+The first refusal ends the run. The names queued behind it are reported, not
+attempted: every rejected creation is a signal to the rate limiter, and
+spending one per package to be told the same thing is how a soft limit becomes
+a hard one. Run it again when the limit rolls over — what already exists is
+skipped by the probe.
+
+`--limit` is also how you find out what the limit actually _is_, which npm does
+not document. Start at 20; where the refusal lands is the answer, and it costs
+one write to learn.
+
+The same script points anywhere: `--registry=http://localhost:4873` rehearses
+the whole thing against a local Verdaccio, which has no limits at all and
+proves the tarballs install before a single metered write goes out.
 
 ### Two things `pack` refuses to ship
 

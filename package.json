@@ -10,7 +10,8 @@
         "start:admin": "nx serve admin",
         "release": "node tools/release/release.mjs",
         "release:dry-run": "node tools/release/release.mjs --dry-run",
-        "release:publish": "node tools/release/release.mjs --publish-only"
+        "release:publish": "node tools/release/release.mjs --publish-only",
+        "release:reserve": "node tools/release/reserve-names.mjs"
     },
     "private": true,
     "repository": {
