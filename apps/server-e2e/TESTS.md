@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1227 test cases across 80 spec files._
+_1236 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -57,6 +57,20 @@ _<sub>apps/server-e2e/src/harness/create-server.spec.ts</sub>_
 | Test case |
 | --- |
 | installs shutdown listeners so in-flight requests are not dropped |
+
+### serving the admin bundle from staticDir
+
+| Test case |
+| --- |
+| serves a real asset from the bundle |
+| falls back to index.html for a deep client-side route |
+| leaves an unknown API path as a JSON 404 |
+| does not swallow a non-GET request |
+| 404s a missing asset instead of returning the page |
+| 404s a missing asset even when the client accepts HTML |
+| gives a JSON client a 404 it can parse, not a page |
+| serves the API only, without failing boot, when the bundle is absent |
+| serves nothing extra when staticDir is omitted |
 
 <!-- source: apps/server-e2e/src/harness/harness-guards.spec.ts -->
 _<sub>apps/server-e2e/src/harness/harness-guards.spec.ts</sub>_

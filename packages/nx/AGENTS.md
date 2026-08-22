@@ -125,14 +125,26 @@ alongside the `@nx/*` plugins in the root `nx.json`.
 
 ## Architecture
 
-- **Thin executors over a core lib.** All logic lives in `src/lib/drizzle/`
-  (`generate.ts`, `apply.ts`, `studio.ts`) and `src/lib/release/`
-  (`publish.ts`, `throttle.ts`) as plain functions; the executors
-  are adapters. This keeps the logic testable without Nx and lets a standalone
-  CLI reuse it later if prod/CI migrations ever need to run without Nx. The
-  shared `src/lib/jiti.ts` builds the `jiti`+`swc` (legacy-decorator) loader
-  the host-config executors (`db:migrate`, `db:studio`) use to import the
-  TypeScript `ortha.config.ts` at runtime.
+- **Thin executors over a core lib — and the database half of that lib now
+  lives in [`@orthacms/cli`](../cli/AGENTS.md).** `db:generate`, `db:migrate`
+  and `db:studio` are adapters over `runDrizzleKitGenerate`,
+  `applyPluginMigrations` and `runDrizzleKitStudio`, imported from that package.
+  They used to live here, in `src/lib/drizzle/`, where an app installed from npm
+  could not reach them at all — this package is `private` and never published,
+  so a generated app had no way to migrate its own database. Moving them means
+  **the monorepo and every generated app apply migrations through one
+  implementation**, which for the most destructive operation in the system is
+  worth more than the indirection costs.
+
+    Release logic (`src/lib/release/`: `publish.ts`, `throttle.ts`,
+    `registry.ts`) stays here — it is workspace tooling, not something a
+    consumer runs.
+
+    `src/lib/jiti.ts` also stays: it builds the `jiti`+`swc` (legacy-decorator)
+    loader `db:migrate` and `db:studio` use to import the TypeScript
+    `ortha.config.ts` **from source**, which is a problem only this workspace
+    has. A generated app compiles first and `require`s the JavaScript, so
+    `@orthacms/cli` needs neither jiti nor swc.
 - **Generate is per-plugin; apply is host-level.** Each workspace plugin
   owns its `drizzle.config.ts` and generates its own `migrations/`. The host
   applies all of them. npm-installed plugins ship their SQL pre-generated;

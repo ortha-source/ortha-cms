@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ServerModule } from './server.module';
 import type { CreateServerOptions } from './types/server-plugin';
+import { serveAdmin } from './utils/serve-admin';
 import { setupApiDocs } from './utils/setup-api-docs';
 
 /**
@@ -47,7 +48,8 @@ export async function createServer(
         globalPrefix = 'api',
         trustProxy,
         bodyLimit = DEFAULT_BODY_LIMIT,
-        docs
+        docs,
+        staticDir
     } = options;
 
     // Run plugin setup hooks in order, before the app is created — so a
@@ -99,6 +101,12 @@ export async function createServer(
     // After the prefix + pipe, so the document describes the real URLs; before
     // `listen`, so the reference is reachable the moment the port opens.
     setupApiDocs(app, plugins, docs, globalPrefix);
+
+    // Last, so every controller route and the reference are already registered
+    // and the SPA fallback can only ever see what none of them claimed.
+    if (staticDir) {
+        serveAdmin(app, staticDir, globalPrefix);
+    }
 
     // SIGTERM is how every orchestrator ends a pod, and without this Node's
     // default handler tears the process down where it stands — every in-flight

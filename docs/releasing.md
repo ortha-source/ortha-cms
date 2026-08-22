@@ -62,6 +62,13 @@ into this repo's `nx.json`, not something a consumer installs.
 The apps (`apps/admin`, `apps/server`) are private and never publish. They are
 the reference host, not a distributable.
 
+`create-ortha-app` is the one published package **outside** the `@orthacms`
+scope — unscoped so `npx create-ortha-app` works — so it is named explicitly in
+`release.projects` and in the `preVersionCommand` rather than being picked up by
+the `@orthacms/*` glob. It ships in lockstep for a reason beyond tidiness: it
+stamps its own version into every `@orthacms/*` dependency of the app it
+generates, so its version *is* the matching set.
+
 ## How a tarball is built
 
 Workspace packages are consumed **from source** — their `exports` point at
@@ -82,9 +89,16 @@ existing.
 2. **`pack`** — [`tools/release/pack.mjs`](../tools/release/pack.mjs) assembles
    a publishable package root at `dist/pack/<projectRoot>/`: the build output,
    any non-TS asset that sat beside the source (`styles.css`), the
-   `migrations/` folder if the plugin ships one, the LICENSE and README, and a
-   **rewritten `package.json`** whose `exports` point at `./dist` and whose
-   workspace dependencies are pinned to the released version instead of `"*"`.
+   `migrations/` folder if the plugin ships one, the `templates/` folder if it
+   ships those, the LICENSE and README, and a **rewritten `package.json`** whose
+   `exports` point at `./dist`, whose `bin` is remapped the same way `main` is,
+   and whose workspace dependencies are pinned to the released version instead
+   of `"*"`.
+
+    `bin` is remapped and then **verified**, along with every other declared
+    entry point. Left pointing at `./src/cli.ts` it publishes a command that
+    installs cleanly and dies on its first `npx`, on someone else's machine,
+    with an error about the command not existing rather than about the file.
 3. **`nx-release-publish`** — publishes that staging directory rather than the
    project root, via `packageRoot`. It runs `@orthacms/nx:release-publish`
    rather than the `@nx/js` one, because 37 publishes in a row is more than

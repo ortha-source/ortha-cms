@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import {
@@ -54,7 +57,8 @@ describe('createServer (the host bootstrap)', () => {
     async function boot(
         overrides: TestConfigOverrides = {},
         extraPlugins: ServerPlugin[] = [],
-        docs?: ApiDocsOptions
+        docs?: ApiDocsOptions,
+        staticDir?: string
     ): Promise<NestExpressApplication> {
         const config = buildTestConfig(resolveDatabaseUrl(), overrides);
         const app = await createServer({
@@ -63,7 +67,8 @@ describe('createServer (the host bootstrap)', () => {
             globalPrefix: config.globalPrefix,
             trustProxy: config.trustProxy,
             bodyLimit: config.bodyLimit,
-            docs: docs ?? config.docs
+            docs: docs ?? config.docs,
+            staticDir
         });
         apps.push(app);
         return app;
@@ -269,6 +274,136 @@ describe('createServer (the host bootstrap)', () => {
             await app.close();
             apps.pop();
             expect(process.listenerCount('SIGTERM')).toBe(before);
+        });
+    });
+
+    /**
+     * `staticDir` — serving a built admin from the same process, so the API
+     * and the UI share one origin (which is what identity's `SameSite=lax`
+     * session cookie requires of a deployment without a dev proxy).
+     *
+     * The interesting half is not that assets serve; it is everything the SPA
+     * fallback must **refuse**. A fallback applied indiscriminately answers a
+     * mistyped endpoint with `200` and a page of HTML, so every client sees a
+     * success and a JSON parse error, and nothing says the route is gone.
+     */
+    describe('serving the admin bundle from staticDir', () => {
+        let bundle: string;
+
+        beforeEach(() => {
+            bundle = mkdtempSync(join(tmpdir(), 'ortha-admin-'));
+            writeFileSync(join(bundle, 'index.html'), '<!doctype html>ADMIN');
+            mkdirSync(join(bundle, 'assets'));
+            writeFileSync(join(bundle, 'assets/app.js'), 'export const x = 1;');
+        });
+
+        afterEach(() => rmSync(bundle, { recursive: true, force: true }));
+
+        it('serves a real asset from the bundle', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            await request(app.getHttpServer())
+                .get('/assets/app.js')
+                .expect(200)
+                .expect((response) =>
+                    expect(response.text).toContain('export const x = 1;')
+                );
+        });
+
+        it('falls back to index.html for a deep client-side route', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            await request(app.getHttpServer())
+                .get('/workspaces/1/entries/2')
+                .set('Accept', 'text/html')
+                .expect(200)
+                .expect((response) => expect(response.text).toContain('ADMIN'));
+        });
+
+        /**
+         * The regression the reserved-prefix list exists for: without it this
+         * returns 200 and HTML, and an API client's "route not found" becomes
+         * an unexplained JSON parse error.
+         */
+        it('leaves an unknown API path as a JSON 404', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            const response = await request(app.getHttpServer())
+                .get('/api/not-a-real-endpoint')
+                .set('Accept', 'text/html')
+                .expect(404);
+
+            expect(response.text).not.toContain('ADMIN');
+        });
+
+        it('does not swallow a non-GET request', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            await request(app.getHttpServer())
+                .post('/workspaces/1')
+                .set('Accept', 'text/html')
+                .expect(404);
+        });
+
+        /**
+         * A missing hashed chunk must keep 404ing. Answered with `index.html`
+         * the browser reports a MIME-type error instead, which reads as a
+         * bundler bug rather than the stale deploy it actually is.
+         */
+        it('404s a missing asset instead of returning the page', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            // No `Accept` override on purpose. A browser fetches scripts with
+            // `Accept: */*`, and `accepts('html')` answers `'html'` to that —
+            // so an `Accept`-only guard lets this request through and returns
+            // 200 with the page. Measured against a real build before the
+            // extension check was added.
+            await request(app.getHttpServer())
+                .get('/assets/deleted-chunk.js')
+                .expect(404);
+        });
+
+        it('404s a missing asset even when the client accepts HTML', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            await request(app.getHttpServer())
+                .get('/assets/deleted-chunk.js')
+                .set('Accept', 'text/html')
+                .expect(404);
+        });
+
+        it('gives a JSON client a 404 it can parse, not a page', async () => {
+            const app = await boot({}, [], undefined, bundle);
+
+            await request(app.getHttpServer())
+                .get('/workspaces/1')
+                .set('Accept', 'application/json')
+                .expect(404);
+        });
+
+        it('serves the API only, without failing boot, when the bundle is absent', async () => {
+            const warn = jest
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => undefined);
+
+            const app = await boot({}, [], undefined, join(bundle, 'nope'));
+
+            await request(app.getHttpServer())
+                .get('/api/not-a-real-endpoint')
+                .expect(404);
+            expect(warn).toHaveBeenCalledWith(
+                expect.stringContaining('No admin bundle at'),
+                'ServeAdmin'
+            );
+        });
+
+        it('serves nothing extra when staticDir is omitted', async () => {
+            const app = await boot();
+
+            await request(app.getHttpServer())
+                .get('/workspaces/1/entries/2')
+                .set('Accept', 'text/html')
+                .expect(404);
         });
     });
 });

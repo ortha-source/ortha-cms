@@ -12,10 +12,12 @@
  * the registry should see:
  *
  *     package.json     rewritten — exports point at ./dist, workspace
- *                      dependencies pinned to the released version
+ *                      dependencies pinned to the released version, `bin`
+ *                      remapped the same way `main` is
  *     dist/            the tsc output (JS + .d.ts), plus any non-TS asset
  *                      that lived beside the source (e.g. styles.css)
  *     migrations/      verbatim, for plugins that ship Drizzle migrations
+ *     templates/       verbatim, for the scaffolder's app templates
  *     README.md LICENSE
  *
  * `nx release publish` points its `packageRoot` here (the target is inferred
@@ -104,6 +106,15 @@ if (existsSync(migrations)) {
     cpSync(migrations, join(stagingDir, 'migrations'), { recursive: true });
 }
 
+// Scaffolding templates (`create-ortha-app`). They are data, not source —
+// deliberately outside `src/` so `tsc --build` never tries to compile an
+// app-shaped file against this workspace's resolve-from-source setup — so
+// nothing else in this script would carry them over.
+const templates = join(projectDir, 'templates');
+if (existsSync(templates)) {
+    cpSync(templates, join(stagingDir, 'templates'), { recursive: true });
+}
+
 cpSync(join(workspaceRoot, 'LICENSE'), join(stagingDir, 'LICENSE'));
 
 const readme = join(projectDir, 'README.md');
@@ -126,7 +137,12 @@ const staged = {
     main: toBuilt(pkg.main),
     types: toTypes(pkg.types),
     exports: remapExports(pkg.exports),
-    files: ['dist', ...(existsSync(migrations) ? ['migrations'] : [])],
+    ...(pkg.bin ? { bin: remapBin(pkg.bin) } : {}),
+    files: [
+        'dist',
+        ...(existsSync(migrations) ? ['migrations'] : []),
+        ...(existsSync(templates) ? ['templates'] : [])
+    ],
     dependencies: resolveDependencies(pkg.dependencies),
     ...(pkg.peerDependencies ? { peerDependencies: pkg.peerDependencies } : {}),
     ...(pkg.peerDependenciesMeta
@@ -164,6 +180,20 @@ function toBuilt(path) {
 function toTypes(path) {
     if (typeof path !== 'string' || !path.startsWith('./src/')) return path;
     return path.replace(/^\.\/src\//, './dist/').replace(/\.tsx?$/, '.d.ts');
+}
+
+/**
+ * `bin` points at TypeScript source in the workspace, the same way `main`
+ * does, and npm links it verbatim — so an unremapped `./src/cli.ts` publishes
+ * a command that dies on its first `npx`. Both spellings npm accepts are
+ * handled: a bare string (the command takes the package's name) and a map.
+ */
+function remapBin(bin) {
+    if (typeof bin === 'string') return toBuilt(bin);
+
+    return Object.fromEntries(
+        Object.entries(bin).map(([command, path]) => [command, toBuilt(path)])
+    );
 }
 
 /**
@@ -276,6 +306,12 @@ function assetsIn(dir) {
  */
 function verifyEntryPoints(manifest) {
     const paths = new Set([manifest.main, manifest.types]);
+
+    // A `bin` naming a file the build never emitted is the worst of these to
+    // ship: it installs cleanly and only fails at `npx`, on someone else's
+    // machine, with a message about the command not existing.
+    if (typeof manifest.bin === 'string') paths.add(manifest.bin);
+    else Object.values(manifest.bin ?? {}).forEach((path) => paths.add(path));
 
     for (const value of Object.values(manifest.exports ?? {})) {
         if (typeof value === 'string') paths.add(value);

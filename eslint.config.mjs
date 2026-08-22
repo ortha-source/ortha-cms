@@ -10,7 +10,12 @@ export default [
             '**/out-tsc',
             '**/vite.config.*.timestamp*',
             '**/vitest.config.*.timestamp*',
-            '**/test-output'
+            '**/test-output',
+            // Scaffolding templates are app-shaped source, not workspace
+            // source: they import packages this repo resolves from its own
+            // `src/`, so linting them reports errors about an app that does
+            // not exist here.
+            'packages/create-ortha-app/templates'
         ]
     },
     {

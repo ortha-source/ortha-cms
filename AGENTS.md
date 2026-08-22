@@ -83,7 +83,19 @@
   `MCP_ENABLED=true`.
 - `packages/nx` — `@orthacms/nx`, the workspace **Nx plugin**: infers and
   implements the `db:generate` / `db:migrate` targets (Drizzle migration
-  tooling). Registered in `nx.json`.
+  tooling) plus the release targets. Registered in `nx.json`. The database
+  executors are adapters over `@orthacms/cli`, so this repo and a generated app
+  migrate through one implementation.
+- `packages/cli` — `@orthacms/cli`, the **`ortha` command**: how an app
+  installed from npm is built, run and migrated (`dev` / `build` / `start` /
+  `migrate` / `generate` / `studio`). Compiles first and reads the compiled
+  config, so it needs none of the jiti/swc machinery the Nx executors use to
+  read TypeScript from source.
+- `packages/create-ortha-app` — the **scaffolder** behind
+  `npx create-ortha-app my-cms`. One template, no sample content types. Stamps
+  its own version into every `@orthacms/*` dependency it writes, which is what
+  makes a generated app a consistent lockstep set. The only published package
+  outside the `@orthacms` scope.
 
 ## Package layout
 

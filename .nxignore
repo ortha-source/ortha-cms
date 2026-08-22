@@ -1,0 +1,13 @@
+# Scaffolding templates for `create-ortha-app`.
+#
+# They are app-shaped files, not workspace source: `templates/default` holds an
+# `ortha.config.ts`, a `package.json.tmpl` and its own tsconfigs, and Nx's
+# inference walks the whole tree. Left visible, `@orthacms/nx` infers a
+# `db:migrate` target onto `templates/default/src/server` — a directory with no
+# project name — and the graph fails to build at all, taking every `nx` command
+# in the repo with it.
+#
+# `.nxignore` rather than a per-plugin `exclude` because every inference plugin
+# has the same problem here, not just ours: `@nx/js/typescript` would infer a
+# `typecheck` from the template's tsconfigs just as readily.
+packages/create-ortha-app/templates
