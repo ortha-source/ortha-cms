@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1236 test cases across 80 spec files._
+_1238 test cases across 81 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2415,6 +2415,16 @@ _<sub>apps/server-e2e/src/server/media/media-local-storage.spec.ts</sub>_
 | refuses to serve a file outside the storage root when the stored key traverses |
 | refuses to delete a file outside the storage root when the stored key traverses |
 | fails the download before the response starts when the blob is missing from disk |
+
+<!-- source: apps/server-e2e/src/server/media/media-storage-provider-check.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-storage-provider-check.spec.ts</sub>_
+
+## storage provider boot check
+
+| Test case |
+| --- |
+| refuses to boot over assets written by another provider |
+| boots normally once no row names a foreign provider |
 
 <!-- source: apps/server-e2e/src/server/media/media-token-scope.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-token-scope.spec.ts</sub>_
