@@ -2,7 +2,17 @@
     "files": [],
     "include": [],
     "references": [
-        { "path": "./tsconfig.server.json" },
-        { "path": "./tsconfig.admin.json" }
+        {
+            "path": "./apps/server"
+        },
+        {
+            "path": "./apps/admin"
+        },
+        {
+            "path": "./apps/server-e2e"
+        },
+        {
+            "path": "./apps/admin-e2e"
+        }
     ]
 }

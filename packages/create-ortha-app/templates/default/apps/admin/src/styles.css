@@ -9,7 +9,7 @@
    without this line none of the classes inside the Ortha packages are seen and
    the whole admin renders unstyled. The published packages ship compiled JS
    with the class strings intact, which is what this scans. */
-@source "../../node_modules/@orthacms/*/dist/**/*.js";
+@source "../../../node_modules/@orthacms/*/dist/**/*.js";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

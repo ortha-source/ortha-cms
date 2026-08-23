@@ -1,12 +1,16 @@
 {
     "compilerOptions": {
         "target": "es2022",
-        "lib": ["es2023"],
+        "lib": [
+            "es2023"
+        ],
         "module": "commonjs",
         "moduleResolution": "node",
-        "outDir": "dist/server",
-        "rootDir": "src/server",
-        "types": ["node"],
+        "outDir": "../../dist/server",
+        "rootDir": ".",
+        "types": [
+            "node"
+        ],
         "strict": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
@@ -16,7 +20,12 @@
         "declaration": false,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "tsBuildInfoFile": "dist/server/tsconfig.tsbuildinfo"
+        "tsBuildInfoFile": "../../dist/server/tsconfig.tsbuildinfo"
     },
-    "include": ["src/server/**/*.ts"]
+    "include": [
+        "**/*.ts"
+    ],
+    "exclude": [
+        "**/*.spec.ts"
+    ]
 }
