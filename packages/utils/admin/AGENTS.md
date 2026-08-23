@@ -71,6 +71,16 @@ singletons live in one place instead of inside `bootstrap-admin`.
   consumes it, so handing back the internal array would make one consumer's
   in-place `sort()` or `push()` a rewrite of shared plugin state. Read it fresh
   rather than holding the array across a registration.
+- `wireSlotContributions(contributions)` — what the host calls at boot to
+  register every plugin's contributions. It registers **from empty**, which is
+  the load-bearing part: a slot closes over one array that lives as long as its
+  module and `_register` is a bare `push`, so anything that runs the boot wiring
+  twice doubles every contribution. A Vite hot update does exactly that (it
+  re-executes the entry module instead of reloading the page), and the dev
+  sidebar filled with duplicates that compounded with each save. The reset is a
+  **separate pass** over the distinct target slots, because several plugins
+  contribute to one slot and clearing per contribution would drop what an
+  earlier plugin in the same run had just registered.
 
 - `slugify(input)` — derives a URL slug (`^[a-z0-9-]+$`) from free text. Pure,
   framework-free.

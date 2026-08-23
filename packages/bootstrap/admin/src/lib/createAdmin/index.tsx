@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 import { IntlProvider } from 'react-intl';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@orthacms/utils-admin';
+import { queryClient, wireSlotContributions } from '@orthacms/utils-admin';
 import {
     AppearanceProvider,
     TooltipProvider,
@@ -219,11 +219,13 @@ export function createAdmin(options: CreateAdminOptions): void {
 
     // Wire every plugin's slot contributions into their target slots before
     // render, so consumers (e.g. the shell toolbar) see all contributed items.
-    for (const plugin of plugins) {
-        for (const contribution of plugin.slots ?? []) {
-            contribution.slot._register(contribution.items);
-        }
-    }
+    //
+    // `wireSlotContributions` registers from empty rather than appending,
+    // because a Vite hot update re-executes this module against the same
+    // module-level slot closures instead of reloading the page — so a bare
+    // `push` per contribution doubled every nav entry and every workspace, and
+    // compounded with each save until a hard reload.
+    wireSlotContributions(plugins.flatMap((plugin) => plugin.slots ?? []));
 
     // The single layout that wraps every private route; falls back to a bare
     // outlet before any layout plugin (the shell) is registered.
