@@ -255,6 +255,18 @@ const config: OrthaConfig = {
                 // a container's own disk is wiped on every deploy.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
+            // ortha:if media-s3
+            // Redirect an already-authorized download straight to the bucket
+            // instead of streaming it through the app. Off unless asked for.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
+            // ortha:end
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',
                 50 * 1024 * 1024

@@ -15,7 +15,10 @@ import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
-import { createInMemoryStorageProvider } from './media-storage';
+import {
+    createInMemoryStorageProvider,
+    createSigningStorageProvider
+} from './media-storage';
 
 /** Harness-only wiring choices that are not expressible as config. */
 export interface BuildTestPluginsOptions {
@@ -28,6 +31,12 @@ export interface BuildTestPluginsOptions {
      * selects between.
      */
     localMediaRoot?: string;
+    /**
+     * Boot on a provider that can mint a signed URL, for the direct-serve
+     * suites. Mutually exclusive with `localMediaRoot` in practice — nothing
+     * needs both, and the filesystem cannot sign.
+     */
+    signingProvider?: boolean;
 }
 
 /**
@@ -89,7 +98,9 @@ export function buildTestPlugins(
         MediaServerPlugin({
             provider: options.localMediaRoot
                 ? createLocalStorageProvider(config.plugins.media.storage)
-                : createInMemoryStorageProvider(),
+                : options.signingProvider
+                  ? createSigningStorageProvider()
+                  : createInMemoryStorageProvider(),
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),

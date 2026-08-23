@@ -63,6 +63,25 @@ function assertOptions(options: MediaPluginOptions): void {
         );
     }
     if (
+        options.config.directServe === 'signed-url' &&
+        !provider.capabilities.directUrl
+    ) {
+        throw new Error(
+            `MediaServerPlugin's \`directServe: 'signed-url'\` needs a provider that can mint one, and ` +
+                `"${provider.id}" declares \`capabilities.directUrl: false\`. Either drop the setting — ` +
+                'downloads then stream through the app, which is the default — or run a backend that ' +
+                'signs URLs (`@orthacms/media-provider-s3`). Silently proxying instead would leave the ' +
+                'operator believing an optimization is on that is not.'
+        );
+    }
+    const ttl = options.config.directServeTtlSeconds;
+    if (ttl !== undefined && (!Number.isFinite(ttl) || ttl <= 0)) {
+        throw new Error(
+            `MediaServerPlugin's directServeTtlSeconds must be a positive number (got ${ttl}) — ` +
+                'a non-positive lifetime mints URLs that are already expired.'
+        );
+    }
+    if (
         !Number.isFinite(options.config.maxUploadBytes) ||
         options.config.maxUploadBytes <= 0
     ) {
@@ -95,7 +114,16 @@ export function MediaServerPlugin(
         name: 'media',
         module: MediaModule.forRoot({
             provider: options.provider,
-            maxUploadBytes: options.config.maxUploadBytes
+            maxUploadBytes: options.config.maxUploadBytes,
+            ...(options.config.directServe
+                ? { directServe: options.config.directServe }
+                : {}),
+            ...(options.config.directServeTtlSeconds
+                ? {
+                      directServeTtlSeconds:
+                          options.config.directServeTtlSeconds
+                  }
+                : {})
         }),
         mediaConfig: options.config,
         migrations: {
