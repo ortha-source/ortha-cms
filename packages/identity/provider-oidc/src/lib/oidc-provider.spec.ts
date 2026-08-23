@@ -1,11 +1,13 @@
 import { SsoVerificationError } from '@orthacms/identity-domain';
 import { createOidcProvider } from './oidc-provider';
 import {
+    BACKCHANNEL_LOGOUT_EVENT,
     callbackWith,
     CLIENT_ID,
     CORE_SECRETS,
     ISSUER,
     REDIRECT_URI,
+    signLogoutToken,
     stubIdp,
     type StubOptions
 } from './test-support';
@@ -368,5 +370,72 @@ describe('createOidcProvider — logoutUrl', () => {
 
         expect(url).toContain(`${ISSUER}/logout`);
         expect(url).toContain('post_logout_redirect_uri=');
+    });
+});
+
+describe('createOidcProvider — back-channel logout', () => {
+    it('accepts a signed logout token and names the session it ends', async () => {
+        const { provider, idp } = await providerFor();
+        const token = await signLogoutToken(idp);
+
+        const notice = await provider.verifyLogoutToken?.(token);
+
+        expect(notice).toEqual({
+            sessionId: 'provider-session-1',
+            subject: 'idp-subject-1'
+        });
+    });
+
+    it('accepts a subject-only notification — the offboarding shape', async () => {
+        const { provider, idp } = await providerFor();
+        const token = await signLogoutToken(idp, { sid: undefined });
+
+        const notice = await provider.verifyLogoutToken?.(token);
+
+        expect(notice).toMatchObject({ sessionId: null, subject: 'idp-subject-1' });
+    });
+
+    it('refuses an identity token presented as a logout token', async () => {
+        // The whole reason the `events` claim is checked. Same issuer, same
+        // audience, same signing key, and it names a `sub` — so without this,
+        // anyone holding a stolen identity token could sign its owner out.
+        const { provider, idp } = await providerFor();
+        const token = await signLogoutToken(idp, { events: undefined });
+
+        await expect(
+            provider.verifyLogoutToken?.(token)
+        ).rejects.toThrow(/not a logout token/);
+    });
+
+    it('refuses a logout token carrying a nonce, which only an identity token has', async () => {
+        const { provider, idp } = await providerFor();
+        const token = await signLogoutToken(idp, { nonce: 'n-1' });
+
+        await expect(provider.verifyLogoutToken?.(token)).rejects.toThrow(
+            /carries a nonce/
+        );
+    });
+
+    it('refuses a token signed by a key the provider does not publish', async () => {
+        const { provider } = await providerFor();
+        const foreign = await stubIdp({ signWithForeignKey: true });
+        const token = await signLogoutToken(foreign);
+
+        await expect(
+            provider.verifyLogoutToken?.(token)
+        ).rejects.toBeInstanceOf(SsoVerificationError);
+    });
+
+    it('refuses a token naming neither a session nor a subject', async () => {
+        const { provider, idp } = await providerFor();
+        const token = await signLogoutToken(idp, {
+            sid: undefined,
+            sub: undefined,
+            events: { [BACKCHANNEL_LOGOUT_EVENT]: {} }
+        });
+
+        await expect(provider.verifyLogoutToken?.(token)).rejects.toThrow(
+            /neither a session nor a subject/
+        );
     });
 });

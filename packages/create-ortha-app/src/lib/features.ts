@@ -200,12 +200,17 @@ export const COPILOT_PROVIDERS: readonly Feature[] = [
  * without it signs in with email and password, which is the invite-only flow
  * Ortha has always had.
  *
- * One entry covers the field. Okta, Auth0, Keycloak, Google, Entra ID,
- * Authentik, Zitadel, JumpCloud, Ping and GitLab all speak OpenID Connect, and
- * the named vendors are preset factories inside this same package rather than
- * packages of their own — the SSO equivalent of the copilot's
- * OpenAI-compatible adapter. GitHub (OAuth2, no identity token) and SAML have
- * genuinely different wires and will arrive as their own entries here.
+ * **One entry covers most of the field.** Okta, Auth0, Keycloak, Google, Entra
+ * ID, Authentik, Zitadel, JumpCloud, Ping and GitLab all speak OpenID Connect,
+ * and the named vendors are preset factories inside that one package rather
+ * than packages of their own — the SSO equivalent of the copilot's
+ * OpenAI-compatible adapter.
+ *
+ * The other two are here because their **wire** genuinely differs, which is the
+ * only thing that earns a package: GitHub is OAuth2 with no identity token, and
+ * SAML is a POST binding with XML signatures. Each also brings its own
+ * dependency — `jose` for OIDC, `@node-saml/node-saml` for SAML — which is a
+ * second reason not to install them for an app that will never speak them.
  *
  * `identity-provider-fake` is not offered: it is installed unconditionally,
  * like `copilot-provider-fake`, because it needs no tenant and no network and
@@ -219,6 +224,22 @@ export const SSO_PROVIDERS: readonly Feature[] = [
         label: 'OpenID Connect single sign-on',
         hint: 'Okta, Auth0, Keycloak, Google, Entra ID and the rest. Needs SSO_OIDC_ISSUER and SSO_OIDC_CLIENT_ID.',
         packages: ['@orthacms/identity-provider-oidc'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'sso-github',
+        label: 'GitHub sign-in',
+        hint: 'GitHub or GitHub Enterprise Server. Needs SSO_GITHUB_CLIENT_ID and SSO_GITHUB_CLIENT_SECRET.',
+        packages: ['@orthacms/identity-provider-github'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'sso-saml',
+        label: 'SAML 2.0 single sign-on',
+        hint: 'For an identity provider that speaks SAML rather than OIDC. Needs the IdP certificate and entry point.',
+        packages: ['@orthacms/identity-provider-saml'],
         enabledByDefault: false,
         available: true
     }

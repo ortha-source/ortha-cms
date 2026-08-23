@@ -49,13 +49,48 @@ export interface UserSessionView {
  * SHA-256 is stored (the adapter's concern), so a read-only DB/backup leak
  * yields no usable tokens.
  */
+/** How a session differs from the ordinary password-opened one. */
+export interface IssueSessionOptions {
+    /**
+     * Shorter (or longer) lifetime for this session alone. Used for SSO
+     * sessions, whose subject can be disabled at the identity provider without
+     * the CMS hearing about it unless back-channel logout is in play.
+     */
+    ttlSeconds?: number;
+    /** The SSO provider this session was opened through. */
+    ssoProvider?: string | null;
+    /**
+     * The provider's own session identifier, when it issued one — what makes a
+     * back-channel logout precise rather than "sign them out everywhere".
+     */
+    ssoSessionId?: string | null;
+}
+
 export interface SessionRepository {
     /**
      * Opens a session for `userId`, returning the opaque token and its expiry.
      * The expiry comes from the {@link SessionPolicy}; the token is minted and
      * hashed by the adapter. Joins the active unit of work when inside one.
      */
-    issue(userId: string, context: SessionContext): Promise<CreatedSession>;
+    issue(
+        userId: string,
+        context: SessionContext,
+        options?: IssueSessionOptions
+    ): Promise<CreatedSession>;
+
+    /**
+     * Revokes every live session opened from one identity-provider session,
+     * returning how many were revoked.
+     *
+     * Scoped to `provider` as well as the session id, so a notification from
+     * one directory can never end sessions opened through another — provider
+     * session ids are opaque strings with no shared namespace, and two
+     * providers colliding on one is not something to leave to luck.
+     */
+    revokeBySsoSession(
+        provider: string,
+        ssoSessionId: string
+    ): Promise<number>;
 
     /**
      * Resolves an opaque token to its owner, or `null` when the session is

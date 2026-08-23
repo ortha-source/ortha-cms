@@ -143,6 +143,12 @@
         },
         {
             "path": "./packages/identity/provider-oidc"
+        },
+        {
+            "path": "./packages/identity/provider-github"
+        },
+        {
+            "path": "./packages/identity/provider-saml"
         }
     ]
 }

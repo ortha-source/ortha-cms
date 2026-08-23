@@ -180,7 +180,9 @@ describe('resolvePackages', () => {
             '@orthacms/content-graphql',
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
+            '@orthacms/identity-provider-github',
             '@orthacms/identity-provider-oidc',
+            '@orthacms/identity-provider-saml',
             '@orthacms/mcp-server',
             '@orthacms/media-provider-s3'
         ]);

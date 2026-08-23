@@ -92,6 +92,28 @@ export interface SsoCallback {
     redirectUri: string;
 }
 
+/**
+ * What an identity provider told us when it ended a session on its side.
+ *
+ * The **back-channel** logout: the provider posts here directly, with no
+ * browser involved, which is why it works when the person has already closed
+ * the tab — and why it is the only mechanism that ends an Ortha session
+ * promptly when someone is offboarded.
+ */
+export interface SsoLogoutNotice {
+    /**
+     * The provider session that ended, when it names one. The precise answer:
+     * only the sessions opened from that provider session are ended.
+     */
+    sessionId?: string | null;
+    /**
+     * The person whose sessions ended, when the provider names them instead.
+     * Blunter — it ends every session the linked account holds — and correct
+     * for "this account is gone", which is what offboarding means.
+     */
+    subject?: string | null;
+}
+
 /** What an adapter needs to build a provider-side logout URL. */
 export interface SsoLogoutRequest {
     /** Where the provider should return the user after signing them out. */
@@ -145,6 +167,19 @@ export interface SsoProvider {
      * `null` when it does not, which is the common case and not an error.
      */
     logoutUrl?(request: SsoLogoutRequest): string | null;
+    /**
+     * Verifies a back-channel logout notification the provider posted, and says
+     * whose sessions it ends.
+     *
+     * Optional: a provider that does not support back-channel logout simply
+     * does not implement it, and the route answers `404` rather than pretending
+     * to have acted. **An adapter that does implement it must verify** — this
+     * endpoint is unauthenticated and reachable by anyone, so an unverified
+     * notification would be a way to sign arbitrary people out of the CMS.
+     *
+     * @throws SsoVerificationError for every rejection, like `complete`.
+     */
+    verifyLogoutToken?(token: string): Promise<SsoLogoutNotice>;
 }
 
 /** One registered backend: an operator-chosen name plus a built adapter. */

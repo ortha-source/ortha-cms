@@ -54,6 +54,7 @@ import { RefreshSessionUseCase } from './application/use-cases/refresh-session.u
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
 import { StartSsoUseCase } from './application/use-cases/start-sso.use-case';
 import { CompleteSsoUseCase } from './application/use-cases/complete-sso.use-case';
+import { SsoBackchannelLogoutUseCase } from './application/use-cases/sso-backchannel-logout.use-case';
 import { ApiTokenService } from './api-tokens/application/api-token.service';
 import { DrizzleApiTokenRepository } from './api-tokens/infrastructure/persistence/drizzle-api-token.repository';
 import { ApiTokensController } from './api-tokens/http/controllers/api-tokens.controller';
@@ -169,6 +170,7 @@ export class IdentityModule {
                 ResetPasswordUseCase,
                 StartSsoUseCase,
                 CompleteSsoUseCase,
+                SsoBackchannelLogoutUseCase,
                 AuthService,
                 PreferencesService,
                 HashingService,

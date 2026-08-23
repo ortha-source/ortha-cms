@@ -14,6 +14,8 @@ import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { createOidcProvider } from '@orthacms/identity-provider-oidc';
+import { createGithubProvider } from '@orthacms/identity-provider-github';
+import { createSamlProvider } from '@orthacms/identity-provider-saml';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
@@ -89,12 +91,26 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
  * and a trailing slash makes it a different URL to them.
  */
 export function ssoProviders(config: OrthaConfig): SsoRegistration[] {
-    const { oidc } = config.plugins.identity.ssoProviders;
-    if (!oidc) {
-        return [];
+    const { oidc, github, saml } = config.plugins.identity.ssoProviders;
+    const registrations: SsoRegistration[] = [];
+
+    if (oidc) {
+        const { name, ...settings } = oidc;
+        registrations.push({ name, provider: createOidcProvider(settings) });
     }
-    const { name, ...settings } = oidc;
-    return [{ name, provider: createOidcProvider(settings) }];
+    if (github) {
+        const { name, ...settings } = github;
+        registrations.push({ name, provider: createGithubProvider(settings) });
+    }
+    if (saml) {
+        const { name, ...settings } = saml;
+        registrations.push({ name, provider: createSamlProvider(settings) });
+    }
+
+    // Order is presentation: it is the order the sign-in page shows its
+    // buttons in, and nothing else. Unlike the copilot's model providers there
+    // is no "first one is the default" — a person picks a button.
+    return registrations;
 }
 
 /**

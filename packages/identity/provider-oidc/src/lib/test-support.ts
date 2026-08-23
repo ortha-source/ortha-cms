@@ -44,6 +44,14 @@ export interface StubOptions {
 export interface StubIdp {
     /** Drop-in for `fetch`. */
     fetch: typeof globalThis.fetch;
+    /**
+     * The key the stub signs with, for tokens a test mints itself.
+     *
+     * Typed from `generateKeyPair`'s own return rather than as `CryptoKey`:
+     * that name comes from the DOM lib, which these Node-targeted packages do
+     * not include.
+     */
+    privateKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
     /** How many requests reached each endpoint. */
     calls: { discovery: number; jwks: number; token: number };
     /** The last form body the token endpoint received. */
@@ -75,6 +83,7 @@ export async function stubIdp(options: StubOptions = {}): Promise<StubIdp> {
 
     const state: StubIdp = {
         fetch: (() => Promise.reject(new Error('unset'))) as typeof globalThis.fetch,
+        privateKey,
         calls: { discovery: 0, jwks: 0, token: 0 },
         lastTokenBody: null,
         lastTokenAuth: null
@@ -148,6 +157,41 @@ function json(body: unknown, status = 200): Response {
         headers: { 'content-type': 'application/json' }
     });
 }
+
+/**
+ * Signs a back-channel logout token with the stub's key.
+ *
+ * A real signature, like the identity tokens: the checks under test are "did
+ * this verify" and "is this actually a logout token", and a hand-built string
+ * could only exercise the second.
+ */
+export async function signLogoutToken(
+    idp: StubIdp,
+    claims: Record<string, unknown> = {}
+): Promise<string> {
+    const payload: Record<string, unknown> = {
+        events: { [BACKCHANNEL_LOGOUT_EVENT]: {} },
+        sid: 'provider-session-1',
+        sub: 'idp-subject-1',
+        ...claims
+    };
+    for (const [key, value] of Object.entries(claims)) {
+        if (value === undefined) {
+            delete payload[key];
+        }
+    }
+    return new SignJWT(payload)
+        .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
+        .setIssuer(ISSUER)
+        .setAudience(CLIENT_ID)
+        .setIssuedAt()
+        .setExpirationTime('5m')
+        .sign(idp.privateKey);
+}
+
+/** The event claim that marks a token as a logout notification. */
+export const BACKCHANNEL_LOGOUT_EVENT =
+    'http://schemas.openid.net/event/backchannel-logout';
 
 /** The callback the core would build from a provider's redirect back. */
 export function callbackWith(

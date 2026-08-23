@@ -552,6 +552,57 @@ reason:
   the token is never consulted — while anyone *else* following it is refused,
   which is the guarantee that matters.
 
+### Ending a session because the provider says so
+
+`POST /api/auth/sso/:provider/backchannel-logout` is the answer to the one thing
+operators assume SSO already does. A session here is a **row with a TTL**, and
+disabling somebody in the directory does not reach it — so until this route
+existed the honest answer to "we offboarded them, are they out?" was "within
+`SESSION_TTL_SECONDS`". The provider calls it directly, with no browser in the
+loop, which is why it works after the person has closed the tab.
+
+Sessions therefore record `sso_provider` and `sso_session_id`, and two shapes of
+notification are handled differently on purpose:
+
+- **a `sid`** ends only the sessions that provider session opened, so somebody
+  signed in on a laptop and a phone through two provider sessions keeps the
+  other one;
+- **a `sub` with no `sid`** ends every session the linked account holds. That is
+  the offboarding case, and being blunt is the point.
+
+**Verification is the adapter's**, through the optional
+`SsoProvider.verifyLogoutToken`. A provider that cannot verify does not
+implement it and the route answers `404` rather than pretending to have acted —
+this endpoint is unauthenticated and reachable by anyone, so an unverified
+notification would be an open way to sign arbitrary people out. The OIDC adapter
+checks the `events` claim for exactly this reason: everything else about a
+logout token matches an identity token, so without that check anyone holding a
+stolen one could sign its owner out at will.
+
+The route answers `200` whether or not anything was revoked (providers retry, so
+it must be idempotent), `400` for a refusal with no detail, and sets
+`cache-control: no-store` — an intermediary caching a `200` here would swallow
+every later notification. A subject with no account is **not** an error: a
+provider legitimately notifies about people who never signed in, and answering
+otherwise would make this an oracle for which of a directory's members use this
+CMS.
+
+For a provider with **no** back-channel logout, `sso.sessionTtlSeconds` shortens
+SSO sessions alone — a partial mitigation an operator can choose, trading a
+re-authentication now and then for a smaller window after an offboarding.
+
+### A POST callback, for SAML
+
+`POST /api/auth/sso/:provider/callback` serves the protocols whose response is a
+form post rather than a redirect. It shares every check with the GET route and
+differs in exactly one place — where the response parameters come from. Its
+existence is what makes `SsoProviderDescriptor.callbackMethod` mean something.
+
+No CSRF token, and none is possible: the request is a cross-site form post from
+an identity provider that has never seen this CMS's pages. The attempt cookie
+and the echoed `RelayState` are the defence — which is why the core, not an
+adapter, mints them.
+
 Turning passwords off entirely is `sso.allowPasswordLogin: false`. **The root
 administrator is always exempt**, because the alternative has no recovery: an
 operator who mis-scopes their provider and has no password left is locked out
