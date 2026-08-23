@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generateSecret, render, renderTemplate } from './template';
+import { render, renderTemplate } from './template';
 import type { TemplateValues } from './template';
 
 const TEMPLATE = join(__dirname, '../../templates/default');
@@ -34,34 +34,6 @@ describe('render', () => {
         expect(render('__APP_NAME__/__APP_NAME__', values)).toBe(
             'my-cms/my-cms'
         );
-    });
-
-    it('gives each secret placeholder an independent value', () => {
-        const [session, token] = render(
-            '__SESSION_SECRET__ __TOKEN_SECRET__',
-            values
-        ).split(' ');
-
-        expect(session).not.toBe(token);
-    });
-});
-
-describe('generateSecret', () => {
-    it('is URL-safe, so it survives a .env round trip unquoted', () => {
-        expect(generateSecret()).toMatch(/^[A-Za-z0-9_-]+$/);
-    });
-
-    it('carries 256 bits of entropy', () => {
-        // base64url of 32 bytes, unpadded.
-        expect(generateSecret()).toHaveLength(43);
-    });
-
-    it('does not repeat', () => {
-        const secrets = new Set(
-            Array.from({ length: 50 }, () => generateSecret())
-        );
-
-        expect(secrets.size).toBe(50);
     });
 });
 
@@ -129,12 +101,14 @@ describe('renderTemplate', () => {
         expect(rendered('docker-compose.yml')).toContain('POSTGRES_DB: my_cms');
     });
 
-    it('fills the secrets rather than leaving them blank', () => {
+    // ORT-149 — the generated `.env` used to carry two 256-bit secrets that
+    // nothing read. Sessions and one-time tokens are opaque random values
+    // checked against a row, so there is no key to place in a scaffolded app.
+    it('scaffolds no signing secrets, because identity has none to sign with', () => {
         const env = rendered('.env');
 
-        expect(env).not.toContain('SESSION_SECRET=\n');
-        expect(env).toMatch(/SESSION_SECRET=[A-Za-z0-9_-]{43}/);
-        expect(env).toMatch(/TOKEN_SECRET=[A-Za-z0-9_-]{43}/);
+        expect(env).not.toContain('SESSION_SECRET');
+        expect(env).not.toContain('TOKEN_SECRET');
     });
 
     it('leaves no placeholder unsubstituted anywhere', () => {

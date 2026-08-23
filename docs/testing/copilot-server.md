@@ -93,7 +93,7 @@ package imports nothing downstream):
 ### Runtime prerequisites
 
 - **Postgres** (`docker compose up -d`) and a `.env` carrying `DATABASE_URL`,
-  `SESSION_SECRET`, `TOKEN_SECRET`.
+  (identity needs no secret — ORT-149.)
 - **`COPILOT_ENABLED=true`.** Off by default (`apps/server/ortha.config.ts:194`,
   ADR-0005 §10). With it off, every route still authenticates and the *run*
   fails with a readable error frame rather than a 403
@@ -279,7 +279,7 @@ npx nx run @orthacms/copilot-server:db:generate --name=x    # must emit nothing
 ## 3. Manual Test Plan
 
 **Global preconditions for every block.** `docker compose up -d`; a `.env` with
-`DATABASE_URL`, `SESSION_SECRET`, `TOKEN_SECRET`, `COPILOT_ENABLED=true`;
+`DATABASE_URL`, `COPILOT_ENABLED=true`;
 `npx nx run server:db:migrate`; `npm run dev`. Three signed-in users —
 `admin@example.com` (admin), `contrib@example.com` (contributor),
 `viewer@example.com` (viewer) — all members of workspace **A**; one further user

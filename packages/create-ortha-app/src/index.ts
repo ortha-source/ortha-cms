@@ -7,7 +7,6 @@
 export {
     renderTemplate,
     render,
-    generateSecret,
     isNonEmptyDirectory,
     type TemplateValues
 } from './lib/template';

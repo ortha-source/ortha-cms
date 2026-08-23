@@ -325,8 +325,6 @@ const config: OrthaConfig = {
     },
     plugins: {
         identity: {
-            sessionSecret: process.env['SESSION_SECRET'] ?? '',
-            tokenSecret: process.env['TOKEN_SECRET'] ?? '',
             // Origins allowed to call state-changing endpoints (login-CSRF
             // defense). Comma-separated; defaults to the dev admin origin —
             // which follows `ADMIN_PORT`, so a parallel worktree stack on
@@ -354,10 +352,7 @@ const config: OrthaConfig = {
             },
             // Login rate limit. Defaults preserve the historical 10 req / 60s.
             rateLimit: {
-                ttlSeconds: readPositiveInt(
-                    'LOGIN_RATE_LIMIT_TTL_SECONDS',
-                    60
-                ),
+                ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
                 limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
             },
             rootAdmin: {
@@ -413,10 +408,7 @@ const config: OrthaConfig = {
             // needs to loosen or tighten them without a redeploy.
             limits: {
                 maxDepth: readPositiveInt('GRAPHQL_MAX_DEPTH', 8),
-                maxComplexity: readPositiveInt(
-                    'GRAPHQL_MAX_COMPLEXITY',
-                    1000
-                ),
+                maxComplexity: readPositiveInt('GRAPHQL_MAX_COMPLEXITY', 1000),
                 maxFields: readPositiveInt('GRAPHQL_MAX_FIELDS', 500),
                 maxQueryLength: readPositiveInt(
                     'GRAPHQL_MAX_QUERY_LENGTH',
@@ -445,9 +437,7 @@ const config: OrthaConfig = {
             // them here. Raising these costs tokens rather than safety — every
             // step is still authorized and audited, and a `propose` tool still
             // writes its row before it writes anything else.
-            ...(Object.keys(runLimits).length > 0
-                ? { limits: runLimits }
-                : {}),
+            ...(Object.keys(runLimits).length > 0 ? { limits: runLimits } : {}),
             // Each backend is here only if it was configured. Registering
             // one that cannot answer used to be harmless because
             // `COPILOT_PROVIDER` decided who served a run; now the first

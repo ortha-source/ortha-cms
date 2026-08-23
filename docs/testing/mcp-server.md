@@ -71,7 +71,7 @@ comment saying why (`src/index.ts:13-17`).
 | Migrations applied | `npx nx run server:db:migrate` (identity's `api_tokens` + `api_token_workspaces`, content's tables) |
 | A **workspace** with at least one **granted content type** | the admin's Workspaces page → Content |
 | An **API token** | admin → **API Tokens** → mint over one or more workspaces, `read` or `full` scope. The secret is revealed **once** |
-| `TOKEN_SECRET` set | `apps/server/ortha.config.ts:107` — token verification depends on it |
+| ~~`TOKEN_SECRET` set~~ | **Withdrawn (ORT-149)** — no such setting; API tokens are opaque random values checked against a row, nothing verifies a signature |
 | A non-empty `config.name` / `config.version` | else `McpPlugin` throws at construction (`src/lib/utils/mcp-plugin.ts:22-31`) |
 
 **Not required:** a session cookie (deliberately rejected — ADR-0006 §6), the
@@ -188,7 +188,7 @@ npx nx e2e server-e2e --testPathPatterns=mcp         # wire-level, needs Docker
 ## 3. Manual Test Plan
 
 **Global preconditions:** `docker compose up -d`; `.env` with `DATABASE_URL`,
-`SESSION_SECRET`, `TOKEN_SECRET`; `npx nx run server:db:migrate`;
+`npx nx run server:db:migrate`;
 `MCP_ENABLED=true npm run dev`. Two workspaces `W1`, `W2`, both granting
 `test_article`, with at least one **published** and one **draft** entry in `W1`.
 Three tokens minted from the admin's **API Tokens** page: `TR` (`read`, W1

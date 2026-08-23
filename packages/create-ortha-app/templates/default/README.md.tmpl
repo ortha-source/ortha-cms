@@ -58,7 +58,7 @@ This app starts with none. To add some:
 `npm run build && npm start` is the whole thing: one process serving the API and
 the admin bundle on one origin. Set in the environment:
 
-- `DATABASE_URL`, `SESSION_SECRET`, `TOKEN_SECRET` — required
+- `DATABASE_URL` — required
 - `NODE_ENV=production` — spelled exactly; anything else drops `Secure` from the
   session cookie and publishes the API reference
 - `TRUST_PROXY` — required behind a load balancer, or every client shares one

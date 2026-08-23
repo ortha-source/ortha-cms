@@ -171,8 +171,8 @@ package contributes no route. Where a step says "call tool X", use the MCP
 `curl` shape from `docs/testing/mcp-server.md` §1, or the copilot chat panel.
 
 **Global preconditions for every block below:**
-`docker compose up -d`, a `.env` with `DATABASE_URL` / `SESSION_SECRET` /
-`TOKEN_SECRET`, `MCP_ENABLED=true`, `COPILOT_ENABLED=true`,
+`docker compose up -d`, a `.env` with `DATABASE_URL`, `MCP_ENABLED=true`,
+`COPILOT_ENABLED=true`,
 `npx nx run server:db:migrate`, `npm run dev`. One workspace granted the
 `test_article` content type, one `read`-scope API token and one `full`-scope
 token over it, and three signed-in users (admin / contributor / viewer).
