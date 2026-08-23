@@ -1,7 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { SSO_REGISTRY } from '@orthacms/identity-domain';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
+import type { IdentityPluginOptions } from './utils/identity-plugin';
 import { IDENTITY_CONFIG } from './identity.tokens';
 import { RolesService } from './rbac/services/roles.service';
 import { PermissionsService } from './rbac/services/permissions.service';
@@ -10,6 +12,7 @@ import { SystemRolesSeeder } from './rbac/seeders/system-roles.seeder';
 import { RootAdminService } from './root-admin/services/root-admin.service';
 import { RootAdminSeeder } from './root-admin/seeders/root-admin.seeder';
 import { LoginController } from './auth/controllers/login.controller';
+import { SsoController } from './auth/controllers/sso.controller';
 import { InviteController } from './auth/controllers/invite.controller';
 import { PasswordResetController } from './auth/controllers/password-reset.controller';
 import { MeController } from './auth/controllers/me.controller';
@@ -28,10 +31,15 @@ import { SESSION_REPOSITORY } from './domain/session.repository';
 import { USER_ACCOUNT_REPOSITORY } from './domain/user-account.repository';
 import { INVITE_REPOSITORY } from './domain/invite.repository';
 import { PASSWORD_RESET_REPOSITORY } from './domain/password-reset.repository';
+import { SSO_IDENTITY_REPOSITORY } from './domain/sso-identity.repository';
+import { SSO_AUTH_REQUEST_REPOSITORY } from './domain/sso-auth-request.repository';
 import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
 import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
 import { DrizzleInviteRepository } from './infrastructure/persistence/drizzle-invite.repository';
 import { DrizzlePasswordResetRepository } from './infrastructure/persistence/drizzle-password-reset.repository';
+import { DrizzleSsoIdentityRepository } from './infrastructure/persistence/drizzle-sso-identity.repository';
+import { DrizzleSsoAuthRequestRepository } from './infrastructure/persistence/drizzle-sso-auth-request.repository';
+import { buildSsoRegistry } from './infrastructure/sso-registry';
 import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';
 import { UserLookupQuery } from './infrastructure/queries/user-lookup.query';
 import { LoginUseCase } from './application/use-cases/login.use-case';
@@ -42,6 +50,8 @@ import { ResetPasswordUseCase } from './application/use-cases/reset-password.use
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
+import { StartSsoUseCase } from './application/use-cases/start-sso.use-case';
+import { CompleteSsoUseCase } from './application/use-cases/complete-sso.use-case';
 import { ApiTokenService } from './api-tokens/application/api-token.service';
 import { DrizzleApiTokenRepository } from './api-tokens/infrastructure/persistence/drizzle-api-token.repository';
 import { ApiTokensController } from './api-tokens/http/controllers/api-tokens.controller';
@@ -71,9 +81,22 @@ const DEFAULT_RATE_LIMIT: IdentityRateLimitConfig = {
 
 @Module({})
 export class IdentityModule {
-    /** Creates the global dynamic module: config, services, and auth routes. */
-    static forRoot(config: IdentityPluginConfig): DynamicModule {
+    /**
+     * Creates the global dynamic module: config, services, and auth routes.
+     *
+     * `options` carries the wiring that is code rather than configuration —
+     * today the SSO adapters. The SSO routes are mounted **unconditionally**,
+     * even with no provider registered: `GET /api/auth/sso` then answers `[]`,
+     * which is a usable answer for a sign-in page, where a 404 would be a
+     * client-side special case for the ordinary state of a default install.
+     * Nothing can be *started* without a registration, because no name resolves.
+     */
+    static forRoot(
+        config: IdentityPluginConfig,
+        options: IdentityPluginOptions = {}
+    ): DynamicModule {
         const rateLimit = config.rateLimit ?? DEFAULT_RATE_LIMIT;
+        const ssoRegistry = buildSsoRegistry(options.sso?.providers ?? []);
         return {
             module: IdentityModule,
             global: true,
@@ -98,10 +121,15 @@ export class IdentityModule {
                 LogoutController,
                 UserSessionsController,
                 PreferencesController,
-                ApiTokensController
+                ApiTokensController,
+                SsoController
             ],
             providers: [
                 { provide: IDENTITY_CONFIG, useValue: config },
+                // Built once, here, from the host's registration list — so a
+                // later mutation of that array cannot reroute a sign-in, and
+                // every duplicate or unusable provider name fails at boot.
+                { provide: SSO_REGISTRY, useValue: ssoRegistry },
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -129,6 +157,8 @@ export class IdentityModule {
                 AcceptInviteUseCase,
                 DescribePasswordResetUseCase,
                 ResetPasswordUseCase,
+                StartSsoUseCase,
+                CompleteSsoUseCase,
                 AuthService,
                 PreferencesService,
                 HashingService,
@@ -150,6 +180,14 @@ export class IdentityModule {
                 {
                     provide: PASSWORD_RESET_REPOSITORY,
                     useClass: DrizzlePasswordResetRepository
+                },
+                {
+                    provide: SSO_IDENTITY_REPOSITORY,
+                    useClass: DrizzleSsoIdentityRepository
+                },
+                {
+                    provide: SSO_AUTH_REQUEST_REPOSITORY,
+                    useClass: DrizzleSsoAuthRequestRepository
                 },
                 UserAccountMapper,
                 UserLookupQuery,
@@ -174,7 +212,11 @@ export class IdentityModule {
                 AccessPolicy,
                 // Exported so a consuming plugin can resolve the token store —
                 // the public content API's bearer guard depends on it.
-                ApiTokenService
+                ApiTokenService,
+                // Exported so a plugin that renders or audits the SSO surface
+                // can read what is registered without reaching for the host's
+                // composition root.
+                SSO_REGISTRY
             ]
         };
     }

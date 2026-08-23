@@ -6,6 +6,8 @@ export { sessions } from './sessions';
 export { tokenType, tokens } from './tokens';
 export { themePreference, userPreferences } from './user-preferences';
 export { apiTokenScope, apiTokens, apiTokenWorkspaces } from './api-tokens';
+export { ssoIdentities } from './sso-identities';
+export { ssoAuthRequests } from './sso-auth-requests';
 export {
     rolesRelations,
     permissionsRelations,

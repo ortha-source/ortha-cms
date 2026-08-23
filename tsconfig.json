@@ -134,6 +134,12 @@
         },
         {
             "path": "./packages/cli"
+        },
+        {
+            "path": "./packages/identity/domain"
+        },
+        {
+            "path": "./packages/identity/provider-fake"
         }
     ]
 }

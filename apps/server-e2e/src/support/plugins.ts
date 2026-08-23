@@ -15,6 +15,7 @@ import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
+import { fakeSsoProvider } from './sso';
 import { createInMemoryStorageProvider } from './media-storage';
 
 /**
@@ -48,7 +49,14 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
     });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
-        IdentityPlugin(config.plugins.identity),
+        // Identity, with the scripted identity provider registered under
+        // `fake`. The host registers none by default; the harness registers one
+        // so the entire SSO redirect handshake — attempt row, state, PKCE,
+        // verification, account resolution, session — runs in CI with no
+        // tenant and no network.
+        IdentityPlugin(config.plugins.identity, {
+            sso: { providers: [{ name: 'fake', provider: fakeSsoProvider }] }
+        }),
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),

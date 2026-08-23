@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1239 test cases across 80 spec files._
+_1257 test cases across 81 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1013,6 +1013,49 @@ _<sub>apps/server-e2e/src/server/auth/session-boundaries.spec.ts</sub>_
 | 401s on a malformed header rather than failing |
 | 401s on an empty session value |
 | 401s when the token arrives under a different cookie name |
+
+<!-- source: apps/server-e2e/src/server/auth/sso.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso.spec.ts</sub>_
+
+## SSO sign-in
+
+### the provider list
+
+| Test case |
+| --- |
+| is public, and names what is registered |
+
+### starting an attempt
+
+| Test case |
+| --- |
+| sets a short-lived attempt cookie and redirects to the provider |
+| sends a PKCE challenge and never the verifier |
+| 404s for a provider nobody registered |
+| refuses to carry %s as the post-sign-in destination |
+
+### completing an attempt
+
+| Test case |
+| --- |
+| signs in an existing account whose verified address matches |
+| opens an ordinary session — indistinguishable from a password one |
+| clears the attempt cookie, so a spent handle cannot ride along |
+| links the identity, so the account survives an email change |
+
+### refusals
+
+| Test case |
+| --- |
+| refuses a callback with no attempt cookie |
+| refuses a replayed callback — the attempt is one-time |
+| refuses a foreign state before it exchanges anything |
+| refuses a tampered response |
+| refuses an unverified address, however real the account is |
+| creates nobody — a verified stranger is still refused |
+| refuses a disabled account, the same way the password path does |
+| refuses a pending invite — accepting it is what makes it an account |
+| refuses when the provider itself declines |
 
 <!-- source: apps/server-e2e/src/server/content/content-entries-write.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_

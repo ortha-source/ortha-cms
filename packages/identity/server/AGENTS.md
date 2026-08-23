@@ -476,6 +476,80 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.
 
+## Single sign-on (the seam)
+
+Identity also **authenticates against an external identity provider**. The port
+itself lives in `@orthacms/identity-domain` so an adapter can depend on it
+without depending on this package; what lives here is everything that turns a
+verified profile into an Ortha session
+([ADR-0012](../../../docs/adr/0012-sso-provider-port.md)).
+
+Three routes, all `@Public()` and rate-limited:
+
+| Route | Does |
+| --- | --- |
+| `GET /api/auth/sso` | The registered providers, for the sign-in page's buttons. `[]` when none — an answer, not a 404. |
+| `GET /api/auth/sso/:provider/start` | Opens an attempt, sets the attempt cookie, 302s to the provider. |
+| `GET /api/auth/sso/:provider/callback` | Verifies, resolves the account, opens a session, 302s into the admin. |
+
+Two tables, both shipped in this package's `migrations/`: `sso_identities` (the
+link, unique on `(provider, subject)` and on `(provider, user_id)`) and
+`sso_auth_requests` (one in-flight attempt).
+
+### Five things here that are decisions, not details
+
+- **The core mints `state`, `nonce` and the PKCE verifier**, never the adapter.
+  CSRF and replay defence is one rule, implemented once where it is tested once.
+- **Attempt state is a row, not a signed cookie.** This plugin documents the
+  absence of a signing secret as a decision (see `IdentityPluginConfig`), and
+  handshake state was not going to be the thing that reintroduces one. `id` is
+  the SHA-256 of the browser's opaque token, exactly like `sessions.id`.
+- **`OriginGuard` is absent from the callback, deliberately.** It is a top-level
+  GET from a third party with no `Origin` header. The attempt cookie plus the
+  echoed `state` are what protect it.
+- **The attempt is burned *before* the token exchange**, and the exchange runs
+  outside any transaction. Burning after would let a replay drive a second
+  exchange; exchanging inside a transaction would hold a write lock across a
+  call to a third party. `CompleteSsoUseCase`'s doc comment reads the ordering
+  as one sequence, and it is worth reading before changing any of it.
+- **Every refusal is one `SsoLoginFailedError`**, rendered as one redirect to
+  `?error=sso`. The caller is anonymous and the provider is not: told apart,
+  these failures would let anyone who can authenticate at a public provider
+  discover which addresses hold accounts here.
+
+### What it will not do
+
+It signs in accounts that **already exist and are `active`**. It creates none,
+and it changes nobody's role. A first sign-in may claim an existing account only
+when the provider asserts the email is **verified**; a `pending` or `disabled`
+account is refused exactly as it is on the password path. Just-in-time
+provisioning and group-to-role mapping are the next phase, opt-in, and behind a
+required email-domain allow-list.
+
+### Registering a provider
+
+At the composition root, in `IdentityPlugin`'s **second** argument — config holds
+the typed view of the environment, and an adapter instance is not an environment
+value:
+
+```typescript
+IdentityPlugin(config.plugins.identity, {
+    sso: {
+        providers: [{ name: 'google', provider: createGoogleProvider({ … }) }]
+    }
+});
+```
+
+The name appears in the route and in every link row, so renaming a registration
+orphans the links naming it. `ssoCallbackUrl(config, name)` builds the exact
+callback URL to register with the provider — exact because most providers match
+that string byte for byte, and a trailing slash is a different URL to them.
+
+`IdentityPlugin` **refuses to boot** with providers registered and
+`session.cookieSameSite: 'strict'`: a strict cookie is not sent on the
+provider's cross-site redirect back, so every sign-in would fail with a generic
+error and nothing in the response would say why.
+
 ## Configuration
 
 Config flows from `apps/server/ortha.config.ts` (`plugins.identity`, env-sourced)

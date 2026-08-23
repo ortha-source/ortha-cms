@@ -39,6 +39,49 @@ export interface IdentityPluginConfig {
      * non-destructive (an already-present email is left untouched).
      */
     rootAdmin?: IdentityRootAdminConfig;
+    /**
+     * Single sign-on settings. Absent when the deployment registers no SSO
+     * providers, which is the default install.
+     *
+     * The **providers themselves are not here.** They are constructed adapters,
+     * and they are passed to `IdentityPlugin`'s second argument at the
+     * composition root — the same split the copilot makes between
+     * `plugins.copilot.providers` (connection settings, read from the
+     * environment) and `CopilotPlugin({ providers })` (built adapters). This
+     * object is the typed view of the environment; an adapter instance is not
+     * an environment value.
+     */
+    sso?: IdentitySsoConfig;
+}
+
+/** Deployment settings for the SSO routes. Every field has a usable default. */
+export interface IdentitySsoConfig {
+    /**
+     * The origin browsers reach this API on, e.g. `https://cms.acme.com`.
+     *
+     * Used to build the `redirect_uri` registered with each identity provider.
+     * Configured rather than read from the request's `Host` header, which a
+     * client controls and could therefore point at an origin of its choosing.
+     *
+     * Defaults to the first entry of {@link IdentityPluginConfig.allowedOrigins},
+     * which is correct whenever the admin and the API share an origin — the
+     * ordinary deployment, and the dev setup where Vite proxies `/api`.
+     */
+    publicBaseUrl?: string;
+    /**
+     * The API's global route prefix, if the host changed it from `/api`. It is
+     * part of the callback URL, and most identity providers match that string
+     * exactly.
+     */
+    apiPathPrefix?: string;
+    /** Where the admin serves its sign-in screen. Defaults to `/identity/signin`. */
+    signInPath?: string;
+    /**
+     * How long one sign-in attempt stays live, in seconds. Defaults to 600 —
+     * long enough for a consent screen and a second factor, short enough that a
+     * forgotten tab is not an open credential.
+     */
+    requestTtlSeconds?: number;
 }
 
 /**
