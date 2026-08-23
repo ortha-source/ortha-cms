@@ -12,6 +12,10 @@ import {
 
 /** Intl descriptors for the activity skeletons, co-located here. */
 const messages = defineMessages({
+    heading: {
+        id: 'activity.skeleton.heading',
+        defaultMessage: 'Loading activity'
+    },
     loading: {
         id: 'activity.skeleton.loading',
         defaultMessage: 'Loading activity…'
@@ -93,8 +97,21 @@ export function ActivityLogTableSkeleton({ rows = 8 }: { rows?: number }) {
  * while the chunk loads. Reuses {@link ActivityLogTableSkeleton} for the body.
  */
 export function ActivityLogPageSkeleton() {
+    const intl = useIntl();
+
     return (
-        <Container>
+        // `aria-busy` marks this as a loading placeholder so the host's route
+        // announcer waits past the sr-only heading below and reads the settled
+        // page name instead (see `RouteAnnouncer`).
+        <Container aria-busy="true">
+            {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
+                fallback is a whole page with no heading until the real one
+                mounts, so it fails the `page-has-heading-one` axe rule and is
+                unnavigable by heading (`ORT-167`). It names the state, not the
+                page, matching the Members and Content library skeletons. */}
+            <h1 className="sr-only">
+                {intl.formatMessage(messages.heading)}
+            </h1>
             <div className="mb-6 flex flex-col gap-2">
                 <Skeleton className="h-8 w-32" />
                 <Skeleton className="h-4 w-64 max-w-full" />

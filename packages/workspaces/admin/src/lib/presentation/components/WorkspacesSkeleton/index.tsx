@@ -12,6 +12,10 @@ const messages = defineMessages({
         id: 'workspaces.skeleton.loading',
         defaultMessage: 'Loading workspaces…'
     },
+    shellHeading: {
+        id: 'workspaces.skeleton.shellHeading',
+        defaultMessage: 'Loading workspace'
+    },
     loadingForm: {
         id: 'workspaces.skeleton.loadingForm',
         defaultMessage: 'Loading…'
@@ -102,7 +106,18 @@ export function WorkspaceShellSkeleton() {
     const intl = useIntl();
 
     return (
-        <div role="status" className="min-h-svh p-8">
+        // `aria-busy` marks this as a loading placeholder so the host's route
+        // announcer waits past the sr-only heading below and reads the settled
+        // page name instead (see `RouteAnnouncer`).
+        <div role="status" aria-busy="true" className="min-h-svh p-8">
+            {/* The page's `<h1>`, visually hidden. The workspace shell is a lazy
+                chunk behind this fallback (and re-shown while `useWorkspaces`
+                resolves), so until the real page mounts there is no heading at
+                all — failing `page-has-heading-one` and leaving the view
+                unnavigable by heading (`ORT-167`). It names the state. */}
+            <h1 className="sr-only">
+                {intl.formatMessage(messages.shellHeading)}
+            </h1>
             <span className="sr-only">
                 {intl.formatMessage(messages.loading)}
             </span>

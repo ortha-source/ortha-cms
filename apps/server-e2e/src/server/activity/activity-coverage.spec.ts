@@ -288,15 +288,37 @@ describe('activity coverage — which write paths produce an audit row', () => {
 
         it('writes the event in the same transaction as the entry', async () => {
             // The rule the whole outbox exists for: a rejected write leaves no
-            // event behind claiming it happened. `select` is a required enum,
-            // so this 422s inside the write transaction.
+            // event behind claiming it happened.
+            //
+            // The rejection has to be one that reaches *inside* the write
+            // transaction, which rules out a bad `values` bag: `test_article`
+            // is publishable, so a create is a draft and a draft is not
+            // validated at all (`content-entries-write` pins that — required
+            // means required *to publish*). The unique (group, locale) index
+            // is such a rejection: a second `de` sibling fails on the INSERT
+            // itself, so the whole transaction — row, revision and outbox row
+            // alike — rolls back.
             const agent = await login();
-            const before = await rowsOfKind('entry.created');
+            const source = await agent
+                .post('/api/content/test_article')
+                .send({ values: { text: 'Draft one', select: 'article' } })
+                .expect(201);
 
+            const sibling = {
+                values: { text: 'Entwurf eins', select: 'article' },
+                locale: 'de',
+                localeGroupId: source.body.localeGroupId as string
+            };
             await agent
                 .post('/api/content/test_article')
-                .send({ values: { text: 'Never stored', select: 'nope' } })
-                .expect(422);
+                .send(sibling)
+                .expect(201);
+
+            const before = await rowsOfKind('entry.created');
+            await agent
+                .post('/api/content/test_article')
+                .send(sibling)
+                .expect(409);
 
             expect(await rowsOfKind('entry.created')).toEqual(before);
         });

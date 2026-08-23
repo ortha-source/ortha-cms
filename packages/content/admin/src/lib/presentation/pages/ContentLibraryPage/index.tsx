@@ -18,6 +18,7 @@ import { ContentComingSoon } from '../../components/ContentComingSoon';
 import { ContentEntryRoute } from '../../components/ContentEntryRoute';
 import { ContentLibraryError } from '../../components/ContentLibraryError';
 import { ContentLibraryEmpty } from '../../components/ContentLibraryEmpty';
+import { ContentLibraryPageSkeleton } from '../../components/ContentLibrarySkeleton';
 import { ContentOverlays } from '../../components/ContentOverlays';
 import {
     CONTENT_READ,
@@ -113,7 +114,11 @@ export function ContentLibraryPage() {
     }
 
     if (isPending) {
-        return <ContentPane />;
+        // The full-page skeleton, not an empty pane: it carries the sr-only
+        // <h1> the `page-has-heading-one` axe rule needs (an empty pane has no
+        // heading at all) and marks itself `aria-busy` so the route announcer
+        // reads the settled page name rather than the loading placeholder.
+        return <ContentLibraryPageSkeleton />;
     }
 
     // Scope the global content-type catalogue to the slugs this workspace was
