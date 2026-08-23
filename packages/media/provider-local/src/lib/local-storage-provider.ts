@@ -4,6 +4,7 @@ import { mkdir, open, rename, rm, rmdir } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { PassThrough, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { ObjectNotFoundError } from '@orthacms/media-server';
 import type {
     PutObject,
     StorageProvider,
@@ -231,7 +232,25 @@ export function createLocalStorageProvider(
             // response was already a streaming 200 that could no longer become
             // a 404. Opening the descriptor here moves the failure back in
             // front of the response.
-            const handle = await open(absolute(storageKey), 'r');
+            //
+            // The *kind* of rejection is the port's too, not this backend's:
+            // a raw `ENOENT` reaching the controller made a missing blob a
+            // **500**, where the row exists and the bytes do not — from the
+            // caller's side indistinguishable from a missing asset, which the
+            // route already answers 404 for. `ObjectNotFoundError` is what
+            // `to-http.ts` maps; `provider-s3` raises the same for `NoSuchKey`.
+            //
+            // Only `ENOENT`/`ENOTDIR` — a permission error or a full descriptor
+            // table is an operator's problem, and reporting it as "not found"
+            // would hide an outage behind a plausible 404.
+            const handle = await open(absolute(storageKey), 'r').catch(
+                (error: NodeJS.ErrnoException) => {
+                    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
+                        throw new ObjectNotFoundError(storageKey, error);
+                    }
+                    throw error;
+                }
+            );
             const stats = await handle.stat();
             if (!stats.isFile()) {
                 await handle.close();

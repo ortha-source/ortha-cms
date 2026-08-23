@@ -47,7 +47,6 @@ API, `media`, `i18n`, `insights`, `copilot`, `v1/graphql`, `v1/mcp`. Plus the ho
 | `PORT` | `3000` (`:78`) | `Number(x) \|\| 3000`, so `PORT=0` also yields 3000 |
 | `NODE_ENV` | unset | Drives `docs.enabled` **and** cookie `secure` (`:120`) |
 | `API_DOCS` | unset | `=== 'true'` opts docs in; any other value opts out (`:87-89`) |
-| `SESSION_SECRET` / `TOKEN_SECRET` | `''` (`:106-107`) | Empty strings are accepted here — see `🐞 BUG-app-server-01` |
 | `ALLOWED_ORIGINS` | `http://localhost:4200` (`:111`) | CSRF origin allow-list |
 | `SESSION_TTL_SECONDS`, `INVITE_TTL_SECONDS`, `RESET_TTL_SECONDS`, `LOGIN_RATE_LIMIT*` | 7 d / 7 d / 1 h / 10 per 60 s (`:118-135`) | All parsed with `Number(x) \|\| default` |
 | `ORTHA_ROOT_ADMIN_EMAIL/PASSWORD/NAME` | `''` (`:137-139`) | Bootstrap admin seeding |
@@ -62,7 +61,7 @@ API, `media`, `i18n`, `insights`, `copilot`, `v1/graphql`, `v1/mcp`. Plus the ho
 
 ```bash
 docker compose up -d
-cp .env.example .env      # then fill DATABASE_URL, SESSION_SECRET, TOKEN_SECRET, root admin
+cp .env.example .env      # then fill DATABASE_URL and the root admin
 npx nx run server:db:migrate
 npm run dev               # 4 panes; or: npx nx serve server
 curl -i localhost:3000/api/auth/me                    # 401 — unauthenticated
@@ -225,8 +224,11 @@ endpoint must be reachable **only** if `COPILOT_ENABLED=true` and the provider i
 - **EC-01 — Missing `DATABASE_URL`.** `❌ NONE` Defaults to `''` (`:81`). `pg` treats that
   as "use libpq defaults", so the process boots and every request 500s with a connection
   error rather than the actual problem. → `🐞 BUG-app-server-01` (grouped).
-- **EC-02 — Missing `SESSION_SECRET` / `TOKEN_SECRET`.** `❌ NONE` 🔒 Both default to `''`
-  (`:106-107`). → `🐞 BUG-app-server-01`.
+- **EC-02 — Missing `SESSION_SECRET` / `TOKEN_SECRET`.** `✅ N/A` **Withdrawn (ORT-149).**
+  Both variables have been removed: they were declared as required and read by
+  nothing. Sessions and one-time tokens are opaque 256-bit random values checked
+  against a row, so there is no key to be absent. See the revision to
+  `🐞 BUG-app-server-01` below.
 - **EC-03 — `PORT=0`.** `❌ NONE` `Number('0') || 3000` → 3000. Port 0 ("pick a free port")
   is unrepresentable. Same shape at `:118,124,128,133-134,169,178-183,189,200,211`.
 - **EC-04 — `PORT=99999`.** `❌ NONE` Passed through; `listen` rejects with `ERR_SOCKET_BAD_PORT`
@@ -445,7 +447,7 @@ work and weak evidence that **this app's** wiring is right — the two files can
 **Location:** `apps/server/ortha.config.ts:80-82,106-107,136-140`
 **Category:** correctness
 
-**What the code does:**
+**What the code does** (as of the pass; the two `identity` lines are gone since — ORT-149):
 
 ```ts
 database: { url: process.env['DATABASE_URL'] ?? '' },
@@ -466,35 +468,36 @@ empty string is falsy to `pg`, so the pool silently falls back to libpq environm
 cleanly, logs its `🚀` line, and fails only on the first query — or, worse, connects to
 whatever local database the ambient environment names.
 
-The two secrets are a **latent** trap rather than a live one, and the artifact previously
-overstated them: `sessionSecret` and `tokenSecret` are declared in
-`packages/identity/server/src/lib/types/index.ts:8,20` and **read nowhere** — a repo-wide
-search finds no consumer outside the type, `ortha.config.ts` and
-`apps/server-e2e/src/support/test-config.ts:75-76`. Sessions are unsigned opaque 256-bit
-tokens stored as SHA-256 (`packages/identity/server/src/lib/auth/services/hashing.service.ts:48-50`),
-which identity's `AGENTS.md` records as deliberate ("Session cookie is unsigned, token hashed
-at rest (#8) … Consequently `sessionSecret` stays **unconsumed** for now"). So there is no
-forgery path from an empty secret. What is wrong is that the same `AGENTS.md` states
-"fail-fast validation **must** be added when signing is introduced (#10)" — and because the
-config supplies `''` rather than throwing, the first consumer to start signing will inherit
-an empty key from every deployment that never set the variable, with no boot signal.
+**Revised (ORT-149) — the secrets half of this finding is closed, the other way round.**
+`sessionSecret` and `tokenSecret` were declared in `IdentityPluginConfig` and **read
+nowhere**: a repo-wide search found no consumer outside the type, `ortha.config.ts` and
+`apps/server-e2e/src/support/test-config.ts`. Measured on a live stack with both empty —
+the server boots, `POST /api/auth/login` issues a working cookie, and a cookie minted under
+the *real* secret before the reboot is still accepted afterwards. That last one is the tell:
+rotating the secret invalidated nothing, because the secret was never part of the answer.
+
+Sessions and API tokens are `randomBytes(32)` checked against a row, stored as SHA-256
+(`hashing.service.ts:48-50`). That design is sound; the defect was a configuration surface
+describing a different one. So the fix was **not** to validate them — demanding a value that
+does nothing makes the misleading part worse — but to delete them, from the config type, the
+host config, `.env.example` and the scaffolder. If signing is ever introduced, the key comes
+back as a real field with boot-time validation.
+
+What remains of this finding is `DATABASE_URL`, which is genuinely required.
 
 **Repro:**
-1. `unset SESSION_SECRET TOKEN_SECRET DATABASE_URL` (or deploy a container that forgot them).
+1. `unset DATABASE_URL` (or deploy a container that forgot it).
 2. `npx nx serve server`
 → Observed: boots normally, `🚀 Application is running on: http://localhost:3000/api`, no
 warning; the pg pool is pointed at libpq defaults rather than the intended database.
 → Expected: the process refuses to start — `DATABASE_URL is required` — or, at minimum,
 logs a prominent `Logger.error` and exits non-zero.
 
-**Blast radius:** any deployment missing an env var. Today: a server that appears healthy
-while connected to the wrong database (or to none). Tomorrow: whichever ticket introduces
-signing silently inherits an empty key across every such deployment. No authentication
-bypass exists at this commit.
+**Blast radius:** any deployment missing `DATABASE_URL` — a server that appears healthy
+while connected to the wrong database (or to none). No authentication bypass exists, and
+(ORT-149) none was ever latent in the secrets: there was no key to inherit.
 **Suggested fix:** validate the config once at the bottom of `ortha.config.ts` — throw for
-an absent/empty `DATABASE_URL`, and throw (or warn loudly with a minimum length) for
-`SESSION_SECRET` / `TOKEN_SECRET` now, so the fail-fast is in place before the first signing
-consumer rather than after it.
+an absent/empty `DATABASE_URL`. **Done.**
 
 ### 🐞 BUG-app-server-02 — The API reference and GraphiQL both default to *on* unless `NODE_ENV=production` is explicitly set · Severity: Medium · 🔒
 
@@ -657,7 +660,7 @@ host and is filed there.
 
 | Priority | Harness | Proposed spec | Asserts | Closes |
 | --- | --- | --- | --- | --- |
-| 1 | Unit (`apps/server/src/__test__/config.spec.ts`, jest, re-importing `ortha.config` under mutated `process.env`) | config validation | 🔒 Absent/empty `SESSION_SECRET`, `TOKEN_SECRET` or `DATABASE_URL` causes a **throw**, not an empty-string default. Currently fails | `🐞 BUG-app-server-01`, EC-01, EC-02 |
+| 1 | Unit (`apps/server/src/__test__/config.spec.ts`, jest, re-importing `ortha.config` under mutated `process.env`) | config validation | 🔒 An absent/empty `DATABASE_URL` causes a **throw**, not an empty-string default. (`SESSION_SECRET` / `TOKEN_SECRET` dropped from this row — ORT-149 removed the settings) | `🐞 BUG-app-server-01`, EC-01 |
 | 2 | Unit (same file) | docs gate truth table | `{NODE_ENV, API_DOCS}` × `{unset, 'production', 'true', 'false', '1'}` maps to the intended `docs.enabled`, and the case "`NODE_ENV` unset ⇒ enabled" is asserted **explicitly** so any change to the default is deliberate | F12, `🐞 BUG-app-server-02` |
 | 3 | Unit (same file) | numeric parsing | `LOGIN_RATE_LIMIT=0` yields `0` (not 10); `SESSION_TTL_SECONDS=-1` is rejected; `PORT=0` is preserved; `GRAPHQL_MAX_DEPTH=abc` falls back. Currently fails | `🐞 BUG-app-server-03`, EC-03, EC-06, EC-08 |
 | 4 | Unit (`apps/server/src/__test__/plugins.spec.ts`) | registry invariants | `buildPlugins(config)[0].name === 'database'`; identity precedes workspaces which precedes content; every `migrations.table` in the list is **unique**; every plugin `name` is unique | F2, F3, F4, EC-07-shape |

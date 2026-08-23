@@ -18,5 +18,3 @@ if (existsSync('.env') && typeof process.loadEnvFile === 'function') {
 
 process.env.DATABASE_URL ||=
     'postgresql://ortha:ortha@localhost:5432/placeholder';
-process.env.SESSION_SECRET ||= 'test-session-secret-not-used-at-runtime';
-process.env.TOKEN_SECRET ||= 'test-token-secret-not-used-at-runtime';

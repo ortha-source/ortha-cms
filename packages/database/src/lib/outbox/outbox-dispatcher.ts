@@ -252,12 +252,32 @@ export class OutboxDispatcher
         this.timer.unref();
     }
 
-    /** Stops the poll backstop on teardown. */
-    onModuleDestroy(): void {
+    /**
+     * Stops the poll backstop on teardown, then **waits for a drain already in
+     * flight** rather than walking away from it.
+     *
+     * It used to only clear the interval. A drain running when `SIGTERM`
+     * arrived was abandoned mid-batch: subscribers that had already run were
+     * never marked delivered, the claim transaction died with the connection,
+     * and those events were re-delivered on the next boot. Safe only because
+     * the one shipped subscriber is idempotent — a future one that is not would
+     * double-apply. Delivery is at-least-once either way, but there is no
+     * reason to spend the guarantee on an orderly shutdown.
+     *
+     * A drain claims `FOR UPDATE SKIP LOCKED` and its batch is bounded, so this
+     * waits for one batch at most. Both promises are swallowed: a failing drain
+     * has already logged, and a throw from here would abort the rest of the
+     * shutdown.
+     */
+    async onModuleDestroy(): Promise<void> {
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
+        // `queued` resolves only after the drain it promoted has finished, so
+        // awaiting it covers the active one too.
+        const inFlight = this.queued ?? this.active;
+        await inFlight?.catch(() => undefined);
     }
 
     /** One guarded poll tick — skips if a drain is already running. */

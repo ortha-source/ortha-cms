@@ -93,7 +93,7 @@ package imports nothing downstream):
 ### Runtime prerequisites
 
 - **Postgres** (`docker compose up -d`) and a `.env` carrying `DATABASE_URL`,
-  `SESSION_SECRET`, `TOKEN_SECRET`.
+  (identity needs no secret — ORT-149.)
 - **`COPILOT_ENABLED=true`.** Off by default (`apps/server/ortha.config.ts:194`,
   ADR-0005 §10). With it off, every route still authenticates and the *run*
   fails with a readable error frame rather than a 403
@@ -279,7 +279,7 @@ npx nx run @orthacms/copilot-server:db:generate --name=x    # must emit nothing
 ## 3. Manual Test Plan
 
 **Global preconditions for every block.** `docker compose up -d`; a `.env` with
-`DATABASE_URL`, `SESSION_SECRET`, `TOKEN_SECRET`, `COPILOT_ENABLED=true`;
+`DATABASE_URL`, `COPILOT_ENABLED=true`;
 `npx nx run server:db:migrate`; `npm run dev`. Three signed-in users —
 `admin@example.com` (admin), `contrib@example.com` (contributor),
 `viewer@example.com` (viewer) — all members of workspace **A**; one further user
@@ -1128,13 +1128,16 @@ this surface can express one.
 
 ---
 
-#### ♿ A11Y-copilot-server-03 — `RUN_STOP_EXPLANATIONS` is the only human-readable account of a truncated run, and it never reaches the persisted transcript
+#### ♿ A11Y-copilot-server-03 — the stop reason is the only human-readable account of a truncated run, and it never reaches the persisted transcript
 
 **WCAG 2.1 SC:** 4.1.3 Status Messages (AA) — *upstream cause*
 **508 provision:** E205.4
 **Verdict:** **Partially Supports**
-**Location:** `packages/copilot/domain/src/lib/run/run-limits.ts:58-67`;
+**Location:** `packages/copilot/domain/src/lib/run/run-limits.ts` (`RunStopReason`);
 `packages/copilot/server/src/lib/chat/application/run-engine.service.ts:309-333`.
+(Retitled under ORT-109 — the phrasings this cited as `RUN_STOP_EXPLANATIONS`
+are model-facing and module-private now. The gap is unchanged: it is the missing
+assistant row, not the wording.)
 
 `stopReason` is persisted on the assistant message, so a reopened thread *can*
 say the answer was cut short. But a run that fails **before any text streams**

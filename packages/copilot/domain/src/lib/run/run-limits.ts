@@ -70,8 +70,24 @@ export type RunStopReason =
     /** The run failed. The message is carried on the error event. */
     | 'error';
 
-/** Human-readable explanation of why a run ended, for the UI to show. */
-export const RUN_STOP_EXPLANATIONS: Record<RunStopReason, string> = {
+/**
+ * How each stop reason is phrased **to the model**, inside
+ * {@link interruptionNote}.
+ *
+ * Deliberately not exported, and deliberately not the UI's copy. It was both,
+ * as `RUN_STOP_EXPLANATIONS` — "for the UI to show" — and a
+ * `Record<RunStopReason, string>` of finished English sentences cannot enter
+ * the admin's i18n pipeline: there is no message id to extract, nothing for a
+ * translator to see, and no `IntlProvider` involvement. A localized admin given
+ * this could only render English, so `copilot/admin` reasonably restated all
+ * five in its own `defineMessages` — leaving two sources of truth for the same
+ * sentences, already drifted in both wording and coverage.
+ *
+ * Rendering is presentation, and {@link RunStopReason} is the contract the
+ * admin keys off. What is left here is the one case where server-authored
+ * English is right: text the **model** reads.
+ */
+const RUN_STOP_NOTES: Record<RunStopReason, string> = {
     end: 'Finished.',
     'max-steps': 'Stopped after reaching the maximum number of steps.',
     'max-tokens': 'Stopped after reaching this run’s token budget.',
@@ -121,9 +137,9 @@ export function wasCutShort(stopReason: string | null): boolean {
  * **A note, on the turns it happened to — not a summary of the thread.** One
  * sentence on a turn that was already cut off: a few dozen tokens on a
  * conversation where something went wrong, and nothing at all on one where
- * nothing did. It reuses {@link RUN_STOP_EXPLANATIONS} rather than writing a
- * second set of phrasings, so the reason a user reads in the UI and the reason
- * the model reads here cannot drift apart.
+ * nothing did. The phrasings live in `RUN_STOP_NOTES` above; they are written
+ * for the model, and are **not** what the user is shown — the admin renders its
+ * own translated copy from the same {@link RunStopReason}.
  *
  * The dropped-tool-calls sentence is not incidental: `normalizeTranscript`
  * removes `tool_use` blocks a cut-off run never got results for, so work the
@@ -132,7 +148,7 @@ export function wasCutShort(stopReason: string | null): boolean {
  */
 export function interruptionNote(stopReason: RunStopReason): string {
     return (
-        `(That turn did not finish. ${RUN_STOP_EXPLANATIONS[stopReason]} ` +
+        `(That turn did not finish. ${RUN_STOP_NOTES[stopReason]} ` +
         'Any tool call it had started but not completed is absent from this ' +
         'transcript. If the user asks you to continue, resume from where it ' +
         'stopped rather than starting the task again.)'

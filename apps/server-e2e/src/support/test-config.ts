@@ -164,8 +164,6 @@ export function buildTestConfig(
         docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
-                sessionSecret: 'test-session-secret',
-                tokenSecret: 'test-token-secret',
                 allowedOrigins: overrides.allowedOrigins ?? [
                     TEST_ALLOWED_ORIGIN
                 ],

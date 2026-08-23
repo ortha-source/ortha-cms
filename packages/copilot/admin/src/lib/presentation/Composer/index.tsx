@@ -260,7 +260,14 @@ export function Composer({
 
     return (
         <div
-            className={cn('border-border/60 relative border-t p-3', className)}
+            className={cn(
+                // `px-4`, matching the transcript's scroller: the box and the
+                // messages above it are one column, and a 4px step between them
+                // reads as a wobble down the panel's edge. `py-3` keeps the
+                // vertical rhythm the divider was drawn for.
+                'border-border/60 relative border-t px-4 py-3',
+                className
+            )}
             onDragEnter={(event) => {
                 if (!attachments || !hasFiles(event)) {
                     return;

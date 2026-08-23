@@ -7,7 +7,6 @@ import {
     statSync,
     writeFileSync
 } from 'node:fs';
-import { randomBytes } from 'node:crypto';
 import { join, relative } from 'node:path';
 import { applyConditionals } from './conditionals';
 import {
@@ -55,11 +54,6 @@ const RENAMES: Readonly<Record<string, string>> = {
     'README.md.tmpl': 'README.md'
 };
 
-/** Generates a URL-safe secret with 256 bits of entropy. */
-export function generateSecret(): string {
-    return randomBytes(32).toString('base64url');
-}
-
 /** Substitutes every `__PLACEHOLDER__` in `contents`. */
 export function render(contents: string, values: TemplateValues): string {
     const replacements: Record<string, string> = {
@@ -69,9 +63,7 @@ export function render(contents: string, values: TemplateValues): string {
         __DATABASE_NAME__: values.databaseName,
         __ADMIN_EMAIL__: values.adminEmail,
         __ADMIN_PASSWORD__: values.adminPassword,
-        __ORTHA_VERSION__: values.orthaVersion,
-        __SESSION_SECRET__: generateSecret(),
-        __TOKEN_SECRET__: generateSecret()
+        __ORTHA_VERSION__: values.orthaVersion
     };
 
     return Object.entries(replacements).reduce(

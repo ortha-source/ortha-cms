@@ -258,6 +258,73 @@ describe('checkLimits', () => {
                 )
             ).toEqual([]);
         });
+
+        describe('a page-size variable named for an Object.prototype member', () => {
+            // The cost walk runs BEFORE graphql-js validation, so the variable
+            // name is attacker-chosen. Read with `!== undefined` it resolved
+            // an inherited function, `Math.max(fn, 1)` was `NaN`, and `NaN >
+            // maxComplexity` is `false` — the budget switched itself off.
+            const inherited = [
+                'constructor',
+                'toString',
+                'valueOf',
+                'hasOwnProperty'
+            ];
+
+            it.each(inherited)(
+                'refuses `$%s` exactly as it refuses the literal',
+                (name) => {
+                    const errors = check(
+                        `query Q($${name}: Int) { articles(pageSize: $${name}) { items { tags(pageSize: 100) { items { id } } } } }`,
+                        { maxComplexity: 1000 }
+                    );
+
+                    expect(errors.map((error) => error.message)).toContainEqual(
+                        expect.stringMatching(/may touch about \d+ records/)
+                    );
+                }
+            );
+
+            it("does not let one swallow a sibling field's oversized literal", () => {
+                // The `NaN` propagated into the running total and down as the
+                // child multiplier, so the whole document went unbudgeted —
+                // not just the field naming the variable.
+                const errors = check(
+                    `query Q($constructor: Int) {
+                         a: articles(pageSize: $constructor) { items { id } }
+                         b: articles(pageSize: 100000) { items { id } }
+                     }`,
+                    { maxComplexity: 1000 }
+                );
+
+                expect(errors).not.toEqual([]);
+                expect(errors[0].extensions['code']).toBe(
+                    'GRAPHQL_LIMIT_EXCEEDED'
+                );
+            });
+
+            it('costs an undeclared inherited name as the assumed page size', () => {
+                // Nothing supplied it and nothing declared a default, so it is
+                // an ordinary unknown variable: assume 20, do not read the
+                // prototype, and do not refuse an otherwise-small document.
+                expect(
+                    check(
+                        'query Q($toString: Int) { articles(pageSize: $toString) { items { id } } }',
+                        { maxComplexity: 100 }
+                    )
+                ).toEqual([]);
+            });
+
+            it('still honours a genuine variable that happens to share the name', () => {
+                expect(
+                    check(
+                        'query Q($valueOf: Int) { articles(pageSize: $valueOf) { items { id } } }',
+                        { maxComplexity: 100 },
+                        { valueOf: 5 }
+                    )
+                ).toEqual([]);
+            });
+        });
     });
 
     describe('operations per request', () => {

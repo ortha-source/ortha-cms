@@ -42,7 +42,7 @@ list is handed in by `apps/server/src/plugins.ts`.
 
 - Postgres reachable (`docker compose up -d`) — not for the host itself, but the first
   plugin in the list (`DatabasePlugin`) opens a pool in `onPluginInit`.
-- `.env` with `DATABASE_URL`; `SESSION_SECRET` / `TOKEN_SECRET` for identity.
+- `.env` with `DATABASE_URL`. (Identity needs no secret — ORT-149.)
 - `NODE_ENV` and/or `API_DOCS` decide whether the reference mounts
   (`apps/server/ortha.config.ts:87-89` → `setup-api-docs.ts:87`).
 - `PORT` (default 3000), and the host's `globalPrefix` (`'api'`, `ortha.config.ts:79`).

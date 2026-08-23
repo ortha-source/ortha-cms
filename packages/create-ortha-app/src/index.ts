@@ -8,7 +8,6 @@ export {
     renderTemplate,
     renderManifest,
     render,
-    generateSecret,
     isNonEmptyDirectory,
     type TemplateValues
 } from './lib/template';

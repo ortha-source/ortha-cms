@@ -112,7 +112,18 @@ export function checkLimits(
         fragments,
         sizes
     );
-    if (complexity > limits.maxComplexity) {
+    if (!Number.isFinite(complexity)) {
+        // A budget that compares with `>` fails *open* on `NaN`, which is the
+        // one direction it must never fail: an unestimatable document would
+        // execute unbudgeted. Nothing should be able to produce a non-finite
+        // estimate any more, so refuse rather than guess a number.
+        errors.push(
+            new GraphQLError(
+                `Query cost could not be estimated, so it is refused against the limit of ${limits.maxComplexity}. Lower a \`pageSize\`, or select fewer nested lists.`,
+                { extensions: { code: 'GRAPHQL_LIMIT_EXCEEDED' } }
+            )
+        );
+    } else if (complexity > limits.maxComplexity) {
         errors.push(
             new GraphQLError(
                 `Query may touch about ${complexity} records; the limit is ${limits.maxComplexity}. Lower a \`pageSize\`, or select fewer nested lists.`,
@@ -456,9 +467,12 @@ function pageSizeOf(
             return Math.max(Number(node.value), 1);
         }
         if (node.kind === Kind.VARIABLE) {
-            const supplied = sizes[node.name.value];
-            if (supplied !== undefined) {
-                return Math.max(supplied, 1);
+            // `hasOwn`, not `!== undefined`: the variable name comes straight
+            // out of an unvalidated document, so `$constructor` would
+            // otherwise read `Object.prototype.constructor` — a function that
+            // passes an `undefined` check and makes the whole estimate `NaN`.
+            if (Object.hasOwn(sizes, node.name.value)) {
+                return Math.max(sizes[node.name.value], 1);
             }
         }
     }

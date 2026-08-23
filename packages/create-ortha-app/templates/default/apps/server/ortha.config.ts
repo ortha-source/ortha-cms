@@ -192,8 +192,6 @@ const config: OrthaConfig = {
     },
     plugins: {
         identity: {
-            sessionSecret: process.env['SESSION_SECRET'] ?? '',
-            tokenSecret: process.env['TOKEN_SECRET'] ?? '',
             // Origins allowed to make state-changing calls (login-CSRF
             // defence). In development that is the Vite dev server; in
             // production the app is same-origin, so this list is what a

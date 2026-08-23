@@ -125,11 +125,20 @@ step 2 the count silently drops with no explanation.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Set the app theme to Dark; hard-reload with the network throttled to Slow 3G | The page is dark from the **first** paint — no white flash. The inline script at `index.html:11-35` runs before the module bundle |
+| 1 | Set the app theme to Dark; hard-reload with the network throttled to Slow 3G | The page is dark from the **first** paint — no white flash. The inline script in `index.html` runs before the module bundle. **In a browser that has run the app before** — see the note under this table (ORT-151) |
 | 2 | `localStorage.setItem('ortha.theme','purple')`; reload | Falls back to `system` (`index.html:19-24`); no console error (the whole block is `try`/`catch`) |
 | 3 | Disable JavaScript entirely and load the page | A blank white page with no message — an SPA with no `<noscript>` fallback |
 | 4 | Set the OS to dark, theme to `system`, reload | Dark; `document.documentElement.style.colorScheme === 'dark'`, so native form controls and scrollbars render dark too |
 | 5 | Block `localStorage` (Safari private / cookie-blocking) | The `try`/`catch` swallows it; the app defaults to light regardless of the OS setting |
+| 6 | Clear site data, set the account theme to Dark and the OS to Light, reload (ORT-151) | Light on first paint, then dark one network round trip later. **Expected**, and once per browser: the durable theme is the server's and the pre-paint script can only read `localStorage`. The flip persists the value, so the next load is dark from the first paint |
+
+**Step 1 was written as though the script always prevents the flash, and it
+cannot** (ORT-151). It covers returning visits; a browser that has never run the
+app has nothing stored, resolves `system` against the OS, and is corrected when
+`users-admin`'s `ThemeSync` receives `GET /api/preferences`. Closing that needs
+the preference served with the document, which a static SPA behind a Vite/CDN
+origin cannot do. The round trip that makes it happen only once is pinned by
+`packages/design-system/src/lib/appearance/index.spec.tsx`.
 
 **Screen reader:** step 3's blank page is silent — a user with JS disabled gets no
 explanation at all.

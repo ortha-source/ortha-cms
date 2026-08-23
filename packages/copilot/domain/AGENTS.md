@@ -207,6 +207,15 @@ genuinely belongs to a framework-free core:
   (steps, wall clock, tokens) and why a run ended. `RunStopReason` is a superset
   of `ModelStopReason`: the model reports why _it_ stopped, this reports why the
   _run_ did, including limits the model never sees.
+
+  **The reason is the contract; the sentence is not.** This package exports no
+  user-facing copy for a stop reason, and should not: a
+  `Record<RunStopReason, string>` of finished English cannot enter the admin's
+  `react-intl` pipeline — no message id, nothing for a translator to see — so
+  anything shipped here could only ever render English. `copilot/admin` owns the
+  translated copy, keyed off the same union. What is left is `RUN_STOP_NOTES`,
+  module-private, feeding `interruptionNote` — text the **model** reads, which
+  is the one place server-authored English belongs.
 - `fenceUntrusted(source, payload, maxChars?)` + `UNTRUSTED_DATA_RULE` +
   `MAX_UNTRUSTED_PAYLOAD_CHARS` — ADR-0005 §8's structural defence. Two
   properties carry it: the payload is JSON (so no field can introduce a line

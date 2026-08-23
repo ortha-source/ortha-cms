@@ -143,8 +143,11 @@ export function AgentsThread({
     return (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {failed ? (
-                <div className="mx-auto w-full max-w-3xl px-4 py-6">
-                    <Alert variant="destructive">
+                <div className="px-4 py-6">
+                    <Alert
+                        variant="destructive"
+                        className="mx-auto w-full max-w-3xl"
+                    >
                         <CircleAlert className="size-4" />
                         <AlertTitle>
                             {intl.formatMessage(messages.failedTitle)}
@@ -168,12 +171,14 @@ export function AgentsThread({
                 // has not arrived (`ORT-116`).
                 <SkeletonRegion
                     label={intl.formatMessage(messages.loadingThread)}
-                    className="mx-auto w-full max-w-3xl flex-1 space-y-3 px-4 py-6"
+                    className="flex-1 px-4 py-6"
                 >
-                    <Skeleton className="ml-auto h-9 w-1/2 rounded-lg" />
-                    <Skeleton className="h-4 w-11/12" />
-                    <Skeleton className="h-4 w-9/12" />
-                    <Skeleton className="h-4 w-10/12" />
+                    <div className="mx-auto w-full max-w-3xl space-y-3">
+                        <Skeleton className="ml-auto h-9 w-1/2 rounded-lg" />
+                        <Skeleton className="h-4 w-11/12" />
+                        <Skeleton className="h-4 w-9/12" />
+                        <Skeleton className="h-4 w-10/12" />
+                    </div>
                 </SkeletonRegion>
             ) : chat.messages.length === 0 ? (
                 <AgentsWelcome
@@ -191,33 +196,44 @@ export function AgentsThread({
                 />
             )}
 
-            <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-4">
-                {/* "Your message, plus where you are" (design §2) — but only when
-                    the user asked for it. See ContextChip for why it is opt-in. */}
-                <ContextChip
-                    current={routeContext}
-                    attached={attached}
-                    onAttach={() => setAttached(routeContext)}
-                    onDetach={() => setAttached(null)}
-                />
-                <Composer
-                    busy={chat.busy}
-                    inputRef={composerRef}
-                    // In the box, bottom-left: the model applies to the turn
-                    // being written, not to the conversation, so it belongs
-                    // with the thing that writes it.
-                    controls={
-                        <ModelPicker value={model} onChange={setChoice} />
-                    }
-                    // The page already centres and pads its own column, so the
-                    // composer drops the panel's divider and gutters and
-                    // contributes only the box itself.
-                    className="border-t-0 p-0"
-                    onSend={send}
-                    onStop={chat.stop}
-                    {...(canAttach ? { attachments: files } : {})}
-                    skills={skills}
-                />
+            {/* The gutter goes on the outside and the column on the inside —
+                the same nesting `MessageList` uses — so the composer measures
+                the same 3xl as the messages above it. Padding *inside* the cap
+                made the box 32px narrower than the transcript at any width past
+                the cap, and the two edges visibly failed to line up. */}
+            <div className="shrink-0 px-4 pt-2 pb-4">
+                <div className="mx-auto w-full max-w-3xl">
+                    {/* "Your message, plus where you are" (design §2) — but only
+                        when the user asked for it. See ContextChip for why it is
+                        opt-in. */}
+                    <ContextChip
+                        current={routeContext}
+                        attached={attached}
+                        onAttach={() => setAttached(routeContext)}
+                        onDetach={() => setAttached(null)}
+                        // The column is already padded here, so the chip
+                        // contributes no gutter of its own.
+                        className="px-0"
+                    />
+                    <Composer
+                        busy={chat.busy}
+                        inputRef={composerRef}
+                        // In the box, bottom-left: the model applies to the
+                        // turn being written, not to the conversation, so it
+                        // belongs with the thing that writes it.
+                        controls={
+                            <ModelPicker value={model} onChange={setChoice} />
+                        }
+                        // The page already centres and pads its own column, so
+                        // the composer drops the panel's divider and gutters
+                        // and contributes only the box itself.
+                        className="border-t-0 p-0"
+                        onSend={send}
+                        onStop={chat.stop}
+                        {...(canAttach ? { attachments: files } : {})}
+                        skills={skills}
+                    />
+                </div>
             </div>
         </div>
     );

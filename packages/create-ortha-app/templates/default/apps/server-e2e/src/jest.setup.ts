@@ -20,8 +20,6 @@ process.env['DATABASE_URL'] = resolveTestDatabaseUrl();
 // the suite a real account to sign in with.
 process.env['ORTHA_ROOT_ADMIN_EMAIL'] ||= 'e2e@example.com';
 process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ||= 'e2e-password-not-a-secret';
-process.env['SESSION_SECRET'] ||= 'e2e-session-secret-not-a-secret';
-process.env['TOKEN_SECRET'] ||= 'e2e-token-secret-not-a-secret';
 
 // `createServer` builds its own Nest app and takes no logger option, so this
 // is the only way to keep a full boot banner — every mapped route, every

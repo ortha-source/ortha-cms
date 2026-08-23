@@ -7,7 +7,7 @@ export { queryClient } from './lib/queryClient';
 export { STALE_TIME } from './lib/staleTime';
 export { HTTP_STATUS } from './lib/httpStatus';
 export { ApiError, toApiError } from './lib/apiError';
-export { createSlot } from './lib/slot';
+export { createSlot, wireSlotContributions } from './lib/slot';
 export type { Slot, SlotContribution } from './lib/slot';
 export { byOrder } from './lib/byOrder';
 export { slugify } from './lib/slugify';

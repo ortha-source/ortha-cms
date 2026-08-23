@@ -20,6 +20,7 @@ import {
 import { MembershipCheckQuery } from '@orthacms/workspaces-server';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import { downloadHeadersFor } from '../download-headers';
+import { toHttp } from '../to-http';
 
 /**
  * `GET /api/media/assets/:id/raw` — streams an asset's bytes from the provider
@@ -70,7 +71,14 @@ export class DownloadAssetController {
             throw new NotFoundException();
         }
 
-        const stream = await this.query.open(location);
+        // Through `toHttp`, so a row whose blob is gone from storage — a
+        // database restored against an empty volume, a hand-reclaimed blob, an
+        // interrupted migration — is the same 404 as a missing asset rather
+        // than a 500. A 500 there was both wrong and a signal: it told a
+        // caller the row was real. Anything else is rethrown and stays a 500.
+        const stream = await this.query
+            .open(location)
+            .catch((error: unknown) => toHttp(error));
         const { disposition, headers } = downloadHeadersFor(
             location.mimeType,
             location.name

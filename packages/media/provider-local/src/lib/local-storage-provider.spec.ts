@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
+import { ObjectNotFoundError } from '@orthacms/media-server';
 import type { StorageProvider } from '@orthacms/media-server';
 import {
     createLocalStorageProvider,
@@ -304,7 +305,45 @@ describe('createLocalStorageProvider', () => {
         it('rejects for a missing key instead of failing mid-stream', async () => {
             await expect(
                 provider.get(`${WORKSPACE}/${ASSET}/gone.png`)
-            ).rejects.toMatchObject({ code: 'ENOENT' });
+            ).rejects.toBeInstanceOf(ObjectNotFoundError);
+        });
+
+        // The *kind* of rejection belongs to the port. A raw `ENOENT` reaching
+        // the controller was a 500 for a row whose blob is gone — a database
+        // restored against an empty volume, a hand-reclaimed blob, an
+        // interrupted migration.
+        it('keeps the driver error for the operator, off the caller', async () => {
+            const thrown = await provider
+                .get(`${WORKSPACE}/${ASSET}/gone.png`)
+                .catch((error: unknown) => error as ObjectNotFoundError);
+
+            expect(thrown.cause).toMatchObject({ code: 'ENOENT' });
+            // Never rendered to a caller — `to-http` answers a bare 404 — but
+            // an operator reading a log needs the key.
+            expect(thrown.message).toContain('gone.png');
+        });
+
+        // A missing *directory* is the same condition: the whole asset folder
+        // is gone, not just the file inside it.
+        it('reports a missing parent directory as a missing object too', async () => {
+            await expect(
+                provider.get('no-such-workspace/no-such-asset/file.png')
+            ).rejects.toBeInstanceOf(ObjectNotFoundError);
+        });
+
+        // Deliberately not folded into "not found": only ENOENT/ENOTDIR are.
+        // A permission error, an exhausted descriptor table or a key that is
+        // not a file is an operator's problem, and dressing one as a 404 hides
+        // an outage behind a plausible answer.
+        it('does not report a key that is not a file as missing', async () => {
+            await put();
+
+            const thrown = await provider
+                .get(`${WORKSPACE}/${ASSET}`)
+                .catch((error: unknown) => error);
+
+            expect(thrown).not.toBeInstanceOf(ObjectNotFoundError);
+            expect(thrown).toMatchObject({ code: 'EISDIR' });
         });
 
         it('rejects for a key that names a directory', async () => {

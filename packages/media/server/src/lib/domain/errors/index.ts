@@ -4,3 +4,4 @@ export { InvalidFileNameError } from './invalid-file-name.error';
 export { InvalidFolderNameError } from './invalid-folder-name.error';
 export { AssetNotFoundError } from './asset-not-found.error';
 export { FolderNotFoundError } from './folder-not-found.error';
+export { ObjectNotFoundError } from './object-not-found.error';
