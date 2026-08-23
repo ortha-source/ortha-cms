@@ -315,6 +315,26 @@ export class AgentsPage extends BasePage {
         await this.composer().press('Enter');
     }
 
+    /**
+     * The transcript's centred text column — the `max-w-3xl` child of the
+     * scroller, not the scroller itself.
+     *
+     * The scroller deliberately runs the full width so the scrollbar sits at
+     * the edge of the surface; the column is what a reader's eye tracks, and
+     * what the composer has to line up with.
+     */
+    transcriptColumn(): Locator {
+        return this.transcript().locator('> div').first();
+    }
+
+    /**
+     * The composer's bordered box — the textarea's parent, which is the element
+     * with the visible edges.
+     */
+    composerBox(): Locator {
+        return this.composer().locator('..');
+    }
+
     /** The composer's measured height, for the auto-grow assertions. */
     async composerHeight(): Promise<number> {
         const box = await this.composer().boundingBox();

@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_741 test cases across 74 spec files._
+_742 test cases across 74 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -958,6 +958,7 @@ _<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
 | --- |
 | lists the workspace threads under recency headings |
 | filters by title, and an untitled thread matches nothing |
+| the composer is the same column as the transcript |
 | a failed list says so instead of claiming there are no chats |
 | opens a thread from the rail and announces which one is current |
 | a reopened thread rebuilds the order the run produced |
