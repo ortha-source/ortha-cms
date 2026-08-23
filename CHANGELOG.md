@@ -109,8 +109,4 @@
 - **wysiwyg-admin:** let the editor say what language it is in, and how to leave ([a1c5e88f](https://github.com/ortha-source/ortha-cms/commit/a1c5e88f))
 
 ### ❤️ Thank You
-
-- Claude
-- Claude Opus 5
-- Claude Opus 5 (1M context)
 - Pavel Makhanko @pmknk
