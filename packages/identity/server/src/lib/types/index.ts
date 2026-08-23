@@ -82,6 +82,47 @@ export interface IdentitySsoConfig {
      * forgotten tab is not an open credential.
      */
     requestTtlSeconds?: number;
+    /**
+     * Just-in-time provisioning: creating an account the first time a verified
+     * profile arrives with no matching one.
+     *
+     * **Absent by default, and that is the safe answer.** Ortha is invite-only;
+     * SSO replaces the credential check rather than the way in. Turning this on
+     * changes a property of the product, so it is an explicit decision with a
+     * required domain allow-list attached.
+     */
+    provisioning?: IdentitySsoProvisioningConfig;
+    /**
+     * Whether `POST /auth/login` still accepts a password. Defaults to `true`.
+     *
+     * Set it to `false` for a deployment where the identity provider is the
+     * only way in. **The root administrator keeps a password path regardless**
+     * — an operator who mis-scopes their provider and has no password left has
+     * locked themselves out of their own CMS, with no way back that does not
+     * involve a database client.
+     */
+    allowPasswordLogin?: boolean;
+}
+
+/** Just-in-time provisioning settings. */
+export interface IdentitySsoProvisioningConfig {
+    /**
+     * The email domains an account may be created for. **Required, and
+     * non-empty** — checked at construction.
+     *
+     * An identity provider answers for everyone it knows, and a public one —
+     * Google most obviously — knows everyone. Provisioning with no domain
+     * restriction means anyone with an account there can sign in here, and
+     * nothing breaks to say so: the user list simply grows. Matching is exact
+     * on the domain, so a subdomain has to be listed on its own.
+     */
+    domains: readonly string[];
+    /**
+     * The role key a provisioned account lands on — `viewer` unless this
+     * deployment has a reason to be more generous. A role-mapping handler may
+     * choose a different one per person; this is what applies when none does.
+     */
+    defaultRole: string;
 }
 
 /**

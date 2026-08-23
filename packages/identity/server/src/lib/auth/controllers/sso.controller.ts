@@ -77,10 +77,17 @@ export class SsoController {
         return this.registry.catalogue();
     }
 
+    /**
+     * `invite` carries the one-time token from an invitation link, for the
+     * "accept your invitation with your work account" path. It is not validated
+     * here: a bad one is indistinguishable from a good one until the callback
+     * looks it up, and every failure there is the same generic refusal anyway.
+     */
     @Get(':provider/start')
     async start(
         @Param('provider') provider: string,
         @Query('redirect') redirect: string | undefined,
+        @Query('invite') invite: string | undefined,
         @Res() res: Response
     ): Promise<void> {
         let started;
@@ -89,7 +96,8 @@ export class SsoController {
                 provider,
                 // Validated here, at the edge, so every layer below can treat
                 // `redirectTo` as a string that cannot leave this origin.
-                safeRedirectPath(redirect)
+                safeRedirectPath(redirect),
+                invite
             );
         } catch (error) {
             throw this.toHttpError(error);

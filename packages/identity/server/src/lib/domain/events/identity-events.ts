@@ -26,6 +26,25 @@ export const IDENTITY_EVENT_KINDS = {
     PASSWORD_CHANGED: 'user.password_changed',
     SIGNED_IN: 'auth.signed_in',
     SIGNED_OUT: 'auth.signed_out',
+    /**
+     * An identity provider's subject was linked to an account. Raised once per
+     * link, not per sign-in — the interesting fact is that a second way into
+     * the account now exists.
+     */
+    SSO_LINKED: 'user.sso_linked',
+    /**
+     * An account was created from a verified profile, with no invite and no
+     * password. This is the one SSO fact a security review will look for
+     * first, because it is the only path in this product that produces an
+     * account nobody explicitly invited.
+     */
+    SSO_PROVISIONED: 'user.sso_provisioned',
+    /**
+     * A role-mapping handler moved an account to a different role. Raised only
+     * when the role actually changed, so an unchanged mapping does not write a
+     * row on every sign-in for the rest of the account's life.
+     */
+    SSO_ROLE_MAPPED: 'user.sso_role_mapped',
     API_TOKEN_CREATED: 'api_token.created',
     API_TOKEN_REVOKED: 'api_token.revoked'
 } as const;

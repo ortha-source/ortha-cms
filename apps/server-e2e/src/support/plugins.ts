@@ -15,7 +15,7 @@ import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
-import { fakeSsoProvider } from './sso';
+import { fakeSsoProvider, ssoRoleResolver } from './sso';
 import { createInMemoryStorageProvider } from './media-storage';
 
 /**
@@ -55,7 +55,14 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
         // verification, account resolution, session — runs in CI with no
         // tenant and no network.
         IdentityPlugin(config.plugins.identity, {
-            sso: { providers: [{ name: 'fake', provider: fakeSsoProvider }] }
+            sso: {
+                providers: [{ name: 'fake', provider: fakeSsoProvider }],
+                // Always registered, so the wiring is exercised on every boot.
+                // It answers `null` — "leave the role alone", the shipped
+                // default — unless a test scripts something with
+                // `scriptSsoRole`.
+                resolveRole: ssoRoleResolver
+            }
         }),
         WorkspacesPlugin(),
         ActivityPlugin(),

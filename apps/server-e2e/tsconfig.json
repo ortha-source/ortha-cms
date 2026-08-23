@@ -12,6 +12,9 @@
             "path": "../../packages/identity/provider-fake"
         },
         {
+            "path": "../../packages/identity/domain"
+        },
+        {
             "path": "../server"
         },
         {

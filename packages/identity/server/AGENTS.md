@@ -517,14 +517,54 @@ link, unique on `(provider, subject)` and on `(provider, user_id)`) and
   these failures would let anyone who can authenticate at a public provider
   discover which addresses hold accounts here.
 
-### What it will not do
+### What an SSO sign-in may do to an account
 
-It signs in accounts that **already exist and are `active`**. It creates none,
-and it changes nobody's role. A first sign-in may claim an existing account only
-when the provider asserts the email is **verified**; a `pending` or `disabled`
-account is refused exactly as it is on the password path. Just-in-time
-provisioning and group-to-role mapping are the next phase, opt-in, and behind a
-required email-domain allow-list.
+By default: **nothing**. It signs in accounts that already exist and are
+`active`, creates none, and changes nobody's role. A first sign-in may claim an
+existing account only when the provider asserts the email is **verified**; a
+`pending` or `disabled` account is refused exactly as on the password path.
+
+Three things a deployment can turn on, each off by default and each for its own
+reason:
+
+- **Just-in-time provisioning** (`sso.provisioning`) creates an `active` account
+  with **no password hash** the first time a verified profile arrives with no
+  matching one. The **domain allow-list is required and non-empty**, checked at
+  construction: an identity provider answers for everyone it knows and a public
+  one knows everyone, so provisioning without it means anybody with an account
+  there can sign in here — and nothing breaks to say so, the user list simply
+  grows. Matching is exact on the domain, deliberately not a suffix match, so
+  `acme.com` never admits `evil-acme.com`.
+- **Role mapping** (`IdentityPlugin`'s `resolveRole`) is plain code at the
+  composition root returning a role key, or `null` to leave the role alone —
+  which is also what no handler means. Two rules protect what it can do: an
+  unknown role key is logged and ignored rather than failing the sign-in (a typo
+  in a handler must not lock a directory out), and **an account already holding
+  `admin` is never demoted by a mapping**. That grant is deliberate and a
+  directory group is not; last-admin protection lives in the users context and
+  does not run on this path.
+- **Accepting an invitation with a work account.** `/start?invite=<token>`
+  carries the one-time token on the attempt row; the callback checks that the
+  address the provider vouched for **is the one that was invited**, burns the
+  token with the same conditional write the password path uses, and activates
+  the account with `activateWithoutCredential()`. Following a spent link again
+  as the same person just signs them in — by then the identity link exists and
+  the token is never consulted — while anyone *else* following it is refused,
+  which is the guarantee that matters.
+
+Turning passwords off entirely is `sso.allowPasswordLogin: false`. **The root
+administrator is always exempt**, because the alternative has no recovery: an
+operator who mis-scopes their provider and has no password left is locked out
+with no way back short of a database client. The refusal still performs one
+bcrypt comparison, so the break-glass address cannot be found by timing.
+
+Three audit facts come out of all this, and they are deliberately not folded
+into the sign-in row: `user.sso_linked`, `user.sso_provisioned` and
+`user.sso_role_mapped`. "Somebody signed in" cannot answer "where did this
+account come from?", which is the first question anyone reviewing an SSO
+deployment asks. The sign-in row itself now records the method and provider, so
+the log can also separate the people who came in through the directory from the
+ones who still hold a password.
 
 ### Registering a provider
 

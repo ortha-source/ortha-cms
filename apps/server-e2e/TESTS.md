@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1257 test cases across 81 spec files._
+_1277 test cases across 82 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1013,6 +1013,61 @@ _<sub>apps/server-e2e/src/server/auth/session-boundaries.spec.ts</sub>_
 | 401s on a malformed header rather than failing |
 | 401s on an empty session value |
 | 401s when the token arrives under a different cookie name |
+
+<!-- source: apps/server-e2e/src/server/auth/sso-authority.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso-authority.spec.ts</sub>_
+
+## SSO authority
+
+### just-in-time provisioning, off (the default)
+
+| Test case |
+| --- |
+| creates nobody, however verified the address is |
+
+### just-in-time provisioning, on
+
+| Test case |
+| --- |
+| creates an active account on the configured role |
+| gives the account no password, so only the provider can open it |
+| records the provisioning as its own audit fact |
+| lets a role-mapping handler choose the new account's role |
+| falls back to the configured role when the handler names an unknown one |
+
+### just-in-time provisioning, on for a different domain
+
+| Test case |
+| --- |
+| refuses an address outside the allowed domains |
+
+### role mapping on an account that already exists
+
+| Test case |
+| --- |
+| leaves the role alone when no handler is configured |
+| promotes when the handler says so |
+| never demotes an administrator |
+
+### accepting an invitation with a work account
+
+| Test case |
+| --- |
+| activates the invited account and signs them in |
+| sets no password, so the provider stays the only way in |
+| just signs the same person in when they follow the link again |
+| is spent for anybody else — the one-time guarantee |
+| refuses a link addressed to somebody else |
+| refuses an unverified address, however real the invite is |
+| refuses a token that is not an invite at all |
+
+### passwords turned off
+
+| Test case |
+| --- |
+| refuses a password sign-in for an ordinary account |
+| still accepts the root administrator — the break-glass path |
+| leaves the SSO path working |
 
 <!-- source: apps/server-e2e/src/server/auth/sso.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/sso.spec.ts</sub>_

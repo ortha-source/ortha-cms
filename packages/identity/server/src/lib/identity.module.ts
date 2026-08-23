@@ -1,7 +1,7 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { SSO_REGISTRY } from '@orthacms/identity-domain';
+import { SSO_REGISTRY, SSO_ROLE_RESOLVER } from '@orthacms/identity-domain';
 import type { IdentityPluginConfig, IdentityRateLimitConfig } from './types';
 import type { IdentityPluginOptions } from './utils/identity-plugin';
 import { IDENTITY_CONFIG } from './identity.tokens';
@@ -33,12 +33,14 @@ import { INVITE_REPOSITORY } from './domain/invite.repository';
 import { PASSWORD_RESET_REPOSITORY } from './domain/password-reset.repository';
 import { SSO_IDENTITY_REPOSITORY } from './domain/sso-identity.repository';
 import { SSO_AUTH_REQUEST_REPOSITORY } from './domain/sso-auth-request.repository';
+import { SSO_PROVISIONING_REPOSITORY } from './domain/sso-provisioning.repository';
 import { DrizzleSessionRepository } from './infrastructure/persistence/drizzle-session.repository';
 import { DrizzleUserAccountRepository } from './infrastructure/persistence/drizzle-user-account.repository';
 import { DrizzleInviteRepository } from './infrastructure/persistence/drizzle-invite.repository';
 import { DrizzlePasswordResetRepository } from './infrastructure/persistence/drizzle-password-reset.repository';
 import { DrizzleSsoIdentityRepository } from './infrastructure/persistence/drizzle-sso-identity.repository';
 import { DrizzleSsoAuthRequestRepository } from './infrastructure/persistence/drizzle-sso-auth-request.repository';
+import { DrizzleSsoProvisioningRepository } from './infrastructure/persistence/drizzle-sso-provisioning.repository';
 import { buildSsoRegistry } from './infrastructure/sso-registry';
 import { UserAccountMapper } from './infrastructure/persistence/user-account.mapper';
 import { UserLookupQuery } from './infrastructure/queries/user-lookup.query';
@@ -130,6 +132,14 @@ export class IdentityModule {
                 // later mutation of that array cannot reroute a sign-in, and
                 // every duplicate or unusable provider name fails at boot.
                 { provide: SSO_REGISTRY, useValue: ssoRegistry },
+                // `null` rather than absent, so the use case can inject it
+                // `@Optional()` and read "no handler" as a value instead of a
+                // missing provider. A deployment that maps no groups is the
+                // default and must not need a binding.
+                {
+                    provide: SSO_ROLE_RESOLVER,
+                    useValue: options.sso?.resolveRole ?? null
+                },
                 SystemRolesSeeder,
                 // RootAdminSeeder declared after SystemRolesSeeder so the
                 // `admin` role is seeded before it ensures the root admin
@@ -188,6 +198,10 @@ export class IdentityModule {
                 {
                     provide: SSO_AUTH_REQUEST_REPOSITORY,
                     useClass: DrizzleSsoAuthRequestRepository
+                },
+                {
+                    provide: SSO_PROVISIONING_REPOSITORY,
+                    useClass: DrizzleSsoProvisioningRepository
                 },
                 UserAccountMapper,
                 UserLookupQuery,

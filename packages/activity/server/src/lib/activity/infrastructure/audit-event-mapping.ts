@@ -392,10 +392,45 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // different facts and a security review wants the first one.
     'user.activated': (e) => userSubject(e, USER_AUDIT_KINDS.ACTIVATED, null),
 
+    // The sign-in itself, plus **how** it happened. A password sign-in carries
+    // no method and reads as it always has; an SSO one records the provider, so
+    // the log can answer "which of these people came in through the directory,
+    // and which still hold a password?" — which is the first question after a
+    // provider is misconfigured or retired.
     'auth.signed_in': (e) =>
-        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, null),
+        userSubject(
+            e,
+            IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN,
+            e.payload.method === 'sso'
+                ? {
+                      method: 'sso',
+                      provider: nullableString(e.payload.provider)
+                  }
+                : null
+        ),
     'auth.signed_out': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null),
+
+    // Single sign-on. Three separate facts, deliberately not folded into the
+    // sign-in above: a link means a second way into the account now exists, a
+    // provisioned account is the only kind this product creates without an
+    // invite, and a mapped role is an authorization change that an
+    // administrator did not make. A reviewer asking "where did this user come
+    // from?" is asking for the middle one, and a sign-in row cannot answer it.
+    'user.sso_linked': (e) =>
+        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SSO_LINKED, {
+            provider: nullableString(e.payload.provider)
+        }),
+    'user.sso_provisioned': (e) =>
+        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SSO_PROVISIONED, {
+            provider: nullableString(e.payload.provider),
+            role: nullableString(e.payload.role)
+        }),
+    'user.sso_role_mapped': (e) =>
+        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SSO_ROLE_MAPPED, {
+            provider: nullableString(e.payload.provider),
+            role: nullableString(e.payload.role)
+        }),
 
     // External-API bearer tokens. Nothing mapped these before, so minting and
     // revoking a long-lived key to workspace content left the log completely

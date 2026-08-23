@@ -6,6 +6,7 @@ import {
 } from '../../domain/sso-auth-request.repository';
 import type { IdentityPluginConfig } from '../../types';
 import { InjectIdentityConfig } from '../../identity.tokens';
+import { HashingService } from '../../auth/services/hashing.service';
 import { ssoCallbackUrl, ssoRequestTtlSeconds } from '../../sso/sso-settings';
 
 /** Everything the controller needs to send the browser onward. */
@@ -37,6 +38,7 @@ export class StartSsoUseCase {
         @Inject(SSO_REGISTRY) private readonly registry: SsoRegistry,
         @Inject(SSO_AUTH_REQUEST_REPOSITORY)
         private readonly requests: SsoAuthRequestRepository,
+        private readonly hashing: HashingService,
         @InjectIdentityConfig() private readonly config: IdentityPluginConfig
     ) {}
 
@@ -45,17 +47,25 @@ export class StartSsoUseCase {
      * @param redirectTo Where to land afterwards. Must already have passed
      *   `safeRedirectPath` — the controller validates it, so nothing below has
      *   to wonder whether this string can leave the origin.
+     * @param inviteToken The raw invite token, when the person is accepting an
+     *   invitation by signing in with their work account rather than by setting
+     *   a password. Hashed here and carried on the attempt row; the raw value
+     *   never reaches the repository, like every other token in this plugin.
      */
     async execute(
         provider: string,
-        redirectTo: string
+        redirectTo: string,
+        inviteToken?: string
     ): Promise<StartedSsoSignIn> {
         const adapter = this.registry.get(provider);
 
         const attempt = await this.requests.open({
             provider,
             redirectTo,
-            ttlSeconds: ssoRequestTtlSeconds(this.config)
+            ttlSeconds: ssoRequestTtlSeconds(this.config),
+            inviteTokenHash: inviteToken
+                ? this.hashing.hashToken(inviteToken)
+                : null
         });
 
         const { url } = await adapter.authorize({
