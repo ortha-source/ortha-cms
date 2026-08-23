@@ -58,4 +58,76 @@ describe('SchemaCache', () => {
 
         expect(cache.get(GRANTED_ALL)).not.toBe(first);
     });
+
+    // An expired entry was only ever *replaced*, by the same key being asked
+    // for again — so the map held one schema per grant set the process had ever
+    // served, not one per active workspace configuration. Editing a workspace's
+    // grants mints a new key and orphans the old one, with a whole
+    // `GraphQLSchema` attached.
+    describe('eviction', () => {
+        /** A grant set nothing else in the test will ask for again. */
+        const orphan = (index: number) =>
+            new Set(['article', `orphaned-${index}`]);
+
+        it('sweeps expired entries once the map grows past the threshold', () => {
+            let now = 0;
+            const cache = new SchemaCache(fixtureRegistry(), 1000, () => now);
+
+            for (let index = 0; index < 40; index += 1) {
+                cache.get(orphan(index));
+            }
+            expect(cache.size).toBe(40);
+
+            // Every one of those is now stale, and none is ever asked for
+            // again. The next build is what notices.
+            now = 5000;
+            cache.get(GRANTED_ALL);
+
+            expect(cache.size).toBe(1);
+        });
+
+        it('keeps entries that are still live', () => {
+            let now = 0;
+            const cache = new SchemaCache(fixtureRegistry(), 1000, () => now);
+
+            for (let index = 0; index < 40; index += 1) {
+                cache.get(orphan(index));
+            }
+
+            // Half the TTL in: nothing has expired, so the sweep must not
+            // touch anything, and the entries still answer from cache.
+            now = 500;
+            const built = cache.get(GRANTED_ALL);
+
+            expect(cache.size).toBe(41);
+            expect(cache.get(GRANTED_ALL)).toBe(built);
+        });
+
+        it('leaves an ordinary deployment alone', () => {
+            // A handful of grant sets never reaches the threshold, so the hot
+            // path never walks the map — expired or not.
+            let now = 0;
+            const cache = new SchemaCache(fixtureRegistry(), 1000, () => now);
+
+            cache.get(GRANTED_ALL);
+            cache.get(GRANTED_WITHOUT_VAULT);
+            now = 5000;
+            cache.get(GRANTED_ALL);
+
+            expect(cache.size).toBe(2);
+        });
+
+        it('does not evict the entry it was called for', () => {
+            let now = 0;
+            const cache = new SchemaCache(fixtureRegistry(), 1000, () => now);
+
+            for (let index = 0; index < 40; index += 1) {
+                cache.get(orphan(index));
+            }
+            now = 5000;
+            const built = cache.get(GRANTED_ALL);
+
+            expect(cache.get(GRANTED_ALL)).toBe(built);
+        });
+    });
 });

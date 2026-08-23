@@ -36,15 +36,59 @@ export class SchemaCache {
             return cached.schema;
         }
         const schema = buildContentSchema(this.registry, granted);
+        this.evictExpired(now);
         this.entries.set(key, { schema, expiresAt: now + this.ttlMs });
         return schema;
+    }
+
+    /** How many schemas are held right now. Diagnostics, and the eviction test. */
+    get size(): number {
+        return this.entries.size;
     }
 
     /** Drops every cached schema. For tests, and for a future grant-change hook. */
     clear(): void {
         this.entries.clear();
     }
+
+    /**
+     * Drops entries whose TTL has passed.
+     *
+     * An expired entry was only ever *replaced* — by the same key being asked
+     * for again — so nothing removed one nobody asks for any more. The map
+     * therefore held one schema per grant set the process had **ever** served,
+     * not one per active workspace configuration: editing a workspace's content
+     * grants mints a new key and orphans the old one, with a whole
+     * `GraphQLSchema` (a few dozen object types and their thunked field maps)
+     * attached.
+     *
+     * Guarded by a threshold so the ordinary path stays O(1): a deployment with
+     * a handful of grant sets never walks the map at all, and one that has
+     * churned through many pays a sweep only on a build it was already paying
+     * for.
+     */
+    private evictExpired(now: number): void {
+        if (this.entries.size <= EVICTION_THRESHOLD) {
+            return;
+        }
+        for (const [key, entry] of this.entries) {
+            if (entry.expiresAt <= now) {
+                this.entries.delete(key);
+            }
+        }
+    }
 }
+
+/**
+ * Entries tolerated before a write sweeps the expired ones.
+ *
+ * Comfortably above any real deployment's number of distinct grant sets, so the
+ * sweep is a backstop against unbounded growth rather than part of the hot
+ * path. The cleaner fix is the grant-change invalidation hook this package's
+ * AGENTS.md names as not-shipped, which would let `clear()` be called for real
+ * and make the TTL — and this — redundant.
+ */
+const EVICTION_THRESHOLD = 32;
 
 /** One cached schema and when it goes stale. */
 interface CachedSchema {
