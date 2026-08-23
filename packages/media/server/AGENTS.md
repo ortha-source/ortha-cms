@@ -67,8 +67,9 @@ layer-boundary lint isn't wired yet).
 - **Writing a provider** is one factory function plus one
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
   is where the port's invariants live as a runnable suite. Shipped
-  implementations: `-local` (the default install) and `-memory` (the e2e
-  harness, and offline development); `-s3` is still a stub that throws.
+  implementations: `-local` (the default install), `-memory` (the e2e harness,
+  and offline development) and `-s3` (S3-compatible: R2, AWS, MinIO, Spaces,
+  B2, Wasabi…).
 
 ## Use cases + unit-of-work + outbox
 
@@ -479,7 +480,8 @@ delete reclaims them (`Asset.storageKeys`).
 
 ## Not yet (follow-ups)
 
-**Video duration probing**, the real S3 adapter, and a `media.asset.deleted`
+**Video duration probing**, wiring `directUrl` into the download route (the S3
+adapter implements it; nothing calls it yet), and a `media.asset.deleted`
 outbox subscriber for blob GC. (The e2e suites listed here before now exist:
 `apps/server-e2e/src/server/media/media-assets.spec.ts` covers derivatives +
 variant serving, and the admin side has `media-library.spec.ts` +

@@ -8,6 +8,9 @@ import { MediaServerPlugin } from '@orthacms/media-server';
 // ortha:if media-local
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 // ortha:end
+// ortha:if media-s3
+import { createS3StorageProvider } from '@orthacms/media-provider-s3';
+// ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
@@ -138,6 +141,9 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         MediaServerPlugin({
             // ortha:if media-local
             provider: createLocalStorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-s3
+            provider: createS3StorageProvider(config.plugins.media.storage),
             // ortha:end
             config: config.plugins.media
         }),
