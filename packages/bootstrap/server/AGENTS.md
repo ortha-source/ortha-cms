@@ -33,7 +33,7 @@ contains no features.
   plugin's module
 - `ServerPlugin` — the plugin contract: `{ name, module, onPluginInit? }`
 - `CreateServerOptions` — `plugins`, `port?`, `globalPrefix?`, `trustProxy?`,
-  `bodyLimit?`, `docs?`
+  `bodyLimit?`, `docs?`, `staticDir?`
 - `TrustProxySetting` — Express's `trust proxy` value: a hop count, a boolean,
   or a subnet/preset string
 - `setupApiDocs(app, plugins, docs?, globalPrefix?)` — the API-reference wiring,
@@ -106,6 +106,18 @@ contains no features.
   Each plugin's `decorate` pass is guarded individually: the reference is
   developer tooling, so a plugin that throws while describing itself costs its
   own contribution and a logged error, not the whole boot. See below.
+- **The admin bundle, optionally.** `staticDir` (`utils/serve-admin.ts`) serves
+  a built admin from the same process, with an SPA fallback — so the API and
+  the UI share **one origin**. That is the point rather than a convenience:
+  identity's session is an `httpOnly`, `SameSite=lax` cookie, which a UI on
+  another origin never sends, and it is why `apps/admin`'s Vite config proxies
+  `/api` in development. Unset here — `apps/server` is API-only, Vite serves
+  `apps/admin` — and set by a generated app, which has no dev proxy in
+  production. Mounted **last**, after every controller and the reference, and
+  the fallback refuses the API prefix, `/reference`, non-GET methods and
+  requests that do not accept HTML: applied indiscriminately it would answer a
+  mistyped endpoint with `200` and a page of HTML instead of a JSON `404`. A
+  missing bundle warns and serves the API anyway rather than failing boot.
 - **Shutdown, once.** `app.enableShutdownHooks()` before `listen`. Without it
   `SIGTERM` — how every orchestrator ends a pod — reaches node's default handler
   and the process dies where it stands: measured, six concurrent in-flight

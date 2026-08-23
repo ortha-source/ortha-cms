@@ -128,6 +128,12 @@
         },
         {
             "path": "./packages/content/graphql"
+        },
+        {
+            "path": "./packages/create-ortha-app"
+        },
+        {
+            "path": "./packages/cli"
         }
     ]
 }

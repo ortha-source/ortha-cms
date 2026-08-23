@@ -19,7 +19,7 @@ jest.mock('drizzle-orm/node-postgres/migrator', () => ({
     migrate: (...args: unknown[]) => migrate(...args)
 }));
 
-import { applyPluginMigrations, describeTarget } from './apply';
+import { applyPluginMigrations, describeTarget } from './migrate';
 
 const URL = 'postgresql://ortha:secret@localhost:5432/ortha_cms';
 

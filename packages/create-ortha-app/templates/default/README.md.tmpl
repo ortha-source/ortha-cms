@@ -1,0 +1,66 @@
+# __APP_TITLE__
+
+An [Ortha CMS](https://github.com/ortha-source/ortha-cms) app.
+
+## Getting started
+
+```sh
+docker compose up -d   # Postgres
+npm run migrate        # create the schema
+npm run dev            # API on :3000, admin on :4200
+```
+
+Sign in at <http://localhost:4200> with the admin credentials in `.env`
+(`ORTHA_ROOT_ADMIN_EMAIL` / `ORTHA_ROOT_ADMIN_PASSWORD`). That account is
+provisioned on boot, idempotently — clear those two variables once you have it.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | `tsc --watch`, `node --watch`, and the Vite dev server together |
+| `npm run build` | Compiles the server and builds the admin bundle |
+| `npm start` | Runs the built server — API **and** admin, one process, one origin |
+| `npm run migrate` | Applies every plugin's pending migrations |
+| `npm run generate -- --name=<name>` | Generates a migration for your own content tables |
+| `npm run studio` | Opens Drizzle Studio on this app's database |
+
+## What you own
+
+Almost nothing, on purpose — the CMS is the `@orthacms/*` packages, and this app
+is the composition of them.
+
+| File | Why you would open it |
+| --- | --- |
+| `src/server/plugins.ts` | Which plugins the API runs, and **in what order** |
+| `src/admin/plugins.ts` | Which plugins the admin UI runs |
+| `src/server/ortha.config.ts` | Every setting, typed — the only reader of `process.env` |
+| `src/admin/styles.css` | The theme tokens: this app's whole visual identity |
+
+Upgrading is a version bump. Keep the `@orthacms/*` versions **in step with each
+other** — they are released together, and a partial upgrade can leave two copies
+of a shared package in `node_modules`, which means two React context instances
+and UI that silently stops talking to itself.
+
+## Adding content types
+
+This app starts with none. To add some:
+
+1. Write them under `src/server/content/` and export a `contentTypes` array.
+2. Pass them to `ContentPlugin({ types: contentTypes, migrations: … })` in
+   `src/server/plugins.ts` — the comment there has the exact shape.
+3. Add a `drizzle.config.ts` at the app root pointing `schema` at your
+   `src/server/content/index.ts` and `out` at `./migrations`.
+4. `npm run generate -- --name=add_content_types && npm run migrate`
+
+## Deploying
+
+`npm run build && npm start` is the whole thing: one process serving the API and
+the admin bundle on one origin. Set in the environment:
+
+- `DATABASE_URL`, `SESSION_SECRET`, `TOKEN_SECRET` — required
+- `NODE_ENV=production` — spelled exactly; anything else drops `Secure` from the
+  session cookie and publishes the API reference
+- `TRUST_PROXY` — required behind a load balancer, or every client shares one
+  rate-limit bucket
+- `MEDIA_LOCAL_ROOT` — a persistent volume, or uploads vanish on each deploy

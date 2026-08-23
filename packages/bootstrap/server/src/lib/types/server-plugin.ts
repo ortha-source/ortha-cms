@@ -89,4 +89,21 @@ export interface CreateServerOptions {
      * is served on `/reference` outside production.
      */
     docs?: ApiDocsOptions;
+    /**
+     * Directory of built admin assets to serve, with an SPA fallback — so one
+     * process answers both the API and the UI, on **one origin**.
+     *
+     * That single origin is the point, not a convenience. Identity issues its
+     * session as an `httpOnly`, `SameSite=lax` cookie, which a UI served from
+     * a different origin does not send on API calls at all; the admin's Vite
+     * dev server proxies `/api` for exactly this reason
+     * (`apps/admin/vite.config.mts`). A deployment that splits the two has to
+     * reintroduce that proxy or CORS plus `SameSite=none`, and gets to keep
+     * both halves working forever.
+     *
+     * Omitted (the default), nothing is served and the host is API-only —
+     * which is what the monorepo's own `apps/server` wants, since `apps/admin`
+     * is served by Vite there.
+     */
+    staticDir?: string;
 }

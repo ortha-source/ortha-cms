@@ -98,12 +98,12 @@
         }
     },
     "release": {
-        "projects": ["@orthacms/*", "!@orthacms/nx"],
+        "projects": ["@orthacms/*", "create-ortha-app", "!@orthacms/nx"],
         "projectsRelationship": "fixed",
         "releaseTagPattern": "v{version}",
         "version": {
             "conventionalCommits": true,
-            "preVersionCommand": "npx nx run-many -t build --projects=@orthacms/*",
+            "preVersionCommand": "npx nx run-many -t build --projects=@orthacms/*,create-ortha-app",
             "fallbackCurrentVersionResolver": "disk"
         },
         "changelog": {
