@@ -20,6 +20,9 @@ import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 // ortha:if media-s3
 import type { S3StorageConfig } from '@orthacms/media-provider-s3';
 // ortha:end
+// ortha:if media-azure
+import type { AzureStorageConfig } from '@orthacms/media-provider-azure';
+// ortha:end
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
@@ -80,6 +83,9 @@ export interface OrthaConfig {
             // ortha:end
             // ortha:if media-s3
             storage: S3StorageConfig;
+            // ortha:end
+            // ortha:if media-azure
+            storage: AzureStorageConfig;
             // ortha:end
         };
         copilot: AppCopilotConfig;
@@ -264,6 +270,12 @@ const config: OrthaConfig = {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+            },
+            // ortha:end
+            // ortha:if media-azure
+            storage: {
+                container: requireEnv('MEDIA_AZURE_CONTAINER'),
+                connectionString: requireEnv('MEDIA_AZURE_CONNECTION_STRING')
             },
             // ortha:end
             // ortha:if media-s3

@@ -141,6 +141,14 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
         available: true
     },
     {
+        id: 'media-azure',
+        label: 'Azure Blob Storage',
+        hint: 'Set MEDIA_AZURE_CONTAINER and a connection string. Managed identity needs a hand-built client — see the package docs.',
+        packages: ['@orthacms/media-provider-azure'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
         id: 'media-s3',
         label: 'S3-compatible',
         hint: 'Cloudflare R2, AWS S3, MinIO, Spaces, B2, Wasabi — set MEDIA_S3_BUCKET and, for anything but AWS, MEDIA_S3_ENDPOINT.',

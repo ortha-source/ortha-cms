@@ -11,6 +11,9 @@ import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 // ortha:if media-s3
 import { createS3StorageProvider } from '@orthacms/media-provider-s3';
 // ortha:end
+// ortha:if media-azure
+import { createAzureStorageProvider } from '@orthacms/media-provider-azure';
+// ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
@@ -144,6 +147,9 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             // ortha:end
             // ortha:if media-s3
             provider: createS3StorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-azure
+            provider: createAzureStorageProvider(config.plugins.media.storage),
             // ortha:end
             config: config.plugins.media
         }),

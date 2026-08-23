@@ -185,6 +185,7 @@ describe('resolvePackages', () => {
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
             '@orthacms/mcp-server',
+            '@orthacms/media-provider-azure',
             '@orthacms/media-provider-s3'
         ]);
     });

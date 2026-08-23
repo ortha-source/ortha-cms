@@ -68,8 +68,8 @@ layer-boundary lint isn't wired yet).
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
   is where the port's invariants live as a runnable suite. Shipped
   implementations: `-local` (the default install), `-memory` (the e2e harness,
-  and offline development) and `-s3` (S3-compatible: R2, AWS, MinIO, Spaces,
-  B2, Wasabi…).
+  and offline development), `-s3` (S3-compatible: R2, AWS, MinIO, Spaces, B2,
+  Wasabi…) and `-azure` (Blob Storage, the one store with no S3 compatibility).
 
 ## Use cases + unit-of-work + outbox
 
