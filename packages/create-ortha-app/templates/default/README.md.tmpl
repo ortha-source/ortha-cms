@@ -35,12 +35,12 @@ provisioned on boot, idempotently — clear those two variables once you have it
 **Unit tests** run under two runners, one per half, each matching its own
 toolchain:
 
-- **`src/server/**/*.spec.ts`** → Jest with `@swc/jest` (`jest.config.js`).
+- **`apps/server/**/*.spec.ts`** → Jest with `@swc/jest` (`apps/server/jest.config.js`).
   Jest rather than Vitest because NestJS DI reads `emitDecoratorMetadata`, and
   Vitest's esbuild transform does not emit it — providers resolve as
   `undefined`, with no error naming the cause.
-- **`src/admin/**/*.spec.ts(x)`** → Vitest with jsdom, configured inside
-  `vite.config.mts` so tests resolve modules exactly the way the app does.
+- **`apps/admin/src/**/*.spec.tsx`** → Vitest with jsdom, configured inside
+  `apps/admin/vite.config.mts` so tests resolve modules exactly the way the app does.
 
 Neither touches a database: `jest.setup.js` supplies placeholder secrets so
 `npm test` runs anywhere, including CI with no `.env`.
@@ -54,10 +54,10 @@ shell's is what composes the auth gate.
 
 **End-to-end tests** come in two suites, split the way the app is:
 
-### `e2e/server` — the API, for real
+### `apps/server-e2e` — the API, for real
 
 Jest + supertest, booting **this app** through `createServer` with the real
-plugin list against a real Postgres. `e2e/server/support/test-app.ts` gives you
+plugin list against a real Postgres. `apps/server-e2e/src/support/test-app.ts` gives you
 `createTestApp()` / `closeTestApp()`.
 
 It manages its own database. `<your database>_e2e` is created and migrated on
@@ -72,12 +72,12 @@ docker compose up -d
 npm run e2e:server
 ```
 
-### `e2e/admin` — the UI, in a browser
+### `apps/admin-e2e` — the UI, in a browser
 
 Playwright against the Vite dev server with `/api` mocked at the network layer
-(`e2e/admin/support/seed.ts`). No backend, no database, no migration — a run is
+(`apps/admin-e2e/src/support/seed.ts`). No backend, no database, no migration — a run is
 fast and hermetic, and when it fails it is the UI that is wrong. API behaviour
-belongs in `e2e/server`, where a failure names the endpoint instead of blaming
+belongs in `apps/server-e2e`, where a failure names the endpoint instead of blaming
 a page.
 
 ```sh
@@ -94,12 +94,23 @@ exists to avoid.
 Almost nothing, on purpose — the CMS is the `@orthacms/*` packages, and this app
 is the composition of them.
 
+```
+apps/
+├── server/       the API — ortha.config.ts, src/{main,plugins}.ts
+├── admin/        the UI — index.html, vite.config.mts, src/
+├── server-e2e/   API tests against a real database
+└── admin-e2e/    browser tests against a mocked API
+```
+
+The same four apps Ortha CMS itself is built from, so anything you read in its
+source lands in the same place here.
+
 | File | Why you would open it |
 | --- | --- |
-| `src/server/plugins.ts` | Which plugins the API runs, and **in what order** |
-| `src/admin/plugins.ts` | Which plugins the admin UI runs |
-| `src/server/ortha.config.ts` | Every setting, typed — the only reader of `process.env` |
-| `src/admin/styles.css` | The theme tokens: this app's whole visual identity |
+| `apps/server/src/plugins.ts` | Which plugins the API runs, and **in what order** |
+| `apps/admin/src/plugins.ts` | Which plugins the admin UI runs |
+| `apps/server/ortha.config.ts` | Every setting, typed — the only reader of `process.env` |
+| `apps/admin/src/styles.css` | The theme tokens: this app's whole visual identity |
 
 Upgrading is a version bump. Keep the `@orthacms/*` versions **in step with each
 other** — they are released together, and a partial upgrade can leave two copies
@@ -168,11 +179,11 @@ for a retrieval-only agent, `full` for one that authors.
 
 This app starts with none. To add some:
 
-1. Write them under `src/server/content/` and export a `contentTypes` array.
+1. Write them under `apps/server/src/content/` and export a `contentTypes` array.
 2. Pass them to `ContentPlugin({ types: contentTypes, migrations: … })` in
-   `src/server/plugins.ts` — the comment there has the exact shape.
-3. Add a `drizzle.config.ts` at the app root pointing `schema` at your
-   `src/server/content/index.ts` and `out` at `./migrations`.
+   `apps/server/src/plugins.ts` — the comment there has the exact shape.
+3. Add `apps/server/drizzle.config.ts` pointing `schema` at your
+   `src/content/index.ts` and `out` at `../../migrations`.
 4. `npm run generate -- --name=add_content_types && npm run migrate`
 
 ## Deploying

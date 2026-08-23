@@ -3,13 +3,16 @@
     "include": [],
     "references": [
         {
-            "path": "./tsconfig.server.json"
+            "path": "./apps/server"
         },
         {
-            "path": "./tsconfig.admin.json"
+            "path": "./apps/admin"
         },
         {
-            "path": "./tsconfig.e2e.json"
+            "path": "./apps/server-e2e"
+        },
+        {
+            "path": "./apps/admin-e2e"
         }
     ]
 }

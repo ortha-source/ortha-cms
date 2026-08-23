@@ -9,27 +9,38 @@ import type { ServerPlugin } from '@orthacms/bootstrap-server';
  * These are conventions, not configuration, and deliberately so: an app that
  * can put its server anywhere needs a config file describing where, which the
  * CLI then has to read before it can do anything — and the first thing a
- * generated app should be is boring. `create-ortha-app` lays the tree out to
- * match, and `tsconfig.server.json` sets `rootDir` to `src/server`, which is
- * what keeps the compiled layout **flat**: `src/server/main.ts` compiles to
- * `dist/server/main.js`, not `dist/server/src/server/main.js`. Change one half
- * without the other and the paths below stop resolving.
+ * generated app should be is boring.
+ *
+ * The layout mirrors this repo's own `apps/` folder — `server`, `admin`,
+ * `server-e2e`, `admin-e2e` — so someone who has read the Ortha source finds
+ * the same shape in their own project.
+ *
+ * The compiled paths follow from `apps/server/tsconfig.json` setting `rootDir`
+ * to the app directory: `apps/server/ortha.config.ts` becomes
+ * `dist/server/ortha.config.js`, and `apps/server/src/main.ts` becomes
+ * `dist/server/src/main.js`. Change that `rootDir` without changing these and
+ * the paths below stop resolving — `ortha start` then reports a missing entry
+ * point rather than a misconfigured one.
  */
 export const LAYOUT = {
     /** tsc project for the API and everything it imports. */
-    serverTsconfig: 'tsconfig.server.json',
+    serverTsconfig: 'apps/server/tsconfig.json',
+    /** Vite config for the admin — it lives inside the app it builds. */
+    adminConfig: 'apps/admin/vite.config.mts',
+    /** The admin's HTML entry. Its absence means "this app has no UI". */
+    adminIndex: 'apps/admin/index.html',
     /** Compiled server output. */
     serverOut: 'dist/server',
     /** Built admin bundle — what `staticDir` serves. */
     adminOut: 'dist/admin',
     /** Compiled entry point `ortha start` runs. */
-    serverEntry: 'dist/server/main.js',
+    serverEntry: 'dist/server/src/main.js',
     /** Compiled typed config, default-exported. */
     compiledConfig: 'dist/server/ortha.config.js',
     /** Compiled plugin factory, exporting `buildPlugins(config)`. */
-    compiledPlugins: 'dist/server/plugins.js',
+    compiledPlugins: 'dist/server/src/plugins.js',
     /** Drizzle generation config for the app's own content tables. */
-    drizzleConfig: 'drizzle.config.ts'
+    drizzleConfig: 'apps/server/drizzle.config.ts'
 } as const;
 
 /** The minimum this CLI needs to know about a host's config. */

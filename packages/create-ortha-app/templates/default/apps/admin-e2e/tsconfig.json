@@ -3,29 +3,21 @@
         "target": "es2022",
         "lib": [
             "es2023",
-            "dom",
-            "dom.iterable"
+            "dom"
         ],
         "module": "esnext",
         "moduleResolution": "bundler",
-        "jsx": "react-jsx",
         "types": [
-            "node",
-            "vite/client"
+            "node"
         ],
         "strict": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true,
-        "allowImportingTsExtensions": true,
         "noEmit": true
     },
     "include": [
-        "src/admin/**/*.ts",
-        "src/admin/**/*.tsx",
-        "e2e/admin/**/*.ts",
-        "vite.config.mts",
+        "src/**/*.ts",
         "playwright.config.ts"
     ]
 }

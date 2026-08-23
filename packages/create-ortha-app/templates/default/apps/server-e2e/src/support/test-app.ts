@@ -2,8 +2,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createServer } from '@orthacms/bootstrap-server';
 import { closeDatabase } from '@orthacms/database';
 import type { Server } from 'node:http';
-import config from '../../../src/server/ortha.config';
-import { buildPlugins } from '../../../src/server/plugins';
+import config from '../../../server/ortha.config';
+import { buildPlugins } from '../../../server/src/plugins';
 
 /**
  * An origin the login route accepts.

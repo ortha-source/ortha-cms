@@ -34,8 +34,10 @@ export async function devCommand(root: string): Promise<void> {
         spawnNode(['--watch', join(root, LAYOUT.serverEntry)], root)
     ];
 
-    if (existsSync(join(root, 'index.html'))) {
-        children.push(spawnNode([viteBin(root)], root));
+    if (existsSync(join(root, LAYOUT.adminIndex))) {
+        children.push(
+            spawnNode([viteBin(root), '--config', LAYOUT.adminConfig], root)
+        );
     }
 
     await superviseUntilExit(children);

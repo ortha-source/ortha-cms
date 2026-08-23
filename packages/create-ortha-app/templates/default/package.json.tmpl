@@ -11,12 +11,12 @@
         "generate": "ortha generate",
         "studio": "ortha studio",
         "test": "npm run test:server && npm run test:admin",
-        "test:server": "jest",
-        "test:admin": "vitest run",
+        "test:server": "jest --config apps/server/jest.config.js",
+        "test:admin": "vitest run --config apps/admin/vite.config.mts",
         "e2e": "npm run e2e:server && npm run e2e:admin",
         "typecheck": "tsc --build tsconfig.json",
-        "e2e:server": "jest --config jest.e2e.config.js",
-        "e2e:admin": "playwright test"
+        "e2e:server": "jest --config apps/server-e2e/jest.config.js",
+        "e2e:admin": "playwright test --config apps/admin-e2e/playwright.config.ts"
     },
     "dependencies": {
         "react": "^19.0.0",

@@ -27,7 +27,7 @@ import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 // ortha:end
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
-import type { OrthaConfig } from './ortha.config';
+import type { OrthaConfig } from '../ortha.config';
 
 /**
  * The model backends this deployment can actually reach, in preference order.

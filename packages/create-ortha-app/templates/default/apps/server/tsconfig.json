@@ -6,8 +6,8 @@
         ],
         "module": "commonjs",
         "moduleResolution": "node",
-        "outDir": "dist/server",
-        "rootDir": "src/server",
+        "outDir": "../../dist/server",
+        "rootDir": ".",
         "types": [
             "node"
         ],
@@ -20,13 +20,12 @@
         "declaration": false,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "tsBuildInfoFile": "dist/server/tsconfig.tsbuildinfo"
+        "tsBuildInfoFile": "../../dist/server/tsconfig.tsbuildinfo"
     },
     "include": [
-        "src/server/**/*.ts"
+        "**/*.ts"
     ],
     "exclude": [
-        "**/*.spec.ts",
-        "e2e"
+        "**/*.spec.ts"
     ]
 }

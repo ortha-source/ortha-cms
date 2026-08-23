@@ -152,12 +152,12 @@ describe('the scaffolded app, whatever the features', () => {
             'package.json',
             '.env',
             'README.md',
-            'index.html',
+            'apps/admin/index.html',
             'docker-compose.yml',
-            'src/server/ortha.config.ts',
-            'src/server/plugins.ts',
-            'src/admin/plugins.ts',
-            'src/admin/styles.css'
+            'apps/server/ortha.config.ts',
+            'apps/server/src/plugins.ts',
+            'apps/admin/src/plugins.ts',
+            'apps/admin/src/styles.css'
         ]) {
             expect(rendered(file)).not.toMatch(/__[A-Z_]+__/);
             expect(rendered(file)).not.toMatch(/ortha:(if|ifnot|end)/);
@@ -166,20 +166,20 @@ describe('the scaffolded app, whatever the features', () => {
 
     it('ships a runnable test setup', () => {
         for (const file of [
-            'jest.config.js',
-            'jest.setup.js',
-            'vite.config.mts',
-            'playwright.config.ts',
-            'src/server/plugins.spec.ts',
-            'src/admin/plugins.spec.ts',
-            'jest.e2e.config.js',
-            'e2e/server/api.spec.ts',
-            'e2e/server/global-setup.ts',
-            'e2e/server/jest.setup.ts',
-            'e2e/server/support/db.ts',
-            'e2e/server/support/test-app.ts',
-            'e2e/admin/auth.spec.ts',
-            'e2e/admin/support/seed.ts'
+            'apps/server/jest.config.js',
+            'apps/server/jest.setup.js',
+            'apps/server/src/plugins.spec.ts',
+            'apps/admin/vite.config.mts',
+            'apps/admin/src/plugins.spec.ts',
+            'apps/server-e2e/jest.config.js',
+            'apps/server-e2e/src/api.spec.ts',
+            'apps/server-e2e/src/global-setup.ts',
+            'apps/server-e2e/src/jest.setup.ts',
+            'apps/server-e2e/src/support/db.ts',
+            'apps/server-e2e/src/support/test-app.ts',
+            'apps/admin-e2e/playwright.config.ts',
+            'apps/admin-e2e/src/auth.spec.ts',
+            'apps/admin-e2e/src/support/seed.ts'
         ]) {
             expect(() => rendered(file)).not.toThrow();
         }
@@ -201,14 +201,30 @@ describe('the scaffolded app, whatever the features', () => {
      * Otherwise `ortha build` compiles the tests into `dist/server` and ships
      * them — along with whatever fixtures they import.
      */
-    it('keeps the specs and the e2e tree out of the build', () => {
-        const tsconfig = JSON.parse(rendered('tsconfig.server.json')) as {
+    it('keeps the unit specs out of the build', () => {
+        const tsconfig = JSON.parse(rendered('apps/server/tsconfig.json')) as {
             exclude?: string[];
         };
 
-        expect(tsconfig.exclude).toEqual(
-            expect.arrayContaining(['**/*.spec.ts', 'e2e'])
-        );
+        expect(tsconfig.exclude).toContain('**/*.spec.ts');
+    });
+
+    /**
+     * The generated app mirrors this repo's own `apps/` folder, so someone who
+     * has read the Ortha source finds the same shape in their project — and so
+     * the CLI's `LAYOUT` constants have one tree to describe.
+     */
+    it('lays the four apps out like the monorepo', () => {
+        const root = JSON.parse(rendered('tsconfig.json')) as {
+            references: { path: string }[];
+        };
+
+        expect(root.references.map((reference) => reference.path)).toEqual([
+            './apps/server',
+            './apps/admin',
+            './apps/server-e2e',
+            './apps/admin-e2e'
+        ]);
     });
 
     /**
@@ -216,23 +232,15 @@ describe('the scaffolded app, whatever the features', () => {
      * compiler options — but it must not be emitted. Without a project of its
      * own it is simply never typechecked.
      */
-    it('typechecks the server e2e tree in its own project', () => {
-        const root = JSON.parse(rendered('tsconfig.json')) as {
-            references: { path: string }[];
-        };
-
-        expect(root.references.map((r) => r.path)).toContain(
-            './tsconfig.e2e.json'
-        );
-    });
 
     /**
      * The app is `"type": "commonjs"`, and Vite warns — and will eventually
      * fail — on ESM syntax in a config loaded as CommonJS.
      */
     it('names the Vite config .mts', () => {
-        expect(readdirSync(target)).toContain('vite.config.mts');
-        expect(readdirSync(target)).not.toContain('vite.config.ts');
+        expect(readdirSync(join(target, 'apps/admin'))).toContain(
+            'vite.config.mts'
+        );
     });
 
     /**
@@ -240,8 +248,8 @@ describe('the scaffolded app, whatever the features', () => {
      * line the admin renders completely unstyled — and nothing errors.
      */
     it('points Tailwind at the installed packages', () => {
-        expect(rendered('src/admin/styles.css')).toContain(
-            '@source "../../node_modules/@orthacms/*/dist/**/*.js"'
+        expect(rendered('apps/admin/src/styles.css')).toContain(
+            '@source "../../../node_modules/@orthacms/*/dist/**/*.js"'
         );
     });
 });
@@ -264,8 +272,12 @@ describe('with nothing optional chosen', () => {
                 '@orthacms/copilot-provider-fake'
             ])
         );
-        expect(rendered('src/server/plugins.ts')).toContain('CopilotPlugin(');
-        expect(rendered('src/admin/plugins.ts')).toContain('CopilotPlugin()');
+        expect(rendered('apps/server/src/plugins.ts')).toContain(
+            'CopilotPlugin('
+        );
+        expect(rendered('apps/admin/src/plugins.ts')).toContain(
+            'CopilotPlugin()'
+        );
     });
 
     it('leaves it switched off until an operator opts in', () => {
@@ -281,7 +293,7 @@ describe('with nothing optional chosen', () => {
     });
 
     it('registers only the offline provider', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).toContain('createFakeProvider');
         expect(plugins).not.toContain('createAnthropicProvider');
@@ -289,14 +301,14 @@ describe('with nothing optional chosen', () => {
     });
 
     it('mounts neither GraphQL nor MCP', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).not.toContain('ContentGraphqlPlugin');
         expect(plugins).not.toContain('McpPlugin');
     });
 
     it('still registers the core plugins', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         for (const name of [
             'DatabasePlugin',
@@ -326,7 +338,7 @@ describe('with a copilot provider', () => {
     });
 
     it('builds only the chosen provider in the registration helper', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).toContain('createAnthropicProvider');
         expect(plugins).not.toContain('createOpenAiProvider');
@@ -338,7 +350,7 @@ describe('with a copilot provider', () => {
      * being last it is the default only when it is the only one.
      */
     it('always registers the offline provider, last', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).toContain('createFakeProvider');
         expect(plugins.indexOf('createFakeProvider()')).toBeGreaterThan(
@@ -369,7 +381,7 @@ describe('with both copilot providers', () => {
     );
 
     it('registers both in the helper', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).toContain('createAnthropicProvider');
         expect(plugins).toContain('createOpenAiProvider');
@@ -383,7 +395,7 @@ describe('with every protocol', () => {
         expect(Object.keys(manifest().dependencies)).toContain(
             '@orthacms/content-graphql'
         );
-        expect(rendered('src/server/plugins.ts')).toContain(
+        expect(rendered('apps/server/src/plugins.ts')).toContain(
             'ContentGraphqlPlugin'
         );
     });
@@ -392,7 +404,7 @@ describe('with every protocol', () => {
         expect(Object.keys(manifest().dependencies)).toContain(
             '@orthacms/mcp-server'
         );
-        expect(rendered('src/server/plugins.ts')).toContain('McpPlugin');
+        expect(rendered('apps/server/src/plugins.ts')).toContain('McpPlugin');
     });
 
     it('keeps MCP off until an operator opts in', () => {
@@ -405,7 +417,7 @@ describe('with every protocol', () => {
      * on the first request from a workspace granted both.
      */
     it('hands the content plugin to the GraphQL adapter', () => {
-        const plugins = rendered('src/server/plugins.ts');
+        const plugins = rendered('apps/server/src/plugins.ts');
 
         expect(plugins).toContain('const content = ContentPlugin(');
         expect(plugins).toContain('content,');

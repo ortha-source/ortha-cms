@@ -9,10 +9,10 @@
 module.exports = {
     displayName: 'server-e2e',
     testEnvironment: 'node',
-    rootDir: '.',
-    testMatch: ['<rootDir>/e2e/server/**/*.spec.ts'],
-    globalSetup: '<rootDir>/e2e/server/global-setup.ts',
-    setupFiles: ['<rootDir>/e2e/server/jest.setup.ts'],
+    rootDir: '../..',
+    testMatch: ['<rootDir>/apps/server-e2e/src/**/*.spec.ts'],
+    globalSetup: '<rootDir>/apps/server-e2e/src/global-setup.ts',
+    setupFiles: ['<rootDir>/apps/server-e2e/src/jest.setup.ts'],
     // One worker. The suite truncates shared tables, so parallel workers
     // delete each other's fixtures — and the failure surfaces as whichever
     // assertion happened to read a row mid-truncate, never as the race it is.

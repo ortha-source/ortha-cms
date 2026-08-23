@@ -1,4 +1,4 @@
-import config from './ortha.config';
+import config from '../ortha.config';
 import { buildPlugins } from './plugins';
 
 /**

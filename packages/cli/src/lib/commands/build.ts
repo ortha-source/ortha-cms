@@ -25,11 +25,15 @@ export async function buildCommand(
 
     if (options.serverOnly) return;
 
-    if (!existsSync(join(root, 'index.html'))) {
-        console.log('No index.html — skipping the admin build.');
+    if (!existsSync(join(root, LAYOUT.adminIndex))) {
+        console.log(`No ${LAYOUT.adminIndex} — skipping the admin build.`);
         return;
     }
 
     console.log('Building the admin bundle…');
-    await run([viteBin(root), 'build'], root);
+    // `--config`, because the config lives inside the app rather than at the
+    // project root: Vite looks for one in the working directory and would
+    // otherwise build with its defaults, silently producing a bundle from the
+    // wrong root.
+    await run([viteBin(root), 'build', '--config', LAYOUT.adminConfig], root);
 }

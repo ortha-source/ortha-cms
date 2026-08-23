@@ -153,12 +153,35 @@ handles a plugin's `migrations/`.
 
 ```
 my-cms/
-├── ortha.config.ts is at src/server/ — see LAYOUT in @orthacms/cli
-├── src/server/{main,plugins,ortha.config}.ts
-├── src/admin/{main.tsx,plugins.ts,styles.css}
-├── tsconfig.server.json     rootDir: src/server → a FLAT dist/server
-└── tsconfig.admin.json      noEmit; Vite builds the bundle
+├── package.json          one package — not workspaces; see below
+├── tsconfig.json         references the four apps
+└── apps/
+    ├── server/           ortha.config.ts, src/{main,plugins}.ts, jest.config.js
+    ├── admin/            index.html, vite.config.mts, src/
+    ├── server-e2e/       jest.config.js, src/{api.spec,global-setup,support}
+    └── admin-e2e/        playwright.config.ts, src/{auth.spec,support}
 ```
+
+**The same four apps this repo is built from**, so anyone who has read the
+Ortha source finds the same shape in their project — and `LAYOUT` in
+`@orthacms/cli` has one tree to describe rather than two.
+
+Still **one** `package.json`, deliberately: npm workspaces would let the two
+halves resolve different copies of a shared package, and `pack.mjs` pins
+internal deps per release, so a split risks two `@orthacms/design-system`
+instances — two React contexts, and a UI that silently stops talking to itself.
+
+`apps/server/tsconfig.json` sets `rootDir` to the app directory, which is what
+makes the compiled paths predictable: `apps/server/ortha.config.ts` →
+`dist/server/ortha.config.js`, `apps/server/src/main.ts` →
+`dist/server/src/main.js`. Those exact strings are `LAYOUT`'s
+`compiledConfig` / `serverEntry`; change the `rootDir` without changing them
+and `ortha start` reports a missing entry point rather than a moved one.
+
+The admin's Vite config lives **inside** `apps/admin` and sets its own `root`,
+so the CLI passes `--config apps/admin/vite.config.mts`. Without the flag Vite
+finds no config in the working directory and builds from its defaults —
+silently, producing a bundle from the wrong root.
 
 Three things the generated app does differently from this repo's `apps/*`, each
 because it consumes packages from npm rather than from source:
@@ -213,10 +236,10 @@ tested teaches people not to.
 
 | Suite | Runner | Why that one |
 | --- | --- | --- |
-| `src/server/**/*.spec.ts` | Jest + `@swc/jest` | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
-| `src/admin/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution |
-| `e2e/server` | Jest + supertest, real Postgres | Boots **this app** through `createServer` — a harness that mirrors the bootstrap can never fail on a bootstrap defect |
-| `e2e/admin` | Playwright, Vite dev server, `/api` mocked | Drives the UI with no backend: fast, hermetic, and a failure means the UI is wrong |
+| `apps/server/**/*.spec.ts` | Jest + `@swc/jest` | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
+| `apps/admin/src/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `apps/admin/vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution |
+| `apps/server-e2e` | Jest + supertest, real Postgres | Boots **this app** through `createServer` — a harness that mirrors the bootstrap can never fail on a bootstrap defect |
+| `apps/admin-e2e` | Playwright, Vite dev server, `/api` mocked | Drives the UI with no backend: fast, hermetic, and a failure means the UI is wrong |
 
 The e2e split mirrors `apps/server-e2e` and `apps/admin-e2e` in this repo, for
 the same reason: testing the API through a browser is slower and blames the UI
