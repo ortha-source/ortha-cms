@@ -138,7 +138,6 @@ export class PublicMediaController {
                     folderId: folderId ?? null,
                     fileName: file.originalname,
                     contentType: file.mimetype,
-                    size: file.size,
                     body: Readable.from(file.buffer),
                     alt: alt ?? null
                 },

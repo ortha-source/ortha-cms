@@ -17,6 +17,19 @@ import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
 import { createInMemoryStorageProvider } from './media-storage';
 
+/** Harness-only wiring choices that are not expressible as config. */
+export interface BuildTestPluginsOptions {
+    /**
+     * Boot on the real filesystem provider rooted here, instead of the
+     * in-memory one.
+     *
+     * A deployment runs exactly one storage provider, so this is a choice about
+     * which object to construct — not a name in config that something else
+     * selects between.
+     */
+    localMediaRoot?: string;
+}
+
 /**
  * Builds the plugin list the e2e harness boots with — the e2e-owned analogue of
  * the host's `apps/server/src/plugins.ts:buildPlugins`. It mirrors the host's
@@ -34,7 +47,10 @@ import { createInMemoryStorageProvider } from './media-storage';
  * workspaces (FK + reads), workspaces before content (its `WorkspaceGuard` +
  * ports), and i18n after content (binds content's extension port).
  */
-export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
+export function buildTestPlugins(
+    config: OrthaConfig,
+    options: BuildTestPluginsOptions = {}
+): ServerPlugin[] {
     const content = ContentPlugin({
         types: testContentTypes,
         // The e2e harness OWNS these generated tables: drizzle.config.ts
@@ -65,16 +81,15 @@ export function buildTestPlugins(config: OrthaConfig): ServerPlugin[] {
             playground: config.docs.enabled === true
         }),
         // Media ships its own migrations (picked up by the migrate loop) and
-        // registers an in-memory storage provider so uploads never touch disk.
-        // The real filesystem adapter is registered beside it under `local`,
-        // unused unless a suite sets `localMediaRoot` — the claims about what
-        // lands on disk, and about a `storage_key` that tries to walk out of
-        // the root, can only be checked against a real directory.
+        // runs one storage provider, like any deployment: the in-memory one, so
+        // uploads never touch disk — or the real filesystem adapter when a
+        // suite sets `localMediaRoot`, because the claims about what lands on
+        // disk, and about a `storage_key` that tries to walk out of the root,
+        // can only be checked against a real directory.
         MediaServerPlugin({
-            providers: {
-                memory: createInMemoryStorageProvider(),
-                local: createLocalStorageProvider(config.plugins.media.local)
-            },
+            provider: options.localMediaRoot
+                ? createLocalStorageProvider(config.plugins.media.storage)
+                : createInMemoryStorageProvider(),
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),

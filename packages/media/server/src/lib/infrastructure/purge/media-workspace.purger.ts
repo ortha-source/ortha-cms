@@ -13,8 +13,8 @@ import {
     type WorkspacePurgeOutcome
 } from '@orthacms/workspaces-server';
 import {
-    STORAGE_REGISTRY,
-    type StorageRegistry
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 import { mediaAsset } from '../schema/media-asset';
 import { mediaFolder } from '../schema/media-folder';
@@ -50,7 +50,7 @@ export class MediaWorkspacePurger implements WorkspacePurger, OnModuleInit {
 
     constructor(
         private readonly uow: UnitOfWork,
-        @Inject(STORAGE_REGISTRY) private readonly storage: StorageRegistry,
+        @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
         @Optional() private readonly registry?: WorkspacePurgeRegistry
     ) {}
 
@@ -91,9 +91,11 @@ export class MediaWorkspacePurger implements WorkspacePurger, OnModuleInit {
 
     /**
      * Best-effort blob removal, post-commit — the original plus every generated
-     * derivative, through whichever provider holds each asset.
+     * derivative, through this deployment's provider. A row written by another
+     * provider is skipped: those bytes are in a backend this process is not
+     * connected to (and the boot check refuses that state anyway).
      *
-     * Grouped by provider and awaited together. A failure leaves an unreferenced
+     * A failure leaves an unreferenced
      * blob for a GC sweep, which is strictly better than the previous behaviour
      * (bytes stranded behind a row nobody could find), so it is logged, not
      * raised: the rows are committed and the caller has nothing to retry.
@@ -115,9 +117,14 @@ export class MediaWorkspacePurger implements WorkspacePurger, OnModuleInit {
                         (variant) => variant.key
                     )
                 ];
+                if (asset.storageProvider !== this.storage.id) {
+                    failed += 1;
+                    return;
+                }
                 try {
-                    const provider = this.storage.get(asset.storageProvider);
-                    await Promise.all(keys.map((key) => provider.remove(key)));
+                    await Promise.all(
+                        keys.map((key) => this.storage.remove(key))
+                    );
                 } catch {
                     failed += 1;
                 }
