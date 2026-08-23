@@ -164,6 +164,51 @@ describe('the scaffolded app, whatever the features', () => {
         }
     });
 
+    it('ships a runnable test setup', () => {
+        for (const file of [
+            'jest.config.js',
+            'jest.setup.js',
+            'vite.config.mts',
+            'playwright.config.ts',
+            'src/server/plugins.spec.ts',
+            'src/admin/plugins.spec.ts',
+            'e2e/smoke.spec.ts'
+        ]) {
+            expect(() => rendered(file)).not.toThrow();
+        }
+
+        const { scripts } = JSON.parse(rendered('package.json')) as {
+            scripts: Record<string, string>;
+        };
+        expect(scripts).toMatchObject({
+            test: expect.any(String),
+            'test:server': expect.any(String),
+            'test:admin': expect.any(String),
+            e2e: expect.any(String)
+        });
+    });
+
+    /**
+     * Otherwise `ortha build` compiles the tests into `dist/server` and ships
+     * them — along with whatever fixtures they import.
+     */
+    it('keeps the server specs out of the build', () => {
+        const tsconfig = JSON.parse(rendered('tsconfig.server.json')) as {
+            exclude?: string[];
+        };
+
+        expect(tsconfig.exclude).toContain('**/*.spec.ts');
+    });
+
+    /**
+     * The app is `"type": "commonjs"`, and Vite warns — and will eventually
+     * fail — on ESM syntax in a config loaded as CommonJS.
+     */
+    it('names the Vite config .mts', () => {
+        expect(readdirSync(target)).toContain('vite.config.mts');
+        expect(readdirSync(target)).not.toContain('vite.config.ts');
+    });
+
     /**
      * Tailwind excludes `node_modules` from content detection, so without this
      * line the admin renders completely unstyled — and nothing errors.

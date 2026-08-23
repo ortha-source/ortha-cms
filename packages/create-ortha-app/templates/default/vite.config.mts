@@ -37,6 +37,18 @@ export default defineConfig(({ mode }) => {
             // What `staticDir` serves in production.
             outDir: 'dist/admin',
             emptyOutDir: true
+        },
+        // Unit tests for the **admin** half. Declared here rather than in a
+        // `vitest.config.ts` of its own so the tests resolve modules exactly
+        // the way the app does — same plugins, same aliases, no second config
+        // to keep in step. The server half runs under Jest (`jest.config.js`),
+        // which is what emits the decorator metadata NestJS DI needs.
+        test: {
+            name: 'admin',
+            environment: 'jsdom',
+            globals: true,
+            include: ['src/admin/**/*.{test,spec}.{ts,tsx}'],
+            coverage: { reportsDirectory: './test-output/vitest' }
         }
     };
 });

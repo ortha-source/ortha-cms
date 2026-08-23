@@ -206,11 +206,41 @@ The one hazard to know: the pickers put stdin in raw mode, and a process that
 exits while still raw leaves the user's terminal with no echo — they have to
 type `reset` blind. Restoring it lives in a `finally`.
 
+## The generated app's own tests
+
+A scaffolded app ships a working test setup, because a starter that cannot be
+tested teaches people not to.
+
+| Suite | Runner | Why that one |
+| --- | --- | --- |
+| `src/server/**/*.spec.ts` | Jest + `@swc/jest` | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
+| `src/admin/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution |
+| `e2e/` | Playwright, `webServer: build && start` | Exercises the **built** app on one origin — the deployment shape a dev-server run never checks |
+
+Two runners is the honest answer here rather than a compromise: each half has a
+different toolchain and neither transform serves both.
+
+The shipped specs assert what breaks quietly — the plugin lists and their
+order. They are **feature-aware**: the expected server list carries `ortha:if`
+blocks for `content-graphql` and `mcp`, so it stays correct whatever the wizard
+was asked for.
+
+Three details worth not re-discovering:
+
+- **`jest.setup.js` supplies placeholder secrets.** The specs import
+  `ortha.config.ts`, which deliberately refuses to load without `DATABASE_URL`.
+  Nothing connects — the plugin list is a pure function of the config — so
+  placeholders are what let `npm test` run in CI with no `.env`.
+- **`tsconfig.server.json` excludes `**/*.spec.ts`**, or `ortha build` compiles
+  the tests into `dist/server` and ships them.
+- **The Vite config is `.mts`.** The app is `"type": "commonjs"`, and Vite warns
+  (and will eventually fail) on ESM syntax in a config loaded as CJS.
+
 ## Tests
 
 `npx nx test create-ortha-app` — the package-coverage guard, the conditional
 processor, and the scaffolded output for several feature combinations (nothing
-optional, one copilot provider, both, and the extra APIs).
+optional, one copilot provider, both, and every protocol).
 
 The end-to-end path (publish to a local registry → scaffold → install → migrate
 → build → boot) is not automated yet; see the PR that introduced this package

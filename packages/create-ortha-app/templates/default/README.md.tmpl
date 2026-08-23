@@ -24,6 +24,44 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run migrate` | Applies every plugin's pending migrations |
 | `npm run generate -- --name=<name>` | Generates a migration for your own content tables |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
+| `npm test` | Unit tests — both halves |
+| `npm run e2e` | End-to-end tests against the built app |
+| `npm run typecheck` | Both TypeScript projects |
+
+## Tests
+
+**Unit tests** run under two runners, one per half, each matching its own
+toolchain:
+
+- **`src/server/**/*.spec.ts`** → Jest with `@swc/jest` (`jest.config.js`).
+  Jest rather than Vitest because NestJS DI reads `emitDecoratorMetadata`, and
+  Vitest's esbuild transform does not emit it — providers resolve as
+  `undefined`, with no error naming the cause.
+- **`src/admin/**/*.spec.ts(x)`** → Vitest with jsdom, configured inside
+  `vite.config.mts` so tests resolve modules exactly the way the app does.
+
+Neither touches a database: `jest.setup.js` supplies placeholder secrets so
+`npm test` runs anywhere, including CI with no `.env`.
+
+The two shipped specs assert the things that break quietly — the plugin lists
+and their order. Server-side that is migration order (a plugin whose tables
+reference another's must come after it, which fails only on a *fresh*
+database); admin-side it is that exactly one plugin contributes a `layout`, and
+that it is the shell's, because the host mounts the first one it finds and the
+shell's is what composes the auth gate.
+
+**End-to-end tests** (`e2e/`, Playwright) build the app and start it, so they
+exercise the real deployment shape — the API and the admin bundle on one
+origin. First run needs a browser and a migrated database:
+
+```sh
+npx playwright install chromium
+docker compose up -d && npm run migrate
+npm run e2e
+```
+
+They read and write real rows, so point `DATABASE_URL` at a database you are
+willing to lose.
 
 ## What you own
 
