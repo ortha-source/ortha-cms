@@ -1128,13 +1128,16 @@ this surface can express one.
 
 ---
 
-#### ♿ A11Y-copilot-server-03 — `RUN_STOP_EXPLANATIONS` is the only human-readable account of a truncated run, and it never reaches the persisted transcript
+#### ♿ A11Y-copilot-server-03 — the stop reason is the only human-readable account of a truncated run, and it never reaches the persisted transcript
 
 **WCAG 2.1 SC:** 4.1.3 Status Messages (AA) — *upstream cause*
 **508 provision:** E205.4
 **Verdict:** **Partially Supports**
-**Location:** `packages/copilot/domain/src/lib/run/run-limits.ts:58-67`;
+**Location:** `packages/copilot/domain/src/lib/run/run-limits.ts` (`RunStopReason`);
 `packages/copilot/server/src/lib/chat/application/run-engine.service.ts:309-333`.
+(Retitled under ORT-109 — the phrasings this cited as `RUN_STOP_EXPLANATIONS`
+are model-facing and module-private now. The gap is unchanged: it is the missing
+assistant row, not the wording.)
 
 `stopReason` is persisted on the assistant message, so a reopened thread *can*
 say the answer was cut short. But a run that fails **before any text streams**
