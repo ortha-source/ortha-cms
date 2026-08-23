@@ -2,19 +2,23 @@ import type { StorageProvider } from '../domain/storage-provider';
 import type { MediaPluginConfig } from '../types/media-config';
 import { MediaServerPlugin, type MediaPluginOptions } from './media-plugin';
 
-const provider = (): StorageProvider => ({
-    put: () => Promise.reject(new Error('not called')),
-    get: () => Promise.reject(new Error('not called')),
-    remove: () => Promise.resolve(),
-    url: () => Promise.resolve('/not-called')
-});
+const provider = (overrides: Partial<StorageProvider> = {}): StorageProvider =>
+    ({
+        id: 'local',
+        capabilities: {
+            directUrl: false,
+            contentTypeMetadata: false,
+            streamingPut: true
+        },
+        put: () => Promise.reject(new Error('not called')),
+        get: () => Promise.reject(new Error('not called')),
+        remove: () => Promise.resolve(),
+        ...overrides
+    }) as StorageProvider;
 
 const config = (
     overrides: Partial<MediaPluginConfig> = {}
 ): MediaPluginConfig => ({
-    defaultProvider: 'local',
-    local: { rootDir: './.storage/media', publicBasePath: '/api/media/assets' },
-    s3: { bucket: '', region: '' },
     maxUploadBytes: 52_428_800,
     ...overrides
 });
@@ -22,7 +26,7 @@ const config = (
 const options = (
     overrides: Partial<MediaPluginOptions> = {}
 ): MediaPluginOptions => ({
-    providers: { local: provider() },
+    provider: provider(),
     config: config(),
     ...overrides
 });
@@ -31,36 +35,58 @@ const options = (
  * The plugin validates its wiring eagerly, like `CopilotPlugin` does — because
  * the alternative is a per-request failure whose cause is nowhere in the message.
  *
- * The case that prompted these: `MEDIA_PROVIDER=s3` on the shipped app. The
- * config type has `s3` connection settings, so it looks like a supported value,
- * but `apps/server/src/plugins.ts` registers only `local`. The server booted
- * silently and every upload answered a bare `500 Internal server error`.
+ * The case that prompted these: pointing the shipped app at a backend nobody
+ * had wired. The server booted silently and every upload answered a bare
+ * `500 Internal server error`.
  */
 describe('MediaServerPlugin()', () => {
-    it('constructs with a default provider that is registered', () => {
+    it('constructs with a storage provider', () => {
         expect(MediaServerPlugin(options()).name).toBe('media');
     });
 
-    it('rejects a defaultProvider nobody registered, listing the ones that exist', () => {
+    it('rejects a missing provider', () => {
         expect(() =>
             MediaServerPlugin(
-                options({ config: config({ defaultProvider: 's3' }) })
+                options({ provider: undefined as unknown as StorageProvider })
             )
-        ).toThrow(/defaultProvider "s3" is not registered.*Registered: local/s);
+        ).toThrow(/requires a storage provider/);
     });
 
-    it('rejects an empty defaultProvider', () => {
+    it('rejects a provider with no id — the value every asset row records', () => {
+        expect(() =>
+            MediaServerPlugin(options({ provider: provider({ id: '  ' }) }))
+        ).toThrow(/non-empty `id`/);
+    });
+
+    it('rejects a provider that declares no capabilities', () => {
         expect(() =>
             MediaServerPlugin(
-                options({ config: config({ defaultProvider: '' }) })
+                options({
+                    provider: provider({
+                        capabilities:
+                            undefined as unknown as StorageProvider['capabilities']
+                    })
+                })
             )
-        ).toThrow(/defaultProvider/);
+        ).toThrow(/declares no `capabilities`/);
     });
 
-    it('rejects an empty provider map', () => {
-        expect(() => MediaServerPlugin(options({ providers: {} }))).toThrow(
-            /at least one storage provider/
-        );
+    it('rejects a declared directUrl capability with no directUrl()', () => {
+        // The download route would offer a redirect the provider cannot mint,
+        // which is a 500 per image rather than a boot failure.
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: provider({
+                        capabilities: {
+                            directUrl: true,
+                            contentTypeMetadata: true,
+                            streamingPut: true
+                        }
+                    })
+                })
+            )
+        ).toThrow(/declares `capabilities.directUrl` but implements/);
     });
 
     it('rejects a non-positive upload cap, which would refuse every upload', () => {

@@ -42,14 +42,21 @@ export function resetBlobStore(): void {
 /**
  * An in-memory {@link StorageProvider} for the e2e harness — a `Map<key, bytes>`
  * so upload/download/delete round-trip without touching the disk or a real
- * object store. Registered under the name `memory` (the media config's
- * `defaultProvider` in the test config). One instance per booted app, so blobs
- * are isolated per spec file.
+ * object store. Identifies itself as `memory`, which is what every asset row a
+ * test writes records. One instance per booted app, so blobs are isolated per
+ * spec file.
  */
 export function createInMemoryStorageProvider(): StorageProvider {
     const store = new Map<string, Buffer>();
     latestStore = store;
     return {
+        id: 'memory',
+        capabilities: {
+            directUrl: false,
+            contentTypeMetadata: false,
+            streamingPut: false
+        },
+
         async put(object: PutObject): Promise<StoredObject> {
             const buffer = await drain(object.body);
             const storageKey = `${object.workspaceId}/${object.assetId}/${object.fileName}`;
@@ -69,9 +76,6 @@ export function createInMemoryStorageProvider(): StorageProvider {
         },
         async remove(storageKey: string): Promise<void> {
             store.delete(storageKey);
-        },
-        async url(storageKey: string): Promise<string> {
-            return `memory://${storageKey}`;
         }
     };
 }

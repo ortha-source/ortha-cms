@@ -134,6 +134,9 @@
         },
         {
             "path": "./packages/cli"
+        },
+        {
+            "path": "./packages/media/provider-testkit"
         }
     ]
 }

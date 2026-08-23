@@ -14,6 +14,7 @@ import type {
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
 /** Root configuration for this app. */
 export interface OrthaConfig {
@@ -27,7 +28,14 @@ export interface OrthaConfig {
     plugins: {
         identity: IdentityPluginConfig;
         i18n: I18nPluginConfig;
-        media: MediaPluginConfig;
+        media: MediaPluginConfig & {
+            /**
+             * Settings for the storage backend `plugins.ts` constructs. Typed
+             * by the factory it imports — swap `createLocalStorageProvider` for
+             * another and this type swaps with it.
+             */
+            storage: LocalStorageConfig;
+        };
     };
 }
 
@@ -189,16 +197,10 @@ const config: OrthaConfig = {
             orphanedLocales: 'fail'
         },
         media: {
-            defaultProvider: process.env['MEDIA_PROVIDER'] ?? 'local',
-            local: {
+            storage: {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
-                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media',
-                publicBasePath: '/api/media/assets'
-            },
-            s3: {
-                bucket: process.env['MEDIA_S3_BUCKET'] ?? '',
-                region: process.env['MEDIA_S3_REGION'] ?? ''
+                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',

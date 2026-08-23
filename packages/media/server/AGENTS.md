@@ -16,7 +16,7 @@ composition root.
 domain/          # framework-free core — the one hard rule below
   asset.ts / folder.ts             # aggregate roots (+ pullEvents)
   value-objects/                   # AssetId, FolderId, FileName, MediaKind, StorageKey
-  storage-provider.ts              # StorageProvider PORT + StorageRegistry + StorageResolver + symbols
+  storage-provider.ts              # StorageProvider PORT + capabilities + STORAGE_PROVIDER
   asset.repository.ts / folder.repository.ts  # repo PORTs + symbols
   events/media-events.ts           # media.* domain-event factory + kinds
   errors/                          # transport-agnostic domain errors
@@ -37,18 +37,36 @@ layer-boundary lint isn't wired yet).
 
 ## The storage seam (the whole point)
 
+**One provider per deployment, passed as one object** ([ADR-0012](../../../docs/adr/0012-one-storage-provider-per-deployment.md)).
+
 - **`StorageProvider`** (`domain/storage-provider.ts`) is a NestJS-free port:
-  `put` / `get` / `remove` / `url`. Implementations ship as **separate
-  packages** (`@orthacms/media-provider-local`, `-s3`) and are constructed at
-  the host's composition root (`apps/server/src/plugins.ts`) — this package
-  never imports a concrete backend.
-- **`StorageRegistry`** holds the named providers; **`StorageResolver`** is an
-  optional host-supplied handler `(ctx, registry) => name` that picks a provider
-  per upload. Omit it and every upload uses `config.defaultProvider`.
-- **Route at write, record at read.** The resolver runs only on upload; the
-  chosen provider name is persisted on `media_asset.storage_provider`. Downloads
-  and deletes route by that stored name — never re-run the resolver — so
-  changing the handler never strands existing blobs.
+  `put` / `get` / `remove`, plus optional `directUrl()` and `verify()`.
+  Implementations ship as **separate packages**
+  (`@orthacms/media-provider-local`, `-s3`) and are constructed at the host's
+  composition root (`apps/server/src/plugins.ts`) — this package never imports a
+  concrete backend, and `MediaPluginConfig` names none either (it carries
+  `maxUploadBytes` and nothing else; backend settings are the host's, typed by
+  the factory it imports).
+- **The object describes itself.** `id` is the provider's own name — recorded on
+  every asset row — and `capabilities` (`directUrl`, `contentTypeMetadata`,
+  `streamingPut`) is what stops the core assuming the weakest backend. Declaring
+  `directUrl: true` without implementing the method fails the eager check in
+  `MediaServerPlugin`.
+- **There is no registry, resolver or `defaultProvider`.** Bytes go to one
+  place, so there is nothing to route between and no name for the host to
+  register. Swapping backend is swapping the expression in `plugins.ts`.
+- **Record at write, check at read.** `provider.id` is persisted on
+  `media_asset.storage_provider`. Downloads, deletes and the workspace purge
+  **compare** it rather than looking a backend up: a row naming another provider
+  is bytes this process cannot reach.
+- **`StorageProviderCheck`** (`infrastructure/storage-provider.check.ts`) runs
+  `verify()` and that comparison at boot, and refuses to start when the table
+  holds a foreign `storage_provider` — naming it and its row count. A missing
+  `media_asset` table is *not* a failure: migrations are a separate step, so a
+  fresh database must still boot.
+- **Writing a provider** is one factory function plus one
+  `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
+  is where the port's invariants live as a runnable suite.
 
 ## Use cases + unit-of-work + outbox
 
@@ -401,13 +419,11 @@ provider.
 ## Register with the host
 
 After `WorkspacesPlugin` (routes use `WorkspaceGuard`) and `IdentityPlugin`
-(`PermissionsGuard`). The provider(s) + optional resolver are passed in:
+(`PermissionsGuard`). The one provider is constructed by the host and passed in:
 
 ```typescript
 MediaServerPlugin({
-    providers: {
-        local: createLocalStorageProvider(config.plugins.media.local)
-    },
+    provider: createLocalStorageProvider(config.plugins.media.storage),
     config: config.plugins.media
 });
 ```

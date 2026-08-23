@@ -11,26 +11,36 @@ export interface S3StorageConfig {
 class S3NotImplementedError extends Error {
     constructor() {
         super(
-            '@orthacms/media-provider-s3 is a stub — the AWS S3 adapter is not implemented yet.'
+            '@orthacms/media-provider-s3 is a stub — the S3 adapter is not implemented yet.'
         );
         this.name = 'S3NotImplementedError';
     }
 }
 
 /**
- * Placeholder S3 {@link StorageProvider}. It proves the routing seam
- * end-to-end — the composition root can register it under a name and a resolver
- * can route to it — without an AWS dependency. Every method throws until the
- * real adapter (put/get via the AWS SDK, signed `url`) lands. The signature
- * matches `createLocalStorageProvider`, so switching is a config change.
+ * Placeholder S3 {@link StorageProvider}. It proves the seam end-to-end — the
+ * composition root can construct it and hand it to `MediaServerPlugin` — without
+ * an AWS dependency. Every method throws until the real adapter (streaming
+ * put/get, signed `directUrl`) lands. The signature matches
+ * `createLocalStorageProvider`, so switching is one line in `plugins.ts`.
+ *
+ * Its `capabilities` say what this *stub* can do, not what S3 can: declaring
+ * `directUrl: true` here would make the plugin's eager check pass and the
+ * download route offer a redirect nothing can mint.
  */
 export function createS3StorageProvider(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     config: S3StorageConfig
 ): StorageProvider {
     // Implementations omit their params (the interface allows a narrower
-    // signature) — there is nothing to act on until the AWS adapter lands.
+    // signature) — there is nothing to act on until the real adapter lands.
     return {
+        id: 's3',
+        capabilities: {
+            directUrl: false,
+            contentTypeMetadata: false,
+            streamingPut: false
+        },
         put(): Promise<StoredObject> {
             throw new S3NotImplementedError();
         },
@@ -40,7 +50,9 @@ export function createS3StorageProvider(
         remove(): Promise<void> {
             throw new S3NotImplementedError();
         },
-        url(): Promise<string> {
+        verify(): Promise<void> {
+            // Fails the boot rather than the first upload — the whole point of
+            // the hook, and the honest answer for a stub.
             throw new S3NotImplementedError();
         }
     };

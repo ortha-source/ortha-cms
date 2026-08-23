@@ -7,16 +7,9 @@
         "module": "nodenext",
         "moduleResolution": "nodenext",
         "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-        "types": ["node"]
+        "types": ["node", "jest"]
     },
     "include": ["src/**/*.ts"],
-    "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
-    "references": [
-        {
-            "path": "../server/tsconfig.lib.json"
-        },
-        {
-            "path": "../provider-testkit/tsconfig.lib.json"
-        }
-    ]
+    "exclude": ["dist"],
+    "references": [{ "path": "../server/tsconfig.lib.json" }]
 }

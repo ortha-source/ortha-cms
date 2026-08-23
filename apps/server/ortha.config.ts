@@ -19,6 +19,7 @@ import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this
@@ -62,6 +63,25 @@ export interface OrthaCopilotConfig extends CopilotPluginConfig {
     };
 }
 
+/**
+ * Media settings, plus the connection settings for the one storage backend this
+ * deployment runs.
+ *
+ * The backend settings live **here**, not in `MediaPluginConfig`, for the same
+ * reason the copilot's provider settings do (ADR-0004 §2): the plugin names no
+ * backend. `plugins.ts` already imports the adapter factory, so importing its
+ * config type costs no new coupling — and switching storage is that import plus
+ * the type named below, with nothing to change inside the media packages.
+ */
+export interface OrthaMediaConfig extends MediaPluginConfig {
+    /**
+     * Whatever the constructed provider needs. Typed by the factory
+     * `plugins.ts` calls — `LocalStorageConfig` today; swapping to
+     * `createS3StorageProvider` swaps this type with it.
+     */
+    storage: LocalStorageConfig;
+}
+
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
     /** PostgreSQL connection string. Sourced from `DATABASE_URL`. */
@@ -96,8 +116,8 @@ export interface OrthaConfig {
         identity: IdentityPluginConfig;
         /** i18n plugin settings — the available content locales. */
         i18n: I18nPluginConfig;
-        /** Media plugin settings — storage providers + upload limits. */
-        media: MediaPluginConfig;
+        /** Media plugin settings — the storage backend + upload limits. */
+        media: OrthaMediaConfig;
         /** Copilot plugin settings — kill switch + model providers. */
         copilot: OrthaCopilotConfig;
         /** Public GraphQL endpoint settings — the per-operation cost budget. */
@@ -354,10 +374,7 @@ const config: OrthaConfig = {
             },
             // Login rate limit. Defaults preserve the historical 10 req / 60s.
             rateLimit: {
-                ttlSeconds: readPositiveInt(
-                    'LOGIN_RATE_LIMIT_TTL_SECONDS',
-                    60
-                ),
+                ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
                 limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
             },
             rootAdmin: {
@@ -386,18 +403,14 @@ const config: OrthaConfig = {
             orphanedLocales: 'fail'
         },
         media: {
-            // The provider the resolver falls back to when no custom handler is
-            // supplied in `plugins.ts`. Deploy-specific; defaults to local disk.
-            defaultProvider: process.env['MEDIA_PROVIDER'] ?? 'local',
-            local: {
+            // Settings for the storage backend `plugins.ts` constructs. There
+            // is no variable naming which backend runs: that is decided by the
+            // factory the composition root imports, so a value here can never
+            // point at an adapter nobody wired.
+            storage: {
                 // Blobs live under a git-ignored project dir by default; point
                 // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
-                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media',
-                publicBasePath: '/api/media/assets'
-            },
-            s3: {
-                bucket: process.env['MEDIA_S3_BUCKET'] ?? '',
-                region: process.env['MEDIA_S3_REGION'] ?? ''
+                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
             // Upload cap — 50 MB by default.
             maxUploadBytes: readPositiveInt(
@@ -413,10 +426,7 @@ const config: OrthaConfig = {
             // needs to loosen or tighten them without a redeploy.
             limits: {
                 maxDepth: readPositiveInt('GRAPHQL_MAX_DEPTH', 8),
-                maxComplexity: readPositiveInt(
-                    'GRAPHQL_MAX_COMPLEXITY',
-                    1000
-                ),
+                maxComplexity: readPositiveInt('GRAPHQL_MAX_COMPLEXITY', 1000),
                 maxFields: readPositiveInt('GRAPHQL_MAX_FIELDS', 500),
                 maxQueryLength: readPositiveInt(
                     'GRAPHQL_MAX_QUERY_LENGTH',
@@ -445,9 +455,7 @@ const config: OrthaConfig = {
             // them here. Raising these costs tokens rather than safety — every
             // step is still authorized and audited, and a `propose` tool still
             // writes its row before it writes anything else.
-            ...(Object.keys(runLimits).length > 0
-                ? { limits: runLimits }
-                : {}),
+            ...(Object.keys(runLimits).length > 0 ? { limits: runLimits } : {}),
             // Each backend is here only if it was configured. Registering
             // one that cannot answer used to be harmless because
             // `COPILOT_PROVIDER` decided who served a run; now the first

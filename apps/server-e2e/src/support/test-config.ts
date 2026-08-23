@@ -210,18 +210,15 @@ export function buildTestConfig(
                 // provider, and what a run naming none is served by.
                 providers: {}
             },
-            // The media plugin registers an in-memory `memory` provider in
-            // `buildTestPlugins`, so uploads never touch disk — unless a suite
-            // asks for the real filesystem adapter with `localMediaRoot`, which
-            // flips `defaultProvider` to the `local` one registered beside it.
+            // `buildTestPlugins` constructs the in-memory provider, so uploads
+            // never touch disk — unless a suite asks for the real filesystem
+            // adapter with `localMediaRoot`, in which case it builds that one
+            // instead. A deployment (and so a booted test app) runs exactly one
+            // provider, so this is a choice made there, not a name here.
             media: {
-                defaultProvider: overrides.localMediaRoot ? 'local' : 'memory',
-                local: {
-                    rootDir:
-                        overrides.localMediaRoot ?? './.storage/test-media',
-                    publicBasePath: '/api/media/assets'
+                storage: {
+                    rootDir: overrides.localMediaRoot ?? './.storage/test-media'
                 },
-                s3: { bucket: '', region: '' },
                 maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults

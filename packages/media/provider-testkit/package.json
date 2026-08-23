@@ -1,5 +1,5 @@
 {
-    "name": "@orthacms/media-provider-local",
+    "name": "@orthacms/media-provider-testkit",
     "version": "0.3.0",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
@@ -16,8 +16,5 @@
     ],
     "dependencies": {
         "@orthacms/media-server": "*"
-    },
-    "devDependencies": {
-        "@orthacms/media-provider-testkit": "*"
     }
 }

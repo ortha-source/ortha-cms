@@ -14,8 +14,6 @@ import type {
 export interface LocalStorageConfig {
     /** Directory blobs live under (absolute or project-relative). */
     rootDir: string;
-    /** Base path the browser hits to stream a blob (reserved for direct URLs). */
-    publicBasePath: string;
 }
 
 /**
@@ -175,6 +173,19 @@ export function createLocalStorageProvider(
     };
 
     return {
+        id: 'local',
+        capabilities: {
+            // A filesystem cannot mint a URL the browser may fetch on its own:
+            // serving `rootDir` statically would hand every blob to anyone
+            // holding a key, and keys are returned in API responses. Downloads
+            // stay proxied through the app's own route.
+            directUrl: false,
+            // Accepted and dropped — a filesystem has nowhere to put it. The
+            // authoritative type stays `media_asset.mime_type`.
+            contentTypeMetadata: false,
+            streamingPut: true
+        },
+
         async put(object: PutObject): Promise<StoredObject> {
             const storageKey = keyFor(
                 object.workspaceId,
@@ -251,21 +262,6 @@ export function createLocalStorageProvider(
             const target = absolute(storageKey);
             await rm(target, { force: true });
             await pruneEmptyDirectories(dirname(target), root);
-        },
-
-        async url(storageKey: string): Promise<string> {
-            // NOTE: no route serves this path today — downloads go through
-            // `GET /api/media/assets/:id/raw`, which resolves the key from the
-            // asset row *after* checking workspace membership. Nothing calls
-            // `url()`; it exists because the port promises a direct URL that a
-            // signed-URL backend (S3) can give and a filesystem cannot.
-            //
-            // Whoever implements the static-serving mode: it must not be an
-            // `express.static` over `rootDir`. That would serve every blob to
-            // anyone who can guess a key and would bypass the membership check
-            // wholesale — the keys are uuids, but they are also handed out in
-            // API responses.
-            return `${config.publicBasePath}/blob/${encodeURIComponent(storageKey)}`;
         }
     };
 }

@@ -56,13 +56,11 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         ContentPlugin({ types: [] }),
         // Fills the Content Library's locale extensions, so it reads after it.
         I18nServerPlugin(config.plugins.i18n),
-        // The composition root is the single place that selects storage:
-        // register providers by name and, optionally, a `resolve` handler to
-        // route per file. This one writes every upload to local disk.
+        // This line is the single place that selects storage — one constructed
+        // provider, writing every upload to local disk. Swapping backend is
+        // swapping this expression (and the type of `media.storage` with it).
         MediaServerPlugin({
-            providers: {
-                local: createLocalStorageProvider(config.plugins.media.local)
-            },
+            provider: createLocalStorageProvider(config.plugins.media.storage),
             config: config.plugins.media
         })
     ];

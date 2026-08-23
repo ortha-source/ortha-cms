@@ -11,12 +11,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
+import { Pool } from 'pg';
 import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
     type TestApp
 } from '../../support/test-app';
+import { resolveDatabaseUrl } from '../../support/db-url';
 import {
     resetDb,
     seedActiveUser,
@@ -48,6 +50,20 @@ describe('media assets on the local filesystem provider', () => {
 
     beforeAll(async () => {
         root = await mkdtemp(join(tmpdir(), 'ortha-e2e-media-'));
+        // This app boots on the filesystem provider, and the server refuses to
+        // start when the library already holds assets written by a different
+        // one — which is exactly what a previous spec file's rows are, having
+        // been written by the harness's in-memory provider. `resetDb` cannot
+        // help here: it goes through the app's own pool, which does not exist
+        // until the boot this is clearing the way for.
+        const pool = new Pool({ connectionString: resolveDatabaseUrl() });
+        try {
+            await pool.query(
+                'TRUNCATE TABLE media_asset, media_folder RESTART IDENTITY CASCADE'
+            );
+        } finally {
+            await pool.end();
+        }
         harness = await createTestApp({ localMediaRoot: root });
     });
     afterAll(async () => {

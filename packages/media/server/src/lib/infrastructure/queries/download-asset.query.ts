@@ -3,8 +3,8 @@ import type { Readable } from 'node:stream';
 import { eq } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import {
-    STORAGE_REGISTRY,
-    type StorageRegistry
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 import { mediaAsset } from '../schema/media-asset';
 
@@ -23,15 +23,14 @@ export interface AssetLocation {
  * Resolves an asset's bytes for the download route, in two steps so the caller
  * can authorize **between** them: {@link locate} is a metadata-only lookup that
  * reports the owning workspace, and {@link open} streams from the provider that
- * actually holds the blob — routing by the stored `storageProvider`, never by
- * re-running the resolver. Splitting them keeps storage untouched until the
+ * actually holds the blob. Splitting them keeps storage untouched until the
  * caller has confirmed the requester may read it.
  */
 @Injectable()
 export class DownloadAssetQuery {
     constructor(
         @InjectDatabase() private readonly db: Database,
-        @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider
     ) {}
 
     /**
@@ -81,9 +80,23 @@ export class DownloadAssetQuery {
         return base;
     }
 
-    /** Opens the byte stream for an already-authorized asset. */
+    /**
+     * Opens the byte stream for an already-authorized asset.
+     *
+     * The row's `storageProvider` is **checked**, not used to look a backend
+     * up: a deployment runs exactly one, and a row naming another one is bytes
+     * this process cannot reach. `StorageProviderCheck` refuses to boot in that
+     * state, so this is the belt to that braces — but it fails loudly with the
+     * two names rather than handing a foreign key to a provider that would
+     * answer with whatever it happens to find there.
+     */
     async open(location: AssetLocation): Promise<Readable> {
-        const provider = this.registry.get(location.storageProvider);
-        return provider.get(location.storageKey);
+        if (location.storageProvider !== this.provider.id) {
+            throw new Error(
+                `Asset is stored by provider "${location.storageProvider}", but this deployment runs ` +
+                    `"${this.provider.id}". Its bytes are in the other backend.`
+            );
+        }
+        return this.provider.get(location.storageKey);
     }
 }

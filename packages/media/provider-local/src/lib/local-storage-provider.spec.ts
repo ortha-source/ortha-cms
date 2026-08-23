@@ -32,8 +32,7 @@ describe('createLocalStorageProvider', () => {
     beforeEach(async () => {
         root = await mkdtemp(join(tmpdir(), 'ortha-local-storage-'));
         provider = createLocalStorageProvider({
-            rootDir: root,
-            publicBasePath: '/api/media'
+            rootDir: root
         });
     });
 
@@ -89,8 +88,7 @@ describe('createLocalStorageProvider', () => {
 
         it('creates the whole parent chain on demand', async () => {
             const nested = createLocalStorageProvider({
-                rootDir: join(root, 'does/not/exist/yet'),
-                publicBasePath: '/api/media'
+                rootDir: join(root, 'does/not/exist/yet')
             });
 
             const stored = await nested.put({
@@ -371,8 +369,7 @@ describe('createLocalStorageProvider', () => {
         it('never prunes above the root', async () => {
             const nested = join(root, 'store');
             const scoped = createLocalStorageProvider({
-                rootDir: nested,
-                publicBasePath: '/api/media'
+                rootDir: nested
             });
             const stored = await scoped.put({
                 workspaceId: WORKSPACE,
@@ -413,8 +410,7 @@ describe('createLocalStorageProvider', () => {
             const previous = process.cwd();
             process.chdir(first);
             const relative = createLocalStorageProvider({
-                rootDir: './store',
-                publicBasePath: '/api/media'
+                rootDir: './store'
             });
             try {
                 const stored = await relative.put({
@@ -446,8 +442,7 @@ describe('createLocalStorageProvider', () => {
             const link = join(root, 'blobs');
             symlinkSync(volume, link);
             const linked = createLocalStorageProvider({
-                rootDir: link,
-                publicBasePath: '/api/media'
+                rootDir: link
             });
             try {
                 const stored = await linked.put({
@@ -493,14 +488,17 @@ describe('createLocalStorageProvider', () => {
         });
     });
 
-    describe('url', () => {
-        it('builds <publicBasePath>/blob/<encoded key>', async () => {
-            await expect(
-                provider.url(`${WORKSPACE}/${ASSET}/logo.png`)
-            ).resolves.toBe(
-                `/api/media/blob/${WORKSPACE}%2F${ASSET}%2Flogo.png`
-            );
+    it('declares what a filesystem can and cannot do', () => {
+        // `directUrl: false` is the load-bearing one: serving `rootDir`
+        // statically would hand every blob to anyone holding a key, and keys
+        // are returned in API responses.
+        expect(provider.id).toBe('local');
+        expect(provider.capabilities).toEqual({
+            directUrl: false,
+            contentTypeMetadata: false,
+            streamingPut: true
         });
+        expect(provider.directUrl).toBeUndefined();
     });
 
     // The sharpest divergence from `provider-s3`, which throws synchronously
@@ -517,8 +515,7 @@ describe('createLocalStorageProvider', () => {
                     body: Readable.from([])
                 }),
             () => provider.get('\0bad'),
-            () => provider.remove('\0bad'),
-            () => provider.url('\0bad')
+            () => provider.remove('\0bad')
         ];
 
         for (const call of calls) {

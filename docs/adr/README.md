@@ -35,5 +35,6 @@ routine, easily-reversed changes.
 - [0009 — The copilot asks in the moment, then applies directly](0009-copilot-applies-directly.md)
 - [0010 — Skills are prompt configuration, authored in two places and delivered in one](0010-copilot-skills.md)
 - [0011 — Rich text is a structured document, not an opaque string](0011-richtext-as-a-structured-document.md)
+- [0012 — One storage provider per deployment, passed as one object](0012-one-storage-provider-per-deployment.md)
 
 <!-- Add new ADRs to this index. -->
