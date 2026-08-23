@@ -493,12 +493,13 @@ defaults are 8 / 1000 / 30 / 16384.
   SDL from one token. Verified in code: the cache key is the **sorted grant set**
   (`schema-cache.ts:32`), and the schema is a pure function of `(registry,
   granted)` — so two workspaces sharing an entry necessarily have identical
-  grants and identical schemas. **One theoretical caveat:** the key is
+  grants and identical schemas. ~~**One theoretical caveat:** the key is
   `[...granted].sort().join(' ')`, so a content slug containing a space would
-  make `{"a b"}` and `{"a","b"}` collide on one key. Content slugs are
-  `snake_case` today; `pascalCase`'s tolerance of arbitrary separators
-  (`naming.ts:91-97`) shows the module does not assume that. Worth a joined-key
-  delimiter that cannot appear in a slug.
+  make `{"a b"}` and `{"a","b"}` collide on one key.~~ **Withdrawn (ORT-100):**
+  the join character is `\u0000`, not a space — this artifact transcribed the
+  NUL as a space and drew the collision from the transcription. A NUL cannot
+  appear in a slug, so the delimiter is already the one this caveat asked for.
+  Verified on the raw bytes.
 - **EC-29 — A grant revoked mid-TTL.** `❌ NONE` The SDL still describes the type
   for up to `schemaCacheTtlMs` (60 s), but `resolveType` → `resolveGrantedType`
   re-checks the live set on every resolver call

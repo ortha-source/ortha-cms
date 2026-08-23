@@ -96,7 +96,17 @@ export interface StorageProvider {
      * object before rejecting.
      */
     put(object: PutObject): Promise<StoredObject>;
-    /** Opens a read stream for download. Rejects if the key is gone. */
+    /**
+     * Opens a read stream for download.
+     *
+     * **Rejects with `ObjectNotFoundError` if the key is gone**, and rejects
+     * *before* yielding a stream. Both halves are the contract: an
+     * implementation that opens lazily resolves fine and then fails once the
+     * response is already a streaming 200 that can no longer become a 404, and
+     * one that lets its driver's own error escape makes a missing blob a 500
+     * for every caller. The row exists and the bytes do not, which from the
+     * caller's side is indistinguishable from a missing asset.
+     */
     get(storageKey: string): Promise<Readable>;
     /** Removes a stored object. Idempotent — a missing key is a no-op. */
     remove(storageKey: string): Promise<void>;

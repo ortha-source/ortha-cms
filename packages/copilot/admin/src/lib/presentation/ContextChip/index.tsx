@@ -1,6 +1,6 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { FileText, Plus, Table2, X } from 'lucide-react';
-import { Badge, Button } from '@orthacms/design-system';
+import { Badge, Button, cn } from '@orthacms/design-system';
 import type { RouteContext } from '../../application/readRouteContext';
 
 const messages = defineMessages({
@@ -39,6 +39,12 @@ export interface ContextChipProps {
     onAttach(): void;
     /** Detach whatever is attached. */
     onDetach(): void;
+    /**
+     * Extra classes on the row. The default gutter matches the transcript's, so
+     * the chip lines up with the messages above it; a surface that has already
+     * padded its own column passes `px-0`.
+     */
+    className?: string;
 }
 
 /** Two contexts point at the same thing. */
@@ -67,7 +73,8 @@ export function ContextChip({
     current,
     attached,
     onAttach,
-    onDetach
+    onDetach,
+    className
 }: ContextChipProps) {
     const intl = useIntl();
 
@@ -82,7 +89,15 @@ export function ContextChip({
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
+        <div
+            className={cn(
+                // `px-4`, matching the transcript's scroller and the composer:
+                // the chip, the messages and the input box are one column, and
+                // three different gutters read as a wobble down the edge.
+                'flex flex-wrap items-center gap-1.5 px-4 py-2',
+                className
+            )}
+        >
             {attached && (
                 <Badge variant="secondary" className="gap-1 pr-1 font-normal">
                     {attached.surface === 'entry' ? (

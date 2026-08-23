@@ -3,3 +3,6 @@ dist
 .env
 .storage
 *.tsbuildinfo
+test-output
+playwright-report
+test-results

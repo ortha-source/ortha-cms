@@ -1,9 +1,26 @@
 import {
-    RUN_STOP_EXPLANATIONS,
     interruptionNote,
     wasCutShort,
     type RunStopReason
 } from './run-limits';
+
+/**
+ * Every member of the union, listed by hand.
+ *
+ * The phrasing table is module-private now (ORT-109), so this is what makes the
+ * exhaustiveness check below real: a new stop reason has to be added here or a
+ * later assertion notices, which is what `F34` asked for and never had.
+ */
+const ALL_STOP_REASONS: RunStopReason[] = [
+    'end',
+    'max-steps',
+    'max-tokens',
+    'timeout',
+    'max-output-tokens',
+    'refusal',
+    'aborted',
+    'error'
+];
 
 describe('wasCutShort', () => {
     // The whole point of the note: these are the engine's ceilings, which the
@@ -40,12 +57,32 @@ describe('wasCutShort', () => {
 });
 
 describe('interruptionNote', () => {
-    it('names the reason using the same words the UI shows', () => {
-        // One vocabulary, so what a user is told and what the model is told
-        // cannot drift apart.
-        expect(interruptionNote('max-steps')).toContain(
-            RUN_STOP_EXPLANATIONS['max-steps']
-        );
+    it('names why the turn stopped, not merely that it did', () => {
+        // The ceilings are the engine's; the model cannot infer which one it
+        // hit, and "that turn did not finish" alone does not tell it whether
+        // resuming is even worth trying.
+        expect(interruptionNote('max-steps')).toContain('maximum number of');
+        expect(interruptionNote('timeout')).toContain('longer than allowed');
+    });
+
+    // ORT-109: this text is written for the **model**, and is deliberately not
+    // the user-facing copy. `copilot/admin` renders its own translated strings
+    // from the same `RunStopReason`, because a record of finished English
+    // sentences cannot enter react-intl — no message id, nothing to translate.
+    // So the phrasing table is private, and the two are free to differ.
+    it('says something distinct for every reason', () => {
+        const notes = ALL_STOP_REASONS.map(interruptionNote);
+
+        expect(new Set(notes).size).toBe(ALL_STOP_REASONS.length);
+    });
+
+    it('never renders a reason as undefined', () => {
+        // The table is a `Record<RunStopReason, string>`, so a missing member
+        // is a type error — but only while the union and the table are edited
+        // together. This is what notices if they are not.
+        for (const note of ALL_STOP_REASONS.map(interruptionNote)) {
+            expect(note).not.toContain('undefined');
+        }
     });
 
     it('says the interrupted work is missing, and to resume rather than restart', () => {
@@ -60,9 +97,7 @@ describe('interruptionNote', () => {
     });
 
     it('stays one short parenthetical for every reason', () => {
-        for (const reason of Object.keys(
-            RUN_STOP_EXPLANATIONS
-        ) as RunStopReason[]) {
+        for (const reason of ALL_STOP_REASONS) {
             const note = interruptionNote(reason);
 
             expect(note.startsWith('(')).toBe(true);

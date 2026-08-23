@@ -76,6 +76,34 @@ test.describe('Agents view — the rail and the thread', () => {
         ).toBeVisible();
     });
 
+    // ORT-182 — the transcript and the input are one column, and they were two.
+    // The scroller ran the full width with `px-4` and centred a `max-w-3xl`
+    // child inside it; the composer put the same cap on the *outer* element and
+    // padded within it, so past the cap the box measured 32px narrower than the
+    // messages and the two edges visibly failed to line up.
+    test('the composer is the same column as the transcript', async ({
+        page,
+        agentsPage
+    }) => {
+        // Wide on purpose. Below the cap both elements are simply the pane
+        // width and any nesting passes; the defect only appears once the
+        // `max-w-3xl` actually bites, which the default viewport (sidebar +
+        // rail + thread) does not reach.
+        await page.setViewportSize({ width: 1600, height: 900 });
+        await mockCopilotApi(page);
+        await agentsPage.gotoThread(WORKSPACE_ID, THREAD.id);
+        await expect(agentsPage.transcript()).toBeVisible();
+
+        const column = await agentsPage.transcriptColumn().boundingBox();
+        const box = await agentsPage.composerBox().boundingBox();
+
+        expect(column?.width).toBe(768);
+        expect(Math.round(box!.x)).toBe(Math.round(column!.x));
+        expect(Math.round(box!.x + box!.width)).toBe(
+            Math.round(column!.x + column!.width)
+        );
+    });
+
     test('a failed list says so instead of claiming there are no chats', async ({
         page,
         agentsPage

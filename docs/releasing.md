@@ -62,6 +62,20 @@ into this repo's `nx.json`, not something a consumer installs.
 The apps (`apps/admin`, `apps/server`) are private and never publish. They are
 the reference host, not a distributable.
 
+### The scaffolder's template needs no version edit
+
+`create-ortha-app` writes every `@orthacms/*` dependency as `__ORTHA_VERSION__`
+and stamps it with **its own version** at scaffold time, so a release carries
+the generated app forward with nothing to update by hand. There is no list of
+versions in the template to fall behind.
+
+What a release *does* assume is that the template knows about every package.
+Adding one to the workspace without classifying it in
+[`packages/create-ortha-app/src/lib/features.ts`](../packages/create-ortha-app/src/lib/features.ts)
+fails `create-ortha-app`'s tests — deliberately, so the decision "does a new app
+get this?" is made when the package is written rather than discovered by a user
+months later.
+
 `create-ortha-app` is the one published package **outside** the `@orthacms`
 scope — unscoped so `npx create-ortha-app` works — so it is named explicitly in
 `release.projects` and in the `preVersionCommand` rather than being picked up by

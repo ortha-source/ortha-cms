@@ -112,6 +112,31 @@ describe('AppearanceProvider', () => {
         expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
     });
 
+    // ORT-151 — the pre-paint script in `apps/admin/index.html` can only read
+    // `localStorage`, and the theme that actually decides is the server's. So
+    // "no flash" holds for a returning browser exactly because a
+    // server-hydrated theme is written to storage on arrival: a brand-new
+    // browser flashes once, and never again. That round trip is the whole
+    // mechanism, and nothing else pins it.
+    it('persists a theme hydrated from the server, so the next load paints it', () => {
+        // A new browser: nothing stored, the OS says light, the account says
+        // dark. Exactly the case that flashes.
+        mockScheme(false);
+        render(
+            <AppearanceProvider>
+                <Probe />
+            </AppearanceProvider>
+        );
+        expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('system');
+
+        // What `users-admin`'s ThemeSync does once `GET /api/preferences`
+        // resolves — not a user action.
+        act(() => screen.getByText('dark').click());
+
+        expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+
     it('follows the OS while the preference is system', () => {
         render(
             <AppearanceProvider>

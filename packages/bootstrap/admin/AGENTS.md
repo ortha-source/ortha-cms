@@ -93,10 +93,19 @@ identity's `AuthProvider` + `RequireAuth` inside the `layout` it contributes.
 - **Slots.** The plugin contract carries an optional `slots` — each a
   `{ slot, items }` contribution to a `createSlot` extension point (the primitive
   lives in `@orthacms/utils-admin`). Before render, `createAdmin` wires every
-  plugin's contributions into their target slots (`slot._register(items)`). The
-  host is **slot-agnostic**: it only wires; it never defines or reads a slot. A
-  consuming plugin owns each concrete slot (e.g. the shell owns the sidebar's
-  `SIDEBAR_NAV_SLOT` and reads it in its `layout`).
+  plugin's contributions into their target slots, through
+  `wireSlotContributions`. The host is **slot-agnostic**: it only wires; it
+  never defines or reads a slot. A consuming plugin owns each concrete slot
+  (e.g. the shell owns the sidebar's `SIDEBAR_NAV_SLOT` and reads it in its
+  `layout`).
+
+  It wires **from empty**, not by appending, and that matters in dev: a slot
+  closes over one array that lives as long as its module, so a Vite hot update —
+  which re-executes `main.tsx` rather than reloading the page — ran the wiring a
+  second time against those same closures and doubled every contribution,
+  compounding with each save until a hard reload. A production build never
+  re-executes the entry, so this was never a shipped-app bug; it cost dev time
+  because the symptom looks like a bug in whatever you were editing.
 - **i18n.** The host owns the single `react-intl` `IntlProvider` (`locale`
   defaults to `en`; messages resolve from each descriptor's `defaultMessage`).
   Plugins author strings with `defineMessages` + `useIntl` and **co-locate

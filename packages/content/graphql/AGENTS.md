@@ -311,7 +311,11 @@ also what the wider tooling ecosystem expects. See `coercedVariables` in
   `ArticleFilterInput` is the natural next step.
 - **Subscriptions.** Nothing publishes content events over a transport yet.
 - **A grant-change cache-invalidation hook.** The TTL covers it; an explicit
-  bust would need a port from `workspaces-server`.
+  bust would need a port from `workspaces-server`. Until then `SchemaCache`
+  sweeps expired entries on a build once it holds more than 32, because an
+  expired entry was otherwise only ever *replaced* — so the map grew one schema
+  per grant set the process had ever served, and editing a workspace's grants
+  orphaned the old one for the life of the process.
 
 ## Commands
 

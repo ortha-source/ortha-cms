@@ -10,6 +10,7 @@ import { ShellPlugin } from '@orthacms/shell-admin';
 import { UsersPlugin } from '@orthacms/users-admin';
 import { WorkspacesPlugin } from '@orthacms/workspaces-admin';
 import { WysiwygPlugin } from '@orthacms/wysiwyg-admin';
+import { CopilotPlugin } from '@orthacms/copilot-admin';
 
 /**
  * The admin's composition, mirroring `src/server/plugins.ts` on the UI side.
@@ -45,6 +46,10 @@ export function buildPlugins(): AdminPlugin[] {
         I18nPlugin(),
         WysiwygPlugin(),
         MediaPlugin(),
+        // The docked chat panel plus the full-page Agents view. Belongs with
+        // the workspace-interior features: the panel mounts into the workspace
+        // shell's sidebar footer.
+        CopilotPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         ApiTokensPlugin()

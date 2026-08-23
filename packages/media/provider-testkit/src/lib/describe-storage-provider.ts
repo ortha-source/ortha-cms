@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
+import { ObjectNotFoundError } from '@orthacms/media-server';
 import type { StorageProvider } from '@orthacms/media-server';
 
 /** How the kit builds and tears down the provider under test. */
@@ -180,19 +181,25 @@ export function describeStorageProvider(
         });
 
         describe('get', () => {
-            it('rejects for a key that was never written', async () => {
-                // Rejecting *before* the stream opens is the point: the
-                // download route turns a rejection into a 404, but once bytes
-                // are flowing the response is already a streaming 200 that can
-                // no longer become one.
-                await expect(provider.get('no/such/key')).rejects.toThrow();
+            it('rejects with ObjectNotFoundError for a key that was never written', async () => {
+                // Two halves, both contractual. Rejecting *before* the stream
+                // opens: the download route turns a rejection into a 404, and
+                // once bytes are flowing the response is a streaming 200 that
+                // can no longer become one. And rejecting with the port's own
+                // error: a driver's `ENOENT` or `NoSuchKey` escaping instead
+                // makes a missing blob a 500 for every caller.
+                await expect(
+                    provider.get('no/such/key')
+                ).rejects.toBeInstanceOf(ObjectNotFoundError);
             });
 
-            it('rejects for a key that has been removed', async () => {
+            it('rejects with ObjectNotFoundError for a key that has been removed', async () => {
                 const stored = await put();
                 await provider.remove(stored.storageKey);
 
-                await expect(provider.get(stored.storageKey)).rejects.toThrow();
+                await expect(
+                    provider.get(stored.storageKey)
+                ).rejects.toBeInstanceOf(ObjectNotFoundError);
             });
         });
 

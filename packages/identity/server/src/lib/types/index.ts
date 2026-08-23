@@ -1,23 +1,25 @@
 /**
- * Configuration for the identity plugin. Secrets and lifetimes are
- * supplied by the host (see `apps/server/ortha.config.ts`) — identity
- * never reads `process.env`. Part of the package's public, SemVer'd API.
+ * Configuration for the identity plugin. Origins and lifetimes are supplied by
+ * the host (see `apps/server/ortha.config.ts`) — identity never reads
+ * `process.env`. Part of the package's public, SemVer'd API.
+ *
+ * **There is no signing secret here, and that is not an omission.** Sessions
+ * and one-time tokens are opaque 256-bit CSPRNG values checked against a row,
+ * not signed blobs — so there is no key to configure and revocation is a
+ * delete. It previously carried `sessionSecret` and `tokenSecret`, declared as
+ * required and read by nothing: an operator generated two high-entropy values,
+ * stored them in a secret manager, and put "rotate the session secret" in their
+ * runbook, all of it inert. On a real incident they would rotate, observe that
+ * live sessions survived, and reasonably conclude the rotation had failed —
+ * when in fact the remedy is deleting session rows.
  */
 export interface IdentityPluginConfig {
-    /** Secret used to sign server-side session cookies. */
-    sessionSecret: string;
     /**
      * Browser origins permitted to call state-changing endpoints (e.g. the
      * admin app's origin). Checked by `OriginGuard` as a login-CSRF defense;
      * requests with no `Origin` header (non-browser clients) are allowed.
      */
     allowedOrigins: string[];
-    /**
-     * Secret used to sign one-time invite/reset tokens. Kept distinct
-     * from {@link IdentityPluginConfig.sessionSecret} so a leaked token
-     * secret cannot be used to forge sessions.
-     */
-    tokenSecret: string;
     /** Session cookie + lifetime settings. */
     session: IdentitySessionConfig;
     /** One-time token lifetimes. */

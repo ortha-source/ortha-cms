@@ -6,6 +6,8 @@ import {
     getPool,
     initDatabase
 } from './db';
+import { Logger } from '@nestjs/common';
+import { DatabaseShutdown } from '../database.module';
 
 const URL_A = 'postgresql://a:a@127.0.0.1:5432/a';
 const URL_B = 'postgresql://b:b@127.0.0.1:5432/b';
@@ -104,5 +106,138 @@ describe('database connection singleton', () => {
             await expect(closeDatabase()).resolves.toBeUndefined();
             expect(() => getPool()).toThrow('Database not initialized');
         });
+    });
+});
+
+/**
+ * The plugin's half of the host's shutdown hooks. `createServer` calls
+ * `app.enableShutdownHooks()`, but this package bound nothing to them, so the
+ * pool was never `end()`ed. Harmless in the shipped server — it exits
+ * immediately and Postgres reaps the backends — but a host that embeds
+ * `createServer` and keeps running leaked a pool per app.
+ *
+ * It is a **provider** rather than a hook on `DatabaseModule` itself because
+ * the class carries a bare `@Module({})` as well as its `forRoot()` dynamic
+ * form: a plugin writing `imports: [DatabaseModule]` (copilot/server does)
+ * gives the container a second host for the same class, and a class-level hook
+ * then fired twice for one shutdown.
+ */
+describe('DatabaseShutdown', () => {
+    afterEach(async () => {
+        await closeDatabase();
+    });
+
+    it('closes the pool and clears the memo', async () => {
+        initDatabase({ connectionString: URL_A });
+        const pool = getPool();
+
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        expect(pool.ended).toBe(true);
+        // Cleared, not just ended: `initDatabase` is idempotent on the memo, so
+        // leaving it set would hand the next caller an ended pool and every
+        // query after it would throw "Cannot use a pool after calling end".
+        expect(() => getPool()).toThrow(
+            'Database not initialized. Call initDatabase() first.'
+        );
+    });
+
+    it('leaves the pool alone while a second application still holds it', async () => {
+        // The pool is a process singleton and `initDatabase` is idempotent, so
+        // a second app in the same process shares the first's pool rather than
+        // opening one. An unconditional close on shutdown therefore ended the
+        // database underneath an app that was still answering — and because
+        // the memo is cleared too, the survivor failed with "Database not
+        // initialized" rather than anything naming the cause. Reproduced by
+        // `apps/server-e2e`'s MCP kill-switch case, which boots a second app.
+        initDatabase({ connectionString: URL_A });
+        initDatabase({ connectionString: URL_A });
+        const pool = getPool();
+
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        expect(pool.ended).toBe(false);
+        expect(getPool()).toBe(pool);
+    });
+
+    it('closes once the last holder shuts down', async () => {
+        initDatabase({ connectionString: URL_A });
+        initDatabase({ connectionString: URL_A });
+        const pool = getPool();
+
+        await new DatabaseShutdown().onApplicationShutdown();
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        expect(pool.ended).toBe(true);
+        expect(() => getPool()).toThrow(
+            'Database not initialized. Call initDatabase() first.'
+        );
+    });
+
+    it('does not resurrect a closed pool when a stray shutdown arrives', async () => {
+        // More releases than inits must not go negative and take the *next*
+        // app's pool with it.
+        initDatabase({ connectionString: URL_A });
+        await new DatabaseShutdown().onApplicationShutdown();
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        initDatabase({ connectionString: URL_B });
+        const fresh = getPool();
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        expect(fresh.ended).toBe(true);
+    });
+
+    it('still closes now when a harness asks directly', async () => {
+        // `closeDatabase` keeps its unconditional meaning — `closeTestApp`
+        // calls it after `app.close()` and expects exactly that.
+        initDatabase({ connectionString: URL_A });
+        initDatabase({ connectionString: URL_A });
+        const pool = getPool();
+
+        await closeDatabase();
+
+        expect(pool.ended).toBe(true);
+    });
+
+    it('lets a later init open a genuinely new pool', async () => {
+        initDatabase({ connectionString: URL_A });
+        await new DatabaseShutdown().onApplicationShutdown();
+
+        initDatabase({ connectionString: URL_B });
+
+        expect(getPool().ended).toBe(false);
+    });
+
+    it('is safe when the harness already closed the database', async () => {
+        // `apps/server-e2e`'s `closeTestApp` calls `app.close()` and then
+        // `closeDatabase()`; both are idempotent, so the hook needs no
+        // harness change.
+        initDatabase({ connectionString: URL_A });
+        await closeDatabase();
+
+        await expect(
+            new DatabaseShutdown().onApplicationShutdown()
+        ).resolves.toBeUndefined();
+    });
+
+    it('never throws out of the hook', async () => {
+        // The rest of the teardown still has to run, and the process is going
+        // away regardless.
+        initDatabase({ connectionString: URL_A });
+        const pool = getPool();
+        jest.spyOn(pool, 'end').mockRejectedValueOnce(new Error('boom'));
+        const logged = jest
+            .spyOn(Logger.prototype, 'error')
+            .mockImplementation(() => undefined);
+
+        await expect(
+            new DatabaseShutdown().onApplicationShutdown()
+        ).resolves.toBeUndefined();
+        expect(logged).toHaveBeenCalledWith(
+            'Failed to close the database pool on shutdown',
+            expect.any(String)
+        );
+        logged.mockRestore();
     });
 });

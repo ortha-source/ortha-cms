@@ -179,7 +179,11 @@ export class PublicMediaController {
         if (!location || location.workspaceId !== workspaceId) {
             throw new NotFoundException();
         }
-        const stream = await this.download.open(location);
+        // Same mapping as the session route: a missing blob is the same 404 as
+        // a missing asset, so ids stay unprobeable either way.
+        const stream = await this.download
+            .open(location)
+            .catch((error: unknown) => toHttp(error));
         // Same hardening as the session route: the stored MIME type is the
         // uploader's claim, so nosniff + a no-capability CSP always, and
         // `inline` only for types a browser renders without executing them.

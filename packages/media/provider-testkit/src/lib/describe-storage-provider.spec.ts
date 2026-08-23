@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
+import { ObjectNotFoundError } from '@orthacms/media-server';
 import type {
     PutObject,
     StorageProvider,
@@ -54,7 +55,9 @@ function createReferenceProvider(): StorageProvider {
         async get(storageKey: string): Promise<Readable> {
             const bytes = store.get(storageKey);
             if (!bytes) {
-                throw new Error(`No stored object for key: ${storageKey}`);
+                // The port's own error, not a bare `Error`: `to-http.ts` maps
+                // this one to a 404, and anything else to a 500.
+                throw new ObjectNotFoundError(storageKey);
             }
             return Readable.from(bytes);
         },

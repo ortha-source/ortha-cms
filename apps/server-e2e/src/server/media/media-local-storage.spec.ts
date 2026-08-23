@@ -185,7 +185,11 @@ describe('media assets on the local filesystem provider', () => {
         try {
             const res = await agent.get(`/api/media/assets/${asset.id}/raw`);
 
-            expect(res.status).not.toBe(200);
+            // A **deliberate** 500, and the one download failure that is not a
+            // 404: a key that walks out of the storage root is a corrupted row,
+            // not a caller's mistake, so reporting "not found" would hide it.
+            // Contrast the missing-blob case above.
+            expect(res.status).toBe(500);
             expect(res.text ?? '').not.toContain('TOP SECRET');
             expect(existsSync(join(outside, 'secret.txt'))).toBe(true);
         } finally {
@@ -216,7 +220,7 @@ describe('media assets on the local filesystem provider', () => {
         }
     });
 
-    it('fails the download before the response starts when the blob is missing from disk', async () => {
+    it('answers 404 when the blob is missing from disk', async () => {
         const agent = await login();
         const asset = await upload(agent);
         // Row kept, bytes gone — a restored database pointed at an empty volume.
@@ -224,8 +228,25 @@ describe('media assets on the local filesystem provider', () => {
 
         const res = await agent.get(`/api/media/assets/${asset.id}/raw`);
 
-        // The point is that it is not a truncated `200`: the failure used to
-        // arrive as a stream error after the headers had already been sent.
-        expect(res.status).not.toBe(200);
+        // Two things at once. It is not a truncated `200` — the failure used
+        // to arrive as a stream error after the headers had already been sent.
+        // And it is not a `500`: the provider now rejects with
+        // `ObjectNotFoundError`, which `to-http` maps to the **same** 404 this
+        // route answers for a missing id and for a non-member. A 500 here was
+        // both wrong and a signal, telling a caller the row was real.
+        expect(res.status).toBe(404);
+    });
+
+    it('does not name the storage key in the 404 body', async () => {
+        const agent = await login();
+        const asset = await upload(agent);
+        await rm(join(root, await storageKeyOf(asset.id)));
+
+        const res = await agent.get(`/api/media/assets/${asset.id}/raw`);
+
+        // The error carries the key for the operator's log line; a caller gets
+        // the bare 404 every other miss gets.
+        expect(JSON.stringify(res.body)).not.toContain(asset.id);
+        expect(JSON.stringify(res.body)).not.toMatch(/storage key/i);
     });
 });

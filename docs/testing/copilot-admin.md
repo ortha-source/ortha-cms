@@ -1575,10 +1575,12 @@ labels/errors are real, translatable text". Five user-facing sentences here are
 not. A German admin sees *"Gestoppt, weil es reached the maximum number of
 steps."* Worse, these are the exact five states that explain why an answer is
 incomplete, so the person most in need of the sentence is the one who cannot
-read it. Note the same five strings exist, correctly, as
-`RUN_STOP_EXPLANATIONS` in `copilot-domain`
-(`packages/copilot/domain/src/lib/run/run-limits.ts:58-67`) — also untranslated,
-which is where the pattern came from.
+read it. Note the same five strings existed as `RUN_STOP_EXPLANATIONS` in
+`copilot-domain` — also untranslated, which is where the pattern came from.
+(ORT-109: that export claimed to be "for the UI to show" and could not be; it is
+now module-private and model-facing, so the admin's own translated copy is the
+only user-facing one. This finding is unaffected — those strings still need
+`defineMessages`.)
 
 **Repro:** switch the admin locale to a non-English one; force a `max-steps` run
 (`COPILOT_MAX_STEPS=1`); read the warning alert.

@@ -149,7 +149,7 @@ None at runtime. **Consumers** that must be healthy for the manual plan below:
 | F31 | **The fence has no size bound** | `untrusted.ts:50-58` | ❌ NONE → 🐞 BUG-copilot-domain-02 |
 | F32 | `DEFAULT_RUN_LIMITS` = 30 steps / 300 s / 400 000 tokens | `src/lib/run/run-limits.ts` | ✅ E2E `copilot-chat.spec.ts:522` (steps only, counted off the constant) |
 | F33 | `RunStopReason` is a superset of `ModelStopReason` | `run-limits.ts:39-55` | ⚠️ PARTIAL — `max-steps` and `refusal` covered; `timeout` and `max-tokens` not |
-| F34 | `RUN_STOP_EXPLANATIONS` has a sentence for every reason | `run-limits.ts:58-67` | ❌ NONE (the admin re-declares its own map — see §6) |
+| F34 | Every `RunStopReason` has a phrasing for the interruption note | `run-limits.ts` (`RUN_STOP_NOTES`, module-private since ORT-109) | ✅ UNIT `run-limits.spec.ts` — every reason renders a distinct note, none renders `undefined` |
 | F35 | `CopilotRunEvent` is a closed union of eight members | `src/lib/run/run-event.ts:186-194` | ✅ E2E `copilot-chat.spec.ts:274` (the frame sequence) |
 | F36 | `ToolPermissionDecision` has no `'always'` | `run-event.ts:115-121` | ✅ E2E `copilot-proposals.spec.ts:328` |
 | F37 | `isProposalDraft` requires a non-empty `kind`, a `summary`, and object `target`/`patch` | `src/lib/proposals/proposal.ts:84-96` | 🧪 UNIT `src/lib/proposals/proposal.spec.ts` |
@@ -1006,9 +1006,18 @@ run — which would also close EC-39, EC-40 and EC-41.
   rather than importing this one. Considered filing it as duplication, and
   cleared: the admin's strings must be `defineMessages`-translatable and this
   package cannot depend on `react-intl`, so two maps is the correct consequence
-  of the import-nothing rule. Worth noting they can drift — the admin's map
-  covers five of the eight reasons and deliberately handles `end` and `aborted`
-  separately.
+  of the import-nothing rule.
+
+  **Half right, and filed as ORT-109.** Two maps is indeed the consequence of
+  the import-nothing rule — but the export was documented "for the UI to show"
+  while being unable to reach any localized UI, and no consumer outside this
+  package read it. Resolved by making the phrasings module-private
+  (`RUN_STOP_NOTES`) and dropping them from the package's public surface: they
+  are what {@link interruptionNote} says **to the model**, which is the one
+  place server-authored English is correct. `RunStopReason` stays the contract,
+  and rendering stays presentation. The drift noted below is therefore expected
+  rather than a hazard — the admin's map covers five of the eight reasons and
+  deliberately handles `end` and `aborted` separately.
 
 ---
 

@@ -118,6 +118,30 @@ but it is a scriptable document when navigated to. `<img src>` ignores
 `Content-Disposition`, so the library's tiles are unaffected. Without this, an
 uploaded `.html` was stored XSS on the app's own origin.
 
+### A download failure is a 404, except when it is a corrupted row
+
+Three ways `GET .../assets/:id/raw` can fail, and only one of them is a 500:
+
+- **No such id, or the caller is not a member** → `404`, deliberately the same
+  code, so asset ids cannot be probed.
+- **The row exists and the blob does not** — a database restored against an
+  empty volume, a hand-reclaimed blob, an interrupted migration — → `404` too.
+  It used to be a 500, which was both wrong (indistinguishable from a missing
+  asset, from the caller's side) and a signal (it told an unauthorized-ish
+  caller the row was real). `StorageProvider.get` rejects with
+  `ObjectNotFoundError` — a **port** error, raised by `provider-local` for
+  `ENOENT`/`ENOTDIR` and by `provider-s3` for `NoSuchKey` — and `to-http.ts`
+  maps it to a bare 404. The key travels on the error for the operator's log
+  and never into a response body.
+- **The stored key resolves outside the storage root** → `500`, on purpose.
+  That is a corrupted `storage_key` column, not a caller's mistake, and calling
+  it "not found" would bury an operator's problem under a plausible answer.
+  `to-http.ts` rethrows anything it does not recognize precisely so this stays
+  loud; Nest's default filter logs it with its stack.
+
+Only `ENOENT`/`ENOTDIR` become "not found". A permission error or an exhausted
+descriptor table is an outage and must not be dressed as a 404.
+
 ### Filters are validated before they reach Postgres
 
 `?folderId=` is a `uuid` column and `?kind=` is the `media_kind` enum, so

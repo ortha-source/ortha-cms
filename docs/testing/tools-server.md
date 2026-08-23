@@ -171,8 +171,8 @@ package contributes no route. Where a step says "call tool X", use the MCP
 `curl` shape from `docs/testing/mcp-server.md` §1, or the copilot chat panel.
 
 **Global preconditions for every block below:**
-`docker compose up -d`, a `.env` with `DATABASE_URL` / `SESSION_SECRET` /
-`TOKEN_SECRET`, `MCP_ENABLED=true`, `COPILOT_ENABLED=true`,
+`docker compose up -d`, a `.env` with `DATABASE_URL`, `MCP_ENABLED=true`,
+`COPILOT_ENABLED=true`,
 `npx nx run server:db:migrate`, `npm run dev`. One workspace granted the
 `test_article` content type, one `read`-scope API token and one `full`-scope
 token over it, and three signed-in users (admin / contributor / viewer).
@@ -523,11 +523,25 @@ Because this unit has no route, the matrix is over **actors**, not roles.
   is `'x'`. Correct, untested.
 
 - **EC-28 — A handler that throws a bare `Error` from a *shared* tool.**
-  `❌ NONE` The BUGBOT rule (`.cursor/BUGBOT.md:329-332`). Verified across the
-  four shared tools: `media-tool.provider.ts:292` throws
-  `BadRequestException` ✓; `i18n-tool.provider.ts:141,152` throw bare `Error`
-  but sit inside `i18n_translations_get`, which is `surfaces: ['copilot']`
-  (`:128`) — so the rule holds. **Checked and cleared.** No test pins it.
+  `✅ COVERED` (was `❌ NONE`, and the clearance below was wrong — ORT-121).
+  The BUGBOT rule (`.cursor/BUGBOT.md:329-332`). The original check looked only
+  at the tool files: `media-tool.provider.ts:292` throws `BadRequestException`
+  ✓; `i18n-tool.provider.ts:141,152` throw bare `Error` but sit inside
+  `i18n_translations_get`, which is `surfaces: ['copilot']` (`:128`) — so the
+  rule holds *there*. **That is one call too shallow.** `media_assets_search`
+  delegates to `ListAssetsQuery`, whose `assertValidFilters` raises the
+  framework-free `InvalidAssetFilterError`, and nothing converted it: over MCP
+  a `folderId` that is not a uuid came back as an opaque 500. `media_asset_read`
+  had the same shape via `locate`'s `uuid` column.
+
+  Both now funnel through the media plugin's shared `toHttp` mapper, and it is
+  pinned in two places: `media-tool.provider.spec.ts` on the boundary itself,
+  and `apps/server-e2e/src/server/mcp/mcp.spec.ts` (“reports a non-uuid
+  folderId/assetId as bad_request”) end to end.
+
+  **The lesson for the next pass:** a shared tool's error contract is not
+  readable from the tool file. It is a property of every layer the handler can
+  reach.
 
 ### Idempotency & replay
 

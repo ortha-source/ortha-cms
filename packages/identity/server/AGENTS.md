@@ -404,11 +404,10 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
 - **Session cookie is unsigned, token hashed at rest (#8).** The cookie carries
   only the opaque 256-bit random token; every request re-validates it against
   the DB (`revokedAt`/`expiresAt`), so there is nothing to forge and no signing
-  is needed. Consequently `sessionSecret` stays **unconsumed** for now — its
-  fail-fast validation moves to whichever ticket first signs something (tokens,
-  #10). The `sessions` PK stores the **SHA-256 of** the token, not the token, so
-  a read-only DB/backup leak yields no usable sessions (`SessionService` hashes
-  on write and on lookup; no migration — the column is still `text`).
+  is needed. The `sessions` PK stores the **SHA-256 of** the token, not the
+  token, so a read-only DB/backup leak yields no usable sessions
+  (`SessionService` hashes on write and on lookup; no migration — the column is
+  still `text`).
 - **Account status is checked on every request, not just at login.** A suspended
   member is locked out at three points: `LoginUseCase` refuses to open a session
   for a non-`active` account, users-server's disable revokes their live sessions
@@ -432,9 +431,30 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   `apps/server-e2e/src/server/auth/login-throttle.spec.ts`, which boots the app
   both ways. Still **deferred**: a CSRF token for higher-value mutations,
   `helmet` security headers (host concern), and expired-session pruning.
-- **Secrets.** `sessionSecret` and `tokenSecret` are kept **distinct** by
-  design. They may be empty at boot today (sessions are unsigned, see above);
-  **fail-fast validation must be added when signing is introduced** (#10).
+- **There is no signing secret, and none is missing (ORT-149).** Sessions
+  (`drizzle-session.repository.ts`, `login.use-case.ts`) and API tokens
+  (`api-token.service.ts`) are `randomBytes(32)` checked against a row. 256 bits
+  of CSPRNG output validated against stored state is a sound design — arguably
+  better than an HMAC, because revocation is a `DELETE` rather than a key
+  rotation that invalidates everyone.
+
+  `IdentityPluginConfig` used to require `sessionSecret` and `tokenSecret`,
+  documented as signing session cookies and one-time tokens. **Nothing read
+  either.** Measured: booting with both empty issues a working session, and a
+  cookie minted under the previous "real" secret is still accepted after the
+  reboot — the tell that the secret was never part of the answer. Both are now
+  gone from the config type, the host's `ortha.config.ts`, `.env.example` and
+  the scaffolder.
+
+  The defect was never the mechanism; it was a configuration surface describing
+  a different one. An operator would generate two high-entropy values, store
+  them in a secret manager, and put "rotate the session secret" in their
+  incident runbook — all inert. On a real incident they would rotate, see live
+  sessions survive, and reasonably conclude the rotation had failed. **If
+  signing is ever introduced** (e.g. storing only a keyed hash so a database
+  read cannot replay a session), the key comes back as a real field *with*
+  boot-time validation, since an empty one would then be a genuine
+  vulnerability.
 
 ## Not owned here
 

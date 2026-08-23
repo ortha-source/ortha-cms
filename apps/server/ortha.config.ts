@@ -345,8 +345,6 @@ const config: OrthaConfig = {
     },
     plugins: {
         identity: {
-            sessionSecret: process.env['SESSION_SECRET'] ?? '',
-            tokenSecret: process.env['TOKEN_SECRET'] ?? '',
             // Origins allowed to call state-changing endpoints (login-CSRF
             // defense). Comma-separated; defaults to the dev admin origin —
             // which follows `ADMIN_PORT`, so a parallel worktree stack on

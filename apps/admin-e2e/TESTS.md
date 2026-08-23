@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_731 test cases across 73 spec files._
+_742 test cases across 74 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -958,6 +958,7 @@ _<sub>apps/admin-e2e/src/copilot/agents-view.spec.ts</sub>_
 | --- |
 | lists the workspace threads under recency headings |
 | filters by title, and an untitled thread matches nothing |
+| the composer is the same column as the transcript |
 | a failed list says so instead of claiming there are no chats |
 | opens a thread from the rail and announces which one is current |
 | a reopened thread rebuilds the order the run produced |
@@ -1456,6 +1457,24 @@ _<sub>apps/admin-e2e/src/users/roles.spec.ts</sub>_
 | locks the sole active admin with the reason |
 | shows a custom role by its server name and refuses to guess |
 | lets an ordinary member’s role be changed behind a confirm |
+
+<!-- source: apps/admin-e2e/src/users/user-access.spec.ts -->
+_<sub>apps/admin-e2e/src/users/user-access.spec.ts</sub>_
+
+## Sign-in access
+
+| Test case |
+| --- |
+| offers Suspend for an active member, and says what it costs |
+| offers Reactivate for a suspended member |
+| offers nothing for an invite that was never accepted |
+| confirms before suspending, naming the member |
+| sends the enable direction when reactivating |
+| abandoning the dialog changes nothing |
+| blocks suspending the last admin, and says why |
+| blocks suspending your own account, and says why |
+| accessibility — the tab has no axe violations |
+| accessibility — the suspend confirm has no axe violations |
 
 <!-- source: apps/admin-e2e/src/users/user-detail.spec.ts -->
 _<sub>apps/admin-e2e/src/users/user-detail.spec.ts</sub>_

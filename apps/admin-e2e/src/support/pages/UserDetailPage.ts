@@ -61,6 +61,28 @@ export class UserDetailPage extends BasePage {
 
     // --- Access tab: sign-in access + the password reset link ---
 
+    /**
+     * The sign-in access card's one action, whichever direction it is offering.
+     * A single locator on purpose: the page renders exactly one of the two at a
+     * time, so a test asserting "Suspend member" is visible is also asserting
+     * "Reactivate member" is not.
+     */
+    accessAction(label: 'Suspend member' | 'Reactivate member'): Locator {
+        return this.page.getByRole('button', { name: label });
+    }
+
+    /**
+     * Copy on the sign-in access card, by text or pattern.
+     *
+     * `exact` matters more than it looks: the password card below repeats the
+     * access card's wording inside a longer sentence ("This member is suspended
+     * **and can't sign in, so a reset link…**"), so a substring match resolves
+     * to two elements and fails strict mode.
+     */
+    accessStatus(text: string | RegExp, { exact = false } = {}): Locator {
+        return this.page.getByText(text, exact ? { exact: true } : undefined);
+    }
+
     /** The Access tab's "Generate reset link" button. */
     generateResetLink(): Locator {
         return this.page.getByRole('button', {
