@@ -25,6 +25,20 @@ plugins** to the `@orthacms/bootstrap-admin` host.
   from this checkout's `.env` (`ADMIN_PORT`, `API_PORT`/`PORT`) so parallel
   worktree stacks do not read each other's database — see
   [`docs/parallel-stacks.md`](../../docs/parallel-stacks.md).
+- `index.html` carries an inline **pre-paint theme script**, which covers a
+  **returning** browser and only that. The durable, cross-device theme lives on
+  the server and the script can only read `localStorage`, so a browser that has
+  never run the app resolves `system` against the OS, paints, and then flips one
+  network round trip later when `users-admin`'s `ThemeSync` hands the real value
+  to the provider. Anyone whose account preference disagrees with their OS
+  setting sees that once per browser (and again after clearing site data).
+
+  What makes it *once* rather than every load is that the provider persists the
+  hydrated value — pinned by
+  `packages/design-system/src/lib/appearance/index.spec.tsx`. Closing the
+  first-load case needs the preference served **with the document**, which a
+  static SPA behind a Vite/CDN origin cannot do; it is not a bug in the script.
+  (ORT-151.)
 
 ## How it fits
 

@@ -12,7 +12,22 @@
             /* Apply the persisted theme before first paint so a dark-mode user
                never sees a flash of the light canvas. Mirrors the design-system
                AppearanceProvider (key + resolution); the provider takes over on
-               mount. Kept tiny and dependency-free on purpose. */
+               mount. Kept tiny and dependency-free on purpose.
+
+               It covers a RETURNING browser, and only that. The durable,
+               cross-device theme lives on the server, and this script cannot
+               reach it: on a browser that has never run the app (or after site
+               data is cleared) there is nothing in localStorage, so the first
+               paint resolves `system` against the OS and then flips one network
+               round trip later, when the preferences read arrives and
+               `users-admin`'s ThemeSync hands the real value to the provider.
+
+               That flip writes the value to localStorage, which is what makes
+               it happen ONCE per browser rather than on every load —
+               `packages/design-system/src/lib/appearance/index.spec.tsx` pins
+               that round trip. Closing the first-load case at all needs the
+               preference served WITH the document, which a static SPA behind a
+               Vite/CDN origin cannot do. */
             (function () {
                 try {
                     var stored = localStorage.getItem('ortha.theme');
