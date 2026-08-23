@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
     ALL_FEATURES,
     COPILOT_PROVIDERS,
+    SSO_PROVIDERS,
     CORE_DEV_PACKAGES,
     CORE_PACKAGES,
     MEDIA_PROVIDERS,
@@ -179,6 +180,7 @@ describe('resolvePackages', () => {
             '@orthacms/content-graphql',
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
+            '@orthacms/identity-provider-oidc',
             '@orthacms/mcp-server',
             '@orthacms/media-provider-s3'
         ]);
@@ -232,12 +234,15 @@ describe('availability', () => {
     });
 
     /**
-     * Both are off by default deliberately: an endpoint nobody asked for is
-     * still an endpoint, and a copilot provider sends content to a third party.
+     * All three are off by default deliberately: an endpoint nobody asked for
+     * is still an endpoint, a copilot provider sends content to a third party,
+     * and single sign-on needs an issuer, a client and a callback URL
+     * registered on the other side — none of which a scaffolder can invent.
      */
     it('starts every opt-in feature switched off', () => {
         const optIn = [
             ...COPILOT_PROVIDERS,
+            ...SSO_PROVIDERS,
             ...PROTOCOLS.filter((protocol) => !protocol.locked)
         ];
 

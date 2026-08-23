@@ -13,12 +13,14 @@ import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
+import { createOidcProvider } from '@orthacms/identity-provider-oidc';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
+import type { SsoRegistration } from '@orthacms/identity-domain';
 import { contentTypes } from './content';
 
 /**
@@ -55,6 +57,44 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
         // the only thing there is.
         { name: 'fake', provider: createFakeProvider() }
     ];
+}
+
+/**
+ * The identity providers this deployment can actually reach.
+ *
+ * **Only what is configured is registered.** `ortha.config.ts` omits a provider
+ * whose issuer or client id is missing, and an unconfigured provider is not
+ * registered here either — it would appear on the sign-in page as a button that
+ * can only fail, and every SSO failure deliberately looks the same, so the
+ * person clicking it would learn nothing.
+ *
+ * There is no `fake` counterpart to the copilot's offline adapter in this list.
+ * `@orthacms/identity-provider-fake` ships and is what `server-e2e` registers,
+ * but a scripted identity provider in a running deployment signs people in
+ * without anyone authenticating, so the host does not register one.
+ *
+ * **Exported for `plugins.spec.ts`.** The plugin object carries its
+ * `identityConfig`, not its providers, so a config threaded into the wrong
+ * factory here would otherwise pass every test in the repo.
+ *
+ * Running two directories at once is another entry:
+ *
+ *     { name: 'contractors', provider: createOidcProvider({ … }) }
+ *
+ * The name is what `/api/auth/sso/<name>/start` and every `sso_identities` row
+ * refer to the provider by, so renaming a registration orphans its links.
+ * `ssoCallbackUrl(config.plugins.identity, name)` from
+ * `@orthacms/identity-server` builds the exact callback URL to register with
+ * the provider — exact because most providers match that string byte for byte,
+ * and a trailing slash makes it a different URL to them.
+ */
+export function ssoProviders(config: OrthaConfig): SsoRegistration[] {
+    const { oidc } = config.plugins.identity.ssoProviders;
+    if (!oidc) {
+        return [];
+    }
+    const { name, ...settings } = oidc;
+    return [{ name, provider: createOidcProvider(settings) }];
 }
 
 /**
@@ -106,33 +146,17 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
-        // Identity, plus the SSO adapters this deployment offers.
+        // Identity, plus the identity providers this deployment offers.
         //
         // The second argument is where **constructed** adapters go, the same
         // way the copilot's model backends do: `ortha.config.ts` holds the
         // typed view of the environment, and an adapter instance is not an
-        // environment value. The default install registers none, so
+        // environment value. A default install configures none, so
         // `GET /api/auth/sso` answers `[]` and the sign-in page shows only the
         // password form.
-        //
-        // Registering one is an entry in this list and nothing else — no
-        // change inside the identity package:
-        //
-        //   IdentityPlugin(config.plugins.identity, {
-        //       sso: {
-        //           providers: [
-        //               { name: 'google', provider: createGoogleProvider({ … }) }
-        //           ]
-        //       }
-        //   })
-        //
-        // The name is what the route (`/api/auth/sso/google/start`) and every
-        // `sso_identities` row refer to the provider by, so renaming a
-        // registration orphans the links that name it. Register the callback
-        // URL `<publicBaseUrl>/api/auth/sso/<name>/callback` with the provider;
-        // `ssoCallbackUrl` from `@orthacms/identity-server` builds the exact
-        // string, which matters because most providers match it byte for byte.
-        IdentityPlugin(config.plugins.identity),
+        IdentityPlugin(config.plugins.identity, {
+            sso: { providers: ssoProviders(config) }
+        }),
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),

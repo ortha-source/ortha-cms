@@ -5,7 +5,8 @@ import type {
     InviteDetails,
     LoginCredentials,
     PasswordResetDetails,
-    ResetPasswordInput
+    ResetPasswordInput,
+    SsoProviderSummary
 } from '../../../types/auth';
 import type { AuthGateway } from '../authGateway';
 
@@ -26,6 +27,16 @@ export const httpAuthGateway: AuthGateway = {
                 return null;
             }
             throw apiError;
+        }
+    },
+
+    async listSsoProviders(): Promise<SsoProviderSummary[]> {
+        try {
+            const { data } =
+                await apiClient.get<SsoProviderSummary[]>('/auth/sso');
+            return data;
+        } catch (error) {
+            throw toApiError(error);
         }
     },
 

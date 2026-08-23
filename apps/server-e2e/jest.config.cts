@@ -29,7 +29,10 @@ export default {
     // Jest ignores `node_modules` for transforms by default, so without this
     // exception every suite dies at import time on a bare `export {`. The
     // negative lookahead keeps the rest of `node_modules` untransformed.
-    transformIgnorePatterns: ['/node_modules/(?!@scalar/)'],
+    //
+    // `jose` joins it for the same reason, reached through
+    // `@orthacms/identity-provider-oidc` in the host's `buildPlugins`.
+    transformIgnorePatterns: ['/node_modules/(?!(@scalar|jose)/)'],
     // Workspace packages are consumed from source; map the entry points the
     // harness (and `buildPlugins`) pull in to their `src/index.ts`.
     moduleNameMapper: {

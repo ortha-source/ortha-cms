@@ -140,6 +140,9 @@
         },
         {
             "path": "./packages/identity/provider-fake"
+        },
+        {
+            "path": "./packages/identity/provider-oidc"
         }
     ]
 }

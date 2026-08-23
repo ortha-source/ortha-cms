@@ -279,6 +279,37 @@ createAdmin({
 });
 ```
 
+## Single sign-on on the sign-in page
+
+`SsoProviders` renders the "or continue with" block from `GET /api/auth/sso`
+(`useSsoProviders`). Four decisions worth knowing before touching it:
+
+- **They are links, not buttons with handlers.** Signing in through a provider
+  is a full-page navigation to `/api/auth/sso/:name/start`, which answers `302`.
+  An anchor *is* a navigation, so middle-click and open-in-new-tab behave and no
+  JavaScript stands between the person and the redirect. `Button asChild` is the
+  design system's way to style one. The admin-e2e suite asserts the `link` role
+  precisely so this cannot regress into a scripted click.
+- **It renders nothing on loading, on error, and on an empty list.** The
+  password form *is* the sign-in page; this is an addition to it. A spinner
+  would make every visitor wait on a feature most deployments do not use, and an
+  error would hand someone a problem they cannot act on while they are trying to
+  sign in a way that still works.
+- **It comes after the password form**, in DOM and tab order. A visitor who came
+  to type a password should not tab past a list of providers to reach the field.
+- **The destination is carried on the link**, not in router state:
+  `?redirect=/workspaces`. The password form posts and the page navigates
+  afterwards; an SSO link leaves the app entirely, so it has to take the
+  destination with it. The server validates it as a same-origin path, so a value
+  from router state cannot become an off-site redirect.
+
+`LoginPage` also reads `?error=sso`, which is where every failed provider
+sign-in lands. Every reason collapses to that one flag on purpose — the person
+arriving is anonymous and the identity provider is not, so naming the step that
+failed would tell anyone who can authenticate at a public provider which
+addresses hold accounts here. A failed password submission wins over the flag:
+once they have tried a password, that result is what they are waiting to hear.
+
 ## Not owned here (deferred)
 
 - Mounting the gate — `RequireAuth` lives here, but it is the **shell** that

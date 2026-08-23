@@ -2,7 +2,7 @@ import config, {
     type OrthaConfig,
     type OrthaCopilotConfig
 } from '../ortha.config';
-import { buildPlugins, copilotProviders } from './plugins';
+import { buildPlugins, copilotProviders, ssoProviders } from './plugins';
 
 /**
  * The shipped composition, asserted.
@@ -95,6 +95,70 @@ describe('buildPlugins()', () => {
         // host-owned migrations are the only content migrations in the run.
         expect(graphql?.migrations).toBeUndefined();
         expect(content?.migrations?.table).toBe('__drizzle_migrations_content');
+    });
+});
+
+/**
+ * Which identity providers the shipped composition registers.
+ *
+ * Covered here for the same reason `copilotProviders` is: `buildPlugins` runs
+ * above under the ambient environment, which configures nothing, so only the
+ * empty path would ever execute — and the plugin object carries
+ * `identityConfig`, not its providers, so a misconfigured registration would
+ * have been green everywhere. Constructing the adapter costs nothing: discovery
+ * is lazy, so no network call happens until a sign-in starts.
+ */
+describe('ssoProviders()', () => {
+    /** The shipped config with an identity provider set substituted in. */
+    const withSso = (
+        ssoProviders: OrthaConfig['plugins']['identity']['ssoProviders']
+    ): OrthaConfig => ({
+        ...config,
+        plugins: {
+            ...config.plugins,
+            identity: { ...config.plugins.identity, ssoProviders }
+        }
+    });
+
+    const oidc = {
+        name: 'keycloak',
+        issuer: 'https://sso.example.com/realms/ortha',
+        clientId: 'ortha-cms',
+        clientSecret: 'secret',
+        label: 'Keycloak'
+    };
+
+    it('registers nothing when no provider is configured', () => {
+        // The default install: the sign-in page shows the password form alone,
+        // and `GET /api/auth/sso` answers `[]`.
+        expect(ssoProviders(withSso({}))).toEqual([]);
+    });
+
+    it('registers a configured provider under its own name', () => {
+        // The name is what the route and every `sso_identities` row refer to
+        // the provider by, so registering under the wrong one orphans links
+        // that already exist.
+        const registered = ssoProviders(withSso({ oidc }));
+
+        expect(registered.map((entry) => entry.name)).toEqual(['keycloak']);
+        expect(registered[0].provider.descriptor()).toEqual({
+            kind: 'oidc',
+            label: 'Keycloak',
+            callbackMethod: 'GET'
+        });
+    });
+
+    it('does not pass the registration name through as adapter config', () => {
+        // `name` is composition, not protocol. Leaving it on the object handed
+        // to the adapter would be harmless today and exactly the kind of thing
+        // a future strict-options check would reject at boot.
+        const { label } = ssoProviders(
+            withSso({ oidc: { ...oidc, label: undefined } })
+        )[0].provider.descriptor();
+
+        // With no label configured the adapter falls back to the issuer's host,
+        // which it can only do if it received the issuer and not the name.
+        expect(label).toBe('sso.example.com');
     });
 });
 

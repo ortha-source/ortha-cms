@@ -17,5 +17,45 @@ services:
             timeout: 5s
             retries: 5
 
+    # A real OpenID Connect provider to develop single sign-on against.
+    #
+    # Under the `sso` profile, so it does NOT start with `docker compose up -d`:
+    # most work needs Postgres alone, and a second JVM is not something to hand
+    # every contributor by default. Start it deliberately:
+    #
+    #     docker compose --profile sso up -d
+    #
+    # Then, in the admin console at http://localhost:8080 (admin/admin), create
+    # a realm `ortha`, a confidential client `ortha-cms` with the redirect URI
+    # http://localhost:4200/api/auth/sso/keycloak/callback, and a user whose
+    # email matches a seeded Ortha account and is marked verified — the email
+    # must be verified or the first sign-in is refused, by design.
+    #
+    # Then set, in `.env`:
+    #     SSO_OIDC_ISSUER=http://localhost:8080/realms/ortha
+    #     SSO_OIDC_CLIENT_ID=ortha-cms
+    #     SSO_OIDC_CLIENT_SECRET=<from the client's Credentials tab>
+    #     SSO_OIDC_NAME=keycloak
+    #     SSO_OIDC_LABEL=Keycloak
+    #
+    # `start-dev` serves plain HTTP, which the adapter allows for localhost
+    # only — deliberately, since an identity token crossing the network in
+    # clear text is exactly what the check exists to prevent.
+    keycloak:
+        image: quay.io/keycloak/keycloak:26.0
+        container_name: ortha-keycloak
+        profiles: ['sso']
+        restart: unless-stopped
+        command: ['start-dev']
+        environment:
+            KC_BOOTSTRAP_ADMIN_USERNAME: admin
+            KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+            KC_HTTP_PORT: '8080'
+        ports:
+            - '8080:8080'
+        volumes:
+            - ortha-keycloak:/opt/keycloak/data
+
 volumes:
     ortha-pgdata:
+    ortha-keycloak:
