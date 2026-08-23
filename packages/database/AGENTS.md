@@ -89,6 +89,13 @@ injects them without importing the module.
   attempts is milliseconds. Parked rows stay in the table:
   `dispatched_at IS NULL AND attempts >= 15` is the dead-letter query, and
   clearing `attempts` replays one.
+- **A drain in flight survives shutdown.** `onModuleDestroy` clears the poll
+  backstop and then **waits** for the drain running at that moment. It used to
+  just return, so a drain interrupted by `SIGTERM` died mid-batch with its
+  connection: subscribers that had already run were never marked delivered and
+  their events were re-delivered on the next boot. At-least-once makes that
+  legal and the one shipped subscriber is idempotent, but there is no reason to
+  spend the guarantee on an orderly shutdown. Bounded — one batch at most.
 - **One drain at a time per process.** `drain()` collapses concurrent callers
   onto the drain in flight plus a single queued one. A drain holds a pool client
   for its whole batch while every subscriber it calls acquires a client of its
@@ -137,6 +144,31 @@ co-located subscribers, and is merged with the runtime-registered ones.
   order before** the Nest app is created. List `DatabasePlugin(...)` **first** in
   the `plugins` array — every other plugin (and the global DI provider) can then
   assume a live db.
+
+  It is closed symmetrically, by the `DatabaseShutdown` provider.
+  `createServer` enables Nest's shutdown hooks, and this is the half that was
+  missing — nothing ended the pool. Invisible in the shipped server (it exits
+  immediately and Postgres reaps the backends) and a real leak for a host that
+  **embeds** `createServer` and keeps running, which is why `createServer` hands
+  the application back at all. Three details, each load-bearing:
+
+    - **`onApplicationShutdown`, not `onModuleDestroy`.** Nest runs every
+      `onModuleDestroy` first, so `OutboxDispatcher` gets to finish its
+      in-flight drain before the connections underneath it are taken away.
+    - **A provider, not a hook on `DatabaseModule`.** The class carries a bare
+      `@Module({})` as well as its `forRoot()` dynamic form, so a plugin writing
+      `imports: [DatabaseModule]` — `copilot/server` does, to document the
+      dependency — gives the container a **second host for the same class**. A
+      class-level hook fires once per host; a provider exists only in the
+      dynamic module, so there is exactly one per app.
+    - **`releaseDatabase`, not `closeDatabase`.** The pool is a *process*
+      singleton and `initDatabase` is idempotent, so a second app in the same
+      process shares the first's pool. An unconditional close ends the database
+      underneath an app that is still answering — and since the memo is cleared
+      too, the survivor fails with "Database not initialized" rather than
+      anything naming the cause. `releaseDatabase` counts holders and closes for
+      the last one out; `closeDatabase` keeps its unconditional meaning for a
+      harness that means it.
 - **Global DI.** `DatabaseModule.forRoot()` is `global: true`, so any plugin
   module can inject the db without importing it.
 

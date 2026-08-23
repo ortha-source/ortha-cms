@@ -1,4 +1,9 @@
-import { MAX_DELIVERY_ATTEMPTS, nextAttemptAfter } from './outbox-dispatcher';
+import {
+    MAX_DELIVERY_ATTEMPTS,
+    nextAttemptAfter,
+    OutboxDispatcher
+} from './outbox-dispatcher';
+import type { Database } from '../types';
 
 const NOW = new Date('2026-01-01T00:00:00.000Z');
 const delayAfter = (attempts: number) =>
@@ -43,5 +48,101 @@ describe('nextAttemptAfter', () => {
                 NOW.getTime()
             );
         }
+    });
+});
+
+/**
+ * Shutdown, as a promise-ordering property — which is the only part of the
+ * dispatcher worth mocking. Anything needing a real transaction, pool or drain
+ * lives in `apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts`.
+ */
+describe('onModuleDestroy', () => {
+    /** A `Database` whose `transaction` resolves when the test says so. */
+    const controllableDb = () => {
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        let started = 0;
+        const db = {
+            transaction: async (fn: (tx: unknown) => Promise<unknown>) => {
+                started += 1;
+                await gate;
+                await fn({
+                    select: () => ({
+                        from: () => ({
+                            where: () => ({
+                                orderBy: () => ({
+                                    limit: () => ({ for: async () => [] })
+                                })
+                            })
+                        })
+                    })
+                });
+            }
+        } as unknown as Database;
+        return { db, release, startedCount: () => started };
+    };
+
+    it('waits for a drain already in flight instead of abandoning it', async () => {
+        // Before: `onModuleDestroy` cleared the interval and returned. A drain
+        // running when SIGTERM arrived died mid-batch with its connection —
+        // subscribers that had already run were never marked delivered, so
+        // those events were re-delivered on the next boot. Safe only because
+        // the one shipped subscriber is idempotent.
+        const { db, release } = controllableDb();
+        const dispatcher = new OutboxDispatcher(db, []);
+
+        const drain = dispatcher.drain();
+        let drainFinished = false;
+        void drain.then(() => {
+            drainFinished = true;
+        });
+
+        const destroyed = dispatcher.onModuleDestroy().then(() => {
+            expect(drainFinished).toBe(true);
+        });
+
+        expect(drainFinished).toBe(false);
+        release();
+        await Promise.all([drain, destroyed]);
+    });
+
+    it('also waits for the drain queued behind the active one', async () => {
+        // A second caller during an in-flight drain does not start its own —
+        // it joins one queued drain. Awaiting only the active one would walk
+        // away from that.
+        const { db, release, startedCount } = controllableDb();
+        const dispatcher = new OutboxDispatcher(db, []);
+
+        const first = dispatcher.drain();
+        const second = dispatcher.drain();
+
+        const destroyed = dispatcher.onModuleDestroy();
+        release();
+        await destroyed;
+
+        expect(startedCount()).toBe(2);
+        await Promise.all([first, second]);
+    });
+
+    it('does not throw when the in-flight drain fails', async () => {
+        // A throw here would abort the rest of the shutdown, and a failing
+        // drain has already logged.
+        const db = {
+            transaction: async () => {
+                throw new Error('connection terminated unexpectedly');
+            }
+        } as unknown as Database;
+        const dispatcher = new OutboxDispatcher(db, []);
+
+        await expect(dispatcher.drain()).rejects.toThrow();
+        await expect(dispatcher.onModuleDestroy()).resolves.toBeUndefined();
+    });
+
+    it('returns immediately when nothing is draining', async () => {
+        const dispatcher = new OutboxDispatcher({} as unknown as Database, []);
+
+        await expect(dispatcher.onModuleDestroy()).resolves.toBeUndefined();
     });
 });
