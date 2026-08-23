@@ -341,7 +341,9 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
                     );
                 }
 
-                const stream = await this.download.open(location);
+                const stream = await mapDomainErrors(() =>
+                    this.download.open(location)
+                );
                 const { text, truncated, bytesRead } =
                     await readAssetText(stream);
 
