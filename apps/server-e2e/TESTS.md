@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1236 test cases across 80 spec files._
+_1238 test cases across 80 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2232,6 +2232,8 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | refuses a call missing a required argument |
 | still answers a permission refusal before it reads the arguments |
 | lets a well-formed call through untouched |
+| reports a non-uuid folderId as bad_request, not an opaque 500 |
+| reports a non-uuid assetId as bad_request, not an opaque 500 |
 
 ### discovery
 

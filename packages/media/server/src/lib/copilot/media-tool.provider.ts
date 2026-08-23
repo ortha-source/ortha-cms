@@ -12,6 +12,8 @@ import type {
     ToolProvider,
     ToolSurface
 } from '@orthacms/tools-server';
+import { AssetId } from '../domain/value-objects/asset-id';
+import { toHttp } from '../http/to-http';
 import { ListAssetsQuery } from '../infrastructure/queries/list-assets.query';
 import { ListFoldersQuery } from '../infrastructure/queries/list-folders.query';
 import { DownloadAssetQuery } from '../infrastructure/queries/download-asset.query';
@@ -22,6 +24,39 @@ import {
     isReadableMimeType,
     readAssetText
 } from './asset-text';
+
+/**
+ * Runs a query and maps any media domain error to its HTTP equivalent.
+ *
+ * A shared tool must throw an `HttpException` subclass, because the two
+ * surfaces flatten a throw differently: the copilot's run engine reports
+ * `error.message`, while MCP's `toToolError` treats a non-`HttpException` as a
+ * bug and returns an opaque 500 with the message withheld. The tool handlers
+ * obeyed that for the throws they make themselves, but the queries they call
+ * raise framework-free domain errors one layer down — `InvalidAssetFilterError`
+ * for a `folderId` that is not a uuid — and nothing converted them, so a
+ * plainly bad argument told an MCP caller the server had broken.
+ *
+ * `toHttp` is the media plugin's one error mapping, shared with the HTTP
+ * controllers so the two adapters cannot drift, and it rethrows anything it
+ * does not recognize — a genuine bug is still a 500.
+ */
+async function mapDomainErrors<T>(run: () => Promise<T>): Promise<T> {
+    try {
+        return await run();
+    } catch (error) {
+        toHttp(error);
+    }
+}
+
+/** {@link mapDomainErrors} for a throw that happens before any await. */
+function mapDomainErrorsSync<T>(run: () => T): T {
+    try {
+        return run();
+    } catch (error) {
+        toHttp(error);
+    }
+}
 
 /** Assets a single `media_assets_search` call may return. */
 const MAX_TOOL_PAGE_SIZE = 25;
@@ -160,19 +195,22 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
                     Math.max(args.pageSize ?? 10, 1),
                     MAX_TOOL_PAGE_SIZE
                 );
-                const result = await this.assets.execute({
-                    workspaceId: ctx.workspaceId,
-                    // Spread rather than pass `folderId: args.folderId`: the
-                    // query distinguishes an absent key (every folder) from an
-                    // explicit `null` (the root folder), and passing
-                    // `undefined` under the key would read as the root.
-                    ...(args.folderId ? { folderId: args.folderId } : {}),
-                    ...(args.search ? { search: args.search } : {}),
-                    ...(args.kind ? { kind: args.kind } : {}),
-                    ...(args.sort ? { sort: args.sort } : {}),
-                    page: Math.max(args.page ?? 1, 1),
-                    pageSize
-                });
+                const result = await mapDomainErrors(() =>
+                    this.assets.execute({
+                        workspaceId: ctx.workspaceId,
+                        // Spread rather than pass `folderId: args.folderId`:
+                        // the query distinguishes an absent key (every folder)
+                        // from an explicit `null` (the root folder), and
+                        // passing `undefined` under the key would read as the
+                        // root.
+                        ...(args.folderId ? { folderId: args.folderId } : {}),
+                        ...(args.search ? { search: args.search } : {}),
+                        ...(args.kind ? { kind: args.kind } : {}),
+                        ...(args.sort ? { sort: args.sort } : {}),
+                        page: Math.max(args.page ?? 1, 1),
+                        pageSize
+                    })
+                );
 
                 return {
                     total: result.total,
@@ -267,6 +305,14 @@ export class MediaCopilotToolProvider implements ToolProvider, OnModuleInit {
             effect: 'read',
             handler: async (input, ctx) => {
                 const { assetId } = (input ?? {}) as { assetId: string };
+
+                // `locate` filters on a `uuid` column, so a non-uuid id used
+                // to reach the driver and come back as an opaque 500 — the
+                // same defect `media_assets_search`'s `folderId` had. The
+                // registry's JSON Schema subset ignores `format`, so nothing
+                // upstream checks the shape; `AssetId.create` does, and
+                // `mapDomainErrors` turns its throw into a 400.
+                mapDomainErrorsSync(() => AssetId.create(assetId));
 
                 // `locate` is deliberately UNSCOPED — the download route
                 // derives the workspace from the row because an `<img>` tag

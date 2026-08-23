@@ -668,6 +668,43 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
             expect(isError).toBe(false);
             expect(data['pageSize']).toBe(5);
         });
+
+        // The registry's JSON Schema subset deliberately ignores `format` and
+        // `pattern`, so a uuid-shaped argument is only `{"type": "string"}` and
+        // the check lives in the query. Those checks raise framework-free
+        // domain errors, which `toToolError` used to treat as a bug: a plainly
+        // bad argument came back as an opaque 500 with the reason withheld, so
+        // an MCP caller had nothing to fix.
+        it('reports a non-uuid folderId as bad_request, not an opaque 500', async () => {
+            const { secret } = await mintToken();
+
+            const { isError, data } = await callTool(
+                secret,
+                'media_assets_search',
+                { folderId: 'not-a-uuid' }
+            );
+
+            expect(isError).toBe(true);
+            expect(data['status']).toBe(400);
+            expect(data['code']).toBe('bad_request');
+            expect(data['message']).toMatch(/folderId/);
+        });
+
+        it('reports a non-uuid assetId as bad_request, not an opaque 500', async () => {
+            // Same defect one tool over: `locate` filters on a `uuid` column,
+            // so the driver — not the tool — was deciding the status.
+            const { secret } = await mintToken();
+
+            const { isError, data } = await callTool(
+                secret,
+                'media_asset_read',
+                { assetId: 'not-a-uuid' }
+            );
+
+            expect(isError).toBe(true);
+            expect(data['status']).toBe(400);
+            expect(data['code']).toBe('bad_request');
+        });
     });
 
     describe('discovery', () => {
