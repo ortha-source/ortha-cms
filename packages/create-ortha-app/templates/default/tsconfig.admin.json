@@ -24,7 +24,7 @@
     "include": [
         "src/admin/**/*.ts",
         "src/admin/**/*.tsx",
-        "e2e/**/*.ts",
+        "e2e/admin/**/*.ts",
         "vite.config.mts",
         "playwright.config.ts"
     ]

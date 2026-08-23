@@ -215,7 +215,12 @@ tested teaches people not to.
 | --- | --- | --- |
 | `src/server/**/*.spec.ts` | Jest + `@swc/jest` | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
 | `src/admin/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution |
-| `e2e/` | Playwright, `webServer: build && start` | Exercises the **built** app on one origin — the deployment shape a dev-server run never checks |
+| `e2e/server` | Jest + supertest, real Postgres | Boots **this app** through `createServer` — a harness that mirrors the bootstrap can never fail on a bootstrap defect |
+| `e2e/admin` | Playwright, Vite dev server, `/api` mocked | Drives the UI with no backend: fast, hermetic, and a failure means the UI is wrong |
+
+The e2e split mirrors `apps/server-e2e` and `apps/admin-e2e` in this repo, for
+the same reason: testing the API through a browser is slower and blames the UI
+for server bugs.
 
 Two runners is the honest answer here rather than a compromise: each half has a
 different toolchain and neither transform serves both.
@@ -225,7 +230,31 @@ order. They are **feature-aware**: the expected server list carries `ortha:if`
 blocks for `content-graphql` and `mcp`, so it stays correct whatever the wizard
 was asked for.
 
-Three details worth not re-discovering:
+### The server e2e database
+
+It manages its own: `<database>_e2e`, created and migrated on first run through
+`applyPluginMigrations` — the same function `ortha migrate` calls, so the schema
+under test is the real one rather than a hand-rolled mirror.
+
+Four things there took a run to get right:
+
+- **The derivation is idempotent.** `global-setup` runs in Jest's main process
+  and points `DATABASE_URL` at the test database; workers fork from it and
+  inherit that value, so a naive append derives `app_e2e_e2e` in the worker and
+  every test fails against a database nobody created.
+- **`global-setup` imports the config dynamically.** A static import is hoisted
+  above every statement, so it would run before `.env` is loaded and before the
+  URL is repointed — and the suite would fail on a variable sitting in a file
+  two lines away.
+- **`transformIgnorePatterns` un-ignores `@scalar`.** `createServer` pulls in
+  the API-reference renderer, published ESM-only, and Jest is CommonJS: without
+  it the run dies on `Unexpected token 'export'` pointing at a file nobody in
+  the app wrote.
+- **`assertDisposable` refuses the development database.** The suite truncates
+  every table, and `E2E_DATABASE_URL` can be set to anything. Check before the
+  first `TRUNCATE`, not after.
+
+Three more details worth not re-discovering:
 
 - **`jest.setup.js` supplies placeholder secrets.** The specs import
   `ortha.config.ts`, which deliberately refuses to load without `DATABASE_URL`.
@@ -235,6 +264,10 @@ Three details worth not re-discovering:
   the tests into `dist/server` and ships them.
 - **The Vite config is `.mts`.** The app is `"type": "commonjs"`, and Vite warns
   (and will eventually fail) on ESM syntax in a config loaded as CJS.
+- **The server e2e specs read `ALLOWED_ORIGIN` from the config.** Login is
+  guarded by an origin allow-list that follows `ADMIN_PORT`, so a hardcoded
+  `:4200` fails on any app whose admin runs elsewhere — as a confusing `403`
+  rather than "wrong origin".
 
 ## Tests
 

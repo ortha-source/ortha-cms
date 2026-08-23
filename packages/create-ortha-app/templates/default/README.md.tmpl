@@ -25,7 +25,9 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run generate -- --name=<name>` | Generates a migration for your own content tables |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
 | `npm test` | Unit tests — both halves |
-| `npm run e2e` | End-to-end tests against the built app |
+| `npm run e2e` | Both end-to-end suites |
+| `npm run e2e:server` | API tests against a real database |
+| `npm run e2e:admin` | Browser tests against a mocked API |
 | `npm run typecheck` | Both TypeScript projects |
 
 ## Tests
@@ -50,18 +52,42 @@ database); admin-side it is that exactly one plugin contributes a `layout`, and
 that it is the shell's, because the host mounts the first one it finds and the
 shell's is what composes the auth gate.
 
-**End-to-end tests** (`e2e/`, Playwright) build the app and start it, so they
-exercise the real deployment shape — the API and the admin bundle on one
-origin. First run needs a browser and a migrated database:
+**End-to-end tests** come in two suites, split the way the app is:
+
+### `e2e/server` — the API, for real
+
+Jest + supertest, booting **this app** through `createServer` with the real
+plugin list against a real Postgres. `e2e/server/support/test-app.ts` gives you
+`createTestApp()` / `closeTestApp()`.
+
+It manages its own database. `<your database>_e2e` is created and migrated on
+first run, using the same `applyPluginMigrations` that `ortha migrate` calls —
+so the schema under test is the real one. It never touches the database
+`DATABASE_URL` names, because it **truncates every table** between suites;
+`E2E_DATABASE_URL` overrides the derivation, and pointing it at your
+development database is refused rather than obeyed.
 
 ```sh
-npx playwright install chromium
-docker compose up -d && npm run migrate
-npm run e2e
+docker compose up -d
+npm run e2e:server
 ```
 
-They read and write real rows, so point `DATABASE_URL` at a database you are
-willing to lose.
+### `e2e/admin` — the UI, in a browser
+
+Playwright against the Vite dev server with `/api` mocked at the network layer
+(`e2e/admin/support/seed.ts`). No backend, no database, no migration — a run is
+fast and hermetic, and when it fails it is the UI that is wrong. API behaviour
+belongs in `e2e/server`, where a failure names the endpoint instead of blaming
+a page.
+
+```sh
+npx playwright install chromium   # once
+npm run e2e:admin
+```
+
+Anything the seed does not mock returns `404` on purpose: a silent empty `200`
+makes a page render its empty state and pass, which is the false green this
+exists to avoid.
 
 ## What you own
 

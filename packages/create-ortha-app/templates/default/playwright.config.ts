@@ -1,18 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * End-to-end tests, driving the app the way it is actually deployed.
+ * Admin end-to-end tests — the UI in a browser, against a **mocked** API.
  *
- * `webServer` runs `build` then `start`, so the suite exercises the **built**
- * app on one origin — API and admin from a single process, which is what
- * `staticDir` gives you and what a dev-server-only test would never check.
- *
- * Needs a migrated database: `docker compose up -d && npm run migrate` first.
- * The tests read and write real rows, so point `DATABASE_URL` at a database you
- * are willing to lose before running this against anything you care about.
+ * `webServer` runs the Vite dev server only. Specs intercept `/api` at the
+ * network layer (`e2e/admin/support/seed.ts`), so a run needs no backend, no
+ * database and no migration: it is fast, hermetic, and when it fails it is the
+ * UI that is wrong. API behaviour is covered by `e2e/server`, where a failure
+ * names the endpoint instead of blaming a page.
  */
+const adminPort = Number(process.env['ADMIN_PORT']) || 4200;
+
 export default defineConfig({
-    testDir: './e2e',
+    testDir: './e2e/admin',
     fullyParallel: true,
     // A `.only` left in a file passes locally and silently stops running every
     // other test in CI.
@@ -20,18 +20,17 @@ export default defineConfig({
     retries: process.env['CI'] ? 2 : 0,
     reporter: process.env['CI'] ? 'github' : 'list',
     use: {
-        baseURL: `http://localhost:${process.env['PORT'] ?? 3000}`,
-        trace: 'on-first-retry'
+        baseURL: process.env['BASE_URL'] || `http://localhost:${adminPort}`,
+        // Retained on every failure rather than on a retry: outside CI there
+        // are no retries, so `on-first-retry` collects a trace exactly never —
+        // and a local run is the only post-mortem anyone gets.
+        trace: 'retain-on-failure'
     },
-    projects: [
-        { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
-    ],
+    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
     webServer: {
-        command: 'npm run build && npm start',
-        url: `http://localhost:${process.env['PORT'] ?? 3000}`,
-        // Locally, reuse whatever is already running — rebuilding for every run
-        // makes the suite too slow to reach for.
+        command: `npx vite --port ${adminPort} --strictPort`,
+        url: `http://localhost:${adminPort}`,
         reuseExistingServer: !process.env['CI'],
-        timeout: 180_000
+        timeout: 120_000
     }
 });

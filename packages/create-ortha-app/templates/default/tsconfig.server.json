@@ -26,6 +26,7 @@
         "src/server/**/*.ts"
     ],
     "exclude": [
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "e2e"
     ]
 }

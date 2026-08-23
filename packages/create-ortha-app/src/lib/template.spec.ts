@@ -172,7 +172,14 @@ describe('the scaffolded app, whatever the features', () => {
             'playwright.config.ts',
             'src/server/plugins.spec.ts',
             'src/admin/plugins.spec.ts',
-            'e2e/smoke.spec.ts'
+            'jest.e2e.config.js',
+            'e2e/server/api.spec.ts',
+            'e2e/server/global-setup.ts',
+            'e2e/server/jest.setup.ts',
+            'e2e/server/support/db.ts',
+            'e2e/server/support/test-app.ts',
+            'e2e/admin/auth.spec.ts',
+            'e2e/admin/support/seed.ts'
         ]) {
             expect(() => rendered(file)).not.toThrow();
         }
@@ -184,7 +191,9 @@ describe('the scaffolded app, whatever the features', () => {
             test: expect.any(String),
             'test:server': expect.any(String),
             'test:admin': expect.any(String),
-            e2e: expect.any(String)
+            e2e: expect.any(String),
+            'e2e:server': expect.any(String),
+            'e2e:admin': expect.any(String)
         });
     });
 
@@ -192,12 +201,29 @@ describe('the scaffolded app, whatever the features', () => {
      * Otherwise `ortha build` compiles the tests into `dist/server` and ships
      * them — along with whatever fixtures they import.
      */
-    it('keeps the server specs out of the build', () => {
+    it('keeps the specs and the e2e tree out of the build', () => {
         const tsconfig = JSON.parse(rendered('tsconfig.server.json')) as {
             exclude?: string[];
         };
 
-        expect(tsconfig.exclude).toContain('**/*.spec.ts');
+        expect(tsconfig.exclude).toEqual(
+            expect.arrayContaining(['**/*.spec.ts', 'e2e'])
+        );
+    });
+
+    /**
+     * `e2e/server` imports `src/server`, so it needs the server project's
+     * compiler options — but it must not be emitted. Without a project of its
+     * own it is simply never typechecked.
+     */
+    it('typechecks the server e2e tree in its own project', () => {
+        const root = JSON.parse(rendered('tsconfig.json')) as {
+            references: { path: string }[];
+        };
+
+        expect(root.references.map((r) => r.path)).toContain(
+            './tsconfig.e2e.json'
+        );
     });
 
     /**
