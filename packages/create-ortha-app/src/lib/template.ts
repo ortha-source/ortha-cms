@@ -8,6 +8,13 @@ import {
     writeFileSync
 } from 'node:fs';
 import { join, relative } from 'node:path';
+import { applyConditionals } from './conditionals';
+import {
+    resolveDevPackages,
+    resolveFlags,
+    resolvePackages,
+    type FeatureSelection
+} from './features';
 
 /** The values substituted into the template's placeholders. */
 export interface TemplateValues {
@@ -25,13 +32,15 @@ export interface TemplateValues {
     adminPassword: string;
     /** The `@orthacms/*` version every dependency is pinned to. */
     orthaVersion: string;
+    /** Which optional features the app was scaffolded with. */
+    selection: FeatureSelection;
 }
 
 /**
- * Files that are renamed on their way out of the template.
+ * Files renamed on their way out of the template.
  *
- * `.gitignore` is the one that matters: **npm refuses to publish a file by
- * that name**, silently, so a template carrying one ships without it and every
+ * `.gitignore` is the one that matters: **npm refuses to publish a file by that
+ * name**, silently, so a template carrying one ships without it and every
  * generated app starts by offering to commit `node_modules`. Storing it as
  * `_gitignore` is the standard workaround (create-vite and create-next-app do
  * the same). The `.tmpl` suffixes are a smaller thing — they keep a
@@ -63,6 +72,48 @@ export function render(contents: string, values: TemplateValues): string {
     );
 }
 
+/**
+ * Renders `package.json` for a selection.
+ *
+ * The dependency map is **rebuilt**, not patched: the template ships a manifest
+ * with the non-Ortha dependencies and an empty `@orthacms` set, and the chosen
+ * packages are merged in and re-sorted here. Every `@orthacms/*` range is the
+ * scaffolder's own version, exactly — no caret. Releases are lockstep, and a
+ * partial upgrade can leave two copies of a shared package in `node_modules`,
+ * which means two React context instances and an admin whose sidebar silently
+ * stops talking to its provider.
+ */
+export function renderManifest(
+    template: string,
+    values: TemplateValues
+): string {
+    const manifest = JSON.parse(render(template, values)) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+        [key: string]: unknown;
+    };
+    const pin = (names: readonly string[]): Record<string, string> =>
+        Object.fromEntries(names.map((name) => [name, values.orthaVersion]));
+
+    manifest.dependencies = sortKeys({
+        ...manifest.dependencies,
+        ...pin(resolvePackages(values.selection))
+    });
+    manifest.devDependencies = sortKeys({
+        ...manifest.devDependencies,
+        ...pin(resolveDevPackages())
+    });
+
+    return `${JSON.stringify(manifest, null, 4)}\n`;
+}
+
+/** A copy of `record` with its keys in sorted order. */
+function sortKeys(record: Record<string, string>): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(record).sort(([a], [b]) => a.localeCompare(b))
+    );
+}
+
 /** File extensions rendered as text; everything else is copied byte for byte. */
 const TEXT =
     /\.(ts|tsx|css|html|json|md|yml|yaml|tmpl|mjs|cjs|js)$|^_gitignore$/;
@@ -78,19 +129,20 @@ function filesIn(dir: string, base = dir): string[] {
 }
 
 /**
- * Copies the template into `target`, substituting placeholders and applying
- * the renames above.
+ * Copies the template into `target`: conditional blocks applied, placeholders
+ * substituted, renames performed.
  *
- * Text files go through {@link render} and binary ones are copied verbatim —
- * a distinction worth keeping even though today's template is all text, since
- * running a favicon through a string replace corrupts it in a way that only
- * shows up in a browser.
+ * Binary files are copied verbatim — a distinction worth keeping even though
+ * today's template is all text, since running a favicon through a string
+ * replace corrupts it in a way that only shows up in a browser.
  */
 export function renderTemplate(
     templateDir: string,
     target: string,
     values: TemplateValues
 ): void {
+    const flags = resolveFlags(values.selection);
+
     for (const file of filesIn(templateDir)) {
         const source = join(templateDir, file);
         const name = file.split('/').pop() ?? file;
@@ -102,14 +154,24 @@ export function renderTemplate(
 
         mkdirSync(join(destination, '..'), { recursive: true });
 
-        if (TEXT.test(name)) {
-            writeFileSync(
-                destination,
-                render(readFileSync(source, 'utf8'), values)
-            );
-        } else {
+        if (!TEXT.test(name)) {
             cpSync(source, destination);
+            continue;
         }
+
+        const raw = readFileSync(source, 'utf8');
+
+        // The manifest takes the other path: its dependency set is assembled,
+        // not conditionally line-edited. See `renderManifest`.
+        if (name === 'package.json.tmpl') {
+            writeFileSync(destination, renderManifest(raw, values));
+            continue;
+        }
+
+        writeFileSync(
+            destination,
+            render(applyConditionals(raw, flags, file), values)
+        );
     }
 }
 
