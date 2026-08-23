@@ -54,10 +54,16 @@ the shared connection. An admin plugin is an `AdminPlugin` from
 (filter parsing, `apiClient`, slots, table URL state), and
 `@orthacms/design-system` the UI primitives. All three are already declared here.
 
-Anything else you import must be **declared** — `npm i @orthacms/tools-server`
-and so on. npm's flat `node_modules` makes an undeclared import resolve today,
-but that stops the moment a version conflict nests a copy, and never works under
-pnpm.
+The extension points are declared too, so you can import them directly:
+`@orthacms/content-domain` (the content kernel's types), `@orthacms/tools-server`
+(register an agent tool), `@orthacms/copilot-domain`,
+`@orthacms/query-builder-admin`.
+
+If you add an `@orthacms/*` package this app does not already list — a copilot
+backend, the GraphQL adapter — install it at **the same version as the rest**.
+Keeping them in step is what stops npm nesting a second copy of a shared
+package, which means two React context instances and UI that silently stops
+talking to itself.
 
 ## What this app was scaffolded with
 

@@ -51,6 +51,14 @@ export interface Feature {
  * while `COPILOT_ENABLED` stays `false`, so nothing reaches a model until an
  * operator says so.
  *
+ * The **extension points** are here for the same reason — `content-domain`,
+ * `copilot-domain`, `tools-server`, `query-builder-admin`. Every one of them
+ * already arrives transitively, so an import would resolve on npm's flat
+ * `node_modules` today; declaring them is what makes that resolution something
+ * the app owns rather than something it borrows. An undeclared import breaks
+ * the moment a version conflict nests a copy, and never resolves under pnpm at
+ * all.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -65,8 +73,10 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/bootstrap-admin',
     '@orthacms/bootstrap-server',
     '@orthacms/content-admin',
+    '@orthacms/content-domain',
     '@orthacms/content-server',
     '@orthacms/copilot-admin',
+    '@orthacms/copilot-domain',
     '@orthacms/copilot-provider-fake',
     '@orthacms/copilot-server',
     '@orthacms/database',
@@ -78,7 +88,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/insights-admin',
     '@orthacms/media-admin',
     '@orthacms/media-server',
+    '@orthacms/query-builder-admin',
     '@orthacms/shell-admin',
+    '@orthacms/tools-server',
     '@orthacms/users-admin',
     '@orthacms/users-server',
     '@orthacms/utils-admin',
@@ -92,24 +104,19 @@ export const CORE_PACKAGES: readonly string[] = [
 export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
 
 /**
- * Packages that arrive **transitively** and are deliberately not declared.
+ * Packages deliberately left undeclared.
  *
- * They are on disk in every generated app — `content-server` alone pulls in
- * five of them — so an import would resolve. They are left undeclared because
- * the template does not import them: each is an extension point for a specific
- * kind of plugin (`tools-server` to register an agent tool, `content-domain`
- * for the content kernel's types), and someone writing that plugin should
- * `npm i` it so the app's manifest records what it actually depends on.
+ * **Empty, and that is the intended state.** Everything a generated app can
+ * reach is now in its own manifest, so "it resolves because npm hoisted it"
+ * is never the answer to why an import works.
  *
- * Listed here so the coverage guard can tell "considered and left out" from
- * "nobody noticed this package exists".
+ * The bucket stays because the classification is still meaningful: a future
+ * package that is genuinely an internal detail of another — no public API, no
+ * reason for an app to import it — belongs here rather than in
+ * `CORE_PACKAGES`. Putting it here is a decision the coverage guard accepts;
+ * forgetting it entirely is not.
  */
-export const TRANSITIVE_PACKAGES: readonly string[] = [
-    '@orthacms/content-domain',
-    '@orthacms/copilot-domain',
-    '@orthacms/query-builder-admin',
-    '@orthacms/tools-server'
-];
+export const TRANSITIVE_PACKAGES: readonly string[] = [];
 
 /**
  * Where uploads are written.

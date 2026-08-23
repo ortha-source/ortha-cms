@@ -44,7 +44,7 @@ one of:
 | --- | --- |
 | `CORE_PACKAGES` | every app gets it |
 | a `Feature`'s `packages` | installed when that feature is chosen |
-| `TRANSITIVE_PACKAGES` | arrives via another package; deliberately not declared |
+| `TRANSITIVE_PACKAGES` | an internal detail of another package; deliberately not declared. **Currently empty** |
 
 `features.spec.ts` enumerates the workspace and fails on anything unclassified,
 so a new package cannot merge without someone deciding whether a new app gets
@@ -52,11 +52,24 @@ it. Without that guard the template just falls a release behind: the package
 publishes, nothing references it, and nobody notices until a user asks why the
 feature they read about is missing.
 
-Note what "optional" does and does not mean. `content-server` depends on
-`copilot-server`, `mcp-server` and `tools-server`, so those are on disk in every
-generated app whatever the user picked. Optional means **not registered** — the
-plugin is absent from `plugins.ts`, its config block is absent from
-`ortha.config.ts`, and its admin package is not installed.
+**Everything reachable is declared.** A generated app's manifest lists every
+`@orthacms/*` package it could import, the extension points included —
+`content-domain`, `copilot-domain`, `tools-server`, `query-builder-admin`. All
+four arrive transitively anyway, so an import resolves on npm's flat
+`node_modules` regardless; declaring them is what makes that resolution
+something the app owns. An undeclared import works until a version conflict
+nests a copy, and never works under pnpm.
+
+That leaves exactly five packages out of a default app, and
+`features.spec.ts` asserts the list in full: the two hosted copilot backends,
+`content-graphql`, `mcp-server`, and the unreleased S3 adapter.
+
+Note what "optional" does and does not mean for the last two.
+`content-server` depends on `mcp-server`, so it is on disk in every generated
+app whatever the user picked. Optional means **not registered** — the plugin is
+absent from `plugins.ts` and its config block from `ortha.config.ts` — which is
+why a default app answers `404` on `/api/v1/mcp` rather than failing to
+resolve anything.
 
 ## Feature selection
 

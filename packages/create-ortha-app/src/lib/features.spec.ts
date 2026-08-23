@@ -148,6 +148,42 @@ describe('resolvePackages', () => {
         );
     });
 
+    /**
+     * These all arrive transitively, so an import resolves on npm's flat
+     * `node_modules` whether or not they are declared. Declaring them is what
+     * makes that resolution the app's own: an undeclared import breaks the
+     * moment a version conflict nests a copy, and never resolves under pnpm.
+     */
+    it.each([
+        '@orthacms/content-domain',
+        '@orthacms/copilot-domain',
+        '@orthacms/tools-server',
+        '@orthacms/query-builder-admin'
+    ])('declares %s, rather than relying on hoisting', (name) => {
+        expect(resolvePackages(selectionOf())).toContain(name);
+    });
+
+    /**
+     * The remaining opt-ins, in full. Anything else a published package could
+     * be, a default app already has — so this list is also the answer to "what
+     * does choosing nothing cost me?".
+     */
+    it('leaves exactly the choosable packages out of a default app', () => {
+        const published = new Set(publishedPackages());
+        const installed = new Set(resolvePackages(selectionOf('media-local')));
+        const missing = [...published].filter(
+            (name) => !installed.has(name) && name !== '@orthacms/cli'
+        );
+
+        expect(missing.sort()).toEqual([
+            '@orthacms/content-graphql',
+            '@orthacms/copilot-provider-anthropic',
+            '@orthacms/copilot-provider-openai',
+            '@orthacms/mcp-server',
+            '@orthacms/media-provider-s3'
+        ]);
+    });
+
     it('does not install the unreleased S3 adapter by default', () => {
         expect(resolvePackages(selectionOf('media-local'))).not.toContain(
             '@orthacms/media-provider-s3'
