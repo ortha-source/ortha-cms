@@ -51,7 +51,13 @@ export function ContentLibraryPageSkeleton() {
     const intl = useIntl();
 
     return (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
+        // `aria-busy` marks this as a loading placeholder so the host's route
+        // announcer waits past the sr-only "Loading content types" heading
+        // below and reads the settled page name instead (see `RouteAnnouncer`).
+        <div
+            aria-busy="true"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
+        >
             {/* The page's `<h1>`, visually hidden. A lazy route's `Suspense`
                 fallback is a whole page with no heading at all until the real
                 one mounts — and it is the state a slow connection sits in

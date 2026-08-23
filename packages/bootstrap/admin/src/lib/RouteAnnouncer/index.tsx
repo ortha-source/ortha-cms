@@ -36,7 +36,16 @@ let lastHeadingText: string | null = null;
  */
 function readHeading(): { element: Element; text: string } | null {
     const scope = document.querySelector('main') ?? document;
-    const element = scope.querySelector('h1');
+    // Skip a heading that belongs to a loading placeholder. A lazy route's
+    // `Suspense` fallback carries its own `sr-only` <h1> ("Loading X") so the
+    // page stays navigable by heading while its chunk arrives (ORT-167) — but
+    // that names the *state*, not the view the user arrived at, and reading it
+    // aloud announces "Loading members" in place of "Members". Every such
+    // skeleton marks its root `aria-busy`, so the announcer waits past it and
+    // reports the settled heading once the real page mounts.
+    const element = Array.from(scope.querySelectorAll('h1')).find(
+        (h1) => !h1.closest('[aria-busy="true"]')
+    );
     const text = element?.textContent?.trim();
     return element && text ? { element, text } : null;
 }
