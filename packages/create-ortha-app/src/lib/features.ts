@@ -31,10 +31,25 @@ export interface Feature {
      * so the picker tells the truth about what is coming.
      */
     available: boolean;
+    /**
+     * Always on, and shown ticked but unselectable. For REST, which is not a
+     * choice — it is what the other protocols adapt.
+     */
+    locked?: boolean;
 }
 
 /**
  * The packages every app gets, whatever it opts into.
+ *
+ * The **copilot** is here — plugin, admin panel and the offline `fake` adapter —
+ * even though it is a large feature nobody may want. Two reasons. Its server
+ * half arrives anyway: five core plugins (`content`, `activity`, `i18n`,
+ * `media`, `users`) depend on `copilot-server` to contribute their tools, so
+ * the code is on disk whatever the manifest says, and leaving it undeclared
+ * bought nothing but a missing chat panel. And `fake` needs no key and no
+ * network, so a default app gets a copilot that genuinely works offline —
+ * while `COPILOT_ENABLED` stays `false`, so nothing reaches a model until an
+ * operator says so.
  *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
@@ -51,6 +66,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/bootstrap-server',
     '@orthacms/content-admin',
     '@orthacms/content-server',
+    '@orthacms/copilot-admin',
+    '@orthacms/copilot-provider-fake',
+    '@orthacms/copilot-server',
     '@orthacms/database',
     '@orthacms/design-system',
     '@orthacms/i18n-admin',
@@ -153,23 +171,30 @@ export const COPILOT_PROVIDERS: readonly Feature[] = [
     }
 ];
 
-/** Packages pulled in when any copilot provider is chosen. */
-export const COPILOT_PACKAGES: readonly string[] = [
-    '@orthacms/copilot-admin',
-    '@orthacms/copilot-server',
-    '@orthacms/copilot-provider-fake'
-];
-
 /**
- * Additional protocols in front of the same content.
+ * How the content API is spoken.
  *
- * Neither adds a credential or a permission of its own: GraphQL is an adapter
- * over the REST API's own services
+ * REST is always there and is shown `locked` rather than hidden, because "which
+ * protocols does this app serve" is a more useful question than "do you want
+ * these two extras" — the answer should read as a set, with the one you always
+ * get visible in it.
+ *
+ * Neither addition brings a credential or a permission of its own: GraphQL is
+ * an adapter over the REST API's own services
  * ([ADR-0008](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0008-graphql-as-a-protocol-adapter.md)),
  * and MCP reuses the same API tokens and scopes. They are opt-in because an
  * endpoint nobody asked for is still an endpoint.
  */
-export const OPTIONAL_APIS: readonly Feature[] = [
+export const PROTOCOLS: readonly Feature[] = [
+    {
+        id: 'rest',
+        label: 'REST',
+        hint: 'Always on — /api/v1/…, the API every other protocol adapts.',
+        packages: [],
+        enabledByDefault: true,
+        available: true,
+        locked: true
+    },
     {
         id: 'graphql',
         label: 'GraphQL content API',
@@ -192,20 +217,13 @@ export const OPTIONAL_APIS: readonly Feature[] = [
 export const ALL_FEATURES: readonly Feature[] = [
     ...MEDIA_PROVIDERS,
     ...COPILOT_PROVIDERS,
-    ...OPTIONAL_APIS
+    ...PROTOCOLS
 ];
 
 /** The answers a scaffold run resolves to. */
 export interface FeatureSelection {
     /** Ids of every enabled feature — what `ortha:if` blocks are tested against. */
     enabled: ReadonlySet<string>;
-}
-
-/** Whether any copilot provider was chosen. */
-export function copilotEnabled(selection: FeatureSelection): boolean {
-    return COPILOT_PROVIDERS.some((provider) =>
-        selection.enabled.has(provider.id)
-    );
 }
 
 /**
@@ -224,10 +242,6 @@ export function resolvePackages(selection: FeatureSelection): string[] {
         for (const name of feature.packages) packages.add(name);
     }
 
-    if (copilotEnabled(selection)) {
-        for (const name of COPILOT_PACKAGES) packages.add(name);
-    }
-
     return [...packages].sort();
 }
 
@@ -236,12 +250,7 @@ export function resolveDevPackages(): string[] {
     return [...CORE_DEV_PACKAGES].sort();
 }
 
-/**
- * The feature ids in force for a selection, including the derived ones the
- * templates branch on but nobody picks directly.
- */
+/** The feature ids in force for a selection — what `ortha:if` tests against. */
 export function resolveFlags(selection: FeatureSelection): Set<string> {
-    const flags = new Set(selection.enabled);
-    if (copilotEnabled(selection)) flags.add('copilot');
-    return flags;
+    return new Set(selection.enabled);
 }

@@ -14,9 +14,7 @@ import type {
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
-// ortha:if copilot
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
-// ortha:end
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
 // ortha:end
@@ -27,7 +25,6 @@ import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 // ortha:end
 
-// ortha:if copilot
 /**
  * Copilot settings plus the backends this deployment can reach.
  *
@@ -54,7 +51,6 @@ export interface AppCopilotConfig extends CopilotPluginConfig {
         // ortha:end
     };
 }
-// ortha:end
 
 /** Root configuration for this app. */
 export interface OrthaConfig {
@@ -69,9 +65,7 @@ export interface OrthaConfig {
         identity: IdentityPluginConfig;
         i18n: I18nPluginConfig;
         media: MediaPluginConfig;
-        // ortha:if copilot
         copilot: AppCopilotConfig;
-        // ortha:end
         // ortha:if mcp
         mcp: McpPluginConfig;
         // ortha:end
@@ -158,7 +152,6 @@ if (nodeEnv && !(NODE_ENVS as readonly string[]).includes(nodeEnv)) {
 
 const isProduction = nodeEnv === 'production';
 
-// ortha:if copilot
 /** A comma-separated list setting, trimmed and emptied of blanks. */
 function readList(name: string, fallback: string): string[] {
     return (process.env[name] ?? fallback)
@@ -166,7 +159,6 @@ function readList(name: string, fallback: string): string[] {
         .map((item) => item.trim())
         .filter(Boolean);
 }
-// ortha:end
 // ortha:if copilot-anthropic
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 // ortha:end
@@ -268,7 +260,6 @@ const config: OrthaConfig = {
                 50 * 1024 * 1024
             )
         }
-        // ortha:if copilot
         ,
         copilot: {
             // Off by default: enabling a hosted provider sends workspace
@@ -309,7 +300,6 @@ const config: OrthaConfig = {
                 // ortha:end
             }
         }
-        // ortha:end
         // ortha:if mcp
         ,
         mcp: {

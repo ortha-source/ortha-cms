@@ -15,13 +15,11 @@ import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 // ortha:if mcp
 import { McpPlugin } from '@orthacms/mcp-server';
 // ortha:end
-// ortha:if copilot
 import {
     CopilotPlugin,
     type ProviderRegistration
 } from '@orthacms/copilot-server';
 import { createFakeProvider } from '@orthacms/copilot-provider-fake';
-// ortha:end
 // ortha:if copilot-anthropic
 import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 // ortha:end
@@ -31,7 +29,6 @@ import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from './ortha.config';
 
-// ortha:if copilot
 /**
  * The model backends this deployment can actually reach, in preference order.
  *
@@ -71,7 +68,6 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
 
     return providers;
 }
-// ortha:end
 
 /**
  * This app's composition — the whole of what its API is.
@@ -146,7 +142,6 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             },
             config: config.plugins.media
         }),
-        // ortha:if copilot
         // Registered after workspaces (runs are workspace-scoped) and identity
         // (runs execute as the calling user, gated on `copilot:use`). The
         // composition root is the single place that selects a backend: the
@@ -158,7 +153,6 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             providers: copilotProviders(config),
             config: config.plugins.copilot
         }),
-        // ortha:end
         // ortha:if mcp
         // The Model Context Protocol front door, registered LAST because it
         // serves whatever the plugins above contributed. Off unless

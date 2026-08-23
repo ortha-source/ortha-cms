@@ -93,8 +93,10 @@
   read TypeScript from source.
 - `packages/create-ortha-app` — the **scaffolder** behind
   `npx create-ortha-app my-cms`. One template, no sample content types, plus a
-  keyboard wizard for the three genuine choices (storage adapter, copilot
-  backends, extra APIs); everything else is installed unconditionally. Stamps
+  keyboard wizard for the three genuine choices (storage adapter, hosted copilot
+  backends, and which protocols the content API speaks — REST always, GraphQL
+  and MCP optional); everything else, the copilot included, is installed
+  unconditionally. Stamps
   its own version into every `@orthacms/*` dependency it writes, which is what
   makes a generated app a consistent lockstep set — so a release needs no
   template edit, while **adding a package does**: every published package must

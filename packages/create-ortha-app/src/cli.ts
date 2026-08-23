@@ -7,8 +7,7 @@ import { createInterface } from 'node:readline/promises';
 import {
     COPILOT_PROVIDERS,
     MEDIA_PROVIDERS,
-    OPTIONAL_APIS,
-    copilotEnabled,
+    PROTOCOLS,
     resolvePackages,
     type Feature,
     type FeatureSelection
@@ -29,7 +28,7 @@ Options:
   --yes            Accept every default, asking nothing
   --media <id>     Storage adapter (default: media-local)
   --copilot <ids>  Comma-separated copilot providers, or "none"
-  --api <ids>      Comma-separated extra APIs (graphql, mcp), or "none"
+  --protocols <ids> Comma-separated protocols beyond REST (graphql, mcp), or "none"
   --no-install     Skip installing dependencies
   --no-git         Skip initialising a git repository
   -h, --help       Show this message
@@ -96,14 +95,31 @@ function toChoice(feature: Feature): ui.Choice {
         label: feature.label,
         hint: feature.hint,
         selected: feature.enabledByDefault,
-        disabled: !feature.available
+        disabled: !feature.available,
+        locked: feature.locked
     };
 }
 
-/** The ids a feature group falls back to when nothing is picked. */
+/**
+ * The ids a feature group falls back to when nothing is picked.
+ *
+ * A locked feature is in every answer, including `--protocols none`: REST is
+ * not something the flag can switch off.
+ */
 function defaultsOf(features: readonly Feature[]): string[] {
     return features
-        .filter((feature) => feature.enabledByDefault && feature.available)
+        .filter(
+            (feature) =>
+                (feature.enabledByDefault || feature.locked) &&
+                feature.available
+        )
+        .map((feature) => feature.id);
+}
+
+/** The ids that are on regardless of what was asked or passed. */
+function lockedOf(features: readonly Feature[]): string[] {
+    return features
+        .filter((feature) => feature.locked && feature.available)
         .map((feature) => feature.id);
 }
 
@@ -164,14 +180,19 @@ async function resolveAnswers(
     const media = idList(option(argv, 'media')) ?? defaultsOf(MEDIA_PROVIDERS);
     const copilot =
         idList(option(argv, 'copilot')) ?? defaultsOf(COPILOT_PROVIDERS);
-    const apis = idList(option(argv, 'api')) ?? defaultsOf(OPTIONAL_APIS);
+    const protocols = [
+        ...lockedOf(PROTOCOLS),
+        ...(idList(option(argv, 'protocols')) ?? defaultsOf(PROTOCOLS))
+    ];
 
     if (!asked) {
         return {
             appName: defaultName,
             databaseUrl: defaultDatabaseUrl,
             adminEmail: 'admin@example.com',
-            selection: { enabled: new Set([...media, ...copilot, ...apis]) }
+            selection: {
+                enabled: new Set([...media, ...copilot, ...protocols])
+            }
         };
     }
 
@@ -208,11 +229,11 @@ async function resolveAnswers(
             COPILOT_PROVIDERS.map(toChoice)
         )) ?? copilot;
 
-    const chosenApis =
+    const chosenProtocols =
         (await ui.multiselect(
-            'Extra APIs, alongside REST',
-            OPTIONAL_APIS.map(toChoice)
-        )) ?? apis;
+            'Which protocols should the content API speak?',
+            PROTOCOLS.map(toChoice)
+        )) ?? protocols;
 
     return {
         appName,
@@ -222,7 +243,7 @@ async function resolveAnswers(
             enabled: new Set([
                 ...chosenMedia.filter(Boolean),
                 ...chosenCopilot,
-                ...chosenApis
+                ...chosenProtocols
             ] as string[])
         }
     };
@@ -239,15 +260,19 @@ function describeSelection(
         return chosen.length > 0 ? chosen.join(', ') : ui.dim('none');
     };
 
+    const providers = COPILOT_PROVIDERS.filter((provider) =>
+        selection.enabled.has(provider.id)
+    );
+
     return [
         ['Storage', labelsFor(MEDIA_PROVIDERS)],
+        ['Protocols', labelsFor(PROTOCOLS)],
         [
             'Copilot',
-            copilotEnabled(selection)
-                ? `${labelsFor(COPILOT_PROVIDERS)} ${ui.dim('+ offline fake')}`
-                : ui.dim('not installed')
+            providers.length > 0
+                ? `${providers.map((p) => p.label).join(', ')} + offline fake`
+                : 'offline fake only'
         ],
-        ['Extra APIs', labelsFor(OPTIONAL_APIS)],
         ['Ortha packages', String(resolvePackages(selection).length + 1)]
     ];
 }

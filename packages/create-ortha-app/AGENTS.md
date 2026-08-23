@@ -65,25 +65,39 @@ The wizard asks three questions; everything else is installed unconditionally.
 | Question | Kind | Default |
 | --- | --- | --- |
 | Where should uploads be stored? | single | Local filesystem |
-| AI copilot — which model backends? | multiple | none |
-| Extra APIs, alongside REST | multiple | none |
+| AI copilot — which model backends? | multiple | none beyond the offline `fake` |
+| Which protocols should the content API speak? | multiple | REST (locked) |
 
-Both multi-selects default to **nothing**, deliberately: a copilot provider
-sends workspace content to a third party (ADR-0005 §10), and an endpoint nobody
-asked for is still an endpoint.
+Both multi-selects default to **nothing extra**, deliberately: a hosted copilot
+provider sends workspace content to a third party (ADR-0005 §10), and an
+endpoint nobody asked for is still an endpoint.
+
+REST is shown **`locked`** — ticked, dimmed, and skipped by the cursor — rather
+than left out of the question. "Which protocols does this app speak?" is a more
+useful thing to answer than "do you want these two extras", and the answer reads
+as a complete set only if the one you always get is in it. `--protocols none`
+still yields REST; it is not something a flag can switch off.
 
 The storage question is **skipped while only one adapter is available** — S3 is
 listed in the registry and marked `available: false` because the package has
 never been released, and a question with a single possible answer is noise
 pretending to be a choice. It appears the moment S3 ships.
 
-Choosing any copilot provider also pulls in `copilot-server`, `copilot-admin`
-and `copilot-provider-fake`. The fake adapter is not offered as a choice: it is
-a shipped adapter rather than test scaffolding (ADR-0004 §3), needs no key and
-no network, and is registered last so it is the default only when it is the only
-one — which is what makes the chat work in a clone with nothing configured.
+**The copilot itself is core, not a choice.** `copilot-server`, `copilot-admin`
+and `copilot-provider-fake` are in `CORE_PACKAGES`, and `CopilotPlugin` is
+registered on both sides of every generated app. Two reasons: its server half
+arrives regardless — five core plugins (`content`, `activity`, `i18n`, `media`,
+`users`) depend on `copilot-server` to contribute their tools, so the code is on
+disk whatever the manifest says — and `fake` needs no key and no network, so a
+default app has a chat that genuinely works offline. `COPILOT_ENABLED` still
+defaults to `false`, so nothing reaches a model until an operator says so.
 
-Every question has a flag (`--media`, `--copilot`, `--api`, each taking a
+What the question actually picks is which **hosted backends** to add.
+`copilot-provider-fake` is never offered: it is a shipped adapter rather than
+test scaffolding (ADR-0004 §3), and it is registered last so it is the default
+only when it is the only one.
+
+Every question has a flag (`--media`, `--copilot`, `--protocols`, each taking a
 comma-separated list or `none`), and `--yes` plus any non-TTY takes the defaults
 without asking. A scaffolder that blocks on a prompt in CI hangs the job until
 it times out.

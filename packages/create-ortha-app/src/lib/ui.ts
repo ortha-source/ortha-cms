@@ -151,6 +151,15 @@ export interface Choice {
     selected?: boolean;
     /** Rendered greyed out and skipped by the cursor. */
     disabled?: boolean;
+    /**
+     * Always in the result, shown ticked but unselectable.
+     *
+     * Distinct from `disabled`, which means "cannot be had". A locked row is
+     * something you *do* get and cannot decline — REST, in the protocols
+     * question — and showing it keeps the answer readable as a complete set
+     * rather than a list of extras.
+     */
+    locked?: boolean;
 }
 
 /** Whether the pickers can run at all. */
@@ -203,7 +212,8 @@ function advance(
     let next = cursor;
     for (let i = 0; i < choices.length; i += 1) {
         next = (next + step + choices.length) % choices.length;
-        if (!choices[next]?.disabled) return next;
+        const choice = choices[next];
+        if (choice && !choice.disabled && !choice.locked) return next;
     }
     return cursor;
 }
@@ -286,11 +296,18 @@ export async function multiselect(
 ): Promise<string[] | undefined> {
     const ticked = new Set(
         choices
-            .filter((choice) => choice.selected && !choice.disabled)
+            .filter(
+                (choice) =>
+                    (choice.selected || choice.locked) && !choice.disabled
+            )
             .map((choice) => choice.value)
     );
-    let cursor = choices.findIndex((choice) => !choice.disabled);
-    if (cursor === -1) return [];
+    let cursor = choices.findIndex(
+        (choice) => !choice.disabled && !choice.locked
+    );
+    // Every row is locked or unavailable: there is nothing to ask, so answer
+    // with what is already ticked rather than painting a picker nobody can move.
+    if (cursor === -1) return [...ticked];
 
     let painted = 0;
     const paint = (): void => {
@@ -301,16 +318,22 @@ export async function multiselect(
                     const focused = index === cursor;
                     const box = choice.disabled
                         ? dim('[ ]')
-                        : ticked.has(choice.value)
-                          ? green('[x]')
-                          : '[ ]';
+                        : choice.locked
+                          ? dim('[x]')
+                          : ticked.has(choice.value)
+                            ? green('[x]')
+                            : '[ ]';
                     const text = choice.disabled
                         ? dim(`${choice.label} (unavailable)`)
-                        : focused
-                          ? bold(choice.label)
-                          : choice.label;
+                        : choice.locked
+                          ? dim(`${choice.label} (always on)`)
+                          : focused
+                            ? bold(choice.label)
+                            : choice.label;
                     const pointer =
-                        focused && !choice.disabled ? cyan('›') : ' ';
+                        focused && !choice.disabled && !choice.locked
+                            ? cyan('›')
+                            : ' ';
                     return [
                         `  ${pointer} ${box} ${text}`,
                         ...(choice.hint ? [`      ${dim(choice.hint)}`] : [])
@@ -331,7 +354,7 @@ export async function multiselect(
         else if (DOWN.includes(key)) cursor = advance(choices, cursor, 1);
         else if (key === ' ') {
             const choice = choices[cursor];
-            if (choice && !choice.disabled) {
+            if (choice && !choice.disabled && !choice.locked) {
                 if (ticked.has(choice.value)) ticked.delete(choice.value);
                 else ticked.add(choice.value);
             }

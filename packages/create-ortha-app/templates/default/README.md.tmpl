@@ -61,7 +61,6 @@ pnpm.
 
 ## What this app was scaffolded with
 
-<!-- ortha:if copilot -->
 ### AI copilot
 
 Installed, and **off** until you turn it on: set `COPILOT_ENABLED=true` in
@@ -77,7 +76,6 @@ one never appears as an option that fails on the first message.
 The bundled `fake` provider needs no key and no network, and is registered last
 — so with nothing configured the chat still works, and it is the default only
 because it is the only one.
-<!-- ortha:end -->
 <!-- ortha:if graphql -->
 ### GraphQL
 
@@ -94,17 +92,6 @@ GraphiQL rides the same switch as the API reference (`API_DOCS`).
 `POST /api/v1/mcp`, off until `MCP_ENABLED=true`. It lets an external agent do
 content CRUD with an API token — mint one on the API Tokens page, `read` scope
 for a retrieval-only agent, `full` for one that authors.
-<!-- ortha:end -->
-<!-- ortha:ifnot copilot -->
-### Adding the AI copilot later
-
-```sh
-npm i @orthacms/copilot-server @orthacms/copilot-admin \
-      @orthacms/copilot-provider-fake @orthacms/copilot-provider-anthropic
-```
-
-Then register `CopilotPlugin` in both `plugins.ts` files. Keep the versions in
-step with the rest of `@orthacms/*`.
 <!-- ortha:end -->
 
 ## Adding content types

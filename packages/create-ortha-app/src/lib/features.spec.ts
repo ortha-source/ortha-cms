@@ -2,14 +2,12 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     ALL_FEATURES,
-    COPILOT_PACKAGES,
     COPILOT_PROVIDERS,
     CORE_DEV_PACKAGES,
     CORE_PACKAGES,
     MEDIA_PROVIDERS,
-    OPTIONAL_APIS,
+    PROTOCOLS,
     TRANSITIVE_PACKAGES,
-    copilotEnabled,
     resolveFlags,
     resolvePackages
 } from './features';
@@ -64,7 +62,6 @@ describe('every published package is accounted for', () => {
         ...CORE_PACKAGES,
         ...CORE_DEV_PACKAGES,
         ...TRANSITIVE_PACKAGES,
-        ...COPILOT_PACKAGES,
         ...ALL_FEATURES.flatMap((feature) => feature.packages)
     ]);
 
@@ -88,7 +85,6 @@ describe('every published package is accounted for', () => {
         const all = [
             ...CORE_PACKAGES,
             ...TRANSITIVE_PACKAGES,
-            ...COPILOT_PACKAGES,
             ...ALL_FEATURES.flatMap((feature) => feature.packages)
         ];
 
@@ -103,10 +99,8 @@ describe('feature ids', () => {
         expect(ids.length).toBe(new Set(ids).size);
     });
 
-    it('avoid `copilot`, which is derived rather than picked', () => {
-        expect(ALL_FEATURES.map((feature) => feature.id)).not.toContain(
-            'copilot'
-        );
+    it('include REST, so the protocol answer reads as a complete set', () => {
+        expect(PROTOCOLS.map((protocol) => protocol.id)).toContain('rest');
     });
 });
 
@@ -128,29 +122,42 @@ describe('resolvePackages', () => {
     });
 
     /**
-     * The copilot's own packages ride on *any* provider being chosen — the
-     * plugin, the admin panel and the offline `fake` adapter are useless
-     * separately and meaningless without each other.
+     * The copilot ships with every app. Its server half arrives anyway — five
+     * core plugins depend on `copilot-server` to contribute their tools — so
+     * leaving it undeclared bought nothing but a missing chat panel, and the
+     * `fake` adapter needs no key and no network.
      */
-    it('pulls the copilot packages in when any provider is chosen', () => {
-        const packages = resolvePackages(selectionOf('copilot-anthropic'));
+    it('installs the copilot with nothing enabled', () => {
+        const packages = resolvePackages(selectionOf());
 
-        for (const name of COPILOT_PACKAGES) {
-            expect(packages).toContain(name);
-        }
-        expect(packages).toContain('@orthacms/copilot-provider-anthropic');
+        expect(packages).toEqual(
+            expect.arrayContaining([
+                '@orthacms/copilot-server',
+                '@orthacms/copilot-admin',
+                '@orthacms/copilot-provider-fake'
+            ])
+        );
     });
 
-    it('installs no copilot packages when no provider is chosen', () => {
-        const packages = resolvePackages(selectionOf('graphql', 'mcp'));
-
-        expect(packages.filter((name) => name.includes('copilot'))).toEqual([]);
+    it('adds a model backend only when its provider is chosen', () => {
+        expect(resolvePackages(selectionOf())).not.toContain(
+            '@orthacms/copilot-provider-anthropic'
+        );
+        expect(resolvePackages(selectionOf('copilot-anthropic'))).toContain(
+            '@orthacms/copilot-provider-anthropic'
+        );
     });
 
     it('does not install the unreleased S3 adapter by default', () => {
         expect(resolvePackages(selectionOf('media-local'))).not.toContain(
             '@orthacms/media-provider-s3'
         );
+    });
+
+    it('adds nothing for REST, which needs no package of its own', () => {
+        expect(resolvePackages(selectionOf('rest'))).toEqual([
+            ...CORE_PACKAGES
+        ]);
     });
 
     it('returns a sorted list with no duplicates', () => {
@@ -164,33 +171,10 @@ describe('resolvePackages', () => {
 });
 
 describe('resolveFlags', () => {
-    it('derives `copilot` from any chosen provider', () => {
-        expect(resolveFlags(selectionOf('copilot-openai'))).toContain(
-            'copilot'
+    it('is the picked ids, with nothing derived', () => {
+        expect(resolveFlags(selectionOf('mcp', 'copilot-openai'))).toEqual(
+            new Set(['mcp', 'copilot-openai'])
         );
-    });
-
-    it('does not derive it otherwise', () => {
-        expect(resolveFlags(selectionOf('mcp'))).not.toContain('copilot');
-    });
-
-    it('keeps the picked ids alongside it', () => {
-        expect(resolveFlags(selectionOf('copilot-openai', 'mcp'))).toEqual(
-            new Set(['copilot-openai', 'mcp', 'copilot'])
-        );
-    });
-});
-
-describe('copilotEnabled', () => {
-    it.each(COPILOT_PROVIDERS.map((provider) => provider.id))(
-        'is true for %s',
-        (id) => {
-            expect(copilotEnabled(selectionOf(id))).toBe(true);
-        }
-    );
-
-    it('is false with no provider', () => {
-        expect(copilotEnabled(selectionOf('graphql'))).toBe(false);
     });
 });
 
@@ -216,8 +200,20 @@ describe('availability', () => {
      * still an endpoint, and a copilot provider sends content to a third party.
      */
     it('starts every opt-in feature switched off', () => {
-        for (const feature of [...COPILOT_PROVIDERS, ...OPTIONAL_APIS]) {
+        const optIn = [
+            ...COPILOT_PROVIDERS,
+            ...PROTOCOLS.filter((protocol) => !protocol.locked)
+        ];
+
+        for (const feature of optIn) {
             expect(feature.enabledByDefault).toBe(false);
         }
+    });
+
+    it('locks REST on, so it cannot be switched off', () => {
+        const rest = PROTOCOLS.find((protocol) => protocol.id === 'rest');
+
+        expect(rest?.locked).toBe(true);
+        expect(rest?.enabledByDefault).toBe(true);
     });
 });

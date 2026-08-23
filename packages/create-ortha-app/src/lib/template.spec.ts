@@ -84,7 +84,7 @@ describe('generateSecret', () => {
 });
 
 describe('the scaffolded app, whatever the features', () => {
-    beforeEach(() => scaffold('media-local'));
+    beforeEach(() => scaffold('media-local', 'rest'));
 
     it('pins every @orthacms dependency to this scaffolder’s version', () => {
         const { dependencies, devDependencies } = manifest();
@@ -175,25 +175,46 @@ describe('the scaffolded app, whatever the features', () => {
     });
 });
 
-describe('with no optional features', () => {
-    beforeEach(() => scaffold('media-local'));
+describe('with nothing optional chosen', () => {
+    beforeEach(() => scaffold('media-local', 'rest'));
 
-    it('installs no copilot packages', () => {
+    /**
+     * The copilot ships with every app: its server half arrives transitively
+     * whatever the manifest says, and the bundled `fake` adapter needs no key
+     * and no network — so a default app has a chat that works offline.
+     */
+    it('installs and registers the copilot', () => {
         const names = Object.keys(manifest().dependencies);
 
-        expect(names.filter((name) => name.includes('copilot'))).toEqual([]);
-    });
-
-    it('registers no copilot plugin on either side', () => {
-        expect(rendered('src/server/plugins.ts')).not.toContain(
-            'CopilotPlugin'
+        expect(names).toEqual(
+            expect.arrayContaining([
+                '@orthacms/copilot-server',
+                '@orthacms/copilot-admin',
+                '@orthacms/copilot-provider-fake'
+            ])
         );
-        expect(rendered('src/admin/plugins.ts')).not.toContain('CopilotPlugin');
+        expect(rendered('src/server/plugins.ts')).toContain('CopilotPlugin(');
+        expect(rendered('src/admin/plugins.ts')).toContain('CopilotPlugin()');
     });
 
-    it('leaves the copilot settings out of the config and the env', () => {
-        expect(rendered('src/server/ortha.config.ts')).not.toContain('copilot');
+    it('leaves it switched off until an operator opts in', () => {
+        expect(rendered('.env')).toContain('COPILOT_ENABLED=false');
+    });
+
+    it('installs no model backend beyond the offline one', () => {
+        const names = Object.keys(manifest().dependencies);
+
+        expect(names).not.toContain('@orthacms/copilot-provider-anthropic');
+        expect(names).not.toContain('@orthacms/copilot-provider-openai');
         expect(rendered('.env')).not.toContain('ANTHROPIC_API_KEY');
+    });
+
+    it('registers only the offline provider', () => {
+        const plugins = rendered('src/server/plugins.ts');
+
+        expect(plugins).toContain('createFakeProvider');
+        expect(plugins).not.toContain('createAnthropicProvider');
+        expect(plugins).not.toContain('createOpenAiProvider');
     });
 
     it('mounts neither GraphQL nor MCP', () => {
@@ -219,18 +240,11 @@ describe('with no optional features', () => {
 });
 
 describe('with a copilot provider', () => {
-    beforeEach(() => scaffold('media-local', 'copilot-anthropic'));
+    beforeEach(() => scaffold('media-local', 'rest', 'copilot-anthropic'));
 
-    it('installs the plugin, the admin panel and the offline adapter', () => {
-        const names = Object.keys(manifest().dependencies);
-
-        expect(names).toEqual(
-            expect.arrayContaining([
-                '@orthacms/copilot-server',
-                '@orthacms/copilot-admin',
-                '@orthacms/copilot-provider-fake',
-                '@orthacms/copilot-provider-anthropic'
-            ])
+    it('adds the chosen backend', () => {
+        expect(Object.keys(manifest().dependencies)).toContain(
+            '@orthacms/copilot-provider-anthropic'
         );
     });
 
@@ -238,11 +252,6 @@ describe('with a copilot provider', () => {
         expect(Object.keys(manifest().dependencies)).not.toContain(
             '@orthacms/copilot-provider-openai'
         );
-    });
-
-    it('registers it on both sides', () => {
-        expect(rendered('src/server/plugins.ts')).toContain('CopilotPlugin(');
-        expect(rendered('src/admin/plugins.ts')).toContain('CopilotPlugin()');
     });
 
     it('builds only the chosen provider in the registration helper', () => {
@@ -278,7 +287,7 @@ describe('with a copilot provider', () => {
 
 describe('with both copilot providers', () => {
     beforeEach(() =>
-        scaffold('media-local', 'copilot-anthropic', 'copilot-openai')
+        scaffold('media-local', 'rest', 'copilot-anthropic', 'copilot-openai')
     );
 
     it.each(COPILOT_PROVIDERS.map((provider) => provider.packages[0]))(
@@ -296,8 +305,8 @@ describe('with both copilot providers', () => {
     });
 });
 
-describe('with the extra APIs', () => {
-    beforeEach(() => scaffold('media-local', 'graphql', 'mcp'));
+describe('with every protocol', () => {
+    beforeEach(() => scaffold('media-local', 'rest', 'graphql', 'mcp'));
 
     it('installs and registers GraphQL', () => {
         expect(Object.keys(manifest().dependencies)).toContain(
