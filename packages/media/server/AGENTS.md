@@ -69,7 +69,8 @@ layer-boundary lint isn't wired yet).
   is where the port's invariants live as a runnable suite. Shipped
   implementations: `-local` (the default install), `-memory` (the e2e harness,
   and offline development), `-s3` (S3-compatible: R2, AWS, MinIO, Spaces, B2,
-  Wasabi…) and `-azure` (Blob Storage, the one store with no S3 compatibility).
+  Wasabi…) `-azure` (Blob Storage, the one store with no S3 compatibility) and `-gcs`
+  (native Google auth; the S3 adapter also reaches GCS over its XML API).
 
 ## Use cases + unit-of-work + outbox
 
