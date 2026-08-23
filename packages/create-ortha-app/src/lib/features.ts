@@ -157,6 +157,14 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
         available: true
     },
     {
+        id: 'media-vercel-blob',
+        label: 'Vercel Blob',
+        hint: 'Smallest setup on Vercel — but every blob gets a permanent public URL, so not for confidential media.',
+        packages: ['@orthacms/media-provider-vercel-blob'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
         id: 'media-s3',
         label: 'S3-compatible',
         hint: 'Cloudflare R2, AWS S3, MinIO, Spaces, B2, Wasabi — set MEDIA_S3_BUCKET and, for anything but AWS, MEDIA_S3_ENDPOINT.',

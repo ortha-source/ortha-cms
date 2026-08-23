@@ -17,6 +17,9 @@ import { createAzureStorageProvider } from '@orthacms/media-provider-azure';
 // ortha:if media-gcs
 import { createGcsStorageProvider } from '@orthacms/media-provider-gcs';
 // ortha:end
+// ortha:if media-vercel-blob
+import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel-blob';
+// ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
@@ -156,6 +159,11 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             // ortha:end
             // ortha:if media-gcs
             provider: createGcsStorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-vercel-blob
+            provider: createVercelBlobStorageProvider(
+                config.plugins.media.storage
+            ),
             // ortha:end
             config: config.plugins.media
         }),

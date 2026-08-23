@@ -187,7 +187,8 @@ describe('resolvePackages', () => {
             '@orthacms/mcp-server',
             '@orthacms/media-provider-azure',
             '@orthacms/media-provider-gcs',
-            '@orthacms/media-provider-s3'
+            '@orthacms/media-provider-s3',
+            '@orthacms/media-provider-vercel-blob'
         ]);
     });
 

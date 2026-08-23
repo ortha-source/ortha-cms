@@ -70,7 +70,9 @@ layer-boundary lint isn't wired yet).
   implementations: `-local` (the default install), `-memory` (the e2e harness,
   and offline development), `-s3` (S3-compatible: R2, AWS, MinIO, Spaces, B2,
   Wasabi…) `-azure` (Blob Storage, the one store with no S3 compatibility) and `-gcs`
-  (native Google auth; the S3 adapter also reaches GCS over its XML API).
+  (native Google auth; the S3 adapter also reaches GCS over its XML API) and
+  `-vercel-blob` (smallest setup on Vercel, but every blob is world-readable —
+  read its AGENTS.md before choosing it).
 
 ## Use cases + unit-of-work + outbox
 

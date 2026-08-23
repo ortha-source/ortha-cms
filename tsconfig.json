@@ -146,6 +146,9 @@
         },
         {
             "path": "./packages/media/provider-gcs"
+        },
+        {
+            "path": "./packages/media/provider-vercel-blob"
         }
     ]
 }
