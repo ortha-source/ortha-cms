@@ -5,10 +5,73 @@ import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
+// ortha:if media-local
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
+// ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
+// ortha:if graphql
+import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
+// ortha:end
+// ortha:if mcp
+import { McpPlugin } from '@orthacms/mcp-server';
+// ortha:end
+// ortha:if copilot
+import {
+    CopilotPlugin,
+    type ProviderRegistration
+} from '@orthacms/copilot-server';
+import { createFakeProvider } from '@orthacms/copilot-provider-fake';
+// ortha:end
+// ortha:if copilot-anthropic
+import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
+// ortha:end
+// ortha:if copilot-openai
+import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
+// ortha:end
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from './ortha.config';
+
+// ortha:if copilot
+/**
+ * The model backends this deployment can actually reach, in preference order.
+ *
+ * **Only what is configured is registered.** `ortha.config.ts` omits a provider
+ * whose connection settings are absent, and an unconfigured backend is skipped
+ * here too: the first entry serves a run that names no provider, so a keyless
+ * one at the top of the list would be the house default and would fail on the
+ * first message.
+ *
+ * `fake` is last and unconditional. It is a shipped adapter, not test
+ * scaffolding — it needs no key and no network, so it is what makes the chat
+ * work offline, and being last it is the default only when it is the only one.
+ */
+export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
+    const providers: ProviderRegistration[] = [];
+    // ortha:if copilot-anthropic
+    if (config.plugins.copilot.providers.claude) {
+        providers.push({
+            name: 'claude',
+            provider: createAnthropicProvider(
+                config.plugins.copilot.providers.claude
+            )
+        });
+    }
+    // ortha:end
+    // ortha:if copilot-openai
+    if (config.plugins.copilot.providers.openai) {
+        providers.push({
+            name: 'openai',
+            provider: createOpenAiProvider(
+                config.plugins.copilot.providers.openai
+            )
+        });
+    }
+    // ortha:end
+    providers.push({ name: 'fake', provider: createFakeProvider() });
+
+    return providers;
+}
+// ortha:end
 
 /**
  * This app's composition — the whole of what its API is.
@@ -31,6 +94,10 @@ import type { OrthaConfig } from './ortha.config';
  * degrades the feature rather than failing boot.
  */
 export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
+    // No content types yet — see the note below. Held in a variable because
+    // the GraphQL adapter takes the plugin itself, not just its types.
+    const content = ContentPlugin({ types: [] });
+
     return [
         // First: the only plugin that opens a resource in `onPluginInit`.
         DatabasePlugin({ connectionString: config.database.url }),
@@ -53,7 +120,19 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         //
         // Until then the plugin serves its generic routes with an empty
         // registry, and owns no tables of its own.
-        ContentPlugin({ types: [] }),
+        content,
+        // ortha:if graphql
+        // The same public content API over GraphQL, on /api/v1/graphql. It owns
+        // no schema and adds no credential — it reuses content's bearer guards
+        // and read services, so a token minted before it existed works against
+        // it unchanged. Taking `content` by value lets it fail boot on two
+        // content types that would collide as GraphQL names, rather than on the
+        // first request from a workspace granted both.
+        ContentGraphqlPlugin({
+            content,
+            playground: config.docs.enabled === true
+        }),
+        // ortha:end
         // Fills the Content Library's locale extensions, so it reads after it.
         I18nServerPlugin(config.plugins.i18n),
         // The composition root is the single place that selects storage:
@@ -61,9 +140,31 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // route per file. This one writes every upload to local disk.
         MediaServerPlugin({
             providers: {
+                // ortha:if media-local
                 local: createLocalStorageProvider(config.plugins.media.local)
+                // ortha:end
             },
             config: config.plugins.media
-        })
+        }),
+        // ortha:if copilot
+        // Registered after workspaces (runs are workspace-scoped) and identity
+        // (runs execute as the calling user, gated on `copilot:use`). The
+        // composition root is the single place that selects a backend: the
+        // plugin never learns which adapters exist, it takes a list of named,
+        // already-constructed providers, and **the order is the setting** —
+        // there is no `defaultProvider`, the first entry serves a run that
+        // names none.
+        CopilotPlugin({
+            providers: copilotProviders(config),
+            config: config.plugins.copilot
+        }),
+        // ortha:end
+        // ortha:if mcp
+        // The Model Context Protocol front door, registered LAST because it
+        // serves whatever the plugins above contributed. Off unless
+        // MCP_ENABLED=true: it hands an external agent the same content CRUD a
+        // full-scope token has.
+        McpPlugin({ config: config.plugins.mcp })
+        // ortha:end
     ];
 }

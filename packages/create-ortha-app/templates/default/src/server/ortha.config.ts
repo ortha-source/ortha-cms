@@ -14,6 +14,47 @@ import type {
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+// ortha:if copilot
+import type { CopilotPluginConfig } from '@orthacms/copilot-server';
+// ortha:end
+// ortha:if copilot-anthropic
+import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
+// ortha:end
+// ortha:if copilot-openai
+import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
+// ortha:end
+// ortha:if mcp
+import type { McpPluginConfig } from '@orthacms/mcp-server';
+// ortha:end
+
+// ortha:if copilot
+/**
+ * Copilot settings plus the backends this deployment can reach.
+ *
+ * The provider settings live **here**, not inside `CopilotPluginConfig`: the
+ * plugin is adapter-agnostic by decision, so it names no provider kind. A key
+ * is present only when the deployment configured that backend, and `plugins.ts`
+ * registers exactly the ones that are — "configured" is a fact this file can
+ * read, where a `defaultProvider` naming one of them could be misspelled or
+ * point at a backend nobody registered.
+ */
+export interface AppCopilotConfig extends CopilotPluginConfig {
+    providers: {
+        // ortha:if copilot-anthropic
+        /** Native Claude. Present when ANTHROPIC_API_KEY is set. */
+        claude?: AnthropicProviderConfig;
+        // ortha:end
+        // ortha:if copilot-openai
+        /**
+         * An OpenAI-wire endpoint — Ollama, vLLM, LiteLLM, Azure or OpenAI.
+         * Present when COPILOT_OPENAI_BASE_URL is set: an endpoint nobody
+         * named is a backend that can only time out.
+         */
+        openai?: OpenAiProviderConfig;
+        // ortha:end
+    };
+}
+// ortha:end
 
 /** Root configuration for this app. */
 export interface OrthaConfig {
@@ -28,6 +69,12 @@ export interface OrthaConfig {
         identity: IdentityPluginConfig;
         i18n: I18nPluginConfig;
         media: MediaPluginConfig;
+        // ortha:if copilot
+        copilot: AppCopilotConfig;
+        // ortha:end
+        // ortha:if mcp
+        mcp: McpPluginConfig;
+        // ortha:end
     };
 }
 
@@ -110,6 +157,22 @@ if (nodeEnv && !(NODE_ENVS as readonly string[]).includes(nodeEnv)) {
 }
 
 const isProduction = nodeEnv === 'production';
+
+// ortha:if copilot
+/** A comma-separated list setting, trimmed and emptied of blanks. */
+function readList(name: string, fallback: string): string[] {
+    return (process.env[name] ?? fallback)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+// ortha:end
+// ortha:if copilot-anthropic
+const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
+// ortha:end
+// ortha:if copilot-openai
+const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
+// ortha:end
 
 const config: OrthaConfig = {
     port: readPositiveInt('PORT', 3000),
@@ -205,6 +268,69 @@ const config: OrthaConfig = {
                 50 * 1024 * 1024
             )
         }
+        // ortha:if copilot
+        ,
+        copilot: {
+            // Off by default: enabling a hosted provider sends workspace
+            // content to a third party, which is an operator's decision to make
+            // explicitly.
+            enabled: process.env['COPILOT_ENABLED'] === 'true',
+            maxOutputTokens: readPositiveInt('COPILOT_MAX_OUTPUT_TOKENS', 8192),
+            providers: {
+                // ortha:if copilot-anthropic
+                // Setting the key is what REGISTERS this backend — leave it
+                // empty and there is no `claude` in the picker at all, rather
+                // than one that fails on the first message.
+                ...(anthropicApiKey
+                    ? {
+                          claude: {
+                              apiKey: anthropicApiKey,
+                              models: readList(
+                                  'COPILOT_ANTHROPIC_MODELS',
+                                  'claude-sonnet-5'
+                              )
+                          }
+                      }
+                    : {}),
+                // ortha:end
+                // ortha:if copilot-openai
+                ...(openAiBaseUrl
+                    ? {
+                          openai: {
+                              baseUrl: openAiBaseUrl,
+                              apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? '',
+                              models: readList(
+                                  'COPILOT_OPENAI_MODELS',
+                                  'llama3.1'
+                              )
+                          }
+                      }
+                    : {})
+                // ortha:end
+            }
+        }
+        // ortha:end
+        // ortha:if mcp
+        ,
+        mcp: {
+            // Off by default: once on, any holder of a full-scope API token can
+            // drive content CRUD from an external agent.
+            enabled: process.env['MCP_ENABLED'] === 'true',
+            // The identity MCP clients display in their connector lists.
+            name: '__APP_NAME__',
+            version: '1.0.0',
+            // A request/response transport owes its caller an answer, and the
+            // tool registry has no deadline of its own — so without this the
+            // only bound on a `tools/call` is the query underneath it, and a
+            // blocked pool turns one call into a socket held until the client
+            // gives up.
+            callTimeoutMs: readPositiveInt('MCP_CALL_TIMEOUT_MS', 30_000),
+            // Deliberately generous: the ceiling exists to stop a pathological
+            // result being serialised several times over, not to shape normal
+            // use. A result this large does not fit a model's context anyway.
+            maxResultBytes: readPositiveInt('MCP_MAX_RESULT_BYTES', 4_194_304)
+        }
+        // ortha:end
     }
 };
 

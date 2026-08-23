@@ -3,8 +3,18 @@ import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
-import { ask } from './lib/prompt';
+import { createInterface } from 'node:readline/promises';
+import {
+    COPILOT_PROVIDERS,
+    MEDIA_PROVIDERS,
+    OPTIONAL_APIS,
+    copilotEnabled,
+    resolvePackages,
+    type Feature,
+    type FeatureSelection
+} from './lib/features';
 import { isNonEmptyDirectory, renderTemplate } from './lib/template';
+import * as ui from './lib/ui';
 import {
     databaseNameFrom,
     validateAppName,
@@ -17,6 +27,9 @@ Usage: npx create-ortha-app <directory> [options]
 
 Options:
   --yes            Accept every default, asking nothing
+  --media <id>     Storage adapter (default: media-local)
+  --copilot <ids>  Comma-separated copilot providers, or "none"
+  --api <ids>      Comma-separated extra APIs (graphql, mcp), or "none"
   --no-install     Skip installing dependencies
   --no-git         Skip initialising a git repository
   -h, --help       Show this message
@@ -27,15 +40,37 @@ function flag(argv: readonly string[], name: string): boolean {
     return argv.includes(`--${name}`);
 }
 
+/** Reads `--name=value` or `--name value` from argv. */
+function option(argv: readonly string[], name: string): string | undefined {
+    const inline = argv.find((arg) => arg.startsWith(`--${name}=`));
+    if (inline) return inline.slice(`--${name}=`.length);
+
+    const index = argv.indexOf(`--${name}`);
+    const next = index === -1 ? undefined : argv[index + 1];
+
+    return next && !next.startsWith('-') ? next : undefined;
+}
+
+/** Splits a comma-separated flag value; `none` means an empty selection. */
+function idList(raw: string | undefined): string[] | undefined {
+    if (raw === undefined) return undefined;
+    if (raw.trim() === 'none') return [];
+
+    return raw
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+}
+
 /**
  * This package's own version, which every `@orthacms/*` dependency in the
  * generated app is pinned to.
  *
- * The scaffolder is released in lockstep with the packages it scaffolds, so
- * its version *is* the matching set — which is the whole mechanism keeping a
- * generated app internally consistent. Reading it from the manifest rather
- * than resolving `latest` from the registry also means `npx
- * create-ortha-app@0.3.0` generates a 0.3.0 app, not whatever shipped since.
+ * The scaffolder is released in lockstep with the packages it scaffolds, so its
+ * version *is* the matching set — which is the whole mechanism keeping a
+ * generated app internally consistent. Reading it from the manifest rather than
+ * resolving `latest` from the registry also means `npx create-ortha-app@0.3.0`
+ * generates a 0.3.0 app, not whatever shipped since.
  */
 function ownVersion(): string {
     const manifest = join(__dirname, '../package.json');
@@ -45,12 +80,176 @@ function ownVersion(): string {
 
 /** Runs a command in `cwd`, returning whether it succeeded. */
 function runCommand(command: string, args: string[], cwd: string): boolean {
-    const result = spawnSync(command, args, {
-        cwd,
-        stdio: 'inherit',
-        shell: process.platform === 'win32'
+    return (
+        spawnSync(command, args, {
+            cwd,
+            stdio: 'inherit',
+            shell: process.platform === 'win32'
+        }).status === 0
+    );
+}
+
+/** Turns a feature into a picker row. */
+function toChoice(feature: Feature): ui.Choice {
+    return {
+        value: feature.id,
+        label: feature.label,
+        hint: feature.hint,
+        selected: feature.enabledByDefault,
+        disabled: !feature.available
+    };
+}
+
+/** The ids a feature group falls back to when nothing is picked. */
+function defaultsOf(features: readonly Feature[]): string[] {
+    return features
+        .filter((feature) => feature.enabledByDefault && feature.available)
+        .map((feature) => feature.id);
+}
+
+/** Asks a free-text question, re-asking until it validates. */
+async function askText(
+    label: string,
+    fallback: string,
+    validate?: (answer: string) => string | undefined
+): Promise<string> {
+    const rl = createInterface({
+        input: process.stdin,
+        output: process.stdout
     });
-    return result.status === 0;
+
+    try {
+        for (;;) {
+            const raw = await rl.question(
+                `${ui.cyan('◆')} ${ui.bold(label)} ${ui.dim(`(${fallback})`)} `
+            );
+            const answer = raw.trim() || fallback;
+            const problem = validate?.(answer);
+
+            if (!problem) return answer;
+            ui.error(problem);
+        }
+    } finally {
+        rl.close();
+    }
+}
+
+/** Everything the wizard resolves. */
+interface Answers {
+    appName: string;
+    databaseUrl: string;
+    adminEmail: string;
+    selection: FeatureSelection;
+}
+
+/**
+ * Resolves the answers, asking only when there is a terminal to ask in.
+ *
+ * Non-interactive is not an error case to warn about — it is CI, a piped
+ * install, and `--yes`. A scaffolder that blocks on a prompt nobody can answer
+ * hangs a pipeline until it times out, which is a far worse failure than
+ * defaulting, so the flags and the defaults cover every question.
+ */
+async function resolveAnswers(
+    argv: readonly string[],
+    defaultName: string
+): Promise<Answers> {
+    const asked = !flag(argv, 'yes') && ui.interactive();
+
+    const defaultDatabaseUrl = `postgresql://ortha:ortha@localhost:5432/${defaultName.replace(
+        /[^a-z0-9_]/gi,
+        '_'
+    )}`;
+
+    const media = idList(option(argv, 'media')) ?? defaultsOf(MEDIA_PROVIDERS);
+    const copilot =
+        idList(option(argv, 'copilot')) ?? defaultsOf(COPILOT_PROVIDERS);
+    const apis = idList(option(argv, 'api')) ?? defaultsOf(OPTIONAL_APIS);
+
+    if (!asked) {
+        return {
+            appName: defaultName,
+            databaseUrl: defaultDatabaseUrl,
+            adminEmail: 'admin@example.com',
+            selection: { enabled: new Set([...media, ...copilot, ...apis]) }
+        };
+    }
+
+    ui.section('Project');
+    const appName = await askText('App name', defaultName, validateAppName);
+    const databaseUrl = await askText(
+        'Database URL',
+        defaultDatabaseUrl,
+        validateDatabaseUrl
+    );
+    const adminEmail = await askText('Admin email', 'admin@example.com');
+
+    ui.section('Features');
+    ui.note('Everything else is installed for you. These are the choices.');
+    console.log('');
+
+    // Only ask when there is more than one answer available. S3 is not
+    // published, so today this is a question with a single possible reply, and
+    // asking it would be noise pretending to be a choice.
+    const selectable = MEDIA_PROVIDERS.filter((provider) => provider.available);
+    const chosenMedia =
+        selectable.length > 1
+            ? [
+                  (await ui.select(
+                      'Where should uploads be stored?',
+                      MEDIA_PROVIDERS.map(toChoice)
+                  )) ?? media[0]
+              ]
+            : media;
+
+    const chosenCopilot =
+        (await ui.multiselect(
+            'AI copilot — which model backends?',
+            COPILOT_PROVIDERS.map(toChoice)
+        )) ?? copilot;
+
+    const chosenApis =
+        (await ui.multiselect(
+            'Extra APIs, alongside REST',
+            OPTIONAL_APIS.map(toChoice)
+        )) ?? apis;
+
+    return {
+        appName,
+        databaseUrl,
+        adminEmail,
+        selection: {
+            enabled: new Set([
+                ...chosenMedia.filter(Boolean),
+                ...chosenCopilot,
+                ...chosenApis
+            ] as string[])
+        }
+    };
+}
+
+/** Human-readable summary of what was chosen. */
+function describeSelection(
+    selection: FeatureSelection
+): (readonly [string, string])[] {
+    const labelsFor = (features: readonly Feature[]): string => {
+        const chosen = features
+            .filter((feature) => selection.enabled.has(feature.id))
+            .map((feature) => feature.label);
+        return chosen.length > 0 ? chosen.join(', ') : ui.dim('none');
+    };
+
+    return [
+        ['Storage', labelsFor(MEDIA_PROVIDERS)],
+        [
+            'Copilot',
+            copilotEnabled(selection)
+                ? `${labelsFor(COPILOT_PROVIDERS)} ${ui.dim('+ offline fake')}`
+                : ui.dim('not installed')
+        ],
+        ['Extra APIs', labelsFor(OPTIONAL_APIS)],
+        ['Ortha packages', String(resolvePackages(selection).length + 1)]
+    ];
 }
 
 async function main(): Promise<void> {
@@ -64,6 +263,8 @@ async function main(): Promise<void> {
     const positional = argv.filter((arg) => !arg.startsWith('-'));
     const target = resolve(positional[0] ?? '.');
 
+    ui.banner('Ortha CMS', `Creating an app in ${target}`);
+
     if (isNonEmptyDirectory(target)) {
         throw new Error(
             `${target} already exists and is not empty. Pick a new directory, ` +
@@ -71,87 +272,77 @@ async function main(): Promise<void> {
         );
     }
 
-    const defaultName = basename(target);
-    // `--yes`, or anything non-interactive: a scaffolder that blocks on a
-    // prompt in CI hangs the job until it times out.
-    const interactive = !flag(argv, 'yes') && process.stdin.isTTY === true;
+    const answers = await resolveAnswers(argv, basename(target));
 
-    const answers = await ask(
-        {
-            appName: {
-                label: 'App name',
-                fallback: defaultName,
-                validate: validateAppName
-            },
-            databaseUrl: {
-                label: 'Database URL',
-                fallback: `postgresql://ortha:ortha@localhost:5432/${defaultName.replace(/[^a-z0-9_]/gi, '_')}`,
-                validate: validateDatabaseUrl
-            },
-            adminEmail: {
-                label: 'Admin email',
-                fallback: 'admin@example.com'
-            }
-        },
-        interactive
-    );
-
-    const appName = answers['appName'] ?? defaultName;
-    const databaseUrl = answers['databaseUrl'] ?? '';
-    // Generated rather than prompted: a password typed at a scaffold prompt is
-    // echoed to the terminal and lands in shell history. This one is written
-    // only to the git-ignored .env and printed once, below.
+    // Generated rather than prompted: a password typed at a prompt is echoed to
+    // the terminal and lands in shell history. This one is written only to the
+    // git-ignored .env, and printed once below.
     const adminPassword = randomBytes(12).toString('base64url');
+
+    ui.summary('Your app', [
+        ['Name', answers.appName],
+        ['Database', databaseNameFrom(answers.databaseUrl)],
+        ...describeSelection(answers.selection)
+    ]);
 
     mkdirSync(target, { recursive: true });
 
-    console.log(`\nCreating an Ortha CMS app in ${target}…`);
-
     renderTemplate(join(__dirname, '../templates/default'), target, {
-        appName,
-        appTitle: appName,
-        databaseUrl,
-        databaseName: databaseNameFrom(databaseUrl),
-        adminEmail: answers['adminEmail'] ?? 'admin@example.com',
+        appName: answers.appName,
+        appTitle: answers.appName,
+        databaseUrl: answers.databaseUrl,
+        databaseName: databaseNameFrom(answers.databaseUrl),
+        adminEmail: answers.adminEmail,
         adminPassword,
-        orthaVersion: ownVersion()
+        orthaVersion: ownVersion(),
+        selection: answers.selection
     });
 
+    console.log('');
+    ui.success('Files written');
+
     if (!flag(argv, 'no-git') && !existsSync(join(target, '.git'))) {
-        runCommand('git', ['init', '--quiet'], target);
+        if (runCommand('git', ['init', '--quiet'], target)) {
+            ui.success('Git repository initialised');
+        }
     }
 
-    const installed =
-        flag(argv, 'no-install') ||
-        (console.log('\nInstalling dependencies…'),
-        runCommand('npm', ['install', '--no-audit', '--no-fund'], target));
+    let installed = true;
+    if (!flag(argv, 'no-install')) {
+        console.log('');
+        ui.note('Installing dependencies…');
+        installed = runCommand(
+            'npm',
+            ['install', '--no-audit', '--no-fund'],
+            target
+        );
+        if (installed) ui.success('Dependencies installed');
+    }
 
     if (!installed) {
-        console.error(
-            '\nDependency installation failed. Fix the error above, then run ' +
+        ui.error(
+            'Dependency installation failed — fix the error above, then run ' +
                 '`npm install` in the new directory.'
         );
         process.exitCode = 1;
     }
 
-    console.log(
-        [
-            '',
-            `Done. Your admin account is ${answers['adminEmail']} / ${adminPassword}`,
-            '(also written to .env — it is created on first boot, then never touched again).',
-            '',
-            'Next:',
-            `  cd ${basename(target)}`,
-            ...(flag(argv, 'no-install') ? ['  npm install'] : []),
-            '  docker compose up -d',
-            '  npm run migrate',
-            '  npm run dev',
-            ''
-        ].join('\n')
-    );
+    ui.summary('Your admin account', [
+        ['Email', answers.adminEmail],
+        ['Password', ui.bold(adminPassword)],
+        ['', ui.dim('Also written to .env')]
+    ]);
+
+    ui.nextSteps([
+        `cd ${basename(target)}`,
+        ...(flag(argv, 'no-install') ? ['npm install'] : []),
+        'docker compose up -d',
+        'npm run migrate',
+        `npm run dev        ${ui.dim('→ http://localhost:4200')}`
+    ]);
 }
 
 main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : String(error));
+    ui.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
 });

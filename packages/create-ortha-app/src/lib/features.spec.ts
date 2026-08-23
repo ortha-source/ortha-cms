@@ -1,0 +1,223 @@
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+    ALL_FEATURES,
+    COPILOT_PACKAGES,
+    COPILOT_PROVIDERS,
+    CORE_DEV_PACKAGES,
+    CORE_PACKAGES,
+    MEDIA_PROVIDERS,
+    OPTIONAL_APIS,
+    TRANSITIVE_PACKAGES,
+    copilotEnabled,
+    resolveFlags,
+    resolvePackages
+} from './features';
+
+const workspaceRoot = join(__dirname, '../../../..');
+
+/** Every publishable `@orthacms/*` package name in the workspace. */
+function publishedPackages(): string[] {
+    const packagesDir = join(workspaceRoot, 'packages');
+    const childDirs = (root: string): string[] =>
+        readdirSync(root)
+            .map((entry) => join(root, entry))
+            .filter((entry) => statSync(entry).isDirectory());
+
+    const names: string[] = [];
+
+    for (const dir of [
+        ...childDirs(packagesDir),
+        ...childDirs(packagesDir).flatMap(childDirs)
+    ]) {
+        try {
+            const manifest = JSON.parse(
+                readFileSync(join(dir, 'package.json'), 'utf8')
+            ) as { name?: string; private?: boolean };
+
+            if (manifest.name?.startsWith('@orthacms/') && !manifest.private) {
+                names.push(manifest.name);
+            }
+        } catch {
+            // Not a package directory.
+        }
+    }
+
+    return names;
+}
+
+/** A selection with the given feature ids enabled. */
+function selectionOf(...ids: string[]) {
+    return { enabled: new Set(ids) };
+}
+
+/**
+ * The guard this file exists for.
+ *
+ * Adding a package to the workspace should force a decision about whether a
+ * newly generated app gets it. Without this, the template simply falls a
+ * release behind: the package publishes, nothing references it, and nobody
+ * notices until a user asks why the feature they read about is missing.
+ */
+describe('every published package is accounted for', () => {
+    const classified = new Set([
+        ...CORE_PACKAGES,
+        ...CORE_DEV_PACKAGES,
+        ...TRANSITIVE_PACKAGES,
+        ...COPILOT_PACKAGES,
+        ...ALL_FEATURES.flatMap((feature) => feature.packages)
+    ]);
+
+    it.each(publishedPackages())('%s is classified', (name) => {
+        // If this fails you added a package. Put it in one of `CORE_PACKAGES`,
+        // a `Feature`'s `packages`, or `TRANSITIVE_PACKAGES` — whichever is
+        // true — in `features.ts`.
+        expect([...classified]).toContain(name);
+    });
+
+    it('classifies nothing that does not exist', () => {
+        const published = new Set(publishedPackages());
+        const phantom = [...classified].filter(
+            (name) => !published.has(name) && name !== '@orthacms/cli'
+        );
+
+        expect(phantom).toEqual([]);
+    });
+
+    it('puts no package in two groups at once', () => {
+        const all = [
+            ...CORE_PACKAGES,
+            ...TRANSITIVE_PACKAGES,
+            ...COPILOT_PACKAGES,
+            ...ALL_FEATURES.flatMap((feature) => feature.packages)
+        ];
+
+        expect(all.length).toBe(new Set(all).size);
+    });
+});
+
+describe('feature ids', () => {
+    it('are unique', () => {
+        const ids = ALL_FEATURES.map((feature) => feature.id);
+
+        expect(ids.length).toBe(new Set(ids).size);
+    });
+
+    it('avoid `copilot`, which is derived rather than picked', () => {
+        expect(ALL_FEATURES.map((feature) => feature.id)).not.toContain(
+            'copilot'
+        );
+    });
+});
+
+describe('resolvePackages', () => {
+    it('installs the core set with nothing enabled', () => {
+        expect(resolvePackages(selectionOf())).toEqual([...CORE_PACKAGES]);
+    });
+
+    it('adds a feature’s packages when it is enabled', () => {
+        expect(resolvePackages(selectionOf('graphql'))).toContain(
+            '@orthacms/content-graphql'
+        );
+    });
+
+    it('leaves them out when it is not', () => {
+        expect(resolvePackages(selectionOf())).not.toContain(
+            '@orthacms/content-graphql'
+        );
+    });
+
+    /**
+     * The copilot's own packages ride on *any* provider being chosen — the
+     * plugin, the admin panel and the offline `fake` adapter are useless
+     * separately and meaningless without each other.
+     */
+    it('pulls the copilot packages in when any provider is chosen', () => {
+        const packages = resolvePackages(selectionOf('copilot-anthropic'));
+
+        for (const name of COPILOT_PACKAGES) {
+            expect(packages).toContain(name);
+        }
+        expect(packages).toContain('@orthacms/copilot-provider-anthropic');
+    });
+
+    it('installs no copilot packages when no provider is chosen', () => {
+        const packages = resolvePackages(selectionOf('graphql', 'mcp'));
+
+        expect(packages.filter((name) => name.includes('copilot'))).toEqual([]);
+    });
+
+    it('does not install the unreleased S3 adapter by default', () => {
+        expect(resolvePackages(selectionOf('media-local'))).not.toContain(
+            '@orthacms/media-provider-s3'
+        );
+    });
+
+    it('returns a sorted list with no duplicates', () => {
+        const packages = resolvePackages(
+            selectionOf('media-local', 'copilot-anthropic', 'copilot-openai')
+        );
+
+        expect(packages).toEqual([...packages].sort());
+        expect(packages.length).toBe(new Set(packages).size);
+    });
+});
+
+describe('resolveFlags', () => {
+    it('derives `copilot` from any chosen provider', () => {
+        expect(resolveFlags(selectionOf('copilot-openai'))).toContain(
+            'copilot'
+        );
+    });
+
+    it('does not derive it otherwise', () => {
+        expect(resolveFlags(selectionOf('mcp'))).not.toContain('copilot');
+    });
+
+    it('keeps the picked ids alongside it', () => {
+        expect(resolveFlags(selectionOf('copilot-openai', 'mcp'))).toEqual(
+            new Set(['copilot-openai', 'mcp', 'copilot'])
+        );
+    });
+});
+
+describe('copilotEnabled', () => {
+    it.each(COPILOT_PROVIDERS.map((provider) => provider.id))(
+        'is true for %s',
+        (id) => {
+            expect(copilotEnabled(selectionOf(id))).toBe(true);
+        }
+    );
+
+    it('is false with no provider', () => {
+        expect(copilotEnabled(selectionOf('graphql'))).toBe(false);
+    });
+});
+
+describe('availability', () => {
+    it('marks the S3 adapter unavailable while it has no release', () => {
+        const s3 = MEDIA_PROVIDERS.find(
+            (provider) => provider.id === 'media-s3'
+        );
+
+        expect(s3?.available).toBe(false);
+    });
+
+    it('leaves exactly one storage adapter selectable by default', () => {
+        const defaults = MEDIA_PROVIDERS.filter(
+            (provider) => provider.enabledByDefault && provider.available
+        );
+
+        expect(defaults).toHaveLength(1);
+    });
+
+    /**
+     * Both are off by default deliberately: an endpoint nobody asked for is
+     * still an endpoint, and a copilot provider sends content to a third party.
+     */
+    it('starts every opt-in feature switched off', () => {
+        for (const feature of [...COPILOT_PROVIDERS, ...OPTIONAL_APIS]) {
+            expect(feature.enabledByDefault).toBe(false);
+        }
+    });
+});

@@ -1,0 +1,247 @@
+/**
+ * What a generated app is made of.
+ *
+ * **This file is the contract between the release and the scaffolder.** Every
+ * published `@orthacms/*` package is accounted for here exactly once — as core,
+ * as part of an optional feature, or as deliberately transitive — and
+ * `features.spec.ts` fails the build when one is not. That guard is the point:
+ * adding a package to the workspace should force a decision about whether a new
+ * app gets it, rather than the template quietly falling a release behind.
+ *
+ * Versions are *not* listed. Every `@orthacms/*` dependency is pinned to the
+ * scaffolder's own version at render time (`__ORTHA_VERSION__`), so a release
+ * bumps the whole set with no edit here.
+ */
+
+/** An optional capability a new app can opt into. */
+export interface Feature {
+    /** Stable id — used by `ortha:if` blocks in the templates and by flags. */
+    id: string;
+    /** What the picker shows. */
+    label: string;
+    /** One line under the label. */
+    hint: string;
+    /** `@orthacms/*` packages added to the app when this is enabled. */
+    packages: readonly string[];
+    /** Whether it starts ticked. */
+    enabledByDefault: boolean;
+    /**
+     * `false` for a capability that exists in the codebase but has no published,
+     * working adapter yet. Shown greyed out and unselectable rather than hidden,
+     * so the picker tells the truth about what is coming.
+     */
+    available: boolean;
+}
+
+/**
+ * The packages every app gets, whatever it opts into.
+ *
+ * `design-system`, `utils-admin` and `utils-server` are here even though the
+ * template's own files barely touch them: they are the first things anyone
+ * reaches for when writing a page or a plugin of their own, and relying on
+ * npm's hoisting to make an undeclared import work is a phantom dependency —
+ * it resolves until a version conflict nests a copy, and never resolves under
+ * pnpm at all.
+ */
+export const CORE_PACKAGES: readonly string[] = [
+    '@orthacms/activity-admin',
+    '@orthacms/activity-server',
+    '@orthacms/api-tokens-admin',
+    '@orthacms/bootstrap-admin',
+    '@orthacms/bootstrap-server',
+    '@orthacms/content-admin',
+    '@orthacms/content-server',
+    '@orthacms/database',
+    '@orthacms/design-system',
+    '@orthacms/i18n-admin',
+    '@orthacms/i18n-server',
+    '@orthacms/identity-admin',
+    '@orthacms/identity-server',
+    '@orthacms/insights-admin',
+    '@orthacms/media-admin',
+    '@orthacms/media-server',
+    '@orthacms/shell-admin',
+    '@orthacms/users-admin',
+    '@orthacms/users-server',
+    '@orthacms/utils-admin',
+    '@orthacms/utils-server',
+    '@orthacms/workspaces-admin',
+    '@orthacms/workspaces-server',
+    '@orthacms/wysiwyg-admin'
+];
+
+/** Packages the app needs to build and run itself, as devDependencies. */
+export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
+
+/**
+ * Packages that arrive **transitively** and are deliberately not declared.
+ *
+ * They are on disk in every generated app — `content-server` alone pulls in
+ * five of them — so an import would resolve. They are left undeclared because
+ * the template does not import them: each is an extension point for a specific
+ * kind of plugin (`tools-server` to register an agent tool, `content-domain`
+ * for the content kernel's types), and someone writing that plugin should
+ * `npm i` it so the app's manifest records what it actually depends on.
+ *
+ * Listed here so the coverage guard can tell "considered and left out" from
+ * "nobody noticed this package exists".
+ */
+export const TRANSITIVE_PACKAGES: readonly string[] = [
+    '@orthacms/content-domain',
+    '@orthacms/copilot-domain',
+    '@orthacms/query-builder-admin',
+    '@orthacms/tools-server'
+];
+
+/**
+ * Where uploads are written.
+ *
+ * A single-choice group: media always runs, the question is only which adapter
+ * backs it. S3 is listed and disabled — the package exists but has never been
+ * released, and offering it would generate an app that cannot install.
+ */
+export const MEDIA_PROVIDERS: readonly Feature[] = [
+    {
+        id: 'media-local',
+        label: 'Local filesystem',
+        hint: 'Writes to a directory on disk. Point MEDIA_LOCAL_ROOT at a volume in production.',
+        packages: ['@orthacms/media-provider-local'],
+        enabledByDefault: true,
+        available: true
+    },
+    {
+        id: 'media-s3',
+        label: 'S3-compatible',
+        hint: 'Not published yet — the adapter exists but ships no release.',
+        packages: ['@orthacms/media-provider-s3'],
+        enabledByDefault: false,
+        available: false
+    }
+];
+
+/**
+ * Model backends for the AI copilot.
+ *
+ * A multi-choice group, and picking none is the meaningful default: enabling a
+ * hosted provider sends workspace content to a third party, which
+ * [ADR-0005](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0005-copilot-authority-model.md)
+ * §10 says is an operator's decision to make explicitly. Pick nothing and the
+ * copilot is not registered at all.
+ *
+ * `copilot-provider-fake` is not offered here — it is installed automatically
+ * whenever the copilot is on. It is a shipped adapter rather than test
+ * scaffolding (ADR-0004 §3): it needs no key and no network, so it is what
+ * makes the chat work offline, and it is registered last so it is the default
+ * only when it is the only one.
+ */
+export const COPILOT_PROVIDERS: readonly Feature[] = [
+    {
+        id: 'copilot-anthropic',
+        label: 'Claude (Anthropic)',
+        hint: 'Native Claude. Needs ANTHROPIC_API_KEY.',
+        packages: ['@orthacms/copilot-provider-anthropic'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'copilot-openai',
+        label: 'OpenAI-compatible endpoint',
+        hint: 'Ollama, vLLM, LiteLLM, Azure or OpenAI. Needs COPILOT_OPENAI_BASE_URL.',
+        packages: ['@orthacms/copilot-provider-openai'],
+        enabledByDefault: false,
+        available: true
+    }
+];
+
+/** Packages pulled in when any copilot provider is chosen. */
+export const COPILOT_PACKAGES: readonly string[] = [
+    '@orthacms/copilot-admin',
+    '@orthacms/copilot-server',
+    '@orthacms/copilot-provider-fake'
+];
+
+/**
+ * Additional protocols in front of the same content.
+ *
+ * Neither adds a credential or a permission of its own: GraphQL is an adapter
+ * over the REST API's own services
+ * ([ADR-0008](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0008-graphql-as-a-protocol-adapter.md)),
+ * and MCP reuses the same API tokens and scopes. They are opt-in because an
+ * endpoint nobody asked for is still an endpoint.
+ */
+export const OPTIONAL_APIS: readonly Feature[] = [
+    {
+        id: 'graphql',
+        label: 'GraphQL content API',
+        hint: 'POST /api/v1/graphql, alongside REST. Same tokens, same scopes.',
+        packages: ['@orthacms/content-graphql'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'mcp',
+        label: 'MCP server',
+        hint: 'Lets an external agent do content CRUD with an API token. Off unless MCP_ENABLED=true.',
+        packages: ['@orthacms/mcp-server'],
+        enabledByDefault: false,
+        available: true
+    }
+];
+
+/** Every optional feature, in the order the wizard asks about them. */
+export const ALL_FEATURES: readonly Feature[] = [
+    ...MEDIA_PROVIDERS,
+    ...COPILOT_PROVIDERS,
+    ...OPTIONAL_APIS
+];
+
+/** The answers a scaffold run resolves to. */
+export interface FeatureSelection {
+    /** Ids of every enabled feature — what `ortha:if` blocks are tested against. */
+    enabled: ReadonlySet<string>;
+}
+
+/** Whether any copilot provider was chosen. */
+export function copilotEnabled(selection: FeatureSelection): boolean {
+    return COPILOT_PROVIDERS.some((provider) =>
+        selection.enabled.has(provider.id)
+    );
+}
+
+/**
+ * The `@orthacms/*` dependencies for a selection, sorted.
+ *
+ * Built here rather than with `ortha:if` blocks inside `package.json.tmpl`:
+ * removing lines from JSON is how you get a trailing comma and an app that
+ * cannot even be installed, and the failure would name the template rather than
+ * the feature that was switched off.
+ */
+export function resolvePackages(selection: FeatureSelection): string[] {
+    const packages = new Set(CORE_PACKAGES);
+
+    for (const feature of ALL_FEATURES) {
+        if (!selection.enabled.has(feature.id)) continue;
+        for (const name of feature.packages) packages.add(name);
+    }
+
+    if (copilotEnabled(selection)) {
+        for (const name of COPILOT_PACKAGES) packages.add(name);
+    }
+
+    return [...packages].sort();
+}
+
+/** The dev-time `@orthacms/*` dependencies, sorted. */
+export function resolveDevPackages(): string[] {
+    return [...CORE_DEV_PACKAGES].sort();
+}
+
+/**
+ * The feature ids in force for a selection, including the derived ones the
+ * templates branch on but nobody picks directly.
+ */
+export function resolveFlags(selection: FeatureSelection): Set<string> {
+    const flags = new Set(selection.enabled);
+    if (copilotEnabled(selection)) flags.add('copilot');
+    return flags;
+}

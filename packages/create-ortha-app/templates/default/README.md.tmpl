@@ -42,6 +42,71 @@ other** — they are released together, and a partial upgrade can leave two copi
 of a shared package in `node_modules`, which means two React context instances
 and UI that silently stops talking to itself.
 
+### Writing your own plugin
+
+A server plugin is a `ServerPlugin` from `@orthacms/bootstrap-server` — a name,
+a NestJS module, and optionally its own migrations — added to the array in
+`src/server/plugins.ts`. `@InjectDatabase()` from `@orthacms/database` gives it
+the shared connection. An admin plugin is an `AdminPlugin` from
+`@orthacms/bootstrap-admin`, added to `src/admin/plugins.ts`.
+
+`@orthacms/utils-server` and `@orthacms/utils-admin` hold the shared toolkit
+(filter parsing, `apiClient`, slots, table URL state), and
+`@orthacms/design-system` the UI primitives. All three are already declared here.
+
+Anything else you import must be **declared** — `npm i @orthacms/tools-server`
+and so on. npm's flat `node_modules` makes an undeclared import resolve today,
+but that stops the moment a version conflict nests a copy, and never works under
+pnpm.
+
+## What this app was scaffolded with
+
+<!-- ortha:if copilot -->
+### AI copilot
+
+Installed, and **off** until you turn it on: set `COPILOT_ENABLED=true` in
+`.env`. Enabling a hosted backend sends workspace content to a third party, so
+it is an explicit decision rather than a default.
+
+Backends are registered in `src/server/plugins.ts`, and **the order is the
+setting** — there is no `defaultProvider`. The first registered backend serves a
+run that names none, and it is what the admin's model picker opens on. A backend
+is only registered when its connection settings are present, so an unconfigured
+one never appears as an option that fails on the first message.
+
+The bundled `fake` provider needs no key and no network, and is registered last
+— so with nothing configured the chat still works, and it is the default only
+because it is the only one.
+<!-- ortha:end -->
+<!-- ortha:if graphql -->
+### GraphQL
+
+`POST /api/v1/graphql`, alongside REST. It is a protocol adapter over the same
+services, not a second API: same bearer tokens, same scopes, same visibility
+rules. The schema is built per workspace content-grant set, so introspection
+cannot enumerate types a workspace was not granted.
+
+GraphiQL rides the same switch as the API reference (`API_DOCS`).
+<!-- ortha:end -->
+<!-- ortha:if mcp -->
+### MCP
+
+`POST /api/v1/mcp`, off until `MCP_ENABLED=true`. It lets an external agent do
+content CRUD with an API token — mint one on the API Tokens page, `read` scope
+for a retrieval-only agent, `full` for one that authors.
+<!-- ortha:end -->
+<!-- ortha:ifnot copilot -->
+### Adding the AI copilot later
+
+```sh
+npm i @orthacms/copilot-server @orthacms/copilot-admin \
+      @orthacms/copilot-provider-fake @orthacms/copilot-provider-anthropic
+```
+
+Then register `CopilotPlugin` in both `plugins.ts` files. Keep the versions in
+step with the rest of `@orthacms/*`.
+<!-- ortha:end -->
+
 ## Adding content types
 
 This app starts with none. To add some:
