@@ -66,7 +66,9 @@ layer-boundary lint isn't wired yet).
   fresh database must still boot.
 - **Writing a provider** is one factory function plus one
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
-  is where the port's invariants live as a runnable suite.
+  is where the port's invariants live as a runnable suite. Shipped
+  implementations: `-local` (the default install) and `-memory` (the e2e
+  harness, and offline development); `-s3` is still a stub that throws.
 
 ## Use cases + unit-of-work + outbox
 
