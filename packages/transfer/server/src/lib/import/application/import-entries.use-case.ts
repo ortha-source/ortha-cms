@@ -124,13 +124,30 @@ export class ImportEntriesUseCase {
         const assets = new TransferAssetMap();
         const localeGroups = new Map<string, string>();
 
-        // Records whose values were written, paired with the target row, so the
-        // second pass can apply their links.
-        const linkPass: { record: TransferRecord; targetId: string }[] = [];
+        // Records whose values were written, paired with the target row and the
+        // exact bag that was written, so the second pass can apply their links.
+        //
+        // Carrying `values` is not an optimisation. `toColumns` writes a field
+        // absent from the bag as `null` — a save replaces the whole document —
+        // so a second update carrying only the relation fields would blank
+        // every scalar the first pass just wrote.
+        const linkPass: {
+            record: TransferRecord;
+            targetId: string;
+            values: Record<string, unknown>;
+        }[] = [];
 
         const matches = await this.matchAll(document.records, workspaceId);
 
-        for (const record of document.records) {
+        // Context first. A depth-1 record is something a depth-0 record points
+        // at, so writing those first means most references already resolve on
+        // the first pass — which matters for a required relation on a
+        // non-publishable type, where a null FK would be rejected outright.
+        const ordered = [...document.records].sort(
+            (a, b) => b.$depth - a.$depth
+        );
+
+        for (const record of ordered) {
             const type = this.registry.get(record.$type);
             const schema = this.catalog.schemaOf(record.$type);
             if (!type || !schema) {
@@ -198,6 +215,10 @@ export class ImportEntriesUseCase {
                 counts,
                 mediaRun
             );
+            // Whatever already resolves goes in on the first write, so a
+            // required relation is satisfied at insert time where the document's
+            // own ordering allows. The link pass fixes up the rest.
+            const withLinks = { ...values, ...this.resolvedLinks(record, ids) };
 
             if (command.dryRun) {
                 verdicts.push(
@@ -227,7 +248,7 @@ export class ImportEntriesUseCase {
                         ? await this.create(
                               type,
                               record,
-                              values,
+                              withLinks,
                               workspaceId,
                               localeGroups,
                               command.actor
@@ -235,7 +256,7 @@ export class ImportEntriesUseCase {
                         : await this.update(
                               type,
                               match.targetId,
-                              values,
+                              withLinks,
                               workspaceId,
                               command.actor
                           );
@@ -246,7 +267,7 @@ export class ImportEntriesUseCase {
                     targetId,
                     record.$locale
                 );
-                linkPass.push({ record, targetId });
+                linkPass.push({ record, targetId, values });
                 verdicts.push(
                     this.verdict(record, decision.action, decision.reason, targetId)
                 );
@@ -274,6 +295,38 @@ export class ImportEntriesUseCase {
             verdicts,
             hasChanges: hasChanges(counts)
         };
+    }
+
+    /**
+     * The relation fields of one record that already resolve, as target ids.
+     *
+     * Best-effort by design: whatever is known at first-write time goes in, and
+     * `applyLinks` completes the rest once every row exists. A reference that
+     * resolves to nothing is simply absent here rather than written as null,
+     * so it does not clear a link the target may already have.
+     */
+    private resolvedLinks(
+        record: TransferRecord,
+        ids: TransferIdMap
+    ): Record<string, unknown> {
+        const out: Record<string, unknown> = {};
+        for (const [field, value] of Object.entries(record.relations)) {
+            if (value === undefined) continue;
+            if (value === null) {
+                out[field] = null;
+                continue;
+            }
+            const refs = Array.isArray(value) ? value : [value];
+            const resolved = refs
+                .map((ref) => ids.resolve(ref).targetId)
+                .filter((id): id is string => !!id);
+            if (Array.isArray(value)) {
+                out[field] = resolved;
+            } else if (resolved.length > 0) {
+                out[field] = resolved[0];
+            }
+        }
+        return out;
     }
 
     /**
@@ -483,18 +536,24 @@ export class ImportEntriesUseCase {
      * over one link.
      */
     private async applyLinks(
-        pass: readonly { record: TransferRecord; targetId: string }[],
+        pass: readonly {
+            record: TransferRecord;
+            targetId: string;
+            values: Record<string, unknown>;
+        }[],
         ids: TransferIdMap,
         verdicts: ImportVerdict[],
         command: ImportCommand
     ): Promise<void> {
         if (command.dryRun) return;
 
-        for (const { record, targetId } of pass) {
+        for (const { record, targetId, values: written } of pass) {
             const type = this.registry.get(record.$type);
             if (!type) continue;
 
-            const values: Record<string, unknown> = {};
+            // Start from what was written, not from an empty bag — see the
+            // note on `linkPass`.
+            const values: Record<string, unknown> = { ...written };
             const unresolved: string[] = [];
             let any = false;
 
@@ -502,7 +561,6 @@ export class ImportEntriesUseCase {
                 if (value === undefined) continue;
                 if (value === null) {
                     values[field] = null;
-                    any = true;
                     continue;
                 }
                 const refs = Array.isArray(value) ? value : [value];
@@ -512,10 +570,16 @@ export class ImportEntriesUseCase {
                     if (found.targetId) resolved.push(found.targetId);
                     else unresolved.push(describeRef(ref));
                 }
-                values[field] = Array.isArray(value)
+                const next = Array.isArray(value)
                     ? resolved
                     : (resolved[0] ?? null);
-                any = true;
+                values[field] = next;
+                // Only a link the first write could not resolve is worth a
+                // second write. Re-saving a record whose links already landed
+                // costs a redundant UPDATE and, worse, a second revision — so
+                // every imported record would carry two entries in its history
+                // for one import.
+                if (!sameLink(written[field], next)) any = true;
             }
 
             if (any) {
@@ -634,6 +698,22 @@ export class ImportEntriesUseCase {
             ...(targetId ? { targetId } : {})
         };
     }
+}
+
+/**
+ * Whether a relation field's value is unchanged between the two write passes.
+ *
+ * Order matters for a many-relation — the owner's order is the order — so this
+ * is a positional comparison, not a set comparison.
+ */
+function sameLink(before: unknown, after: unknown): boolean {
+    if (Array.isArray(before) && Array.isArray(after)) {
+        return (
+            before.length === after.length &&
+            before.every((item, index) => item === after[index])
+        );
+    }
+    return (before ?? null) === (after ?? null);
 }
 
 /** Names a record the way an editor would recognise it. */
