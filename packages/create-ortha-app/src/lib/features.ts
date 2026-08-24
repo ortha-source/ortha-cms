@@ -149,6 +149,14 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
         available: true
     },
     {
+        id: 'media-gcs',
+        label: 'Google Cloud Storage',
+        hint: 'Native GCS auth. If an HMAC key is acceptable, the S3-compatible adapter reaches GCS too — one package fewer.',
+        packages: ['@orthacms/media-provider-gcs'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
         id: 'media-s3',
         label: 'S3-compatible',
         hint: 'Cloudflare R2, AWS S3, MinIO, Spaces, B2, Wasabi — set MEDIA_S3_BUCKET and, for anything but AWS, MEDIA_S3_ENDPOINT.',

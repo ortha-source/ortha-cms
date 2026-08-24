@@ -23,6 +23,9 @@ import type { S3StorageConfig } from '@orthacms/media-provider-s3';
 // ortha:if media-azure
 import type { AzureStorageConfig } from '@orthacms/media-provider-azure';
 // ortha:end
+// ortha:if media-gcs
+import type { GcsStorageConfig } from '@orthacms/media-provider-gcs';
+// ortha:end
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
@@ -86,6 +89,9 @@ export interface OrthaConfig {
             // ortha:end
             // ortha:if media-azure
             storage: AzureStorageConfig;
+            // ortha:end
+            // ortha:if media-gcs
+            storage: GcsStorageConfig;
             // ortha:end
         };
         copilot: AppCopilotConfig;
@@ -270,6 +276,21 @@ const config: OrthaConfig = {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+            },
+            // ortha:end
+            // ortha:if media-gcs
+            storage: {
+                bucket: requireEnv('MEDIA_GCS_BUCKET'),
+                // Everything else is optional: with no key file and no inline
+                // credentials the client uses Application Default Credentials,
+                // which is what a GKE or Cloud Run deployment wants.
+                ...(process.env['MEDIA_GCS_PROJECT_ID']
+                    ? { projectId: process.env['MEDIA_GCS_PROJECT_ID'] }
+                    : {}),
+                ...(process.env['MEDIA_GCS_KEY_FILE']
+                    ? { keyFilename: process.env['MEDIA_GCS_KEY_FILE'] }
+                    : {}),
+                signWithIam: process.env['MEDIA_GCS_SIGN_WITH_IAM'] === 'true'
             },
             // ortha:end
             // ortha:if media-azure
