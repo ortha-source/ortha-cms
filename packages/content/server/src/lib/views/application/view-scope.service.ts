@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectContentRegistry } from '../../content.tokens';
+import { InjectViewContentRegistry } from '../views.tokens';
 import type { ContentTypeRegistry } from '../../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../../content-types/queries/workspace-grants.query';
 import { CONTENT_SCOPE_PREFIX } from '../views.constants';
@@ -18,7 +18,7 @@ import { CONTENT_SCOPE_PREFIX } from '../views.constants';
 @Injectable()
 export class ViewScopeService {
     constructor(
-        @InjectContentRegistry()
+        @InjectViewContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly grants: WorkspaceGrantsQuery
     ) {}

@@ -1,7 +1,7 @@
 import { Module, type DynamicModule } from '@nestjs/common';
 import { WorkspaceGrantsQuery } from '../content-types/queries/workspace-grants.query';
-import { CONTENT_REGISTRY } from '../content.tokens';
 import type { ContentTypeRegistry } from '../registry/content-type-registry';
+import { VIEW_CONTENT_REGISTRY } from './views.tokens';
 import { SAVED_VIEW_REPOSITORY } from './domain/saved-view.repository';
 import { DrizzleSavedViewRepository } from './infrastructure/persistence/drizzle-saved-view.repository';
 import { SavedViewsQuery } from './application/queries/saved-views.query';
@@ -23,9 +23,11 @@ import { SavedViewsController } from './http/controllers/saved-views.controller'
  * module keeps that seam honest: the views feature owns fixed tables it ships
  * migrations for, and the content model's tables stay the host's.
  *
- * It re-declares `CONTENT_REGISTRY` from the registry the plugin factory hands
- * it, so `ViewScopeService` can resolve a scope without importing
- * `ContentModule` (which would make the two plugins' load order load-bearing).
+ * It provides the registry the plugin factory hands it under its **own** token
+ * (`VIEW_CONTENT_REGISTRY`), so `ViewScopeService` can resolve a scope without
+ * importing `ContentModule` — which would make the two plugins' load order
+ * load-bearing — and without two global modules both claiming
+ * `CONTENT_REGISTRY`.
  */
 @Module({})
 export class ContentViewsModule {
@@ -35,7 +37,7 @@ export class ContentViewsModule {
             global: true,
             controllers: [SavedViewsController],
             providers: [
-                { provide: CONTENT_REGISTRY, useValue: registry },
+                { provide: VIEW_CONTENT_REGISTRY, useValue: registry },
                 {
                     provide: SAVED_VIEW_REPOSITORY,
                     useClass: DrizzleSavedViewRepository
