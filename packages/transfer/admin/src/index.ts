@@ -5,6 +5,7 @@ export { transferAdminPlugin } from './lib/utils/transferAdminPlugin';
 export { ExportDialog } from './lib/components/ExportDialog';
 export { ImportDialog } from './lib/components/ImportDialog';
 export { ImportVerdictList } from './lib/components/ImportVerdictList';
+export { useImportAction } from './lib/hooks/useImportAction';
 
 export { useExportPreview } from './lib/api/useExportPreview';
 export type { ExportPreview } from './lib/api/useExportPreview';

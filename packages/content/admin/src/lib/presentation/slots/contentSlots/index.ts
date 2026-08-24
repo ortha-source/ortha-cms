@@ -654,3 +654,66 @@ export type RecordsBulkActionItem = {
 export const RECORDS_BULK_ACTION_SLOT = createSlot<RecordsBulkActionItem>(
     'content.records.bulkActions'
 );
+
+/** What a {@link RecordsMenuItem} renders as, once its hook has run. */
+export type RecordsMenuEntry = {
+    /** The item's label. */
+    label: ReactNode;
+    /** Leading icon, as any other menu item carries. */
+    icon?: ComponentType;
+    /** Render it disabled (e.g. while its own request is in flight). */
+    disabled?: boolean;
+    /** Style it as destructive — reserve for actions that lose data. */
+    destructive?: boolean;
+    /** Run the action. Selecting an item always closes the menu. */
+    onSelect: () => void;
+    /**
+     * A dialog or other overlay this item owns, rendered **outside** the menu —
+     * which unmounts the moment it closes, exactly when the dialog is meant to
+     * appear. Keep it mounted and drive it from your own state.
+     */
+    overlay?: ReactNode;
+};
+
+/** Context handed to a {@link RecordsMenuItem}'s hook. */
+export type RecordsMenuContext = {
+    /** The open collection's full schema. */
+    schema: ContentTypeDetail;
+    /** The open workspace's id. */
+    workspaceId: string;
+    /** Whether the trash view is open. */
+    trashed: boolean;
+};
+
+/** One contributed item in the collection's **⋯ menu**. */
+export type RecordsMenuItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** Sort within the menu. */
+    order: number;
+    /** Limit the item to certain types; omitted = every type. */
+    appliesTo?: (schema: ContentTypeDetail) => boolean;
+    /**
+     * Resolves the item for the open collection — **a hook**, called once per
+     * item per render (boot-frozen slots, so the order is stable; see this
+     * module's header). Return `null` to render nothing, which is how an item
+     * hides itself without skipping its hook.
+     */
+    useItem: (context: RecordsMenuContext) => RecordsMenuEntry | null;
+};
+
+/**
+ * Actions on the **collection**, in a ⋯ menu at the left of the records
+ * toolbar — the counterpart to {@link ENTRY_MENU_SLOT} one level up.
+ *
+ * It is a menu rather than a row of buttons because what belongs here is the
+ * occasional, whole-collection operation (`@orthacms/transfer-admin` puts
+ * Import in it), and those should not compete for width with the controls
+ * people use on every visit — search, columns, filters.
+ *
+ * The trigger renders **only when at least one item resolves**, so an install
+ * without any contributor sees no empty ⋯ button.
+ */
+export const RECORDS_MENU_SLOT = createSlot<RecordsMenuItem>(
+    'content.records.menu'
+);

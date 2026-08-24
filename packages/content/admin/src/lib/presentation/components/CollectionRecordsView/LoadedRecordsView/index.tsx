@@ -68,6 +68,7 @@ import { CollectionRecordsEmpty } from '../CollectionRecordsEmpty';
 import { CollectionRecordsSkeleton } from '../CollectionRecordsSkeleton';
 import { CollectionRecordsSelectionBar } from '../CollectionRecordsSelectionBar';
 import { CollectionRecordsBulkActions } from '../CollectionRecordsBulkActions';
+import { CollectionRecordsMenu } from '../CollectionRecordsMenu';
 
 /** Intl descriptors for {@link LoadedRecordsView}, co-located. */
 const messages = defineMessages({
@@ -523,6 +524,14 @@ export function LoadedRecordsView({
                 )}
                 actions={
                     <div className="flex items-center gap-2">
+                        {/* Leftmost: whole-collection actions, so the occasional
+                            ones don't compete for width with search, columns
+                            and filters. Renders nothing when no plugin fills it. */}
+                        <CollectionRecordsMenu
+                            schema={schema}
+                            workspaceId={workspace.id}
+                            trashed={trashed}
+                        />
                         {toolbarItems.map((item) => (
                             <item.Component
                                 key={item.id}

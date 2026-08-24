@@ -10,15 +10,18 @@ already looking at, so it lives in the content library's seams:
 | -------------------------- | --------------------------------------------- |
 | `ENTRY_MENU_SLOT`          | **Export…** in the editor's ⋯ menu (Extras).  |
 | `RECORDS_BULK_ACTION_SLOT` | **Export** in the records selection bar.      |
-| `RECORDS_TOOLBAR_SLOT`     | **Import** in the collection toolbar.         |
+| `RECORDS_MENU_SLOT`        | **Import…** in the collection's ⋯ menu.       |
 
 Register it **after** `contentAdminPlugin()`, which declares all three.
 
 ## The rules that matter here
 
-**Import belongs to the collection, not the selection.** It is in the toolbar
-because there is nothing selected when you import — what arrives is whatever the
-file holds. Moving it into the selection bar would be a category error.
+**Import belongs to the collection, not the selection.** There is nothing
+selected when you import — what arrives is whatever the file holds — so the
+selection bar would be a category error. It sits in the collection's ⋯ menu
+rather than as a toolbar button of its own because importing is occasional, and
+search, columns and filters are used on every visit; they should not give up
+width to it. Hidden in the trash view, where the rows are on their way out.
 
 **The export dialog's counts must stay honest.** They come from
 `/export/preview`, which runs the *same* graph walk the export runs. If that
