@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import {
     SsoVerificationError,
+    type SsoLogoutNotice,
     type SsoAuthorizeRedirect,
     type SsoAuthorizeRequest,
     type SsoCallback,
@@ -25,6 +26,15 @@ export interface FakeSsoProvider extends SsoProvider {
     failNextVerification(reason?: string): void;
     /** How many times each half of the handshake has run. */
     calls(): { authorize: number; complete: number };
+    /**
+     * A back-channel logout notification this provider will accept, in the
+     * shape its `verifyLogoutToken` expects.
+     *
+     * Minting it here rather than in a suite keeps the token's format a detail
+     * of the adapter — a suite that hand-built one would be asserting against
+     * this file's internals instead of against the behaviour.
+     */
+    logoutToken(notice: SsoLogoutNotice): string;
 }
 
 /**
@@ -112,6 +122,44 @@ export function createFakeSsoProvider(
             );
             url.searchParams.set('code_challenge_method', 'S256');
             return Promise.resolve({ url: url.toString() });
+        },
+
+        logoutToken(notice: SsoLogoutNotice): string {
+            const body = JSON.stringify({
+                sessionId: notice.sessionId ?? null,
+                subject: notice.subject ?? null
+            });
+            const encoded = Buffer.from(body, 'utf8').toString('base64url');
+            return `${encoded}.${signLogout(encoded, secret)}`;
+        },
+
+        verifyLogoutToken(token: string): Promise<SsoLogoutNotice> {
+            // Signed and verified for real, like the authorization response.
+            // A stub that accepted any string would leave the route's most
+            // dangerous property — that an unverified notification cannot sign
+            // people out — asserted nowhere.
+            const [encoded, signature] = token.split('.');
+            if (
+                !encoded ||
+                !signature ||
+                signLogout(encoded, secret) !== signature
+            ) {
+                return Promise.reject(
+                    new SsoVerificationError(
+                        'the logout token signature does not verify'
+                    )
+                );
+            }
+            try {
+                const parsed = JSON.parse(
+                    Buffer.from(encoded, 'base64url').toString('utf8')
+                ) as SsoLogoutNotice;
+                return Promise.resolve(parsed);
+            } catch {
+                return Promise.reject(
+                    new SsoVerificationError('the logout token is unreadable')
+                );
+            }
         },
 
         complete(callback: SsoCallback): Promise<SsoProfile> {
@@ -216,6 +264,13 @@ function verify(
     return (
         expected.length === actual.length && timingSafeEqual(expected, actual)
     );
+}
+
+/** The signature over a scripted logout token's body. */
+function signLogout(encoded: string, secret: string): string {
+    return createHash('sha256')
+        .update(`logout.${encoded}.${secret}`)
+        .digest('hex');
 }
 
 /** The PKCE `S256` challenge for a verifier. */

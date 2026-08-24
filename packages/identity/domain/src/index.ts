@@ -13,6 +13,7 @@ export type {
     SsoAuthorizeRedirect,
     SsoCallback,
     SsoLogoutRequest,
+    SsoLogoutNotice,
     SsoRegistration,
     SsoRegistry
 } from './lib/sso/sso-provider';

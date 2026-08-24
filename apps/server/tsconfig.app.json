@@ -55,6 +55,12 @@
             "path": "../../packages/i18n/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/identity/provider-saml/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/provider-github/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/identity/provider-oidc/tsconfig.lib.json"
         },
         {

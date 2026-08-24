@@ -43,6 +43,13 @@
       "when": 1787518405668,
       "tag": "0005_sso_invite",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787520476385,
+      "tag": "0006_sso_session_link",
+      "breakpoints": true
     }
   ]
 }

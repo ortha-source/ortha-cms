@@ -1,8 +1,11 @@
 import {
+    Body,
     Controller,
     Get,
+    HttpCode,
     NotFoundException,
     Param,
+    Post,
     Query,
     Req,
     Res,
@@ -20,7 +23,11 @@ import {
 import { Inject } from '@nestjs/common';
 import { CompleteSsoUseCase } from '../../application/use-cases/complete-sso.use-case';
 import { StartSsoUseCase } from '../../application/use-cases/start-sso.use-case';
-import { SsoLoginFailedError } from '../../domain/errors';
+import { SsoBackchannelLogoutUseCase } from '../../application/use-cases/sso-backchannel-logout.use-case';
+import {
+    SsoLoginFailedError,
+    SsoLogoutFailedError
+} from '../../domain/errors';
 import type { IdentityPluginConfig } from '../../types';
 import { InjectIdentityConfig } from '../../identity.tokens';
 import { ssoFailureUrl, ssoSuccessUrl } from '../../sso/sso-settings';
@@ -60,6 +67,7 @@ export class SsoController {
         @Inject(SSO_REGISTRY) private readonly registry: SsoRegistry,
         private readonly startSso: StartSsoUseCase,
         private readonly completeSso: CompleteSsoUseCase,
+        private readonly backchannelLogout: SsoBackchannelLogoutUseCase,
         private readonly cookies: CookieService,
         @InjectIdentityConfig() private readonly config: IdentityPluginConfig
     ) {}
@@ -117,6 +125,16 @@ export class SsoController {
         @Req() req: Request,
         @Res() res: Response
     ): Promise<void> {
+        return this.finish(provider, queryParams(req), req, res);
+    }
+
+    /** The half both callback routes share, once the parameters are in hand. */
+    private async finish(
+        provider: string,
+        params: Record<string, string>,
+        req: Request,
+        res: Response
+    ): Promise<void> {
         // Cleared on both outcomes: an attempt is one-time, so a leftover
         // handle would ride along on the next attempt and turn one failure into
         // a provider that looks broken.
@@ -127,7 +145,7 @@ export class SsoController {
             completed = await this.completeSso.execute({
                 provider,
                 requestToken,
-                params: queryParams(req),
+                params,
                 context: {
                     userAgent: req.headers['user-agent'] ?? null,
                     ipAddress: req.ip ?? null
@@ -145,6 +163,78 @@ export class SsoController {
         this.cookies.clearSsoRequest(res);
         this.cookies.setSession(res, completed.session.token);
         res.redirect(302, ssoSuccessUrl(this.config, completed.redirectTo));
+    }
+
+    /**
+     * The same callback, for a provider whose protocol answers with a form POST
+     * rather than a redirect — SAML's HTTP-POST binding.
+     *
+     * A separate handler rather than a shared one because the two differ in
+     * exactly one place — where the response parameters come from — and every
+     * check after that is identical. Declaring both is also what makes
+     * `SsoProviderDescriptor.callbackMethod` mean something: a SAML provider
+     * says `'POST'`, and this is the route that serves it.
+     *
+     * **No CSRF token, and none is possible.** The request is a cross-site form
+     * post from an identity provider that has never seen this CMS's pages. The
+     * attempt cookie and the echoed `RelayState` are the defence, exactly as on
+     * the GET route — which is why the core, not an adapter, mints them.
+     */
+    @Post(':provider/callback')
+    async callbackPost(
+        @Param('provider') provider: string,
+        @Body() body: Record<string, unknown>,
+        @Req() req: Request,
+        @Res() res: Response
+    ): Promise<void> {
+        return this.finish(provider, formParams(body), req, res);
+    }
+
+    /**
+     * `POST /api/auth/sso/:provider/backchannel-logout` — the identity provider
+     * telling us, with no browser involved, that a session on its side ended.
+     *
+     * The one mechanism that ends an Ortha session promptly when somebody is
+     * offboarded: a session here is a row with a TTL, and a directory disabling
+     * an account does not otherwise reach it.
+     *
+     * Answers `200` whether or not anything was revoked, and `400` for a
+     * refusal, per the OIDC back-channel logout spec — and because a provider
+     * retrying a notification is normal, so the endpoint must be idempotent.
+     * `404` for a provider that does not implement it, rather than a `200` that
+     * pretends to have acted.
+     *
+     * **No cache**, explicitly: an intermediary storing a `200` for this URL
+     * would swallow every subsequent logout notification.
+     */
+    @HttpCode(200)
+    @Post(':provider/backchannel-logout')
+    async backchannel(
+        @Param('provider') provider: string,
+        @Body() body: Record<string, unknown>,
+        @Res() res: Response
+    ): Promise<void> {
+        res.setHeader('cache-control', 'no-store');
+        try {
+            const revoked = await this.backchannelLogout.execute({
+                provider,
+                token:
+                    typeof body['logout_token'] === 'string'
+                        ? body['logout_token']
+                        : null
+            });
+            res.status(200).json({ revoked });
+        } catch (error) {
+            if (error instanceof SsoLogoutFailedError) {
+                // Deliberately bare. The caller is unauthenticated, and a
+                // message distinguishing "that token did not verify" from "that
+                // person has no account here" would be an oracle for which of a
+                // directory's members use this CMS.
+                res.status(400).json({ error: 'invalid_request' });
+                return;
+            }
+            throw this.toHttpError(error);
+        }
     }
 
     /**
@@ -168,6 +258,20 @@ export class SsoController {
  * an array. Taking only the string values means a duplicated parameter cannot
  * smuggle a second value past a check that looked at the first: the array is
  * dropped, the parameter reads as absent, and the sign-in is refused.
+ */
+function formParams(body: Record<string, unknown>): Record<string, string> {
+    const params: Record<string, string> = {};
+    for (const [key, value] of Object.entries(body ?? {})) {
+        if (typeof value === 'string') {
+            params[key] = value;
+        }
+    }
+    return params;
+}
+
+/**
+ * The query string as flat strings. See {@link formParams} for the same
+ * reasoning applied to a form body.
  */
 function queryParams(req: Request): Record<string, string> {
     const params: Record<string, string> = {};

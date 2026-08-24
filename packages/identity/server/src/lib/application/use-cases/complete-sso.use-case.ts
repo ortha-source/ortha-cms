@@ -271,7 +271,16 @@ export class CompleteSsoUseCase {
                 events
             );
 
-            const session = await this.sessions.issue(account.userId, context);
+            const session = await this.sessions.issue(account.userId, context, {
+                // Recorded so a back-channel logout can find exactly the
+                // sessions this provider session opened — and so one provider's
+                // notification can never end sessions opened through another.
+                ssoProvider: provider,
+                ssoSessionId: profile.sessionId ?? null,
+                ...(this.config.sso?.sessionTtlSeconds
+                    ? { ttlSeconds: this.config.sso.sessionTtlSeconds }
+                    : {})
+            });
             events.push(
                 identityEvent(
                     IDENTITY_EVENT_KINDS.SIGNED_IN,

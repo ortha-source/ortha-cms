@@ -31,10 +31,32 @@ export const sessions = pgTable(
         /** Optional client metadata for audit/display. */
         userAgent: text('user_agent'),
         /** Optional originating IP for audit/display. */
-        ipAddress: text('ip_address')
+        ipAddress: text('ip_address'),
+        /**
+         * The SSO provider this session was opened through, or null for a
+         * password sign-in. Recorded so a back-channel logout from one provider
+         * cannot end sessions opened through another.
+         */
+        ssoProvider: text('sso_provider'),
+        /**
+         * The provider's own session identifier (`sid` in OIDC, `SessionIndex`
+         * in SAML), when it issued one.
+         *
+         * This is what makes a back-channel logout **precise**: the provider
+         * says "session X ended" and only the Ortha sessions opened from it are
+         * revoked, rather than every session the person holds on every device.
+         */
+        ssoSessionId: text('sso_session_id')
     },
     (table) => [
         // "revoke all sessions for a user" would otherwise seq-scan.
-        index('sessions_user_id_idx').on(table.userId)
+        index('sessions_user_id_idx').on(table.userId),
+        // The back-channel logout lookup: "which sessions did this provider
+        // session open?" — a full scan of a live sessions table otherwise, on a
+        // route an identity provider calls without a browser to wait for it.
+        index('sessions_sso_session_idx').on(
+            table.ssoProvider,
+            table.ssoSessionId
+        )
     ]
 );

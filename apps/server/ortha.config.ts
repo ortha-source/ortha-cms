@@ -17,6 +17,8 @@ import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
+import type { GithubProviderConfig } from '@orthacms/identity-provider-github';
+import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
@@ -99,6 +101,19 @@ export interface OrthaIdentityConfig extends IdentityPluginConfig {
          * configuration as an argument, so nothing else changes.
          */
         oidc?: OidcProviderConfig & { name: string };
+        /**
+         * GitHub or GitHub Enterprise Server. Its own key because GitHub is
+         * OAuth2, not OIDC — there is no identity token, so it is a different
+         * adapter rather than a preset. Present when both credentials are set.
+         */
+        github?: GithubProviderConfig & { name: string };
+        /**
+         * A SAML 2.0 identity provider. Present when the entry point and the
+         * signing certificate are both set — SAML has no discovery document, so
+         * the certificate is the whole of the trust relationship and there is
+         * nothing to fall back to.
+         */
+        saml?: SamlProviderConfig & { name: string };
     };
 }
 
@@ -253,6 +268,10 @@ function readList(name: string, fallback: string): string[] {
  */
 const ssoOidcIssuer = process.env['SSO_OIDC_ISSUER']?.trim();
 const ssoOidcClientId = process.env['SSO_OIDC_CLIENT_ID']?.trim();
+const ssoGithubClientId = process.env['SSO_GITHUB_CLIENT_ID']?.trim();
+const ssoGithubClientSecret = process.env['SSO_GITHUB_CLIENT_SECRET']?.trim();
+const ssoSamlEntryPoint = process.env['SSO_SAML_ENTRY_POINT']?.trim();
+const ssoSamlCert = process.env['SSO_SAML_IDP_CERT']?.trim();
 
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
@@ -478,7 +497,19 @@ const config: OrthaConfig = {
                 // exemption a mis-scoped provider locks an operator out of
                 // their own CMS with no way back short of a database client.
                 allowPasswordLogin:
-                    process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false'
+                    process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false',
+                // Shorter than the ordinary session lifetime for a provider
+                // with no back-channel logout: without one, a session's own
+                // expiry is the only thing that eventually ends access after
+                // somebody is offboarded.
+                ...(process.env['SSO_SESSION_TTL_SECONDS']
+                    ? {
+                          sessionTtlSeconds: readPositiveInt(
+                              'SSO_SESSION_TTL_SECONDS',
+                              600
+                          )
+                      }
+                    : {})
             },
             ssoProviders: {
                 ...(ssoOidcIssuer && ssoOidcClientId
@@ -519,6 +550,83 @@ const config: OrthaConfig = {
                                   process.env[
                                       'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
                                   ] === 'true'
+                          }
+                      }
+                    : {}),
+                ...(ssoGithubClientId && ssoGithubClientSecret
+                    ? {
+                          github: {
+                              name: process.env['SSO_GITHUB_NAME'] ?? 'github',
+                              clientId: ssoGithubClientId,
+                              clientSecret: ssoGithubClientSecret,
+                              ...(process.env['SSO_GITHUB_LABEL']
+                                  ? { label: process.env['SSO_GITHUB_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_GITHUB_ENTERPRISE_URL']
+                                  ? {
+                                        enterpriseBaseUrl:
+                                            process.env[
+                                                'SSO_GITHUB_ENTERPRISE_URL'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_GITHUB_ORG']
+                                  ? {
+                                        organization:
+                                            process.env['SSO_GITHUB_ORG']
+                                    }
+                                  : {})
+                          }
+                      }
+                    : {}),
+                ...(ssoSamlEntryPoint && ssoSamlCert
+                    ? {
+                          saml: {
+                              name: process.env['SSO_SAML_NAME'] ?? 'saml',
+                              entryPoint: ssoSamlEntryPoint,
+                              idpCert: ssoSamlCert,
+                              // The entity id the identity provider has
+                              // registered for this application. Defaults to
+                              // the CMS's own origin, which is what most
+                              // administrators enter when nobody tells them
+                              // otherwise.
+                              issuer:
+                                  process.env['SSO_SAML_ISSUER'] ??
+                                  process.env['SSO_PUBLIC_BASE_URL'] ??
+                                  '',
+                              ...(process.env['SSO_SAML_LABEL']
+                                  ? { label: process.env['SSO_SAML_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_SAML_SUBJECT_ATTRIBUTE']
+                                  ? {
+                                        subjectAttribute:
+                                            process.env[
+                                                'SSO_SAML_SUBJECT_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_SAML_EMAIL_ATTRIBUTE']
+                                  ? {
+                                        emailAttribute:
+                                            process.env[
+                                                'SSO_SAML_EMAIL_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_SAML_GROUPS_ATTRIBUTE']
+                                  ? {
+                                        groupsAttribute:
+                                            process.env[
+                                                'SSO_SAML_GROUPS_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              // SAML carries no verification claim at all, so
+                              // this is always an operator's assertion that
+                              // their directory owns the addresses it reports.
+                              emailVerified:
+                                  process.env['SSO_SAML_EMAIL_VERIFIED'] ===
+                                  'true'
                           }
                       }
                     : {})

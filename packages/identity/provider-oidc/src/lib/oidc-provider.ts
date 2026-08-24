@@ -10,6 +10,7 @@ import {
     type SsoAuthorizeRedirect,
     type SsoAuthorizeRequest,
     type SsoCallback,
+    type SsoLogoutNotice,
     type SsoLogoutRequest,
     type SsoProfile,
     type SsoProvider,
@@ -37,6 +38,16 @@ const RESERVED_PARAMS = new Set([
     'code_challenge',
     'code_challenge_method'
 ]);
+
+/**
+ * The claim that marks a token as a back-channel logout notification.
+ *
+ * Checked because everything *else* about a logout token matches an identity
+ * token — same issuer, same audience, same signing key. Without this check,
+ * anyone holding a stolen identity token could sign its owner out at will.
+ */
+const BACKCHANNEL_LOGOUT_EVENT =
+    'http://schemas.openid.net/event/backchannel-logout';
 
 /** The token endpoint's response, as far as this adapter reads it. */
 interface TokenResponse {
@@ -189,6 +200,63 @@ export function createOidcProvider(
                 request.returnTo
             );
             return url.toString();
+        },
+
+        async verifyLogoutToken(token: string): Promise<SsoLogoutNotice> {
+            let claims: IdTokenClaims;
+            try {
+                const verified = await jwtVerify(token, await keySet(), {
+                    issuer: resolved.issuer,
+                    audience: resolved.clientId,
+                    clockTolerance: resolved.clockToleranceSeconds,
+                    // The spec gives logout tokens their own `typ`. Providers
+                    // are inconsistent about sending it, so it is not required
+                    // — the `events` claim below is the check that actually
+                    // separates a logout token from an identity one.
+                    typ: undefined
+                });
+                claims = verified.payload as IdTokenClaims;
+            } catch (error) {
+                throw new SsoVerificationError(
+                    `the logout token did not verify (${
+                        error instanceof Error ? error.message : String(error)
+                    })`
+                );
+            }
+
+            // Without this, a **stolen identity token** would be accepted here:
+            // same issuer, same audience, same signature, and it names a `sub`.
+            // Anyone who obtained one could then sign that person out at will.
+            // The `events` claim is what says "this token is a logout
+            // notification and nothing else".
+            const events = claims['events'];
+            if (
+                typeof events !== 'object' ||
+                events === null ||
+                !(BACKCHANNEL_LOGOUT_EVENT in events)
+            ) {
+                throw new SsoVerificationError(
+                    'the token carries no back-channel logout event, so it is not a logout token'
+                );
+            }
+            // The spec forbids a `nonce` on a logout token, precisely because
+            // its presence means somebody handed us an identity token.
+            if ('nonce' in claims) {
+                throw new SsoVerificationError(
+                    'the logout token carries a nonce, which only an identity token has'
+                );
+            }
+
+            const sessionId =
+                typeof claims['sid'] === 'string' ? claims['sid'] : null;
+            const subject =
+                typeof claims['sub'] === 'string' ? claims['sub'] : null;
+            if (!sessionId && !subject) {
+                throw new SsoVerificationError(
+                    'the logout token names neither a session nor a subject'
+                );
+            }
+            return { sessionId, subject };
         }
     };
 

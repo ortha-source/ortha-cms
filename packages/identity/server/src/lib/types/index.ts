@@ -102,6 +102,18 @@ export interface IdentitySsoConfig {
      * involve a database client.
      */
     allowPasswordLogin?: boolean;
+    /**
+     * Lifetime for sessions opened through an identity provider, in seconds.
+     * Defaults to the ordinary {@link IdentitySessionConfig.ttlSeconds}.
+     *
+     * Worth shortening for a provider with **no back-channel logout**: a
+     * directory can disable someone at any moment and the CMS does not hear
+     * about it, so the session's own expiry is the only thing that eventually
+     * ends their access. Shortening it trades a re-authentication now and then
+     * for a smaller window after an offboarding — which is exactly the trade an
+     * operator should get to make, and cannot if the number is fixed.
+     */
+    sessionTtlSeconds?: number;
 }
 
 /** Just-in-time provisioning settings. */

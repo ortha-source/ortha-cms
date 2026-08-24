@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1285 test cases across 84 spec files._
+_1296 test cases across 85 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1069,6 +1069,23 @@ _<sub>apps/server-e2e/src/server/auth/sso-authority.spec.ts</sub>_
 | still accepts the root administrator — the break-glass path |
 | leaves the SSO path working |
 
+<!-- source: apps/server-e2e/src/server/auth/sso-logout.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso-logout.spec.ts</sub>_
+
+## SSO back-channel logout
+
+| Test case |
+| --- |
+| ends the sessions one provider session opened |
+| ends every session the account holds when told only the subject |
+| leaves a password session alone — it was never the provider's to end |
+| refuses an unverified notification |
+| refuses a request with no token at all |
+| is idempotent, because providers retry |
+| says nothing about a subject with no account here |
+| 404s for a provider nobody registered |
+| tells intermediaries not to cache the answer |
+
 <!-- source: apps/server-e2e/src/server/auth/sso.spec.ts -->
 _<sub>apps/server-e2e/src/server/auth/sso.spec.ts</sub>_
 
@@ -1097,6 +1114,13 @@ _<sub>apps/server-e2e/src/server/auth/sso.spec.ts</sub>_
 | opens an ordinary session — indistinguishable from a password one |
 | clears the attempt cookie, so a spent handle cannot ride along |
 | links the identity, so the account survives an email change |
+
+### the POST callback
+
+| Test case |
+| --- |
+| completes a sign-in from a form post, as SAML returns one |
+| refuses a form post with a foreign state, like the redirect route |
 
 ### refusals
 

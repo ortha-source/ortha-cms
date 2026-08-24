@@ -203,6 +203,46 @@ describe('SSO sign-in', () => {
         });
     });
 
+    describe('the POST callback', () => {
+        it('completes a sign-in from a form post, as SAML returns one', async () => {
+            // The scripted provider speaks OIDC, so this is not a SAML
+            // end-to-end — the SAML adapter has its own suite for that. What is
+            // asserted here is the **route**: an identity provider whose
+            // descriptor says `callbackMethod: 'POST'` has somewhere to post
+            // to, and it reaches exactly the same verification and account
+            // resolution as the redirect one.
+            await seedLinkedAccount();
+            const { agent, params } = await start();
+
+            const done = await agent
+                .post('/api/auth/sso/fake/callback')
+                .type('form')
+                .send(Object.fromEntries(params.entries()))
+                .expect(302);
+
+            expect(done.headers['location']).toBe(`${TEST_ALLOWED_ORIGIN}/`);
+            const me = await agent.get('/api/auth/me').expect(200);
+            expect(me.body.email).toBe(SSO_EMAILS.linked);
+        });
+
+        it('refuses a form post with a foreign state, like the redirect route', async () => {
+            await seedLinkedAccount();
+            const { agent, params } = await start();
+            const forged = Object.fromEntries(params.entries());
+            forged['state'] = 'state-from-somewhere-else';
+
+            const done = await agent
+                .post('/api/auth/sso/fake/callback')
+                .type('form')
+                .send(forged)
+                .expect(302);
+
+            expect(done.headers['location']).toBe(
+                `${TEST_ALLOWED_ORIGIN}/identity/signin?error=sso`
+            );
+        });
+    });
+
     describe('refusals', () => {
         /** Every refusal lands on the sign-in screen with the same flag. */
         const FAILURE = `${TEST_ALLOWED_ORIGIN}/identity/signin?error=sso`;
