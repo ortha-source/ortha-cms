@@ -585,3 +585,72 @@ export type EntryFieldControlItem = {
 export const ENTRY_FIELD_CONTROL_SLOT = createSlot<EntryFieldControlItem>(
     'content.entry.fieldControl'
 );
+
+/** What a {@link RecordsBulkActionItem} renders as, once its hook has run. */
+export type RecordsBulkActionEntry = {
+    /** The button's label. */
+    label: ReactNode;
+    /** Leading icon, as the built-in bulk buttons carry. */
+    icon?: ComponentType;
+    /** Render it disabled (e.g. while its own request is in flight). */
+    disabled?: boolean;
+    /** Style it as destructive — reserve for actions that lose data. */
+    destructive?: boolean;
+    /** Run the action. */
+    onSelect: () => void;
+    /**
+     * A dialog or other overlay this action owns, rendered as a sibling of the
+     * buttons rather than inside the button row — so it is not laid out as a
+     * flex child of the bar.
+     *
+     * Note what it does **not** survive: the selection bar unmounts as soon as
+     * the selection is empty, and the overlay goes with it. So an action whose
+     * dialog should stay open must not call `onDone` until that dialog is
+     * finished — clear the selection on success, not on open.
+     */
+    overlay?: ReactNode;
+};
+
+/** Context handed to a {@link RecordsBulkActionItem}'s hook. */
+export type RecordsBulkContext = {
+    /** The open collection's full schema. */
+    schema: ContentTypeDetail;
+    /** The open workspace's id. */
+    workspaceId: string;
+    /** The selected entry ids. */
+    ids: string[];
+    /** Whether the trash view is open (the selection is soft-deleted rows). */
+    trashed: boolean;
+    /** Clears the selection — call after the action succeeds. */
+    onDone: () => void;
+};
+
+/** One contributed button in the records selection bar. */
+export type RecordsBulkActionItem = {
+    /** Stable id (used as the React key). */
+    id: string;
+    /** Sort among contributed actions; built-ins always render first. */
+    order: number;
+    /** Limit the action to certain types; omitted = every type. */
+    appliesTo?: (schema: ContentTypeDetail) => boolean;
+    /**
+     * Resolves the action for the current selection — **a hook**, called once
+     * per item per render (boot-frozen slots, so the order is stable; see this
+     * module's header). Return `null` to render nothing, which is how an action
+     * hides itself without skipping its hook.
+     */
+    useItem: (context: RecordsBulkContext) => RecordsBulkActionEntry | null;
+};
+
+/**
+ * Extra actions in the collection records view's **selection bar**, beside the
+ * built-in Publish / Unpublish / Delete (and, in the trash, Restore / Delete
+ * permanently).
+ *
+ * The counterpart to {@link ENTRY_MENU_SLOT} for a set of records rather than
+ * one — `@orthacms/transfer-admin` fills both, so Export reads the same whether
+ * you are looking at a record or at a selection of them.
+ */
+export const RECORDS_BULK_ACTION_SLOT = createSlot<RecordsBulkActionItem>(
+    'content.records.bulkActions'
+);

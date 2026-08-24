@@ -651,6 +651,8 @@ export function LoadedRecordsView({
                             actions={
                                 <CollectionRecordsBulkActions
                                     typeName={type.name}
+                                    schema={schema}
+                                    workspaceId={workspace.id}
                                     ids={[...selectedIds]}
                                     publishable={publishable}
                                     paranoid={paranoid}

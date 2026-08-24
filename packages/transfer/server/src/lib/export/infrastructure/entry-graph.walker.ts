@@ -254,22 +254,19 @@ export class EntryGraphWalker {
             > = {};
 
             for (const field of schema.fields) {
-                if (field.relation) {
-                    if (field.relation.inverse) continue;
-                    if (field.relation.many) {
+                const relation = field.relation;
+                if (relation) {
+                    if (relation.inverse) continue;
+                    if (relation.many) {
                         const targets = links.get(id)?.[field.name] ?? [];
                         relationRefs[field.name] = targets.map((targetId) =>
-                            this.pendingRef(
-                                field.relation!.to,
-                                targetId,
-                                neighbours
-                            )
+                            this.pendingRef(relation.to, targetId, neighbours)
                         );
                     } else {
                         const targetId = row[field.name] as string | null;
                         relationRefs[field.name] = targetId
                             ? this.pendingRef(
-                                  field.relation.to,
+                                  relation.to,
                                   targetId,
                                   neighbours
                               )

@@ -202,8 +202,11 @@ export class ImportEntriesUseCase {
             }
 
             try {
+                // `decide` only returns Update when a row matched, but the
+                // compiler cannot see that — so read it once and fall back to a
+                // create rather than assert it away.
                 const targetId =
-                    decision.action === IMPORT_ACTION.Create
+                    decision.action === IMPORT_ACTION.Create || !match
                         ? await this.create(
                               type,
                               record,
@@ -214,7 +217,7 @@ export class ImportEntriesUseCase {
                           )
                         : await this.update(
                               type,
-                              match!.targetId,
+                              match.targetId,
                               values,
                               workspaceId,
                               command.actor
