@@ -174,6 +174,14 @@ export function interactive(): boolean {
  * restores it, because a process that exits while still in raw mode leaves the
  * user's terminal with no echo, and they have to type `reset` blind to get it
  * back.
+ *
+ * Listeners rather than `for await (const chunk of stdin)`, because an answered
+ * picker leaves that loop early — and a Node stream iterator destroys its
+ * stream when the loop is left early. The first picker would answer fine and
+ * take stdin down with it, and the next one would paint its rows and then
+ * reject with `AbortError: The operation was aborted` before the user could
+ * press a key. The wizard asks four of these in a row, so the loop has to leave
+ * stdin readable for the next one.
  */
 async function readKeys(
     handle: (key: string) => 'continue' | 'done' | 'cancel'
@@ -186,11 +194,34 @@ async function readKeys(
     stdin.setEncoding('utf8');
 
     try {
-        for await (const chunk of stdin) {
-            const outcome = handle(String(chunk));
-            if (outcome !== 'continue') return outcome;
-        }
-        return 'cancel';
+        return await new Promise<'done' | 'cancel'>((resolve, reject) => {
+            const stop = (): void => {
+                stdin.off('data', onData);
+                stdin.off('end', onEnd);
+                stdin.off('error', onError);
+            };
+            const onData = (chunk: string): void => {
+                const outcome = handle(String(chunk));
+                if (outcome === 'continue') return;
+                stop();
+                resolve(outcome);
+            };
+            // Only reachable when stdin is not a terminal, since Ctrl-D in raw
+            // mode is a keypress rather than end-of-input. Treated as a cancel:
+            // there is no one left to answer with.
+            const onEnd = (): void => {
+                stop();
+                resolve('cancel');
+            };
+            const onError = (cause: Error): void => {
+                stop();
+                reject(cause);
+            };
+
+            stdin.on('data', onData);
+            stdin.on('end', onEnd);
+            stdin.on('error', onError);
+        });
     } finally {
         stdin.setRawMode(wasRaw === true);
         stdin.pause();
