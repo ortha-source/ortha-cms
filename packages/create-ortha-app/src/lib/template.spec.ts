@@ -224,11 +224,17 @@ describe('the scaffolded app, whatever the features', () => {
     /**
      * Tailwind excludes `node_modules` from content detection, so without this
      * line the admin renders completely unstyled — and nothing errors.
+     *
+     * It has to be a bare directory: a `@source` carrying a glob is still run
+     * through the ignore rules (which exclude `node_modules`), so a pattern
+     * like `@orthacms/*\/dist/**\/*.js` matches zero files and the build is
+     * silently unstyled. Only a literal directory becomes an explicit content
+     * root. Hence the assertion on the exact, glob-free string.
      */
     it('points Tailwind at the installed packages', () => {
-        expect(rendered('apps/admin/src/styles.css')).toContain(
-            '@source "../../../node_modules/@orthacms/*/dist/**/*.js"'
-        );
+        const styles = rendered('apps/admin/src/styles.css');
+        expect(styles).toContain('@source "../../../node_modules/@orthacms";');
+        expect(styles).not.toMatch(/@source\s+"[^"]*node_modules[^"]*[*]/);
     });
 });
 

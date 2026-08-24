@@ -188,9 +188,14 @@ because it consumes packages from npm rather than from source:
 
 1. **No webpack.** `tsc` only, so `node_modules` stays on disk and every
    plugin's `join(__dirname, '../../../migrations')` still resolves.
-2. **`@source "../../node_modules/@orthacms/*/dist/**/*.js"`** in `styles.css`.
-   Tailwind excludes `node_modules` from content detection, so without this the
-   entire admin renders unstyled — and nothing errors.
+2. **`@source "../../../node_modules/@orthacms"`** in `styles.css`. Tailwind
+   excludes `node_modules` from content detection, so without this the entire
+   admin renders unstyled — and nothing errors. It must stay a **bare
+   directory**: a `@source` containing a glob is still filtered through the
+   ignore rules, so `@orthacms/*/dist/**/*.js` matches nothing and the emitted
+   stylesheet is the theme block alone (~15 kB, no component utilities). Only a
+   literal directory path is registered as an explicit content root that
+   bypasses those rules.
 3. **`staticDir`**, so one process serves the API and the admin on one origin.
    `apps/*` splits them because Vite serves the admin there; a deployment has no
    dev proxy, and identity's `SameSite=lax` session cookie needs same-origin.

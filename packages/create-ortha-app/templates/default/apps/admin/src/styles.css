@@ -8,8 +8,15 @@
 /* Tailwind excludes `node_modules` from its automatic content detection, so
    without this line none of the classes inside the Ortha packages are seen and
    the whole admin renders unstyled. The published packages ship compiled JS
-   with the class strings intact, which is what this scans. */
-@source "../../../node_modules/@orthacms/*/dist/**/*.js";
+   with the class strings intact, which is what this scans.
+
+   This MUST stay a bare directory path. A `@source` that contains a glob is
+   still filtered through the ignore rules — `node_modules` among them — so a
+   pattern reaching into each package's `dist` matches nothing, and the
+   stylesheet quietly comes out ~15 kB with no component utilities in it. Only
+   a literal directory is registered as an explicit content root that bypasses
+   those rules. */
+@source "../../../node_modules/@orthacms";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
