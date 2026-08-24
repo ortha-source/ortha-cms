@@ -606,13 +606,17 @@ test.describe('Content i18n', () => {
             await openGroupedRow(contentLibraryPage);
             await contentLibraryPage.openEditorMenu();
 
-            // save · publish · extras · danger, in that order.
+            // save · publish · extras · danger, in that order. "Export…" is
+            // `transfer-admin`'s slot contribution, which lands in the same
+            // Extras group as the locale actions — so it adds an item here but
+            // no fourth separator.
             await expect(contentLibraryPage.editorMenuItems).toHaveText([
                 'Save draft',
                 'Save & publish',
                 'Unpublish',
                 'Publish all locales',
                 'Unpublish all locales',
+                'Export…',
                 'Delete'
             ]);
             // One rule between each pair of adjacent groups.

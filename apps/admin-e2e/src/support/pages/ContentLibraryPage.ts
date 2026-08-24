@@ -573,9 +573,18 @@ export class ContentLibraryPage extends BasePage {
         return this.page.getByRole('combobox', { name: 'Rows per page' });
     }
 
-    /** The records table's live status region text (result count + view + sort). */
+    /**
+     * The records table's live status region text (result count + view + sort).
+     *
+     * Narrowed to the **unlabelled** status regions on purpose. `LoadedRecordsView`
+     * renders the filter builder above its own two announcers, and the builder's
+     * region carries `aria-label="Filter builder status"` — so a bare
+     * `p[role="status"]` .first() silently retargets to the builder the moment a
+     * test applies a filter, and then reports the records assertion as an empty
+     * string rather than as the wrong element.
+     */
     get recordsStatus(): Locator {
-        return this.page.locator('p[role="status"]').first();
+        return this.page.locator('p[role="status"]:not([aria-label])').first();
     }
 
     /** The records "Page X of Y" readout. */
@@ -623,15 +632,23 @@ export class ContentLibraryPage extends BasePage {
     /**
      * The load-error title, in the **pane**.
      *
-     * A failed `GET /content-schema` now also puts a `ContentSidebarError` alert
+     * A failed `GET /content-schema` also puts a `ContentSidebarError` alert
      * beside it carrying the same sentence, so a bare `getByText` matches two
-     * nodes and fails Playwright's strict mode. The pane's copy is the `<h5>`
-     * heading; the sidebar's is a `<span>`.
+     * nodes and fails Playwright's strict mode.
+     *
+     * Selected by the design-system `AlertTitle`'s `data-slot`, which only the
+     * pane's copy carries — the sidebar hand-rolls its alert out of a `<span>`.
+     * This used to be `getByRole('heading')`, which stopped matching anything
+     * when `AlertTitle` deliberately gave up its hardcoded `<h5>` (`ORT-168`):
+     * a banner's title is a status message, not a section of the document, and
+     * the rank it should carry depends on where the banner is mounted. The
+     * `Alert` names itself with `aria-labelledby` instead, so there is no
+     * heading here to find.
      */
     get errorTitle(): Locator {
-        return this.page.getByRole('heading', {
-            name: 'Couldn’t load content types'
-        });
+        return this.page
+            .locator('[data-slot="alert-title"]')
+            .filter({ hasText: 'Couldn’t load content types' });
     }
 
     /**

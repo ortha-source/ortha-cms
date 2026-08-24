@@ -57,6 +57,13 @@ const ALL_PERMISSIONS = [
     'content:update',
     'content:publish',
     'content:delete',
+    // Export and import (`transfer-admin`). Separate keys on the server rather
+    // than folded into read and create, because bulk egress is a capability an
+    // operator withholds on its own — so they have to be listed here too, or
+    // the three slot contributions that reach the transfer dialogs render for
+    // nobody and the whole surface is invisible to every spec.
+    'content:export',
+    'content:import',
     'media:read',
     'media:create',
     'media:update',
