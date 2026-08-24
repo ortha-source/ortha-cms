@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
-import { ContentPlugin } from '@orthacms/content-server';
+import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import {
     CopilotPlugin,
@@ -193,6 +193,18 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         ActivityPlugin(),
         UsersPlugin(),
         content,
+        // Saved list views — a second `ServerPlugin` entry from the content
+        // package, not a second package. `ServerPlugin.migrations` carries one
+        // descriptor and content's is already the HOST's generated collection
+        // tables, so the feature's own fixed tables ride their own entry
+        // (tracked under `__drizzle_migrations_content_views`).
+        //
+        // Placement is load-bearing twice over: `saved_views` has foreign keys
+        // into identity's `users` and workspaces' `workspaces`, and migrations
+        // run in this list's order with nothing declaring that dependency; and
+        // it takes `content` by value for the registry that resolves a view's
+        // `content:<typeName>` scope.
+        ContentViewsPlugin({ content }),
         // The same public content API over GraphQL, on `/api/v1/graphql`. It
         // owns no schema and adds no credential — it reuses content's bearer
         // guards and read/write services, so a token minted before it existed

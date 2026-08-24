@@ -29,6 +29,7 @@ const EXPECTED_PLUGINS = [
     'activity',
     'users',
     'content',
+    'content-views',
     'content-graphql',
     'media',
     'i18n',
@@ -63,6 +64,14 @@ describe('buildPlugins()', () => {
         );
         expect(migrating.indexOf('workspaces')).toBeLessThan(
             migrating.indexOf('activity')
+        );
+        // `saved_views` references identity's `users` and workspaces'
+        // `workspaces`, so the views entry has to follow both.
+        expect(migrating.indexOf('identity')).toBeLessThan(
+            migrating.indexOf('content-views')
+        );
+        expect(migrating.indexOf('workspaces')).toBeLessThan(
+            migrating.indexOf('content-views')
         );
     });
 

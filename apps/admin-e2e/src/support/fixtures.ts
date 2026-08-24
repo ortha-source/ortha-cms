@@ -11,6 +11,7 @@ import { MembersPage } from './pages/MembersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { ContentLibraryPage } from './pages/ContentLibraryPage';
+import { SavedViewsPage } from './pages/SavedViewsPage';
 import { RelationsEditorPage } from './pages/RelationsEditorPage';
 import { MediaLibraryPage } from './pages/MediaLibraryPage';
 import { MediaFieldPage } from './pages/MediaFieldPage';
@@ -99,6 +100,7 @@ interface Fixtures {
     userDetailPage: UserDetailPage;
     activityLogPage: ActivityLogPage;
     contentLibraryPage: ContentLibraryPage;
+    savedViewsPage: SavedViewsPage;
     relationsEditorPage: RelationsEditorPage;
     mediaLibraryPage: MediaLibraryPage;
     mediaFieldPage: MediaFieldPage;
@@ -154,6 +156,9 @@ export const test = base.extend<Fixtures>({
     },
     contentLibraryPage: async ({ page }, use) => {
         await use(new ContentLibraryPage(page));
+    },
+    savedViewsPage: async ({ page }, use) => {
+        await use(new SavedViewsPage(page));
     },
     relationsEditorPage: async ({ page }, use) => {
         await use(new RelationsEditorPage(page));

@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1324 test cases across 86 spec files._
+_1352 test cases across 87 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1511,6 +1511,79 @@ _<sub>apps/server-e2e/src/server/content/revision-scope.spec.ts</sub>_
 | lets a contributor publish a version — the role holds content:publish |
 | separates the two gates: content:update alone restores but cannot publish |
 | 403s a disallowed Origin on both write routes (CSRF) |
+
+<!-- source: apps/server-e2e/src/server/content/saved-views.spec.ts -->
+_<sub>apps/server-e2e/src/server/content/saved-views.spec.ts</sub>_
+
+## Saved views (/api/views)
+
+### creating and listing
+
+| Test case |
+| --- |
+| stores the slice and returns it with the caller-relative flags |
+| trims the name, so two views cannot differ by whitespace alone |
+| lists the caller’s own views for the scope |
+| 409s a duplicate name for the same person and list |
+| lets two people each hold a view of the same name |
+
+### visibility
+
+| Test case |
+| --- |
+| hides a private view from other members |
+| shows a shared view to every member, flagged as not theirs |
+| 403s sharing without views:share, while a private view still saves |
+| 403s reading views without content:read — a view is not a way in |
+
+### only the owner writes
+
+| Test case |
+| --- |
+| 403s another member editing a shared view |
+| 403s another member deleting a shared view |
+| lets the owner re-capture, rename and delete their own |
+
+### workspace isolation
+
+| Test case |
+| --- |
+| does not list a view saved in another workspace |
+| 404s — not 403s — a view addressed from another workspace |
+
+### scope is grant-checked
+
+| Test case |
+| --- |
+| 404s an ungranted type exactly as an unknown one |
+| 404s saving a view over an ungranted type |
+
+### the default view
+
+| Test case |
+| --- |
+| sets, reports and clears the caller’s default |
+| is personal — one member’s default is not another’s |
+| lets a member default to a shared view they do not own |
+| drops the default with the view it pointed at |
+
+### validation
+
+| Test case |
+| --- |
+| 400s an unknown field (the pipe is forbidNonWhitelisted) |
+| 400s a scope outside content:<typeName> |
+| 400s an empty name |
+| 400s a page size beyond the list endpoint’s own cap |
+| 400s a nested or non-string extra bag |
+| 400s a malformed view id |
+
+### authentication
+
+| Test case |
+| --- |
+| 401s without a session |
+| 403s a workspace the caller does not belong to |
 
 <!-- source: apps/server-e2e/src/server/copilot/copilot-chat.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-chat.spec.ts</sub>_

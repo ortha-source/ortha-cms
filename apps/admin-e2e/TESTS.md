@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_756 test cases across 75 spec files._
+_770 test cases across 76 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -800,6 +800,41 @@ _<sub>apps/admin-e2e/src/content/relations.spec.ts</sub>_
 | relations tab — field sections |
 | relation picker — open |
 | relation picker — inline filter open |
+
+<!-- source: apps/admin-e2e/src/content/saved-views.spec.ts -->
+_<sub>apps/admin-e2e/src/content/saved-views.spec.ts</sub>_
+
+## Saved views
+
+| Test case |
+| --- |
+| offers to save the first view when none exist |
+| renders the switcher when views exist, grouped by visibility |
+| applying a view writes its params and the view pointer to the URL |
+| a link carrying ?view= opens with that view applied |
+| clearing back to All records drops the filter and the pointer |
+
+### the modified state
+
+| Test case |
+| --- |
+| stays clean on the state the view was saved with |
+| does not trip on a search — a search is not part of the slice |
+| does not trip on the page number |
+| trips when the filter is dropped, and Reset puts it back |
+| offers no Save on a shared view somebody else owns |
+
+### the save dialog
+
+| Test case |
+| --- |
+| captures the slice without the search box or the page |
+| defaults to Personal, and Shared is disabled without views:share |
+| will not submit an empty name |
+
+| Test case |
+| --- |
+| renders the table without a switcher when views fail to load |
 
 <!-- source: apps/admin-e2e/src/content/wysiwyg-fields.spec.ts -->
 _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_

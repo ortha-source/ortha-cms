@@ -528,15 +528,37 @@ the schema's whole import graph with plain esbuild, which rejects the NestJS
 decorators the main barrel pulls in via its controllers. `/define` re-exports
 only the decorator-free DSL (`collection`, `single`, `field`, `joinTableOf`, types).
 
-## Migrations are HOST-owned
+## Migrations: the content model is HOST-owned, `saved_views` is not
 
-This package emits no migrations. The HOST (`apps/server`) re-exports every
-generated table from `src/content.ts` (use `joinTableOf(type, field)`
-for join tables — it throws if a many-relation was renamed, instead of silently
-dropping the table from the diff), runs `db:generate` against its own
-`drizzle.config.ts`, and commits the SQL. `ContentPlugin({ types, migrations })`
-carries a `migrations` descriptor (`__drizzle_migrations_content`) so the
-standard `db:migrate` applies them with every other plugin's.
+The **generated collection tables** emit no migrations from here. The HOST
+(`apps/server`) re-exports every generated table from `src/content.ts` (use
+`joinTableOf(type, field)` for join tables — it throws if a many-relation was
+renamed, instead of silently dropping the table from the diff), runs
+`db:generate` against its own `drizzle.config.ts`, and commits the SQL.
+`ContentPlugin({ types, migrations })` carries a `migrations` descriptor
+(`__drizzle_migrations_content`) so the standard `db:migrate` applies them with
+every other plugin's. That is the rule for anything derived from a host's
+code-defined content types: their shape is per-app, so their migrations are too.
+
+The package does own **fixed platform tables** — currently `saved_views` and
+`saved_view_defaults` (see [The `views` feature](#the-views-feature--saved-list-views)).
+Those ship from here, with this package's own `drizzle.config.ts` and
+`migrations/`, because their shape is the same in every installation.
+
+They ride a **second `ServerPlugin` entry**, `ContentViewsPlugin`, rather than
+`ContentPlugin`. Not a style choice: `ServerPlugin.migrations` is a single
+`{ dir, table }` descriptor, and content's is already spent on the host's
+generated tables. A second entry is how one package ships two independently
+tracked migration sets without widening that contract. The host lists it after
+`ContentPlugin`, and after identity and workspaces — `saved_views` has foreign
+keys into `users` and `workspaces`, and `applyPluginMigrations` walks the plugin
+array in order with nothing declaring that dependency.
+
+Generate this package's own migrations with:
+
+```bash
+npx nx run "@orthacms/content-server:db:generate" --name=<change>
+```
 
 ## HTTP surface (`/api/content-schema`, `/api/content`)
 
@@ -1464,6 +1486,62 @@ There is deliberately **no draft delta** in `totals`. Nothing records an entry
 moving _back_ to draft — `published_at` says when something went live and never
 that it stopped — so a change figure for drafts could only be invented.
 
+## The `views` feature — saved list views (`src/lib/views/`)
+
+The named filter/sort/column slices an editor returns to (`Needs review`,
+`Готово к публикации`), served at `/api/views` and rendered by the admin's view
+switcher above the records table.
+
+**The two tables.** `saved_views` holds one slice per row — `workspace_id`,
+`scope` (`content:<typeName>`), `owner_id`, `visibility`, `name`, and the
+`payload` jsonb. `saved_view_defaults` is a separate table keyed
+`(user_id, scope)` rather than an `is_default` column, because the choice is
+**personal**: one shared view may be one member's landing view and not another's,
+which a column on the view itself cannot express.
+
+**The payload mirrors the URL, it does not re-model it.** `filter` and `sort`
+are the raw `?filter=` / `?sort=` strings the records page already owns, so a
+saved view and a hand-edited link replay through the same code path. Two things
+are absent on purpose: `search` is a one-off question rather than a property of
+the slice, and `page` is a reading position, so a view always opens on page 1.
+`extra` carries the slot-owned list params (i18n's `?locale=`) as an **opaque**
+string map — the keys come from `RECORDS_TOOLBAR_SLOT.listParamKeys` at runtime,
+so naming them in a DTO would break the next plugin's params silently.
+
+**A view is a bookmark, not a grant.** The stored payload is replayed through
+the ordinary list query with the reader's own permissions, workspace scope and
+content grants, so a shared view shows a narrower reader _fewer_ rows, never
+more. Nothing in this feature widens a query.
+
+**Three authorization rules**, none of which fit in a decorator:
+
+- Every route is gated on `content:read` (a view is a saved way of reading
+  content) and carries `WorkspaceGuard`.
+- **Only the owner writes.** Editing or deleting someone else's view is a 403
+  even for an administrator — the remedy for disagreeing with a shared view is
+  "Save as new", not a silent rewrite. Setting a _default_ is deliberately not
+  owner-gated: that is the reader's own landing choice.
+- **Sharing is a permission.** `visibility: 'workspace'` requires `views:share`;
+  it is checked per write because it depends on the body, not the route. Every
+  role can still save private views.
+
+**`scope` is grant-checked, not trusted.** `ViewScopeService` resolves
+`content:<typeName>` through the registry _and_ the workspace's content grants,
+answering the **same 404** an unknown type gets. Without it the endpoint would be
+a way around `ContentGrantGuard` — saving a view over `content:salaries` would
+confirm that the type exists.
+
+**Validation is shape-only, on purpose.** The server bounds the payload (known
+keys, lengths, array sizes) but does not check the filter against the type's
+filter surface: a view outlives the field it references, and the admin drops
+unknown rules with a notice when it applies one. Deep validation would need this
+feature to depend on the entries filter machinery in both directions; the
+degrade-on-apply path is where a stale view has to be survivable anyway.
+
+The `scope` column is deliberately generic (`content:` today) so the switcher can
+reach the Members and Activity lists — which already share `useTableUrlState` —
+without a data migration.
+
 ## Architecture
 
 - `ContentModule.forRoot(registry)` is **global** and exports the
@@ -1491,8 +1569,15 @@ that it stopped — so a change figure for drafts could only be invented.
   JSDoc on exports, `interface` for contracts. The **`entries`** feature is
   layered per ADR-0003 (see above); the DSL / registry / schema machinery keeps
   the feature-then-kind layout.
+- The **`views`** feature ships its own tables and rides its own plugin entry,
+  `ContentViewsPlugin({ content })` — see
+  [Migrations](#migrations-the-content-model-is-host-owned-saved_views-is-not).
+  Register it after `ContentPlugin`, identity and workspaces.
 
 ## Commands
 
 - `npx nx typecheck @orthacms/content-server` / `npx nx lint @orthacms/content-server`
-- Migrations are generated on the **host**: `npx nx run server:db:generate --name=<change>`
+- Migrations for the **generated collection tables** are generated on the host:
+  `npx nx run server:db:generate --name=<change>`
+- Migrations for this package's **own** tables (`saved_views`):
+  `npx nx run "@orthacms/content-server:db:generate" --name=<change>`

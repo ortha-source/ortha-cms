@@ -27,7 +27,8 @@ import {
     Container,
     ContainerHeader,
     SearchToolbar,
-    cn
+    cn,
+    toast
 } from '@orthacms/design-system';
 import type {
     ContentType,
@@ -43,8 +44,31 @@ import {
     NEW_SEGMENT,
     SEARCH_PARAM,
     SORT_PARAM,
-    TRASH_SEGMENT
+    TRASH_SEGMENT,
+    VIEW_PARAM,
+    VIEWS_SHARE
 } from '../../../../domain/constants';
+import {
+    captureViewPayload,
+    droppedColumnCount,
+    isViewDirty,
+    reconcileColumns,
+    viewPayloadToParams
+} from '../../../../domain/viewPayload';
+import {
+    VIEW_VISIBILITY,
+    type SavedView
+} from '../../../../domain/types/savedView';
+import {
+    contentScope,
+    useSavedViews
+} from '../../../../application/useSavedViews';
+import { useSaveView } from '../../../../application/useSaveView';
+import { useUpdateView } from '../../../../application/useUpdateView';
+import { useDeleteView } from '../../../../application/useDeleteView';
+import { useSetDefaultView } from '../../../../application/useSetDefaultView';
+import { ViewSwitcher } from '../../ViewSwitcher';
+import { SaveViewDialog } from '../../ViewSwitcher/SaveViewDialog';
 import { useContentEntries } from '../../../../application/useContentEntries';
 import { useEntryColumns } from '../../../hooks/useEntryColumns';
 import { useColumnLabel } from '../../../hooks/useColumnLabel';
@@ -136,6 +160,30 @@ const messages = defineMessages({
     sortNone: {
         id: 'content.records.sortNone',
         defaultMessage: 'Not sorted.'
+    },
+    viewSaved: {
+        id: 'content.records.viewSaved',
+        defaultMessage: 'View updated.'
+    },
+    viewSaveFailed: {
+        id: 'content.records.viewSaveFailed',
+        defaultMessage: 'Couldn’t update this view. Please try again.'
+    },
+    viewDeleted: {
+        id: 'content.records.viewDeleted',
+        defaultMessage: 'View deleted.'
+    },
+    viewDeleteFailed: {
+        id: 'content.records.viewDeleteFailed',
+        defaultMessage: 'Couldn’t delete this view. Please try again.'
+    },
+    viewDefaultFailed: {
+        id: 'content.records.viewDefaultFailed',
+        defaultMessage: 'Couldn’t change your default view. Please try again.'
+    },
+    viewsError: {
+        id: 'content.records.viewsError',
+        defaultMessage: 'Saved views are unavailable right now.'
     }
 });
 
@@ -236,11 +284,37 @@ export function LoadedRecordsView({
         () => columns.map((column) => column.id),
         [columns]
     );
-    const { isVisible, toggle, visible, reorder } = useEntryColumns(
+    const { isVisible, toggle, visible, reorder, replace } = useEntryColumns(
         type.name,
         availableIds,
         defaults
     );
+
+    // ---- Saved views -------------------------------------------------------
+    // The switcher's whole state lives here, beside the URL params it replays,
+    // because a view *is* those params plus the column selection above.
+    const scope = contentScope(type.name);
+    const canShareViews = useHasPermission(VIEWS_SHARE);
+    const viewParam = searchParams.get(VIEW_PARAM);
+    // Trash is a route segment, not a param, and its rows are a different set —
+    // saving a view over it would produce a slice that only makes sense on one
+    // of the two pages. Left out deliberately until it earns its own model.
+    const viewsEnabled = !trashed;
+    const {
+        data: savedViews,
+        isPending: viewsPending,
+        isError: viewsError
+    } = useSavedViews(scope, viewsEnabled);
+    const views = useMemo(() => savedViews ?? [], [savedViews]);
+    const activeView = useMemo(
+        () => views.find((view) => view.id === viewParam) ?? null,
+        [views, viewParam]
+    );
+
+    const saveView = useSaveView(scope);
+    const updateView = useUpdateView(scope);
+    const deleteView = useDeleteView(scope);
+    const setDefaultView = useSetDefaultView(scope);
     // Render columns in the persisted visible order (reconcile() guarantees the
     // ids are available, so the lookup never misses).
     const columnById = useMemo(
@@ -412,6 +486,180 @@ export function LoadedRecordsView({
         [updateParams]
     );
 
+    // The live slice, in the same shape a stored payload has — one object both
+    // the dirty check and "Save" read, so what the badge compares can never
+    // drift from what the button writes.
+    const listState = useMemo(
+        () => ({
+            filter: filterParam,
+            sort: sortParam,
+            pageSize,
+            columns: visible,
+            extra: slotParams
+        }),
+        [filterParam, sortParam, pageSize, visible, slotParams]
+    );
+    const viewIsDirty = activeView
+        ? isViewDirty(activeView.payload, listState, availableIds)
+        : false;
+    const droppedColumns = activeView
+        ? droppedColumnCount(activeView.payload, availableIds)
+        : 0;
+
+    // Seed the columns an applied view pins. In an effect keyed on the view's
+    // id — not during render — so it lands *after* `useEntryColumns` has done
+    // its own per-type re-seed on the one commit where both change (a deep link
+    // into another collection's view).
+    //
+    // A view going *away* is handled by `applyView`, not here: this effect only
+    // ever seeds, so arriving at a URL with no `?view=` (Back out of one, say)
+    // leaves whatever the reader had on screen rather than yanking the columns.
+    const availableKey = availableIds.join(',');
+    useEffect(() => {
+        if (!activeView) return;
+        replace(reconcileColumns(activeView.payload, availableIds));
+        // `availableIds` is rebuilt per render; its serialized form is the real
+        // dependency, and `replace` is stable across renders that changed nothing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeView?.id, availableKey, replace]);
+
+    /** Replays a view's payload into the URL, or clears back to the plain list. */
+    const applyView = useCallback(
+        (view: SavedView | null) => {
+            setApplying(true);
+            if (!view) {
+                updateParams({
+                    [VIEW_PARAM]: undefined,
+                    filter: undefined,
+                    [SORT_PARAM]: undefined,
+                    page: undefined
+                });
+                replace(null);
+                return;
+            }
+            updateParams({
+                ...viewPayloadToParams(view.payload, slotParamKeys),
+                [SORT_PARAM]: view.payload.sort || undefined,
+                [VIEW_PARAM]: view.id
+            });
+            replace(reconcileColumns(view.payload, availableIds));
+        },
+        [updateParams, replace, slotParamKeys, availableIds]
+    );
+
+    const [saveViewOpen, setSaveViewOpen] = useState(false);
+    const [saveViewError, setSaveViewError] = useState<number | null>(null);
+
+    const handleSaveNew = useCallback(
+        (input: {
+            name: string;
+            visibility: (typeof VIEW_VISIBILITY)[keyof typeof VIEW_VISIBILITY];
+            makeDefault: boolean;
+        }) => {
+            setSaveViewError(null);
+            saveView.mutate(
+                {
+                    scope,
+                    name: input.name,
+                    visibility: input.visibility,
+                    payload: captureViewPayload(listState),
+                    makeDefault: input.makeDefault
+                },
+                {
+                    onSuccess: (created) => {
+                        setSaveViewOpen(false);
+                        // Point the URL at the new view so the pill names it
+                        // immediately; the slice is already on screen, so this
+                        // is the only param that changes.
+                        updateParams({ [VIEW_PARAM]: created.id }, false);
+                    },
+                    // The name collision is the one failure worth its own copy —
+                    // it names something the user can fix in the field they are
+                    // already looking at.
+                    onError: (error) => setSaveViewError(readStatus(error) ?? 0)
+                }
+            );
+        },
+        [saveView, scope, listState, updateParams]
+    );
+
+    const handleSaveChanges = useCallback(() => {
+        if (!activeView) return;
+        updateView.mutate(
+            { id: activeView.id, payload: captureViewPayload(listState) },
+            {
+                onSuccess: () =>
+                    toast.success(intl.formatMessage(messages.viewSaved)),
+                onError: () =>
+                    toast.error(intl.formatMessage(messages.viewSaveFailed))
+            }
+        );
+    }, [activeView, updateView, listState, intl]);
+
+    const handleDeleteView = useCallback(
+        (view: SavedView) => {
+            deleteView.mutate(view.id, {
+                onSuccess: () => {
+                    // The view is gone; the slice it produced is still on
+                    // screen, so drop only the pointer rather than resetting
+                    // the table under the user.
+                    updateParams({ [VIEW_PARAM]: undefined }, false);
+                    toast.success(intl.formatMessage(messages.viewDeleted));
+                },
+                onError: () =>
+                    toast.error(intl.formatMessage(messages.viewDeleteFailed))
+            });
+        },
+        [deleteView, updateParams, intl]
+    );
+
+    const handleSetDefault = useCallback(
+        (view: SavedView, isDefault: boolean) => {
+            setDefaultView.mutate(
+                { id: view.id, isDefault },
+                {
+                    onError: () =>
+                        toast.error(
+                            intl.formatMessage(messages.viewDefaultFailed)
+                        )
+                }
+            );
+        },
+        [setDefaultView, intl]
+    );
+
+    // Which view the reader lands on, resolved once per mount:
+    //
+    //   1. `?view=<id>` with no competing slice params → apply that view. This
+    //      is what makes `?view=` a complete address rather than a label: a
+    //      bare pointer used to arrive reading "Modified", because the pill
+    //      named a view whose slice was nowhere in the URL.
+    //   2. Any slice param present (`filter`/`sort`/`pageSize`) → leave the URL
+    //      alone. The link carried a deliberate deviation, and with a `?view=`
+    //      beside it that deviation is exactly the modified state.
+    //   3. Otherwise → the reader's default view, if they have one.
+    //
+    // `q` and `page` sit outside the payload, so they never block a named view
+    // — "this view, and I was searching in it" is a coherent link. They do
+    // block the **default** in step 3: someone who sent a search of the plain
+    // list did not mean to send someone else's saved slice.
+    const defaultResolved = useRef(false);
+    useEffect(() => {
+        if (!viewsEnabled || defaultResolved.current) return;
+        if (viewsPending) return;
+        defaultResolved.current = true;
+        const named = viewParam
+            ? views.find((view) => view.id === viewParam)
+            : undefined;
+        if (named) {
+            if (!hasPayloadParams(searchParams)) applyView(named);
+            return;
+        }
+        if (hasAnyListParams(searchParams)) return;
+        const fallback = views.find((view) => view.isDefault);
+        if (fallback) applyView(fallback);
+    }, [viewsEnabled, viewsPending, views, viewParam, searchParams, applyView]);
+
     // The inline filter panel: its own open state (the toolbar button toggles
     // it), with the ids wiring the button's `aria-controls` to the region.
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -466,6 +714,33 @@ export function LoadedRecordsView({
         <Container className="max-w-none p-6 sm:p-6">
             <ContainerHeader
                 titleClassName="text-lg"
+                titleAdornment={
+                    // Only once the views request has settled. Rendering a
+                    // switcher that says "All records" before we know whether
+                    // any views exist flashes a control that may be about to
+                    // name something else — and on an error there is nothing
+                    // truthful to show, so the header stays as it was.
+                    viewsEnabled && !viewsPending && !viewsError ? (
+                        <ViewSwitcher
+                            views={views}
+                            active={activeView}
+                            isDirty={viewIsDirty}
+                            isSaving={updateView.isPending}
+                            droppedColumns={droppedColumns}
+                            onSelect={applyView}
+                            onSaveAs={() => {
+                                setSaveViewError(null);
+                                setSaveViewOpen(true);
+                            }}
+                            onSaveChanges={handleSaveChanges}
+                            onReset={() =>
+                                activeView ? applyView(activeView) : undefined
+                            }
+                            onSetDefault={handleSetDefault}
+                            onDelete={handleDeleteView}
+                        />
+                    ) : undefined
+                }
                 title={
                     trashed
                         ? intl.formatMessage(messages.trashTitle, {
@@ -708,6 +983,54 @@ export function LoadedRecordsView({
                     />
                 </>
             )}
+
+            <SaveViewDialog
+                open={saveViewOpen}
+                onOpenChange={setSaveViewOpen}
+                collectionLabel={schema.label}
+                payload={captureViewPayload(listState)}
+                ruleCount={ruleCount}
+                sortLabel={sortedColumn ? columnLabel(sortedColumn) : null}
+                canShare={canShareViews}
+                isSaving={saveView.isPending}
+                errorStatus={saveViewError}
+                onSubmit={handleSaveNew}
+            />
         </Container>
     );
+}
+
+/**
+ * Whether the URL carries any param a view's **payload** would set.
+ *
+ * These are the ones that can disagree with a saved slice, so their presence
+ * beside a `?view=` is the modified state rather than something to overwrite.
+ * `page` and `q` are deliberately absent — neither is captured in a payload, so
+ * neither can contradict one.
+ */
+function hasPayloadParams(params: URLSearchParams): boolean {
+    return ['filter', SORT_PARAM, 'pageSize'].some(
+        (key) => params.get(key) !== null
+    );
+}
+
+/**
+ * Whether the URL says anything at all about what to show — the wider set that
+ * blocks the reader's **default** view.
+ *
+ * `q` is in here on purpose: arriving with a search means the sender was
+ * looking at search results of the plain list, and swapping in a personal
+ * default would answer a question nobody asked.
+ */
+function hasAnyListParams(params: URLSearchParams): boolean {
+    return (
+        hasPayloadParams(params) ||
+        ['page', SEARCH_PARAM].some((key) => params.get(key) !== null)
+    );
+}
+
+/** The HTTP status behind a gateway error, when it carried one. */
+function readStatus(error: unknown): number | null {
+    const status = (error as { status?: unknown } | null)?.status;
+    return typeof status === 'number' ? status : null;
 }
