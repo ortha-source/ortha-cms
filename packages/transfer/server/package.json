@@ -16,6 +16,7 @@
     ],
     "dependencies": {
         "@nestjs/common": "^11.0.0",
+        "@nestjs/platform-express": "^11.0.0",
         "@nestjs/swagger": "^11.4.6",
         "@orthacms/bootstrap-server": "*",
         "@orthacms/content-domain": "*",
