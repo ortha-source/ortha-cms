@@ -55,11 +55,12 @@ export class TransferIdMap {
         type: string,
         sourceId: string | undefined,
         key: Record<string, string>,
-        targetId: string
+        targetId: string,
+        locale?: string
     ): void {
         if (sourceId) this.byId.set(idIndex(type, sourceId), targetId);
         if (Object.keys(key).length > 0) {
-            this.byKey.set(keyFingerprint(type, key), targetId);
+            this.byKey.set(keyFingerprint(type, key, locale), targetId);
         }
     }
 
@@ -67,9 +68,10 @@ export class TransferIdMap {
     rememberExisting(
         type: string,
         key: Record<string, string>,
-        targetId: string
+        targetId: string,
+        locale?: string
     ): void {
-        this.remember(type, undefined, key, targetId);
+        this.remember(type, undefined, key, targetId, locale);
     }
 
     /**
@@ -87,7 +89,9 @@ export class TransferIdMap {
             if (byId) return { targetId: byId, via: RESOLVED_VIA.Document };
         }
         if (Object.keys(ref.$key).length > 0) {
-            const byKey = this.byKey.get(keyFingerprint(ref.$type, ref.$key));
+            const byKey = this.byKey.get(
+                keyFingerprint(ref.$type, ref.$key, ref.$locale)
+            );
             if (byKey) return { targetId: byKey, via: RESOLVED_VIA.Existing };
         }
         return { via: RESOLVED_VIA.Unresolved };
@@ -129,7 +133,7 @@ export class TransferAssetMap {
     }
 }
 
-/** `${type} ${sourceId}` — space-separated for the same reason as the key fingerprint. */
+/** The id index's key, JSON-encoded for the same reason the fingerprint is. */
 function idIndex(type: string, sourceId: string): string {
-    return `${type} ${sourceId}`;
+    return JSON.stringify([type, sourceId]);
 }

@@ -142,7 +142,12 @@ export class ImportEntriesUseCase {
 
             const identity = this.identityFor(document, record.$type);
             const key = naturalKeyOf(identity, record.values);
-            const match = matches.get(keyFingerprint(record.$type, key));
+            // The locale is part of the match on a localized type: its key
+            // values are per-row, so `en`/`hello` and `de`/`hallo` are two rows
+            // of one record and must not collapse into each other.
+            const match = matches.get(
+                keyFingerprint(record.$type, key, record.$locale)
+            );
 
             const decision = this.decide(
                 identity.length > 0,
@@ -157,7 +162,13 @@ export class ImportEntriesUseCase {
                 // Still remembered: a skipped record is a row that *exists*, so
                 // other records' references to it must still resolve.
                 if (match) {
-                    ids.remember(record.$type, record.$id, key, match.targetId);
+                    ids.remember(
+                        record.$type,
+                        record.$id,
+                        key,
+                        match.targetId,
+                        record.$locale
+                    );
                 }
                 continue;
             }
@@ -196,7 +207,13 @@ export class ImportEntriesUseCase {
                 // The dry run has no new row to point at, but the *key* is
                 // enough for the reference report below to be accurate.
                 if (match) {
-                    ids.remember(record.$type, record.$id, key, match.targetId);
+                    ids.remember(
+                        record.$type,
+                        record.$id,
+                        key,
+                        match.targetId,
+                        record.$locale
+                    );
                 }
                 continue;
             }
@@ -222,7 +239,13 @@ export class ImportEntriesUseCase {
                               workspaceId,
                               command.actor
                           );
-                ids.remember(record.$type, record.$id, key, targetId);
+                ids.remember(
+                    record.$type,
+                    record.$id,
+                    key,
+                    targetId,
+                    record.$locale
+                );
                 linkPass.push({ record, targetId });
                 verdicts.push(
                     this.verdict(record, decision.action, decision.reason, targetId)
@@ -339,19 +362,23 @@ export class ImportEntriesUseCase {
             if (usable.length !== identity.length) continue;
 
             const wanted = new Set(
-                typeRecords
-                    .map((record) =>
-                        keyFingerprint(
-                            typeName,
-                            naturalKeyOf(identity, record.values)
-                        )
+                typeRecords.map((record) =>
+                    keyFingerprint(
+                        typeName,
+                        naturalKeyOf(identity, record.values),
+                        record.$locale
                     )
-                    .filter((fingerprint) => fingerprint.includes(' '))
+                )
             );
             if (wanted.size === 0) continue;
 
             const projection: Record<string, PgColumn> = { id: columns['id'] };
             for (const field of usable) projection[field] = columns[field];
+            // Read back the locale so a candidate row is fingerprinted the same
+            // way the incoming record is.
+            if (type.i18n && columns['locale']) {
+                projection['locale'] = columns['locale'];
+            }
 
             // Narrowed by the first key column's values, so a large collection
             // is not read whole to match a twenty-row file.
@@ -380,9 +407,11 @@ export class ImportEntriesUseCase {
                 .where(where)) as Record<string, unknown>[];
 
             for (const row of rows) {
+                const rowLocale = row['locale'];
                 const fingerprint = keyFingerprint(
                     typeName,
-                    naturalKeyOf(identity, row)
+                    naturalKeyOf(identity, row),
+                    typeof rowLocale === 'string' ? rowLocale : undefined
                 );
                 if (!wanted.has(fingerprint) || out.has(fingerprint)) continue;
                 out.set(fingerprint, { targetId: row['id'] as string });
@@ -524,7 +553,9 @@ export class ImportEntriesUseCase {
         // In a dry run nothing was written, so a reference resolves only if its
         // target already exists or is itself in the document. Both are known.
         const inDocument = new Set(
-            records.map((record) => keyFingerprint(record.$type, record.$key))
+            records.map((record) =>
+                keyFingerprint(record.$type, record.$key, record.$locale)
+            )
         );
         for (const record of records) {
             const unresolved: string[] = [];
@@ -534,7 +565,9 @@ export class ImportEntriesUseCase {
                 for (const ref of refs) {
                     const known =
                         ids.resolve(ref).targetId !== undefined ||
-                        inDocument.has(keyFingerprint(ref.$type, ref.$key));
+                        inDocument.has(
+                            keyFingerprint(ref.$type, ref.$key, ref.$locale)
+                        );
                     if (!known) unresolved.push(describeRef(ref));
                 }
             }

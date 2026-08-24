@@ -75,9 +75,12 @@ required text field) and the choice is written into every export's manifest, so
 an import matches on what the export keyed on rather than re-deriving against a
 schema that may have drifted.
 
-A **localized** field is never a candidate. Its value differs per locale by
-definition, so keying on one would make the English and German rows of a record
-two different records.
+A **localized** field is a candidate, and the locale is folded into the match. A
+transfer record is one *row*: the English and German versions of an article
+travel as two records and are stitched back into one by their locale group.
+Excluding localized fields instead would leave a fully-localized type — the
+normal shape — with no key at all, so every import of it would duplicate every
+row.
 
 ### Import is one pipeline, run twice
 

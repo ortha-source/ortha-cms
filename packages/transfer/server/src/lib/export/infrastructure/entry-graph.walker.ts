@@ -396,8 +396,11 @@ export class EntryGraphWalker {
         workspaceId: string
     ): Promise<void> {
         const keys = new Map<string, Record<string, string>>();
+        const locales = new Map<string, string>();
         for (const record of records) {
-            keys.set(nodeKey(record.$type, record.$id), record.$key);
+            const node = nodeKey(record.$type, record.$id);
+            keys.set(node, record.$key);
+            if (record.$locale) locales.set(node, record.$locale);
         }
 
         for (const [typeName, ids] of neighbours) {
@@ -419,6 +422,11 @@ export class EntryGraphWalker {
             for (const field of identity) {
                 if (columns[field]) projection[field] = columns[field];
             }
+            // A localized target's key is per-row, so the locale is part of what
+            // identifies it and has to come back with the projection.
+            if (target.i18n && columns['locale']) {
+                projection['locale'] = columns['locale'];
+            }
             const rows = (await this.db
                 .select(projection)
                 .from(target.table)
@@ -432,10 +440,10 @@ export class EntryGraphWalker {
                     )
                 )) as Row[];
             for (const row of rows) {
-                keys.set(
-                    nodeKey(typeName, row['id'] as string),
-                    naturalKeyOf(identity, row)
-                );
+                const node = nodeKey(typeName, row['id'] as string);
+                keys.set(node, naturalKeyOf(identity, row));
+                const locale = row['locale'];
+                if (typeof locale === 'string') locales.set(node, locale);
             }
         }
 
@@ -444,8 +452,11 @@ export class EntryGraphWalker {
                 const refs = value == null ? [] : Array.isArray(value) ? value : [value];
                 for (const ref of refs) {
                     if (!ref.$id) continue;
-                    const key = keys.get(nodeKey(ref.$type, ref.$id));
+                    const node = nodeKey(ref.$type, ref.$id);
+                    const key = keys.get(node);
                     if (key) ref.$key = { ...key };
+                    const locale = locales.get(node);
+                    if (locale) ref.$locale = locale;
                 }
             }
         }

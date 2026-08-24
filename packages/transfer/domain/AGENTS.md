@@ -21,8 +21,11 @@ Layout is layered by concern, like `content/domain`:
 
 **A row id is not an identity.** It names one database. Everything an import can
 do rests on the **natural key** instead — see `identity/natural-key.ts`. A
-`localized` field is never a key candidate: its value differs per locale by
-definition, so keying on one splits a record into one record per language.
+`localized` field **is** a candidate: a transfer record is one *row*, not one
+record-across-languages, so a per-locale slug identifies exactly the row it
+belongs to. What keeps `en`/`hello` apart from `de`/`hello` is that the locale
+is folded into `keyFingerprint`, which is also JSON-encoded rather than
+separator-joined — any separator you pick, a slug can contain.
 
 **The schema type is structural, not imported.** `TransferTypeSchema` is shaped
 so `content-server`'s `SerializedContentType` and `content-admin`'s

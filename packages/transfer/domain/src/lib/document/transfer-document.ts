@@ -45,6 +45,15 @@ export interface TransferRef {
      * becomes an unresolved report line when that fails.
      */
     $key: Record<string, string>;
+    /**
+     * The target row's locale, when the target type is localized.
+     *
+     * Part of the match, not decoration: a localized type's key values are
+     * per-row (`en`/`hello` and `de`/`hallo` are different rows of one record),
+     * so a key without the locale would be ambiguous exactly where a
+     * translation shares a slug with its source.
+     */
+    $locale?: string;
 }
 
 /** One timed-text track travelling with a video or audio asset. */
@@ -211,18 +220,26 @@ export function resolveDepth(requested?: Partial<TransferDepth>): TransferDepth 
  * A stable, order-independent string for a natural key — the map key an
  * importer matches on.
  *
- * Sorted by field name so two documents that list the same key in a different
- * order still collide, and ` `-separated so a value containing the
- * separator cannot forge a different key.
+ * JSON-encoded rather than joined with a separator character, because the parts
+ * are user content: any separator you pick, a slug can contain. `["post","en",
+ * "slug","a b"]` and `["post","en","slug a","b"]` are different strings here,
+ * where a space- or colon-joined key would collapse them and quietly link two
+ * unrelated records.
+ *
+ * `locale` participates because a localized type's key values are per-row: two
+ * translations of one article legitimately share a slug on a type keyed by a
+ * shared field, and always differ on one keyed by a localized field. Folding
+ * the locale in is what keeps those two rows two rows.
  */
 export function keyFingerprint(
     type: string,
-    key: Record<string, string>
+    key: Record<string, string>,
+    locale?: string
 ): string {
     const parts = Object.keys(key)
         .sort()
-        .map((field) => `${field} ${key[field]}`);
-    return `${type} ${parts.join(' ')}`;
+        .flatMap((field) => [field, key[field]]);
+    return JSON.stringify([type, locale ?? '', ...parts]);
 }
 
 /** Whether a key has a usable value for every field it claims to be made of. */

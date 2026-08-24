@@ -64,28 +64,40 @@ describe('resolveIdentityFields', () => {
         expect(resolved.source).toBe(IDENTITY_SOURCE.RequiredText);
     });
 
-    it('never keys a localized field — its value differs per locale', () => {
+    it('keys a localized field — a transfer record is one row, not one per language', () => {
+        // The alternative leaves a fully-localized type (every text field
+        // varying per language, which is the normal shape) with no key at all,
+        // so every import of it duplicates every row. What separates `en`/hello
+        // from `de`/hello is the locale in the fingerprint, not the exclusion.
         const resolved = resolveIdentityFields(
             schema({
                 i18n: true,
                 fields: [
-                    { name: 'slug', type: 'text', required: true, localized: true }
+                    {
+                        name: 'slug',
+                        type: 'text',
+                        required: true,
+                        localized: true
+                    }
                 ]
             })
         );
 
-        // Keying on it would make the English and German rows of one record
-        // two different records.
-        expect(resolved.fields).toEqual([]);
-        expect(resolved.source).toBe(IDENTITY_SOURCE.RowId);
+        expect(resolved.fields).toEqual(['slug']);
+        expect(resolved.source).toBe(IDENTITY_SOURCE.UniqueField);
     });
 
-    it('still keys a non-localized field on an i18n type', () => {
+    it('prefers a shared slug over a localized title on an i18n type', () => {
         const resolved = resolveIdentityFields(
             schema({
                 i18n: true,
                 fields: [
-                    { name: 'title', type: 'text', required: true, localized: true },
+                    {
+                        name: 'title',
+                        type: 'text',
+                        required: true,
+                        localized: true
+                    },
                     { name: 'slug', type: 'text', required: true }
                 ]
             })

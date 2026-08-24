@@ -52,10 +52,17 @@ const KEYABLE_TYPES: readonly string[] = [
  * schema no longer has — that is a misconfiguration worth surfacing as an
  * unresolvable key rather than silently papering over with a guess.
  *
- * Note what is *not* a candidate: a `localized` field. On an i18n type its
- * value differs per locale by definition, so keying on it would make the
- * English and German rows of one record two different records — precisely the
- * bug the locale group exists to prevent.
+ * A `localized` field **is** a candidate, and that is deliberate. A transfer
+ * record is one *row*, not one record-across-languages: the English and German
+ * versions of an article travel as two records and are stitched back into one
+ * by their locale group. So a per-locale slug identifies exactly the row it
+ * belongs to, which is what an import needs to match. What keeps `en`/`hello`
+ * from colliding with `de`/`hello` is that the locale is part of the match
+ * (see `keyFingerprint`), not the exclusion of the field.
+ *
+ * Excluding localized fields instead would leave a fully-localized type — where
+ * every text field varies per language, which is the normal shape — with no key
+ * at all, so every import of it would duplicate every row.
  */
 export function resolveIdentityFields(
     schema: TransferTypeSchema,
@@ -68,11 +75,8 @@ export function resolveIdentityFields(
         };
     }
 
-    const candidates = schema.fields.filter(
-        (field) =>
-            KEYABLE_TYPES.includes(field.type) &&
-            // A localized value is not an identity — see above.
-            !(schema.i18n && field.localized)
+    const candidates = schema.fields.filter((field) =>
+        KEYABLE_TYPES.includes(field.type)
     );
 
     const unique = candidates.find(

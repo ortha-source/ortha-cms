@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1241 test cases across 81 spec files._
+_1264 test cases across 82 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2522,6 +2522,54 @@ _<sub>apps/server-e2e/src/server/tools/tool-registry.spec.ts</sub>_
 | Test case |
 | --- |
 | leaves the MCP endpoint a full catalogue |
+
+<!-- source: apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts -->
+_<sub>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</sub>_
+
+## Content transfer (/api/content/:type/export, /import)
+
+### export
+
+| Test case |
+| --- |
+| exports the selected record with its relations one hop out |
+| leaves relations out when they are not asked for |
+| reports what an export would carry without producing it |
+| streams a ZIP when files are asked for, with the record files inside |
+| exports a CSV whose header matches the type |
+| offers a blank CSV template for the type |
+
+### import
+
+| Test case |
+| --- |
+| round-trips a graph: export, wipe, import, and it is back |
+| dry-runs without writing, and says what it would do |
+| skips an existing record by default rather than duplicating it |
+| updates the matched record when the policy says so |
+| adds a second copy when the policy says duplicate |
+| never writes across workspaces, whatever the manifest claims |
+| refuses a document written by a newer format version |
+| rejects a file that is not a transfer document |
+| requires a file at all |
+
+### permissions
+
+| Test case |
+| --- |
+| refuses export to a viewer, who may read but not take the library |
+| refuses import to a viewer |
+| refuses a signed-out caller |
+| hides a content type the workspace was never granted |
+
+### validation
+
+| Test case |
+| --- |
+| rejects an unknown format |
+| rejects an empty selection |
+| rejects an unknown body field |
+| rejects an unknown conflict policy |
 
 <!-- source: apps/server-e2e/src/server/users/get-user.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/get-user.spec.ts</sub>_
