@@ -11,6 +11,10 @@ const messages = defineMessages({
     signInWith: {
         id: 'identity.login.sso.signInWith',
         defaultMessage: 'Sign in with {provider}'
+    },
+    continueWith: {
+        id: 'identity.login.sso.continueWith',
+        defaultMessage: 'Continue with {provider}'
     }
 });
 
@@ -23,6 +27,20 @@ type SsoProvidersProps = {
      * cannot become an off-site redirect.
      */
     redirectTo?: string;
+    /**
+     * The raw invite token, when this is the accept-invitation screen rather
+     * than the sign-in one. It turns the handshake into invite acceptance: the
+     * server redeems the invite and activates the account with **no password**,
+     * so the identity provider becomes the only way in — which is what the
+     * person chose by using this button.
+     *
+     * The server checks that the address the provider vouches for is the one
+     * that was invited, so this cannot be used to claim someone else's
+     * invitation.
+     */
+    inviteToken?: string;
+    /** The separator's text, which differs between the two screens. */
+    separatorLabel?: string;
 };
 
 /**
@@ -42,7 +60,11 @@ type SsoProvidersProps = {
  * error would hand someone a problem they cannot act on while they are trying
  * to sign in a way that still works.
  */
-export function SsoProviders({ redirectTo }: SsoProvidersProps) {
+export function SsoProviders({
+    redirectTo,
+    inviteToken,
+    separatorLabel
+}: SsoProvidersProps) {
     const intl = useIntl();
     const { data: providers } = useSsoProviders();
 
@@ -53,7 +75,7 @@ export function SsoProviders({ redirectTo }: SsoProvidersProps) {
     return (
         <>
             <FieldSeparator>
-                {intl.formatMessage(messages.separator)}
+                {separatorLabel ?? intl.formatMessage(messages.separator)}
             </FieldSeparator>
             <Field className="gap-3">
                 {providers.map((provider) => (
@@ -63,10 +85,19 @@ export function SsoProviders({ redirectTo }: SsoProvidersProps) {
                         variant="outline"
                         className="w-full"
                     >
-                        <a href={startUrl(provider.name, redirectTo)}>
-                            {intl.formatMessage(messages.signInWith, {
-                                provider: provider.label
-                            })}
+                        <a
+                            href={startUrl(
+                                provider.name,
+                                redirectTo,
+                                inviteToken
+                            )}
+                        >
+                            {intl.formatMessage(
+                                inviteToken
+                                    ? messages.continueWith
+                                    : messages.signInWith,
+                                { provider: provider.label }
+                            )}
                         </a>
                     </Button>
                 ))}
@@ -85,9 +116,19 @@ export function SsoProviders({ redirectTo }: SsoProvidersProps) {
  * would need encoding; belt and braces cost nothing here, and the guard lives
  * in a different package.
  */
-function startUrl(name: string, redirectTo?: string): string {
+function startUrl(
+    name: string,
+    redirectTo?: string,
+    inviteToken?: string
+): string {
+    const url = new URLSearchParams();
+    if (redirectTo && redirectTo !== '/') {
+        url.set('redirect', redirectTo);
+    }
+    if (inviteToken) {
+        url.set('invite', inviteToken);
+    }
+    const query = url.toString();
     const path = `/api/auth/sso/${encodeURIComponent(name)}/start`;
-    return redirectTo && redirectTo !== '/'
-        ? `${path}?redirect=${encodeURIComponent(redirectTo)}`
-        : path;
+    return query ? `${path}?${query}` : path;
 }

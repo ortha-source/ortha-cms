@@ -453,7 +453,32 @@ const config: OrthaConfig = {
                 requestTtlSeconds: readPositiveInt(
                     'SSO_REQUEST_TTL_SECONDS',
                     600
-                )
+                ),
+                // Just-in-time provisioning, off unless a domain list is set.
+                // The list is what makes this safe: an identity provider
+                // answers for everyone it knows, and a public one knows
+                // everyone, so provisioning without one means anybody with an
+                // account there can sign in here — and nothing breaks to say
+                // so, the user list simply grows.
+                ...(process.env['SSO_PROVISION_DOMAINS']
+                    ? {
+                          provisioning: {
+                              domains: readList(
+                                  'SSO_PROVISION_DOMAINS',
+                                  ''
+                              ),
+                              defaultRole:
+                                  process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
+                          }
+                      }
+                    : {}),
+                // Passwords stay on unless a deployment turns them off. The
+                // root administrator keeps one regardless — see the note on
+                // `IdentitySsoConfig.allowPasswordLogin`; without that
+                // exemption a mis-scoped provider locks an operator out of
+                // their own CMS with no way back short of a database client.
+                allowPasswordLogin:
+                    process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false'
             },
             ssoProviders: {
                 ...(ssoOidcIssuer && ssoOidcClientId

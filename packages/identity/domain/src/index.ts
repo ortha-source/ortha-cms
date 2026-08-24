@@ -17,6 +17,15 @@ export type {
     SsoRegistry
 } from './lib/sso/sso-provider';
 export { SSO_REGISTRY } from './lib/sso/sso-provider';
+// Group-to-role mapping. A host-supplied handler, like the copilot's
+// `ModelResolver` and media's `resolve` — plain code at the composition root,
+// because "which of our groups means editor?" is a deployment's own question
+// and no configuration shape has ever answered it for everyone.
+export { SSO_ROLE_RESOLVER } from './lib/sso/sso-role-resolver';
+export type {
+    SsoRoleResolver,
+    SsoRoleContext
+} from './lib/sso/sso-role-resolver';
 export type { SsoProfile } from './lib/sso/sso-profile';
 export {
     assertSsoProfile,

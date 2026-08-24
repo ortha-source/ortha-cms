@@ -38,6 +38,17 @@ export const ssoAuthRequests = pgTable(
          * downstream has to validate it again.
          */
         redirectTo: text('redirect_to').notNull(),
+        /**
+         * The SHA-256 of an invite token, when this attempt was started from an
+         * invite link — the "accept your invitation by signing in with your
+         * work account" path.
+         *
+         * Null for an ordinary sign-in. Stored as a hash for the same reason
+         * every other token in this plugin is: the raw value lives only in the
+         * link the admin sent, and a read-only database leak yields nothing
+         * that can redeem it.
+         */
+        inviteTokenHash: text('invite_token_hash'),
         /** Absolute expiry. Minutes, not days: this is one click long. */
         expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
         /**

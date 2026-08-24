@@ -8,6 +8,17 @@
 export const IDENTITY_ACTIVITY_KINDS = {
     USER_SIGNED_IN: 'user.signed_in',
     USER_SIGNED_OUT: 'user.signed_out',
+    /** An identity provider was linked to an existing account. */
+    USER_SSO_LINKED: 'user.sso_linked',
+    /**
+     * An account was created from a verified profile — no invite, no password.
+     * Distinct from `user.signed_in` on purpose: "somebody signed in" and
+     * "an account came into existence" are different facts, and only the second
+     * one answers "where did this user come from?".
+     */
+    USER_SSO_PROVISIONED: 'user.sso_provisioned',
+    /** A role-mapping handler changed an account's role on sign-in. */
+    USER_SSO_ROLE_MAPPED: 'user.sso_role_mapped',
     /**
      * An external-API bearer token was minted. Named for the `tokens:*`
      * permission family that gates the route, not for the `api_token.created`

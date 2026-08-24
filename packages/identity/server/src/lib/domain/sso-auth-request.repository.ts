@@ -30,6 +30,12 @@ export interface PendingSsoAuthRequest {
     codeVerifier: string;
     /** The already-validated same-origin path to land on. */
     redirectTo: string;
+    /**
+     * The SHA-256 of the invite token this attempt was started from, or `null`
+     * for an ordinary sign-in. Its presence is what puts the callback on the
+     * invite-acceptance path rather than the sign-in one.
+     */
+    inviteTokenHash: string | null;
 }
 
 /** What opening an attempt needs from the caller. */
@@ -40,6 +46,12 @@ export interface OpenSsoAuthRequestInput {
     redirectTo: string;
     /** How long the attempt stays live. One click, so seconds not days. */
     ttlSeconds: number;
+    /**
+     * The SHA-256 of an invite token, when the attempt was started from an
+     * invite link. Hashed by the caller, like every other token here — the raw
+     * value never reaches the port.
+     */
+    inviteTokenHash?: string | null;
 }
 
 /**

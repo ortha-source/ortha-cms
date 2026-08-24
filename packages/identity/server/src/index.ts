@@ -4,7 +4,8 @@ export type {
     IdentityTokenConfig,
     IdentityRateLimitConfig,
     IdentityRootAdminConfig,
-    IdentitySsoConfig
+    IdentitySsoConfig,
+    IdentitySsoProvisioningConfig
 } from './lib/types';
 export { IdentityPlugin } from './lib/utils/identity-plugin';
 export type {
@@ -132,6 +133,19 @@ export type {
     SsoIdentityRepository,
     LinkSsoIdentityInput
 } from './lib/domain/sso-identity.repository';
+export { SSO_PROVISIONING_REPOSITORY } from './lib/domain/sso-provisioning.repository';
+export type {
+    SsoProvisioningRepository,
+    ProvisionAccountInput,
+    ProvisionedAccount
+} from './lib/domain/sso-provisioning.repository';
+// The domain-allow-list check, exported because it is the rule an operator's
+// configuration is judged against and a host may want to apply it before
+// writing one.
+export {
+    isProvisionableEmail,
+    assertProvisionableDomains
+} from './lib/domain/sso-provisioning-policy';
 export { SSO_AUTH_REQUEST_REPOSITORY } from './lib/domain/sso-auth-request.repository';
 export type {
     SsoAuthRequestRepository,

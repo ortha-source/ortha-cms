@@ -1,6 +1,10 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
-import type { SsoRegistration } from '@orthacms/identity-domain';
+import type {
+    SsoRegistration,
+    SsoRoleResolver
+} from '@orthacms/identity-domain';
+import { assertProvisionableDomains } from '../domain/sso-provisioning-policy';
 import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
 import { SESSION_COOKIE } from '../auth/services/cookie.service';
@@ -42,6 +46,22 @@ export interface IdentitySsoOptions {
      * started, because no name resolves.
      */
     providers: readonly SsoRegistration[];
+    /**
+     * Optional handler deciding which role a sign-in lands on — plain code,
+     * returning a role key, or `null` to leave the role alone.
+     *
+     * Here rather than in config for the same reason the providers are: "which
+     * of our groups means editor?" is a deployment's own question, and no
+     * configuration shape has ever answered it for everyone. Without a handler
+     * the CMS never infers authority from a claim, which is the default.
+     *
+     * @example
+     * ```typescript
+     * resolveRole: ({ profile }) =>
+     *     profile.groups?.includes('cms-editors') ? 'contributor' : 'viewer'
+     * ```
+     */
+    resolveRole?: SsoRoleResolver;
 }
 
 /**
@@ -63,6 +83,20 @@ function assertOptions(
     options: IdentityPluginOptions
 ): void {
     const providers = options.sso?.providers ?? [];
+
+    // Provisioning is checked whenever it is configured, even with no provider
+    // registered: a deployment that turns it on and then adds a provider later
+    // should hear about an unusable domain list on the commit that wrote it,
+    // not on the one that made it reachable.
+    if (config.sso?.provisioning) {
+        assertProvisionableDomains(config.sso.provisioning.domains);
+        if (!config.sso.provisioning.defaultRole.trim()) {
+            throw new Error(
+                'SSO just-in-time provisioning needs a `defaultRole` — every account holds exactly one role, and there is no sensible one to guess.'
+            );
+        }
+    }
+
     if (providers.length > 0 && config.session.cookieSameSite === 'strict') {
         throw new Error(
             'IdentityPlugin cannot register SSO providers while `session.cookieSameSite` is "strict": the browser would not send the session cookie on the identity provider\'s redirect back, so every SSO sign-in would fail. Use "lax" (the default), or register no SSO providers.'

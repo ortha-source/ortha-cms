@@ -1,3 +1,4 @@
+import type { SsoRoleContext, SsoRoleResolver } from '@orthacms/identity-domain';
 import {
     createFakeSsoProvider,
     type FakeSsoProvider
@@ -50,3 +51,31 @@ export const fakeSsoProvider: FakeSsoProvider = createFakeSsoProvider({
         }
     ]
 });
+
+/**
+ * The role-mapping handler for the current test, or `null` for "map nothing" —
+ * the default and the shipped behaviour.
+ *
+ * Module scope, with a stable delegating handler registered once, for the same
+ * reason the copilot's fake model provider is a facade: the plugin list is
+ * built once per spec **file**, while each test needs its own answer.
+ */
+let roleScript: SsoRoleResolver | null = null;
+
+/** Script the role-mapping handler for one test. */
+export function scriptSsoRole(resolver: SsoRoleResolver | null): void {
+    roleScript = resolver;
+}
+
+/** Clear the script — called between tests, like `resetDb`. */
+export function resetSsoRole(): void {
+    roleScript = null;
+}
+
+/**
+ * The handler registered with `IdentityPlugin`. Always present, so the wiring
+ * is exercised on every boot; answers `null` unless a test scripted something,
+ * which is exactly what "no handler configured" means to the use case.
+ */
+export const ssoRoleResolver: SsoRoleResolver = (context: SsoRoleContext) =>
+    roleScript ? roleScript(context) : null;

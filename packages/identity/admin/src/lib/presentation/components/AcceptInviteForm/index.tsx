@@ -18,6 +18,7 @@ import type { InviteDetails } from '../../../../types/auth';
 import { PASSWORD_MIN_LENGTH } from '../../../domain/value-objects/password';
 import { AuthField } from '../AuthField';
 import { AuthAlert } from '../AuthAlert';
+import { SsoProviders } from '../SsoProviders';
 import { useAcceptInviteSchema } from './useAcceptInviteSchema';
 
 /** Intl descriptors for {@link AcceptInviteForm}, co-located with the component. */
@@ -88,6 +89,10 @@ const messages = defineMessages({
         defaultMessage:
             'Once you’re done we’ll sign you in on this device. The invite link stops working after this.'
     },
+    ssoSeparator: {
+        id: 'identity.acceptInvite.sso.separator',
+        defaultMessage: 'or accept with'
+    },
     errorTitle: {
         id: 'identity.acceptInvite.errorTitle',
         defaultMessage: 'Couldn’t finish setting up'
@@ -106,6 +111,13 @@ export type AcceptInviteFormValues = {
 type AcceptInviteFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
     /** Who the invite is for; rendered read-only, never collected. */
     invite: InviteDetails;
+    /**
+     * The raw token from the invite link. Needed here, not just by the page's
+     * submit handler, because the single-sign-on buttons carry it in their
+     * `href` — accepting with a work account is a full-page navigation, so the
+     * token has to be part of the URL rather than of a request body.
+     */
+    token: string;
     /** Called when the form is submitted with valid values. */
     onSubmit?: (values: AcceptInviteFormValues) => void;
     /** Whether a submission is in flight; swaps the button for a spinner. */
@@ -128,6 +140,7 @@ type AcceptInviteFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
 export function AcceptInviteForm({
     className,
     invite,
+    token,
     onSubmit,
     isPending = false,
     error,
@@ -277,6 +290,21 @@ export function AcceptInviteForm({
                                     {intl.formatMessage(messages.signedInNote)}
                                 </FieldDescription>
                             </Field>
+
+                            {/* Accepting with a work account instead of a
+                                password. The server checks that the address the
+                                provider vouches for is the one that was
+                                invited, and activates the account with no
+                                credential — so the provider becomes the only
+                                way in, which is what this button chooses.
+                                Renders nothing when no provider is
+                                registered. */}
+                            <SsoProviders
+                                inviteToken={token}
+                                separatorLabel={intl.formatMessage(
+                                    messages.ssoSeparator
+                                )}
+                            />
                         </FieldGroup>
                     </form>
                 </CardContent>

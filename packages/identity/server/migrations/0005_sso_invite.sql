@@ -1,0 +1,1 @@
+ALTER TABLE "sso_auth_requests" ADD COLUMN "invite_token_hash" text;

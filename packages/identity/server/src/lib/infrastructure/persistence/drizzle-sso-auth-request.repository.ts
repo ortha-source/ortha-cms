@@ -51,6 +51,7 @@ export class DrizzleSsoAuthRequestRepository
                 nonce,
                 codeVerifier,
                 redirectTo: input.redirectTo,
+                inviteTokenHash: input.inviteTokenHash ?? null,
                 expiresAt
             });
 
@@ -69,7 +70,8 @@ export class DrizzleSsoAuthRequestRepository
                 state: ssoAuthRequests.state,
                 nonce: ssoAuthRequests.nonce,
                 codeVerifier: ssoAuthRequests.codeVerifier,
-                redirectTo: ssoAuthRequests.redirectTo
+                redirectTo: ssoAuthRequests.redirectTo,
+                inviteTokenHash: ssoAuthRequests.inviteTokenHash
             })
             .from(ssoAuthRequests)
             .where(

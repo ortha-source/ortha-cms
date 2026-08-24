@@ -3,7 +3,8 @@ import type { ContentGraphqlLimits } from '@orthacms/content-graphql';
 import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig,
-    IdentitySessionConfig
+    IdentitySessionConfig,
+    IdentitySsoConfig
 } from '@orthacms/identity-server';
 import type { RunLimits } from '@orthacms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
@@ -60,6 +61,15 @@ export interface TestConfigOverrides {
      * `Set-Cookie` header really carries it.
      */
     session?: Partial<IdentitySessionConfig>;
+    /**
+     * Override the SSO settings — just-in-time provisioning and whether
+     * passwords are still accepted.
+     *
+     * Both are off by default, which is the shipped shape, so a suite that
+     * wants either says so explicitly and every other suite keeps the invite-
+     * only behaviour it was written against.
+     */
+    sso?: Partial<IdentitySsoConfig>;
     /**
      * Configure the root-admin bootstrap. Omitted by default, so the seeder
      * is a no-op and a freshly booted app has no users (matching production
@@ -179,6 +189,9 @@ export function buildTestConfig(
                 // `buildTestPlugins`, which is the whole point — the handshake
                 // is exercised with no tenant and no network.
                 ssoProviders: {},
+                // Deliberately no provisioning and passwords on, matching the
+                // default install. A suite that needs either passes `sso`.
+                sso: { ...overrides.sso },
                 allowedOrigins: overrides.allowedOrigins ?? [
                     TEST_ALLOWED_ORIGIN
                 ],

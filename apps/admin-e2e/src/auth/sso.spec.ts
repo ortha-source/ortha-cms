@@ -4,6 +4,7 @@ import {
     mockSsoProviders,
     mockSsoProvidersUnavailable
 } from '../support/api/auth';
+import { mockInvite } from '../support/api/invites';
 
 /**
  * The single-sign-on block on the sign-in card.
@@ -159,6 +160,56 @@ test.describe('Single sign-on on the sign-in page', () => {
             // Still offered: the point of the message is "try again", and the
             // most likely next action is the same button.
             await expect(loginPage.ssoLink('Google')).toBeVisible();
+        });
+    });
+
+    test.describe('accepting an invitation with a work account', () => {
+        const TOKEN = 'invite-token-abc123';
+
+        test.beforeEach(async ({ page }) => {
+            await mockInvite(page, {
+                email: 'invitee@example.com',
+                name: 'Ada Lovelace'
+            });
+            await mockSsoProviders(page, [
+                { name: 'google', label: 'Google', kind: 'oidc' }
+            ]);
+        });
+
+        test('offers each provider, carrying the invite token', async ({
+            acceptInvitePage
+        }) => {
+            await acceptInvitePage.goto(TOKEN);
+            await expect(acceptInvitePage.heading).toBeVisible();
+
+            await expect(acceptInvitePage.ssoSeparator).toBeVisible();
+            await expect(acceptInvitePage.ssoLink('Google')).toHaveAttribute(
+                'href',
+                `/api/auth/sso/google/start?invite=${TOKEN}`
+            );
+        });
+
+        test('keeps the password fields as the primary path', async ({
+            acceptInvitePage
+        }) => {
+            await acceptInvitePage.goto(TOKEN);
+            await expect(acceptInvitePage.heading).toBeVisible();
+
+            // Setting a password is what every deployment offers; accepting
+            // with a provider is the addition, so it comes after.
+            await expect(acceptInvitePage.password).toBeEditable();
+            await expect(acceptInvitePage.submit).toBeEnabled();
+        });
+
+        test('renders no block when no provider is registered', async ({
+            page,
+            acceptInvitePage
+        }) => {
+            await mockSsoProviders(page, []);
+            await acceptInvitePage.goto(TOKEN);
+            await expect(acceptInvitePage.heading).toBeVisible();
+
+            await expect(acceptInvitePage.ssoSeparator).toBeHidden();
         });
     });
 });

@@ -154,6 +154,21 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // environment value. A default install configures none, so
         // `GET /api/auth/sso` answers `[]` and the sign-in page shows only the
         // password form.
+        //
+        // To let the directory decide roles, add a `resolveRole` handler here —
+        // plain code, returning a role key or `null` to leave the role alone:
+        //
+        //   resolveRole: ({ profile, isNewAccount }) =>
+        //       isNewAccount && profile.groups?.includes('cms-editors')
+        //           ? 'contributor'
+        //           : null,
+        //
+        // Without one the CMS never infers authority from a claim, which is the
+        // default: a mapping that ran on every sign-in would silently undo an
+        // administrator's edit, with nothing in the product to say why it did
+        // not stick. An account already holding `admin` is never demoted by a
+        // handler either — that grant is deliberate, and a directory group is
+        // not.
         IdentityPlugin(config.plugins.identity, {
             sso: { providers: ssoProviders(config) }
         }),
