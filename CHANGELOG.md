@@ -1,3 +1,16 @@
+## 0.4.1 (2026-08-24)
+
+### 🩹 Fixes
+
+- **create-ortha-app:** let a second picker read the keyboard ([b47c1e70](https://github.com/ortha-source/ortha-cms/commit/b47c1e70))
+- **release:** declare the phantom deps that kept two packages off npm ([7232e0c6](https://github.com/ortha-source/ortha-cms/commit/7232e0c6))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.4.0 (2026-08-24)
 
 ### 🚀 Features
