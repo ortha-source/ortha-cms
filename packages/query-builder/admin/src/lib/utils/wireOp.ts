@@ -16,7 +16,19 @@ export const WIRE_OP = {
     Gt: 'gt',
     Gte: 'gte',
     Lt: 'lt',
-    Lte: 'lte'
+    Lte: 'lte',
+    /**
+     * A window measured from **query time**, carried to the server as
+     * `{ n, unit }` instead of a resolved cutoff.
+     *
+     * Only emitted when the caller asks for it (`treeToJsonFilter`'s
+     * `relativeDates` option). A filter destined for a URL still freezes its
+     * cutoff — see {@link WIRE_TO_UI} — because a shared link should keep
+     * showing the same rows. A filter that is **stored and replayed**, like an
+     * alarm rule, needs the opposite, or "not updated in 90 days" quietly
+     * becomes "not updated since the day the rule was written".
+     */
+    WithinLast: 'within_last'
 } as const;
 
 /** One of the {@link WIRE_OP} values. */
@@ -45,11 +57,17 @@ export const UI_TO_WIRE: Partial<Record<OpId, WireOp>> = {
 /**
  * Inverse of {@link UI_TO_WIRE}. `gte`/`lte` map back to their UI ops.
  * `OP.Between` is reconstructed by `jsonFilterToTree` (it pairs a same-field
- * `gte`+`lte` AND group back into one Between rule). `OP.WithinLast` is
- * intentionally **one-way**: it serialises to a concrete `gte` cutoff, so on
- * reload it rehydrates as an absolute `OP.Gte` rule (a single `gte` is
- * indistinguishable from a real one) — the relative window is resolved at
- * Apply time, which is the right behaviour for a shareable deep link.
+ * `gte`+`lte` AND group back into one Between rule).
+ *
+ * `OP.WithinLast` has **two** wire spellings, and which one a filter carries is
+ * a property of where it is going rather than of the rule:
+ *
+ * - Serialised **for a URL** (the default) it becomes a concrete `gte` cutoff
+ *   and is therefore one-way — on reload it rehydrates as an absolute `OP.Gte`
+ *   rule, because a single `gte` is indistinguishable from a real one. That is
+ *   deliberate: a shared deep link should keep showing the same rows.
+ * - Serialised **for storage** (`relativeDates`) it keeps `within_last`, which
+ *   round-trips exactly and is resolved by the database on every evaluation.
  */
 export const WIRE_TO_UI: Partial<Record<WireOp, OpId>> = {
     [WIRE_OP.Eq]: OP.Equals,
@@ -64,5 +82,6 @@ export const WIRE_TO_UI: Partial<Record<WireOp, OpId>> = {
     [WIRE_OP.Gt]: OP.Gt,
     [WIRE_OP.Gte]: OP.Gte,
     [WIRE_OP.Lt]: OP.Lt,
-    [WIRE_OP.Lte]: OP.Lte
+    [WIRE_OP.Lte]: OP.Lte,
+    [WIRE_OP.WithinLast]: OP.WithinLast
 };

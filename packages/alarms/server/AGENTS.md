@@ -1,0 +1,174 @@
+# @orthacms/alarms-server
+
+The **alarms plugin** — non-blocking content rules and the findings they
+produce. A workspace declares what it considers wrong ("a published article
+whose author is still a draft"), and the CMS says so wherever that content is
+touched, without ever refusing a save or a publish.
+
+Layout: **layered (ADR-0003)** — `domain / application / infrastructure / http`.
+
+## What it is, in one paragraph
+
+A **rule** is a content type plus a saved records-list filter plus a severity. A
+**finding** is one rule's verdict about one entry. Rules are evaluated from
+entry lifecycle events off the shared outbox, from an explicit rescan, and from
+a periodic sweep; every path funnels into `EntryMatchQuery` — content's own
+filter evaluation — so a rule means exactly what the records list means by the
+same filter.
+
+## The four decisions worth knowing before changing anything here
+
+### 1. An alarm never blocks a write
+
+No severity has authority. `error` is louder than `warn`, and that is all it is
+([ADR-0015](../../../docs/adr/0015-alarms-are-non-blocking.md)). The moment a
+severity can refuse a publish, this plugin and content's publish gate become two
+competing authorities on whether an entry is valid, and they will disagree. If
+something genuinely must not be publishable, it belongs in the content type's
+schema, where `EntryValidationService` enforces it.
+
+### 2. A rule is a saved list filter, not a query language
+
+`alarm_rules.filter` stores the exact JSON the admin's query builder puts in
+`?filter=`. That is why:
+
+- the rule editor is the existing query-builder component over
+  `/content-schema/:name/filter-fields`, with no new grammar to learn or
+  document;
+- "save this list filter as a rule" is a real one-click flow rather than a
+  re-entry of the same condition;
+- "show me the matching entries" links straight into the records list;
+- the reverse pass can **compose** a stored rule (`AND author.id = <id>`)
+  instead of re-parsing a string.
+
+Never add a parallel condition format. If a rule needs something the filter
+engine cannot express, extend the engine — `@orthacms/utils-server`'s
+`FilterOperator` and content's `buildEntryFilterSurface`, which are built in one
+traversal precisely so the picker and the parser cannot disagree.
+
+**What this model cannot express**, and deliberately does not try to: anything
+that is a *group by* rather than a predicate on one row. "Two products share a
+slug", "this section has fewer than three articles". Those need a second kind of
+rule and a second evaluator; they are out of scope, not pending.
+
+### 3. The primary key is the idempotency
+
+`alarm_findings` is keyed `(rule_id, entry_id)`. Outbox delivery is
+**at-least-once**, so the evaluator can be handed the same `entry.updated`
+twice; the upsert makes the second pass a no-op. `first_seen_at` is written by
+the insert and never updated, so "this has been open for three months" survives
+the finding resolving and re-opening.
+
+`muted_at` is a column of its own rather than only a `state` value. A muted
+finding whose entry stops matching resolves like any other, and when it matches
+again it must come back **muted** — `nextFindingState` is the one place that
+rule lives, and `finding-state.spec.ts` pins it. Writing a constant `'open'`
+into the conflict clause is the bug that makes every silenced finding shout
+again on the next edit, which is how a feature like this gets switched off.
+
+### 4. Findings close themselves, and the reverse pass is why
+
+"This published article links to a draft author" is a fact about the **article**,
+but the event that fixes it arrives about the **author**. So
+`entry.published` / `unpublished` / `deleted` / `restored` / `purged` trigger a
+second pass: rules whose filter tree mentions a relation pointing at the changed
+type are re-evaluated for the entries that link to it, plus the entries they
+currently flag. Without it, "links to a draft" would open correctly and never
+close.
+
+`filterTreeSegments` (pure, unit-tested) is what identifies a traversing rule —
+the first path segment of every leaf, matched against the type's relation
+targets. The pass is bounded twice: only rules that mention such a relation are
+considered, and each is limited to `maxDependentsPerEvent` entries.
+
+## Layout
+
+```
+src/lib/
+  alarms.module.ts            # the one dynamic module (global)
+  alarms.tokens.ts            # ALARMS_CONFIG
+  alarms.constants.ts         # page sizes, length caps
+  domain/                     # pure TS — no Nest, no Drizzle
+    alarm-severity.ts         #   info | warn | error, and their order
+    finding-state.ts          #   open | muted | resolved + nextFindingState
+    filter-tree-segments.ts   #   which relations a stored filter traverses
+    errors/                   #   transport-agnostic errors
+  application/
+    alarm-rules.service.ts    # the rule lifecycle (validate → store → rescan)
+    dto/                      # class-validator + @ApiProperty shapes
+  infrastructure/
+    schema/                   # alarm_rules, alarm_findings
+    alarm-rule.repository.ts  # rule storage + the traversing-rule lookup
+    alarm-finding.store.ts    # reconcile / mute / read — the idempotent half
+    alarm-evaluator.service.ts# the three evaluation paths
+    entry-event.subscriber.ts # outbox → evaluation
+    alarm-sweep.service.ts    # the periodic rescan
+  http/controllers/           # thin, permission-gated
+```
+
+`domain/` imports nothing from `@nestjs/*`, `drizzle-orm` or `class-validator`.
+
+**Why no aggregate and no repository port.** ADR-0003 is explicit that a thin
+context gets mappers and projections rather than a domain model it does not
+need. A rule's only invariant is name-uniqueness, which is a database index; a
+finding's state machine is one pure function. Forcing an aggregate and a port
+onto that would be a violation of the ADR, not compliance with it.
+
+## Routes
+
+All under `/api/alarms`, all behind `WorkspaceGuard`. Reads need `alarms:read`,
+every write needs `alarms:manage` — the split that keeps "who may see a finding"
+apart from "who decides what the workspace considers wrong". Writes additionally
+carry `OriginGuard`, per route rather than per class, matching content's
+controllers: these are cookie-authenticated and therefore CSRF-able.
+
+| Route                                         | Permission      |
+| --------------------------------------------- | --------------- |
+| `GET    /alarms/rules`                        | `alarms:read`   |
+| `POST   /alarms/rules`                        | `alarms:manage` |
+| `POST   /alarms/rules/preview`                | `alarms:manage` |
+| `PATCH  /alarms/rules/:id`                    | `alarms:manage` |
+| `DELETE /alarms/rules/:id`                    | `alarms:manage` |
+| `POST   /alarms/rules/:id/rescan`             | `alarms:manage` |
+| `GET    /alarms/findings`                     | `alarms:read`   |
+| `GET    /alarms/findings/by-entry`            | `alarms:read`   |
+| `GET    /alarms/findings/summary`             | `alarms:read`   |
+| `PUT`/`DELETE /alarms/findings/:rule/:entry/mute` | `alarms:manage` |
+
+A content type that is unregistered and one the workspace was never granted
+produce the **same** 404 with the same message — content's own rule
+(`resolveGrantedType`), so the rule editor cannot be used to enumerate the
+deployment's content model.
+
+## Behaviour worth knowing
+
+- **Creating a rule scans immediately.** Otherwise the rule would only ever see
+  entries edited after it existed — reporting a clean collection on the one day
+  it is most likely to be wrong.
+- **Editing a filter forces a rescan before the response returns.** Otherwise
+  the findings table describes the *previous* condition, confidently.
+- **A rule whose filter stops parsing is marked `broken`**, skipped by the
+  evaluator, and surfaced in the UI. Silently never matching looks exactly like
+  "everything is fine", which is the worst thing a correctness tool can do.
+- **A rescan that hits `maxScanEntries` logs a warning** rather than reporting a
+  clean scan of a truncated set.
+- **`entry.deleted` resolves an entry's findings; `entry.purged` deletes them.**
+  A soft delete can be undone and the history has to come back with it; a purge
+  leaves nothing to point at.
+- **The sweep is per-process, on a plain interval.** It exists for rules about
+  entries **nobody is touching** ("not updated in 90 days"), which by definition
+  produce no events. `OutboxDispatcher` is the precedent for the mechanism. It
+  is therefore not suitable for anything that must happen exactly once.
+
+## Schema
+
+Two tables, migrations committed here (`__drizzle_migrations_alarms`).
+`workspace_id`, `entry_id`, `created_by` and `muted_by` carry **no FK** — the
+first two point at identity- and host-owned tables, and the last two must
+outlive the users they name, exactly like `activity_events.actor_id`.
+
+## Commands
+
+- `npx nx run-many -t typecheck lint test -p @orthacms/alarms-server`
+- `npx nx run @orthacms/alarms-server:db:generate --name=<change>` (commit the SQL)
+- `npx nx run server:db:migrate` applies it with every other plugin's

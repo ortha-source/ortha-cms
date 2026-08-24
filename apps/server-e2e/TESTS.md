@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1324 test cases across 86 spec files._
+_1340 test cases across 88 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -279,6 +279,60 @@ _<sub>apps/server-e2e/src/server/activity/activity.spec.ts</sub>_
 | --- |
 | records user.signed_out for the session owner |
 | records nothing extra for a logout with no live session |
+
+<!-- source: apps/server-e2e/src/server/alarms/alarm-findings.spec.ts -->
+_<sub>apps/server-e2e/src/server/alarms/alarm-findings.spec.ts</sub>_
+
+## Alarm findings lifecycle
+
+| Test case |
+| --- |
+| opens a finding when a matching entry is published |
+| closes the finding by itself once the entry is fixed |
+| is idempotent under a re-delivered event |
+| keeps a mute across the finding resolving and re-opening |
+| serves findings for a batch of entries in one request |
+| reports the open counts by severity for the workspace |
+| closes the findings on an entry when it is deleted |
+
+<!-- source: apps/server-e2e/src/server/alarms/alarm-rules.spec.ts -->
+_<sub>apps/server-e2e/src/server/alarms/alarm-rules.spec.ts</sub>_
+
+## Alarm rules (/api/alarms/rules)
+
+### creation
+
+| Test case |
+| --- |
+| scans the existing collection, so the rule is right on day one |
+| rejects a filter the content type cannot answer |
+| refuses a second rule with the same name in the workspace |
+| answers 404 for an ungranted type, exactly as for an unknown one |
+
+### preview
+
+| Test case |
+| --- |
+| reports matches against the collection total |
+
+### update
+
+| Test case |
+| --- |
+| rescans when the filter changes, so findings never describe the old condition |
+
+### deletion
+
+| Test case |
+| --- |
+| takes the rule and its findings with it |
+
+### authorization
+
+| Test case |
+| --- |
+| lets a viewer read rules but not write them |
+| refuses a caller who is not a member of the workspace |
 
 <!-- source: apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts -->
 _<sub>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</sub>_

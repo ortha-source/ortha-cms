@@ -111,3 +111,11 @@ export { EntrySidebarRow } from './lib/presentation/components/EntrySidebarRow';
 export { refreshEntryCaches } from './lib/application/refreshEntryCaches';
 export { contentEntriesPrefix } from './lib/application/useContentEntries';
 export { contentEntryKey } from './lib/application/useContentEntry';
+
+// The type's filterable surface, exported so a plugin that stores a *saved*
+// records filter (the alarms plugin's rules) edits it with the same query
+// builder, over the same server-derived paths, as the list it came from. A
+// second source of filterable fields is how a saved filter starts meaning
+// something the list never meant.
+export { useFilterFields } from './lib/application/useFilterFields';
+export type { FilterFieldsResult } from './lib/application/useFilterFields';

@@ -84,6 +84,11 @@ export type {
     SerializedField
 } from './lib/registry/content-type-registry';
 
+// Filter evaluation over a content type, exported for `@orthacms/alarms-server`:
+// an alarm rule IS a records-list filter, so it must be parsed and translated
+// by the same surface the list uses rather than by a second implementation.
+export { EntryMatchQuery } from './lib/entries/infrastructure/queries/entry-match.query';
+export type { EntryMatchOptions } from './lib/entries/infrastructure/queries/entry-match.query';
 export { EntryValidationService } from './lib/validation/services/entry-validation.service';
 export type {
     ValidationIssue,

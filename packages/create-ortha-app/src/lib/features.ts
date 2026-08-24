@@ -80,6 +80,8 @@ export interface Feature {
 export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/activity-admin',
     '@orthacms/activity-server',
+    '@orthacms/alarms-admin',
+    '@orthacms/alarms-server',
     '@orthacms/api-tokens-admin',
     '@orthacms/bootstrap-admin',
     '@orthacms/bootstrap-server',
