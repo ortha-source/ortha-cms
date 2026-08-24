@@ -10,7 +10,7 @@ must be able to depend on the port **without** depending on
 `@orthacms/identity-server` — which would drag in NestJS, Drizzle, bcrypt and
 the 108 import sites that pin identity's public barrel. This is the same split
 `@orthacms/copilot-domain` makes for `ModelProvider`, for the same reason
-([ADR-0012](../../../docs/adr/0012-sso-provider-port.md) §1).
+([ADR-0013](../../../docs/adr/0013-sso-provider-port.md) §1).
 
 ## The one hard rule
 

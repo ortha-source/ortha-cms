@@ -11,5 +11,12 @@
     },
     "include": ["src/**/*.ts"],
     "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"],
-    "references": [{ "path": "../server/tsconfig.lib.json" }]
+    "references": [
+        {
+            "path": "../server/tsconfig.lib.json"
+        },
+        {
+            "path": "../provider-testkit/tsconfig.lib.json"
+        }
+    ]
 }

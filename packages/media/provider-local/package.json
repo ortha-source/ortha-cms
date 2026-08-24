@@ -16,5 +16,8 @@
     ],
     "dependencies": {
         "@orthacms/media-server": "*"
+    },
+    "devDependencies": {
+        "@orthacms/media-provider-testkit": "*"
     }
 }

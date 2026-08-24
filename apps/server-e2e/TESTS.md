@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1257 test cases across 81 spec files._
+_1265 test cases across 83 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2397,6 +2397,25 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | streams to a member of the owning workspace, ignoring the header |
 | 404s for a user who is not a member of the owning workspace |
 
+<!-- source: apps/server-e2e/src/server/media/media-direct-serve.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-direct-serve.spec.ts</sub>_
+
+## media direct serve
+
+| Test case |
+| --- |
+| redirects an image to a signed URL instead of streaming it |
+| never caches the redirect, which outlives the URL it points at |
+| signs an uploaded .html as an attachment |
+| authorizes before it redirects — a non-member gets the same 404 |
+| still 404s an asset that does not exist |
+
+## media direct serve, off by default
+
+| Test case |
+| --- |
+| streams the bytes through the app |
+
 <!-- source: apps/server-e2e/src/server/media/media-folders.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_
 
@@ -2461,6 +2480,16 @@ _<sub>apps/server-e2e/src/server/media/media-local-storage.spec.ts</sub>_
 | refuses to delete a file outside the storage root when the stored key traverses |
 | answers 404 when the blob is missing from disk |
 | does not name the storage key in the 404 body |
+
+<!-- source: apps/server-e2e/src/server/media/media-storage-provider-check.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-storage-provider-check.spec.ts</sub>_
+
+## storage provider boot check
+
+| Test case |
+| --- |
+| refuses to boot over assets written by another provider |
+| boots normally once no row names a foreign provider |
 
 <!-- source: apps/server-e2e/src/server/media/media-token-scope.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-token-scope.spec.ts</sub>_

@@ -1,9 +1,6 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
-import type {
-    StorageProvider,
-    StorageResolver
-} from '../domain/storage-provider';
+import type { StorageProvider } from '../domain/storage-provider';
 import { MediaModule } from '../media.module';
 import type { MediaPluginConfig } from '../types/media-config';
 
@@ -14,46 +11,74 @@ export type MediaServerPluginDefinition = ServerPlugin & {
 
 /** Options the host passes to {@link MediaServerPlugin}. */
 export interface MediaPluginOptions {
-    /** Named storage providers available to this deployment. */
-    providers: Record<string, StorageProvider>;
-    /** Optional custom handler picking a provider per upload (plain code). */
-    resolve?: StorageResolver;
-    /** Host config (connection settings + default provider + upload cap). */
+    /**
+     * The one storage backend this deployment runs, already constructed with
+     * its own settings — `createLocalStorageProvider(…)`,
+     * `createS3StorageProvider(…)`, or anything else implementing the port.
+     *
+     * One object, not a list: bytes go to a single place, so there is nothing
+     * to choose between and no name to register. Swapping backend is swapping
+     * this expression.
+     */
+    provider: StorageProvider;
+    /** Host config — the upload cap. Names no backend. */
     config: MediaPluginConfig;
 }
 
 /**
  * Validate the wiring **eagerly**, the way `CopilotPlugin` validates its own
- * provider list: a `defaultProvider` naming a provider nobody registered is a
- * misconfiguration of the composition root, and the composition root is where it
- * should be reported.
+ * provider list: a broken storage seam is a misconfiguration of the composition
+ * root, and the composition root is where it should be reported.
  *
- * Measured on the shipped app before this existed: `MEDIA_PROVIDER=s3` (the
- * bucket keys exist in config, but no S3 adapter is registered) booted with no
- * warning of any kind, and every upload answered a bare
- * `500 Internal server error` — a message that names neither the provider nor
- * the variable that chose it. One typo, and the media library is broken in a way
- * whose cause is invisible from the outside.
+ * Measured on the shipped app before this existed: pointing the media config at
+ * a backend nobody had wired booted with no warning of any kind, and every
+ * upload answered a bare `500 Internal server error` — a message that names
+ * neither the provider nor the setting that chose it.
  */
 function assertOptions(options: MediaPluginOptions): void {
-    const names = Object.keys(options.providers);
-    if (names.length === 0) {
+    const provider = options.provider as StorageProvider | undefined;
+    if (!provider) {
         throw new Error(
-            'MediaServerPlugin requires at least one storage provider. Register one at the ' +
-                'composition root, e.g. `providers: { local: createLocalStorageProvider(…) }`.'
+            'MediaServerPlugin requires a storage provider. Construct one at the composition root, ' +
+                'e.g. `provider: createLocalStorageProvider(config.plugins.media.storage)`.'
         );
     }
-    const { defaultProvider } = options.config;
-    if (!defaultProvider) {
+    if (typeof provider.id !== 'string' || !provider.id.trim()) {
         throw new Error(
-            'MediaServerPlugin requires `config.defaultProvider` to name one of the registered ' +
-                `providers. Registered: ${names.join(', ')}.`
+            "MediaServerPlugin's storage provider must expose a non-empty `id` — it is recorded on " +
+                'every asset row (`media_asset.storage_provider`) and is what the boot check compares ' +
+                'existing rows against.'
         );
     }
-    if (!names.includes(defaultProvider)) {
+    if (!provider.capabilities) {
         throw new Error(
-            `MediaServerPlugin's defaultProvider "${defaultProvider}" is not registered. ` +
-                `Registered: ${names.join(', ')}.`
+            `The storage provider "${provider.id}" declares no \`capabilities\`. Every provider must ` +
+                'state what it supports; the core has no way to detect it.'
+        );
+    }
+    if (provider.capabilities.directUrl && !provider.directUrl) {
+        throw new Error(
+            `The storage provider "${provider.id}" declares \`capabilities.directUrl\` but implements ` +
+                'no `directUrl()`. Declare the capability only when the method exists.'
+        );
+    }
+    if (
+        options.config.directServe === 'signed-url' &&
+        !provider.capabilities.directUrl
+    ) {
+        throw new Error(
+            `MediaServerPlugin's \`directServe: 'signed-url'\` needs a provider that can mint one, and ` +
+                `"${provider.id}" declares \`capabilities.directUrl: false\`. Either drop the setting — ` +
+                'downloads then stream through the app, which is the default — or run a backend that ' +
+                'signs URLs (`@orthacms/media-provider-s3`). Silently proxying instead would leave the ' +
+                'operator believing an optimization is on that is not.'
+        );
+    }
+    const ttl = options.config.directServeTtlSeconds;
+    if (ttl !== undefined && (!Number.isFinite(ttl) || ttl <= 0)) {
+        throw new Error(
+            `MediaServerPlugin's directServeTtlSeconds must be a positive number (got ${ttl}) — ` +
+                'a non-positive lifetime mints URLs that are already expired.'
         );
     }
     if (
@@ -70,13 +95,13 @@ function assertOptions(options: MediaPluginOptions): void {
 /**
  * Creates the media plugin. Register it **after** `WorkspacesPlugin` (its routes
  * use `WorkspaceGuard`) and `IdentityPlugin` (its routes use `PermissionsGuard`).
- * The chosen storage provider(s) are constructed at the composition root and
- * passed in here — the plugin never imports a concrete backend.
+ * The storage backend is constructed at the composition root and passed in here
+ * — the plugin never imports a concrete backend.
  *
  * @example
  * ```typescript
  * MediaServerPlugin({
- *   providers: { local: createLocalStorageProvider(config.plugins.media.local) },
+ *   provider: createLocalStorageProvider(config.plugins.media.storage),
  *   config: config.plugins.media
  * });
  * ```
@@ -88,10 +113,17 @@ export function MediaServerPlugin(
     return {
         name: 'media',
         module: MediaModule.forRoot({
-            providers: options.providers,
-            resolve: options.resolve,
-            defaultProvider: options.config.defaultProvider,
-            maxUploadBytes: options.config.maxUploadBytes
+            provider: options.provider,
+            maxUploadBytes: options.config.maxUploadBytes,
+            ...(options.config.directServe
+                ? { directServe: options.config.directServe }
+                : {}),
+            ...(options.config.directServeTtlSeconds
+                ? {
+                      directServeTtlSeconds:
+                          options.config.directServeTtlSeconds
+                  }
+                : {})
         }),
         mediaConfig: options.config,
         migrations: {

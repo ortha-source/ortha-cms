@@ -11,10 +11,8 @@ import {
     type AssetRepository
 } from '../../domain/asset.repository';
 import {
-    STORAGE_REGISTRY,
-    STORAGE_RESOLVER,
-    type StorageRegistry,
-    type StorageResolver
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 
 /** Inserts " copy" before the extension (or appends it when there is none). */
@@ -26,17 +24,16 @@ function duplicateName(name: string): string {
 }
 
 /**
- * Duplicates an asset — copies the bytes to a fresh key (via the resolver) and
- * inserts a new row in the same folder, carrying over kind/mime/tags/alt/dims.
- * Returns the new asset id.
+ * Duplicates an asset — copies the bytes to a fresh key through the
+ * deployment's storage provider and inserts a new row in the same folder,
+ * carrying over kind/mime/tags/alt/dims. Returns the new asset id.
  */
 @Injectable()
 export class DuplicateAssetUseCase {
     constructor(
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
-        @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry,
-        @Inject(STORAGE_RESOLVER) private readonly resolve: StorageResolver,
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider,
         @Inject(ASSET_REPOSITORY) private readonly assets: AssetRepository
     ) {}
 
@@ -61,27 +58,23 @@ export class DuplicateAssetUseCase {
         // `ENAMETOOLONG` — a 500 for what is a 400.
         const copyName = FileName.create(duplicateName(source.name.value));
         const newId = AssetId.generate();
-        const providerName = this.resolve(
-            {
-                workspaceId,
-                folderId: source.folderId?.value ?? null,
-                fileName: copyName.value,
-                contentType: source.mimeType,
-                kind: source.kind.value,
-                size: source.size
-            },
-            this.registry
-        );
-        const provider = this.registry.get(providerName);
-        const sourceProvider = this.registry.get(source.storageProvider);
+        const provider = this.provider;
+        // The copy reads and writes through the same provider, so a source
+        // written by a different backend is refused rather than half-copied:
+        // `get` would be handed a key that means nothing here. The boot check
+        // makes this unreachable in a healthy deployment.
+        if (source.storageProvider !== provider.id) {
+            throw new Error(
+                `Asset ${assetId} is stored by provider "${source.storageProvider}", but this ` +
+                    `deployment runs "${provider.id}". Its bytes are in the other backend.`
+            );
+        }
 
         // Track every copied blob so a rolled-back duplicate reclaims all of
         // them, not just the original.
         const written: string[] = [];
         try {
-            const sourceStream = await sourceProvider.get(
-                source.storageKey.value
-            );
+            const sourceStream = await provider.get(source.storageKey.value);
             const stored = await provider.put({
                 workspaceId,
                 assetId: newId.value,
@@ -100,7 +93,7 @@ export class DuplicateAssetUseCase {
                     assetId: newId.value,
                     fileName: `${name}.webp`,
                     contentType: 'image/webp',
-                    body: await sourceProvider.get(variant.key),
+                    body: await provider.get(variant.key),
                     isVariant: true
                 });
                 written.push(put.storageKey);
@@ -119,7 +112,7 @@ export class DuplicateAssetUseCase {
                     folderId: source.folderId,
                     name: copyName,
                     storageKey: StorageKey.create(stored.storageKey),
-                    storageProvider: providerName,
+                    storageProvider: provider.id,
                     kind: source.kind,
                     mimeType: source.mimeType,
                     size: stored.size,
