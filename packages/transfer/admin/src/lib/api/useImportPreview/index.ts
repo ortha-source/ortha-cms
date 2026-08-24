@@ -1,19 +1,31 @@
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '@orthacms/utils-admin';
-import type { ConflictPolicy, ImportPreview } from '@orthacms/transfer-domain';
+import type {
+    ConflictPolicy,
+    ImportPreview,
+    RelationPolicy
+} from '@orthacms/transfer-domain';
+
+/** The settings both import routes take, as the dialog holds them. */
+export interface ImportOptions {
+    /** What to do with a selected record that already exists here. */
+    policy: ConflictPolicy;
+    /** What to do with the related records the file carries. */
+    relations: RelationPolicy;
+}
 
 /** One dry-run request. */
-export interface ImportPreviewRequest {
+export interface ImportPreviewRequest extends ImportOptions {
     typeName: string;
     file: File;
-    policy: ConflictPolicy;
 }
 
 /** Builds the multipart body both import routes take. */
-export function importFormData(file: File, policy: ConflictPolicy): FormData {
+export function importFormData(file: File, options: ImportOptions): FormData {
     const form = new FormData();
     form.append('file', file);
-    form.append('policy', policy);
+    form.append('policy', options.policy);
+    form.append('relations', options.relations);
     return form;
 }
 
@@ -26,11 +38,11 @@ export function importFormData(file: File, policy: ConflictPolicy): FormData {
  */
 export function useImportPreview() {
     return useMutation<ImportPreview, unknown, ImportPreviewRequest>({
-        mutationFn: ({ typeName, file, policy }) =>
+        mutationFn: ({ typeName, file, ...options }) =>
             apiClient
                 .post<ImportPreview>(
                     `/content/${typeName}/import/preview`,
-                    importFormData(file, policy)
+                    importFormData(file, options)
                 )
                 .then((response) => response.data)
     });

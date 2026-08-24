@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1319 test cases across 86 spec files._
+_1324 test cases across 86 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2689,6 +2689,10 @@ _<sub>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</sub>_
 | skips an existing record by default rather than duplicating it |
 | updates the matched record when the policy says so |
 | adds a second copy when the policy says duplicate |
+| links a related record that is already here instead of adding another |
+| writes a fresh related record when the relation policy says recreate |
+| updates the related record from the file when asked to |
+| keeps the two policies apart: duplicate the record, link its author |
 | never writes across workspaces, whatever the manifest claims |
 | refuses a document written by a newer format version |
 | rejects a file that is not a transfer document |
@@ -2711,6 +2715,7 @@ _<sub>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</sub>_
 | rejects an empty selection |
 | rejects an unknown body field |
 | rejects an unknown conflict policy |
+| rejects an unknown relation policy |
 
 <!-- source: apps/server-e2e/src/server/users/get-user.spec.ts -->
 _<sub>apps/server-e2e/src/server/users/get-user.spec.ts</sub>_

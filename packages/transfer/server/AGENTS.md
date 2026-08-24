@@ -27,6 +27,26 @@ get resolvable `$ref`s, filled by a key-only projection over the depth-2 rows.
 A reference carrying only a foreign row id is unresolvable anywhere else, which
 is the whole problem natural keys exist to solve.
 
+**Depth decides which policy governs a record, and there are two.** The
+`ConflictPolicy` answers "this record is already here" for the records the
+caller selected; the `RelationPolicy` answers it for the depth-1 records that
+came along because something pointed at them. They are separate because the
+answers usually differ: duplicating an article is a reasonable thing to ask for,
+and duplicating its author because the article was duplicated is not. `link` is
+the default and writes nothing to a matched related record — it exists so the
+link can be made, not so the row can be rewritten.
+
+**A record is matched two ways, in this order.** The natural key first, because
+it is the identity that means something on another installation. The **source
+row id** second, and only when the key found nothing: a `$id` that names a live
+row of this type in this workspace is not a guess, it is the row the document
+was written from. That fallback is what lets a type with no derivable identity
+field — a category with one optional `name` resolves none — be linked to instead
+of copied on every import, and it is why `matchAll` runs a second, cheap query
+per type. Both sides of the key match read `identityFor`, the manifest's copy:
+deriving it locally on one side and reading the manifest on the other is how a
+record that exists gets created anyway.
+
 **Locale handling reads the envelope, never the semantics.** `locale` and
 `locale_group_id` are columns `content/server` defines for any `i18n: true`
 type, so the walk asks "the other rows of this record" generically. On import

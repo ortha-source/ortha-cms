@@ -33,6 +33,10 @@ export const IMPORT_REASON = {
     ConflictDuplicated: 'conflict-duplicated',
     /** The type resolved no identity fields, so nothing could be matched on. */
     NoIdentity: 'no-identity',
+    /** Related record: matched something already here, so it was linked to. */
+    RelationLinked: 'relation-linked',
+    /** Related record: written as a fresh copy because the policy says so. */
+    RelationRecreated: 'relation-recreated',
     /** The document names a type this installation doesn't have. */
     UnknownType: 'unknown-type',
     /** The document names a field the type doesn't have. */
@@ -72,6 +76,45 @@ export type ConflictPolicy =
 export const CONFLICT_POLICIES = Object.values(
     CONFLICT_POLICY
 ) as ConflictPolicy[];
+
+/**
+ * What to do with the **related** records a document carries — the depth-1 ones
+ * pulled in because something the caller selected pointed at them.
+ *
+ * They need their own answer, separate from {@link CONFLICT_POLICY}. Nobody
+ * asked for them: they are context for the records that *were* asked for, and
+ * the usual reason they are in the file at all is so the links can be made
+ * again on the other side. The overwhelmingly common intent is therefore
+ * "point at the author who is already here", not "write a second author" — and
+ * a single policy covering both depths cannot express that, because the same
+ * word has to mean two different things at once.
+ */
+export const RELATION_POLICY = {
+    /**
+     * Match it and link to it, leaving the existing row's values alone. Only a
+     * related record nothing matched is created — otherwise the link would
+     * dangle. The default: it is what "export an article with its author, then
+     * import it" is nearly always meant to do, and it cannot lose data.
+     */
+    Link: 'link',
+    /** Match it and link to it, and overwrite its values from the file. */
+    Update: 'update',
+    /**
+     * Never match: write a new row for every related record and point the links
+     * at those. For a target whose same-named rows are genuinely different
+     * things from the source's.
+     */
+    Recreate: 'recreate'
+} as const;
+
+/** What to do with the related records a document carries. */
+export type RelationPolicy =
+    (typeof RELATION_POLICY)[keyof typeof RELATION_POLICY];
+
+/** Every relation policy, for validating a wire value. */
+export const RELATION_POLICIES = Object.values(
+    RELATION_POLICY
+) as RelationPolicy[];
 
 /** The verdict for one record. */
 export interface ImportVerdict {

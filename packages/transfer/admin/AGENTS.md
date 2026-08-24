@@ -33,7 +33,15 @@ is the only warning.
 accepting it and ignoring it. `TRANSFER_FORMAT_CAPABILITIES` decides, so the UI
 cannot offer a promise the server will not keep.
 
-**Import verdicts go stale.** Changing the file *or* the conflict policy retires
+**The import dialog asks two questions, not one.** "If a record is already here"
+governs the records in the file; "Records this file links to" governs the ones
+they point at. A single answer cannot serve both — an export carries an
+article's author so the link can be made again, and "add a second copy of this
+article" must not quietly mean "and a second author". The relation choice
+defaults to **Link**, which writes nothing to a related record that already
+exists.
+
+**Import verdicts go stale.** Changing the file *or* **either** policy retires
 the table — showing one file's verdicts above another file's Import button is
 the worst bug this dialog can have.
 
