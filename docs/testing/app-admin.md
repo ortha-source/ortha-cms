@@ -202,8 +202,11 @@ explanation at all.
   `@orthacms/i18n-admin` and `@orthacms/copilot-admin` are undeclared.
   → `🐞 BUG-app-admin-01`.
 - **EC-06 — `CopilotPlugin()` when the server has `COPILOT_ENABLED=false`.** `⚠️ PARTIAL`
-  The admin surface is registered regardless; the copilot's own UI must degrade. Covered by
-  `apps/admin-e2e/src/copilot/*` against mocked responses, not against a disabled server.
+  The admin plugin is still registered — that is a build-time list — but its surfaces now
+  stand down at runtime: `useCopilotAvailable` reads the `404` from `GET /copilot/models`,
+  so the launcher and the `ViewSwitcher` render nothing and the Agents and Skills pages draw
+  a "turned off" empty state (`copilotIsOff` is unit-tested). Still `PARTIAL` because
+  `apps/admin-e2e/src/copilot/*` mocks a **working** server: no suite yet seeds the 404.
 
 **HTML entry**
 

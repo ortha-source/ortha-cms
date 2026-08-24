@@ -103,7 +103,10 @@ arrives regardless — five core plugins (`content`, `activity`, `i18n`, `media`
 `users`) depend on `copilot-server` to contribute their tools, so the code is on
 disk whatever the manifest says — and `fake` needs no key and no network, so a
 default app has a chat that genuinely works offline. `COPILOT_ENABLED` still
-defaults to `false`, so nothing reaches a model until an operator says so.
+defaults to `false`, so nothing reaches a model until an operator says so —
+and since that flag unregisters the copilot's routes, a generated app ships
+with the surfaces **absent** rather than present-and-refusing. The offline chat
+is one line of `.env` away, not on by default.
 
 What the question actually picks is which **hosted backends** to add.
 `copilot-provider-fake` is never offered: it is a shipped adapter rather than
