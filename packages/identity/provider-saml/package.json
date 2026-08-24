@@ -16,9 +16,7 @@
     ],
     "dependencies": {
         "@node-saml/node-saml": "^5.1.0",
-        "@orthacms/identity-domain": "*"
-    },
-    "devDependencies": {
+        "@orthacms/identity-domain": "*",
         "selfsigned": "^5.5.0",
         "xml-crypto": "^6.1.2"
     }
