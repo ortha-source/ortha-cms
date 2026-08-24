@@ -1607,7 +1607,16 @@ export class EntryWriterService {
                 )
             ];
             if (!ids.length) continue;
-            const rows = (await this.db
+            // `uow.current()`, not `this.db`. Outside a unit of work the two
+            // are the same connection, so an ordinary save is unaffected. Inside
+            // one they are not, and the difference decides whether a caller can
+            // write a graph: an import creates the author and then the article
+            // that points at it in a single transaction, and a probe on the base
+            // pool cannot see the uncommitted author — so a link to a record
+            // created moments earlier in the same unit of work was rejected as
+            // "must reference an existing entry".
+            const rows = (await this.uow
+                .current()
                 .select()
                 .from(target.table)
                 .where(

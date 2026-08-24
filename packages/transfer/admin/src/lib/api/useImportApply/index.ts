@@ -1,13 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@orthacms/utils-admin';
-import type { ConflictPolicy, ImportResult } from '@orthacms/transfer-domain';
-import { importFormData } from '../useImportPreview';
+import type { ImportResult } from '@orthacms/transfer-domain';
+import { importFormData, type ImportOptions } from '../useImportPreview';
 
 /** One apply request. */
-export interface ImportApplyRequest {
+export interface ImportApplyRequest extends ImportOptions {
     typeName: string;
     file: File;
-    policy: ConflictPolicy;
 }
 
 /**
@@ -22,11 +21,11 @@ export interface ImportApplyRequest {
 export function useImportApply() {
     const queryClient = useQueryClient();
     return useMutation<ImportResult, unknown, ImportApplyRequest>({
-        mutationFn: ({ typeName, file, policy }) =>
+        mutationFn: ({ typeName, file, ...options }) =>
             apiClient
                 .post<ImportResult>(
                     `/content/${typeName}/import`,
-                    importFormData(file, policy)
+                    importFormData(file, options)
                 )
                 .then((response) => response.data),
         onSuccess: () => {

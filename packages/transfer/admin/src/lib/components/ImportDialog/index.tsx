@@ -19,8 +19,10 @@ import {
 } from '@orthacms/design-system';
 import {
     CONFLICT_POLICY,
+    RELATION_POLICY,
     type ConflictPolicy,
-    type ImportPreview
+    type ImportPreview,
+    type RelationPolicy
 } from '@orthacms/transfer-domain';
 import { useImportPreview } from '../../api/useImportPreview';
 import { useImportApply } from '../../api/useImportApply';
@@ -61,6 +63,27 @@ const messages = defineMessages({
     policyFail: {
         id: 'transfer.import.policy.fail',
         defaultMessage: 'Stop and import nothing'
+    },
+    relations: {
+        id: 'transfer.import.relations',
+        defaultMessage: 'Records this file links to'
+    },
+    relationsHint: {
+        id: 'transfer.import.relations.hint',
+        defaultMessage:
+            'An export carries the records yours point at — authors, categories, tags — so the links can be made again here.'
+    },
+    relationsLink: {
+        id: 'transfer.import.relations.link',
+        defaultMessage: 'Link to the ones already here'
+    },
+    relationsUpdate: {
+        id: 'transfer.import.relations.update',
+        defaultMessage: 'Link to them, and update them from the file'
+    },
+    relationsRecreate: {
+        id: 'transfer.import.relations.recreate',
+        defaultMessage: 'Add them again as new records'
     },
     check: { id: 'transfer.import.check', defaultMessage: 'Check the file' },
     checking: {
@@ -110,6 +133,77 @@ const POLICY_ORDER: ConflictPolicy[] = [
     CONFLICT_POLICY.Fail
 ];
 
+const RELATION_LABEL = {
+    [RELATION_POLICY.Link]: messages.relationsLink,
+    [RELATION_POLICY.Update]: messages.relationsUpdate,
+    [RELATION_POLICY.Recreate]: messages.relationsRecreate
+} as const;
+
+const RELATION_ORDER: RelationPolicy[] = [
+    RELATION_POLICY.Link,
+    RELATION_POLICY.Update,
+    RELATION_POLICY.Recreate
+];
+
+/**
+ * One labelled radio group of policy values.
+ *
+ * The dialog asks two questions of the same shape — what to do with the records
+ * in the file, and what to do with the records they point at — and they must
+ * read as the same kind of choice, because the whole point of splitting them is
+ * that a reader can see they are separate answers.
+ */
+function PolicyChoice<T extends string>({
+    idPrefix,
+    legend,
+    hint,
+    value,
+    options,
+    labelOf,
+    onChange
+}: {
+    idPrefix: string;
+    legend: string;
+    /** A sentence under the legend, when the question needs context. */
+    hint?: string;
+    value: T;
+    options: readonly T[];
+    labelOf: (value: T) => string;
+    onChange: (value: T) => void;
+}) {
+    const hintId = `${idPrefix}-hint`;
+    return (
+        <fieldset className="grid gap-2">
+            <legend className="text-sm font-medium">{legend}</legend>
+            {hint ? (
+                <p id={hintId} className="text-muted-foreground -mt-1 text-xs">
+                    {hint}
+                </p>
+            ) : null}
+            <RadioGroup
+                value={value}
+                aria-describedby={hint ? hintId : undefined}
+                onValueChange={(next) => onChange(next as T)}
+            >
+                {options.map((option) => (
+                    <div key={option} className="flex items-center gap-2">
+                        <RadioGroupItem
+                            id={`${idPrefix}-${option}`}
+                            value={option}
+                        />
+                        <Label
+                            htmlFor={`${idPrefix}-${option}`}
+                            className="font-normal"
+                        >
+                            {labelOf(option)}
+                        </Label>
+                    </div>
+                ))}
+            </RadioGroup>
+        </fieldset>
+    );
+}
+
 /** The message from a failed request, if the server sent one worth showing. */
 function serverMessage(error: unknown): string | undefined {
     const message = (
@@ -141,6 +235,9 @@ export function ImportDialog({
     const inputRef = useRef<HTMLInputElement>(null);
     const [file, setFile] = useState<File | null>(null);
     const [policy, setPolicy] = useState<ConflictPolicy>(CONFLICT_POLICY.Skip);
+    const [relations, setRelations] = useState<RelationPolicy>(
+        RELATION_POLICY.Link
+    );
     const [preview, setPreview] = useState<ImportPreview | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -163,12 +260,11 @@ export function ImportDialog({
         if (!file) return;
         setError(null);
         previewMutation
-            .mutateAsync({ typeName, file, policy })
+            .mutateAsync({ typeName, file, policy, relations })
             .then(setPreview)
             .catch((cause) =>
                 setError(
-                    serverMessage(cause) ??
-                        intl.formatMessage(messages.failed)
+                    serverMessage(cause) ?? intl.formatMessage(messages.failed)
                 )
             );
     };
@@ -177,7 +273,7 @@ export function ImportDialog({
         if (!file) return;
         setError(null);
         applyMutation
-            .mutateAsync({ typeName, file, policy })
+            .mutateAsync({ typeName, file, policy, relations })
             .then((result) => {
                 toast.success(
                     intl.formatMessage(messages.done, {
@@ -244,41 +340,37 @@ export function ImportDialog({
                         </span>
                     </div>
 
-                    <fieldset className="grid gap-2">
-                        <legend className="mb-1 text-sm font-medium">
-                            {intl.formatMessage(messages.policy)}
-                        </legend>
-                        <RadioGroup
-                            value={policy}
-                            onValueChange={(next) => {
-                                // The verdicts depend on the policy, so changing
-                                // it retires the table rather than leaving a
-                                // stale one that no longer describes the run.
-                                setPreview(null);
-                                setPolicy(next as ConflictPolicy);
-                            }}
-                        >
-                            {POLICY_ORDER.map((value) => (
-                                <div
-                                    key={value}
-                                    className="flex items-center gap-2"
-                                >
-                                    <RadioGroupItem
-                                        id={`${fieldId}-policy-${value}`}
-                                        value={value}
-                                    />
-                                    <Label
-                                        htmlFor={`${fieldId}-policy-${value}`}
-                                        className="font-normal"
-                                    >
-                                        {intl.formatMessage(
-                                            POLICY_LABEL[value]
-                                        )}
-                                    </Label>
-                                </div>
-                            ))}
-                        </RadioGroup>
-                    </fieldset>
+                    {/* The verdicts depend on both settings, so changing
+                        either retires the table rather than leaving a stale one
+                        that no longer describes the run. */}
+                    <PolicyChoice
+                        idPrefix={`${fieldId}-policy`}
+                        legend={intl.formatMessage(messages.policy)}
+                        value={policy}
+                        options={POLICY_ORDER}
+                        labelOf={(value) =>
+                            intl.formatMessage(POLICY_LABEL[value])
+                        }
+                        onChange={(next) => {
+                            setPreview(null);
+                            setPolicy(next);
+                        }}
+                    />
+
+                    <PolicyChoice
+                        idPrefix={`${fieldId}-relations`}
+                        legend={intl.formatMessage(messages.relations)}
+                        hint={intl.formatMessage(messages.relationsHint)}
+                        value={relations}
+                        options={RELATION_ORDER}
+                        labelOf={(value) =>
+                            intl.formatMessage(RELATION_LABEL[value])
+                        }
+                        onChange={(next) => {
+                            setPreview(null);
+                            setRelations(next);
+                        }}
+                    />
 
                     {error ? (
                         <Alert variant="destructive">
@@ -297,10 +389,9 @@ export function ImportDialog({
                                 preview.counts.assetsReused >
                             0 ? (
                                 <p className="text-muted-foreground text-xs">
-                                    {intl.formatMessage(
-                                        messages.assetSummary,
-                                        { ...preview.counts }
-                                    )}
+                                    {intl.formatMessage(messages.assetSummary, {
+                                        ...preview.counts
+                                    })}
                                 </p>
                             ) : null}
                             {!preview.hasChanges ? (

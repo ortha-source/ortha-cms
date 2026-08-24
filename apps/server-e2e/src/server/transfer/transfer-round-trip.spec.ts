@@ -177,7 +177,8 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const document = JSON.parse(res.text);
             expect(
                 document.records.every(
-                    (record: { $type: string }) => record.$type === 'test_article'
+                    (record: { $type: string }) =>
+                        record.$type === 'test_article'
                 )
             ).toBe(true);
             // The reference survives even though the record did not — which is
@@ -306,17 +307,31 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             return res.text;
         }
 
-        /** Uploads a document to one of the import routes. */
+        /**
+         * Uploads a document to one of the import routes.
+         *
+         * `relations` is left off unless a test is about it, so the default
+         * every test but those exercises is the server's own — which is the
+         * thing worth having covered.
+         */
         function upload(
             agent: request.Agent,
             path: string,
             body: string,
-            policy = 'skip'
+            policy = 'skip',
+            relations?: string
         ) {
-            return agent
-                .post(path)
-                .field('policy', policy)
-                .attach('file', Buffer.from(body, 'utf8'), 'export.json');
+            const req = agent.post(path).field('policy', policy);
+            if (relations) req.field('relations', relations);
+            return req.attach('file', Buffer.from(body, 'utf8'), 'export.json');
+        }
+
+        /** The verdict for one record type, out of a preview or a result. */
+        function verdictFor(
+            body: { verdicts: { $type: string }[] },
+            type: string
+        ) {
+            return body.verdicts.find((verdict) => verdict.$type === type);
         }
 
         it('round-trips a graph: export, wipe, import, and it is back', async () => {
@@ -336,13 +351,15 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             // required relation with ON DELETE RESTRICT.
             await agent
                 .delete(`/api/content/test_article/${articleId}`)
-                .expect(200);
+                .expect(204);
             await agent
                 .post('/api/content/test_article/bulk/purge')
                 .send({ ids: [articleId] })
                 .expect(200);
             // `author` is not paranoid, so this removes the row outright.
-            await agent.delete(`/api/content/test_author/${authorId}`).expect(200);
+            await agent
+                .delete(`/api/content/test_author/${authorId}`)
+                .expect(204);
 
             expect(await listEntries(agent, 'test_article')).toHaveLength(0);
             expect(await listEntries(agent, 'test_author')).toHaveLength(0);
@@ -399,9 +416,17 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             // "nothing would change" — and nothing did.
             expect(preview.body.counts.skip).toBeGreaterThan(0);
             expect(preview.body.hasChanges).toBe(false);
-            expect(preview.body.verdicts[0]).toMatchObject({
+            // The two depths are reported differently on purpose: the article
+            // is the record you asked for and the conflict policy left it
+            // alone; the author came along with it and the relation policy
+            // linked to it. Same action, different question answered.
+            expect(verdictFor(preview.body, 'test_article')).toMatchObject({
                 action: 'skip',
                 reason: 'conflict-skipped'
+            });
+            expect(verdictFor(preview.body, 'test_author')).toMatchObject({
+                action: 'skip',
+                reason: 'relation-linked'
             });
             expect(await listEntries(agent, 'test_article')).toHaveLength(
                 before.length
@@ -481,6 +506,155 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             expect(await listEntries(agent, 'test_article')).toHaveLength(2);
         });
 
+        it('links a related record that is already here instead of adding another', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'has-an-author',
+                select: 'article',
+                author: authorId
+            });
+            const document = await exportJson(agent, [articleId]);
+
+            // Only the article goes. The author stays exactly where it is —
+            // this is the shape of every real import: the records are new, the
+            // things they point at are already here.
+            await agent
+                .delete(`/api/content/test_article/${articleId}`)
+                .expect(204);
+            await agent
+                .post('/api/content/test_article/bulk/purge')
+                .send({ ids: [articleId] })
+                .expect(200);
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_article/import',
+                document
+            ).expect(200);
+
+            expect(verdictFor(applied.body, 'test_author')).toMatchObject({
+                action: 'skip',
+                reason: 'relation-linked'
+            });
+            // One author, still the original row — not a second Ada.
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(1);
+            expect(authors[0].id).toBe(authorId);
+
+            const articles = await listEntries(agent, 'test_article');
+            expect(articles).toHaveLength(1);
+            const rebuilt = await readEntry(
+                agent,
+                'test_article',
+                articles[0].id
+            );
+            expect(rebuilt?.['values']).toMatchObject({ author: authorId });
+        });
+
+        it('writes a fresh related record when the relation policy says recreate', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'recreate-my-author',
+                select: 'article',
+                author: authorId
+            });
+            const document = await exportJson(agent, [articleId]);
+
+            await agent
+                .delete(`/api/content/test_article/${articleId}`)
+                .expect(204);
+            await agent
+                .post('/api/content/test_article/bulk/purge')
+                .send({ ids: [articleId] })
+                .expect(200);
+
+            const applied = await upload(
+                agent,
+                '/api/content/test_article/import',
+                document,
+                'skip',
+                'recreate'
+            ).expect(200);
+
+            expect(verdictFor(applied.body, 'test_author')).toMatchObject({
+                action: 'create',
+                reason: 'relation-recreated'
+            });
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(2);
+
+            // And the article points at the new copy, not the original.
+            const articles = await listEntries(agent, 'test_article');
+            const rebuilt = await readEntry(
+                agent,
+                'test_article',
+                articles[0].id
+            );
+            const linked = rebuilt?.['values'] as Record<string, unknown>;
+            expect(linked['author']).not.toBe(authorId);
+            expect(authors.map((author) => author.id)).toContain(
+                linked['author']
+            );
+        });
+
+        it('updates the related record from the file when asked to', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'author-edited-later',
+                select: 'article',
+                author: authorId
+            });
+            const document = await exportJson(agent, [articleId]);
+
+            // The author is edited after the export, so the file's copy is the
+            // older one — which is exactly what `update` asks to restore.
+            await agent
+                .patch(`/api/content/test_author/${authorId}`)
+                .send({ values: { name: 'Renamed', email: 'ada@x.test' } })
+                .expect(200);
+
+            await upload(
+                agent,
+                '/api/content/test_article/import',
+                document,
+                'skip',
+                'update'
+            ).expect(200);
+
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(1);
+            expect(authors[0].values['name']).toBe('Ada');
+        });
+
+        it('keeps the two policies apart: duplicate the record, link its author', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
+            const articleId = await createArticle(agent, {
+                text: 'twin-with-one-author',
+                select: 'article',
+                author: authorId
+            });
+            const document = await exportJson(agent, [articleId]);
+
+            // `duplicate` governs the records the caller selected. It must not
+            // reach the author, or "add a second copy of this article" would
+            // silently mean "and a second copy of everything it points at".
+            await upload(
+                agent,
+                '/api/content/test_article/import',
+                document,
+                'duplicate'
+            ).expect(200);
+
+            expect(await listEntries(agent, 'test_article')).toHaveLength(2);
+            const authors = await listEntries(agent, 'test_author');
+            expect(authors).toHaveLength(1);
+            expect(authors[0].id).toBe(authorId);
+        });
+
         it('never writes across workspaces, whatever the manifest claims', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
@@ -507,6 +681,12 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             await seedAllContentGrants(other.id);
             document.manifest.sourceWorkspaceId = other.id;
             document.records[0].values.text = 'forged';
+            // A foreign row id as well as a foreign key, because a document
+            // from somewhere else would carry one. Leaving this database's own
+            // id on it would make the record match the row it was exported
+            // from, and the import would correctly skip it — a true answer to
+            // a different question than the one this test asks.
+            document.records[0].$id = '9a7f1c62-4d38-4f0a-8b21-6e3c9d41f775';
 
             await upload(
                 agent,
@@ -597,7 +777,9 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             viewer.set('X-Workspace-Id', workspaceId);
 
             // The viewer can read this very record…
-            await viewer.get(`/api/content/test_article/${articleId}`).expect(200);
+            await viewer
+                .get(`/api/content/test_article/${articleId}`)
+                .expect(200);
             // …and still cannot export it. Bulk egress is a separate capability.
             await viewer
                 .post('/api/content/test_article/export')
@@ -690,6 +872,15 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             await agent
                 .post('/api/content/test_article/import')
                 .field('policy', 'obliterate')
+                .attach('file', Buffer.from('{}', 'utf8'), 'x.json')
+                .expect(400);
+        });
+
+        it('rejects an unknown relation policy', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/content/test_article/import')
+                .field('relations', 'entangle')
                 .attach('file', Buffer.from('{}', 'utf8'), 'x.json')
                 .expect(400);
         });

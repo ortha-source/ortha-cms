@@ -105,6 +105,8 @@ export {
     CONFLICT_POLICY,
     IMPORT_ACTION,
     IMPORT_REASON,
+    RELATION_POLICIES,
+    RELATION_POLICY,
     countVerdict,
     emptyCounts,
     hasChanges
@@ -116,7 +118,8 @@ export type {
     ImportPreview,
     ImportReason,
     ImportResult,
-    ImportVerdict
+    ImportVerdict,
+    RelationPolicy
 } from './lib/import/verdict';
 
 export {

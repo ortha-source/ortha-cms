@@ -14,7 +14,12 @@ import {
     UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+    ApiConsumes,
+    ApiOkResponse,
+    ApiOperation,
+    ApiTags
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import {
     CurrentUser,
@@ -35,6 +40,7 @@ import {
 import { OutboxWriter, UnitOfWork, attachActor } from '@orthacms/database';
 import {
     CONFLICT_POLICY,
+    RELATION_POLICY,
     csvColumns,
     encodeCsv,
     type ImportPreview,
@@ -43,10 +49,7 @@ import {
 } from '@orthacms/transfer-domain';
 import { TransferSchemaCatalog } from '../../../schema/schema-catalog.service';
 import { InjectTransferLimits } from '../../../transfer.tokens';
-import {
-    TRANSFER_EVENT_KINDS,
-    transferEvent
-} from '../../../transfer.events';
+import { TRANSFER_EVENT_KINDS, transferEvent } from '../../../transfer.events';
 import { ImportEntriesUseCase } from '../../application/import-entries.use-case';
 import {
     readUpload,
@@ -187,6 +190,7 @@ export class ImportEntriesController {
             assets,
             workspaceId,
             policy: body.policy ?? CONFLICT_POLICY.Skip,
+            relations: body.relations ?? RELATION_POLICY.Link,
             dryRun,
             actor: user ? { id: user.id, email: user.email } : null,
             can: {

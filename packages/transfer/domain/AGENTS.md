@@ -14,7 +14,7 @@ Layout is layered by concern, like `content/domain`:
 | `identity/` | Natural-key derivation and reading.                                 |
 | `formats/`  | The `ExportSerializer` / `ImportParser` ports and the four formats. |
 | `csv/`      | RFC 4180 encode/decode, and the record ⇄ row flattener.             |
-| `import/`   | The id map and the verdict vocabulary.                              |
+| `import/`   | The id map, the two policies, and the verdict vocabulary.           |
 | `limits.ts` | The ceilings a transfer runs under.                                 |
 
 ## The rules that matter here
@@ -26,6 +26,12 @@ record-across-languages, so a per-locale slug identifies exactly the row it
 belongs to. What keeps `en`/`hello` apart from `de`/`hello` is that the locale
 is folded into `keyFingerprint`, which is also JSON-encoded rather than
 separator-joined — any separator you pick, a slug can contain.
+
+**Two policies, because depth asks two questions.** `CONFLICT_POLICY` answers
+"this record is already here" for the records someone selected; `RELATION_POLICY`
+answers it for the depth-1 records those point at. Keep them apart: they share a
+value (`update`) and nothing else, and collapsing them would make "duplicate this
+article" also mean "duplicate its author".
 
 **The schema type is structural, not imported.** `TransferTypeSchema` is shaped
 so `content-server`'s `SerializedContentType` and `content-admin`'s

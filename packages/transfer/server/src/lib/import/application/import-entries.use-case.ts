@@ -22,7 +22,7 @@
  * that none of those rules ever saw.
  */
 
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
 import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, UnitOfWork, type Database } from '@orthacms/database';
@@ -37,6 +37,7 @@ import {
     CONFLICT_POLICY,
     IMPORT_ACTION,
     IMPORT_REASON,
+    RELATION_POLICY,
     TransferAssetMap,
     TransferIdMap,
     countVerdict,
@@ -50,6 +51,7 @@ import {
     type ImportReason,
     type ImportResult,
     type ImportVerdict,
+    type RelationPolicy,
     type TransferDocument,
     type TransferRecord,
     type TransferRef
@@ -68,6 +70,11 @@ export interface ImportCommand {
     assets: Map<string, Buffer>;
     workspaceId: string;
     policy: ConflictPolicy;
+    /**
+     * What to do with the document's **related** (depth-1) records, which
+     * `policy` deliberately does not govern — see {@link RelationPolicy}.
+     */
+    relations: RelationPolicy;
     /** Report only — write nothing. */
     dryRun: boolean;
     actor?: EventActor | null;
@@ -78,6 +85,34 @@ export interface ImportCommand {
 /** A row matched in the target workspace. */
 interface Match {
     targetId: string;
+}
+
+/**
+ * Every match the document could be resolved against, looked up two ways.
+ *
+ * `byKey` is the identity that survives a trip to another installation.
+ * `bySourceId` is the one that only works when the file came back to the
+ * database it left — which is, in practice, most imports.
+ */
+interface MatchIndex {
+    /** Keyed by {@link keyFingerprint}. */
+    byKey: Map<string, Match>;
+    /** Keyed by the record's source row id. */
+    bySourceId: Map<string, Match>;
+}
+
+/**
+ * Whether a string is shaped like the uuid a content table's `id` column is.
+ *
+ * A document's `$id` is not necessarily one: the CSV format carries the column,
+ * and a person filling in a spreadsheet may put anything there. Handing that
+ * straight to a `uuid` comparison is a Postgres syntax error and a 500 — so the
+ * shape is checked here, before the value ever reaches a query.
+ */
+function isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        value
+    );
 }
 
 @Injectable()
@@ -100,7 +135,9 @@ export class ImportEntriesUseCase {
      * because nobody can tell which half is real. Asset bytes are the exception
      * the database cannot cover and are handled in `ImportMediaService`.
      */
-    async execute(command: ImportCommand): Promise<ImportPreview & ImportResult> {
+    async execute(
+        command: ImportCommand
+    ): Promise<ImportPreview & ImportResult> {
         const mediaRun = beginMediaRun();
         if (command.dryRun) return this.run(command, mediaRun);
         try {
@@ -137,7 +174,7 @@ export class ImportEntriesUseCase {
             values: Record<string, unknown>;
         }[] = [];
 
-        const matches = await this.matchAll(document.records, workspaceId);
+        const matches = await this.matchAll(document, workspaceId);
 
         // Context first. A depth-1 record is something a depth-0 record points
         // at, so writing those first means most references already resolve on
@@ -152,7 +189,11 @@ export class ImportEntriesUseCase {
             const schema = this.catalog.schemaOf(record.$type);
             if (!type || !schema) {
                 verdicts.push(
-                    this.verdict(record, IMPORT_ACTION.Error, IMPORT_REASON.UnknownType)
+                    this.verdict(
+                        record,
+                        IMPORT_ACTION.Error,
+                        IMPORT_REASON.UnknownType
+                    )
                 );
                 continue;
             }
@@ -162,18 +203,29 @@ export class ImportEntriesUseCase {
             // The locale is part of the match on a localized type: its key
             // values are per-row, so `en`/`hello` and `de`/`hallo` are two rows
             // of one record and must not collapse into each other.
-            const match = matches.get(
-                keyFingerprint(record.$type, key, record.$locale)
-            );
+            // Key first — it is the identity that means something anywhere.
+            // The source row id is the fallback, and it resolves only when the
+            // file came home to the database it was exported from; there it is
+            // not a guess but a fact, and it is what lets a type with no
+            // natural key be linked to rather than written again.
+            const match =
+                matches.byKey.get(
+                    keyFingerprint(record.$type, key, record.$locale)
+                ) ?? matches.bySourceId.get(record.$id);
 
             const decision = this.decide(
                 identity.length > 0,
                 match,
-                command.policy
+                record.$depth === 0 ? command.policy : command.relations
             );
             if (decision.action === IMPORT_ACTION.Skip) {
                 verdicts.push(
-                    this.verdict(record, IMPORT_ACTION.Skip, decision.reason, match?.targetId)
+                    this.verdict(
+                        record,
+                        IMPORT_ACTION.Skip,
+                        decision.reason,
+                        match?.targetId
+                    )
                 );
                 countVerdict(counts, verdicts[verdicts.length - 1]);
                 // Still remembered: a skipped record is a row that *exists*, so
@@ -201,7 +253,11 @@ export class ImportEntriesUseCase {
                 decision.action === IMPORT_ACTION.Create ? 'create' : 'update';
             if (!command.can[needed]) {
                 verdicts.push(
-                    this.verdict(record, IMPORT_ACTION.Error, IMPORT_REASON.Forbidden)
+                    this.verdict(
+                        record,
+                        IMPORT_ACTION.Error,
+                        IMPORT_REASON.Forbidden
+                    )
                 );
                 countVerdict(counts, verdicts[verdicts.length - 1]);
                 continue;
@@ -222,7 +278,12 @@ export class ImportEntriesUseCase {
 
             if (command.dryRun) {
                 verdicts.push(
-                    this.verdict(record, decision.action, decision.reason, match?.targetId)
+                    this.verdict(
+                        record,
+                        decision.action,
+                        decision.reason,
+                        match?.targetId
+                    )
                 );
                 countVerdict(counts, verdicts[verdicts.length - 1]);
                 // The dry run has no new row to point at, but the *key* is
@@ -269,7 +330,12 @@ export class ImportEntriesUseCase {
                 );
                 linkPass.push({ record, targetId, values });
                 verdicts.push(
-                    this.verdict(record, decision.action, decision.reason, targetId)
+                    this.verdict(
+                        record,
+                        decision.action,
+                        decision.reason,
+                        targetId
+                    )
                 );
             } catch (error) {
                 verdicts.push({
@@ -346,11 +412,27 @@ export class ImportEntriesUseCase {
         return this.catalog.identityFieldsOf(typeName);
     }
 
-    /** What to do with one record, given whether it matched and the policy. */
+    /**
+     * What to do with one record, given whether it matched and which policy
+     * governs it.
+     *
+     * Two policies reach this, and which one depends only on the record's
+     * depth: a record the caller selected is governed by the conflict policy, a
+     * record that came along because something pointed at it by the relation
+     * policy. They are separate settings because they answer separate
+     * questions, and the two share this switch only because their values do not
+     * collide — `link` and `recreate` are not conflict policies, `skip`,
+     * `duplicate` and `fail` are not relation policies, and `update` means the
+     * same thing to both.
+     *
+     * No match means create under **every** policy, `recreate` included: a
+     * related record with nothing to link to has to be written or the link it
+     * exists to serve would dangle.
+     */
     private decide(
         keyable: boolean,
         match: Match | undefined,
-        policy: ConflictPolicy
+        policy: ConflictPolicy | RelationPolicy
     ): { action: ImportVerdict['action']; reason: ImportReason } {
         if (!match) {
             return {
@@ -374,6 +456,19 @@ export class ImportEntriesUseCase {
                     action: IMPORT_ACTION.Error,
                     reason: IMPORT_REASON.Matched
                 };
+            case RELATION_POLICY.Link:
+                // Skip, like the conflict policy's `skip` — but reported
+                // differently, because it is not a conflict. The record exists,
+                // the link will point at it, and that is the whole intent.
+                return {
+                    action: IMPORT_ACTION.Skip,
+                    reason: IMPORT_REASON.RelationLinked
+                };
+            case RELATION_POLICY.Recreate:
+                return {
+                    action: IMPORT_ACTION.Create,
+                    reason: IMPORT_REASON.RelationRecreated
+                };
             default:
                 return {
                     action: IMPORT_ACTION.Skip,
@@ -390,12 +485,15 @@ export class ImportEntriesUseCase {
      * columns, and matches in memory.
      */
     private async matchAll(
-        records: readonly TransferRecord[],
+        document: TransferDocument,
         workspaceId: string
-    ): Promise<Map<string, Match>> {
-        const out = new Map<string, Match>();
+    ): Promise<MatchIndex> {
+        const out: MatchIndex = {
+            byKey: new Map(),
+            bySourceId: new Map()
+        };
         const byType = new Map<string, TransferRecord[]>();
-        for (const record of records) {
+        for (const record of document.records) {
             const bucket = byType.get(record.$type);
             if (bucket) bucket.push(record);
             else byType.set(record.$type, [record]);
@@ -403,8 +501,16 @@ export class ImportEntriesUseCase {
 
         for (const [typeName, typeRecords] of byType) {
             const type = this.registry.get(typeName);
-            const identity = this.catalog.identityFieldsOf(typeName);
-            if (!type || identity.length === 0) continue;
+            if (!type) continue;
+            await this.matchBySourceId(type, typeRecords, workspaceId, out);
+
+            // The **same** answer `run` looks the match up with. Deriving it
+            // locally here while the lookup used the manifest's copy is how a
+            // record that exists gets created anyway: the two sides fingerprint
+            // on different fields, so the map is never hit and every match
+            // silently degrades to a create.
+            const identity = this.identityFor(document, typeName);
+            if (identity.length === 0) continue;
 
             // Narrower than `AnyColumn` because the select builder needs it.
             const columns = type.table as unknown as Record<string, PgColumn>;
@@ -466,11 +572,64 @@ export class ImportEntriesUseCase {
                     naturalKeyOf(identity, row),
                     typeof rowLocale === 'string' ? rowLocale : undefined
                 );
-                if (!wanted.has(fingerprint) || out.has(fingerprint)) continue;
-                out.set(fingerprint, { targetId: row['id'] as string });
+                if (!wanted.has(fingerprint) || out.byKey.has(fingerprint)) {
+                    continue;
+                }
+                out.byKey.set(fingerprint, { targetId: row['id'] as string });
             }
         }
         return out;
+    }
+
+    /**
+     * Registers every record whose **source row id** still names a live row in
+     * this workspace.
+     *
+     * This is what makes a re-import into the database the file came from link
+     * rather than duplicate, and it is the only thing that can do it for a type
+     * whose schema offers no natural key — a category with one optional `name`
+     * resolves no identity fields at all, so without this every import of it
+     * adds another copy of every row.
+     *
+     * It is a fallback, never a preference: `run` tries the natural key first,
+     * because that is the identity that means something on another
+     * installation. And it is not a guess. The id is a uuid; if a row with that
+     * id exists in this type, in this workspace, and is not deleted, it *is*
+     * the row the document was written from.
+     */
+    private async matchBySourceId(
+        type: AnyContentType,
+        records: readonly TransferRecord[],
+        workspaceId: string,
+        into: MatchIndex
+    ): Promise<void> {
+        const sourceIds = [
+            ...new Set(
+                records
+                    .map((record) => record.$id)
+                    .filter(
+                        (id): id is string =>
+                            typeof id === 'string' && isUuid(id)
+                    )
+            )
+        ];
+        if (sourceIds.length === 0) return;
+
+        const columns = type.table as unknown as Record<string, PgColumn>;
+        const rows = (await this.db
+            .select({ id: columns['id'] })
+            .from(type.table)
+            .where(
+                and(
+                    eq(columns['workspaceId'], workspaceId),
+                    inArray(columns['id'], sourceIds),
+                    type.paranoid ? isNull(columns['deletedAt']) : undefined
+                )
+            )) as { id: string }[];
+
+        for (const row of rows) {
+            into.bySourceId.set(row.id, { targetId: row.id });
+        }
     }
 
     /** Creates a row, joining the right translation group when it has siblings. */
@@ -646,7 +805,13 @@ export class ImportEntriesUseCase {
     /** Replaces a record's media references with target asset ids. */
     private async resolveMedia(
         record: TransferRecord,
-        schema: { fields: readonly { name: string; type: string; multiple?: boolean }[] },
+        schema: {
+            fields: readonly {
+                name: string;
+                type: string;
+                multiple?: boolean;
+            }[];
+        },
         command: ImportCommand,
         assets: TransferAssetMap,
         counts: ImportCounts,
@@ -732,9 +897,37 @@ function describeRef(ref: TransferRef): string {
     return `${ref.$type}:${key || (ref.$id ?? '?')}`;
 }
 
-/** The message from an unknown throwable, without leaking a stack. */
+/**
+ * The message from an unknown throwable, without leaking a stack.
+ *
+ * The field-level `issues` are unpacked rather than collapsed to the exception's
+ * own summary. `EntryWriterService` refuses a write with
+ * `{ message: 'Entry validation failed', issues: [{ field, message }] }`, and
+ * that summary alone is the least useful sentence a reader could be given about
+ * a rejected record: it says something was wrong and names nothing.
+ */
 function messageOf(error: unknown): string {
     if (error instanceof ForbiddenException) return 'Not permitted.';
+    if (error instanceof HttpException) {
+        const response = error.getResponse();
+        const issues =
+            typeof response === 'object' && response !== null
+                ? (response as { issues?: unknown }).issues
+                : undefined;
+        if (Array.isArray(issues) && issues.length > 0) {
+            return issues.map(describeIssue).join('; ');
+        }
+    }
     if (error instanceof Error) return error.message;
     return 'Write failed.';
+}
+
+/** One `{ field, message }` issue as a sentence. */
+function describeIssue(issue: unknown): string {
+    const { field, message } =
+        typeof issue === 'object' && issue !== null
+            ? (issue as { field?: unknown; message?: unknown })
+            : {};
+    const text = typeof message === 'string' ? message : 'is not valid';
+    return typeof field === 'string' ? `${field} ${text}` : text;
 }

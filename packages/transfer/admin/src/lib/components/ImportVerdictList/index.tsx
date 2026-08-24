@@ -52,6 +52,14 @@ const messages = defineMessages({
         id: 'transfer.import.reason.conflictDuplicated',
         defaultMessage: 'Already here — a second copy will be added'
     },
+    reasonRelationLinked: {
+        id: 'transfer.import.reason.relationLinked',
+        defaultMessage: 'Already here — your records will link to it'
+    },
+    reasonRelationRecreated: {
+        id: 'transfer.import.reason.relationRecreated',
+        defaultMessage: 'Already here — a new copy will be added and linked to'
+    },
     reasonNoIdentity: {
         id: 'transfer.import.reason.noIdentity',
         defaultMessage:
@@ -109,6 +117,8 @@ const REASON_LABEL: Record<ImportReason, (typeof messages)['reasonNew']> = {
     [IMPORT_REASON.Matched]: messages.reasonMatched,
     [IMPORT_REASON.ConflictSkipped]: messages.reasonConflictSkipped,
     [IMPORT_REASON.ConflictDuplicated]: messages.reasonConflictDuplicated,
+    [IMPORT_REASON.RelationLinked]: messages.reasonRelationLinked,
+    [IMPORT_REASON.RelationRecreated]: messages.reasonRelationRecreated,
     [IMPORT_REASON.NoIdentity]: messages.reasonNoIdentity,
     [IMPORT_REASON.UnknownType]: messages.reasonUnknownType,
     [IMPORT_REASON.UnknownField]: messages.reasonUnknownField,
