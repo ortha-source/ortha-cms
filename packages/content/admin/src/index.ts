@@ -101,5 +101,13 @@ export { EntrySidebarRow } from './lib/presentation/components/EntrySidebarRow';
 
 // Query-key builders, exported so a slot contributor can invalidate the
 // library's caches after its own mutations (e.g. creating a translation).
+//
+// Prefer `refreshEntryCaches` over hand-rolling the set: the roots are
+// `content-entries` / `content-entry` / … and **not** `content`, so the obvious
+// `invalidateQueries({ queryKey: ['content'] })` matches nothing at all —
+// TanStack compares key segments, and `'content' !== 'content-entries'`. A
+// contributor that writes entries (the importer does) gets a silent no-op and a
+// list that never refreshes.
+export { refreshEntryCaches } from './lib/application/refreshEntryCaches';
 export { contentEntriesPrefix } from './lib/application/useContentEntries';
 export { contentEntryKey } from './lib/application/useContentEntry';

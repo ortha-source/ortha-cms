@@ -45,6 +45,19 @@ exists.
 the table — showing one file's verdicts above another file's Import button is
 the worst bug this dialog can have.
 
+**An import refreshes every type it touched, through content's own pass.** The
+verdicts name each one, so the set is exact: a run that creates an article *and*
+the author it points at must refresh both lists, or the authors list shows
+pre-import data with nothing to say it is stale. Use
+`refreshEntryCaches` from `@orthacms/content-admin`, never a key spelled here —
+the library's roots are `content-entries` / `content-entry` / …, so the obvious
+`['content']` matches nothing and the import silently leaves the table alone.
+
+**The import dialog caps its own height.** `DialogContent` sets none, and this
+one is long enough — two explained questions, then a verdict table — to run off
+both ends of a laptop viewport with the Import button unreachable. Three grid
+rows, and only the body scrolls.
+
 **A bulk-action overlay dies with the selection.** The selection bar unmounts as
 soon as the selection is empty, so `onDone` is called on success, never on open.
 The overlay is rendered outside the ⋯ menu for the same reason the entry menu's

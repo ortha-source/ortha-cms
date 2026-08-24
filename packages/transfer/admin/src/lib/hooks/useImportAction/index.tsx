@@ -38,6 +38,7 @@ export function useImportAction(
             open={open}
             onOpenChange={setOpen}
             typeName={context.schema.name}
+            workspaceId={context.workspaceId}
         />
     );
 
