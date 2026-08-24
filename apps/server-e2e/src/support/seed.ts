@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
+import { Pool } from 'pg';
 import { getDatabase, getPool } from '@orthacms/database';
 import {
     RootAdminService,
@@ -36,6 +37,7 @@ import {
 import { HashingService } from '../../../../packages/identity/server/src/lib/auth/services/hashing.service';
 import { withDatabaseDiagnostics } from './infra-error';
 import { resetBlobStore } from './media-storage';
+import { resolveDatabaseUrl } from './db-url';
 
 /** A system role key seeded by `SystemRolesSeeder` at app boot. */
 export type SystemRoleKey = 'admin' | 'contributor' | 'viewer';
@@ -689,6 +691,35 @@ export async function resetDb(): Promise<void> {
         // a later test happens to reproduce.
         resetBlobStore();
     });
+}
+
+/**
+ * Empty the media library **without** the app's pool — the one reset a spec can
+ * do before `createTestApp` and after `closeTestApp`, because it opens and ends
+ * a connection of its own.
+ *
+ * A deployment runs exactly one storage provider, and `StorageProviderCheck`
+ * refuses to boot when the library already holds assets some *other* provider
+ * wrote. Across a serial run that check is a cross-file hazard in both
+ * directions: a spec booting on the filesystem provider inherits the in-memory
+ * rows of the file before it, and leaves filesystem rows for the file after it
+ * — which boots on the in-memory provider and dies in `beforeAll`, reported as
+ * that innocent file's failure. `resetDb` cannot close either gap: it goes
+ * through the app's pool, which does not exist before the boot and is closed
+ * after it.
+ *
+ * So any spec that boots on a non-default provider calls this on **both** ends,
+ * leaving the library as it found it.
+ */
+export async function clearMediaLibraryOutOfBand(): Promise<void> {
+    const pool = new Pool({ connectionString: resolveDatabaseUrl() });
+    try {
+        await pool.query(
+            'TRUNCATE TABLE media_asset, media_folder RESTART IDENTITY CASCADE'
+        );
+    } finally {
+        await pool.end();
+    }
 }
 
 /** A seeded media folder row. */

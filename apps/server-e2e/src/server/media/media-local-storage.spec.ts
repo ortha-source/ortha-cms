@@ -11,15 +11,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
-import { Pool } from 'pg';
 import { getPool } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
     type TestApp
 } from '../../support/test-app';
-import { resolveDatabaseUrl } from '../../support/db-url';
 import {
+    clearMediaLibraryOutOfBand,
     resetDb,
     seedActiveUser,
     seedMembership,
@@ -53,22 +52,19 @@ describe('media assets on the local filesystem provider', () => {
         // This app boots on the filesystem provider, and the server refuses to
         // start when the library already holds assets written by a different
         // one — which is exactly what a previous spec file's rows are, having
-        // been written by the harness's in-memory provider. `resetDb` cannot
-        // help here: it goes through the app's own pool, which does not exist
-        // until the boot this is clearing the way for.
-        const pool = new Pool({ connectionString: resolveDatabaseUrl() });
-        try {
-            await pool.query(
-                'TRUNCATE TABLE media_asset, media_folder RESTART IDENTITY CASCADE'
-            );
-        } finally {
-            await pool.end();
-        }
+        // been written by the harness's in-memory provider.
+        await clearMediaLibraryOutOfBand();
         harness = await createTestApp({ localMediaRoot: root });
     });
     afterAll(async () => {
         await closeTestApp(harness);
         await rm(root, { recursive: true, force: true });
+        // And the same on the way out, for the mirror-image reason: `resetDb`
+        // runs in `beforeEach`, so this file's last upload is still in the
+        // library, and its rows say "local". The next spec file boots on the
+        // in-memory provider and would fail that same check in `beforeAll` —
+        // a failure reported against a file that never touched media.
+        await clearMediaLibraryOutOfBand();
     });
     beforeEach(async () => {
         await resetDb();
