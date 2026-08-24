@@ -2,16 +2,13 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { MEDIA_ASSET_RESOLVER } from '@orthacms/content-server';
 import {
-    STORAGE_REGISTRY,
-    STORAGE_RESOLVER,
-    type StorageProvider,
-    type StorageResolver
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from './domain/storage-provider';
 import { MediaAssetResolverQuery } from './infrastructure/queries/media-asset-resolver.query';
 import { ASSET_REPOSITORY } from './domain/asset.repository';
 import { FOLDER_REPOSITORY } from './domain/folder.repository';
 import { IMAGE_PROCESSOR } from './domain/image-processor';
-import { buildRegistry } from './infrastructure/storage-registry';
 import { SharpImageProcessor } from './infrastructure/image/sharp-image-processor';
 import { AssetMapper } from './infrastructure/persistence/asset.mapper';
 import { FolderMapper } from './infrastructure/persistence/folder.mapper';
@@ -39,6 +36,13 @@ import { CreateFolderUseCase } from './application/use-cases/create-folder.use-c
 import { RenameFolderUseCase } from './application/use-cases/rename-folder.use-case';
 import { DeleteFolderUseCase } from './application/use-cases/delete-folder.use-case';
 import { MediaWorkspacePurger } from './infrastructure/purge/media-workspace.purger';
+import { StorageProviderCheck } from './infrastructure/storage-provider.check';
+import {
+    DEFAULT_DIRECT_SERVE_TTL_SECONDS,
+    DIRECT_SERVE,
+    type DirectServeConfig,
+    type DirectServeMode
+} from './http/direct-serve';
 import { ListFoldersController } from './http/controllers/list-folders.controller';
 import { CreateFolderController } from './http/controllers/create-folder.controller';
 import { RenameFolderController } from './http/controllers/rename-folder.controller';
@@ -53,12 +57,12 @@ import { DeleteAssetsController } from './http/controllers/delete-assets.control
 
 /** Options `MediaModule.forRoot` binds into DI. */
 export interface MediaModuleOptions {
-    /** Named storage providers, chosen at the composition root. */
-    providers: Record<string, StorageProvider>;
-    /** Optional custom handler picking a provider per upload. */
-    resolve?: StorageResolver;
-    /** Provider name used when no `resolve` handler is supplied. */
-    defaultProvider: string;
+    /** The deployment's one storage backend, built at the composition root. */
+    provider: StorageProvider;
+    /** How downloads reach the browser — proxied, or a signed redirect. */
+    directServe?: DirectServeMode;
+    /** Lifetime of a signed URL, in seconds. */
+    directServeTtlSeconds?: number;
     /**
      * Hard ceiling on a single upload, in bytes — the host's
      * `config.plugins.media.maxUploadBytes`. Bounds the memory multer buffers
@@ -84,16 +88,19 @@ function multerFileSizeFor(maxUploadBytes: number): number {
 /**
  * NestJS module for the media plugin — the asset/folder bounded context,
  * layered per ADR-0003 (domain / application / infrastructure / http).
- * Registered globally. Binds the storage seam (`STORAGE_REGISTRY` +
- * `STORAGE_RESOLVER`) from host-supplied providers; a missing resolver defaults
- * every upload to `defaultProvider`.
+ * Registered globally. Binds the storage seam — one host-supplied
+ * {@link StorageProvider} under `STORAGE_PROVIDER`.
  */
 @Module({})
 export class MediaModule {
     /** Creates the global dynamic module: controllers, use cases, adapters. */
     static forRoot(options: MediaModuleOptions): DynamicModule {
-        const resolver: StorageResolver =
-            options.resolve ?? (() => options.defaultProvider);
+        const directServe: DirectServeConfig = {
+            mode: options.directServe ?? 'off',
+            ttlSeconds:
+                options.directServeTtlSeconds ??
+                DEFAULT_DIRECT_SERVE_TTL_SECONDS
+        };
 
         return {
             module: MediaModule,
@@ -131,12 +138,14 @@ export class MediaModule {
                 PublicMediaController
             ],
             providers: [
-                // Storage seam — the registry + the resolver handler.
-                {
-                    provide: STORAGE_REGISTRY,
-                    useValue: buildRegistry(options.providers)
-                },
-                { provide: STORAGE_RESOLVER, useValue: resolver },
+                // Storage seam — the one backend this deployment runs.
+                { provide: STORAGE_PROVIDER, useValue: options.provider },
+                // Verifies that backend at boot, and that no asset row names a
+                // different one.
+                StorageProviderCheck,
+                // How a download travels: proxied through the app, or a
+                // short-lived redirect the browser follows itself.
+                { provide: DIRECT_SERVE, useValue: directServe },
                 // Image processing — probes dimensions + generates derivatives.
                 { provide: IMAGE_PROCESSOR, useClass: SharpImageProcessor },
                 // Ports → Drizzle adapters.

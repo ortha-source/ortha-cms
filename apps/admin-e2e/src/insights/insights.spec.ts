@@ -491,6 +491,67 @@ test.describe('Insights', () => {
         expect(spy.days['content/stale']).toBeNull();
     });
 
+    test('the selected range is in the URL, so the view can be shared', async ({
+        page,
+        insightsPage
+    }) => {
+        await mockInsightsApi(page);
+        await insightsPage.goto(WORKSPACE_ID);
+        await expect(insightsPage.card('Publishing velocity')).toBeVisible();
+
+        // The default stays out of the query string: a bare `/insights` link
+        // has to keep meaning "the current default", not pin itself to today's.
+        expect(new URL(page.url()).searchParams.get('range')).toBeNull();
+
+        await insightsPage.selectRange('90d');
+        await expect
+            .poll(() => new URL(page.url()).searchParams.get('range'))
+            .toBe('90d');
+
+        // Survives a reload — the state is in the URL, not in the component.
+        await page.reload();
+        await expect(insightsPage.rangeOption('90d')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+
+        // And back to the default drops the param rather than writing `30d`.
+        await insightsPage.selectRange('30d');
+        await expect
+            .poll(() => new URL(page.url()).searchParams.get('range'))
+            .toBeNull();
+    });
+
+    test('opens on the range a shared link names', async ({
+        page,
+        insightsPage
+    }) => {
+        const spy = await mockInsightsApi(page);
+        await page.goto(`/workspaces/${WORKSPACE_ID}/insights?range=7d`);
+
+        await expect(insightsPage.rangeOption('7d')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        // The widgets open on that window too, not on the default.
+        await expect.poll(() => spy.days['content/velocity']).toBe('7');
+    });
+
+    test('a range the page does not offer falls back to the default', async ({
+        page,
+        insightsPage
+    }) => {
+        const spy = await mockInsightsApi(page);
+        // A hand-edited or stale link must still show numbers.
+        await page.goto(`/workspaces/${WORKSPACE_ID}/insights?range=nonsense`);
+
+        await expect(insightsPage.rangeOption('30d')).toHaveAttribute(
+            'aria-checked',
+            'true'
+        );
+        await expect.poll(() => spy.days['content/velocity']).toBe('30');
+    });
+
     test('hides content widgets from a user without content:read', async ({
         page,
         insightsPage

@@ -134,6 +134,21 @@
         },
         {
             "path": "./packages/cli"
+        },
+        {
+            "path": "./packages/media/provider-testkit"
+        },
+        {
+            "path": "./packages/media/provider-memory"
+        },
+        {
+            "path": "./packages/media/provider-azure"
+        },
+        {
+            "path": "./packages/media/provider-gcs"
+        },
+        {
+            "path": "./packages/media/provider-vercel-blob"
         }
     ]
 }

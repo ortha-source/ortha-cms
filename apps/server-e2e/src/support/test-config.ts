@@ -115,6 +115,16 @@ export interface TestConfigOverrides {
      */
     localMediaRoot?: string;
     /**
+     * Serve downloads as a redirect to a signed URL instead of streaming them.
+     *
+     * Turning it on also swaps the harness's provider for one that can sign —
+     * the plugin refuses to boot `signed-url` against a backend that cannot,
+     * which is itself asserted in the media-server unit suite.
+     */
+    directServe?: 'off' | 'signed-url';
+    /** Lifetime of those signed URLs, so a suite can assert it is passed on. */
+    directServeTtlSeconds?: number;
+    /**
      * Replace the configured content locales. Defaults to the host's
      * en/de/fr. A suite pins a **single** locale to prove the coverage rule
      * that `notLocalized` is then forced to `0` — with nowhere to translate
@@ -208,19 +218,24 @@ export function buildTestConfig(
                 // provider, and what a run naming none is served by.
                 providers: {}
             },
-            // The media plugin registers an in-memory `memory` provider in
-            // `buildTestPlugins`, so uploads never touch disk — unless a suite
-            // asks for the real filesystem adapter with `localMediaRoot`, which
-            // flips `defaultProvider` to the `local` one registered beside it.
+            // `buildTestPlugins` constructs the in-memory provider, so uploads
+            // never touch disk — unless a suite asks for the real filesystem
+            // adapter with `localMediaRoot`, in which case it builds that one
+            // instead. A deployment (and so a booted test app) runs exactly one
+            // provider, so this is a choice made there, not a name here.
             media: {
-                defaultProvider: overrides.localMediaRoot ? 'local' : 'memory',
-                local: {
-                    rootDir:
-                        overrides.localMediaRoot ?? './.storage/test-media',
-                    publicBasePath: '/api/media/assets'
+                storage: {
+                    rootDir: overrides.localMediaRoot ?? './.storage/test-media'
                 },
-                s3: { bucket: '', region: '' },
-                maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800
+                maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800,
+                ...(overrides.directServe
+                    ? { directServe: overrides.directServe }
+                    : {}),
+                ...(overrides.directServeTtlSeconds
+                    ? {
+                          directServeTtlSeconds: overrides.directServeTtlSeconds
+                      }
+                    : {})
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults
             // so the limit suite asserts the real numbers rather than

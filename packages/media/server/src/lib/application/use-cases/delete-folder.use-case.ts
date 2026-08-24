@@ -13,8 +13,8 @@ import {
     type FolderRepository
 } from '../../domain/folder.repository';
 import {
-    STORAGE_REGISTRY,
-    type StorageRegistry
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 import { reclaimManyAssetBlobs } from '../reclaim-asset-blobs';
 
@@ -50,7 +50,7 @@ export class DeleteFolderUseCase {
         private readonly outbox: OutboxWriter,
         @Inject(FOLDER_REPOSITORY) private readonly folders: FolderRepository,
         @Inject(ASSET_REPOSITORY) private readonly assets: AssetRepository,
-        @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider
     ) {}
 
     /** Runs the cascade. Throws only when the folder itself is absent. */
@@ -108,6 +108,6 @@ export class DeleteFolderUseCase {
      * of assets must not open one file descriptor per blob at once.
      */
     private async reclaimAll(assets: Asset[]): Promise<void> {
-        await reclaimManyAssetBlobs(this.registry, assets);
+        await reclaimManyAssetBlobs(this.provider, assets);
     }
 }

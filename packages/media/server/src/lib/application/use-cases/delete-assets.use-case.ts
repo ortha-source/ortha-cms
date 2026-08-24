@@ -7,8 +7,8 @@ import {
     type AssetRepository
 } from '../../domain/asset.repository';
 import {
-    STORAGE_REGISTRY,
-    type StorageRegistry
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 import { reclaimManyAssetBlobs } from '../reclaim-asset-blobs';
 
@@ -24,7 +24,7 @@ export class DeleteAssetsUseCase {
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
         @Inject(ASSET_REPOSITORY) private readonly assets: AssetRepository,
-        @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider
     ) {}
 
     /** Runs the delete. Returns the number of assets actually removed. */
@@ -52,7 +52,7 @@ export class DeleteAssetsUseCase {
 
         // Bounded fan-out: 100 ids is 300+ blobs, which is a lot of concurrent
         // provider calls to open in one tick for work nobody is waiting on.
-        await reclaimManyAssetBlobs(this.registry, removed);
+        await reclaimManyAssetBlobs(this.provider, removed);
         return removed.length;
     }
 }

@@ -76,7 +76,6 @@ export class UploadAssetController {
                     folderId: body.folderId ?? null,
                     fileName: file.originalname,
                     contentType: file.mimetype,
-                    size: file.size,
                     body: Readable.from(file.buffer),
                     alt: body.alt ?? null
                 },
