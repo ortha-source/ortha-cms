@@ -48,21 +48,46 @@ const messages = defineMessages({
         id: 'transfer.import.policy',
         defaultMessage: 'If a record is already here'
     },
+    policyHint: {
+        id: 'transfer.import.policy.hint',
+        defaultMessage:
+            'A record counts as already here when it matches one of yours — by a key field like a slug or an email, or by being the very record this file was exported from.'
+    },
     policySkip: {
         id: 'transfer.import.policy.skip',
         defaultMessage: 'Leave it alone'
+    },
+    policySkipHint: {
+        id: 'transfer.import.policy.skip.hint',
+        defaultMessage:
+            'Nothing is written to it. Everything the file adds that isn’t here yet still imports. Safest, and the usual choice for re-running a file.'
     },
     policyUpdate: {
         id: 'transfer.import.policy.update',
         defaultMessage: 'Update it with the file’s values'
     },
+    policyUpdateHint: {
+        id: 'transfer.import.policy.update.hint',
+        defaultMessage:
+            'The file wins: its values replace what’s here. Edits made since the export are lost. Use this when the file is the newer copy.'
+    },
     policyDuplicate: {
         id: 'transfer.import.policy.duplicate',
         defaultMessage: 'Add a second copy'
     },
+    policyDuplicateHint: {
+        id: 'transfer.import.policy.duplicate.hint',
+        defaultMessage:
+            'Keeps yours and adds the file’s alongside it, so you end up with two. Handy for cloning content to edit; easy to do by accident twice.'
+    },
     policyFail: {
         id: 'transfer.import.policy.fail',
         defaultMessage: 'Stop and import nothing'
+    },
+    policyFailHint: {
+        id: 'transfer.import.policy.fail.hint',
+        defaultMessage:
+            'The first match cancels the whole run and nothing is written. For when an overlap means the file is the wrong one.'
     },
     relations: {
         id: 'transfer.import.relations',
@@ -77,13 +102,28 @@ const messages = defineMessages({
         id: 'transfer.import.relations.link',
         defaultMessage: 'Link to the ones already here'
     },
+    relationsLinkHint: {
+        id: 'transfer.import.relations.link.hint',
+        defaultMessage:
+            'Your imported records point at the author or tag you already have, and nothing is written to it. Only a linked record that’s missing gets created.'
+    },
     relationsUpdate: {
         id: 'transfer.import.relations.update',
         defaultMessage: 'Link to them, and update them from the file'
     },
+    relationsUpdateHint: {
+        id: 'transfer.import.relations.update.hint',
+        defaultMessage:
+            'The same, except the file’s copy also overwrites the one here — so the author’s details come from the file too.'
+    },
     relationsRecreate: {
         id: 'transfer.import.relations.recreate',
         defaultMessage: 'Add them again as new records'
+    },
+    relationsRecreateHint: {
+        id: 'transfer.import.relations.recreate.hint',
+        defaultMessage:
+            'A fresh copy of every linked record, even when one of the same name is here, and the imported records point at the copies. For content that only looks the same.'
     },
     check: { id: 'transfer.import.check', defaultMessage: 'Check the file' },
     checking: {
@@ -126,6 +166,13 @@ const POLICY_LABEL = {
     [CONFLICT_POLICY.Fail]: messages.policyFail
 } as const;
 
+const POLICY_HINT = {
+    [CONFLICT_POLICY.Skip]: messages.policySkipHint,
+    [CONFLICT_POLICY.Update]: messages.policyUpdateHint,
+    [CONFLICT_POLICY.Duplicate]: messages.policyDuplicateHint,
+    [CONFLICT_POLICY.Fail]: messages.policyFailHint
+} as const;
+
 const POLICY_ORDER: ConflictPolicy[] = [
     CONFLICT_POLICY.Skip,
     CONFLICT_POLICY.Update,
@@ -137,6 +184,12 @@ const RELATION_LABEL = {
     [RELATION_POLICY.Link]: messages.relationsLink,
     [RELATION_POLICY.Update]: messages.relationsUpdate,
     [RELATION_POLICY.Recreate]: messages.relationsRecreate
+} as const;
+
+const RELATION_HINT = {
+    [RELATION_POLICY.Link]: messages.relationsLinkHint,
+    [RELATION_POLICY.Update]: messages.relationsUpdateHint,
+    [RELATION_POLICY.Recreate]: messages.relationsRecreateHint
 } as const;
 
 const RELATION_ORDER: RelationPolicy[] = [
@@ -160,6 +213,7 @@ function PolicyChoice<T extends string>({
     value,
     options,
     labelOf,
+    describeOf,
     onChange
 }: {
     idPrefix: string;
@@ -169,6 +223,8 @@ function PolicyChoice<T extends string>({
     value: T;
     options: readonly T[];
     labelOf: (value: T) => string;
+    /** What this option actually does, under its label. */
+    describeOf: (value: T) => string;
     onChange: (value: T) => void;
 }) {
     const hintId = `${idPrefix}-hint`;
@@ -185,25 +241,41 @@ function PolicyChoice<T extends string>({
                 </p>
             ) : null}
             <RadioGroup
-                className="mt-2.5 gap-3"
+                className="mt-2.5 gap-3.5"
                 value={value}
                 aria-describedby={hint ? hintId : undefined}
                 onValueChange={(next) => onChange(next as T)}
             >
-                {options.map((option) => (
-                    <div key={option} className="flex items-center gap-2.5">
-                        <RadioGroupItem
-                            id={`${idPrefix}-${option}`}
-                            value={option}
-                        />
-                        <Label
-                            htmlFor={`${idPrefix}-${option}`}
-                            className="cursor-pointer font-normal"
-                        >
-                            {labelOf(option)}
-                        </Label>
-                    </div>
-                ))}
+                {options.map((option) => {
+                    const optionId = `${idPrefix}-${option}`;
+                    return (
+                        // The same shape as the export dialog's toggles —
+                        // control, then label over description — so the two
+                        // dialogs read as one feature.
+                        <div key={option} className="flex items-start gap-3">
+                            <RadioGroupItem
+                                id={optionId}
+                                value={option}
+                                aria-describedby={`${optionId}-hint`}
+                                className="mt-0.5"
+                            />
+                            <div className="grid gap-0.5">
+                                <Label
+                                    htmlFor={optionId}
+                                    className="cursor-pointer font-normal"
+                                >
+                                    {labelOf(option)}
+                                </Label>
+                                <span
+                                    id={`${optionId}-hint`}
+                                    className="text-muted-foreground text-xs"
+                                >
+                                    {describeOf(option)}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </RadioGroup>
         </fieldset>
     );
@@ -229,11 +301,14 @@ function serverMessage(error: unknown): string | undefined {
 export function ImportDialog({
     open,
     onOpenChange,
-    typeName
+    typeName,
+    workspaceId
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     typeName: string;
+    /** The open workspace — what the refreshed caches are scoped to. */
+    workspaceId: string;
 }) {
     const intl = useIntl();
     const fieldId = useId();
@@ -278,7 +353,7 @@ export function ImportDialog({
         if (!file) return;
         setError(null);
         applyMutation
-            .mutateAsync({ typeName, file, policy, relations })
+            .mutateAsync({ typeName, workspaceId, file, policy, relations })
             .then((result) => {
                 toast.success(
                     intl.formatMessage(messages.done, {
@@ -300,7 +375,13 @@ export function ImportDialog({
             open={open}
             onOpenChange={(next) => (next ? onOpenChange(true) : close())}
         >
-            <DialogContent className="sm:max-w-2xl">
+            {/* Capped and scrolled, because `DialogContent` sets no height of
+                its own: it is centred and fixed, so a tall one runs off both
+                ends of the viewport with its header and its Import button
+                unreachable. Three rows — header, body, footer — and only the
+                middle one scrolls, so the primary action stays on screen
+                however long the verdict table gets. */}
+            <DialogContent className="grid max-h-[85vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
@@ -314,7 +395,7 @@ export function ImportDialog({
                     separate questions and a reader has to see they are
                     separate. At the group's own 12px option rhythm they read as
                     one seven-item list with two headings in it. */}
-                <div className="grid gap-8 py-2">
+                <div className="-mx-1 grid gap-8 overflow-y-auto px-1 py-2">
                     <div className="grid gap-2">
                         <Label htmlFor={`${fieldId}-file`}>
                             {intl.formatMessage(messages.file)}
@@ -355,10 +436,14 @@ export function ImportDialog({
                     <PolicyChoice
                         idPrefix={`${fieldId}-policy`}
                         legend={intl.formatMessage(messages.policy)}
+                        hint={intl.formatMessage(messages.policyHint)}
                         value={policy}
                         options={POLICY_ORDER}
                         labelOf={(value) =>
                             intl.formatMessage(POLICY_LABEL[value])
+                        }
+                        describeOf={(value) =>
+                            intl.formatMessage(POLICY_HINT[value])
                         }
                         onChange={(next) => {
                             setPreview(null);
@@ -374,6 +459,9 @@ export function ImportDialog({
                         options={RELATION_ORDER}
                         labelOf={(value) =>
                             intl.formatMessage(RELATION_LABEL[value])
+                        }
+                        describeOf={(value) =>
+                            intl.formatMessage(RELATION_HINT[value])
                         }
                         onChange={(next) => {
                             setPreview(null);

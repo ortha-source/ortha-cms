@@ -497,6 +497,15 @@ a third state with no column value spelling it made unavoidable.
   past — one Publish click used to re-read the record and its whole timeline
   twice. If the chained publish 422s, the flow runs the deferred pass itself so a
   landed save isn't left with stale caches.
+- **The query-key roots are `content-entries` / `content-entry` / … — never
+  `content`.** TanStack matches key *segments*, so the obvious
+  `invalidateQueries({ queryKey: ['content'] })` matches **nothing**:
+  `'content' !== 'content-entries'`. It throws no error and reports no count, so
+  the mutation succeeds, the toast appears, and the table never moves —
+  `@orthacms/transfer-admin` shipped exactly that after an import. A plugin that
+  writes entries should call the exported **`refreshEntryCaches`** rather than
+  spell a key of its own; the two exported key builders
+  (`contentEntriesPrefix`, `contentEntryKey`) are for the cases it doesn't cover.
 - **Write responses seed the cache.** Every entry write returns the canonical
   record, so each mutation `setQueryData`s the read-one instead of invalidating
   it, and `useContentEntry` carries a `staleTime` so the create→`/:type/:id`
