@@ -26,6 +26,9 @@ import type { AzureStorageConfig } from '@orthacms/media-provider-azure';
 // ortha:if media-gcs
 import type { GcsStorageConfig } from '@orthacms/media-provider-gcs';
 // ortha:end
+// ortha:if media-vercel-blob
+import type { VercelBlobStorageConfig } from '@orthacms/media-provider-vercel-blob';
+// ortha:end
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
@@ -92,6 +95,9 @@ export interface OrthaConfig {
             // ortha:end
             // ortha:if media-gcs
             storage: GcsStorageConfig;
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: VercelBlobStorageConfig;
             // ortha:end
         };
         copilot: AppCopilotConfig;
@@ -276,6 +282,15 @@ const config: OrthaConfig = {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+            },
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: {
+                // On Vercel the SDK reads BLOB_READ_WRITE_TOKEN itself, so this
+                // is only for running the app elsewhere.
+                ...(process.env['BLOB_READ_WRITE_TOKEN']
+                    ? { token: process.env['BLOB_READ_WRITE_TOKEN'] }
+                    : {})
             },
             // ortha:end
             // ortha:if media-gcs
