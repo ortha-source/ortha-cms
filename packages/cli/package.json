@@ -1,6 +1,6 @@
 {
     "name": "@orthacms/cli",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "The `ortha` command — build, run and migrate an Ortha CMS app.",
     "bin": {
         "ortha": "./src/cli.ts"

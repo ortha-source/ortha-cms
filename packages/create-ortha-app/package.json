@@ -1,6 +1,6 @@
 {
     "name": "create-ortha-app",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "Create an Ortha CMS app: npx create-ortha-app my-cms",
     "bin": {
         "create-ortha-app": "./src/cli.ts"

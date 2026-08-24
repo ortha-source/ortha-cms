@@ -1,3 +1,14 @@
+## 0.4.2 (2026-08-24)
+
+### 🩹 Fixes
+
+- **create-ortha-app:** make Tailwind actually scan the installed packages ([8951c7e2](https://github.com/ortha-source/ortha-cms/commit/8951c7e2))
+
+### ❤️ Thank You
+
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.4.1 (2026-08-24)
 
 ### 🩹 Fixes
