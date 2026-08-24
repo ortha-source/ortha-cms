@@ -64,6 +64,9 @@
         },
         {
             "path": "../../packages/bootstrap/server"
+        },
+        {
+            "path": "../../packages/media/provider-memory"
         }
     ]
 }

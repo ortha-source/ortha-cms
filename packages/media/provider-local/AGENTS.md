@@ -8,7 +8,12 @@ built-ins; it imports no framework.
 ## What it exports
 
 - `createLocalStorageProvider(config): StorageProvider` — a factory the host
-  binds at the composition root. `config` is `{ rootDir, publicBasePath }`.
+  calls at the composition root. `config` is `{ rootDir }`.
+
+It identifies itself as **`local`** (the value written to
+`media_asset.storage_provider` on every upload) and declares
+`{ directUrl: false, contentTypeMetadata: false, streamingPut: true }`.
+`directUrl: false` is the load-bearing one — see the last known limit below.
 
 ## How it stores
 
@@ -64,13 +69,16 @@ built-ins; it imports no framework.
   volume no untrusted process can write to — fine for a dedicated volume, not
   for a shared one.
 - `contentType` is accepted and **dropped**: a filesystem has no place to put
-  it. An S3 adapter that sets `ContentType` on the object would make the two
-  backends asymmetric; decide there whether object metadata is authoritative.
-- `url()` is dead code. **No route serves the path it builds** — downloads go
-  through `GET /api/media/assets/:id/raw`, which resolves the key from the asset
-  row *after* checking workspace membership. If you implement the static-serving
-  mode, it must not be an `express.static` over `rootDir`: that serves every
-  blob to anyone holding a key, and keys are handed out in API responses.
+  it, which is what `capabilities.contentTypeMetadata: false` says out loud. An
+  S3 adapter that sets `ContentType` on the object makes the two backends
+  asymmetric; decide there whether object metadata is authoritative.
+- **No `directUrl()`, deliberately.** A filesystem cannot mint a URL the browser
+  may fetch on its own. The obvious implementation — `express.static` over
+  `rootDir` — serves every blob to anyone holding a key, and keys are handed out
+  in API responses; downloads therefore stay behind
+  `GET /api/media/assets/:id/raw`, which resolves the key from the asset row
+  *after* checking workspace membership. (An earlier `url()` built such a path
+  and nothing served it; it is gone rather than waiting to be wired.)
 
 ## Wiring
 
@@ -78,7 +86,7 @@ The host constructs it and passes it into `MediaServerPlugin`:
 
 ```typescript
 MediaServerPlugin({
-    providers: { local: createLocalStorageProvider(config.plugins.media.local) },
+    provider: createLocalStorageProvider(config.plugins.media.storage),
     config: config.plugins.media
 });
 ```
@@ -88,10 +96,19 @@ at a persistent volume for a real deployment (a fresh container's disk is wiped)
 
 ## Commands
 
-- `npx nx test @orthacms/media-provider-local` — the unit suite. It runs against
-  a **real temporary directory**, not a mocked `fs`: every claim worth making
-  here is about bytes, modes, and what survives a failure, and a mock can only
-  confirm which calls were made. Assert on the disk.
+- `npx nx test @orthacms/media-provider-local` — the unit suite, in two files.
+  `local-storage-provider.spec.ts` covers what is specific to a filesystem;
+  `local-storage-provider.contract.spec.ts` runs `describeStorageProvider` from
+  `@orthacms/media-provider-testkit`, the shared port contract every provider is
+  held to. Both run against a **real temporary directory**, not a mocked `fs`:
+  every claim worth making here is about bytes, modes, and what survives a
+  failure, and a mock can only confirm which calls were made. Assert on the
+  disk — the contract suite is handed `storedKeys` for exactly that reason.
+
+  One case fails when the suite runs as **root** (`put` › "leaves nothing behind
+  when the destination refuses the write"): it makes a directory `0o500` to
+  provoke `EACCES`, and root ignores the mode. That is the environment, not the
+  provider.
 - `npx nx typecheck @orthacms/media-provider-local` / `npx nx lint @orthacms/media-provider-local`
 - The cross-package half lives in `apps/server-e2e/src/server/media/media-local-storage.spec.ts`,
   which boots the app with `createTestApp({ localMediaRoot })` so the media

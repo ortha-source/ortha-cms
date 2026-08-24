@@ -540,3 +540,151 @@ describe('createOpenAiProvider', () => {
         );
     });
 });
+
+/** A non-2xx response, optionally carrying the header that paces the retry. */
+function errorResponse(status: number, retryAfter?: string): Response {
+    return new Response('upstream said no', {
+        status,
+        ...(retryAfter ? { headers: { 'retry-after': retryAfter } } : {})
+    });
+}
+
+/** A body that yields one delta and then errors, the way a dropped socket does. */
+function brokenStream(): Response {
+    const encoder = new TextEncoder();
+    let sent = false;
+    return new Response(
+        new ReadableStream<Uint8Array>({
+            pull(controller) {
+                if (sent) {
+                    controller.error(new Error('socket reset'));
+                    return;
+                }
+                sent = true;
+                controller.enqueue(
+                    encoder.encode(
+                        `data: ${JSON.stringify({
+                            choices: [{ delta: { content: 'Hel' } }]
+                        })}\n\n`
+                    )
+                );
+            }
+        }),
+        { status: 200, headers: { 'content-type': 'text/event-stream' } }
+    );
+}
+
+/**
+ * The pre-stream retry ladder (ORT-147).
+ *
+ * `provider-anthropic` inherits the SDK's two attempts on 429/5xx/connection
+ * errors; this adapter had none, so the same gateway restart ended a run here
+ * and was invisible there. The pair of cases that matter are the boundary: a
+ * failure *before* the first event is retried, one *after* it never is.
+ */
+describe('createOpenAiProvider retries', () => {
+    beforeEach(() => {
+        globalThis.fetch = jest.fn();
+    });
+
+    it('retries a 429 and streams the answer that follows', async () => {
+        jest.mocked(globalThis.fetch)
+            .mockResolvedValueOnce(errorResponse(429, '0'))
+            .mockResolvedValueOnce(
+                sseResponse([
+                    { choices: [{ delta: { content: 'Hello' } }] },
+                    { choices: [{ delta: {}, finish_reason: 'stop' }] }
+                ])
+            );
+
+        const events = await drain(provider().stream(request));
+
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+        // Transparent: the caller sees the answer, not the blip.
+        expect(events).toContainEqual({ type: 'text-delta', text: 'Hello' });
+    });
+
+    it('retries a refused connection', async () => {
+        jest.mocked(globalThis.fetch)
+            .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+            .mockResolvedValueOnce(sseResponse([]));
+
+        await drain(provider().stream(request));
+
+        expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry once the stream has started', async () => {
+        // The engine has already forwarded the delta to the browser, so a
+        // second attempt would duplicate or silently replace the answer.
+        jest.mocked(globalThis.fetch).mockResolvedValueOnce(brokenStream());
+
+        await expect(drain(provider().stream(request))).rejects.toThrow(
+            'socket reset'
+        );
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a status the endpoint has settled on', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(errorResponse(400));
+
+        await expect(drain(provider().stream(request))).rejects.toThrow(/400/);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after maxRetries and reports the last failure', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(
+            errorResponse(503, '0')
+        );
+
+        await expect(drain(provider().stream(request))).rejects.toThrow(/503/);
+        // Two retries on top of the first attempt — the Anthropic SDK's ladder.
+        expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('attempts once when the operator sets maxRetries to 0', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(
+            errorResponse(503, '0')
+        );
+        const once = createOpenAiProvider({
+            baseUrl: 'http://localhost:11434/v1',
+            models: ['llama3.1'],
+            maxRetries: 0
+        });
+
+        await expect(drain(once.stream(request))).rejects.toThrow(/503/);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the 429 rather than sleeping through a long Retry-After', async () => {
+        jest.mocked(globalThis.fetch).mockResolvedValue(
+            errorResponse(429, '3600')
+        );
+
+        await expect(drain(provider().stream(request))).rejects.toThrow(/429/);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry after the caller aborts', async () => {
+        const controller = new AbortController();
+        jest.mocked(globalThis.fetch).mockImplementation(() => {
+            controller.abort();
+            return Promise.reject(
+                Object.assign(new Error('aborted'), { name: 'AbortError' })
+            );
+        });
+
+        const events = await drain(
+            provider().stream(request, controller.signal)
+        );
+
+        expect(events).toEqual([
+            {
+                type: 'done',
+                stopReason: 'aborted',
+                usage: { inputTokens: 0, outputTokens: 0 }
+            }
+        ]);
+        expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    });
+});

@@ -12,6 +12,18 @@ import { MediaServerPlugin } from '@orthacms/media-server';
 // ortha:if media-local
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 // ortha:end
+// ortha:if media-s3
+import { createS3StorageProvider } from '@orthacms/media-provider-s3';
+// ortha:end
+// ortha:if media-azure
+import { createAzureStorageProvider } from '@orthacms/media-provider-azure';
+// ortha:end
+// ortha:if media-gcs
+import { createGcsStorageProvider } from '@orthacms/media-provider-gcs';
+// ortha:end
+// ortha:if media-vercel-blob
+import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel-blob';
+// ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
@@ -171,15 +183,28 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // ortha:end
         // Fills the Content Library's locale extensions, so it reads after it.
         I18nServerPlugin(config.plugins.i18n),
-        // The composition root is the single place that selects storage:
-        // register providers by name and, optionally, a `resolve` handler to
-        // route per file. This one writes every upload to local disk.
+        // This line is the single place that selects storage — one constructed
+        // provider, writing every upload to local disk. A deployment runs
+        // exactly one; swapping backend is swapping this expression (and the
+        // type of `media.storage` with it).
         MediaServerPlugin({
-            providers: {
-                // ortha:if media-local
-                local: createLocalStorageProvider(config.plugins.media.local)
-                // ortha:end
-            },
+            // ortha:if media-local
+            provider: createLocalStorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-s3
+            provider: createS3StorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-azure
+            provider: createAzureStorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-gcs
+            provider: createGcsStorageProvider(config.plugins.media.storage),
+            // ortha:end
+            // ortha:if media-vercel-blob
+            provider: createVercelBlobStorageProvider(
+                config.plugins.media.storage
+            ),
+            // ortha:end
             config: config.plugins.media
         }),
         // Registered after workspaces (runs are workspace-scoped) and identity

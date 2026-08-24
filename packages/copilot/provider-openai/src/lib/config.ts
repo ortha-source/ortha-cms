@@ -31,8 +31,21 @@ export interface OpenAiProviderConfig {
      * providers instead of flattening both to the weaker profile.
      */
     capabilities?: Partial<Omit<ModelCapabilities, 'model'>>;
-    /** Request timeout in milliseconds. Defaults to 120 000. */
+    /**
+     * Request timeout in milliseconds. Defaults to 120 000.
+     *
+     * Budgets the **whole** attempt ladder, retries and backoff included — a
+     * transient failure must not be able to multiply a run's wall clock by
+     * `maxRetries`.
+     */
     timeoutMs?: number;
+    /**
+     * Retries on a pre-stream 408/429/5xx or a failed connection. Defaults to
+     * `2`, matching the Anthropic SDK's own ladder; `0` attempts once.
+     *
+     * Only ever applied **before the first event** — see `retry.ts`.
+     */
+    maxRetries?: number;
     /**
      * Which field carries the output ceiling on the wire.
      *
@@ -58,6 +71,21 @@ export const DEFAULT_CAPABILITIES = {
 } as const;
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
+
+/** Matches the Anthropic SDK's ladder, so the two adapters agree. */
+export const DEFAULT_MAX_RETRIES = 2;
+
+/**
+ * Resolves the retry count. Unlike `timeoutMs`, `0` is meaningful here — "one
+ * attempt, report what happened" is a legitimate choice for an operator who
+ * would rather see a 429 than wait through it — so only `undefined` takes the
+ * default, and a negative is floored to `0` rather than inverting the loop.
+ */
+export function resolveMaxRetries(config: OpenAiProviderConfig): number {
+    return config.maxRetries === undefined
+        ? DEFAULT_MAX_RETRIES
+        : Math.max(0, Math.floor(config.maxRetries));
+}
 
 /** Appends the chat-completions path, tolerating a trailing slash on the root. */
 export function resolveEndpoint(baseUrl: string): string {
