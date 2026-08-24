@@ -127,7 +127,7 @@ export interface SsoLogoutRequest {
  * (`@orthacms/identity-provider-oidc`, `@orthacms/identity-provider-fake`, …)
  * and are registered at the composition root. The identity plugin depends only
  * on this interface — never on a protocol library
- * ([ADR-0012](../../../../../../docs/adr/0012-sso-provider-port.md) §1).
+ * ([ADR-0013](../../../../../../docs/adr/0013-sso-provider-port.md) §1).
  *
  * **Three clauses bind every adapter**, and each is something the core has no
  * way to check for itself:

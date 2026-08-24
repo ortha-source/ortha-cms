@@ -7,7 +7,7 @@ credential.
 
 **Status:** proposed. Nothing is built. This document is the plan, and the
 decision it depends on is drafted as
-[ADR-0012](../adr/0012-sso-provider-port.md).
+[ADR-0013](../adr/0013-sso-provider-port.md).
 
 ---
 
@@ -26,7 +26,7 @@ answering them later, under a migration.
 
 So phase 0 is:
 
-1. **ADR-0012** — the port, and the authority rules that go with it.
+1. **ADR-0013** — the port, and the authority rules that go with it.
 2. **`@orthacms/identity-domain`** — a new framework-free package holding the
    `SsoProvider` port, exactly as `@orthacms/copilot-domain` holds
    `ModelProvider`. It has to be its own package: an adapter must be able to
@@ -217,7 +217,7 @@ not a place to demonstrate independence.
 
 ## 7. Phases
 
-- **Phase 0 — the seam.** ADR-0012, `identity-domain`, `identity-provider-fake`,
+- **Phase 0 — the seam.** ADR-0013, `identity-domain`, `identity-provider-fake`,
   both tables, the three routes, link-only account resolution, a `server-e2e`
   suite driving the full redirect dance offline. *Done when* a fake IdP signs an
   existing user in and the resulting session is indistinguishable from a

@@ -22,6 +22,7 @@ import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this
@@ -70,7 +71,7 @@ export interface OrthaCopilotConfig extends CopilotPluginConfig {
  * this deployment can reach.
  *
  * The provider settings live **here**, not inside `IdentityPluginConfig`: the
- * plugin is adapter-agnostic by decision (ADR-0012 §1), so it names no
+ * plugin is adapter-agnostic by decision (ADR-0013 §1), so it names no
  * protocol. `plugins.ts` already imports the adapter factories, so importing
  * their config type costs no new coupling — and adding a second identity
  * provider is a key here plus a line there, with nothing to change inside the
@@ -116,6 +117,25 @@ export interface OrthaIdentityConfig extends IdentityPluginConfig {
     };
 }
 
+/**
+ * Media settings, plus the connection settings for the one storage backend this
+ * deployment runs.
+ *
+ * The backend settings live **here**, not in `MediaPluginConfig`, for the same
+ * reason the copilot's provider settings do (ADR-0004 §2): the plugin names no
+ * backend. `plugins.ts` already imports the adapter factory, so importing its
+ * config type costs no new coupling — and switching storage is that import plus
+ * the type named below, with nothing to change inside the media packages.
+ */
+export interface OrthaMediaConfig extends MediaPluginConfig {
+    /**
+     * Whatever the constructed provider needs. Typed by the factory
+     * `plugins.ts` calls — `LocalStorageConfig` today; swapping to
+     * `createS3StorageProvider` swaps this type with it.
+     */
+    storage: LocalStorageConfig;
+}
+
 /** Database connection settings. */
 export interface OrthaDatabaseConfig {
     /** PostgreSQL connection string. Sourced from `DATABASE_URL`. */
@@ -150,8 +170,8 @@ export interface OrthaConfig {
         identity: OrthaIdentityConfig;
         /** i18n plugin settings — the available content locales. */
         i18n: I18nPluginConfig;
-        /** Media plugin settings — storage providers + upload limits. */
-        media: MediaPluginConfig;
+        /** Media plugin settings — the storage backend + upload limits. */
+        media: OrthaMediaConfig;
         /** Copilot plugin settings — kill switch + model providers. */
         copilot: OrthaCopilotConfig;
         /** Public GraphQL endpoint settings — the per-operation cost budget. */
@@ -632,19 +652,29 @@ const config: OrthaConfig = {
             orphanedLocales: 'fail'
         },
         media: {
-            // The provider the resolver falls back to when no custom handler is
-            // supplied in `plugins.ts`. Deploy-specific; defaults to local disk.
-            defaultProvider: process.env['MEDIA_PROVIDER'] ?? 'local',
-            local: {
+            // Settings for the storage backend `plugins.ts` constructs. There
+            // is no variable naming which backend runs: that is decided by the
+            // factory the composition root imports, so a value here can never
+            // point at an adapter nobody wired.
+            storage: {
                 // Blobs live under a git-ignored project dir by default; point
                 // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
-                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media',
-                publicBasePath: '/api/media/assets'
+                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
-            s3: {
-                bucket: process.env['MEDIA_S3_BUCKET'] ?? '',
-                region: process.env['MEDIA_S3_REGION'] ?? ''
-            },
+            // Off unless asked for, and only meaningful on a backend that can
+            // sign a URL — the plugin refuses the combination at boot rather
+            // than proxying while the operator believes otherwise. The default
+            // local-filesystem provider cannot, so setting this here without
+            // switching the provider in `plugins.ts` is a boot error naming
+            // both, which is the intended way to find out.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             // Upload cap — 50 MB by default.
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',

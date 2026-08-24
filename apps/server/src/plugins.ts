@@ -207,20 +207,17 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             playground: config.docs.enabled === true
         }),
         // Media — registered after workspaces (its routes use `WorkspaceGuard`)
-        // and identity (its routes use `PermissionsGuard`). The composition root
-        // is the single place that selects storage: register providers by name
-        // and, optionally, a `resolve` handler to route per file. The default
-        // install runs one local-filesystem provider and no handler, so every
-        // upload lands on disk under `config.plugins.media.local.rootDir`.
+        // and identity (its routes use `PermissionsGuard`). This line is the
+        // single place that selects storage: one constructed provider, so
+        // switching backend is swapping this expression (and the type of
+        // `config.plugins.media.storage` with it).
         //
-        // To route by file (once the S3 adapter lands), add more providers and a
-        // handler, e.g.:
-        //   providers: { local: createLocalStorageProvider(...), s3: createS3StorageProvider(...) },
-        //   resolve: (ctx) => (ctx.kind === 'video' ? 's3' : 'local'),
+        // A deployment runs exactly one. The provider's own `id` is recorded on
+        // every asset row, and `StorageProviderCheck` refuses to boot if the
+        // library already holds assets written by a different one — those bytes
+        // are in a backend this process is not connected to.
         MediaServerPlugin({
-            providers: {
-                local: createLocalStorageProvider(config.plugins.media.local)
-            },
+            provider: createLocalStorageProvider(config.plugins.media.storage),
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),

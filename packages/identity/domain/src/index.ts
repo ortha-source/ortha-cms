@@ -1,7 +1,7 @@
 // --- the SSO seam ---
 //
 // The identity-provider port and everything the core needs to hold it to its
-// contract. Framework-free by rule (ADR-0012 §1): nothing here imports
+// contract. Framework-free by rule (ADR-0013 §1): nothing here imports
 // `@nestjs/*`, `drizzle-orm`, or a protocol library, so an adapter package can
 // depend on the port without inheriting the server's dependency graph.
 export type {

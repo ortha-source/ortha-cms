@@ -22,11 +22,8 @@ import {
     type FolderRepository
 } from '../../domain/folder.repository';
 import {
-    STORAGE_REGISTRY,
-    STORAGE_RESOLVER,
-    type StorageProvider,
-    type StorageRegistry,
-    type StorageResolver
+    STORAGE_PROVIDER,
+    type StorageProvider
 } from '../../domain/storage-provider';
 
 /** Inputs for one upload — the file stream plus its metadata. */
@@ -36,7 +33,6 @@ export interface UploadAssetCommand {
     folderId: string | null;
     fileName: string;
     contentType: string;
-    size: number;
     body: Readable;
     /**
      * Alternative text supplied with the upload. Optional, and normalized to
@@ -56,9 +52,10 @@ async function collect(stream: Readable): Promise<Buffer> {
 }
 
 /**
- * Uploads one asset: the resolver picks a backend, the bytes stream to it, then
- * the row + audit event commit atomically. The provider name is recorded on the
- * asset so downloads/deletes route to the same backend.
+ * Uploads one asset: the bytes stream to the deployment's storage provider,
+ * then the row + audit event commit atomically. The provider's `id` is recorded
+ * on the asset, so a later deployment pointed at a different backend can be
+ * told (at boot) that these bytes are not its own.
  *
  * For images, the bytes are buffered so the {@link ImageProcessor} can read the
  * dimensions and generate `thumb`/`preview` derivatives, each stored as its own
@@ -72,8 +69,7 @@ export class UploadAssetUseCase {
     constructor(
         private readonly uow: UnitOfWork,
         private readonly outbox: OutboxWriter,
-        @Inject(STORAGE_REGISTRY) private readonly registry: StorageRegistry,
-        @Inject(STORAGE_RESOLVER) private readonly resolve: StorageResolver,
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider,
         @Inject(IMAGE_PROCESSOR) private readonly processor: ImageProcessor,
         @Inject(ASSET_REPOSITORY) private readonly assets: AssetRepository,
         @Inject(FOLDER_REPOSITORY) private readonly folders: FolderRepository
@@ -95,19 +91,7 @@ export class UploadAssetUseCase {
         const kind = MediaKind.fromMime(command.contentType);
         const assetId = AssetId.generate();
 
-        const providerName = this.resolve(
-            {
-                workspaceId: command.workspaceId,
-                folderId: command.folderId,
-                fileName: fileName.value,
-                contentType: command.contentType,
-                kind: kind.value,
-                size: command.size
-            },
-            this.registry
-        );
-        const provider = this.registry.get(providerName);
-
+        const provider = this.provider;
         // Images are buffered once so both the original write and the processor
         // can read the same bytes (a stream is single-use); other kinds are
         // passed straight through.
@@ -165,7 +149,7 @@ export class UploadAssetUseCase {
                     folderId,
                     name: fileName,
                     storageKey: StorageKey.create(original.storageKey),
-                    storageProvider: providerName,
+                    storageProvider: provider.id,
                     kind,
                     mimeType: command.contentType,
                     size: original.size,

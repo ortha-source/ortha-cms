@@ -1,4 +1,4 @@
-# 0012 — SSO is a provider port, and the core owns the handshake
+# 0013 — SSO is a provider port, and the core owns the handshake
 
 - **Status:** Proposed
 - **Date:** 2026-08-23

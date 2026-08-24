@@ -14,7 +14,7 @@ a few lines of SSE parsing, and a dependency for that would not earn its place.
 
 - `createOpenAiProvider(config): ModelProvider`. `config` is
   `{ baseUrl, models, apiKey?, headers?, capabilities?, timeoutMs?,
-  maxTokensField? }`.
+  maxRetries?, maxTokensField? }`.
 
 `models` is a **list**, first entry the default — one endpoint and one
 credential back several models, so a user can switch mid-conversation. A run
@@ -31,6 +31,7 @@ trailing slashes trimmed first.
 src/lib/
   openai-provider.ts             # the factory — request + stream loop, ~150 lines
   config.ts                      # config type, defaults, resolveEndpoint/resolveCapabilities
+  retry.ts                       # the PURE pre-stream retry policy — statuses, backoff, Retry-After
   sse.ts                         # readDataEvents — the event-stream reader
   wire/
     types.ts                     # ChatMessage, ChatCompletionChunk, ToolCallDelta
@@ -102,6 +103,40 @@ ends the stream, zero usage on an abort, and the promises around them. The
 stubbed endpoint it uses **observes the signal**, erroring the body mid-stream
 the way a real socket does, because a stub that ignored it would let the abort
 clauses pass unexercised.
+
+## Retries are pre-stream only
+
+`maxRetries` defaults to **2**, matching the ladder `provider-anthropic` inherits
+from the vendor SDK. Two adapters behind one port failing differently on the most
+common transient condition is the divergence ADR-0004 exists to prevent, and this
+one the conformance kit cannot catch: it is about what happens *before* the first
+event, not about the event stream's shape (ORT-147).
+
+The rule that makes it safe: **a retry is only correct while nothing has been
+yielded.** Once a `text-delta` has reached the client the engine has already
+forwarded it to the browser, so re-issuing the request would either duplicate the
+answer or silently replace it. So the ladder lives entirely inside `open()`, and
+the loop ends the moment a body exists — the same boundary `requestError`
+already sat on. A socket that dies mid-stream is **not** retried; it throws.
+
+- **Retried:** a rejected `fetch` (refused connection, reset, DNS blip), and a
+  `408`, `429` or `5xx` before the body.
+- **Not retried:** any other non-2xx — a 400 is a malformed request and a 401 a
+  missing key, and asking again just spends the run's wall clock before
+  reporting the same thing — and an `ok` response with no body, which is a
+  malformed answer rather than a blip.
+- **`Retry-After` wins** when the endpoint sent one, in either shape the RFC
+  allows. Beyond `MAX_RETRY_DELAY_MS` (30 s) the ladder **stops** rather than
+  honouring it: sleeping an hour would report a timeout instead of the 429 that
+  actually happened. Otherwise the wait is exponential with equal jitter, so
+  every run behind one restarting gateway does not retry in lockstep.
+- **The `timeoutMs` budget covers the whole ladder**, backoff included — a
+  transient failure must not multiply a run's wall clock by `maxRetries`. The
+  backoff sleep is abortable and rejects with the signal's own reason, so a
+  caller's cancel mid-wait still ends the stream as `aborted`.
+
+The policy itself is in `retry.ts` and specced there on its own; the provider
+spec covers the boundary in both directions.
 
 ## Timeouts and aborts
 
