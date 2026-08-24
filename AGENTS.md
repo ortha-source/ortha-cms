@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md))
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`sso.md`](docs/design/sso.md))
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
@@ -79,7 +79,7 @@
   natural-key rules; `server` is the plugin — the export/import routes, the
   graph walk, and a hand-rolled ZIP container; `admin` is the two dialogs and
   the three slot contributions that reach them. The depth is **one hop**
-  ([ADR-0013](docs/adr/0013-transfer-as-a-separate-plugin.md)): relations, files
+  ([ADR-0014](docs/adr/0014-transfer-as-a-separate-plugin.md)): relations, files
   and locales travel, relations-of-relations stay as references. Every write
   goes through content's `EntryWriterService`, so an import cannot outrun
   validation, the workspace scope, or the caller's own permissions. Owns no

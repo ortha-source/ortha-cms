@@ -476,6 +476,171 @@ error, and type the barrel exports keeps its path, so no consumer import moved.
   takes no argv/prompts/console output, run by `RootAdminSeeder` on boot). An
   interactive CLI / break-glass command is not provided here.
 
+## Single sign-on (the seam)
+
+Identity also **authenticates against an external identity provider**. The port
+itself lives in `@orthacms/identity-domain` so an adapter can depend on it
+without depending on this package; what lives here is everything that turns a
+verified profile into an Ortha session
+([ADR-0013](../../../docs/adr/0013-sso-provider-port.md)).
+
+Three routes, all `@Public()` and rate-limited:
+
+| Route | Does |
+| --- | --- |
+| `GET /api/auth/sso` | The registered providers, for the sign-in page's buttons. `[]` when none — an answer, not a 404. |
+| `GET /api/auth/sso/:provider/start` | Opens an attempt, sets the attempt cookie, 302s to the provider. |
+| `GET /api/auth/sso/:provider/callback` | Verifies, resolves the account, opens a session, 302s into the admin. |
+
+Two tables, both shipped in this package's `migrations/`: `sso_identities` (the
+link, unique on `(provider, subject)` and on `(provider, user_id)`) and
+`sso_auth_requests` (one in-flight attempt).
+
+### Five things here that are decisions, not details
+
+- **The core mints `state`, `nonce` and the PKCE verifier**, never the adapter.
+  CSRF and replay defence is one rule, implemented once where it is tested once.
+- **Attempt state is a row, not a signed cookie.** This plugin documents the
+  absence of a signing secret as a decision (see `IdentityPluginConfig`), and
+  handshake state was not going to be the thing that reintroduces one. `id` is
+  the SHA-256 of the browser's opaque token, exactly like `sessions.id`.
+- **`OriginGuard` is absent from the callback, deliberately.** It is a top-level
+  GET from a third party with no `Origin` header. The attempt cookie plus the
+  echoed `state` are what protect it.
+- **The attempt is burned *before* the token exchange**, and the exchange runs
+  outside any transaction. Burning after would let a replay drive a second
+  exchange; exchanging inside a transaction would hold a write lock across a
+  call to a third party. `CompleteSsoUseCase`'s doc comment reads the ordering
+  as one sequence, and it is worth reading before changing any of it.
+- **Every refusal is one `SsoLoginFailedError`**, rendered as one redirect to
+  `?error=sso`. The caller is anonymous and the provider is not: told apart,
+  these failures would let anyone who can authenticate at a public provider
+  discover which addresses hold accounts here.
+
+### What an SSO sign-in may do to an account
+
+By default: **nothing**. It signs in accounts that already exist and are
+`active`, creates none, and changes nobody's role. A first sign-in may claim an
+existing account only when the provider asserts the email is **verified**; a
+`pending` or `disabled` account is refused exactly as on the password path.
+
+Three things a deployment can turn on, each off by default and each for its own
+reason:
+
+- **Just-in-time provisioning** (`sso.provisioning`) creates an `active` account
+  with **no password hash** the first time a verified profile arrives with no
+  matching one. The **domain allow-list is required and non-empty**, checked at
+  construction: an identity provider answers for everyone it knows and a public
+  one knows everyone, so provisioning without it means anybody with an account
+  there can sign in here — and nothing breaks to say so, the user list simply
+  grows. Matching is exact on the domain, deliberately not a suffix match, so
+  `acme.com` never admits `evil-acme.com`.
+- **Role mapping** (`IdentityPlugin`'s `resolveRole`) is plain code at the
+  composition root returning a role key, or `null` to leave the role alone —
+  which is also what no handler means. Two rules protect what it can do: an
+  unknown role key is logged and ignored rather than failing the sign-in (a typo
+  in a handler must not lock a directory out), and **an account already holding
+  `admin` is never demoted by a mapping**. That grant is deliberate and a
+  directory group is not; last-admin protection lives in the users context and
+  does not run on this path.
+- **Accepting an invitation with a work account.** `/start?invite=<token>`
+  carries the one-time token on the attempt row; the callback checks that the
+  address the provider vouched for **is the one that was invited**, burns the
+  token with the same conditional write the password path uses, and activates
+  the account with `activateWithoutCredential()`. Following a spent link again
+  as the same person just signs them in — by then the identity link exists and
+  the token is never consulted — while anyone *else* following it is refused,
+  which is the guarantee that matters.
+
+### Ending a session because the provider says so
+
+`POST /api/auth/sso/:provider/backchannel-logout` is the answer to the one thing
+operators assume SSO already does. A session here is a **row with a TTL**, and
+disabling somebody in the directory does not reach it — so until this route
+existed the honest answer to "we offboarded them, are they out?" was "within
+`SESSION_TTL_SECONDS`". The provider calls it directly, with no browser in the
+loop, which is why it works after the person has closed the tab.
+
+Sessions therefore record `sso_provider` and `sso_session_id`, and two shapes of
+notification are handled differently on purpose:
+
+- **a `sid`** ends only the sessions that provider session opened, so somebody
+  signed in on a laptop and a phone through two provider sessions keeps the
+  other one;
+- **a `sub` with no `sid`** ends every session the linked account holds. That is
+  the offboarding case, and being blunt is the point.
+
+**Verification is the adapter's**, through the optional
+`SsoProvider.verifyLogoutToken`. A provider that cannot verify does not
+implement it and the route answers `404` rather than pretending to have acted —
+this endpoint is unauthenticated and reachable by anyone, so an unverified
+notification would be an open way to sign arbitrary people out. The OIDC adapter
+checks the `events` claim for exactly this reason: everything else about a
+logout token matches an identity token, so without that check anyone holding a
+stolen one could sign its owner out at will.
+
+The route answers `200` whether or not anything was revoked (providers retry, so
+it must be idempotent), `400` for a refusal with no detail, and sets
+`cache-control: no-store` — an intermediary caching a `200` here would swallow
+every later notification. A subject with no account is **not** an error: a
+provider legitimately notifies about people who never signed in, and answering
+otherwise would make this an oracle for which of a directory's members use this
+CMS.
+
+For a provider with **no** back-channel logout, `sso.sessionTtlSeconds` shortens
+SSO sessions alone — a partial mitigation an operator can choose, trading a
+re-authentication now and then for a smaller window after an offboarding.
+
+### A POST callback, for SAML
+
+`POST /api/auth/sso/:provider/callback` serves the protocols whose response is a
+form post rather than a redirect. It shares every check with the GET route and
+differs in exactly one place — where the response parameters come from. Its
+existence is what makes `SsoProviderDescriptor.callbackMethod` mean something.
+
+No CSRF token, and none is possible: the request is a cross-site form post from
+an identity provider that has never seen this CMS's pages. The attempt cookie
+and the echoed `RelayState` are the defence — which is why the core, not an
+adapter, mints them.
+
+Turning passwords off entirely is `sso.allowPasswordLogin: false`. **The root
+administrator is always exempt**, because the alternative has no recovery: an
+operator who mis-scopes their provider and has no password left is locked out
+with no way back short of a database client. The refusal still performs one
+bcrypt comparison, so the break-glass address cannot be found by timing.
+
+Three audit facts come out of all this, and they are deliberately not folded
+into the sign-in row: `user.sso_linked`, `user.sso_provisioned` and
+`user.sso_role_mapped`. "Somebody signed in" cannot answer "where did this
+account come from?", which is the first question anyone reviewing an SSO
+deployment asks. The sign-in row itself now records the method and provider, so
+the log can also separate the people who came in through the directory from the
+ones who still hold a password.
+
+### Registering a provider
+
+At the composition root, in `IdentityPlugin`'s **second** argument — config holds
+the typed view of the environment, and an adapter instance is not an environment
+value:
+
+```typescript
+IdentityPlugin(config.plugins.identity, {
+    sso: {
+        providers: [{ name: 'google', provider: createGoogleProvider({ … }) }]
+    }
+});
+```
+
+The name appears in the route and in every link row, so renaming a registration
+orphans the links naming it. `ssoCallbackUrl(config, name)` builds the exact
+callback URL to register with the provider — exact because most providers match
+that string byte for byte, and a trailing slash is a different URL to them.
+
+`IdentityPlugin` **refuses to boot** with providers registered and
+`session.cookieSameSite: 'strict'`: a strict cookie is not sent on the
+provider's cross-site redirect back, so every sign-in would fail with a generic
+error and nothing in the response would say why.
+
 ## Configuration
 
 Config flows from `apps/server/ortha.config.ts` (`plugins.identity`, env-sourced)

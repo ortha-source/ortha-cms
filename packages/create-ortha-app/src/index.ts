@@ -18,6 +18,7 @@ export {
     TRANSITIVE_PACKAGES,
     MEDIA_PROVIDERS,
     COPILOT_PROVIDERS,
+    SSO_PROVIDERS,
     PROTOCOLS,
     ALL_FEATURES,
     resolvePackages,

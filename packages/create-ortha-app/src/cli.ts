@@ -6,6 +6,7 @@ import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import {
     COPILOT_PROVIDERS,
+    SSO_PROVIDERS,
     MEDIA_PROVIDERS,
     PROTOCOLS,
     resolvePackages,
@@ -28,6 +29,7 @@ Options:
   --yes            Accept every default, asking nothing
   --media <id>     Storage adapter (default: media-local)
   --copilot <ids>  Comma-separated copilot providers, or "none"
+  --sso <ids>      Comma-separated identity providers (sso-oidc), or "none"
   --protocols <ids> Comma-separated protocols beyond REST (graphql, mcp), or "none"
   --no-install     Skip installing dependencies
   --no-git         Skip initialising a git repository
@@ -180,6 +182,7 @@ async function resolveAnswers(
     const media = idList(option(argv, 'media')) ?? defaultsOf(MEDIA_PROVIDERS);
     const copilot =
         idList(option(argv, 'copilot')) ?? defaultsOf(COPILOT_PROVIDERS);
+    const sso = idList(option(argv, 'sso')) ?? defaultsOf(SSO_PROVIDERS);
     const protocols = [
         ...lockedOf(PROTOCOLS),
         ...(idList(option(argv, 'protocols')) ?? defaultsOf(PROTOCOLS))
@@ -191,7 +194,7 @@ async function resolveAnswers(
             databaseUrl: defaultDatabaseUrl,
             adminEmail: 'admin@example.com',
             selection: {
-                enabled: new Set([...media, ...copilot, ...protocols])
+                enabled: new Set([...media, ...copilot, ...sso, ...protocols])
             }
         };
     }
@@ -229,6 +232,12 @@ async function resolveAnswers(
             COPILOT_PROVIDERS.map(toChoice)
         )) ?? copilot;
 
+    const chosenSso =
+        (await ui.multiselect(
+            'Single sign-on — which identity providers?',
+            SSO_PROVIDERS.map(toChoice)
+        )) ?? sso;
+
     const chosenProtocols =
         (await ui.multiselect(
             'Which protocols should the content API speak?',
@@ -243,6 +252,7 @@ async function resolveAnswers(
             enabled: new Set([
                 ...chosenMedia.filter(Boolean),
                 ...chosenCopilot,
+                ...chosenSso,
                 ...chosenProtocols
             ] as string[])
         }
@@ -273,6 +283,7 @@ function describeSelection(
                 ? `${providers.map((p) => p.label).join(', ')} + offline fake`
                 : 'offline fake only'
         ],
+        ['Sign-in', labelsFor(SSO_PROVIDERS)],
         ['Ortha packages', String(resolvePackages(selection).length + 1)]
     ];
 }

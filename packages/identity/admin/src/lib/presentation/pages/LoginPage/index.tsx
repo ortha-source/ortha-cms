@@ -32,6 +32,11 @@ const messages = defineMessages({
         id: 'identity.login.sessionEnded',
         defaultMessage:
             'Your session has ended, so you were signed out. Please sign in again to continue where you left off.'
+    },
+    ssoFailed: {
+        id: 'identity.login.ssoFailed',
+        defaultMessage:
+            'That sign-in did not complete. Try again, or sign in with your email and password.'
     }
 });
 
@@ -75,6 +80,15 @@ export function LoginPage() {
 
     const from = (location.state as FromState | null)?.from?.pathname ?? '/';
 
+    // The single-sign-on routes redirect here with `?error=sso` when a sign-in
+    // did not complete. Every reason collapses to that one flag on purpose:
+    // the person arriving is anonymous, the identity provider is not, and
+    // spelling out which step failed would tell anyone who can authenticate at
+    // a public provider which addresses hold accounts here. The real reason is
+    // in the server log.
+    const ssoFailed =
+        new URLSearchParams(location.search).get('error') === 'sso';
+
     const handleSubmit = (credentials: LoginCredentials) => {
         mutate(credentials, {
             onSuccess: async () => {
@@ -86,13 +100,18 @@ export function LoginPage() {
         });
     };
 
+    // A failed submission wins over the redirect flag: the flag describes how
+    // the visitor arrived, and once they have tried a password the result of
+    // that attempt is the thing they are waiting to hear about.
     const errorMessage = error
         ? intl.formatMessage(
               error.status === HTTP_STATUS.UNAUTHORIZED
                   ? messages.invalidCredentials
                   : messages.generic
           )
-        : undefined;
+        : ssoFailed
+          ? intl.formatMessage(messages.ssoFailed)
+          : undefined;
 
     return (
         <AuthLayout surface="signin">
@@ -105,6 +124,7 @@ export function LoginPage() {
                         ? intl.formatMessage(messages.sessionEnded)
                         : undefined
                 }
+                redirectTo={from}
             />
         </AuthLayout>
     );

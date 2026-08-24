@@ -12,9 +12,26 @@ import type {
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
+// ortha:if sso-oidc
+import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
+// ortha:end
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+// ortha:if media-local
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
+// ortha:end
+// ortha:if media-s3
+import type { S3StorageConfig } from '@orthacms/media-provider-s3';
+// ortha:end
+// ortha:if media-azure
+import type { AzureStorageConfig } from '@orthacms/media-provider-azure';
+// ortha:end
+// ortha:if media-gcs
+import type { GcsStorageConfig } from '@orthacms/media-provider-gcs';
+// ortha:end
+// ortha:if media-vercel-blob
+import type { VercelBlobStorageConfig } from '@orthacms/media-provider-vercel-blob';
+// ortha:end
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
@@ -36,6 +53,30 @@ import type { McpPluginConfig } from '@orthacms/mcp-server';
  * read, where a `defaultProvider` naming one of them could be misspelled or
  * point at a backend nobody registered.
  */
+/**
+ * Identity settings, plus the identity providers this app can reach.
+ *
+ * The provider settings live here rather than inside `IdentityPluginConfig`,
+ * for the same reason the copilot's backends do: the plugin names no protocol,
+ * and this file is the one place that reads the environment. The constructed
+ * adapters are registered in `src/plugins.ts`.
+ */
+export interface AppIdentityConfig extends IdentityPluginConfig {
+    /**
+     * Identity providers, keyed by the name they are registered under. That
+     * name appears in the sign-in URL and in every `sso_identities` row, so
+     * renaming one orphans the links that name it.
+     *
+     * Optional, and absent unless this app was generated with single sign-on.
+     */
+    ssoProviders?: {
+        // ortha:if sso-oidc
+        /** A generic OpenID Connect provider. Present when both env vars are set. */
+        oidc?: OidcProviderConfig & { name: string };
+        // ortha:end
+    };
+}
+
 export interface AppCopilotConfig extends CopilotPluginConfig {
     providers: {
         // ortha:if copilot-anthropic
@@ -63,15 +104,28 @@ export interface OrthaConfig {
     database: { url: string };
     docs: ApiDocsOptions;
     plugins: {
-        identity: IdentityPluginConfig;
+        identity: AppIdentityConfig;
         i18n: I18nPluginConfig;
         media: MediaPluginConfig & {
             /**
              * Settings for the storage backend `plugins.ts` constructs. Typed
-             * by the factory it imports — swap `createLocalStorageProvider` for
-             * another and this type swaps with it.
+             * by the factory it imports — the two move together.
              */
+            // ortha:if media-local
             storage: LocalStorageConfig;
+            // ortha:end
+            // ortha:if media-s3
+            storage: S3StorageConfig;
+            // ortha:end
+            // ortha:if media-azure
+            storage: AzureStorageConfig;
+            // ortha:end
+            // ortha:if media-gcs
+            storage: GcsStorageConfig;
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: VercelBlobStorageConfig;
+            // ortha:end
         };
         copilot: AppCopilotConfig;
         // ortha:if mcp
@@ -230,6 +284,59 @@ const config: OrthaConfig = {
                 ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
                 limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
             },
+            // Single sign-on. The providers themselves are constructed in
+            // `src/plugins.ts`; these settings shape the handshake.
+            sso: {
+                // The origin browsers reach this API on. It builds the
+                // redirect_uri you register with each provider, and it is
+                // configured rather than read from the request's Host header,
+                // which a client controls. Leave it unset when the admin and
+                // the API share an origin — the usual case.
+                ...(process.env['SSO_PUBLIC_BASE_URL']
+                    ? { publicBaseUrl: process.env['SSO_PUBLIC_BASE_URL'] }
+                    : {}),
+                requestTtlSeconds: readPositiveInt(
+                    'SSO_REQUEST_TTL_SECONDS',
+                    600
+                )
+            },
+            // ortha:if sso-oidc
+            ssoProviders: {
+                // Present only when both are set: an issuer with no client id
+                // becomes a sign-in button that can only fail, and every SSO
+                // failure looks the same, so whoever clicks it learns nothing.
+                ...(process.env['SSO_OIDC_ISSUER'] &&
+                process.env['SSO_OIDC_CLIENT_ID']
+                    ? {
+                          oidc: {
+                              name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+                              issuer: process.env['SSO_OIDC_ISSUER'],
+                              clientId: process.env['SSO_OIDC_CLIENT_ID'],
+                              ...(process.env['SSO_OIDC_CLIENT_SECRET']
+                                  ? {
+                                        clientSecret:
+                                            process.env[
+                                                'SSO_OIDC_CLIENT_SECRET'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_LABEL']
+                                  ? { label: process.env['SSO_OIDC_LABEL'] }
+                                  : {}),
+                              // The only gate on a first sign-in claiming an
+                              // existing account. A provider that omits the
+                              // claim — Entra ID, notably — links nobody until
+                              // an operator asserts that this directory owns
+                              // the addresses it reports.
+                              emailVerifiedWhenAbsent:
+                                  process.env[
+                                      'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
+                                  ] === 'true'
+                          }
+                      }
+                    : {})
+            },
+            // ortha:end
             // With an email set, an admin is provisioned on boot — idempotent
             // and non-destructive. This is how you get your first login.
             rootAdmin: {
@@ -250,11 +357,82 @@ const config: OrthaConfig = {
             orphanedLocales: 'fail'
         },
         media: {
+            // ortha:if media-local
             storage: {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: {
+                // On Vercel the SDK reads BLOB_READ_WRITE_TOKEN itself, so this
+                // is only for running the app elsewhere.
+                ...(process.env['BLOB_READ_WRITE_TOKEN']
+                    ? { token: process.env['BLOB_READ_WRITE_TOKEN'] }
+                    : {})
+            },
+            // ortha:end
+            // ortha:if media-gcs
+            storage: {
+                bucket: requireEnv('MEDIA_GCS_BUCKET'),
+                // Everything else is optional: with no key file and no inline
+                // credentials the client uses Application Default Credentials,
+                // which is what a GKE or Cloud Run deployment wants.
+                ...(process.env['MEDIA_GCS_PROJECT_ID']
+                    ? { projectId: process.env['MEDIA_GCS_PROJECT_ID'] }
+                    : {}),
+                ...(process.env['MEDIA_GCS_KEY_FILE']
+                    ? { keyFilename: process.env['MEDIA_GCS_KEY_FILE'] }
+                    : {}),
+                signWithIam: process.env['MEDIA_GCS_SIGN_WITH_IAM'] === 'true'
+            },
+            // ortha:end
+            // ortha:if media-azure
+            storage: {
+                container: requireEnv('MEDIA_AZURE_CONTAINER'),
+                connectionString: requireEnv('MEDIA_AZURE_CONNECTION_STRING')
+            },
+            // ortha:end
+            // ortha:if media-s3
+            storage: {
+                bucket: requireEnv('MEDIA_S3_BUCKET'),
+                // `auto` is what R2 expects; AWS needs its real region.
+                region: process.env['MEDIA_S3_REGION'] ?? 'auto',
+                // Omit for AWS S3 itself; set it for R2, MinIO, Spaces, B2…
+                ...(process.env['MEDIA_S3_ENDPOINT']
+                    ? { endpoint: process.env['MEDIA_S3_ENDPOINT'] }
+                    : {}),
+                forcePathStyle:
+                    process.env['MEDIA_S3_FORCE_PATH_STYLE'] === 'true',
+                // Absent means "use the SDK's own provider chain" — an instance
+                // role, IRSA, a shared config file. Passing blanks instead
+                // would shadow all of that with credentials that cannot sign.
+                ...(process.env['MEDIA_S3_ACCESS_KEY_ID'] &&
+                process.env['MEDIA_S3_SECRET_ACCESS_KEY']
+                    ? {
+                          credentials: {
+                              accessKeyId: process.env['MEDIA_S3_ACCESS_KEY_ID'],
+                              secretAccessKey:
+                                  process.env['MEDIA_S3_SECRET_ACCESS_KEY']
+                          }
+                      }
+                    : {})
+            },
+            // ortha:end
+            // Redirect an already-authorized download straight to the
+            // storage backend instead of streaming it through the app. Off
+            // unless asked for, and only possible on a backend that can sign a
+            // URL — the plugin refuses the combination at boot rather than
+            // proxying while the operator believes otherwise.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',
                 50 * 1024 * 1024

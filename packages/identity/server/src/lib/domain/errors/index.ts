@@ -7,3 +7,5 @@ export { InvalidPermissionError } from './invalid-permission.error';
 export { InvalidInviteTokenError } from './invalid-invite-token.error';
 export { InvalidResetTokenError } from './invalid-reset-token.error';
 export { UserAccountNotFoundError } from './user-account-not-found.error';
+export { SsoLoginFailedError } from './sso-login-failed.error';
+export { SsoLogoutFailedError } from './sso-logout-failed.error';

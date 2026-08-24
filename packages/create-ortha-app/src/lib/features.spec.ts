@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
     ALL_FEATURES,
     COPILOT_PROVIDERS,
+    SSO_PROVIDERS,
     CORE_DEV_PACKAGES,
     CORE_PACKAGES,
     MEDIA_PROVIDERS,
@@ -164,31 +165,38 @@ describe('resolvePackages', () => {
     });
 
     /**
-     * Everything a default app does **not** get: the remaining opt-ins, plus
-     * the one published package that is not app material at all. Anything else
-     * a published package could be, a default app already has — so this list is
-     * also the answer to "what does choosing nothing cost me?".
+     * The remaining opt-ins, in full. Anything else a published package could
+     * be, a default app already has — so this list is also the answer to "what
+     * does choosing nothing cost me?".
      */
     it('leaves exactly the choosable packages out of a default app', () => {
         const published = new Set(publishedPackages());
         const installed = new Set(resolvePackages(selectionOf('media-local')));
         const missing = [...published].filter(
-            (name) => !installed.has(name) && name !== '@orthacms/cli'
+            (name) =>
+                !installed.has(name) &&
+                name !== '@orthacms/cli' &&
+                // Published, and deliberately never installed into an app —
+                // tools for writing a storage provider, not for running one.
+                !TRANSITIVE_PACKAGES.includes(name)
         );
 
         expect(missing.sort()).toEqual([
             '@orthacms/content-graphql',
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
+            '@orthacms/identity-provider-github',
+            '@orthacms/identity-provider-oidc',
+            '@orthacms/identity-provider-saml',
             '@orthacms/mcp-server',
+            '@orthacms/media-provider-azure',
+            '@orthacms/media-provider-gcs',
             '@orthacms/media-provider-s3',
-            // Not an opt-in: test tooling for whoever writes a storage
-            // provider, which an app installs deliberately if it ever does.
-            '@orthacms/media-provider-testkit'
+            '@orthacms/media-provider-vercel-blob'
         ]);
     });
 
-    it('does not install the unreleased S3 adapter by default', () => {
+    it('does not install the S3 adapter unless it is chosen', () => {
         expect(resolvePackages(selectionOf('media-local'))).not.toContain(
             '@orthacms/media-provider-s3'
         );
@@ -219,12 +227,15 @@ describe('resolveFlags', () => {
 });
 
 describe('availability', () => {
-    it('marks the S3 adapter unavailable while it has no release', () => {
+    it('offers the S3 adapter, now that it is implemented', () => {
+        // It was listed and disabled while `provider-s3` threw from every
+        // method: offering it then would have generated an app that boots and
+        // fails on the first upload.
         const s3 = MEDIA_PROVIDERS.find(
             (provider) => provider.id === 'media-s3'
         );
 
-        expect(s3?.available).toBe(false);
+        expect(s3?.available).toBe(true);
     });
 
     it('leaves exactly one storage adapter selectable by default', () => {
@@ -236,12 +247,15 @@ describe('availability', () => {
     });
 
     /**
-     * Both are off by default deliberately: an endpoint nobody asked for is
-     * still an endpoint, and a copilot provider sends content to a third party.
+     * All three are off by default deliberately: an endpoint nobody asked for
+     * is still an endpoint, a copilot provider sends content to a third party,
+     * and single sign-on needs an issuer, a client and a callback URL
+     * registered on the other side — none of which a scaffolder can invent.
      */
     it('starts every opt-in feature switched off', () => {
         const optIn = [
             ...COPILOT_PROVIDERS,
+            ...SSO_PROVIDERS,
             ...PROTOCOLS.filter((protocol) => !protocol.locked)
         ];
 

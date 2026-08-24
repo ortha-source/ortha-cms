@@ -59,6 +59,17 @@ export interface Feature {
  * the moment a version conflict nests a copy, and never resolves under pnpm at
  * all.
  *
+ * **SSO** contributes two entries on the same reasoning as the copilot's.
+ * `identity-domain` is an extension point — the `SsoProvider` port an operator
+ * implements to reach an identity provider we do not ship an adapter for — and
+ * it already arrives transitively through `identity-server`, so declaring it is
+ * what makes that resolution something the app owns rather than borrows.
+ * `identity-provider-fake` is the scripted identity provider: it needs no
+ * tenant and no network, so it is how a generated app's sign-in page can be
+ * exercised offline, exactly as `copilot-provider-fake` is for the chat. Note
+ * that shipping it installs nothing: an adapter only does something once the
+ * composition root registers it, and the template registers none.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -84,6 +95,8 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/i18n-admin',
     '@orthacms/i18n-server',
     '@orthacms/identity-admin',
+    '@orthacms/identity-domain',
+    '@orthacms/identity-provider-fake',
     '@orthacms/identity-server',
     '@orthacms/insights-admin',
     '@orthacms/media-admin',
@@ -107,23 +120,23 @@ export const CORE_PACKAGES: readonly string[] = [
 export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
 
 /**
- * Packages deliberately left undeclared.
+ * Packages deliberately left undeclared — published, but with no reason for a
+ * generated app to import them.
  *
- * **Empty, and that is the intended state.** Everything a generated app can
- * reach is now in its own manifest, so "it resolves because npm hoisted it"
- * is never the answer to why an import works.
+ * Both entries are tools for **writing a storage provider**, not for running
+ * one. `StorageProviderCheck` refuses to boot a database whose rows were
+ * written by a provider that is no longer configured, so the in-memory backend
+ * is a test and offline-development affordance, never a deployment: offering it
+ * in the scaffolder would be offering an app that loses every upload on
+ * restart. The testkit is the contract suite those providers run against.
  *
- * The bucket is for a package that is genuinely not part of an *app*: no
- * reason for a generated project to depend on it, whatever it is useful for
- * elsewhere. Putting one here is a decision the coverage guard accepts;
- * forgetting it entirely is not.
+ * Everything else a generated app can reach is in its own manifest, so "it
+ * resolves because npm hoisted it" is never the answer to why an import works.
+ * Putting a package here is a decision the coverage guard accepts; forgetting
+ * it entirely is not.
  */
 export const TRANSITIVE_PACKAGES: readonly string[] = [
-    // The storage-provider conformance suite (`describeStorageProvider`). It is
-    // test tooling for whoever *writes* a provider — the shipped adapters run
-    // it against themselves — not something a generated app has any use for. An
-    // app author writing their own provider installs it deliberately, as a
-    // devDependency, which is the right way round for a testkit.
+    '@orthacms/media-provider-memory',
     '@orthacms/media-provider-testkit'
 ];
 
@@ -144,12 +157,36 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
         available: true
     },
     {
+        id: 'media-azure',
+        label: 'Azure Blob Storage',
+        hint: 'Set MEDIA_AZURE_CONTAINER and a connection string. Managed identity needs a hand-built client — see the package docs.',
+        packages: ['@orthacms/media-provider-azure'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'media-gcs',
+        label: 'Google Cloud Storage',
+        hint: 'Native GCS auth. If an HMAC key is acceptable, the S3-compatible adapter reaches GCS too — one package fewer.',
+        packages: ['@orthacms/media-provider-gcs'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'media-vercel-blob',
+        label: 'Vercel Blob',
+        hint: 'Smallest setup on Vercel — but every blob gets a permanent public URL, so not for confidential media.',
+        packages: ['@orthacms/media-provider-vercel-blob'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
         id: 'media-s3',
         label: 'S3-compatible',
-        hint: 'Not published yet — the adapter exists but ships no release.',
+        hint: 'Cloudflare R2, AWS S3, MinIO, Spaces, B2, Wasabi — set MEDIA_S3_BUCKET and, for anything but AWS, MEDIA_S3_ENDPOINT.',
         packages: ['@orthacms/media-provider-s3'],
         enabledByDefault: false,
-        available: false
+        available: true
     }
 ];
 
@@ -182,6 +219,60 @@ export const COPILOT_PROVIDERS: readonly Feature[] = [
         label: 'OpenAI-compatible endpoint',
         hint: 'Ollama, vLLM, LiteLLM, Azure or OpenAI. Needs COPILOT_OPENAI_BASE_URL.',
         packages: ['@orthacms/copilot-provider-openai'],
+        enabledByDefault: false,
+        available: true
+    }
+];
+
+/**
+ * How people sign in to the admin.
+ *
+ * A single opt-in, and off by default, because SSO is not something a CMS can
+ * usefully guess at: it needs an issuer, a client and a callback URL registered
+ * on the other side, none of which a scaffolder can invent. A generated app
+ * without it signs in with email and password, which is the invite-only flow
+ * Ortha has always had.
+ *
+ * **One entry covers most of the field.** Okta, Auth0, Keycloak, Google, Entra
+ * ID, Authentik, Zitadel, JumpCloud, Ping and GitLab all speak OpenID Connect,
+ * and the named vendors are preset factories inside that one package rather
+ * than packages of their own — the SSO equivalent of the copilot's
+ * OpenAI-compatible adapter.
+ *
+ * The other two are here because their **wire** genuinely differs, which is the
+ * only thing that earns a package: GitHub is OAuth2 with no identity token, and
+ * SAML is a POST binding with XML signatures. Each also brings its own
+ * dependency — `jose` for OIDC, `@node-saml/node-saml` for SAML — which is a
+ * second reason not to install them for an app that will never speak them.
+ *
+ * `identity-provider-fake` is not offered: it is installed unconditionally,
+ * like `copilot-provider-fake`, because it needs no tenant and no network and
+ * is how a generated app's sign-in page is exercised offline. Installing it
+ * registers nothing — an adapter only does something once the composition root
+ * names it, and the template names none.
+ */
+export const SSO_PROVIDERS: readonly Feature[] = [
+    {
+        id: 'sso-oidc',
+        label: 'OpenID Connect single sign-on',
+        hint: 'Okta, Auth0, Keycloak, Google, Entra ID and the rest. Needs SSO_OIDC_ISSUER and SSO_OIDC_CLIENT_ID.',
+        packages: ['@orthacms/identity-provider-oidc'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'sso-github',
+        label: 'GitHub sign-in',
+        hint: 'GitHub or GitHub Enterprise Server. Needs SSO_GITHUB_CLIENT_ID and SSO_GITHUB_CLIENT_SECRET.',
+        packages: ['@orthacms/identity-provider-github'],
+        enabledByDefault: false,
+        available: true
+    },
+    {
+        id: 'sso-saml',
+        label: 'SAML 2.0 single sign-on',
+        hint: 'For an identity provider that speaks SAML rather than OIDC. Needs the IdP certificate and entry point.',
+        packages: ['@orthacms/identity-provider-saml'],
         enabledByDefault: false,
         available: true
     }
@@ -233,6 +324,7 @@ export const PROTOCOLS: readonly Feature[] = [
 export const ALL_FEATURES: readonly Feature[] = [
     ...MEDIA_PROVIDERS,
     ...COPILOT_PROVIDERS,
+    ...SSO_PROVIDERS,
     ...PROTOCOLS
 ];
 

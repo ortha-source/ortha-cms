@@ -4,7 +4,8 @@ import type {
     InviteDetails,
     LoginCredentials,
     PasswordResetDetails,
-    ResetPasswordInput
+    ResetPasswordInput,
+    SsoProviderSummary
 } from '../../../types/auth';
 
 /**
@@ -21,6 +22,13 @@ export type AuthGateway = {
      * failure throws an `ApiError`.
      */
     getCurrentUser(): Promise<CurrentUser | null>;
+    /**
+     * The single sign-on providers this deployment offers, via
+     * `GET /api/auth/sso`. Public — a visitor with no session is exactly who
+     * needs it — and `[]` when the deployment registers none, which is the
+     * default install rather than an error.
+     */
+    listSsoProviders(): Promise<SsoProviderSummary[]>;
     /**
      * Posts credentials to `POST /api/auth/login`. On success the server sets the
      * `httpOnly` session cookie and this resolves with no value — the cookie is

@@ -14,6 +14,7 @@ export type {
     DirectUrlOptions
 } from './lib/domain/storage-provider';
 export { STORAGE_PROVIDER } from './lib/domain/storage-provider';
+export type { DirectServeMode } from './lib/http/direct-serve';
 // Exported for the provider packages: `get` promises to reject when the key is
 // gone, and the *kind* of rejection is part of that promise rather than an
 // implementation detail of a filesystem or a bucket.

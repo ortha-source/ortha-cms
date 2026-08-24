@@ -9,6 +9,12 @@
     "include": ["jest.config.cts", "src/**/*.ts"],
     "references": [
         {
+            "path": "../../packages/identity/provider-fake"
+        },
+        {
+            "path": "../../packages/identity/domain"
+        },
+        {
             "path": "../server"
         },
         {
@@ -64,6 +70,9 @@
         },
         {
             "path": "../../packages/transfer/domain"
+        },
+        {
+            "path": "../../packages/media/provider-memory"
         }
     ]
 }

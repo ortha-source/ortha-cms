@@ -7,6 +7,12 @@ export type { AcceptInviteFormValues } from './lib/presentation/components/Accep
 export { ResetPasswordForm } from './lib/presentation/components/ResetPasswordForm';
 export type { ResetPasswordFormValues } from './lib/presentation/components/ResetPasswordForm';
 export { AuthLayout } from './lib/presentation/components/AuthLayout';
+// The single-sign-on block from the sign-in card, and the hook behind it.
+// Exported so another surface that offers a sign-in (a re-auth prompt, a
+// future account-linking screen) renders the same buttons rather than
+// rebuilding the URL convention.
+export { SsoProviders } from './lib/presentation/components/SsoProviders';
+export { useSsoProviders } from './lib/application/useSsoProviders';
 export {
     PASSWORD_MIN_LENGTH,
     PASSWORD_MAX_BYTES,
@@ -28,5 +34,6 @@ export type {
     InviteDetails,
     AcceptInviteInput,
     PasswordResetDetails,
-    ResetPasswordInput
+    ResetPasswordInput,
+    SsoProviderSummary
 } from './types/auth';

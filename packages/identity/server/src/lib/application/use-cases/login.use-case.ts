@@ -14,6 +14,8 @@ import {
 import { InvalidCredentialsError } from '../../auth/errors';
 import { HashingService } from '../../auth/services/hashing.service';
 import { UserLookupQuery } from '../../infrastructure/queries/user-lookup.query';
+import type { IdentityPluginConfig } from '../../types';
+import { InjectIdentityConfig } from '../../identity.tokens';
 
 /**
  * Email/password sign-in. Verifies credentials, then opens a server-side
@@ -38,7 +40,8 @@ export class LoginUseCase {
         private readonly users: UserLookupQuery,
         private readonly hashing: HashingService,
         @Inject(SESSION_REPOSITORY)
-        private readonly sessions: SessionRepository
+        private readonly sessions: SessionRepository,
+        @InjectIdentityConfig() private readonly config: IdentityPluginConfig
     ) {}
 
     /**
@@ -53,6 +56,19 @@ export class LoginUseCase {
         password: string,
         context: SessionContext = {}
     ): Promise<CreatedSession> {
+        if (this.passwordLoginRefused(email)) {
+            // One bcrypt comparison anyway, for the same reason the ordinary
+            // path always runs one: without it this refusal would return
+            // instantly while the root administrator's took ~250ms, and an
+            // anonymous caller could find the break-glass address by timing a
+            // handful of guesses.
+            await this.hashing.verifyPassword(
+                await this.getDummyHash(),
+                password
+            );
+            throw new InvalidCredentialsError();
+        }
+
         const user = await this.users.credentialsByEmail(email);
 
         // Always run a comparison, even with no user/hash, to hold timing flat.
@@ -85,6 +101,24 @@ export class LoginUseCase {
             );
             return session;
         });
+    }
+
+    /**
+     * Whether this deployment has turned passwords off for this address.
+     *
+     * `allowPasswordLogin: false` is for a deployment where the identity
+     * provider is the only way in. **The root administrator is always exempt**,
+     * because the alternative has no recovery: an operator who mis-scopes their
+     * provider and has no password left is locked out of their own CMS, and the
+     * only way back involves a database client. That exemption is one address,
+     * named in configuration, not a general escape hatch.
+     */
+    private passwordLoginRefused(email: string): boolean {
+        if (this.config.sso?.allowPasswordLogin !== false) {
+            return false;
+        }
+        const rootAdmin = this.config.rootAdmin?.email?.trim().toLowerCase();
+        return !rootAdmin || email.trim().toLowerCase() !== rootAdmin;
     }
 
     private getDummyHash(): Promise<string> {

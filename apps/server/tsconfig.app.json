@@ -28,6 +28,9 @@
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/identity/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/database/tsconfig.lib.json"
         },
         {
@@ -53,6 +56,15 @@
         },
         {
             "path": "../../packages/i18n/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/provider-saml/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/provider-github/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/provider-oidc/tsconfig.lib.json"
         },
         {
             "path": "../../packages/identity/server/tsconfig.lib.json"

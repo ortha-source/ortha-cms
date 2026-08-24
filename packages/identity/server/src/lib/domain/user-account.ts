@@ -83,6 +83,34 @@ export class UserAccount {
      * {@link InvalidUserStateError}. Raises `user.activated`.
      */
     activate(passwordHash: PasswordHash): void {
+        this.transitionToActive();
+        this._passwordHash = passwordHash;
+        this._credentialChanged = true;
+        this.raise(IDENTITY_EVENT_KINDS.USER_ACTIVATED);
+    }
+
+    /**
+     * Accepts an invite **without** setting a credential — the account is
+     * activated by an identity provider vouching for its address instead.
+     *
+     * The absent password hash is the point rather than an omission: the
+     * account has no credential of its own, so the password path refuses it
+     * exactly as it refuses an unaccepted invite, and the only way in is the
+     * provider that vouched for it. Should the person ever need a password, the
+     * ordinary reset flow is what gives them one.
+     *
+     * Rejects a non-pending account with {@link InvalidUserStateError}. Raises
+     * `user.activated`, the same fact the credentialled path raises: what
+     * changed about the *account* is identical, and the difference in how it
+     * happened rides on the sign-in event beside it.
+     */
+    activateWithoutCredential(): void {
+        this.transitionToActive();
+        this.raise(IDENTITY_EVENT_KINDS.USER_ACTIVATED);
+    }
+
+    /** The half both activation paths share: `pending` → `active`. */
+    private transitionToActive(): void {
         if (!this._status.isPending) {
             throw new InvalidUserStateError(
                 this._id.value,
@@ -91,10 +119,7 @@ export class UserAccount {
             );
         }
         this._status = UserAccountStatus.active();
-        this._passwordHash = passwordHash;
         this._statusChanged = true;
-        this._credentialChanged = true;
-        this.raise(IDENTITY_EVENT_KINDS.USER_ACTIVATED);
     }
 
     /**

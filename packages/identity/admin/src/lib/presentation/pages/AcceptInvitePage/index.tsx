@@ -171,6 +171,7 @@ export function AcceptInvitePage() {
     return (
         <AuthLayout surface="invite-form">
             <AcceptInviteForm
+                token={token}
                 invite={invite.data}
                 onSubmit={handleSubmit}
                 isPending={isPending}

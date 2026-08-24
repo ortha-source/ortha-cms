@@ -2,6 +2,7 @@ import {
     BadRequestException,
     Controller,
     Get,
+    Inject,
     NotFoundException,
     Param,
     ParseUUIDPipe,
@@ -37,7 +38,16 @@ import {
 import { CurrentWorkspace } from '@orthacms/workspaces-server';
 import { UploadAssetUseCase } from '../../application/use-cases/upload-asset.use-case';
 import { AssetViewQuery } from '../../infrastructure/queries/asset-view.query';
+import {
+    STORAGE_PROVIDER,
+    type StorageProvider
+} from '../../domain/storage-provider';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
+import {
+    DIRECT_SERVE,
+    directUrlFor,
+    type DirectServeConfig
+} from '../direct-serve';
 import type { AssetView } from '../../types/asset-view';
 import { MulterUploadFilter } from '../multer-upload.filter';
 import { downloadHeadersFor } from '../download-headers';
@@ -89,7 +99,9 @@ export class PublicMediaController {
     constructor(
         private readonly upload: UploadAssetUseCase,
         private readonly views: AssetViewQuery,
-        private readonly download: DownloadAssetQuery
+        private readonly download: DownloadAssetQuery,
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider,
+        @Inject(DIRECT_SERVE) private readonly directServe: DirectServeConfig
     ) {}
 
     /**
@@ -170,7 +182,7 @@ export class PublicMediaController {
         @CurrentWorkspace() workspaceId: string,
         @Res({ passthrough: true }) response: Response,
         @Query('variant') variant?: string
-    ): Promise<StreamableFile> {
+    ): Promise<StreamableFile | undefined> {
         const location = await this.download.locate(id, variant);
         // An asset in another of the token's workspaces is a 404 too, not just
         // one outside the bucket: the request named a workspace, and reading
@@ -179,6 +191,21 @@ export class PublicMediaController {
         if (!location || location.workspaceId !== workspaceId) {
             throw new NotFoundException();
         }
+        // Same direct-serve decision as the session route, taken after the same
+        // authorization: the disposition is pinned onto the signed URL because
+        // the redirect discards this response's hardening headers, and
+        // `no-store` because a cached redirect outlives the URL it points at.
+        const signed = await directUrlFor(
+            this.provider,
+            this.directServe,
+            location
+        );
+        if (signed) {
+            response.set({ 'Cache-Control': 'private, no-store' });
+            response.redirect(302, signed);
+            return undefined;
+        }
+
         // Same mapping as the session route: a missing blob is the same 404 as
         // a missing asset, so ids stay unprobeable either way.
         const stream = await this.download

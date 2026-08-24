@@ -25,6 +25,12 @@ export class AcceptInvitePage extends BasePage {
      * this is anchored on the banner's constant title rather than the bare role.
      */
     readonly errorBanner: Locator;
+    /**
+     * The "or accept with" divider above the single-sign-on links. Present only
+     * when the deployment registers at least one provider, so it is also how a
+     * suite asserts the block is absent.
+     */
+    readonly ssoSeparator: Locator;
 
     constructor(page: Page) {
         super(page);
@@ -39,6 +45,18 @@ export class AcceptInvitePage extends BasePage {
         this.errorBanner = page
             .getByRole('alert')
             .filter({ hasText: 'Couldn’t finish setting up' });
+        this.ssoSeparator = page.getByText('or accept with');
+    }
+
+    /**
+     * One provider's acceptance control, by the label the operator configured.
+     *
+     * A **link**, like the sign-in page's: accepting with a work account is a
+     * full-page navigation, and asserting the role is what keeps it from
+     * regressing into a scripted click.
+     */
+    ssoLink(label: string): Locator {
+        return this.page.getByRole('link', { name: `Continue with ${label}` });
     }
 
     /** Open the accept page with `token` in the query string. */

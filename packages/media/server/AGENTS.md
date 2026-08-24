@@ -66,7 +66,13 @@ layer-boundary lint isn't wired yet).
   fresh database must still boot.
 - **Writing a provider** is one factory function plus one
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
-  is where the port's invariants live as a runnable suite.
+  is where the port's invariants live as a runnable suite. Shipped
+  implementations: `-local` (the default install), `-memory` (the e2e harness,
+  and offline development), `-s3` (S3-compatible: R2, AWS, MinIO, Spaces, B2,
+  Wasabi…) `-azure` (Blob Storage, the one store with no S3 compatibility) and `-gcs`
+  (native Google auth; the S3 adapter also reaches GCS over its XML API) and
+  `-vercel-blob` (smallest setup on Vercel, but every blob is world-readable —
+  read its AGENTS.md before choosing it).
 
 ## Use cases + unit-of-work + outbox
 
@@ -117,6 +123,34 @@ SVG is excluded from the inline set on purpose: `MediaKind` files it as an image
 but it is a scriptable document when navigated to. `<img src>` ignores
 `Content-Disposition`, so the library's tiles are unaffected. Without this, an
 uploaded `.html` was stored XSS on the app's own origin.
+
+### Direct serve: a redirect instead of a stream
+
+`config.directServe` decides how the bytes travel. `off` (the default) streams
+every download through the app. `signed-url` answers **302** to a short-lived
+URL the browser fetches from the backend itself — which is the entire payoff of
+an object store with no egress bill, and is otherwise thrown away by proxying
+every thumbnail through Nest.
+
+Three rules, all in `http/direct-serve.ts`, and none of them optional:
+
+- **It runs after authorization, never instead of it.** Both raw routes resolve
+  the asset and check membership (or the token's workspace) first; the redirect
+  only decides how already-permitted bytes travel. An `e2e` case pins that a
+  non-member still gets the same 404.
+- **The disposition is decided here and pinned onto the URL**, by the same
+  `isInlineSafe` the proxied path uses. A redirect discards this response's
+  `Content-Disposition`, `X-Content-Type-Options` and CSP, and
+  `media_asset.mime_type` is the uploader's own claim — an uploaded `.html`
+  served inline from the bucket is stored XSS **on that origin**. A provider
+  that cannot pin the response type and disposition declares
+  `capabilities.directUrl: false`; that is what the capability means.
+- **`MediaServerPlugin` refuses `signed-url` on a provider that cannot sign.**
+  Falling back silently would leave an operator believing an optimization is on
+  that is not — and paying the egress that was the reason to switch backend.
+
+The redirect carries `Cache-Control: private, no-store`: the URL expires, and a
+shared cache holding the 302 would serve a dead URL to the next viewer.
 
 ### A download failure is a 404, except when it is a corrupted row
 
@@ -477,7 +511,8 @@ delete reclaims them (`Asset.storageKeys`).
 
 ## Not yet (follow-ups)
 
-**Video duration probing**, the real S3 adapter, and a `media.asset.deleted`
+**Video duration probing**, wiring `directUrl` into the download route (the S3
+adapter implements it; nothing calls it yet), and a `media.asset.deleted`
 outbox subscriber for blob GC. (The e2e suites listed here before now exist:
 `apps/server-e2e/src/server/media/media-assets.spec.ts` covers derivatives +
 variant serving, and the admin side has `media-library.spec.ts` +

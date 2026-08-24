@@ -13,6 +13,9 @@ import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
+import { createOidcProvider } from '@orthacms/identity-provider-oidc';
+import { createGithubProvider } from '@orthacms/identity-provider-github';
+import { createSamlProvider } from '@orthacms/identity-provider-saml';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
@@ -20,6 +23,7 @@ import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../ortha.config';
+import type { SsoRegistration } from '@orthacms/identity-domain';
 import { contentTypes } from './content';
 
 /**
@@ -56,6 +60,58 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
         // the only thing there is.
         { name: 'fake', provider: createFakeProvider() }
     ];
+}
+
+/**
+ * The identity providers this deployment can actually reach.
+ *
+ * **Only what is configured is registered.** `ortha.config.ts` omits a provider
+ * whose issuer or client id is missing, and an unconfigured provider is not
+ * registered here either — it would appear on the sign-in page as a button that
+ * can only fail, and every SSO failure deliberately looks the same, so the
+ * person clicking it would learn nothing.
+ *
+ * There is no `fake` counterpart to the copilot's offline adapter in this list.
+ * `@orthacms/identity-provider-fake` ships and is what `server-e2e` registers,
+ * but a scripted identity provider in a running deployment signs people in
+ * without anyone authenticating, so the host does not register one.
+ *
+ * **Exported for `plugins.spec.ts`.** The plugin object carries its
+ * `identityConfig`, not its providers, so a config threaded into the wrong
+ * factory here would otherwise pass every test in the repo.
+ *
+ * Running two directories at once is another entry:
+ *
+ *     { name: 'contractors', provider: createOidcProvider({ … }) }
+ *
+ * The name is what `/api/auth/sso/<name>/start` and every `sso_identities` row
+ * refer to the provider by, so renaming a registration orphans its links.
+ * `ssoCallbackUrl(config.plugins.identity, name)` from
+ * `@orthacms/identity-server` builds the exact callback URL to register with
+ * the provider — exact because most providers match that string byte for byte,
+ * and a trailing slash makes it a different URL to them.
+ */
+export function ssoProviders(config: OrthaConfig): SsoRegistration[] {
+    const { oidc, github, saml } = config.plugins.identity.ssoProviders;
+    const registrations: SsoRegistration[] = [];
+
+    if (oidc) {
+        const { name, ...settings } = oidc;
+        registrations.push({ name, provider: createOidcProvider(settings) });
+    }
+    if (github) {
+        const { name, ...settings } = github;
+        registrations.push({ name, provider: createGithubProvider(settings) });
+    }
+    if (saml) {
+        const { name, ...settings } = saml;
+        registrations.push({ name, provider: createSamlProvider(settings) });
+    }
+
+    // Order is presentation: it is the order the sign-in page shows its
+    // buttons in, and nothing else. Unlike the copilot's model providers there
+    // is no "first one is the default" — a person picks a button.
+    return registrations;
 }
 
 /**
@@ -107,7 +163,32 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
-        IdentityPlugin(config.plugins.identity),
+        // Identity, plus the identity providers this deployment offers.
+        //
+        // The second argument is where **constructed** adapters go, the same
+        // way the copilot's model backends do: `ortha.config.ts` holds the
+        // typed view of the environment, and an adapter instance is not an
+        // environment value. A default install configures none, so
+        // `GET /api/auth/sso` answers `[]` and the sign-in page shows only the
+        // password form.
+        //
+        // To let the directory decide roles, add a `resolveRole` handler here —
+        // plain code, returning a role key or `null` to leave the role alone:
+        //
+        //   resolveRole: ({ profile, isNewAccount }) =>
+        //       isNewAccount && profile.groups?.includes('cms-editors')
+        //           ? 'contributor'
+        //           : null,
+        //
+        // Without one the CMS never infers authority from a claim, which is the
+        // default: a mapping that ran on every sign-in would silently undo an
+        // administrator's edit, with nothing in the product to say why it did
+        // not stick. An account already holding `admin` is never demoted by a
+        // handler either — that grant is deliberate, and a directory group is
+        // not.
+        IdentityPlugin(config.plugins.identity, {
+            sso: { providers: ssoProviders(config) }
+        }),
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),

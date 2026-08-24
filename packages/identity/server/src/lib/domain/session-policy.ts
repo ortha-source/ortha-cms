@@ -18,9 +18,20 @@ export class SessionPolicy {
 
     /**
      * The absolute expiry for a session opened at `now`: `now + ttlSeconds`.
+     *
+     * `ttlSecondsOverride` shortens (or lengthens) it for one session. Its one
+     * use today is the SSO lifetime: a directory can disable someone at any
+     * moment and the CMS does not hear about it unless the provider supports
+     * back-channel logout, so a deployment can choose to have those sessions
+     * expire sooner and re-check with the provider. A non-positive override is
+     * ignored rather than issuing a session that is already expired.
      */
-    expiresAt(now: Date): Date {
-        return new Date(now.getTime() + this.ttlSeconds * 1000);
+    expiresAt(now: Date, ttlSecondsOverride?: number): Date {
+        const ttl =
+            ttlSecondsOverride && ttlSecondsOverride > 0
+                ? ttlSecondsOverride
+                : this.ttlSeconds;
+        return new Date(now.getTime() + ttl * 1000);
     }
 
     /**

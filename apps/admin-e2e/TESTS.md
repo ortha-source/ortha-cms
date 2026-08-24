@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_742 test cases across 74 spec files._
+_756 test cases across 75 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -414,6 +414,52 @@ _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 | /identity redirects to the sign-in page |
 | an unknown path redirects to home |
 | serves the home page inside the shell at / |
+
+<!-- source: apps/admin-e2e/src/auth/sso.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/sso.spec.ts</sub>_
+
+## Single sign-on on the sign-in page
+
+### with providers registered
+
+| Test case |
+| --- |
+| renders one link per provider, in registration order |
+| points each link at that provider's start route |
+| keeps the password form as the primary path |
+| is reachable and activatable by keyboard |
+
+### carrying the destination
+
+| Test case |
+| --- |
+| appends the page the gate was aiming at |
+
+### with no providers registered
+
+| Test case |
+| --- |
+| renders no block at all |
+
+### when the provider list cannot be fetched
+
+| Test case |
+| --- |
+| leaves the password form working and says nothing about it |
+
+### returning from a failed provider sign-in
+
+| Test case |
+| --- |
+| explains it without naming which step failed |
+
+### accepting an invitation with a work account
+
+| Test case |
+| --- |
+| offers each provider, carrying the invite token |
+| keeps the password fields as the primary path |
+| renders no block when no provider is registered |
 
 <!-- source: apps/admin-e2e/src/content/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_
@@ -1231,6 +1277,9 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | an empty workspace shows empty states, not errors |
 | shows a skeleton per widget while its request is open |
 | changing the range refetches the range-dependent widgets |
+| the selected range is in the URL, so the view can be shared |
+| opens on the range a shared link names |
+| a range the page does not offer falls back to the default |
 | hides content widgets from a user without content:read |
 | shows the empty page when no widget is visible |
 | offers a table view for the chart whose values are hover-only |

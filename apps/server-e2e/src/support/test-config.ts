@@ -3,7 +3,8 @@ import type { ContentGraphqlLimits } from '@orthacms/content-graphql';
 import type {
     IdentityRateLimitConfig,
     IdentityRootAdminConfig,
-    IdentitySessionConfig
+    IdentitySessionConfig,
+    IdentitySsoConfig
 } from '@orthacms/identity-server';
 import type { RunLimits } from '@orthacms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
@@ -66,6 +67,15 @@ export interface TestConfigOverrides {
      */
     session?: Partial<IdentitySessionConfig>;
     /**
+     * Override the SSO settings — just-in-time provisioning and whether
+     * passwords are still accepted.
+     *
+     * Both are off by default, which is the shipped shape, so a suite that
+     * wants either says so explicitly and every other suite keeps the invite-
+     * only behaviour it was written against.
+     */
+    sso?: Partial<IdentitySsoConfig>;
+    /**
      * Configure the root-admin bootstrap. Omitted by default, so the seeder
      * is a no-op and a freshly booted app has no users (matching production
      * with no `ORTHA_ROOT_ADMIN_EMAIL` set).
@@ -120,6 +130,16 @@ export interface TestConfigOverrides {
      */
     localMediaRoot?: string;
     /**
+     * Serve downloads as a redirect to a signed URL instead of streaming them.
+     *
+     * Turning it on also swaps the harness's provider for one that can sign —
+     * the plugin refuses to boot `signed-url` against a backend that cannot,
+     * which is itself asserted in the media-server unit suite.
+     */
+    directServe?: 'off' | 'signed-url';
+    /** Lifetime of those signed URLs, so a suite can assert it is passed on. */
+    directServeTtlSeconds?: number;
+    /**
      * Replace the configured content locales. Defaults to the host's
      * en/de/fr. A suite pins a **single** locale to prove the coverage rule
      * that `notLocalized` is then forced to `0` — with nowhere to translate
@@ -169,6 +189,14 @@ export function buildTestConfig(
         docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
+                // No identity provider is configured for the e2e run: the
+                // harness registers the scripted one directly in
+                // `buildTestPlugins`, which is the whole point — the handshake
+                // is exercised with no tenant and no network.
+                ssoProviders: {},
+                // Deliberately no provisioning and passwords on, matching the
+                // default install. A suite that needs either passes `sso`.
+                sso: { ...overrides.sso },
                 allowedOrigins: overrides.allowedOrigins ?? [
                     TEST_ALLOWED_ORIGIN
                 ],
@@ -231,7 +259,15 @@ export function buildTestConfig(
                 storage: {
                     rootDir: overrides.localMediaRoot ?? './.storage/test-media'
                 },
-                maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800
+                maxUploadBytes: overrides.maxUploadBytes ?? 52_428_800,
+                ...(overrides.directServe
+                    ? { directServe: overrides.directServe }
+                    : {}),
+                ...(overrides.directServeTtlSeconds
+                    ? {
+                          directServeTtlSeconds: overrides.directServeTtlSeconds
+                      }
+                    : {})
             },
             // The GraphQL endpoint's cost budget. Left at the shipped defaults
             // so the limit suite asserts the real numbers rather than

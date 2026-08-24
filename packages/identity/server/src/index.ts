@@ -3,10 +3,16 @@ export type {
     IdentitySessionConfig,
     IdentityTokenConfig,
     IdentityRateLimitConfig,
-    IdentityRootAdminConfig
+    IdentityRootAdminConfig,
+    IdentitySsoConfig,
+    IdentitySsoProvisioningConfig
 } from './lib/types';
 export { IdentityPlugin } from './lib/utils/identity-plugin';
-export type { IdentityServerPlugin } from './lib/utils/identity-plugin';
+export type {
+    IdentityServerPlugin,
+    IdentityPluginOptions,
+    IdentitySsoOptions
+} from './lib/utils/identity-plugin';
 export { IdentityModule } from './lib/identity.module';
 // The identity config token, exported so the users plugin's invite issuer can
 // read the host-configured invite TTL instead of hard-coding one.
@@ -19,6 +25,11 @@ export {
     passwordByteLength
 } from './lib/auth/auth.constants';
 export { AuthGuard } from './lib/auth/guards/auth.guard';
+// The SSO attempt cookie's name, exported for the same reason `SESSION_COOKIE`
+// is: the e2e harness drives the handshake with a real browser cookie jar, and
+// hard-coding the string in a suite is how it drifts from the one the server
+// sets.
+export { SSO_REQUEST_COOKIE } from './lib/auth/services/cookie.service';
 export { OriginGuard } from './lib/auth/guards/origin.guard';
 export { Public } from './lib/auth/decorators/public.decorator';
 export { CurrentUser } from './lib/auth/decorators/current-user.decorator';
@@ -101,3 +112,44 @@ export type {
 export { WORKSPACE_DIRECTORY } from './lib/api-tokens/application/ports/workspace-directory.port';
 export type { WorkspaceDirectory } from './lib/api-tokens/application/ports/workspace-directory.port';
 export { UnknownWorkspaceError } from './lib/api-tokens/domain/unknown-workspace.error';
+// --- SSO ---
+//
+// The port itself lives in `@orthacms/identity-domain`, so an adapter can
+// depend on it without depending on this package. What is re-exported here is
+// what a *host* or a sibling plugin needs: the registry builder (for a test
+// harness that wires its own module), the generic sign-in failure, and the
+// callback-URL helper an operator needs when registering a client with their
+// identity provider.
+export { buildSsoRegistry } from './lib/infrastructure/sso-registry';
+export { SsoLoginFailedError } from './lib/domain/errors';
+export {
+    ssoCallbackUrl,
+    ssoPublicBaseUrl,
+    DEFAULT_SSO_REQUEST_TTL_SECONDS
+} from './lib/sso/sso-settings';
+export { SSO_IDENTITY_REPOSITORY } from './lib/domain/sso-identity.repository';
+export type {
+    SsoIdentityLink,
+    SsoIdentityRepository,
+    LinkSsoIdentityInput
+} from './lib/domain/sso-identity.repository';
+export { SSO_PROVISIONING_REPOSITORY } from './lib/domain/sso-provisioning.repository';
+export type {
+    SsoProvisioningRepository,
+    ProvisionAccountInput,
+    ProvisionedAccount
+} from './lib/domain/sso-provisioning.repository';
+// The domain-allow-list check, exported because it is the rule an operator's
+// configuration is judged against and a host may want to apply it before
+// writing one.
+export {
+    isProvisionableEmail,
+    assertProvisionableDomains
+} from './lib/domain/sso-provisioning-policy';
+export { SSO_AUTH_REQUEST_REPOSITORY } from './lib/domain/sso-auth-request.repository';
+export type {
+    SsoAuthRequestRepository,
+    PendingSsoAuthRequest,
+    StartedSsoAuthRequest,
+    OpenSsoAuthRequestInput
+} from './lib/domain/sso-auth-request.repository';

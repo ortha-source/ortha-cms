@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1264 test cases across 82 spec files._
+_1319 test cases across 86 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1013,6 +1013,128 @@ _<sub>apps/server-e2e/src/server/auth/session-boundaries.spec.ts</sub>_
 | 401s on a malformed header rather than failing |
 | 401s on an empty session value |
 | 401s when the token arrives under a different cookie name |
+
+<!-- source: apps/server-e2e/src/server/auth/sso-authority.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso-authority.spec.ts</sub>_
+
+## SSO authority
+
+### just-in-time provisioning, off (the default)
+
+| Test case |
+| --- |
+| creates nobody, however verified the address is |
+
+### just-in-time provisioning, on
+
+| Test case |
+| --- |
+| creates an active account on the configured role |
+| gives the account no password, so only the provider can open it |
+| records the provisioning as its own audit fact |
+| lets a role-mapping handler choose the new account's role |
+| falls back to the configured role when the handler names an unknown one |
+
+### just-in-time provisioning, on for a different domain
+
+| Test case |
+| --- |
+| refuses an address outside the allowed domains |
+
+### role mapping on an account that already exists
+
+| Test case |
+| --- |
+| leaves the role alone when no handler is configured |
+| promotes when the handler says so |
+| never demotes an administrator |
+
+### accepting an invitation with a work account
+
+| Test case |
+| --- |
+| activates the invited account and signs them in |
+| sets no password, so the provider stays the only way in |
+| just signs the same person in when they follow the link again |
+| is spent for anybody else — the one-time guarantee |
+| refuses a link addressed to somebody else |
+| refuses an unverified address, however real the invite is |
+| refuses a token that is not an invite at all |
+
+### passwords turned off
+
+| Test case |
+| --- |
+| refuses a password sign-in for an ordinary account |
+| still accepts the root administrator — the break-glass path |
+| leaves the SSO path working |
+
+<!-- source: apps/server-e2e/src/server/auth/sso-logout.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso-logout.spec.ts</sub>_
+
+## SSO back-channel logout
+
+| Test case |
+| --- |
+| ends the sessions one provider session opened |
+| ends every session the account holds when told only the subject |
+| leaves a password session alone — it was never the provider's to end |
+| refuses an unverified notification |
+| refuses a request with no token at all |
+| is idempotent, because providers retry |
+| says nothing about a subject with no account here |
+| 404s for a provider nobody registered |
+| tells intermediaries not to cache the answer |
+
+<!-- source: apps/server-e2e/src/server/auth/sso.spec.ts -->
+_<sub>apps/server-e2e/src/server/auth/sso.spec.ts</sub>_
+
+## SSO sign-in
+
+### the provider list
+
+| Test case |
+| --- |
+| is public, and names what is registered |
+
+### starting an attempt
+
+| Test case |
+| --- |
+| sets a short-lived attempt cookie and redirects to the provider |
+| sends a PKCE challenge and never the verifier |
+| 404s for a provider nobody registered |
+| refuses to carry %s as the post-sign-in destination |
+
+### completing an attempt
+
+| Test case |
+| --- |
+| signs in an existing account whose verified address matches |
+| opens an ordinary session — indistinguishable from a password one |
+| clears the attempt cookie, so a spent handle cannot ride along |
+| links the identity, so the account survives an email change |
+
+### the POST callback
+
+| Test case |
+| --- |
+| completes a sign-in from a form post, as SAML returns one |
+| refuses a form post with a foreign state, like the redirect route |
+
+### refusals
+
+| Test case |
+| --- |
+| refuses a callback with no attempt cookie |
+| refuses a replayed callback — the attempt is one-time |
+| refuses a foreign state before it exchanges anything |
+| refuses a tampered response |
+| refuses an unverified address, however real the account is |
+| creates nobody — a verified stranger is still refused |
+| refuses a disabled account, the same way the password path does |
+| refuses a pending invite — accepting it is what makes it an account |
+| refuses when the provider itself declines |
 
 <!-- source: apps/server-e2e/src/server/content/content-entries-write.spec.ts -->
 _<sub>apps/server-e2e/src/server/content/content-entries-write.spec.ts</sub>_
@@ -2353,6 +2475,25 @@ _<sub>apps/server-e2e/src/server/media/media-assets.spec.ts</sub>_
 | --- |
 | streams to a member of the owning workspace, ignoring the header |
 | 404s for a user who is not a member of the owning workspace |
+
+<!-- source: apps/server-e2e/src/server/media/media-direct-serve.spec.ts -->
+_<sub>apps/server-e2e/src/server/media/media-direct-serve.spec.ts</sub>_
+
+## media direct serve
+
+| Test case |
+| --- |
+| redirects an image to a signed URL instead of streaming it |
+| never caches the redirect, which outlives the URL it points at |
+| signs an uploaded .html as an attachment |
+| authorizes before it redirects — a non-member gets the same 404 |
+| still 404s an asset that does not exist |
+
+## media direct serve, off by default
+
+| Test case |
+| --- |
+| streams the bytes through the app |
 
 <!-- source: apps/server-e2e/src/server/media/media-folders.spec.ts -->
 _<sub>apps/server-e2e/src/server/media/media-folders.spec.ts</sub>_

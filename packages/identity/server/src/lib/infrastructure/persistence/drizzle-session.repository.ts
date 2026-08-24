@@ -7,6 +7,7 @@ import { SessionPolicy } from '../../domain/session-policy';
 import type { SessionContext } from '../../domain/session';
 import type {
     CreatedSession,
+    IssueSessionOptions,
     ResolvedSession,
     SessionRepository,
     UserSessionView
@@ -36,10 +37,14 @@ export class DrizzleSessionRepository implements SessionRepository {
     /** {@inheritDoc SessionRepository.issue} */
     async issue(
         userId: string,
-        context: SessionContext
+        context: SessionContext,
+        options: IssueSessionOptions = {}
     ): Promise<CreatedSession> {
         const token = randomBytes(32).toString('base64url');
-        const expiresAt = this.policy.expiresAt(new Date());
+        const expiresAt = this.policy.expiresAt(
+            new Date(),
+            options.ttlSeconds
+        );
 
         await this.uow
             .current()
@@ -49,10 +54,36 @@ export class DrizzleSessionRepository implements SessionRepository {
                 userId,
                 expiresAt,
                 userAgent: context.userAgent ?? null,
-                ipAddress: context.ipAddress ?? null
+                ipAddress: context.ipAddress ?? null,
+                ssoProvider: options.ssoProvider ?? null,
+                ssoSessionId: options.ssoSessionId ?? null
             });
 
         return { token, expiresAt };
+    }
+
+    /** {@inheritDoc SessionRepository.revokeBySsoSession} */
+    async revokeBySsoSession(
+        provider: string,
+        ssoSessionId: string
+    ): Promise<number> {
+        // `isNull(revokedAt)` keeps the count honest: without it, a provider
+        // that retries its notification — which they do, because the endpoint
+        // is expected to be idempotent — would report the same sessions revoked
+        // again on every attempt.
+        const revoked = await this.uow
+            .current()
+            .update(sessions)
+            .set({ revokedAt: new Date() })
+            .where(
+                and(
+                    eq(sessions.ssoProvider, provider),
+                    eq(sessions.ssoSessionId, ssoSessionId),
+                    isNull(sessions.revokedAt)
+                )
+            )
+            .returning({ id: sessions.id });
+        return revoked.length;
     }
 
     /** {@inheritDoc SessionRepository.resolveActive} */

@@ -16,6 +16,9 @@ import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthrop
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
+import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
+import type { GithubProviderConfig } from '@orthacms/identity-provider-github';
+import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
@@ -61,6 +64,57 @@ export interface OrthaCopilotConfig extends CopilotPluginConfig {
          * and offering it in the picker would be worse than not having it.
          */
         ollama?: OpenAiProviderConfig;
+    };
+}
+
+/**
+ * Identity settings, plus the connection settings for the identity providers
+ * this deployment can reach.
+ *
+ * The provider settings live **here**, not inside `IdentityPluginConfig`: the
+ * plugin is adapter-agnostic by decision (ADR-0013 §1), so it names no
+ * protocol. `plugins.ts` already imports the adapter factories, so importing
+ * their config type costs no new coupling — and adding a second identity
+ * provider is a key here plus a line there, with nothing to change inside the
+ * identity packages.
+ *
+ * A key is present only when the deployment configured that provider, exactly
+ * as the copilot's backends are. A half-configured provider is worse than an
+ * absent one: it appears on the sign-in page as a button that can only fail,
+ * and every SSO failure deliberately looks the same, so the person clicking it
+ * learns nothing.
+ */
+export interface OrthaIdentityConfig extends IdentityPluginConfig {
+    /**
+     * Identity providers, keyed by the name they are registered under. That
+     * name appears in the sign-in URL and in every `sso_identities` row, so
+     * changing it orphans the links that name it.
+     */
+    ssoProviders: {
+        /**
+         * A generic OpenID Connect provider — Okta, Auth0, Keycloak, Google,
+         * Entra ID, Authentik, Zitadel and the rest all speak it. Present when
+         * `SSO_OIDC_ISSUER` and `SSO_OIDC_CLIENT_ID` are both set.
+         *
+         * Registered under the name in `SSO_OIDC_NAME` (default `oidc`). To run
+         * two at once — a staff directory and a contractor one — copy this key
+         * and the matching line in `plugins.ts`; the adapter takes its whole
+         * configuration as an argument, so nothing else changes.
+         */
+        oidc?: OidcProviderConfig & { name: string };
+        /**
+         * GitHub or GitHub Enterprise Server. Its own key because GitHub is
+         * OAuth2, not OIDC — there is no identity token, so it is a different
+         * adapter rather than a preset. Present when both credentials are set.
+         */
+        github?: GithubProviderConfig & { name: string };
+        /**
+         * A SAML 2.0 identity provider. Present when the entry point and the
+         * signing certificate are both set — SAML has no discovery document, so
+         * the certificate is the whole of the trust relationship and there is
+         * nothing to fall back to.
+         */
+        saml?: SamlProviderConfig & { name: string };
     };
 }
 
@@ -113,8 +167,8 @@ export interface OrthaConfig {
     docs: ApiDocsOptions;
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
-        /** Identity plugin settings. */
-        identity: IdentityPluginConfig;
+        /** Identity plugin settings — sessions, tokens, and SSO providers. */
+        identity: OrthaIdentityConfig;
         /** i18n plugin settings — the available content locales. */
         i18n: I18nPluginConfig;
         /** Media plugin settings — the storage backend + upload limits. */
@@ -208,6 +262,20 @@ function readList(name: string, fallback: string): string[] {
  * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
  * against a named value than against a nested `process.env` lookup.
  */
+/**
+ * The identity provider this deployment can reach, if any.
+ *
+ * Both values are read out here because both gate whether the provider is
+ * configured at all: an issuer with no client id (or the reverse) becomes a
+ * button on the sign-in page that can only fail.
+ */
+const ssoOidcIssuer = process.env['SSO_OIDC_ISSUER']?.trim();
+const ssoOidcClientId = process.env['SSO_OIDC_CLIENT_ID']?.trim();
+const ssoGithubClientId = process.env['SSO_GITHUB_CLIENT_ID']?.trim();
+const ssoGithubClientSecret = process.env['SSO_GITHUB_CLIENT_SECRET']?.trim();
+const ssoSamlEntryPoint = process.env['SSO_SAML_ENTRY_POINT']?.trim();
+const ssoSamlCert = process.env['SSO_SAML_IDP_CERT']?.trim();
+
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
 
@@ -382,6 +450,189 @@ const config: OrthaConfig = {
                 email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
                 password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
                 name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
+            },
+            // Single sign-on. The *providers* are not here — they are
+            // constructed adapters and are registered in `plugins.ts`, the same
+            // split the copilot makes between connection settings and built
+            // backends. What lives here is the deployment shape of the
+            // handshake.
+            sso: {
+                // The origin browsers reach this API on. It builds the
+                // `redirect_uri` registered with each identity provider, and it
+                // is configured rather than read from the request's `Host`
+                // header — which a client controls, and could therefore point
+                // at an origin of its choosing. Unset, it falls back to the
+                // first `allowedOrigins` entry, which is right whenever the
+                // admin and the API share an origin: the deployed shape, and
+                // the dev one where Vite proxies `/api`.
+                ...(process.env['SSO_PUBLIC_BASE_URL']
+                    ? { publicBaseUrl: process.env['SSO_PUBLIC_BASE_URL'] }
+                    : {}),
+                // How long one sign-in attempt stays live. Ten minutes by
+                // default: a consent screen plus a second factor, and no
+                // longer — an attempt left open in a forgotten tab should not
+                // be a credential sitting around for the afternoon.
+                requestTtlSeconds: readPositiveInt(
+                    'SSO_REQUEST_TTL_SECONDS',
+                    600
+                ),
+                // Just-in-time provisioning, off unless a domain list is set.
+                // The list is what makes this safe: an identity provider
+                // answers for everyone it knows, and a public one knows
+                // everyone, so provisioning without one means anybody with an
+                // account there can sign in here — and nothing breaks to say
+                // so, the user list simply grows.
+                ...(process.env['SSO_PROVISION_DOMAINS']
+                    ? {
+                          provisioning: {
+                              domains: readList(
+                                  'SSO_PROVISION_DOMAINS',
+                                  ''
+                              ),
+                              defaultRole:
+                                  process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
+                          }
+                      }
+                    : {}),
+                // Passwords stay on unless a deployment turns them off. The
+                // root administrator keeps one regardless — see the note on
+                // `IdentitySsoConfig.allowPasswordLogin`; without that
+                // exemption a mis-scoped provider locks an operator out of
+                // their own CMS with no way back short of a database client.
+                allowPasswordLogin:
+                    process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false',
+                // Shorter than the ordinary session lifetime for a provider
+                // with no back-channel logout: without one, a session's own
+                // expiry is the only thing that eventually ends access after
+                // somebody is offboarded.
+                ...(process.env['SSO_SESSION_TTL_SECONDS']
+                    ? {
+                          sessionTtlSeconds: readPositiveInt(
+                              'SSO_SESSION_TTL_SECONDS',
+                              600
+                          )
+                      }
+                    : {})
+            },
+            ssoProviders: {
+                ...(ssoOidcIssuer && ssoOidcClientId
+                    ? {
+                          oidc: {
+                              // What the route and every link row call this
+                              // provider. Stable by necessity: renaming it
+                              // orphans the links that name it.
+                              name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+                              issuer: ssoOidcIssuer,
+                              clientId: ssoOidcClientId,
+                              ...(process.env['SSO_OIDC_CLIENT_SECRET']
+                                  ? {
+                                        clientSecret:
+                                            process.env[
+                                                'SSO_OIDC_CLIENT_SECRET'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_LABEL']
+                                  ? { label: process.env['SSO_OIDC_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_SCOPES']
+                                  ? {
+                                        scopes: readList(
+                                            'SSO_OIDC_SCOPES',
+                                            'openid,profile,email'
+                                        )
+                                    }
+                                  : {}),
+                              // Only when an operator says so. The claim is the
+                              // sole gate on a first sign-in claiming an
+                              // existing account, so a provider that omits it
+                              // — Entra ID, notably — links nobody until
+                              // someone asserts that this directory owns the
+                              // addresses it reports.
+                              emailVerifiedWhenAbsent:
+                                  process.env[
+                                      'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
+                                  ] === 'true'
+                          }
+                      }
+                    : {}),
+                ...(ssoGithubClientId && ssoGithubClientSecret
+                    ? {
+                          github: {
+                              name: process.env['SSO_GITHUB_NAME'] ?? 'github',
+                              clientId: ssoGithubClientId,
+                              clientSecret: ssoGithubClientSecret,
+                              ...(process.env['SSO_GITHUB_LABEL']
+                                  ? { label: process.env['SSO_GITHUB_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_GITHUB_ENTERPRISE_URL']
+                                  ? {
+                                        enterpriseBaseUrl:
+                                            process.env[
+                                                'SSO_GITHUB_ENTERPRISE_URL'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_GITHUB_ORG']
+                                  ? {
+                                        organization:
+                                            process.env['SSO_GITHUB_ORG']
+                                    }
+                                  : {})
+                          }
+                      }
+                    : {}),
+                ...(ssoSamlEntryPoint && ssoSamlCert
+                    ? {
+                          saml: {
+                              name: process.env['SSO_SAML_NAME'] ?? 'saml',
+                              entryPoint: ssoSamlEntryPoint,
+                              idpCert: ssoSamlCert,
+                              // The entity id the identity provider has
+                              // registered for this application. Defaults to
+                              // the CMS's own origin, which is what most
+                              // administrators enter when nobody tells them
+                              // otherwise.
+                              issuer:
+                                  process.env['SSO_SAML_ISSUER'] ??
+                                  process.env['SSO_PUBLIC_BASE_URL'] ??
+                                  '',
+                              ...(process.env['SSO_SAML_LABEL']
+                                  ? { label: process.env['SSO_SAML_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_SAML_SUBJECT_ATTRIBUTE']
+                                  ? {
+                                        subjectAttribute:
+                                            process.env[
+                                                'SSO_SAML_SUBJECT_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_SAML_EMAIL_ATTRIBUTE']
+                                  ? {
+                                        emailAttribute:
+                                            process.env[
+                                                'SSO_SAML_EMAIL_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_SAML_GROUPS_ATTRIBUTE']
+                                  ? {
+                                        groupsAttribute:
+                                            process.env[
+                                                'SSO_SAML_GROUPS_ATTRIBUTE'
+                                            ]
+                                    }
+                                  : {}),
+                              // SAML carries no verification claim at all, so
+                              // this is always an operator's assertion that
+                              // their directory owns the addresses it reports.
+                              emailVerified:
+                                  process.env['SSO_SAML_EMAIL_VERIFIED'] ===
+                                  'true'
+                          }
+                      }
+                    : {})
             }
         },
         i18n: {
@@ -437,6 +688,20 @@ const config: OrthaConfig = {
                 // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
+            // Off unless asked for, and only meaningful on a backend that can
+            // sign a URL — the plugin refuses the combination at boot rather
+            // than proxying while the operator believes otherwise. The default
+            // local-filesystem provider cannot, so setting this here without
+            // switching the provider in `plugins.ts` is a boot error naming
+            // both, which is the intended way to find out.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             // Upload cap — 50 MB by default.
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',

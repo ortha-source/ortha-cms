@@ -139,6 +139,33 @@
             "path": "./packages/media/provider-testkit"
         },
         {
+            "path": "./packages/media/provider-memory"
+        },
+        {
+            "path": "./packages/media/provider-azure"
+        },
+        {
+            "path": "./packages/media/provider-gcs"
+        },
+        {
+            "path": "./packages/media/provider-vercel-blob"
+        },
+        {
+            "path": "./packages/identity/provider-fake"
+        },
+        {
+            "path": "./packages/identity/domain"
+        },
+        {
+            "path": "./packages/identity/provider-oidc"
+        },
+        {
+            "path": "./packages/identity/provider-github"
+        },
+        {
+            "path": "./packages/identity/provider-saml"
+        },
+        {
             "path": "./packages/transfer/domain"
         },
         {
