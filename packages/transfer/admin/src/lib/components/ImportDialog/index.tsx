@@ -173,27 +173,32 @@ function PolicyChoice<T extends string>({
 }) {
     const hintId = `${idPrefix}-hint`;
     return (
-        <fieldset className="grid gap-2">
+        // Three spacings, deliberately different, so the group reads as a
+        // hierarchy rather than a list of five equal lines: the hint sits close
+        // under its legend (they are one heading), the options are pushed away
+        // from that heading, and the options are spaced from each other.
+        <fieldset className="grid gap-1.5">
             <legend className="text-sm font-medium">{legend}</legend>
             {hint ? (
-                <p id={hintId} className="text-muted-foreground -mt-1 text-xs">
+                <p id={hintId} className="text-muted-foreground text-xs">
                     {hint}
                 </p>
             ) : null}
             <RadioGroup
+                className="mt-2.5 gap-3"
                 value={value}
                 aria-describedby={hint ? hintId : undefined}
                 onValueChange={(next) => onChange(next as T)}
             >
                 {options.map((option) => (
-                    <div key={option} className="flex items-center gap-2">
+                    <div key={option} className="flex items-center gap-2.5">
                         <RadioGroupItem
                             id={`${idPrefix}-${option}`}
                             value={option}
                         />
                         <Label
                             htmlFor={`${idPrefix}-${option}`}
-                            className="font-normal"
+                            className="cursor-pointer font-normal"
                         >
                             {labelOf(option)}
                         </Label>
@@ -305,7 +310,11 @@ export function ImportDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-5 py-2">
+                {/* A wide gap between blocks, because the dialog asks two
+                    separate questions and a reader has to see they are
+                    separate. At the group's own 12px option rhythm they read as
+                    one seven-item list with two headings in it. */}
+                <div className="grid gap-8 py-2">
                     <div className="grid gap-2">
                         <Label htmlFor={`${fieldId}-file`}>
                             {intl.formatMessage(messages.file)}
