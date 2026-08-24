@@ -1,0 +1,38 @@
+# `@orthacms/transfer-admin`
+
+Export and import in the Content Library. Governed by the `admin-plugin`,
+`accessibility` and `admin-e2e` skills; what follows is specific to this one.
+
+Contributes **no routes**. Everything it does is an action on content someone is
+already looking at, so it lives in the content library's seams:
+
+| Slot                       | Contribution                                  |
+| -------------------------- | --------------------------------------------- |
+| `ENTRY_MENU_SLOT`          | **Export…** in the editor's ⋯ menu (Extras).  |
+| `RECORDS_BULK_ACTION_SLOT` | **Export** in the records selection bar.      |
+| `RECORDS_TOOLBAR_SLOT`     | **Import** in the collection toolbar.         |
+
+Register it **after** `contentAdminPlugin()`, which declares all three.
+
+## The rules that matter here
+
+**Import belongs to the collection, not the selection.** It is in the toolbar
+because there is nothing selected when you import — what arrives is whatever the
+file holds. Moving it into the selection bar would be a category error.
+
+**The export dialog's counts must stay honest.** They come from
+`/export/preview`, which runs the *same* graph walk the export runs. If that
+ever becomes a cheaper estimate, the toggles stop meaning anything — "include
+related records" is the difference between 40 records and 4,000, and the count
+is the only warning.
+
+**A format that cannot carry bytes disables the files toggle** rather than
+accepting it and ignoring it. `TRANSFER_FORMAT_CAPABILITIES` decides, so the UI
+cannot offer a promise the server will not keep.
+
+**Import verdicts go stale.** Changing the file *or* the conflict policy retires
+the table — showing one file's verdicts above another file's Import button is
+the worst bug this dialog can have.
+
+**A bulk-action overlay dies with the selection.** The selection bar unmounts as
+soon as the selection is empty, so `onDone` is called on success, never on open.

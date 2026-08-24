@@ -7,6 +7,7 @@ import type {
 } from '@orthacms/identity-server';
 import type { RunLimits } from '@orthacms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
+import type { TransferLimits } from '@orthacms/transfer-domain';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
 /**
@@ -34,6 +35,10 @@ const RELAXED_RATE_LIMIT: IdentityRateLimitConfig = {
 export interface TestConfigOverrides {
     /** Replace the login rate limit (e.g. pin it low to test throttling). */
     rateLimit?: IdentityRateLimitConfig;
+    /** Per-type identity fields for the transfer plugin (import matching). */
+    transferIdentity?: Record<string, readonly string[]>;
+    /** Narrow a transfer ceiling, to assert the limit rather than the happy path. */
+    transferLimits?: Partial<TransferLimits>;
     /**
      * Express `trust proxy`. Unset by default (matching a directly-exposed
      * server, where `X-Forwarded-For` is ignored); the throttle suite boots a
@@ -190,6 +195,15 @@ export function buildTestConfig(
                     { slug: 'fr', name: 'Français' }
                 ],
                 orphanedLocales: overrides.orphanedLocales ?? 'warn'
+            },
+            transfer: {
+                // The e2e content types are keyed the way a real install would
+                // key them, so the round-trip suite exercises real matching
+                // rather than the derived fallback.
+                identity: overrides.transferIdentity ?? {},
+                // Small ceilings on purpose: a suite that can only pass with
+                // production-sized limits is not testing the limits.
+                limits: { maxEntries: 500, maxAssets: 100, ...overrides.transferLimits }
             },
             // The copilot boots ENABLED in tests. Production defaults it off
             // (ADR-0005 §10) because enabling a hosted provider ships content

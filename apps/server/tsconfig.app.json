@@ -25,16 +25,13 @@
             "path": "../../packages/workspaces/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/media/provider-local/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/database/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
         },
         {
             "path": "../../packages/content/server/tsconfig.lib.json"
@@ -43,7 +40,13 @@
             "path": "../../packages/activity/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/media/provider-local/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/transfer/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/mcp/server/tsconfig.lib.json"

@@ -91,6 +91,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/query-builder-admin',
     '@orthacms/shell-admin',
     '@orthacms/tools-server',
+    '@orthacms/transfer-admin',
+    '@orthacms/transfer-domain',
+    '@orthacms/transfer-server',
     '@orthacms/users-admin',
     '@orthacms/users-server',
     '@orthacms/utils-admin',
@@ -110,13 +113,19 @@ export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
  * reach is now in its own manifest, so "it resolves because npm hoisted it"
  * is never the answer to why an import works.
  *
- * The bucket stays because the classification is still meaningful: a future
- * package that is genuinely an internal detail of another — no public API, no
- * reason for an app to import it — belongs here rather than in
- * `CORE_PACKAGES`. Putting it here is a decision the coverage guard accepts;
+ * The bucket is for a package that is genuinely not part of an *app*: no
+ * reason for a generated project to depend on it, whatever it is useful for
+ * elsewhere. Putting one here is a decision the coverage guard accepts;
  * forgetting it entirely is not.
  */
-export const TRANSITIVE_PACKAGES: readonly string[] = [];
+export const TRANSITIVE_PACKAGES: readonly string[] = [
+    // The storage-provider conformance suite (`describeStorageProvider`). It is
+    // test tooling for whoever *writes* a provider — the shipped adapters run
+    // it against themselves — not something a generated app has any use for. An
+    // app author writing their own provider installs it deliberately, as a
+    // devDependency, which is the right way round for a testkit.
+    '@orthacms/media-provider-testkit'
+];
 
 /**
  * Where uploads are written.

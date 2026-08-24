@@ -164,9 +164,10 @@ describe('resolvePackages', () => {
     });
 
     /**
-     * The remaining opt-ins, in full. Anything else a published package could
-     * be, a default app already has — so this list is also the answer to "what
-     * does choosing nothing cost me?".
+     * Everything a default app does **not** get: the remaining opt-ins, plus
+     * the one published package that is not app material at all. Anything else
+     * a published package could be, a default app already has — so this list is
+     * also the answer to "what does choosing nothing cost me?".
      */
     it('leaves exactly the choosable packages out of a default app', () => {
         const published = new Set(publishedPackages());
@@ -180,7 +181,10 @@ describe('resolvePackages', () => {
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
             '@orthacms/mcp-server',
-            '@orthacms/media-provider-s3'
+            '@orthacms/media-provider-s3',
+            // Not an opt-in: test tooling for whoever writes a storage
+            // provider, which an app installs deliberately if it ever does.
+            '@orthacms/media-provider-testkit'
         ]);
     });
 

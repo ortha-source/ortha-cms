@@ -15,6 +15,7 @@ import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
+import { TransferPlugin } from '@orthacms/transfer-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
@@ -140,6 +141,18 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),
+        // Export/import. After content (whose registry and entry writer it
+        // uses) and after media (whose storage it reads bytes from and whose
+        // upload path it recreates them with). Both are hard requirements only
+        // for what they provide: without media it still runs, and media fields
+        // simply travel as references.
+        //
+        // `identity` is the setting worth filling in per install. It says which
+        // field identifies a record of each type, and it is what lets an import
+        // recognise "this is that record" rather than adding a duplicate — the
+        // derived fallback is a heuristic, and a catalogue keyed on `sku`
+        // should say so rather than hope the heuristic agrees.
+        TransferPlugin(config.plugins.transfer),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place
