@@ -27,7 +27,7 @@ const PASSWORD = 'SecurePass123!';
  * with a source id: each of those produces a green unit test and a file nobody
  * can import.
  *
- * `article` is the fixture on purpose — it is publishable, paranoid, localized,
+ * `test_article` is the fixture on purpose — it is publishable, paranoid, localized,
  * and carries a relation of every cardinality.
  */
 describe('Content transfer (/api/content/:type/export, /import)', () => {
@@ -73,8 +73,9 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         email: string
     ): Promise<string> {
         const res = await agent
-            .post('/api/content/author')
-            .send({ values: { name, email } })
+            .post('/api/content/test_author')
+            // `test_author` is localized here too, so the row needs a locale.
+            .send({ locale: 'en', values: { name, email } })
             .expect(201);
         return res.body.id as string;
     }
@@ -85,7 +86,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         values: Record<string, unknown>
     ): Promise<string> {
         const res = await agent
-            .post('/api/content/article')
+            .post('/api/content/test_article')
             .send({ locale: 'en', values })
             .expect(201);
         return res.body.id as string;
@@ -117,13 +118,13 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Hello world',
-                slug: 'hello-world',
+                text: 'Hello world',
+                select: 'article',
                 author: authorId
             });
 
             const res = await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: [articleId],
                     format: 'json',
@@ -132,25 +133,25 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 .expect(200);
 
             const document = JSON.parse(res.text);
-            expect(document.manifest.rootType).toBe('article');
+            expect(document.manifest.rootType).toBe('test_article');
             expect(document.manifest.version).toBe(1);
 
             const article = document.records.find(
-                (record: { $type: string }) => record.$type === 'article'
+                (record: { $type: string }) => record.$type === 'test_article'
             );
             const author = document.records.find(
-                (record: { $type: string }) => record.$type === 'author'
+                (record: { $type: string }) => record.$type === 'test_author'
             );
 
             expect(article.$depth).toBe(0);
-            expect(article.values.slug).toBe('hello-world');
+            expect(article.values.text).toBe('Hello world');
             expect(article.$locale).toBe('en');
             // The author came along as a full record, one hop out…
             expect(author.$depth).toBe(1);
             expect(author.values.name).toBe('Ada');
             // …and the link between them is a resolvable key, not a row id.
             expect(article.relations.author).toMatchObject({
-                $type: 'author',
+                $type: 'test_author',
                 $key: { email: 'ada@x.test' }
             });
         });
@@ -159,13 +160,13 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Solo',
-                slug: 'solo',
+                text: 'solo',
+                select: 'article',
                 author: authorId
             });
 
             const res = await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: [articleId],
                     format: 'json',
@@ -176,7 +177,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const document = JSON.parse(res.text);
             expect(
                 document.records.every(
-                    (record: { $type: string }) => record.$type === 'article'
+                    (record: { $type: string }) => record.$type === 'test_article'
                 )
             ).toBe(true);
             // The reference survives even though the record did not — which is
@@ -190,13 +191,13 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Counted',
-                slug: 'counted',
+                text: 'counted',
+                select: 'article',
                 author: authorId
             });
 
             const res = await agent
-                .post('/api/content/article/export/preview')
+                .post('/api/content/test_article/export/preview')
                 .send({
                     ids: [articleId],
                     format: 'json',
@@ -218,13 +219,13 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Archived',
-                slug: 'archived',
+                text: 'archived',
+                select: 'article',
                 author: authorId
             });
 
             const res = await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: [articleId],
                     format: 'zip',
@@ -254,13 +255,13 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Flat',
-                slug: 'flat',
+                text: 'flat',
+                select: 'article',
                 author: authorId
             });
 
             const res = await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: [articleId],
                     format: 'csv',
@@ -270,7 +271,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
 
             const [header, row] = res.text.split('\r\n');
             expect(header.split(',')).toEqual(
-                expect.arrayContaining(['$id', '$locale', 'title', 'slug'])
+                expect.arrayContaining(['$id', '$locale', 'text', 'select'])
             );
             expect(row).toContain('flat');
         });
@@ -278,12 +279,12 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('offers a blank CSV template for the type', async () => {
             const agent = await login(ADMIN_EMAIL);
             const res = await agent
-                .get('/api/content/article/import/template')
+                .get('/api/content/test_article/import/template')
                 .expect(200);
 
             expect(res.headers['content-type']).toContain('text/csv');
             expect(res.text.split('\r\n')).toHaveLength(1);
-            expect(res.text).toContain('slug');
+            expect(res.text).toContain('select');
         });
     });
 
@@ -299,7 +300,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             }
         ): Promise<string> {
             const res = await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({ ids, format: 'json', depth })
                 .expect(200);
             return res.text;
@@ -322,9 +323,9 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Round trip',
-                slug: 'round-trip',
-                excerpt: 'A summary.',
+                text: 'round-trip',
+                select: 'article',
+                number: 42,
                 author: authorId
             });
             const document = await exportJson(agent, [articleId]);
@@ -334,39 +335,42 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             // gone before the author can go, because `article.author` is a
             // required relation with ON DELETE RESTRICT.
             await agent
-                .delete(`/api/content/article/${articleId}`)
+                .delete(`/api/content/test_article/${articleId}`)
                 .expect(200);
             await agent
-                .post('/api/content/article/bulk/purge')
+                .post('/api/content/test_article/bulk/purge')
                 .send({ ids: [articleId] })
                 .expect(200);
             // `author` is not paranoid, so this removes the row outright.
-            await agent.delete(`/api/content/author/${authorId}`).expect(200);
+            await agent.delete(`/api/content/test_author/${authorId}`).expect(200);
 
-            expect(await listEntries(agent, 'article')).toHaveLength(0);
-            expect(await listEntries(agent, 'author')).toHaveLength(0);
+            expect(await listEntries(agent, 'test_article')).toHaveLength(0);
+            expect(await listEntries(agent, 'test_author')).toHaveLength(0);
 
             const applied = await upload(
                 agent,
-                '/api/content/article/import',
+                '/api/content/test_article/import',
                 document
             ).expect(200);
 
             expect(applied.body.counts.create).toBeGreaterThanOrEqual(2);
             expect(applied.body.counts.error).toBe(0);
 
-            const articles = await listEntries(agent, 'article');
-            const authors = await listEntries(agent, 'author');
+            const articles = await listEntries(agent, 'test_article');
+            const authors = await listEntries(agent, 'test_author');
             expect(articles).toHaveLength(1);
             expect(authors).toHaveLength(1);
-            expect(articles[0].values['slug']).toBe('round-trip');
-            expect(articles[0].values['excerpt']).toBe('A summary.');
+            // The scalar fields survived the link pass — the bug that pass had
+            // was blanking every field it did not resend.
+            expect(articles[0].values['text']).toBe('round-trip');
+            expect(articles[0].values['number']).toBe(42);
+            expect(articles[0].values['select']).toBe('article');
 
             // The link was rebuilt against the *new* author row, not the id the
             // file carried — the whole point of the natural key.
             const rebuilt = await readEntry(
                 agent,
-                'article',
+                'test_article',
                 articles[0].id
             );
             expect(rebuilt?.['values']).toMatchObject({
@@ -378,16 +382,16 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Preview me',
-                slug: 'preview-me',
+                text: 'preview-me',
+                select: 'article',
                 author: authorId
             });
             const document = await exportJson(agent, [articleId]);
 
-            const before = await listEntries(agent, 'article');
+            const before = await listEntries(agent, 'test_article');
             const preview = await upload(
                 agent,
-                '/api/content/article/import/preview',
+                '/api/content/test_article/import/preview',
                 document
             ).expect(200);
 
@@ -399,7 +403,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
                 action: 'skip',
                 reason: 'conflict-skipped'
             });
-            expect(await listEntries(agent, 'article')).toHaveLength(
+            expect(await listEntries(agent, 'test_article')).toHaveLength(
                 before.length
             );
         });
@@ -408,57 +412,57 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Original',
-                slug: 'same-slug',
+                text: 'same-slug',
+                select: 'article',
                 author: authorId
             });
             const document = await exportJson(agent, [articleId]);
 
             await upload(
                 agent,
-                '/api/content/article/import',
+                '/api/content/test_article/import',
                 document,
                 'skip'
             ).expect(200);
 
             // Re-importing the same file is the commonest thing anyone does.
-            expect(await listEntries(agent, 'article')).toHaveLength(1);
+            expect(await listEntries(agent, 'test_article')).toHaveLength(1);
         });
 
         it('updates the matched record when the policy says so', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Before',
-                slug: 'edit-me',
+                text: 'edit-me',
+                select: 'article',
                 author: authorId
             });
             const document = await exportJson(agent, [articleId]);
 
             // Edit the live record, then re-import the older file over it.
             await agent
-                .patch(`/api/content/article/${articleId}`)
-                .send({ values: { title: 'Changed in the CMS' } })
+                .patch(`/api/content/test_article/${articleId}`)
+                .send({ values: { text: 'changed-in-cms', select: 'article' } })
                 .expect(200);
 
             await upload(
                 agent,
-                '/api/content/article/import',
+                '/api/content/test_article/import',
                 document,
                 'update'
             ).expect(200);
 
-            const entries = await listEntries(agent, 'article');
+            const entries = await listEntries(agent, 'test_article');
             expect(entries).toHaveLength(1);
-            expect(entries[0].values['title']).toBe('Before');
+            expect(entries[0].values['text']).toBe('edit-me');
         });
 
         it('adds a second copy when the policy says duplicate', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Twin',
-                slug: 'twin',
+                text: 'twin',
+                select: 'article',
                 author: authorId
             });
             const document = await exportJson(agent, [articleId], {
@@ -469,20 +473,20 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
 
             await upload(
                 agent,
-                '/api/content/article/import',
+                '/api/content/test_article/import',
                 document,
                 'duplicate'
             ).expect(200);
 
-            expect(await listEntries(agent, 'article')).toHaveLength(2);
+            expect(await listEntries(agent, 'test_article')).toHaveLength(2);
         });
 
         it('never writes across workspaces, whatever the manifest claims', async () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'Scoped',
-                slug: 'scoped',
+                text: 'scoped',
+                select: 'article',
                 author: authorId
             });
             const document = JSON.parse(
@@ -502,23 +506,23 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             await seedMembership(admin.id, other.id);
             await seedAllContentGrants(other.id);
             document.manifest.sourceWorkspaceId = other.id;
-            document.records[0].values.slug = 'forged';
+            document.records[0].values.text = 'forged';
 
             await upload(
                 agent,
-                '/api/content/article/import',
+                '/api/content/test_article/import',
                 JSON.stringify(document)
             ).expect(200);
 
             // Written into the request's workspace, not the manifest's.
-            const here = await listEntries(agent, 'article');
-            expect(here.map((entry) => entry.values['slug'])).toContain(
+            const here = await listEntries(agent, 'test_article');
+            expect(here.map((entry) => entry.values['text'])).toContain(
                 'forged'
             );
 
             const otherAgent = await login(ADMIN_EMAIL);
             otherAgent.set('X-Workspace-Id', other.id);
-            const there = await listEntries(otherAgent, 'article');
+            const there = await listEntries(otherAgent, 'test_article');
             expect(there).toHaveLength(0);
         });
 
@@ -526,8 +530,8 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(agent, 'Ada', 'ada@x.test');
             const articleId = await createArticle(agent, {
-                title: 'From the future',
-                slug: 'future',
+                text: 'future',
+                select: 'article',
                 author: authorId
             });
             const document = JSON.parse(await exportJson(agent, [articleId]));
@@ -535,7 +539,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
 
             const res = await upload(
                 agent,
-                '/api/content/article/import/preview',
+                '/api/content/test_article/import/preview',
                 JSON.stringify(document)
             ).expect(400);
 
@@ -546,7 +550,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const agent = await login(ADMIN_EMAIL);
             await upload(
                 agent,
-                '/api/content/article/import/preview',
+                '/api/content/test_article/import/preview',
                 'this is not json'
             ).expect(400);
         });
@@ -554,7 +558,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('requires a file at all', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .post('/api/content/article/import/preview')
+                .post('/api/content/test_article/import/preview')
                 .field('policy', 'skip')
                 .expect(400);
         });
@@ -573,8 +577,8 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             const admins = await login(ADMIN_EMAIL);
             const authorId = await createAuthor(admins, 'Ada', 'ada@x.test');
             const articleId = await createArticle(admins, {
-                title: 'Not yours',
-                slug: 'not-yours',
+                text: 'not-yours',
+                select: 'article',
                 author: authorId
             });
 
@@ -593,10 +597,10 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             viewer.set('X-Workspace-Id', workspaceId);
 
             // The viewer can read this very record…
-            await viewer.get(`/api/content/article/${articleId}`).expect(200);
+            await viewer.get(`/api/content/test_article/${articleId}`).expect(200);
             // …and still cannot export it. Bulk egress is a separate capability.
             await viewer
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({ ids: [articleId], format: 'json' })
                 .expect(403);
         });
@@ -617,7 +621,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             viewer.set('X-Workspace-Id', workspaceId);
 
             await viewer
-                .post('/api/content/article/import')
+                .post('/api/content/test_article/import')
                 .field('policy', 'skip')
                 .attach('file', Buffer.from('{}', 'utf8'), 'x.json')
                 .expect(403);
@@ -625,7 +629,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
 
         it('refuses a signed-out caller', async () => {
             await request(harness.server)
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .set('X-Workspace-Id', workspaceId)
                 .send({ ids: [], format: 'json' })
                 .expect(401);
@@ -643,7 +647,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
             // Same 404 an unknown type gets — the route carries no signal about
             // which types exist elsewhere.
             await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({ ids: [], format: 'json' })
                 .expect(404);
         });
@@ -653,7 +657,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('rejects an unknown format', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: ['3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91'],
                     format: 'xlsx'
@@ -664,7 +668,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('rejects an empty selection', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({ ids: [], format: 'json' })
                 .expect(400);
         });
@@ -672,7 +676,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('rejects an unknown body field', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .post('/api/content/article/export')
+                .post('/api/content/test_article/export')
                 .send({
                     ids: ['3f1a7c1e-9d2b-4a6f-8c11-5b8e2f0d7a91'],
                     format: 'json',
@@ -684,7 +688,7 @@ describe('Content transfer (/api/content/:type/export, /import)', () => {
         it('rejects an unknown conflict policy', async () => {
             const agent = await login(ADMIN_EMAIL);
             await agent
-                .post('/api/content/article/import')
+                .post('/api/content/test_article/import')
                 .field('policy', 'obliterate')
                 .attach('file', Buffer.from('{}', 'utf8'), 'x.json')
                 .expect(400);

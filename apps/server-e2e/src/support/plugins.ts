@@ -6,6 +6,7 @@ import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import { CopilotPlugin } from '@orthacms/copilot-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
+import { TransferPlugin } from '@orthacms/transfer-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
@@ -93,6 +94,9 @@ export function buildTestPlugins(
             config: config.plugins.media
         }),
         I18nServerPlugin(config.plugins.i18n),
+        // Export/import, after content and media for the same reasons the host
+        // registers it there.
+        TransferPlugin(config.plugins.transfer),
         // Copilot before MCP: runs are workspace-scoped and execute as the
         // calling user, so it must register after workspaces and identity. Both
         // providers are scripted fakes — no key, no network, and the whole tool
