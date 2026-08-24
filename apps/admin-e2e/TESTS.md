@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_742 test cases across 74 spec files._
+_745 test cases across 74 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -1231,6 +1231,9 @@ _<sub>apps/admin-e2e/src/insights/insights.spec.ts</sub>_
 | an empty workspace shows empty states, not errors |
 | shows a skeleton per widget while its request is open |
 | changing the range refetches the range-dependent widgets |
+| the selected range is in the URL, so the view can be shared |
+| opens on the range a shared link names |
+| a range the page does not offer falls back to the default |
 | hides content widgets from a user without content:read |
 | shows the empty page when no widget is visible |
 | offers a table view for the chart whose values are hover-only |
