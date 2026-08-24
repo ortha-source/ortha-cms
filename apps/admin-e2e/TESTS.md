@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_745 test cases across 74 spec files._
+_753 test cases across 75 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -414,6 +414,44 @@ _<sub>apps/admin-e2e/src/auth/routing.spec.ts</sub>_
 | /identity redirects to the sign-in page |
 | an unknown path redirects to home |
 | serves the home page inside the shell at / |
+
+<!-- source: apps/admin-e2e/src/auth/sso.spec.ts -->
+_<sub>apps/admin-e2e/src/auth/sso.spec.ts</sub>_
+
+## Single sign-on on the sign-in page
+
+### with providers registered
+
+| Test case |
+| --- |
+| renders one link per provider, in registration order |
+| points each link at that provider's start route |
+| keeps the password form as the primary path |
+| is reachable and activatable by keyboard |
+
+### carrying the destination
+
+| Test case |
+| --- |
+| appends the page the gate was aiming at |
+
+### with no providers registered
+
+| Test case |
+| --- |
+| renders no block at all |
+
+### when the provider list cannot be fetched
+
+| Test case |
+| --- |
+| leaves the password form working and says nothing about it |
+
+### returning from a failed provider sign-in
+
+| Test case |
+| --- |
+| explains it without naming which step failed |
 
 <!-- source: apps/admin-e2e/src/content/a11y.spec.ts -->
 _<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_

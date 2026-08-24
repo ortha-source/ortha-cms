@@ -4,6 +4,10 @@ import { ContentPlugin } from '@orthacms/content-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
+// ortha:if sso-oidc
+import type { SsoRegistration } from '@orthacms/identity-domain';
+import { createOidcProvider } from '@orthacms/identity-provider-oidc';
+// ortha:end
 import { MediaServerPlugin } from '@orthacms/media-server';
 // ortha:if media-local
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
@@ -54,6 +58,31 @@ import type { OrthaConfig } from '../ortha.config';
  * scaffolding — it needs no key and no network, so it is what makes the chat
  * work offline, and being last it is the default only when it is the only one.
  */
+// ortha:if sso-oidc
+/**
+ * The identity providers this app can actually reach.
+ *
+ * **Only what is configured is registered.** `ortha.config.ts` omits a provider
+ * whose issuer or client id is missing, and an unconfigured one is skipped here
+ * too — it would appear on the sign-in page as a button that can only fail.
+ *
+ * Running two directories at once is another entry. The name is what
+ * `/api/auth/sso/<name>/start` and every `sso_identities` row refer to the
+ * provider by, so renaming a registration orphans its links. Register the
+ * callback URL `<publicBaseUrl>/api/auth/sso/<name>/callback` with the
+ * provider; `ssoCallbackUrl` from `@orthacms/identity-server` builds the exact
+ * string, which matters because most providers match it byte for byte.
+ */
+export function ssoProviders(config: OrthaConfig): SsoRegistration[] {
+    const oidc = config.plugins.identity.ssoProviders?.oidc;
+    if (!oidc) {
+        return [];
+    }
+    const { name, ...settings } = oidc;
+    return [{ name, provider: createOidcProvider(settings) }];
+}
+// ortha:end
+
 export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
     const providers: ProviderRegistration[] = [];
     // ortha:if copilot-anthropic
@@ -109,7 +138,18 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     return [
         // First: the only plugin that opens a resource in `onPluginInit`.
         DatabasePlugin({ connectionString: config.database.url }),
+        // ortha:if sso-oidc
+        // Identity, plus the identity providers this app offers. The second
+        // argument is where constructed adapters go: `ortha.config.ts` holds
+        // the typed view of the environment, and an adapter instance is not an
+        // environment value.
+        IdentityPlugin(config.plugins.identity, {
+            sso: { providers: ssoProviders(config) }
+        }),
+        // ortha:end
+        // ortha:ifnot sso-oidc
         IdentityPlugin(config.plugins.identity),
+        // ortha:end
         WorkspacesPlugin(),
         ActivityPlugin(),
         UsersPlugin(),

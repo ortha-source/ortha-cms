@@ -132,6 +132,49 @@ export async function mockSignedIn(
     });
 }
 
+/** One provider as `GET /api/auth/sso` returns it. */
+export interface SsoProviderSeed {
+    name: string;
+    label: string;
+    kind: 'oidc' | 'oauth2' | 'saml';
+}
+
+/**
+ * Stub `GET /api/auth/sso` — the providers the sign-in page renders buttons
+ * for.
+ *
+ * Defaults to **none**, which is the default install, and is what
+ * {@link mockSignedOut} seeds so no suite reaches a real network for a list it
+ * does not care about. A suite that does care registers its own afterwards:
+ * Playwright matches the most recently added route first, so a later call wins.
+ */
+export async function mockSsoProviders(
+    page: Page,
+    providers: SsoProviderSeed[] = []
+): Promise<void> {
+    await page.route('**/api/auth/sso', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(providers)
+        });
+    });
+}
+
+/**
+ * Stub `GET /api/auth/sso` as unreachable, to assert that the sign-in page
+ * still works when the provider list does not.
+ */
+export async function mockSsoProvidersUnavailable(page: Page): Promise<void> {
+    await page.route('**/api/auth/sso', async (route) => {
+        await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'Internal server error' })
+        });
+    });
+}
+
 /**
  * Stub `GET /api/auth/me` as **signed out** (`401`). With this, every private
  * route redirects to the sign-in page. Use it for the logged-out cases and to
@@ -146,6 +189,10 @@ export async function mockSignedOut(page: Page): Promise<void> {
             body: JSON.stringify({ message: 'Unauthorized' })
         });
     });
+    // The sign-in page asks for the SSO providers on every load. Seeded empty
+    // here so no suite makes a real request for a list it does not care about;
+    // a suite that does care registers its own route afterwards and wins.
+    await mockSsoProviders(page);
 }
 
 /**

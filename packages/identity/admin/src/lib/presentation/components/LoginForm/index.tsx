@@ -15,6 +15,7 @@ import { AuthField } from '../AuthField';
 import { AuthAlert } from '../AuthAlert';
 import { AuthNotice } from '../AuthNotice';
 import { LoginActions } from './LoginActions';
+import { SsoProviders } from '../SsoProviders';
 
 /** Intl descriptors for {@link LoginForm}, co-located with the component. */
 const messages = defineMessages({
@@ -70,6 +71,13 @@ type LoginFormProps = Omit<React.ComponentProps<'div'>, 'onSubmit'> & {
      * heading meets it.
      */
     notice?: string;
+    /**
+     * Where a successful sign-in should land — the location the gate was aiming
+     * at. Only the single-sign-on links need it: the password form posts and
+     * the page navigates afterwards, while an SSO link leaves this page
+     * entirely and has to carry the destination with it.
+     */
+    redirectTo?: string;
 };
 
 /**
@@ -90,6 +98,7 @@ export function LoginForm({
     isPending = false,
     error,
     notice,
+    redirectTo,
     ...props
 }: LoginFormProps) {
     const intl = useIntl();
@@ -183,6 +192,15 @@ export function LoginForm({
                             </form.Field>
 
                             <LoginActions isPending={isPending} />
+
+                            {/* After the password form, not before it. The
+                                credential form is what every deployment has;
+                                the providers are what some of them add, and a
+                                visitor arriving to sign in with a password
+                                should not have to read past a list of buttons
+                                to find the field they came for. Renders
+                                nothing when no provider is registered. */}
+                            <SsoProviders redirectTo={redirectTo} />
                         </FieldGroup>
                     </form>
                 </CardContent>

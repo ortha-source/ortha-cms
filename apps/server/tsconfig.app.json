@@ -25,16 +25,19 @@
             "path": "../../packages/workspaces/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/media/provider-local/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/media/provider-local/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/domain/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/database/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
         },
         {
             "path": "../../packages/content/server/tsconfig.lib.json"
@@ -50,6 +53,9 @@
         },
         {
             "path": "../../packages/i18n/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/identity/provider-oidc/tsconfig.lib.json"
         },
         {
             "path": "../../packages/identity/server/tsconfig.lib.json"

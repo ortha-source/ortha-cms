@@ -12,6 +12,9 @@ import type {
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
+// ortha:if sso-oidc
+import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
+// ortha:end
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
 // ortha:if media-local
@@ -50,6 +53,30 @@ import type { McpPluginConfig } from '@orthacms/mcp-server';
  * read, where a `defaultProvider` naming one of them could be misspelled or
  * point at a backend nobody registered.
  */
+/**
+ * Identity settings, plus the identity providers this app can reach.
+ *
+ * The provider settings live here rather than inside `IdentityPluginConfig`,
+ * for the same reason the copilot's backends do: the plugin names no protocol,
+ * and this file is the one place that reads the environment. The constructed
+ * adapters are registered in `src/plugins.ts`.
+ */
+export interface AppIdentityConfig extends IdentityPluginConfig {
+    /**
+     * Identity providers, keyed by the name they are registered under. That
+     * name appears in the sign-in URL and in every `sso_identities` row, so
+     * renaming one orphans the links that name it.
+     *
+     * Optional, and absent unless this app was generated with single sign-on.
+     */
+    ssoProviders?: {
+        // ortha:if sso-oidc
+        /** A generic OpenID Connect provider. Present when both env vars are set. */
+        oidc?: OidcProviderConfig & { name: string };
+        // ortha:end
+    };
+}
+
 export interface AppCopilotConfig extends CopilotPluginConfig {
     providers: {
         // ortha:if copilot-anthropic
@@ -77,7 +104,7 @@ export interface OrthaConfig {
     database: { url: string };
     docs: ApiDocsOptions;
     plugins: {
-        identity: IdentityPluginConfig;
+        identity: AppIdentityConfig;
         i18n: I18nPluginConfig;
         media: MediaPluginConfig & {
             /**
@@ -257,6 +284,59 @@ const config: OrthaConfig = {
                 ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
                 limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
             },
+            // Single sign-on. The providers themselves are constructed in
+            // `src/plugins.ts`; these settings shape the handshake.
+            sso: {
+                // The origin browsers reach this API on. It builds the
+                // redirect_uri you register with each provider, and it is
+                // configured rather than read from the request's Host header,
+                // which a client controls. Leave it unset when the admin and
+                // the API share an origin — the usual case.
+                ...(process.env['SSO_PUBLIC_BASE_URL']
+                    ? { publicBaseUrl: process.env['SSO_PUBLIC_BASE_URL'] }
+                    : {}),
+                requestTtlSeconds: readPositiveInt(
+                    'SSO_REQUEST_TTL_SECONDS',
+                    600
+                )
+            },
+            // ortha:if sso-oidc
+            ssoProviders: {
+                // Present only when both are set: an issuer with no client id
+                // becomes a sign-in button that can only fail, and every SSO
+                // failure looks the same, so whoever clicks it learns nothing.
+                ...(process.env['SSO_OIDC_ISSUER'] &&
+                process.env['SSO_OIDC_CLIENT_ID']
+                    ? {
+                          oidc: {
+                              name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+                              issuer: process.env['SSO_OIDC_ISSUER'],
+                              clientId: process.env['SSO_OIDC_CLIENT_ID'],
+                              ...(process.env['SSO_OIDC_CLIENT_SECRET']
+                                  ? {
+                                        clientSecret:
+                                            process.env[
+                                                'SSO_OIDC_CLIENT_SECRET'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_LABEL']
+                                  ? { label: process.env['SSO_OIDC_LABEL'] }
+                                  : {}),
+                              // The only gate on a first sign-in claiming an
+                              // existing account. A provider that omits the
+                              // claim — Entra ID, notably — links nobody until
+                              // an operator asserts that this directory owns
+                              // the addresses it reports.
+                              emailVerifiedWhenAbsent:
+                                  process.env[
+                                      'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
+                                  ] === 'true'
+                          }
+                      }
+                    : {})
+            },
+            // ortha:end
             // With an email set, an admin is provisioned on boot — idempotent
             // and non-destructive. This is how you get your first login.
             rootAdmin: {

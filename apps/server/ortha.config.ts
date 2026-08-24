@@ -16,6 +16,7 @@ import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthrop
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
+import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
@@ -60,6 +61,44 @@ export interface OrthaCopilotConfig extends CopilotPluginConfig {
          * and offering it in the picker would be worse than not having it.
          */
         ollama?: OpenAiProviderConfig;
+    };
+}
+
+/**
+ * Identity settings, plus the connection settings for the identity providers
+ * this deployment can reach.
+ *
+ * The provider settings live **here**, not inside `IdentityPluginConfig`: the
+ * plugin is adapter-agnostic by decision (ADR-0013 §1), so it names no
+ * protocol. `plugins.ts` already imports the adapter factories, so importing
+ * their config type costs no new coupling — and adding a second identity
+ * provider is a key here plus a line there, with nothing to change inside the
+ * identity packages.
+ *
+ * A key is present only when the deployment configured that provider, exactly
+ * as the copilot's backends are. A half-configured provider is worse than an
+ * absent one: it appears on the sign-in page as a button that can only fail,
+ * and every SSO failure deliberately looks the same, so the person clicking it
+ * learns nothing.
+ */
+export interface OrthaIdentityConfig extends IdentityPluginConfig {
+    /**
+     * Identity providers, keyed by the name they are registered under. That
+     * name appears in the sign-in URL and in every `sso_identities` row, so
+     * changing it orphans the links that name it.
+     */
+    ssoProviders: {
+        /**
+         * A generic OpenID Connect provider — Okta, Auth0, Keycloak, Google,
+         * Entra ID, Authentik, Zitadel and the rest all speak it. Present when
+         * `SSO_OIDC_ISSUER` and `SSO_OIDC_CLIENT_ID` are both set.
+         *
+         * Registered under the name in `SSO_OIDC_NAME` (default `oidc`). To run
+         * two at once — a staff directory and a contractor one — copy this key
+         * and the matching line in `plugins.ts`; the adapter takes its whole
+         * configuration as an argument, so nothing else changes.
+         */
+        oidc?: OidcProviderConfig & { name: string };
     };
 }
 
@@ -112,8 +151,8 @@ export interface OrthaConfig {
     docs: ApiDocsOptions;
     /** Per-plugin runtime config, keyed by plugin name. */
     plugins: {
-        /** Identity plugin settings. */
-        identity: IdentityPluginConfig;
+        /** Identity plugin settings — sessions, tokens, and SSO providers. */
+        identity: OrthaIdentityConfig;
         /** i18n plugin settings — the available content locales. */
         i18n: I18nPluginConfig;
         /** Media plugin settings — the storage backend + upload limits. */
@@ -205,6 +244,16 @@ function readList(name: string, fallback: string): string[] {
  * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
  * against a named value than against a nested `process.env` lookup.
  */
+/**
+ * The identity provider this deployment can reach, if any.
+ *
+ * Both values are read out here because both gate whether the provider is
+ * configured at all: an issuer with no client id (or the reverse) becomes a
+ * button on the sign-in page that can only fail.
+ */
+const ssoOidcIssuer = process.env['SSO_OIDC_ISSUER']?.trim();
+const ssoOidcClientId = process.env['SSO_OIDC_CLIENT_ID']?.trim();
+
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
 
@@ -405,6 +454,49 @@ const config: OrthaConfig = {
                     'SSO_REQUEST_TTL_SECONDS',
                     600
                 )
+            },
+            ssoProviders: {
+                ...(ssoOidcIssuer && ssoOidcClientId
+                    ? {
+                          oidc: {
+                              // What the route and every link row call this
+                              // provider. Stable by necessity: renaming it
+                              // orphans the links that name it.
+                              name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+                              issuer: ssoOidcIssuer,
+                              clientId: ssoOidcClientId,
+                              ...(process.env['SSO_OIDC_CLIENT_SECRET']
+                                  ? {
+                                        clientSecret:
+                                            process.env[
+                                                'SSO_OIDC_CLIENT_SECRET'
+                                            ]
+                                    }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_LABEL']
+                                  ? { label: process.env['SSO_OIDC_LABEL'] }
+                                  : {}),
+                              ...(process.env['SSO_OIDC_SCOPES']
+                                  ? {
+                                        scopes: readList(
+                                            'SSO_OIDC_SCOPES',
+                                            'openid,profile,email'
+                                        )
+                                    }
+                                  : {}),
+                              // Only when an operator says so. The claim is the
+                              // sole gate on a first sign-in claiming an
+                              // existing account, so a provider that omits it
+                              // — Entra ID, notably — links nobody until
+                              // someone asserts that this directory owns the
+                              // addresses it reports.
+                              emailVerifiedWhenAbsent:
+                                  process.env[
+                                      'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
+                                  ] === 'true'
+                          }
+                      }
+                    : {})
             }
         },
         i18n: {

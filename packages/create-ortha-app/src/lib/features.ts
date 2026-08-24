@@ -222,6 +222,39 @@ export const COPILOT_PROVIDERS: readonly Feature[] = [
 ];
 
 /**
+ * How people sign in to the admin.
+ *
+ * A single opt-in, and off by default, because SSO is not something a CMS can
+ * usefully guess at: it needs an issuer, a client and a callback URL registered
+ * on the other side, none of which a scaffolder can invent. A generated app
+ * without it signs in with email and password, which is the invite-only flow
+ * Ortha has always had.
+ *
+ * One entry covers the field. Okta, Auth0, Keycloak, Google, Entra ID,
+ * Authentik, Zitadel, JumpCloud, Ping and GitLab all speak OpenID Connect, and
+ * the named vendors are preset factories inside this same package rather than
+ * packages of their own — the SSO equivalent of the copilot's
+ * OpenAI-compatible adapter. GitHub (OAuth2, no identity token) and SAML have
+ * genuinely different wires and will arrive as their own entries here.
+ *
+ * `identity-provider-fake` is not offered: it is installed unconditionally,
+ * like `copilot-provider-fake`, because it needs no tenant and no network and
+ * is how a generated app's sign-in page is exercised offline. Installing it
+ * registers nothing — an adapter only does something once the composition root
+ * names it, and the template names none.
+ */
+export const SSO_PROVIDERS: readonly Feature[] = [
+    {
+        id: 'sso-oidc',
+        label: 'OpenID Connect single sign-on',
+        hint: 'Okta, Auth0, Keycloak, Google, Entra ID and the rest. Needs SSO_OIDC_ISSUER and SSO_OIDC_CLIENT_ID.',
+        packages: ['@orthacms/identity-provider-oidc'],
+        enabledByDefault: false,
+        available: true
+    }
+];
+
+/**
  * How the content API is spoken.
  *
  * REST is always there and is shown `locked` rather than hidden, because "which
@@ -267,6 +300,7 @@ export const PROTOCOLS: readonly Feature[] = [
 export const ALL_FEATURES: readonly Feature[] = [
     ...MEDIA_PROVIDERS,
     ...COPILOT_PROVIDERS,
+    ...SSO_PROVIDERS,
     ...PROTOCOLS
 ];
 

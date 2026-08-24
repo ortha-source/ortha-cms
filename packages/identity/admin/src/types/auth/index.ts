@@ -79,6 +79,24 @@ export type ResetPasswordInput = {
 };
 
 /**
+ * One single sign-on provider the deployment offers, as returned by
+ * `GET /api/auth/sso`.
+ *
+ * Carries nothing about any particular person — no "this address uses Google".
+ * The endpoint answers before anyone has identified themselves, and one that
+ * varied by email would be an account-enumeration oracle wearing a helpful
+ * face.
+ */
+export type SsoProviderSummary = {
+    /** The registered name, used in the sign-in URL. */
+    name: string;
+    /** The button label the operator chose. */
+    label: string;
+    /** The protocol the provider speaks. */
+    kind: 'oidc' | 'oauth2' | 'saml';
+};
+
+/**
  * Token pair returned from a successful login.
  */
 export type AuthTokens = {

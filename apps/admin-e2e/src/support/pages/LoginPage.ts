@@ -31,6 +31,12 @@ export class LoginPage extends BasePage {
     readonly chunkErrorHeading: Locator;
     /** The error boundary's recovery action — a full reload fetches the new build. */
     readonly chunkErrorReload: Locator;
+    /**
+     * The "or continue with" divider above the single-sign-on links. Present
+     * only when the deployment registers at least one provider, so it is also
+     * how a suite asserts the block is absent.
+     */
+    readonly ssoSeparator: Locator;
 
     constructor(page: Page) {
         super(page);
@@ -52,6 +58,18 @@ export class LoginPage extends BasePage {
         this.sessionEndedNotice = page
             .getByRole('alert')
             .filter({ hasText: /Your session has ended/ });
+        this.ssoSeparator = page.getByText('or continue with');
+    }
+
+    /**
+     * One provider's sign-in control, by the label the operator configured.
+     *
+     * A **link**, not a button: signing in through a provider is a full-page
+     * navigation, so an anchor is what it is — and asserting the role here is
+     * what stops that from silently regressing into a scripted click.
+     */
+    ssoLink(label: string): Locator {
+        return this.page.getByRole('link', { name: `Sign in with ${label}` });
     }
 
     async goto() {

@@ -174,6 +174,11 @@ export function buildTestConfig(
         docs: { enabled: overrides.docsEnabled ?? false },
         plugins: {
             identity: {
+                // No identity provider is configured for the e2e run: the
+                // harness registers the scripted one directly in
+                // `buildTestPlugins`, which is the whole point — the handshake
+                // is exercised with no tenant and no network.
+                ssoProviders: {},
                 allowedOrigins: overrides.allowedOrigins ?? [
                     TEST_ALLOWED_ORIGIN
                 ],
