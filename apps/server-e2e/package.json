@@ -47,5 +47,9 @@
         "sharp": "^0.33.5",
         "supertest": "^7.2.2",
         "testcontainers": "^12.0.1"
+    },
+    "dependencies": {
+        "@orthacms/transfer-domain": "*",
+        "@orthacms/transfer-server": "*"
     }
 }

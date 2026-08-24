@@ -20,6 +20,8 @@ export const PERMISSIONS = {
     CONTENT_UPDATE: 'content:update',
     CONTENT_PUBLISH: 'content:publish',
     CONTENT_DELETE: 'content:delete',
+    CONTENT_EXPORT: 'content:export',
+    CONTENT_IMPORT: 'content:import',
     MEDIA_READ: 'media:read',
     MEDIA_CREATE: 'media:create',
     MEDIA_UPDATE: 'media:update',
@@ -74,6 +76,17 @@ export interface SystemRole {
  * the 23 defined above. The seeder now reconciles in both directions, so
  * removing a key from this file removes the grant.
  *
+ * `content:export` and `content:import` are separate keys rather than folded
+ * into read and create, because they are separate capabilities. Reading the
+ * library a page at a time and taking it out of the system in one file — media
+ * bytes included — are not the same act, and the second is the one an operator
+ * wants to be able to withhold and to audit. So **viewer does not get export**
+ * even though a viewer can already read every record: the difference is bulk
+ * egress, not access. Import is granted alongside it for contributors, but the
+ * use-case additionally requires the ordinary `content:create` /
+ * `content:update` for each write it performs, so importing can never do more
+ * than the caller could have done by hand.
+ *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
  * instructions are prompt text that runs for every member of the workspace, so
@@ -92,6 +105,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_CREATE,
             PERMISSIONS.CONTENT_UPDATE,
             PERMISSIONS.CONTENT_PUBLISH,
+            PERMISSIONS.CONTENT_EXPORT,
+            PERMISSIONS.CONTENT_IMPORT,
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
             PERMISSIONS.MEDIA_UPDATE,

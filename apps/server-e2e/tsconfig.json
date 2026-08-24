@@ -66,6 +66,12 @@
             "path": "../../packages/bootstrap/server"
         },
         {
+            "path": "../../packages/transfer/server"
+        },
+        {
+            "path": "../../packages/transfer/domain"
+        },
+        {
             "path": "../../packages/media/provider-memory"
         }
     ]

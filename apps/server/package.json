@@ -143,6 +143,7 @@
         "@orthacms/mcp-server": "*",
         "@orthacms/media-provider-local": "*",
         "@orthacms/media-server": "*",
+        "@orthacms/transfer-server": "*",
         "@orthacms/users-server": "*",
         "@orthacms/workspaces-server": "*",
         "class-transformer": "^0.5.1",

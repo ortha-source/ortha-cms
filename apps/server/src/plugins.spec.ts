@@ -32,6 +32,7 @@ const EXPECTED_PLUGINS = [
     'content-graphql',
     'media',
     'i18n',
+    'transfer',
     'copilot',
     'mcp'
 ];

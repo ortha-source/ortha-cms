@@ -37,10 +37,7 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../packages/copilot/admin/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/i18n/admin/tsconfig.lib.json"
+            "path": "../../packages/transfer/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/wysiwyg/admin/tsconfig.lib.json"
@@ -62,6 +59,12 @@
         },
         {
             "path": "../../packages/identity/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/i18n/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/copilot/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/content/admin/tsconfig.lib.json"

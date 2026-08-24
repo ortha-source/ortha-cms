@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Send, Trash2, Undo2 } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { Button, ConfirmDialog, Spinner, toast } from '@orthacms/design-system';
 import { CONTENT_DELETE, CONTENT_PUBLISH } from '../../../../domain/constants';
 import { useBulkEntryActions } from '../../../../application/useBulkEntryActions';
+import {
+    RECORDS_BULK_ACTION_SLOT,
+    type RecordsBulkContext
+} from '../../../slots/contentSlots';
+import type { ContentTypeDetail } from '../../../../domain/types/contentType';
 import { BulkPublishDialog } from '../BulkPublishDialog';
 
 const messages = defineMessages({
@@ -79,6 +84,8 @@ const messages = defineMessages({
  */
 export function CollectionRecordsBulkActions({
     typeName,
+    schema,
+    workspaceId,
     ids,
     publishable,
     paranoid,
@@ -86,6 +93,10 @@ export function CollectionRecordsBulkActions({
     onDone
 }: {
     typeName: string;
+    /** The open collection's schema, handed to slot contributions. */
+    schema: ContentTypeDetail;
+    /** The open workspace's id, handed to slot contributions. */
+    workspaceId: string;
     /** The selected entry ids. */
     ids: string[];
     publishable: boolean;
@@ -102,6 +113,61 @@ export function CollectionRecordsBulkActions({
 
     const canPublish = useHasPermission(CONTENT_PUBLISH);
     const canDelete = useHasPermission(CONTENT_DELETE);
+
+    // Hooks first, unconditionally, over the full registered list — and above
+    // the `trashed` early return, or the trash and live views would run
+    // different numbers of hooks and React would tear on the switch between
+    // them. `appliesTo` filters the *result*, never the call.
+    const slotContext: RecordsBulkContext = {
+        schema,
+        workspaceId,
+        ids,
+        trashed,
+        onDone
+    };
+    const contributed = RECORDS_BULK_ACTION_SLOT.getItems().map((item) => ({
+        item,
+        entry: item.useItem(slotContext)
+    }));
+    // Flattened to `{ key, order, …entry }` before rendering, the way
+    // `EntryMenu` builds its `Placed` rows — it is what lets the JSX read the
+    // resolved entry directly instead of re-proving it is non-null on each use.
+    const extras = contributed
+        .flatMap(({ item, entry }) =>
+            entry && (!item.appliesTo || item.appliesTo(schema))
+                ? [{ ...entry, key: item.id, order: item.order }]
+                : []
+        )
+        .sort((a, b) => a.order - b.order);
+
+    const extraButtons = extras.map((entry) => {
+        const Icon = entry.icon;
+        return (
+            <Button
+                key={entry.key}
+                variant="outline"
+                size="sm"
+                className={
+                    entry.destructive
+                        ? 'text-destructive shadow-none hover:text-destructive'
+                        : 'shadow-none'
+                }
+                disabled={entry.disabled}
+                onClick={entry.onSelect}
+            >
+                {Icon ? <Icon aria-hidden /> : null}
+                {entry.label}
+            </Button>
+        );
+    });
+    // Every contribution's overlay, including the ones `appliesTo` filtered out
+    // of the button row — an overlay that is mid-animation when its button
+    // stops applying should still finish rather than vanish.
+    const extraOverlays = contributed
+        .filter((row) => row.entry?.overlay)
+        .map((row) => (
+            <Fragment key={row.item.id}>{row.entry?.overlay}</Fragment>
+        ));
 
     const run = (
         mutateAsync: (ids: string[]) => Promise<{ count: number }>,
@@ -156,6 +222,8 @@ export function CollectionRecordsBulkActions({
                         </Button>
                     </>
                 ) : null}
+                {extraButtons}
+                {extraOverlays}
 
                 <ConfirmDialog
                     open={confirmPurge}
@@ -220,6 +288,9 @@ export function CollectionRecordsBulkActions({
                     {intl.formatMessage(messages.deleteEntries)}
                 </Button>
             ) : null}
+
+            {extraButtons}
+            {extraOverlays}
 
             {publishable && canPublish ? (
                 <BulkPublishDialog

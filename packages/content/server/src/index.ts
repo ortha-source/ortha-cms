@@ -30,6 +30,13 @@ export { EntryWriterService } from './lib/entries/infrastructure/persistence/ent
 // entries pipeline does.
 export { RelationLinkService } from './lib/entries/infrastructure/persistence/relation-link.service';
 
+// The workspace's content-grant gate as a route guard, exported for the same
+// reason `ApiTokenGuard` is: a plugin adding a route over this same content
+// must reuse the exact rule rather than restate it. `@orthacms/transfer-server`
+// puts export and import routes beside the entries routes, and skipping this
+// would make either one a way to reach past the workspace's content surface.
+export { ContentGrantGuard } from './lib/entries/http/guards/content-grant.guard';
+
 export { CONTENT_ENTRY_EXTENSION } from './lib/extension/entry-extension';
 export type {
     ContentEntryExtension,

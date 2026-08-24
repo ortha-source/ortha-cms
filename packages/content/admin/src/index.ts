@@ -10,6 +10,7 @@ export {
     ENTRY_PRESAVE_SLOT,
     ENTRY_SIDEBAR_WIDGET_SLOT,
     ENTRY_TAB_SLOT,
+    RECORDS_BULK_ACTION_SLOT,
     RECORDS_COLUMN_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
     RECORDS_TOOLBAR_SLOT
@@ -21,6 +22,9 @@ export type {
     EntryHeaderItem,
     EntryMenuEntry,
     EntryMenuItem,
+    RecordsBulkActionEntry,
+    RecordsBulkActionItem,
+    RecordsBulkContext,
     EntryParamsItem,
     EntryPresave,
     EntryPresaveItem,

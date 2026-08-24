@@ -211,7 +211,18 @@ export class MediaModule {
                     useExisting: MediaAssetResolverQuery
                 }
             ],
-            exports: [MEDIA_ASSET_RESOLVER, COPILOT_ATTACHMENT_RESOLVER]
+            exports: [
+                MEDIA_ASSET_RESOLVER,
+                COPILOT_ATTACHMENT_RESOLVER,
+                // The storage seam and the upload path, for a plugin that moves
+                // assets in and out of the library — `@orthacms/transfer-server`
+                // reads bytes for an export and recreates them on import. Both
+                // are the same collaborators this module's own controllers use,
+                // which is what keeps a transferred asset indistinguishable from
+                // an uploaded one.
+                STORAGE_PROVIDER,
+                UploadAssetUseCase
+            ]
         };
     }
 }

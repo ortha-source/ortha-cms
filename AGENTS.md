@@ -73,6 +73,17 @@
   ([ADR-0008](docs/adr/0008-graphql-as-a-protocol-adapter.md)). Its schema is
   built **per workspace content-grant set**, so introspection cannot enumerate
   types the workspace was not granted.
+- `packages/transfer/*` — content **export and import**. `domain` is the
+  framework-free kernel: the transfer document both ends agree on, the four
+  formats behind one `ExportSerializer` / `ImportParser` port, and the
+  natural-key rules; `server` is the plugin — the export/import routes, the
+  graph walk, and a hand-rolled ZIP container; `admin` is the two dialogs and
+  the three slot contributions that reach them. The depth is **one hop**
+  ([ADR-0014](docs/adr/0014-transfer-as-a-separate-plugin.md)): relations, files
+  and locales travel, relations-of-relations stay as references. Every write
+  goes through content's `EntryWriterService`, so an import cannot outrun
+  validation, the workspace scope, or the caller's own permissions. Owns no
+  tables.
 - `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token

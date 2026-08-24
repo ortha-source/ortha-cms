@@ -19,6 +19,15 @@ export type { DirectServeMode } from './lib/http/direct-serve';
 // gone, and the *kind* of rejection is part of that promise rather than an
 // implementation detail of a filesystem or a bucket.
 export { ObjectNotFoundError } from './lib/domain/errors/object-not-found.error';
+// The upload use case, exported for the plugins that write assets on someone's
+// behalf — `@orthacms/transfer-server` recreates an archive's files on import.
+// Deliberately the *same* use case the upload controller calls, for the reason
+// content-server exports `EntryWriterService`: an importer reaching past it
+// would skip the kind derivation, the image derivatives and the outbox event,
+// and produce asset rows the rest of the plugin has never seen the like of.
+export { UploadAssetUseCase } from './lib/application/use-cases/upload-asset.use-case';
+export type { UploadAssetCommand } from './lib/application/use-cases/upload-asset.use-case';
+
 export type { AssetView, AssetListView } from './lib/types/asset-view';
 export type { FolderView, FoldersView } from './lib/types/folder-view';
 export * from './lib/infrastructure/schema';

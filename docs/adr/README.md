@@ -37,5 +37,6 @@ routine, easily-reversed changes.
 - [0011 — Rich text is a structured document, not an opaque string](0011-richtext-as-a-structured-document.md)
 - [0012 — One storage provider per deployment, passed as one object](0012-one-storage-provider-per-deployment.md)
 - [0013 — SSO is a provider port, and the core owns the handshake](0013-sso-provider-port.md)
+- [0014 — Export and import as a separate plugin, one hop deep](0014-transfer-as-a-separate-plugin.md)
 
 <!-- Add new ADRs to this index. -->

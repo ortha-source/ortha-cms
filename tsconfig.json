@@ -164,6 +164,15 @@
         },
         {
             "path": "./packages/identity/provider-saml"
+        },
+        {
+            "path": "./packages/transfer/domain"
+        },
+        {
+            "path": "./packages/transfer/server"
+        },
+        {
+            "path": "./packages/transfer/admin"
         }
     ]
 }

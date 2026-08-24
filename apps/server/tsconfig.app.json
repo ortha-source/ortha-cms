@@ -28,9 +28,6 @@
             "path": "../../packages/users/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/media/provider-local/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/identity/domain/tsconfig.lib.json"
         },
         {
@@ -46,7 +43,13 @@
             "path": "../../packages/activity/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/media/provider-local/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/transfer/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/mcp/server/tsconfig.lib.json"

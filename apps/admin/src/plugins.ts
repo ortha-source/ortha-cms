@@ -11,6 +11,7 @@ import { UsersPlugin } from '@orthacms/users-admin';
 import { ActivityPlugin } from '@orthacms/activity-admin';
 import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
+import { transferAdminPlugin } from '@orthacms/transfer-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring
@@ -64,6 +65,10 @@ export function buildPlugins(): AdminPlugin[] {
         // `richtext` field renders — so it likewise reads after ContentPlugin().
         WysiwygPlugin(),
         MediaPlugin(),
+        // Export/import. Another Content Library slot filler — the entry menu,
+        // the records selection bar and the collection toolbar — so it reads
+        // after ContentPlugin() for the same reason I18nPlugin() does.
+        transferAdminPlugin(),
         // The docked chat panel plus the full-page Agents view. Belongs with the
         // workspace-interior features: the panel mounts into the workspace
         // shell's sidebar footer.

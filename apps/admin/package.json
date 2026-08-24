@@ -13,6 +13,7 @@
         "@orthacms/insights-admin": "*",
         "@orthacms/media-admin": "*",
         "@orthacms/shell-admin": "*",
+        "@orthacms/transfer-admin": "*",
         "@orthacms/users-admin": "*",
         "@orthacms/workspaces-admin": "*",
         "@orthacms/wysiwyg-admin": "*"
