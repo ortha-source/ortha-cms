@@ -1,3 +1,60 @@
+## 0.4.0 (2026-08-24)
+
+### 🚀 Features
+
+- **cli:** add `ortha` and `npx create-ortha-app` ([5c056f81](https://github.com/ortha-source/ortha-cms/commit/5c056f81))
+- **content-admin:** a ⋯ menu for the collection, and move Import into it ([#201](https://github.com/ortha-source/ortha-cms/issues/201))
+- **content-admin:** move the ⋯ menu right, and fold bulk actions into one ([c5aaaec0](https://github.com/ortha-source/ortha-cms/commit/c5aaaec0))
+- **create-ortha-app:** pick features at scaffold time, in a proper wizard ([860b424f](https://github.com/ortha-source/ortha-cms/commit/860b424f))
+- **create-ortha-app:** ship the copilot by default, ask about protocols ([4af15060](https://github.com/ortha-source/ortha-cms/commit/4af15060))
+- **create-ortha-app:** declare every reachable package in a new app ([17a97fbd](https://github.com/ortha-source/ortha-cms/commit/17a97fbd))
+- **create-ortha-app:** ship a working test setup in the generated app ([ea90aa47](https://github.com/ortha-source/ortha-cms/commit/ea90aa47))
+- **create-ortha-app:** split e2e into server and admin suites ([70411c97](https://github.com/ortha-source/ortha-cms/commit/70411c97))
+- **identity:** SSO phase 0 — the provider seam, with no real IdP in it ([3afa9655](https://github.com/ortha-source/ortha-cms/commit/3afa9655))
+- **identity:** SSO phase 1 — a real identity provider ([c48b13ee](https://github.com/ortha-source/ortha-cms/commit/c48b13ee))
+- **identity:** SSO phase 2 — what a sign-in is allowed to do ([67a88113](https://github.com/ortha-source/ortha-cms/commit/67a88113))
+- **identity:** SSO phase 3 — the long tail ([c7aa471e](https://github.com/ortha-source/ortha-cms/commit/c7aa471e))
+- **insights:** put the selected range in the URL, so a dashboard can be shared ([bf0c3e91](https://github.com/ortha-source/ortha-cms/commit/bf0c3e91))
+- **media:** one storage provider per deployment, passed as one object ([96c7b028](https://github.com/ortha-source/ortha-cms/commit/96c7b028))
+- **media:** ship the in-memory storage provider as a package ([218be993](https://github.com/ortha-source/ortha-cms/commit/218be993))
+- **media:** implement the S3-compatible storage provider ([8589f095](https://github.com/ortha-source/ortha-cms/commit/8589f095))
+- **media:** serve downloads as a signed redirect when the backend can ([57f0f806](https://github.com/ortha-source/ortha-cms/commit/57f0f806))
+- **media:** add the Azure Blob Storage provider ([ffa1558c](https://github.com/ortha-source/ortha-cms/commit/ffa1558c))
+- **media:** add the Google Cloud Storage provider ([fc674283](https://github.com/ortha-source/ortha-cms/commit/fc674283))
+- **media:** add the Vercel Blob provider ([a5a662a0](https://github.com/ortha-source/ortha-cms/commit/a5a662a0))
+- **transfer:** the transfer kernel — document contract, formats, identity ([37235c74](https://github.com/ortha-source/ortha-cms/commit/37235c74))
+- **transfer:** the server plugin — one-hop export, two-phase import ([fd6eb11c](https://github.com/ortha-source/ortha-cms/commit/fd6eb11c))
+- **transfer:** the admin plugin, and a bulk-action slot to hang it on ([7c8b293a](https://github.com/ortha-source/ortha-cms/commit/7c8b293a))
+- **transfer:** register the plugin, and write down why it exists ([d1abf7c8](https://github.com/ortha-source/ortha-cms/commit/d1abf7c8))
+- **transfer:** link related records on import instead of copying them ([744ab919](https://github.com/ortha-source/ortha-cms/commit/744ab919))
+
+### 🩹 Fixes
+
+- **admin-a11y:** stop the route announcer reading loading skeletons; give every skeleton an <h1> ([36f955d0](https://github.com/ortha-source/ortha-cms/commit/36f955d0))
+- **admin-e2e:** close the permission drift and two stale locators ([810bc1fb](https://github.com/ortha-source/ortha-cms/commit/810bc1fb))
+- **bootstrap-admin:** wire slot contributions from empty, so a hot update stops doubling them ([99f1cf8d](https://github.com/ortha-source/ortha-cms/commit/99f1cf8d))
+- **content-graphql:** close the maxComplexity budget's prototype-name fail-open ([1298af42](https://github.com/ortha-source/ortha-cms/commit/1298af42))
+- **content-graphql:** bound SchemaCache, which kept one schema per grant set ever seen ([a3bde042](https://github.com/ortha-source/ortha-cms/commit/a3bde042))
+- **copilot-admin:** make the transcript and the composer one column ([33a8c2a6](https://github.com/ortha-source/ortha-cms/commit/33a8c2a6))
+- **copilot-provider-openai:** retry a transient upstream failure, as anthropic does ([d54d4153](https://github.com/ortha-source/ortha-cms/commit/d54d4153))
+- **create-ortha-app:** classify the two provider-authoring packages ([94a294d8](https://github.com/ortha-source/ortha-cms/commit/94a294d8))
+- **database:** drain the pool and the in-flight outbox batch on shutdown ([ac173ef8](https://github.com/ortha-source/ortha-cms/commit/ac173ef8))
+- **identity-server:** drop sessionSecret and tokenSecret, which nothing read ([2d5b9b6c](https://github.com/ortha-source/ortha-cms/commit/2d5b9b6c))
+- **media-server:** map the media tools' domain errors, so a bad argument is a 400 not an opaque 500 ([474a7ead](https://github.com/ortha-source/ortha-cms/commit/474a7ead))
+- **media-server:** answer 404, not 500, when an asset's blob is missing from storage ([98d6624b](https://github.com/ortha-source/ortha-cms/commit/98d6624b))
+- **server-e2e:** stop the local-storage suite leaking rows into the next file ([1532d740](https://github.com/ortha-source/ortha-cms/commit/1532d740))
+- **transfer:** key localized fields, and fold the locale into the match ([5b5fb271](https://github.com/ortha-source/ortha-cms/commit/5b5fb271))
+- **transfer:** stop the import's link pass blanking the fields it just wrote ([7510195a](https://github.com/ortha-source/ortha-cms/commit/7510195a))
+- **transfer-admin:** refresh the list after an import, and explain the options ([ffaf843c](https://github.com/ortha-source/ortha-cms/commit/ffaf843c))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 4.8
+- Claude Opus 5
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.3.0 (2026-08-22)
 
 ### 🚀 Features
