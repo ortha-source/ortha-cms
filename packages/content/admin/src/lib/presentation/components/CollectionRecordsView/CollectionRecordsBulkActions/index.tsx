@@ -1,8 +1,18 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ComponentType, type ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Send, Trash2, Undo2 } from 'lucide-react';
+import { MoreHorizontal, Send, Trash2, Undo2 } from 'lucide-react';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { Button, ConfirmDialog, Spinner, toast } from '@orthacms/design-system';
+import {
+    Button,
+    ConfirmDialog,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    Spinner,
+    toast
+} from '@orthacms/design-system';
 import { CONTENT_DELETE, CONTENT_PUBLISH } from '../../../../domain/constants';
 import { useBulkEntryActions } from '../../../../application/useBulkEntryActions';
 import {
@@ -13,6 +23,7 @@ import type { ContentTypeDetail } from '../../../../domain/types/contentType';
 import { BulkPublishDialog } from '../BulkPublishDialog';
 
 const messages = defineMessages({
+    trigger: { id: 'content.bulk.trigger', defaultMessage: 'Bulk actions' },
     publish: { id: 'content.bulk.publish', defaultMessage: 'Publish' },
     unpublish: { id: 'content.bulk.unpublish', defaultMessage: 'Unpublish' },
     deleteEntries: { id: 'content.bulk.delete', defaultMessage: 'Delete' },
@@ -75,12 +86,34 @@ const messages = defineMessages({
     }
 });
 
+/** One resolved row of the menu, built-in or contributed. */
+type Placed = {
+    key: string;
+    order: number;
+    label: ReactNode;
+    icon?: ComponentType;
+    disabled?: boolean;
+    destructive?: boolean;
+    onSelect: () => void;
+};
+
 /**
- * The bulk action controls rendered inside the selection bar. In the live view:
- * **Publish** (opens the dry-run {@link BulkPublishDialog}), **Unpublish**, and
- * **Delete** (confirm). In the **trash** view: **Restore** and **Delete
- * permanently** (confirm). All gated by permission and scoped to the current
- * selection; each clears the selection (`onDone`) after it succeeds.
+ * The bulk actions for the current selection, in a **⋯ menu** at the end of the
+ * selection bar. In the live view: **Publish** (opens the dry-run
+ * {@link BulkPublishDialog}), **Unpublish**, and **Delete** (confirm). In the
+ * **trash** view: **Restore** and **Delete permanently** (confirm). All gated
+ * by permission and scoped to the current selection; each clears the selection
+ * (`onDone`) after it succeeds.
+ *
+ * A menu rather than a row of buttons because the row grew with every
+ * contribution and pushed the count off the other side of the bar. The one
+ * control that stays outside it is **Clear**, which the selection bar renders
+ * itself — see its JSDoc for why.
+ *
+ * The dialogs are rendered **outside** `DropdownMenuContent`, which unmounts
+ * the moment the menu closes — exactly when a dialog opened from an item is
+ * meant to appear. Contributions' overlays are kept outside for the same
+ * reason.
  */
 export function CollectionRecordsBulkActions({
     typeName,
@@ -115,9 +148,9 @@ export function CollectionRecordsBulkActions({
     const canDelete = useHasPermission(CONTENT_DELETE);
 
     // Hooks first, unconditionally, over the full registered list — and above
-    // the `trashed` early return, or the trash and live views would run
-    // different numbers of hooks and React would tear on the switch between
-    // them. `appliesTo` filters the *result*, never the call.
+    // the `trashed` branch, or the trash and live views would run different
+    // numbers of hooks and React would tear on the switch between them.
+    // `appliesTo` filters the *result*, never the call.
     const slotContext: RecordsBulkContext = {
         schema,
         workspaceId,
@@ -132,7 +165,7 @@ export function CollectionRecordsBulkActions({
     // Flattened to `{ key, order, …entry }` before rendering, the way
     // `EntryMenu` builds its `Placed` rows — it is what lets the JSX read the
     // resolved entry directly instead of re-proving it is non-null on each use.
-    const extras = contributed
+    const extras: Placed[] = contributed
         .flatMap(({ item, entry }) =>
             entry && (!item.appliesTo || item.appliesTo(schema))
                 ? [{ ...entry, key: item.id, order: item.order }]
@@ -140,29 +173,9 @@ export function CollectionRecordsBulkActions({
         )
         .sort((a, b) => a.order - b.order);
 
-    const extraButtons = extras.map((entry) => {
-        const Icon = entry.icon;
-        return (
-            <Button
-                key={entry.key}
-                variant="outline"
-                size="sm"
-                className={
-                    entry.destructive
-                        ? 'text-destructive shadow-none hover:text-destructive'
-                        : 'shadow-none'
-                }
-                disabled={entry.disabled}
-                onClick={entry.onSelect}
-            >
-                {Icon ? <Icon aria-hidden /> : null}
-                {entry.label}
-            </Button>
-        );
-    });
     // Every contribution's overlay, including the ones `appliesTo` filtered out
-    // of the button row — an overlay that is mid-animation when its button
-    // stops applying should still finish rather than vanish.
+    // of the menu — an overlay that is mid-animation when its item stops
+    // applying should still finish rather than vanish.
     const extraOverlays = contributed
         .filter((row) => row.entry?.overlay)
         .map((row) => (
@@ -189,110 +202,122 @@ export function CollectionRecordsBulkActions({
             .finally(onDone);
     };
 
-    if (trashed) {
-        return (
-            <>
-                {canDelete ? (
-                    <>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="shadow-none"
-                            disabled={bulk.restore.isPending}
-                            onClick={() =>
-                                run(bulk.restore.mutateAsync, 'restored')
-                            }
-                        >
-                            {bulk.restore.isPending ? (
-                                <Spinner aria-hidden />
-                            ) : (
-                                <Undo2 aria-hidden />
-                            )}
-                            {intl.formatMessage(messages.restore)}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive shadow-none hover:text-destructive"
-                            disabled={bulk.purge.isPending}
-                            onClick={() => setConfirmPurge(true)}
-                        >
-                            <Trash2 aria-hidden />
-                            {intl.formatMessage(messages.deleteForever)}
-                        </Button>
-                    </>
-                ) : null}
-                {extraButtons}
-                {extraOverlays}
+    // The built-ins, in two groups the menu separates: what the action does to
+    // the records, then what removes them. Contributions join the first group,
+    // so a contributed Export never lands under the same rule as Delete.
+    const primary: Placed[] = [];
+    const danger: Placed[] = [];
 
-                <ConfirmDialog
-                    open={confirmPurge}
-                    onOpenChange={setConfirmPurge}
-                    title={intl.formatMessage(messages.purgeTitle, {
-                        count: ids.length
-                    })}
-                    description={intl.formatMessage(messages.purgeBody)}
-                    confirmLabel={intl.formatMessage(messages.deleteForever)}
-                    confirmVariant="destructive"
-                    busy={bulk.purge.isPending}
-                    onConfirm={() => {
-                        run(bulk.purge.mutateAsync, 'deleted');
-                        setConfirmPurge(false);
-                    }}
-                />
-            </>
-        );
+    if (trashed) {
+        if (canDelete) {
+            primary.push({
+                key: 'restore',
+                order: -1,
+                label: intl.formatMessage(messages.restore),
+                icon: bulk.restore.isPending ? Spinner : Undo2,
+                disabled: bulk.restore.isPending,
+                onSelect: () => run(bulk.restore.mutateAsync, 'restored')
+            });
+            danger.push({
+                key: 'purge',
+                order: -1,
+                label: intl.formatMessage(messages.deleteForever),
+                icon: Trash2,
+                destructive: true,
+                disabled: bulk.purge.isPending,
+                onSelect: () => setConfirmPurge(true)
+            });
+        }
+    } else {
+        if (publishable && canPublish) {
+            primary.push(
+                {
+                    key: 'publish',
+                    order: -2,
+                    label: intl.formatMessage(messages.publish),
+                    icon: Send,
+                    onSelect: () => setPublishOpen(true)
+                },
+                {
+                    key: 'unpublish',
+                    order: -1,
+                    label: intl.formatMessage(messages.unpublish),
+                    icon: bulk.unpublish.isPending ? Spinner : Undo2,
+                    disabled: bulk.unpublish.isPending,
+                    onSelect: () =>
+                        run(bulk.unpublish.mutateAsync, 'unpublished')
+                }
+            );
+        }
+        if (canDelete) {
+            danger.push({
+                key: 'delete',
+                order: -1,
+                label: intl.formatMessage(messages.deleteEntries),
+                icon: Trash2,
+                destructive: true,
+                disabled: bulk.remove.isPending,
+                onSelect: () => setConfirmDelete(true)
+            });
+        }
     }
+
+    primary.push(...extras);
+    const sections = [primary, danger].filter((rows) => rows.length > 0);
+
+    // With no permission and no contribution there is nothing to open onto, so
+    // the trigger goes too — but the overlays stay, as an array rather than a
+    // lone-child fragment: an open dialog has to survive its item ceasing to
+    // apply.
+    if (sections.length === 0) return extraOverlays;
 
     return (
         <>
-            {publishable && canPublish ? (
-                <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                     <Button
+                        type="button"
                         variant="outline"
-                        size="sm"
-                        className="shadow-none"
-                        onClick={() => setPublishOpen(true)}
+                        size="icon"
+                        className="size-8 shrink-0 shadow-none"
+                        aria-label={intl.formatMessage(messages.trigger)}
                     >
-                        <Send aria-hidden />
-                        {intl.formatMessage(messages.publish)}
+                        <MoreHorizontal aria-hidden />
                     </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="shadow-none"
-                        disabled={bulk.unpublish.isPending}
-                        onClick={() =>
-                            run(bulk.unpublish.mutateAsync, 'unpublished')
-                        }
-                    >
-                        {bulk.unpublish.isPending ? (
-                            <Spinner aria-hidden />
-                        ) : (
-                            <Undo2 aria-hidden />
-                        )}
-                        {intl.formatMessage(messages.unpublish)}
-                    </Button>
-                </>
-            ) : null}
+                </DropdownMenuTrigger>
+                {/* Aligned to the trigger's right edge — the bar puts it at the
+                    end of the row, so a left-aligned panel would open off the
+                    side. */}
+                <DropdownMenuContent align="end" className="w-56">
+                    {sections.map((rows, index) => (
+                        <Fragment key={rows[0].key}>
+                            {index > 0 && <DropdownMenuSeparator />}
+                            {rows.map((row) => {
+                                const Icon = row.icon;
+                                return (
+                                    <DropdownMenuItem
+                                        key={row.key}
+                                        disabled={row.disabled}
+                                        className={
+                                            row.destructive
+                                                ? 'text-destructive focus:text-destructive'
+                                                : undefined
+                                        }
+                                        onSelect={row.onSelect}
+                                    >
+                                        {Icon ? <Icon aria-hidden /> : null}
+                                        {row.label}
+                                    </DropdownMenuItem>
+                                );
+                            })}
+                        </Fragment>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
 
-            {canDelete ? (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive shadow-none hover:text-destructive"
-                    disabled={bulk.remove.isPending}
-                    onClick={() => setConfirmDelete(true)}
-                >
-                    <Trash2 aria-hidden />
-                    {intl.formatMessage(messages.deleteEntries)}
-                </Button>
-            ) : null}
-
-            {extraButtons}
             {extraOverlays}
 
-            {publishable && canPublish ? (
+            {publishable && canPublish && !trashed ? (
                 <BulkPublishDialog
                     open={publishOpen}
                     onOpenChange={setPublishOpen}
@@ -317,6 +342,22 @@ export function CollectionRecordsBulkActions({
                 onConfirm={() => {
                     run(bulk.remove.mutateAsync, 'deleted');
                     setConfirmDelete(false);
+                }}
+            />
+
+            <ConfirmDialog
+                open={confirmPurge}
+                onOpenChange={setConfirmPurge}
+                title={intl.formatMessage(messages.purgeTitle, {
+                    count: ids.length
+                })}
+                description={intl.formatMessage(messages.purgeBody)}
+                confirmLabel={intl.formatMessage(messages.deleteForever)}
+                confirmVariant="destructive"
+                busy={bulk.purge.isPending}
+                onConfirm={() => {
+                    run(bulk.purge.mutateAsync, 'deleted');
+                    setConfirmPurge(false);
                 }}
             />
         </>

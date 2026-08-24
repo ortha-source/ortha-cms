@@ -588,20 +588,20 @@ export const ENTRY_FIELD_CONTROL_SLOT = createSlot<EntryFieldControlItem>(
 
 /** What a {@link RecordsBulkActionItem} renders as, once its hook has run. */
 export type RecordsBulkActionEntry = {
-    /** The button's label. */
+    /** The item's label. */
     label: ReactNode;
-    /** Leading icon, as the built-in bulk buttons carry. */
+    /** Leading icon, as the built-in bulk actions carry. */
     icon?: ComponentType;
     /** Render it disabled (e.g. while its own request is in flight). */
     disabled?: boolean;
     /** Style it as destructive — reserve for actions that lose data. */
     destructive?: boolean;
-    /** Run the action. */
+    /** Run the action. Selecting an item always closes the menu. */
     onSelect: () => void;
     /**
-     * A dialog or other overlay this action owns, rendered as a sibling of the
-     * buttons rather than inside the button row — so it is not laid out as a
-     * flex child of the bar.
+     * A dialog or other overlay this action owns, rendered **outside** the ⋯
+     * menu — which unmounts the moment it closes, exactly when the dialog is
+     * meant to appear. Keep it mounted and drive it from your own state.
      *
      * Note what it does **not** survive: the selection bar unmounts as soon as
      * the selection is empty, and the overlay goes with it. So an action whose
@@ -625,7 +625,7 @@ export type RecordsBulkContext = {
     onDone: () => void;
 };
 
-/** One contributed button in the records selection bar. */
+/** One contributed item in the records selection bar's ⋯ menu. */
 export type RecordsBulkActionItem = {
     /** Stable id (used as the React key). */
     id: string;
@@ -643,13 +643,18 @@ export type RecordsBulkActionItem = {
 };
 
 /**
- * Extra actions in the collection records view's **selection bar**, beside the
- * built-in Publish / Unpublish / Delete (and, in the trash, Restore / Delete
- * permanently).
+ * Extra actions in the collection records view's **selection bar**, in the same
+ * ⋯ menu as the built-in Publish / Unpublish / Delete (and, in the trash,
+ * Restore / Delete permanently). Contributions sort after the built-ins and
+ * above the separator, so they never land under the same rule as Delete.
  *
  * The counterpart to {@link ENTRY_MENU_SLOT} for a set of records rather than
  * one — `@orthacms/transfer-admin` fills both, so Export reads the same whether
  * you are looking at a record or at a selection of them.
+ *
+ * **Clear** is deliberately not in this menu: it is the way out of a selection
+ * the user may have made by accident, and the selection bar renders it itself,
+ * before the trigger.
  */
 export const RECORDS_BULK_ACTION_SLOT = createSlot<RecordsBulkActionItem>(
     'content.records.bulkActions'
@@ -703,7 +708,7 @@ export type RecordsMenuItem = {
 };
 
 /**
- * Actions on the **collection**, in a ⋯ menu at the left of the records
+ * Actions on the **collection**, in a ⋯ menu at the end of the records
  * toolbar — the counterpart to {@link ENTRY_MENU_SLOT} one level up.
  *
  * It is a menu rather than a row of buttons because what belongs here is the

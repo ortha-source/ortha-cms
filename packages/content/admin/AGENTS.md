@@ -651,7 +651,7 @@ fetching internally.
   `listParamKeys` forwarded to the list request (and its query key), with
   `updateParams` (resets the page).
 - **`RECORDS_MENU_SLOT`** — an action on the **collection**, in a ⋯ menu
-  **leftmost** in the toolbar's actions row — the counterpart to
+  **last** in the toolbar's actions row — the counterpart to
   `ENTRY_MENU_SLOT` one level up. Same shape (`useItem` hook, `null` to hide, an
   `overlay` rendered outside the menu) and the same reason for it: the menu
   content unmounts the instant the menu closes, which is when a dialog opened
@@ -662,13 +662,23 @@ fetching internally.
     - **The trigger renders only when an item resolves**, so an install with no
       contributor sees no ⋯ button opening onto nothing.
     - `@orthacms/transfer-admin` fills it with **Import…**.
-- **`RECORDS_BULK_ACTION_SLOT`** — a button in the records **selection bar**,
-  after the built-in Publish / Unpublish / Delete (and, in the trash, Restore /
-  Delete permanently). `useItem` receives the selected `ids` and `trashed`, plus
-  `onDone` to clear the selection.
-    - The bar unmounts as soon as the selection is empty, taking an item's
-      `overlay` with it — so an action whose dialog must stay open calls
-      `onDone` on success, never on open.
+- **`RECORDS_BULK_ACTION_SLOT`** — an item in the records **selection bar's**
+  ⋯ menu, after the built-in Publish / Unpublish / Delete (and, in the trash,
+  Restore / Delete permanently). `useItem` receives the selected `ids` and
+  `trashed`, plus `onDone` to clear the selection.
+    - The bar's own layout is **count · Clear · ⋯**: everything the bar can do
+      to the selection lives in the menu, and **Clear** stays outside it,
+      because it is the way *out* of a selection the user may have made by
+      accident — burying that behind the same menu as Delete would be the wrong
+      shape. Contributions sort after the built-ins and above the separator the
+      destructive actions sit below.
+    - Its `overlay` is rendered outside `DropdownMenuContent` for the same
+      reason `RECORDS_MENU_SLOT`'s is — the menu content unmounts the instant
+      the menu closes. On top of that, the bar unmounts as soon as the selection
+      is empty, taking the overlay with it — so an action whose dialog must stay
+      open calls `onDone` on success, never on open.
+    - **The trigger renders only when an item resolves** — a viewer with neither
+      publish nor delete, and no contribution, sees no ⋯ button.
     - `@orthacms/transfer-admin` fills it with **Export**.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional

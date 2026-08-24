@@ -22,7 +22,7 @@ const messages = defineMessages({
 });
 
 /**
- * The collection's **⋯ menu**, first in the records toolbar's actions row.
+ * The collection's **⋯ menu**, last in the records toolbar's actions row.
  *
  * Everything it holds comes from `RECORDS_MENU_SLOT`; this package contributes
  * nothing itself. That is why the trigger is conditional: with no contributor
@@ -88,7 +88,9 @@ export function CollectionRecordsMenu({
                         <MoreHorizontal aria-hidden className="size-4" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
+                {/* Aligned to the trigger's right edge — the button is last in
+                    the row, so a left-aligned panel would open off the side. */}
+                <DropdownMenuContent align="end" className="w-56">
                     {entries.map((entry) => {
                         const Icon = entry.icon;
                         return (
