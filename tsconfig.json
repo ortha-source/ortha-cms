@@ -137,6 +137,15 @@
         },
         {
             "path": "./packages/media/provider-testkit"
+        },
+        {
+            "path": "./packages/transfer/domain"
+        },
+        {
+            "path": "./packages/transfer/server"
+        },
+        {
+            "path": "./packages/transfer/admin"
         }
     ]
 }
