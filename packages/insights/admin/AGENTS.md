@@ -92,7 +92,8 @@ here has client-side business rules:
 src/lib/
   utils/insightsPlugin/        # the AdminPlugin factory
   utils/chartTone/             # palette ROLES (series-1/2, the q0..q5 ramp)
-  hooks/useInsightsRange/      # the shared window + its provider
+  utils/insightsRange/         # the window as a value + its `?range=` round-trip
+  hooks/useInsightsRange/      # the shared window + its provider (URL-backed)
   utils/resolveInsightsLayout/ # the PURE fold — merge, gate, order, catch-all
   hooks/useInsightsLayout/     # thin adapter: slots + auth -> the fold above
   presentation/
@@ -100,6 +101,30 @@ src/lib/
     pages/InsightsPage/
     components/                # the card shell + the chart primitives
 ```
+
+## The time window lives in the URL
+
+`?range=90d` is the source of truth, not component state (ORT-158). Every other
+list surface in the admin already settled this the same way through
+`useTableUrlState`, and a range held in `useState` meant a "90-day dashboard"
+could not be shared, bookmarked, or survive a click into an entry and back out —
+the link sent a colleague to a different view than the one being described,
+silently.
+
+Three rules, all pinned by `utils/insightsRange`'s spec:
+
+- **The default is absent from the URL.** A bare `/insights` link keeps meaning
+  "the current default window"; writing `?range=30d` on every visit would pin
+  every bookmark ever taken from the page to today's default, forever.
+- **An unrecognised value falls back to the default** rather than throwing or
+  rendering an empty dashboard. The page has no way to tell a reader their URL
+  is wrong, so the useful behaviour is the one that still shows numbers.
+- **`replace`, not `push`.** The picker is a view control; making Back step
+  through eight range changes before it leaves the page is what
+  `useTableUrlState` deliberately avoids for search and filters.
+
+`useInsightsRange` is the only place that knows any of this — every widget reads
+`days` from it and is unaffected.
 
 ## Charts — hand-built, deliberately
 
