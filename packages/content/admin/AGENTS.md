@@ -629,18 +629,20 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes eleven named slots (`presentation/slots/contentSlots`, via
+The library exposes thirteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
-`@orthacms/wysiwyg-admin` fills the last (`ENTRY_FIELD_CONTROL_SLOT`, the
-rich-text editor).
+`@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
+editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
+`RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
 `RECORDS_FILTER_FIELDS_SLOT.useFields`, `ENTRY_PRESAVE_SLOT.usePresave`,
-`ENTRY_MENU_SLOT.useItem`)
+`ENTRY_MENU_SLOT.useItem`, `RECORDS_BULK_ACTION_SLOT.useItem`,
+`RECORDS_MENU_SLOT.useItem`)
 rules-of-hooks-safe when the render
 sites call them in a loop — the call order never changes; an item gates its own
 fetching internally.
@@ -648,6 +650,26 @@ fetching internally.
 - **`RECORDS_TOOLBAR_SLOT`** — a control in the records toolbar; owns URL
   `listParamKeys` forwarded to the list request (and its query key), with
   `updateParams` (resets the page).
+- **`RECORDS_MENU_SLOT`** — an action on the **collection**, in a ⋯ menu
+  **leftmost** in the toolbar's actions row — the counterpart to
+  `ENTRY_MENU_SLOT` one level up. Same shape (`useItem` hook, `null` to hide, an
+  `overlay` rendered outside the menu) and the same reason for it: the menu
+  content unmounts the instant the menu closes, which is when a dialog opened
+  from it is meant to appear.
+    - It is a **menu** and not more toolbar buttons because what belongs here is
+      the occasional whole-collection operation, and those should not take width
+      from the controls used on every visit — search, columns, filters.
+    - **The trigger renders only when an item resolves**, so an install with no
+      contributor sees no ⋯ button opening onto nothing.
+    - `@orthacms/transfer-admin` fills it with **Import…**.
+- **`RECORDS_BULK_ACTION_SLOT`** — a button in the records **selection bar**,
+  after the built-in Publish / Unpublish / Delete (and, in the trash, Restore /
+  Delete permanently). `useItem` receives the selected `ids` and `trashed`, plus
+  `onDone` to clear the selection.
+    - The bar unmounts as soon as the selection is empty, taking an item's
+      `overlay` with it — so an action whose dialog must stay open calls
+      `onDone` on success, never on open.
+    - `@orthacms/transfer-admin` fills it with **Export**.
 - **`RECORDS_COLUMN_SLOT`** — an extension table column (`COLUMN_KIND.Extension`)
   that joins the column picker like any column (non-sortable header); optional
   `useRowsData` batches per-page data once for all its cells.

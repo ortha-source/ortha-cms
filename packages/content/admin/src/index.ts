@@ -12,6 +12,7 @@ export {
     ENTRY_TAB_SLOT,
     RECORDS_BULK_ACTION_SLOT,
     RECORDS_COLUMN_SLOT,
+    RECORDS_MENU_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
     RECORDS_TOOLBAR_SLOT
 } from './lib/presentation/slots/contentSlots';
@@ -25,6 +26,9 @@ export type {
     RecordsBulkActionEntry,
     RecordsBulkActionItem,
     RecordsBulkContext,
+    RecordsMenuContext,
+    RecordsMenuEntry,
+    RecordsMenuItem,
     EntryParamsItem,
     EntryPresave,
     EntryPresaveItem,

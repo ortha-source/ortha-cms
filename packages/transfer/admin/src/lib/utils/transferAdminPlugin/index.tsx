@@ -3,15 +3,15 @@ import {
     ENTRY_MENU_GROUP,
     ENTRY_MENU_SLOT,
     RECORDS_BULK_ACTION_SLOT,
-    RECORDS_TOOLBAR_SLOT,
+    RECORDS_MENU_SLOT,
     type EntryMenuItem,
     type RecordsBulkActionItem,
-    type RecordsToolbarItem
+    type RecordsMenuItem
 } from '@orthacms/content-admin';
 import { EXPORT_MENU_ORDER, SLOT_ITEM_ID } from '../../constants';
 import { useExportEntryAction } from '../../hooks/useExportEntryAction';
 import { useExportBulkAction } from '../../hooks/useExportBulkAction';
-import { ImportToolbarButton } from '../../components/ImportToolbarButton';
+import { useImportAction } from '../../hooks/useImportAction';
 
 /**
  * Creates the transfer admin plugin — export and import in the content library.
@@ -23,7 +23,7 @@ import { ImportToolbarButton } from '../../components/ImportToolbarButton';
  *
  * - the entry editor's ⋯ menu, beside "Publish all locales" — export this record
  * - the records selection bar — export what is selected
- * - the records toolbar — import into this collection
+ * - the collection's own ⋯ menu, leftmost in the toolbar — import
  *
  * Register it **after** `contentAdminPlugin`, which declares all three slots.
  */
@@ -39,9 +39,10 @@ export function transferAdminPlugin(): AdminPlugin {
         order: 10,
         useItem: useExportBulkAction
     };
-    const importItem: RecordsToolbarItem = {
+    const importItem: RecordsMenuItem = {
         id: SLOT_ITEM_ID.Import,
-        Component: ImportToolbarButton
+        order: 10,
+        useItem: useImportAction
     };
 
     return {
@@ -49,7 +50,7 @@ export function transferAdminPlugin(): AdminPlugin {
         slots: [
             { slot: ENTRY_MENU_SLOT, items: [exportEntryItem] },
             { slot: RECORDS_BULK_ACTION_SLOT, items: [exportSelectionItem] },
-            { slot: RECORDS_TOOLBAR_SLOT, items: [importItem] }
+            { slot: RECORDS_MENU_SLOT, items: [importItem] }
         ]
     };
 }
