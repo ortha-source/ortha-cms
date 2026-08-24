@@ -482,7 +482,7 @@ Identity also **authenticates against an external identity provider**. The port
 itself lives in `@orthacms/identity-domain` so an adapter can depend on it
 without depending on this package; what lives here is everything that turns a
 verified profile into an Ortha session
-([ADR-0012](../../../docs/adr/0012-sso-provider-port.md)).
+([ADR-0013](../../../docs/adr/0013-sso-provider-port.md)).
 
 Three routes, all `@Public()` and rate-limited:
 

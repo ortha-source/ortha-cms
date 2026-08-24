@@ -1,5 +1,5 @@
 import type { Asset } from '../domain/asset';
-import type { StorageRegistry } from '../domain/storage-provider';
+import type { StorageProvider } from '../domain/storage-provider';
 
 /**
  * How many assets' blobs are reclaimed at once.
@@ -41,30 +41,37 @@ async function mapWithConcurrency<T>(
  * single-asset {@link reclaimAssetBlobs} it wraps.
  */
 export async function reclaimManyAssetBlobs(
-    registry: StorageRegistry,
+    provider: StorageProvider,
     assets: readonly Asset[]
 ): Promise<void> {
     await mapWithConcurrency(assets, (asset) =>
-        reclaimAssetBlobs(registry, asset)
+        reclaimAssetBlobs(provider, asset)
     );
 }
 
 /**
  * Removes every blob one deleted asset owns — the original **and** each
- * generated derivative (`Asset.storageKeys`) — through the provider that holds
- * them. Shared by the two paths that delete assets (a bulk delete, and a folder
- * cascade) so neither can forget the derivatives.
+ * generated derivative (`Asset.storageKeys`) — through the deployment's
+ * provider. Shared by the two paths that delete assets (a bulk delete, and a
+ * folder cascade) so neither can forget the derivatives.
+ *
+ * A row written by a *different* provider is skipped rather than attempted:
+ * this backend does not hold those bytes and its keys mean nothing to it, so a
+ * remove would either no-op or, worse, address something unrelated. Boot
+ * refuses to start in that state (`StorageProviderCheck`), so in practice this
+ * guard only covers the window where a row is deleted by the same request that
+ * revealed the mismatch.
  *
  * Always called **post-commit** and always best-effort: the row is already gone,
  * so a failed blob delete leaves an orphan for GC rather than an error the
  * caller can do anything about.
  */
 export async function reclaimAssetBlobs(
-    registry: StorageRegistry,
+    provider: StorageProvider,
     asset: Asset
 ): Promise<void> {
+    if (asset.storageProvider !== provider.id) return;
     try {
-        const provider = registry.get(asset.storageProvider);
         await Promise.all(asset.storageKeys.map((key) => provider.remove(key)));
     } catch {
         // Orphaned blob; nothing useful to report at this point.

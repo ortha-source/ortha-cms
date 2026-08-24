@@ -66,7 +66,6 @@ export class CreateFileProposalApplier implements ProposalApplier {
                 folderId: typeof folderId === 'string' ? folderId : null,
                 fileName,
                 contentType: FILE_FORMATS[format].mimeType,
-                size: bytes.byteLength,
                 // The description the model was asked for, when it gave one —
                 // so a generated file has a real accessible name wherever it is
                 // linked instead of a file name (`ORT-120`). Blank is

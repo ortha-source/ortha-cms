@@ -44,13 +44,14 @@ companion to it.
   truthy so it is accepted, and `1e9` parses. Read env numbers through a
   validating helper that names the variable — `apps/server/ortha.config.ts`'s
   `readPositiveInt` is the pattern.
-- **A `defaultProvider` a plugin never checks.** A named-provider plugin that
-  keeps one (`media` still does) must validate it against the registry it was
-  handed, at construction. Otherwise a typo boots clean and fails per request,
-  with a bare `500` naming neither the provider nor the variable. `copilot` took
-  the other exit and **deleted the setting**: the first entry of the provider
-  list it is already handed is the default, which is a name that cannot be
-  misspelled and cannot drift from the list.
+- **A provider name a plugin never checks.** A plugin that selects a backend by
+  name must validate that name against what it was handed, at construction.
+  Otherwise a typo boots clean and fails per request, with a bare `500` naming
+  neither the provider nor the variable. Both plugins have now removed the
+  setting rather than validating it: `copilot`'s default is the first entry of
+  the provider list it is already handed, and `media` takes **one** provider
+  object that carries its own `id` (ADR-0012) — a name that cannot be
+  misspelled, because nobody types it.
 
 ## Composition roots & their test harnesses
 

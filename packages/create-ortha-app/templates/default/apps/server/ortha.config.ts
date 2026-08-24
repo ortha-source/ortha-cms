@@ -14,6 +14,21 @@ import type {
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
+// ortha:if media-local
+import type { LocalStorageConfig } from '@orthacms/media-provider-local';
+// ortha:end
+// ortha:if media-s3
+import type { S3StorageConfig } from '@orthacms/media-provider-s3';
+// ortha:end
+// ortha:if media-azure
+import type { AzureStorageConfig } from '@orthacms/media-provider-azure';
+// ortha:end
+// ortha:if media-gcs
+import type { GcsStorageConfig } from '@orthacms/media-provider-gcs';
+// ortha:end
+// ortha:if media-vercel-blob
+import type { VercelBlobStorageConfig } from '@orthacms/media-provider-vercel-blob';
+// ortha:end
 import type { CopilotPluginConfig } from '@orthacms/copilot-server';
 // ortha:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
@@ -64,7 +79,27 @@ export interface OrthaConfig {
     plugins: {
         identity: IdentityPluginConfig;
         i18n: I18nPluginConfig;
-        media: MediaPluginConfig;
+        media: MediaPluginConfig & {
+            /**
+             * Settings for the storage backend `plugins.ts` constructs. Typed
+             * by the factory it imports — the two move together.
+             */
+            // ortha:if media-local
+            storage: LocalStorageConfig;
+            // ortha:end
+            // ortha:if media-s3
+            storage: S3StorageConfig;
+            // ortha:end
+            // ortha:if media-azure
+            storage: AzureStorageConfig;
+            // ortha:end
+            // ortha:if media-gcs
+            storage: GcsStorageConfig;
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: VercelBlobStorageConfig;
+            // ortha:end
+        };
         copilot: AppCopilotConfig;
         // ortha:if mcp
         mcp: McpPluginConfig;
@@ -242,17 +277,82 @@ const config: OrthaConfig = {
             orphanedLocales: 'fail'
         },
         media: {
-            defaultProvider: process.env['MEDIA_PROVIDER'] ?? 'local',
-            local: {
+            // ortha:if media-local
+            storage: {
                 // Point MEDIA_LOCAL_ROOT at a persistent volume in production:
                 // a container's own disk is wiped on every deploy.
-                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media',
-                publicBasePath: '/api/media/assets'
+                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
-            s3: {
-                bucket: process.env['MEDIA_S3_BUCKET'] ?? '',
-                region: process.env['MEDIA_S3_REGION'] ?? ''
+            // ortha:end
+            // ortha:if media-vercel-blob
+            storage: {
+                // On Vercel the SDK reads BLOB_READ_WRITE_TOKEN itself, so this
+                // is only for running the app elsewhere.
+                ...(process.env['BLOB_READ_WRITE_TOKEN']
+                    ? { token: process.env['BLOB_READ_WRITE_TOKEN'] }
+                    : {})
             },
+            // ortha:end
+            // ortha:if media-gcs
+            storage: {
+                bucket: requireEnv('MEDIA_GCS_BUCKET'),
+                // Everything else is optional: with no key file and no inline
+                // credentials the client uses Application Default Credentials,
+                // which is what a GKE or Cloud Run deployment wants.
+                ...(process.env['MEDIA_GCS_PROJECT_ID']
+                    ? { projectId: process.env['MEDIA_GCS_PROJECT_ID'] }
+                    : {}),
+                ...(process.env['MEDIA_GCS_KEY_FILE']
+                    ? { keyFilename: process.env['MEDIA_GCS_KEY_FILE'] }
+                    : {}),
+                signWithIam: process.env['MEDIA_GCS_SIGN_WITH_IAM'] === 'true'
+            },
+            // ortha:end
+            // ortha:if media-azure
+            storage: {
+                container: requireEnv('MEDIA_AZURE_CONTAINER'),
+                connectionString: requireEnv('MEDIA_AZURE_CONNECTION_STRING')
+            },
+            // ortha:end
+            // ortha:if media-s3
+            storage: {
+                bucket: requireEnv('MEDIA_S3_BUCKET'),
+                // `auto` is what R2 expects; AWS needs its real region.
+                region: process.env['MEDIA_S3_REGION'] ?? 'auto',
+                // Omit for AWS S3 itself; set it for R2, MinIO, Spaces, B2…
+                ...(process.env['MEDIA_S3_ENDPOINT']
+                    ? { endpoint: process.env['MEDIA_S3_ENDPOINT'] }
+                    : {}),
+                forcePathStyle:
+                    process.env['MEDIA_S3_FORCE_PATH_STYLE'] === 'true',
+                // Absent means "use the SDK's own provider chain" — an instance
+                // role, IRSA, a shared config file. Passing blanks instead
+                // would shadow all of that with credentials that cannot sign.
+                ...(process.env['MEDIA_S3_ACCESS_KEY_ID'] &&
+                process.env['MEDIA_S3_SECRET_ACCESS_KEY']
+                    ? {
+                          credentials: {
+                              accessKeyId: process.env['MEDIA_S3_ACCESS_KEY_ID'],
+                              secretAccessKey:
+                                  process.env['MEDIA_S3_SECRET_ACCESS_KEY']
+                          }
+                      }
+                    : {})
+            },
+            // ortha:end
+            // Redirect an already-authorized download straight to the
+            // storage backend instead of streaming it through the app. Off
+            // unless asked for, and only possible on a backend that can sign a
+            // URL — the plugin refuses the combination at boot rather than
+            // proxying while the operator believes otherwise.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',
                 50 * 1024 * 1024

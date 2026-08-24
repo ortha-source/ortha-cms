@@ -5,23 +5,16 @@ export type {
 } from './lib/utils/media-plugin';
 export { MediaModule } from './lib/media.module';
 export type { MediaModuleOptions } from './lib/media.module';
-export type {
-    MediaPluginConfig,
-    MediaLocalConfig,
-    MediaS3Config
-} from './lib/types/media-config';
+export type { MediaPluginConfig } from './lib/types/media-config';
 export type {
     StorageProvider,
+    StorageCapabilities,
     StoredObject,
     PutObject,
-    UploadContext,
-    StorageRegistry,
-    StorageResolver
+    DirectUrlOptions
 } from './lib/domain/storage-provider';
-export {
-    STORAGE_REGISTRY,
-    STORAGE_RESOLVER
-} from './lib/domain/storage-provider';
+export { STORAGE_PROVIDER } from './lib/domain/storage-provider';
+export type { DirectServeMode } from './lib/http/direct-serve';
 // Exported for the provider packages: `get` promises to reject when the key is
 // gone, and the *kind* of rejection is part of that promise rather than an
 // implementation detail of a filesystem or a bucket.

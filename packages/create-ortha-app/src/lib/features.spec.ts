@@ -172,7 +172,12 @@ describe('resolvePackages', () => {
         const published = new Set(publishedPackages());
         const installed = new Set(resolvePackages(selectionOf('media-local')));
         const missing = [...published].filter(
-            (name) => !installed.has(name) && name !== '@orthacms/cli'
+            (name) =>
+                !installed.has(name) &&
+                name !== '@orthacms/cli' &&
+                // Published, and deliberately never installed into an app —
+                // tools for writing a storage provider, not for running one.
+                !TRANSITIVE_PACKAGES.includes(name)
         );
 
         expect(missing.sort()).toEqual([
@@ -180,11 +185,14 @@ describe('resolvePackages', () => {
             '@orthacms/copilot-provider-anthropic',
             '@orthacms/copilot-provider-openai',
             '@orthacms/mcp-server',
-            '@orthacms/media-provider-s3'
+            '@orthacms/media-provider-azure',
+            '@orthacms/media-provider-gcs',
+            '@orthacms/media-provider-s3',
+            '@orthacms/media-provider-vercel-blob'
         ]);
     });
 
-    it('does not install the unreleased S3 adapter by default', () => {
+    it('does not install the S3 adapter unless it is chosen', () => {
         expect(resolvePackages(selectionOf('media-local'))).not.toContain(
             '@orthacms/media-provider-s3'
         );
@@ -215,12 +223,15 @@ describe('resolveFlags', () => {
 });
 
 describe('availability', () => {
-    it('marks the S3 adapter unavailable while it has no release', () => {
+    it('offers the S3 adapter, now that it is implemented', () => {
+        // It was listed and disabled while `provider-s3` threw from every
+        // method: offering it then would have generated an app that boots and
+        // fails on the first upload.
         const s3 = MEDIA_PROVIDERS.find(
             (provider) => provider.id === 'media-s3'
         );
 
-        expect(s3?.available).toBe(false);
+        expect(s3?.available).toBe(true);
     });
 
     it('leaves exactly one storage adapter selectable by default', () => {

@@ -1,5 +1,4 @@
 import type { Readable } from 'node:stream';
-import type { MediaKindValue } from './value-objects/media-kind';
 
 /** A stored blob's provider-assigned coordinates plus verified metadata. */
 export interface StoredObject {
@@ -29,12 +28,64 @@ export interface PutObject {
 }
 
 /**
- * The storage boundary. Implementations live in separate packages
- * (`@orthacms/media-provider-local`, `@orthacms/media-provider-s3`) and are
- * registered at the composition root. The media core depends only on this
- * interface — never on a concrete backend.
+ * What a backend can do, so the core never has to assume the weakest one.
+ *
+ * Declared rather than detected: a capability the core guesses wrong is either
+ * a feature silently not used, or a response served without the hardening the
+ * download route applies.
+ */
+export interface StorageCapabilities {
+    /**
+     * Whether {@link StorageProvider.directUrl} is implemented — the browser can
+     * fetch the blob without streaming it through the app.
+     */
+    directUrl: boolean;
+    /**
+     * Whether the stored object carries its content type. A filesystem has
+     * nowhere to put one and drops it; an object store persists it as metadata.
+     */
+    contentTypeMetadata: boolean;
+    /** Whether `put` streams the body rather than buffering it whole. */
+    streamingPut: boolean;
+}
+
+/** How a direct URL must present the blob it points at. */
+export interface DirectUrlOptions {
+    /**
+     * How the browser must treat the response. A redirect discards the app's
+     * own `Content-Disposition`, and `media_asset.mime_type` is the uploader's
+     * unverified claim, so a provider that cannot pin this on the signed URL
+     * must declare `capabilities.directUrl: false` and be proxied instead.
+     */
+    disposition: 'inline' | 'attachment';
+    /** File name the download is offered under. */
+    fileName: string;
+    /** Content type the response must carry, pinned the same way. */
+    contentType: string;
+    /** How long the URL stays valid, in seconds. */
+    expiresInSeconds: number;
+}
+
+/**
+ * The storage boundary — **one** implementation per deployment, constructed at
+ * the composition root and passed to `MediaServerPlugin` as a plain object
+ * (`@orthacms/media-provider-local`, `-s3`, …). The media core depends only on
+ * this interface and never on a concrete backend.
  */
 export interface StorageProvider {
+    /**
+     * Stable identifier for this backend, owned by the provider itself.
+     *
+     * Recorded on every asset row (`media_asset.storage_provider`), so it is
+     * data rather than a label: renaming it after rows exist strands them, and
+     * `StorageProviderCheck` fails the boot rather than letting the mismatch
+     * surface as 404s. It is the provider's own fact for exactly that reason —
+     * a name the host passed alongside the object could be misspelled in one
+     * deployment and correct in another, for the same adapter.
+     */
+    readonly id: string;
+    /** What this backend can do. See {@link StorageCapabilities}. */
+    readonly capabilities: StorageCapabilities;
     /**
      * Writes one object and returns its key + verified size/checksum.
      *
@@ -60,48 +111,19 @@ export interface StorageProvider {
     /** Removes a stored object. Idempotent — a missing key is a no-op. */
     remove(storageKey: string): Promise<void>;
     /**
-     * A direct URL a browser could fetch (e.g. a signed S3 URL). The default
-     * download path streams through the app's own route, so this is reserved
-     * for future direct-serving optimizations.
+     * A URL the browser can fetch directly (e.g. a signed S3 URL). Implemented
+     * only when `capabilities.directUrl` is true; the download route still
+     * streams through the app until direct serving is switched on.
      */
-    url(storageKey: string): Promise<string>;
+    directUrl?(storageKey: string, options: DirectUrlOptions): Promise<string>;
+    /**
+     * Cheap liveness check run once at boot — credentials, bucket, writability.
+     * Optional: a provider with nothing to verify simply omits it. Throwing
+     * fails the boot, which is the point: a wrong bucket should not first
+     * surface as a failed upload hours later.
+     */
+    verify?(): Promise<void>;
 }
 
-/** What the core knows about a pending upload — the inputs a resolver sees. */
-export interface UploadContext {
-    workspaceId: string;
-    /** The destination folder id, or `null` for the workspace root. */
-    folderId: string | null;
-    fileName: string;
-    contentType: string;
-    kind: MediaKindValue;
-    /** Bytes (may be `-1` if unknown before streaming). */
-    size: number;
-}
-
-/** The named providers available to route between. */
-export interface StorageRegistry {
-    /** Resolves a provider by name; throws if the name isn't registered. */
-    get(name: string): StorageProvider;
-    /** Whether a provider is registered under `name`. */
-    has(name: string): boolean;
-    /** Every registered provider name. */
-    names(): string[];
-}
-
-/** DI token the composition root binds to the {@link StorageRegistry}. */
-export const STORAGE_REGISTRY = Symbol('STORAGE_REGISTRY');
-
-/**
- * The optional custom handler that picks WHICH registered provider handles a
- * given upload. Full custom code — call providers however you want; return a
- * provider NAME present in the registry. If the host supplies none, the core
- * defaults every upload to `config.defaultProvider`.
- */
-export type StorageResolver = (
-    ctx: UploadContext,
-    providers: StorageRegistry
-) => string;
-
-/** DI token the composition root binds to the {@link StorageResolver}. */
-export const STORAGE_RESOLVER = Symbol('STORAGE_RESOLVER');
+/** DI token the composition root binds to the deployment's {@link StorageProvider}. */
+export const STORAGE_PROVIDER = Symbol('STORAGE_PROVIDER');

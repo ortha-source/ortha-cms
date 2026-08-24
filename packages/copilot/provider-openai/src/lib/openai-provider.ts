@@ -13,13 +13,28 @@ import {
     DEFAULT_TIMEOUT_MS,
     resolveCapabilities,
     resolveEndpoint,
+    resolveMaxRetries,
     type OpenAiProviderConfig
 } from './config';
+import { delay, isRetryableStatus, nextAttemptDelayMs } from './retry';
 import { readDataEvents } from './sse';
 import { toRequestBody, toRequestHeaders } from './wire/request';
 import { toStopReason, toUsage } from './wire/response';
 import { createToolCallAccumulator } from './wire/tool-call-accumulator';
 import type { ChatCompletionChunk } from './wire/types';
+
+/**
+ * The result of one attempt at opening the stream: either the body to read, or
+ * the failure and whether another attempt is worth making.
+ */
+type OpenAttempt =
+    | { body: ReadableStream<Uint8Array>; error?: undefined }
+    | {
+          body?: undefined;
+          error: Error;
+          retryable: boolean;
+          retryAfter?: string | null;
+      };
 
 /**
  * Creates the OpenAI-compatible adapter. One configurable `baseUrl` covers
@@ -55,6 +70,7 @@ export function createOpenAiProvider(
             ? config.timeoutMs
             : DEFAULT_TIMEOUT_MS;
     const models = [...config.models];
+    const maxRetries = resolveMaxRetries(config);
 
     async function* stream(
         request: ModelRequest,
@@ -68,22 +84,13 @@ export function createOpenAiProvider(
         const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
         try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: toRequestHeaders(config),
-                body: JSON.stringify(toRequestBody(request, config, model)),
-                signal: combined
-            });
-
-            if (!response.ok || !response.body) {
-                throw await requestError(response);
-            }
+            const body = await open(request, model, combined);
 
             const toolCalls = createToolCallAccumulator();
             let stopReason: ModelStopReason = 'end';
             let usage: ModelUsage = { inputTokens: 0, outputTokens: 0 };
 
-            for await (const payload of readDataEvents(response.body)) {
+            for await (const payload of readDataEvents(body)) {
                 const chunk = parseChunk(payload);
                 if (!chunk) {
                     continue;
@@ -120,6 +127,84 @@ export function createOpenAiProvider(
             }
             throw error;
         }
+    }
+
+    /**
+     * Opens the stream, retrying a transient **pre-stream** failure.
+     *
+     * Every retry decision is made before a single event has been yielded —
+     * the boundary that makes a second attempt safe (see `retry.ts`).
+     */
+    async function open(
+        request: ModelRequest,
+        model: string,
+        combined: AbortSignal
+    ): Promise<ReadableStream<Uint8Array>> {
+        for (let attempt = 0; ; attempt++) {
+            const outcome = await attemptOpen(request, model, combined);
+            if (outcome.body) {
+                return outcome.body;
+            }
+            if (!outcome.retryable || attempt >= maxRetries) {
+                throw outcome.error;
+            }
+            const wait = nextAttemptDelayMs(attempt, outcome.retryAfter);
+            // `undefined` is the endpoint asking for longer than this adapter
+            // will wait — reporting its 429 beats sleeping through the run.
+            if (wait === undefined) {
+                throw outcome.error;
+            }
+            await delay(wait, combined);
+        }
+    }
+
+    /**
+     * One attempt: either a response with a body to stream, or the failure and
+     * whether it is worth another go.
+     *
+     * An abort — the caller's or the request timeout's — is thrown rather than
+     * returned: it is never transient, and re-attempting on a dead signal would
+     * fail instantly `maxRetries` times before reporting it.
+     */
+    async function attemptOpen(
+        request: ModelRequest,
+        model: string,
+        combined: AbortSignal
+    ): Promise<OpenAttempt> {
+        let response: Response;
+        try {
+            response = await fetch(endpoint, {
+                method: 'POST',
+                headers: toRequestHeaders(config),
+                body: JSON.stringify(toRequestBody(request, config, model)),
+                signal: combined
+            });
+        } catch (error) {
+            if (combined.aborted || isAbortError(error)) {
+                throw error;
+            }
+            // A refused connection, a reset, a DNS blip — the class the
+            // Anthropic SDK retries and this adapter did not.
+            return {
+                error:
+                    error instanceof Error ? error : new Error(String(error)),
+                retryable: true
+            };
+        }
+
+        if (response.ok && response.body) {
+            return { body: response.body };
+        }
+
+        // Built eagerly: it reads the detail worth reporting *and* drains a
+        // body we are about to abandon.
+        return {
+            error: await requestError(response),
+            // An `ok` response with no body is a malformed answer, not a blip:
+            // the endpoint replied, so asking again gets the same reply.
+            retryable: !response.ok && isRetryableStatus(response.status),
+            retryAfter: response.headers.get('retry-after')
+        };
     }
 
     /** Builds the error for a non-2xx response, including any body detail. */
