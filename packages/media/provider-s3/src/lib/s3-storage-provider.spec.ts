@@ -13,8 +13,6 @@ const CREDENTIALS = {
     secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
 };
 
-const clients = new Map<string, FakeS3Client>();
-
 /**
  * The shared port contract, against the fake client.
  *
@@ -25,20 +23,18 @@ const clients = new Map<string, FakeS3Client>();
  */
 describeStorageProvider('media-provider-s3 (fake client)', {
     create() {
-        const client = new FakeS3Client();
-        const provider = createS3StorageProvider({
+        // One fake per case — `create` runs per case, and the kit asks the same
+        // one for `storedKeys` before the next replaces it.
+        contractClient = new FakeS3Client();
+        return createS3StorageProvider({
             bucket: 'bucket',
-            client: client.asClient()
+            client: contractClient.asClient()
         });
-        // One fake per case; keyed by identity so `storedKeys` finds its own.
-        clients.set(provider.id + clients.size, client);
-        lastClient = client;
-        return provider;
     },
-    storedKeys: () => lastClient?.keys() ?? []
+    storedKeys: () => contractClient?.keys() ?? []
 });
 
-let lastClient: FakeS3Client | undefined;
+let contractClient: FakeS3Client | undefined;
 
 describe('createS3StorageProvider', () => {
     let client: FakeS3Client;

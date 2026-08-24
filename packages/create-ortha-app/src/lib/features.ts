@@ -143,10 +143,10 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
     {
         id: 'media-s3',
         label: 'S3-compatible',
-        hint: 'Not published yet — the adapter exists but ships no release.',
+        hint: 'Cloudflare R2, AWS S3, MinIO, Spaces, B2, Wasabi — set MEDIA_S3_BUCKET and, for anything but AWS, MEDIA_S3_ENDPOINT.',
         packages: ['@orthacms/media-provider-s3'],
         enabledByDefault: false,
-        available: false
+        available: true
     }
 ];
 

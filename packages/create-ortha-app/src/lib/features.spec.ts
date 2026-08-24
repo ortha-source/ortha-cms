@@ -189,7 +189,7 @@ describe('resolvePackages', () => {
         ]);
     });
 
-    it('does not install the unreleased S3 adapter by default', () => {
+    it('does not install the S3 adapter unless it is chosen', () => {
         expect(resolvePackages(selectionOf('media-local'))).not.toContain(
             '@orthacms/media-provider-s3'
         );
@@ -220,12 +220,15 @@ describe('resolveFlags', () => {
 });
 
 describe('availability', () => {
-    it('marks the S3 adapter unavailable while it has no release', () => {
+    it('offers the S3 adapter, now that it is implemented', () => {
+        // It was listed and disabled while `provider-s3` threw from every
+        // method: offering it then would have generated an app that boots and
+        // fails on the first upload.
         const s3 = MEDIA_PROVIDERS.find(
             (provider) => provider.id === 'media-s3'
         );
 
-        expect(s3?.available).toBe(false);
+        expect(s3?.available).toBe(true);
     });
 
     it('leaves exactly one storage adapter selectable by default', () => {
