@@ -9,13 +9,13 @@
     "include": ["jest.config.cts", "src/**/*.ts"],
     "references": [
         {
+            "path": "../../packages/identity/provider-fake"
+        },
+        {
             "path": "../server"
         },
         {
             "path": "../../packages/users/server"
-        },
-        {
-            "path": "../../packages/media/server"
         },
         {
             "path": "../../packages/media/provider-local"
@@ -28,6 +28,9 @@
         },
         {
             "path": "../../packages/activity/server"
+        },
+        {
+            "path": "../../packages/media/server"
         },
         {
             "path": "../../packages/copilot/server"

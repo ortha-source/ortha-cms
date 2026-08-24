@@ -59,6 +59,17 @@ export interface Feature {
  * the moment a version conflict nests a copy, and never resolves under pnpm at
  * all.
  *
+ * **SSO** contributes two entries on the same reasoning as the copilot's.
+ * `identity-domain` is an extension point — the `SsoProvider` port an operator
+ * implements to reach an identity provider we do not ship an adapter for — and
+ * it already arrives transitively through `identity-server`, so declaring it is
+ * what makes that resolution something the app owns rather than borrows.
+ * `identity-provider-fake` is the scripted identity provider: it needs no
+ * tenant and no network, so it is how a generated app's sign-in page can be
+ * exercised offline, exactly as `copilot-provider-fake` is for the chat. Note
+ * that shipping it installs nothing: an adapter only does something once the
+ * composition root registers it, and the template registers none.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -84,6 +95,8 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/i18n-admin',
     '@orthacms/i18n-server',
     '@orthacms/identity-admin',
+    '@orthacms/identity-domain',
+    '@orthacms/identity-provider-fake',
     '@orthacms/identity-server',
     '@orthacms/insights-admin',
     '@orthacms/media-admin',

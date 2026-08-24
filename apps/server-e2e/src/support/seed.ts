@@ -424,6 +424,23 @@ export async function setUserStatus(
         .where(eq(users.id, userId));
 }
 
+/**
+ * Change the address an account holds.
+ *
+ * The SSO suite needs it to prove the point of keying a link on the provider's
+ * subject rather than on an email: move the address, and a subject-keyed link
+ * still resolves while an email-keyed one would not.
+ */
+export async function setUserEmail(
+    userId: string,
+    email: string
+): Promise<void> {
+    await getDatabase()
+        .update(users)
+        .set({ email })
+        .where(eq(users.id, userId));
+}
+
 /** Delete a user row (cascades to their sessions via FK). */
 export async function deleteUser(userId: string): Promise<void> {
     await getDatabase().delete(users).where(eq(users.id, userId));

@@ -379,6 +379,32 @@ const config: OrthaConfig = {
                 email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
                 password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
                 name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
+            },
+            // Single sign-on. The *providers* are not here — they are
+            // constructed adapters and are registered in `plugins.ts`, the same
+            // split the copilot makes between connection settings and built
+            // backends. What lives here is the deployment shape of the
+            // handshake.
+            sso: {
+                // The origin browsers reach this API on. It builds the
+                // `redirect_uri` registered with each identity provider, and it
+                // is configured rather than read from the request's `Host`
+                // header — which a client controls, and could therefore point
+                // at an origin of its choosing. Unset, it falls back to the
+                // first `allowedOrigins` entry, which is right whenever the
+                // admin and the API share an origin: the deployed shape, and
+                // the dev one where Vite proxies `/api`.
+                ...(process.env['SSO_PUBLIC_BASE_URL']
+                    ? { publicBaseUrl: process.env['SSO_PUBLIC_BASE_URL'] }
+                    : {}),
+                // How long one sign-in attempt stays live. Ten minutes by
+                // default: a consent screen plus a second factor, and no
+                // longer — an attempt left open in a forgotten tab should not
+                // be a credential sitting around for the afternoon.
+                requestTtlSeconds: readPositiveInt(
+                    'SSO_REQUEST_TTL_SECONDS',
+                    600
+                )
             }
         },
         i18n: {

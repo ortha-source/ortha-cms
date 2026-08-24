@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
+import type { SsoRegistration } from '@orthacms/identity-domain';
 import type { IdentityPluginConfig } from '../types';
 import { IdentityModule } from '../identity.module';
 import { SESSION_COOKIE } from '../auth/services/cookie.service';
@@ -11,6 +12,62 @@ import { SESSION_COOKIE } from '../auth/services/cookie.service';
 export interface IdentityServerPlugin extends ServerPlugin {
     /** Identity configuration. */
     identityConfig: IdentityPluginConfig;
+}
+
+/**
+ * Wiring that is code rather than configuration — today, the SSO adapters.
+ *
+ * A **second parameter** rather than a change to the first, because
+ * `IdentityPlugin(config)` is called by every host, every generated app and the
+ * e2e harness, and none of them should have to change to add a feature they do
+ * not use. It mirrors the split `CopilotPlugin` makes: connection settings live
+ * in config and are read from the environment; constructed adapters are passed
+ * here, at the composition root, because an adapter instance is not an
+ * environment value.
+ */
+export interface IdentityPluginOptions {
+    /** Single sign-on wiring. Omit it and no provider is registered. */
+    sso?: IdentitySsoOptions;
+}
+
+/** The SSO adapters this deployment offers. */
+export interface IdentitySsoOptions {
+    /**
+     * The identity providers, in the order the sign-in page shows them.
+     *
+     * Unlike the copilot's model providers there is no "first one is the
+     * default" rule — a person picks a button, so this order is presentation
+     * and nothing else. An empty list (or no `sso` at all) means the routes are
+     * still mounted and `GET /api/auth/sso` answers `[]`; nothing can be
+     * started, because no name resolves.
+     */
+    providers: readonly SsoRegistration[];
+}
+
+/**
+ * Rejects the one configuration in which SSO is registered and cannot possibly
+ * work: a `strict` session cookie.
+ *
+ * An identity provider returns the person with a top-level cross-site
+ * navigation. A `strict` cookie is not sent on one, so the callback finds no
+ * attempt and *every* sign-in fails — with a generic error, because that is the
+ * only thing an anonymous caller may be told. Nothing in the response
+ * distinguishes it from a misconfigured provider, so this would be diagnosed by
+ * reading `Set-Cookie` headers rather than by reading an error.
+ *
+ * Failing at construction costs a correctly-configured deployment nothing, and
+ * turns a silent, unsearchable failure into a message naming the setting.
+ */
+function assertOptions(
+    config: IdentityPluginConfig,
+    options: IdentityPluginOptions
+): void {
+    const providers = options.sso?.providers ?? [];
+    if (providers.length > 0 && config.session.cookieSameSite === 'strict') {
+        throw new Error(
+            'IdentityPlugin cannot register SSO providers while `session.cookieSameSite` is "strict": the browser would not send the session cookie on the identity provider\'s redirect back, so every SSO sign-in would fail. Use "lax" (the default), or register no SSO providers.'
+        );
+    }
 }
 
 /**
@@ -35,11 +92,13 @@ export interface IdentityServerPlugin extends ServerPlugin {
  * ```
  */
 export function IdentityPlugin(
-    config: IdentityPluginConfig
+    config: IdentityPluginConfig,
+    options: IdentityPluginOptions = {}
 ): IdentityServerPlugin {
+    assertOptions(config, options);
     return {
         name: 'identity',
-        module: IdentityModule.forRoot(config),
+        module: IdentityModule.forRoot(config, options),
         identityConfig: config,
         migrations: {
             // Lazy — only called at migrate time, never at boot. Source

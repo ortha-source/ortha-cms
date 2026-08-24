@@ -149,6 +149,12 @@
         },
         {
             "path": "./packages/media/provider-vercel-blob"
+        },
+        {
+            "path": "./packages/identity/provider-fake"
+        },
+        {
+            "path": "./packages/identity/domain"
         }
     ]
 }

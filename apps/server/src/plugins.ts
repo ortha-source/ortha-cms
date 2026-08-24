@@ -106,6 +106,32 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
     });
     return [
         DatabasePlugin({ connectionString: config.database.url }),
+        // Identity, plus the SSO adapters this deployment offers.
+        //
+        // The second argument is where **constructed** adapters go, the same
+        // way the copilot's model backends do: `ortha.config.ts` holds the
+        // typed view of the environment, and an adapter instance is not an
+        // environment value. The default install registers none, so
+        // `GET /api/auth/sso` answers `[]` and the sign-in page shows only the
+        // password form.
+        //
+        // Registering one is an entry in this list and nothing else — no
+        // change inside the identity package:
+        //
+        //   IdentityPlugin(config.plugins.identity, {
+        //       sso: {
+        //           providers: [
+        //               { name: 'google', provider: createGoogleProvider({ … }) }
+        //           ]
+        //       }
+        //   })
+        //
+        // The name is what the route (`/api/auth/sso/google/start`) and every
+        // `sso_identities` row refer to the provider by, so renaming a
+        // registration orphans the links that name it. Register the callback
+        // URL `<publicBaseUrl>/api/auth/sso/<name>/callback` with the provider;
+        // `ssoCallbackUrl` from `@orthacms/identity-server` builds the exact
+        // string, which matters because most providers match it byte for byte.
         IdentityPlugin(config.plugins.identity),
         WorkspacesPlugin(),
         ActivityPlugin(),
