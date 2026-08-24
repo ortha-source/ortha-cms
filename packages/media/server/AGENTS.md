@@ -66,7 +66,13 @@ layer-boundary lint isn't wired yet).
   fresh database must still boot.
 - **Writing a provider** is one factory function plus one
   `describeStorageProvider` call from `@orthacms/media-provider-testkit`, which
-  is where the port's invariants live as a runnable suite.
+  is where the port's invariants live as a runnable suite. Shipped
+  implementations: `-local` (the default install), `-memory` (the e2e harness,
+  and offline development), `-s3` (S3-compatible: R2, AWS, MinIO, Spaces, B2,
+  Wasabi…) `-azure` (Blob Storage, the one store with no S3 compatibility) and `-gcs`
+  (native Google auth; the S3 adapter also reaches GCS over its XML API) and
+  `-vercel-blob` (smallest setup on Vercel, but every blob is world-readable —
+  read its AGENTS.md before choosing it).
 
 ## Use cases + unit-of-work + outbox
 
@@ -505,7 +511,8 @@ delete reclaims them (`Asset.storageKeys`).
 
 ## Not yet (follow-ups)
 
-**Video duration probing**, the real S3 adapter, and a `media.asset.deleted`
+**Video duration probing**, wiring `directUrl` into the download route (the S3
+adapter implements it; nothing calls it yet), and a `media.asset.deleted`
 outbox subscriber for blob GC. (The e2e suites listed here before now exist:
 `apps/server-e2e/src/server/media/media-assets.spec.ts` covers derivatives +
 variant serving, and the admin side has `media-library.spec.ts` +

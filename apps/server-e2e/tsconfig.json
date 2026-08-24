@@ -15,6 +15,9 @@
             "path": "../../packages/users/server"
         },
         {
+            "path": "../../packages/media/server"
+        },
+        {
             "path": "../../packages/media/provider-local"
         },
         {
@@ -25,15 +28,6 @@
         },
         {
             "path": "../../packages/activity/server"
-        },
-        {
-            "path": "../../packages/bootstrap/server"
-        },
-        {
-            "path": "../../packages/media/server"
-        },
-        {
-            "path": "../../packages/copilot/domain"
         },
         {
             "path": "../../packages/copilot/server"
@@ -48,16 +42,25 @@
             "path": "../../packages/i18n/server"
         },
         {
+            "path": "../../packages/copilot/domain"
+        },
+        {
             "path": "../../packages/content/server"
         },
         {
             "path": "../../packages/workspaces/server"
         },
         {
+            "path": "../../packages/identity/server"
+        },
+        {
             "path": "../../packages/database"
         },
         {
-            "path": "../../packages/identity/server"
+            "path": "../../packages/bootstrap/server"
+        },
+        {
+            "path": "../../packages/media/provider-memory"
         }
     ]
 }
