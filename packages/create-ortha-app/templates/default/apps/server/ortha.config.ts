@@ -340,6 +340,19 @@ const config: OrthaConfig = {
                     : {})
             },
             // ortha:end
+            // Redirect an already-authorized download straight to the
+            // storage backend instead of streaming it through the app. Off
+            // unless asked for, and only possible on a backend that can sign a
+            // URL — the plugin refuses the combination at boot rather than
+            // proxying while the operator believes otherwise.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',
                 50 * 1024 * 1024

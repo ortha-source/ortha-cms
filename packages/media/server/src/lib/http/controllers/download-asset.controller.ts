@@ -1,6 +1,7 @@
 import {
     Controller,
     Get,
+    Inject,
     NotFoundException,
     Param,
     ParseUUIDPipe,
@@ -18,8 +19,17 @@ import {
     type PublicUser
 } from '@orthacms/identity-server';
 import { MembershipCheckQuery } from '@orthacms/workspaces-server';
+import {
+    STORAGE_PROVIDER,
+    type StorageProvider
+} from '../../domain/storage-provider';
 import { DownloadAssetQuery } from '../../infrastructure/queries/download-asset.query';
 import { downloadHeadersFor } from '../download-headers';
+import {
+    DIRECT_SERVE,
+    directUrlFor,
+    type DirectServeConfig
+} from '../direct-serve';
 import { toHttp } from '../to-http';
 
 /**
@@ -42,7 +52,9 @@ import { toHttp } from '../to-http';
 export class DownloadAssetController {
     constructor(
         private readonly query: DownloadAssetQuery,
-        private readonly members: MembershipCheckQuery
+        private readonly members: MembershipCheckQuery,
+        @Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider,
+        @Inject(DIRECT_SERVE) private readonly directServe: DirectServeConfig
     ) {}
 
     /**
@@ -60,7 +72,7 @@ export class DownloadAssetController {
         @CurrentUser() user: PublicUser,
         @Res({ passthrough: true }) response: Response,
         @Query('variant') variant?: string
-    ): Promise<StreamableFile> {
+    ): Promise<StreamableFile | undefined> {
         const location = await this.query.locate(id, variant);
         // A non-member gets the same 404 as a missing asset — distinguishing
         // them would let anyone probe which asset ids exist in other workspaces.
@@ -69,6 +81,27 @@ export class DownloadAssetController {
             !(await this.members.isMember(user.id, location.workspaceId))
         ) {
             throw new NotFoundException();
+        }
+
+        // Direct serve, when the deployment asked for it and the backend can
+        // mint a URL. It runs **after** the authorization above, never instead
+        // of it, and the disposition it pins onto that URL is decided by the
+        // same `isInlineSafe` the proxied path uses — a redirect discards this
+        // response's own `Content-Disposition`, `nosniff` and CSP, so an
+        // uploaded `.html` must still arrive as an attachment.
+        //
+        // `no-store` because the URL expires: a shared cache holding this
+        // redirect would serve a signed URL past its lifetime, which is a 403
+        // for the next viewer rather than a picture.
+        const signed = await directUrlFor(
+            this.provider,
+            this.directServe,
+            location
+        );
+        if (signed) {
+            response.set({ 'Cache-Control': 'private, no-store' });
+            response.redirect(302, signed);
+            return undefined;
         }
 
         // Through `toHttp`, so a row whose blob is gone from storage — a

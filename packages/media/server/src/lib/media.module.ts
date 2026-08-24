@@ -37,6 +37,12 @@ import { RenameFolderUseCase } from './application/use-cases/rename-folder.use-c
 import { DeleteFolderUseCase } from './application/use-cases/delete-folder.use-case';
 import { MediaWorkspacePurger } from './infrastructure/purge/media-workspace.purger';
 import { StorageProviderCheck } from './infrastructure/storage-provider.check';
+import {
+    DEFAULT_DIRECT_SERVE_TTL_SECONDS,
+    DIRECT_SERVE,
+    type DirectServeConfig,
+    type DirectServeMode
+} from './http/direct-serve';
 import { ListFoldersController } from './http/controllers/list-folders.controller';
 import { CreateFolderController } from './http/controllers/create-folder.controller';
 import { RenameFolderController } from './http/controllers/rename-folder.controller';
@@ -53,6 +59,10 @@ import { DeleteAssetsController } from './http/controllers/delete-assets.control
 export interface MediaModuleOptions {
     /** The deployment's one storage backend, built at the composition root. */
     provider: StorageProvider;
+    /** How downloads reach the browser — proxied, or a signed redirect. */
+    directServe?: DirectServeMode;
+    /** Lifetime of a signed URL, in seconds. */
+    directServeTtlSeconds?: number;
     /**
      * Hard ceiling on a single upload, in bytes — the host's
      * `config.plugins.media.maxUploadBytes`. Bounds the memory multer buffers
@@ -85,6 +95,13 @@ function multerFileSizeFor(maxUploadBytes: number): number {
 export class MediaModule {
     /** Creates the global dynamic module: controllers, use cases, adapters. */
     static forRoot(options: MediaModuleOptions): DynamicModule {
+        const directServe: DirectServeConfig = {
+            mode: options.directServe ?? 'off',
+            ttlSeconds:
+                options.directServeTtlSeconds ??
+                DEFAULT_DIRECT_SERVE_TTL_SECONDS
+        };
+
         return {
             module: MediaModule,
             global: true,
@@ -126,6 +143,9 @@ export class MediaModule {
                 // Verifies that backend at boot, and that no asset row names a
                 // different one.
                 StorageProviderCheck,
+                // How a download travels: proxied through the app, or a
+                // short-lived redirect the browser follows itself.
+                { provide: DIRECT_SERVE, useValue: directServe },
                 // Image processing — probes dimensions + generates derivatives.
                 { provide: IMAGE_PROCESSOR, useClass: SharpImageProcessor },
                 // Ports → Drizzle adapters.

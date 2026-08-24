@@ -410,6 +410,20 @@ const config: OrthaConfig = {
                 // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
                 rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
             },
+            // Off unless asked for, and only meaningful on a backend that can
+            // sign a URL — the plugin refuses the combination at boot rather
+            // than proxying while the operator believes otherwise. The default
+            // local-filesystem provider cannot, so setting this here without
+            // switching the provider in `plugins.ts` is a boot error naming
+            // both, which is the intended way to find out.
+            directServe:
+                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
+                    ? 'signed-url'
+                    : 'off',
+            directServeTtlSeconds: readPositiveInt(
+                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+                300
+            ),
             // Upload cap — 50 MB by default.
             maxUploadBytes: readPositiveInt(
                 'MEDIA_MAX_UPLOAD_BYTES',

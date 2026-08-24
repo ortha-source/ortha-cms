@@ -89,6 +89,43 @@ describe('MediaServerPlugin()', () => {
         ).toThrow(/declares `capabilities.directUrl` but implements/);
     });
 
+    it('refuses signed-url serving on a backend that cannot sign', () => {
+        // Silently proxying instead would leave the operator believing an
+        // optimization is on that is not — and paying for the egress that was
+        // the reason to switch backend.
+        expect(() =>
+            MediaServerPlugin(
+                options({ config: config({ directServe: 'signed-url' }) })
+            )
+        ).toThrow(/directUrl: false/);
+    });
+
+    it('accepts signed-url serving on a backend that can', () => {
+        expect(() =>
+            MediaServerPlugin(
+                options({
+                    provider: provider({
+                        capabilities: {
+                            directUrl: true,
+                            contentTypeMetadata: true,
+                            streamingPut: true
+                        },
+                        directUrl: () => Promise.resolve('https://cdn.test/x')
+                    }),
+                    config: config({ directServe: 'signed-url' })
+                })
+            )
+        ).not.toThrow();
+    });
+
+    it('rejects a signed-URL lifetime that is already expired', () => {
+        expect(() =>
+            MediaServerPlugin(
+                options({ config: config({ directServeTtlSeconds: 0 }) })
+            )
+        ).toThrow(/directServeTtlSeconds/);
+    });
+
     it('rejects a non-positive upload cap, which would refuse every upload', () => {
         // Measured: `MEDIA_MAX_UPLOAD_BYTES=-1` booted and answered `413
         // Payload Too Large` to a 1 kB file. The host now rejects the value
