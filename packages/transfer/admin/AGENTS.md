@@ -9,7 +9,7 @@ already looking at, so it lives in the content library's seams:
 | Slot                       | Contribution                                  |
 | -------------------------- | --------------------------------------------- |
 | `ENTRY_MENU_SLOT`          | **Export…** in the editor's ⋯ menu (Extras).  |
-| `RECORDS_BULK_ACTION_SLOT` | **Export** in the records selection bar.      |
+| `RECORDS_BULK_ACTION_SLOT` | **Export** in the selection bar's ⋯ menu.     |
 | `RECORDS_MENU_SLOT`        | **Import…** in the collection's ⋯ menu.       |
 
 Register it **after** `contentAdminPlugin()`, which declares all three.
@@ -39,3 +39,6 @@ the worst bug this dialog can have.
 
 **A bulk-action overlay dies with the selection.** The selection bar unmounts as
 soon as the selection is empty, so `onDone` is called on success, never on open.
+The overlay is rendered outside the ⋯ menu for the same reason the entry menu's
+is — the menu content unmounts the instant the menu closes, which is exactly
+when the export dialog is meant to appear.

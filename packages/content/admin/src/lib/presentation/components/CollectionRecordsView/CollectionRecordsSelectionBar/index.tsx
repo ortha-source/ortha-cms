@@ -16,9 +16,15 @@ const messages = defineMessages({
 
 /**
  * The selection summary bar shown above the table once one or more rows are
- * selected: a "{n} selected" count, the caller's bulk `actions` (publish /
- * delete / restore, composed per view + permission), and a Clear action. The
- * count here is **visual only** — the bar mounts and unmounts with the
+ * selected: a "{n} selected" count, then **Clear**, then the caller's bulk
+ * `actions` (a ⋯ menu holding publish / delete / restore, composed per view +
+ * permission).
+ *
+ * Clear comes first, and outside that menu, because it is the way *out* of a
+ * state the user may have entered by accident — burying the undo behind the
+ * same menu as Delete would be the wrong shape.
+ *
+ * The count here is **visual only** — the bar mounts and unmounts with the
  * selection, so it can't be a reliable live region; the spoken announcement
  * lives in a persistent region in `LoadedRecordsView`.
  */
@@ -29,7 +35,7 @@ export function CollectionRecordsSelectionBar({
 }: {
     /** Number of currently selected records. */
     count: number;
-    /** Bulk action controls for the current selection (right-aligned). */
+    /** Bulk action controls for the current selection, after Clear. */
     actions?: ReactNode;
     /** Clears the selection. */
     onClear: () => void;
@@ -42,7 +48,6 @@ export function CollectionRecordsSelectionBar({
                 {intl.formatMessage(messages.count, { count })}
             </span>
             <div className="flex items-center gap-2">
-                {actions}
                 <Button
                     variant="outline"
                     size="sm"
@@ -51,6 +56,7 @@ export function CollectionRecordsSelectionBar({
                 >
                     {intl.formatMessage(messages.clear)}
                 </Button>
+                {actions}
             </div>
         </div>
     );

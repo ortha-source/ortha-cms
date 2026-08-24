@@ -524,14 +524,6 @@ export function LoadedRecordsView({
                 )}
                 actions={
                     <div className="flex items-center gap-2">
-                        {/* Leftmost: whole-collection actions, so the occasional
-                            ones don't compete for width with search, columns
-                            and filters. Renders nothing when no plugin fills it. */}
-                        <CollectionRecordsMenu
-                            schema={schema}
-                            workspaceId={workspace.id}
-                            trashed={trashed}
-                        />
                         {toolbarItems.map((item) => (
                             <item.Component
                                 key={item.id}
@@ -570,6 +562,15 @@ export function LoadedRecordsView({
                                 )}
                             />
                         </Button>
+                        {/* Last: whole-collection actions. The occasional ones
+                            sit at the end of the row rather than taking the
+                            leading position from the controls used on every
+                            visit. Renders nothing when no plugin fills it. */}
+                        <CollectionRecordsMenu
+                            schema={schema}
+                            workspaceId={workspace.id}
+                            trashed={trashed}
+                        />
                     </div>
                 }
             />
