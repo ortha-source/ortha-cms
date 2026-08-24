@@ -172,7 +172,12 @@ describe('resolvePackages', () => {
         const published = new Set(publishedPackages());
         const installed = new Set(resolvePackages(selectionOf('media-local')));
         const missing = [...published].filter(
-            (name) => !installed.has(name) && name !== '@orthacms/cli'
+            (name) =>
+                !installed.has(name) &&
+                name !== '@orthacms/cli' &&
+                // Published, and deliberately never installed into an app —
+                // tools for writing a storage provider, not for running one.
+                !TRANSITIVE_PACKAGES.includes(name)
         );
 
         expect(missing.sort()).toEqual([

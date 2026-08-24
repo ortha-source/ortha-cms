@@ -104,19 +104,25 @@ export const CORE_PACKAGES: readonly string[] = [
 export const CORE_DEV_PACKAGES: readonly string[] = ['@orthacms/cli'];
 
 /**
- * Packages deliberately left undeclared.
+ * Packages deliberately left undeclared — published, but with no reason for a
+ * generated app to import them.
  *
- * **Empty, and that is the intended state.** Everything a generated app can
- * reach is now in its own manifest, so "it resolves because npm hoisted it"
- * is never the answer to why an import works.
+ * Both entries are tools for **writing a storage provider**, not for running
+ * one. `StorageProviderCheck` refuses to boot a database whose rows were
+ * written by a provider that is no longer configured, so the in-memory backend
+ * is a test and offline-development affordance, never a deployment: offering it
+ * in the scaffolder would be offering an app that loses every upload on
+ * restart. The testkit is the contract suite those providers run against.
  *
- * The bucket stays because the classification is still meaningful: a future
- * package that is genuinely an internal detail of another — no public API, no
- * reason for an app to import it — belongs here rather than in
- * `CORE_PACKAGES`. Putting it here is a decision the coverage guard accepts;
- * forgetting it entirely is not.
+ * Everything else a generated app can reach is in its own manifest, so "it
+ * resolves because npm hoisted it" is never the answer to why an import works.
+ * Putting a package here is a decision the coverage guard accepts; forgetting
+ * it entirely is not.
  */
-export const TRANSITIVE_PACKAGES: readonly string[] = [];
+export const TRANSITIVE_PACKAGES: readonly string[] = [
+    '@orthacms/media-provider-memory',
+    '@orthacms/media-provider-testkit'
+];
 
 /**
  * Where uploads are written.

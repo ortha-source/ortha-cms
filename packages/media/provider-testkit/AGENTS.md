@@ -55,4 +55,7 @@ remote provider ends up failing for the wrong reason.
 
 - `npx nx typecheck @orthacms/media-provider-testkit` /
   `npx nx lint @orthacms/media-provider-testkit`
-- It has no tests of its own: its consumers are its tests.
+- `npx nx test @orthacms/media-provider-testkit` — the kit against its own
+  reference in-memory provider, so a suite no correct implementation passes
+  cannot ship unnoticed. Its real consumers are `@orthacms/media-provider-local`
+  and `@orthacms/media-provider-memory`.
