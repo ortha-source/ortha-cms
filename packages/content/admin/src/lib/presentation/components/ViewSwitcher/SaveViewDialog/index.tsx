@@ -194,7 +194,21 @@ export function SaveViewDialog({
                 if (!isSaving) onOpenChange(next);
             }}
         >
-            <DialogContent className="max-w-md">
+            <DialogContent
+                className="max-w-md"
+                onOpenAutoFocus={(event) => {
+                    // The field is focused here rather than with React's
+                    // `autoFocus`, which only fires at mount and loses to
+                    // whatever the thing that opened this dialog does next.
+                    // Opened from the switcher's menu, Radix's close-autofocus
+                    // ran after that mount and the reader got an open dialog
+                    // with nothing focused — every keystroke dropped. This runs
+                    // as part of the dialog's own open sequence, so the field is
+                    // focused no matter which control opened it.
+                    event.preventDefault();
+                    document.getElementById(nameId)?.focus();
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle>
                         {intl.formatMessage(messages.title)}
@@ -222,7 +236,6 @@ export function SaveViewDialog({
                         id={nameId}
                         label={intl.formatMessage(messages.nameLabel)}
                         value={name}
-                        autoFocus
                         required
                         maxLength={VIEW_NAME_MAX_LENGTH}
                         error={error ?? undefined}

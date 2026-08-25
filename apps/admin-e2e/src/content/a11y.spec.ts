@@ -165,7 +165,7 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockSignedIn(page, { permissions: ['content:read'] });
         await mockSavedViews(page, []);
         await savedViewsPage.goto(LIBRARY_WORKSPACE.id, 'blog_post');
-        await savedViewsPage.saveFirstButton().click();
+        await savedViewsPage.saveAs();
         // A disabled radio whose only explanation is its description — exactly
         // the pairing axe checks and a reader depends on.
         await savedViewsPage.dialog().waitFor();

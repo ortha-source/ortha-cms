@@ -410,26 +410,29 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
 
-## Saved views — the switcher in the collection header
+## Saved views — the switcher in the records toolbar
 
 A saved view is a named slice of a collection's records list: the filter, the
 sort, the visible columns, the page size, and the slot-owned params (i18n's
 locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
 
-**Where it lives, and why not the toolbar.** `ViewSwitcher` is a **button of
-the same weight as its neighbours**, first in `ContainerHeader`'s `actions`
-cluster — before **Trash** and **Add record**. It leads that cluster because it
-says _which slice_ the actions beside it would act on. It is not in the toolbar
-with Columns and Filters: those answer _how do I narrow it_, and sitting the
-switcher among them makes a view read as one more filter control, which is
-exactly what it is not.
+**Where it lives.** `ViewSwitcher` **leads `SearchToolbar`'s actions row**,
+before the locale switcher, Columns and Filters. The page's two right-aligned
+rows are split by the question they answer: the header carries what you do _to_
+the collection (**Add record**, the **⋯**), the toolbar carries what changes
+_which records you are looking at_. A saved view is the broadest of those, so it
+goes first in that row.
 
-It used to render under the `<h1>` (through a `titleAdornment` slot on
-`ContainerHeader`, since removed with its last caller): as a small pill there it
-read as a caption on the heading rather than a control, and it pushed the record
-count down on every collection. `ContainerHeader`'s actions row is `flex-wrap`
-for the same move — the records header now carries up to six controls, and a
-`shrink-0` row of them ran off the right edge on a narrow viewport.
+It has lived in two other places, and the reasons both moved are worth keeping.
+Under the `<h1>` (through a `titleAdornment` slot on `ContainerHeader`, since
+removed with its last caller) a small pill read as a caption on the heading
+rather than a control, and pushed the record count down on every collection. In
+`ContainerHeader`'s `actions` cluster it was one of six near-identical outline
+buttons spread over two right-aligned rows with nothing to say which row was
+which — the argument for it there ("it says which slice the actions beside it
+would act on") stopped holding once those actions were the ones that moved away.
+Both rows stay `flex-wrap`: a `shrink-0` row of controls ran off the right edge
+on a narrow viewport.
 
 The menu is `modal={false}`, like every other menu in this admin: a modal Radix
 menu `aria-hidden`s the page root, so `aria-hidden-focus` fires and the page —
@@ -481,11 +484,14 @@ need:
   tool too — which is why the body has two variants. Confirm closes the dialog
   and lets the outcome land as a toast, exactly like the entry editor's delete.
   Focus is put back by hand (`onCloseAutoFocus`): the menu item that opened the
-  dialog is long gone, so Radix's restore would target a detached node. And
-  deleting the **last** view swaps the whole cluster for the "save the first
-  one" affordance — a swap that arrives with the refetched list, _after_ that
-  restore — so a `justDeleted` ref re-places focus on whichever button took
-  over when `collapsed` flips.
+  dialog is long gone, so Radix's restore would target a detached node. The
+  trigger it is put back on is always there — the switcher has **one shape**,
+  saved views or none. It used to collapse to a lone "Save current as view…"
+  button on an empty list, which spent the row's loudest secondary slot on an
+  action that only pays off _after_ the reader has changed something, and needed
+  a `justDeleted` ref to chase focus across the swap when deleting the last view
+  brought that button back. **Save current as view…** is a menu item now, beside
+  the rest of the view actions.
 - **Set as my default** gets the toast instead, because a default decides the
   _next_ visit: nothing on this screen moves, so a silent success reads as a
   dead menu item. The message names the view, which also covers the
@@ -782,17 +788,24 @@ fetching internally.
 - **`RECORDS_TOOLBAR_SLOT`** — a control in the records toolbar; owns URL
   `listParamKeys` forwarded to the list request (and its query key), with
   `updateParams` (resets the page).
-- **`RECORDS_MENU_SLOT`** — an action on the **collection**, in a ⋯ menu
-  **last** in the toolbar's actions row — the counterpart to
-  `ENTRY_MENU_SLOT` one level up. Same shape (`useItem` hook, `null` to hide, an
-  `overlay` rendered outside the menu) and the same reason for it: the menu
-  content unmounts the instant the menu closes, which is when a dialog opened
-  from it is meant to appear.
-    - It is a **menu** and not more toolbar buttons because what belongs here is
-      the occasional whole-collection operation, and those should not take width
-      from the controls used on every visit — search, columns, filters.
-    - **The trigger renders only when an item resolves**, so an install with no
-      contributor sees no ⋯ button opening onto nothing.
+- **`RECORDS_MENU_SLOT`** — an action on the **collection**, in the ⋯ menu
+  **last in the header's action cluster**, after **Add record** — the
+  counterpart to `ENTRY_MENU_SLOT` one level up. Same shape (`useItem` hook,
+  `null` to hide, an `overlay` rendered outside the menu) and the same reason
+  for it: the menu content unmounts the instant the menu closes, which is when
+  a dialog opened from it is meant to appear.
+    - It is a **menu** and not more header buttons because what belongs here is
+      the occasional whole-collection operation, and those should not take the
+      header's one primary slot from **Add record**.
+    - **`CollectionRecordsMenu` contributes one item itself**: **Trash**, via a
+      `trashHref` prop (`paranoid && canDelete`, the pair that used to gate the
+      header button). It is here because it is a _destination_, not an action,
+      so it read oddly among buttons that do something — and because the menu
+      otherwise held exactly one contributed item, making the ⋯ a button that
+      hid a button.
+    - **The trigger renders only when something resolves** — a contributed item
+      or `trashHref` — so an install with neither sees no ⋯ opening onto
+      nothing.
     - `@orthacms/transfer-admin` fills it with **Import…**.
 - **`RECORDS_BULK_ACTION_SLOT`** — an item in the records **selection bar's**
   ⋯ menu, after the built-in Publish / Unpublish / Delete (and, in the trash,
