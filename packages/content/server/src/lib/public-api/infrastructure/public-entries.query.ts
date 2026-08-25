@@ -23,6 +23,10 @@ import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../extension/entry-extension';
+import {
+    CONTENT_READ_SCOPE,
+    type ContentReadScope
+} from '../../extension/read-scope';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
@@ -104,7 +108,13 @@ export class PublicEntriesQuery {
         // unless a downstream plugin binds it, hence optional.
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
-        private readonly extension?: ContentEntryExtension
+        private readonly extension?: ContentEntryExtension,
+        // Read-scope providers (e.g. segments' reader entitlements). A **multi**
+        // token, so this is an array; absent entirely when nothing binds it,
+        // which is every installation that has not enabled a scoping plugin.
+        @Optional()
+        @Inject(CONTENT_READ_SCOPE)
+        private readonly readScopes?: readonly ContentReadScope[]
     ) {}
 
     /**
@@ -800,7 +810,30 @@ export class PublicEntriesQuery {
         return and(
             eq(table['workspaceId'], workspaceId),
             this.statusWhere(type, visibility),
-            type.paranoid ? isNull(table['deletedAt']) : undefined
+            type.paranoid ? isNull(table['deletedAt']) : undefined,
+            ...this.readScopeWhere(type, workspaceId)
+        );
+    }
+
+    /**
+     * The fragments contributed by the bound `CONTENT_READ_SCOPE` providers.
+     *
+     * Applied here, in {@link liveWhere}, rather than in `readableWhere`: this
+     * is the clause every public read shares — the list, the single-entry read
+     * and the translation lookup that deliberately steps around the locale
+     * scope all pass through it — so a scope cannot be missed by a read that
+     * chose the narrower helper. AND-ed like everything else around them, which
+     * is what makes a scope structurally incapable of widening a read.
+     */
+    private readScopeWhere(
+        type: AnyContentType,
+        workspaceId: string
+    ): (SQL | undefined)[] {
+        if (!this.readScopes?.length) {
+            return [];
+        }
+        return this.readScopes.map((readScope) =>
+            readScope.scope({ type, workspaceId })
         );
     }
 

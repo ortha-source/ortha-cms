@@ -173,6 +173,9 @@
         },
         {
             "path": "./packages/transfer/admin"
+        },
+        {
+            "path": "./packages/segments/domain"
         }
     ]
 }

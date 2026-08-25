@@ -84,6 +84,14 @@
   goes through content's `EntryWriterService`, so an import cannot outrun
   validation, the workspace scope, or the caller's own permissions. Owns no
   tables.
+- `packages/segments/domain` — `@orthacms/segments-domain`, the **segmentation
+  kernel**: who may _read_ published content, decided by a pure function. Segment
+  types (one tag namespace each) are AND-ed, segments inside a type OR-ed, rules
+  are disjunctive normal form with one absolute exclusion list, and inheritance
+  merges the installation → workspace → type → entry chain. Deliberately separate
+  from RBAC and from `workspace_content`, which answer who may _touch_ content.
+  Enforced through content-server's `CONTENT_READ_SCOPE` port, so one predicate
+  covers REST, GraphQL, MCP and the copilot's reads at once.
 - `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token

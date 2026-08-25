@@ -302,6 +302,44 @@ a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
 `i18n: true` type has no extension bound. Only one binding is supported (a
 second consumer would need a composite).
 
+### The read-scope port (`CONTENT_READ_SCOPE`)
+
+`src/lib/extension/read-scope.ts` declares a second DI port, for narrowing what
+the **public** content API returns. `PublicEntriesQuery` and
+`PublicExpansionQuery` inject it `@Optional()` and AND every returned fragment
+onto the visibility predicate they already state, so a scope can only ever
+subtract rows — there is no return value that widens a read.
+`@orthacms/segments-domain` is the kernel behind the first implementation
+(reader entitlements); with nothing bound, which is every installation today,
+the port costs a null check.
+
+Three things distinguish it from `CONTENT_ENTRY_EXTENSION`:
+
+- **Multi-provider, not single.** That port is documented as one binding per app
+  and i18n holds it. Its own note suggests a composite for a second consumer,
+  which composes fine for a write-pipeline extension — but "narrow a read" and
+  "extend a write" are different responsibilities, and a composite would fuse
+  i18n and entitlements into one provider where a fault in either silently drops
+  the other's clause. Bind with `{ provide: CONTENT_READ_SCOPE, useClass: …,
+multi: true }`; order does not matter, since the fragments are AND-ed.
+- **Synchronous.** The predicate is assembled inside the query builder, and
+  making that path async would ripple through every public read for one
+  provider's benefit. An implementation needing I/O — resolving who the caller
+  is — must do it earlier in the request and read the result from its own
+  request-scoped state.
+- **Public reads only.** The fragments are not applied to the admin's entries
+  list. An admin caller is a member of the workspace looking at their own CMS,
+  while a reader entitlement is about who may consume published content; scoping
+  the editor's list by it would hide from an author the rows they are
+  responsible for. The same split content grants already make.
+
+It is applied in `liveWhere` rather than `readableWhere`, which is what makes it
+unmissable: the list, the single-entry read and the translation lookup that
+deliberately steps around the locale scope all pass through the former.
+`PublicExpansionQuery` asks separately, **per hop**, about the _target_ type — a
+reader allowed to see an entry is not thereby allowed to see everything it
+points at.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with

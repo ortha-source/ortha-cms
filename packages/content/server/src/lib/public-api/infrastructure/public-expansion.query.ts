@@ -1,5 +1,17 @@
-import { BadRequestException, Injectable, Optional } from '@nestjs/common';
-import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
+import {
+    BadRequestException,
+    Inject,
+    Injectable,
+    Optional
+} from '@nestjs/common';
+import {
+    and,
+    eq,
+    inArray,
+    isNull,
+    type AnyColumn,
+    type SQL
+} from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { toMediaValueRef, type MediaValueRef } from '@orthacms/content-domain';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
@@ -8,6 +20,10 @@ import {
     InjectMediaAssetResolver,
     type MediaAssetResolver
 } from '../../extension/media-asset-resolver';
+import {
+    CONTENT_READ_SCOPE,
+    type ContentReadScope
+} from '../../extension/read-scope';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
 import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
@@ -92,8 +108,33 @@ export class PublicExpansionQuery {
         private readonly relationLinks: RelationLinkService,
         @Optional()
         @InjectMediaAssetResolver()
-        private readonly media?: MediaAssetResolver
+        private readonly media?: MediaAssetResolver,
+        // Read-scope providers, consulted per **hop**: a reader allowed to see
+        // an entry is not thereby allowed to see everything it points at, and
+        // an expansion that skipped this would be a way around the scope.
+        @Optional()
+        @Inject(CONTENT_READ_SCOPE)
+        private readonly readScopes?: readonly ContentReadScope[]
     ) {}
+
+    /**
+     * The read-scope fragments for one hop's target type.
+     *
+     * The target is a different content type from the one the request named, so
+     * the scope is asked about **it** — a scope keyed to the requested type
+     * would leave every relation target unguarded.
+     */
+    private readScopeWhere(
+        type: AnyContentType,
+        workspaceId: string
+    ): (SQL | undefined)[] {
+        if (!this.readScopes?.length) {
+            return [];
+        }
+        return this.readScopes.map((readScope) =>
+            readScope.scope({ type, workspaceId })
+        );
+    }
 
     /**
      * Validate a `?relationFields=` list: every name must be a relation field
@@ -286,7 +327,8 @@ export class PublicExpansionQuery {
                                 : undefined,
                             target.paranoid
                                 ? isNull(cols['deletedAt'])
-                                : undefined
+                                : undefined,
+                            ...this.readScopeWhere(target, workspaceId)
                         )
                     )) as Row[];
                 out.set(
