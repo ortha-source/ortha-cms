@@ -113,19 +113,5 @@ export const httpAlarmsGateway: AlarmsGateway = {
             '/alarms/findings/summary'
         );
         return toAlarmSummary(data);
-    },
-
-    async mute(
-        ruleId: string,
-        entryId: string,
-        reason?: string
-    ): Promise<void> {
-        await apiClient.put(`/alarms/findings/${ruleId}/${entryId}/mute`, {
-            reason
-        });
-    },
-
-    async unmute(ruleId: string, entryId: string): Promise<void> {
-        await apiClient.delete(`/alarms/findings/${ruleId}/${entryId}/mute`);
     }
 };

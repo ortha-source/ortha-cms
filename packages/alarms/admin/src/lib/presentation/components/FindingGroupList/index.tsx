@@ -1,11 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
 import { Alert, AlertDescription, AlertTitle } from '@orthacms/design-system';
 import { BellOff, CircleCheck, TriangleAlert } from 'lucide-react';
-import type {
-    AlarmFinding,
-    AlarmRule,
-    FindingState
-} from '../../../types/alarm';
+import type { AlarmRule } from '../../../types/alarm';
 import { AlarmsEmpty } from '../AlarmsEmpty';
 import { FindingGroup } from './FindingGroup';
 
@@ -37,10 +33,6 @@ const messages = defineMessages({
         defaultMessage:
             'An alarm watches a collection and flags whatever matches its conditions. Filter a content list down to the records that look wrong and use “Save as alarm”, or start one here.'
     },
-    emptyMutedTitle: {
-        id: 'alarms.findings.emptyMutedTitle',
-        defaultMessage: 'Nothing is muted'
-    },
     emptyMutedBody: {
         id: 'alarms.findings.emptyMutedBody',
         defaultMessage:
@@ -52,16 +44,8 @@ const messages = defineMessages({
 export type FindingGroupListProps = {
     /** Every alarm in the workspace, with its live counts. */
     rules: readonly AlarmRule[];
-    /** Which state to show — `open` or `muted`. */
-    state: Exclude<FindingState, 'resolved'>;
     /** The rules request failed — rendered instead of an empty state. */
     isError: boolean;
-    /** Whether the caller may mute (i.e. holds `alarms:manage`). */
-    canManage: boolean;
-    /** Mute one finding. */
-    onMute: (finding: AlarmFinding) => void;
-    /** Lift the mute on one finding. */
-    onUnmute: (finding: AlarmFinding) => void;
     /** Start a new alarm — offered from the "no alarms yet" state. */
     onCreate?: () => void;
     /** Expand this alarm's group on arrival (from an alarm card's count). */
@@ -83,11 +67,7 @@ export type FindingGroupListProps = {
  */
 export function FindingGroupList({
     rules,
-    state,
     isError,
-    canManage,
-    onMute,
-    onUnmute,
     onCreate,
     focusRuleId
 }: FindingGroupListProps) {
@@ -107,8 +87,7 @@ export function FindingGroupList({
         );
     }
 
-    const countOf = (rule: AlarmRule) =>
-        state === 'open' ? rule.openCount : rule.mutedCount;
+    const countOf = (rule: AlarmRule) => rule.openCount;
 
     const groups = rules
         .filter((rule) => countOf(rule) > 0)
@@ -139,17 +118,9 @@ export function FindingGroupList({
         }
         return (
             <AlarmsEmpty
-                icon={state === 'open' ? CircleCheck : BellOff}
-                title={intl.formatMessage(
-                    state === 'open'
-                        ? messages.emptyOpenTitle
-                        : messages.emptyMutedTitle
-                )}
-                description={intl.formatMessage(
-                    state === 'open'
-                        ? messages.emptyOpenBody
-                        : messages.emptyMutedBody
-                )}
+                icon={CircleCheck}
+                title={intl.formatMessage(messages.emptyOpenTitle)}
+                description={intl.formatMessage(messages.emptyOpenBody)}
             />
         );
     }
@@ -160,16 +131,12 @@ export function FindingGroupList({
                 <FindingGroup
                     key={rule.id}
                     rule={rule}
-                    state={state}
                     count={countOf(rule)}
                     // One group is its own answer — making the reader click to
                     // see the only thing on the page is a click for nothing.
                     // Otherwise everything starts closed and the page is a
                     // summary you drill into.
                     defaultOpen={groups.length === 1 || rule.id === focusRuleId}
-                    canManage={canManage}
-                    onMute={onMute}
-                    onUnmute={onUnmute}
                 />
             ))}
         </div>

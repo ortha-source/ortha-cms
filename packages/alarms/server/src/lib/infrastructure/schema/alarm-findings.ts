@@ -19,10 +19,6 @@ import { alarmRules } from './alarm-rules';
  * written on insert and never again, so "this has been open for three months"
  * survives resolution and re-opening.
  *
- * `mutedAt` is deliberately **not** derived from `state`. A muted finding whose
- * entry stops matching resolves like any other, and when it matches again it
- * has to come back muted — see `nextFindingState`.
- *
  * `entryId` has no FK: entries live in the host-owned generated
  * `content_<name>` tables, one per type, so there is no single table to point
  * at. The `entry.deleted` / `entry.purged` subscribers keep it honest instead.
@@ -45,10 +41,7 @@ export const alarmFindings = pgTable(
         lastSeenAt: timestamp('last_seen_at', { withTimezone: true })
             .notNull()
             .defaultNow(),
-        resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-        mutedAt: timestamp('muted_at', { withTimezone: true }),
-        mutedBy: uuid('muted_by'),
-        mutedReason: text('muted_reason')
+        resolvedAt: timestamp('resolved_at', { withTimezone: true })
     },
     (table) => [
         primaryKey({ columns: [table.ruleId, table.entryId] }),

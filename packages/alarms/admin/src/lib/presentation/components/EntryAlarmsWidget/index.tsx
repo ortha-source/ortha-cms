@@ -1,17 +1,12 @@
 import { useMemo } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button, Spinner, toast } from '@orthacms/design-system';
+import { Spinner } from '@orthacms/design-system';
 import {
     EntrySidebarSection,
     type EntrySlotContext
 } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { BellOff, BellRing } from 'lucide-react';
 import { useFindingsByEntry } from '../../../application/useFindingsByEntry';
-import {
-    useMuteFinding,
-    useUnmuteFinding
-} from '../../../application/useMuteFinding';
 import type { AlarmFinding } from '../../../types/alarm';
 import { SeverityBadge } from '../SeverityBadge';
 
@@ -20,7 +15,7 @@ const messages = defineMessages({
     counts: {
         id: 'alarms.widget.counts',
         defaultMessage:
-            '{open, plural, =0 {Nothing flagged} one {# open} other {# open}}{muted, plural, =0 {} other { · # muted}}'
+            '{open, plural, =0 {Nothing flagged} one {# open} other {# open}}'
     },
     clean: {
         id: 'alarms.widget.clean',
@@ -30,29 +25,6 @@ const messages = defineMessages({
         id: 'alarms.widget.failed',
         defaultMessage:
             'Checks could not be loaded, so this record has not been checked.'
-    },
-    mute: { id: 'alarms.widget.mute', defaultMessage: 'Mute' },
-    unmute: { id: 'alarms.widget.unmute', defaultMessage: 'Unmute' },
-    muteLabel: {
-        id: 'alarms.widget.muteLabel',
-        defaultMessage: 'Mute “{title}” on this record'
-    },
-    unmuteLabel: {
-        id: 'alarms.widget.unmuteLabel',
-        defaultMessage: 'Unmute “{title}” on this record'
-    },
-    muted: { id: 'alarms.widget.muted', defaultMessage: 'Muted' },
-    mutePrompt: {
-        id: 'alarms.widget.mutePrompt',
-        defaultMessage: 'Why is this one fine? (optional)'
-    },
-    mutedToast: {
-        id: 'alarms.widget.mutedToast',
-        defaultMessage: 'Muted on this record.'
-    },
-    unmutedToast: {
-        id: 'alarms.widget.unmutedToast',
-        defaultMessage: 'Unmuted.'
     }
 });
 
@@ -71,7 +43,6 @@ const messages = defineMessages({
 export function EntryAlarmsWidget({ entry, isCreate }: EntrySlotContext) {
     const intl = useIntl();
     const canRead = useHasPermission('alarms:read');
-    const canManage = useHasPermission('alarms:manage');
 
     // A record being created has no id yet, so there is nothing to have found —
     // and no request worth making.
@@ -83,9 +54,6 @@ export function EntryAlarmsWidget({ entry, isCreate }: EntrySlotContext) {
         entryIds,
         canRead && entryIds.length > 0
     );
-    const mute = useMuteFinding();
-    const unmute = useUnmuteFinding();
-
     const findings = useMemo<AlarmFinding[]>(
         () => (entry?.id ? (data?.[entry.id] ?? []) : []),
         [data, entry?.id]
@@ -94,40 +62,6 @@ export function EntryAlarmsWidget({ entry, isCreate }: EntrySlotContext) {
     if (!canRead || entryIds.length === 0) return null;
 
     const open = findings.filter((finding) => finding.state === 'open');
-    const muted = findings.filter((finding) => finding.state === 'muted');
-
-    const onMute = (finding: AlarmFinding) => {
-        // `window.prompt` rather than a dialog: the reason is one short line,
-        // the rail is narrow, and a modal over the editor to type a sentence is
-        // more interruption than the action is worth. A richer editor for it
-        // belongs on the alarms page, where there is room.
-        const reason = window.prompt(
-            intl.formatMessage(messages.mutePrompt) ?? undefined
-        );
-        // `null` is Cancel — an empty string is a deliberate "no reason".
-        if (reason === null) return;
-        mute.mutate(
-            {
-                ruleId: finding.ruleId,
-                entryId: finding.entryId,
-                reason: reason || undefined
-            },
-            {
-                onSuccess: () =>
-                    toast.success(intl.formatMessage(messages.mutedToast))
-            }
-        );
-    };
-
-    const onUnmute = (finding: AlarmFinding) => {
-        unmute.mutate(
-            { ruleId: finding.ruleId, entryId: finding.entryId },
-            {
-                onSuccess: () =>
-                    toast.success(intl.formatMessage(messages.unmutedToast))
-            }
-        );
-    };
 
     return (
         <EntrySidebarSection
@@ -136,8 +70,7 @@ export function EntryAlarmsWidget({ entry, isCreate }: EntrySlotContext) {
                 isPending
                     ? undefined
                     : intl.formatMessage(messages.counts, {
-                          open: open.length,
-                          muted: muted.length
+                          open: open.length
                       })
             }
         >
@@ -159,65 +92,28 @@ export function EntryAlarmsWidget({ entry, isCreate }: EntrySlotContext) {
 
             {findings.length > 0 ? (
                 <ul className="flex flex-col gap-3">
-                    {[...open, ...muted].map((finding) => {
-                        const isMuted = finding.state === 'muted';
-                        return (
-                            <li
-                                key={`${finding.ruleId}:${finding.entryId}`}
-                                className="flex flex-col gap-1"
-                            >
-                                <div className="flex items-start gap-2">
-                                    <SeverityBadge
-                                        severity={finding.severity}
-                                        className="mt-0.5 shrink-0"
-                                    />
-                                    <span
-                                        className={
-                                            isMuted
-                                                ? 'text-sm text-muted-foreground'
-                                                : 'text-sm font-medium'
-                                        }
-                                    >
-                                        {finding.title}
-                                    </span>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                    {isMuted && finding.mutedReason
-                                        ? finding.mutedReason
-                                        : finding.ruleName}
+                    {open.map((finding) => (
+                        <li
+                            key={`${finding.ruleId}:${finding.entryId}`}
+                            className="flex flex-col gap-1"
+                        >
+                            <div className="flex items-start gap-2">
+                                <SeverityBadge
+                                    severity={finding.severity}
+                                    className="mt-0.5 shrink-0"
+                                />
+                                <span className="text-sm font-medium">
+                                    {finding.title}
                                 </span>
-                                {canManage ? (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="self-start"
-                                        onClick={() =>
-                                            isMuted
-                                                ? onUnmute(finding)
-                                                : onMute(finding)
-                                        }
-                                        aria-label={intl.formatMessage(
-                                            isMuted
-                                                ? messages.unmuteLabel
-                                                : messages.muteLabel,
-                                            { title: finding.title }
-                                        )}
-                                    >
-                                        {isMuted ? (
-                                            <BellRing aria-hidden="true" />
-                                        ) : (
-                                            <BellOff aria-hidden="true" />
-                                        )}
-                                        {intl.formatMessage(
-                                            isMuted
-                                                ? messages.unmute
-                                                : messages.mute
-                                        )}
-                                    </Button>
-                                ) : null}
-                            </li>
-                        );
-                    })}
+                            </div>
+                            {/* The alarm's name, in the language of editorial
+                                policy — so an editor who wants to know why this
+                                is being asked of them has somewhere to start. */}
+                            <span className="text-xs text-muted-foreground">
+                                {finding.ruleName}
+                            </span>
+                        </li>
+                    ))}
                 </ul>
             ) : null}
         </EntrySidebarSection>

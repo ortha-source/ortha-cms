@@ -130,3 +130,18 @@ export type { FilterFieldsResult } from './lib/application/useFilterFields';
 // it.
 export { useContentTypes } from './lib/application/useContentTypes';
 export { useContentSchema } from './lib/application/useContentSchema';
+
+// The `*` a required field's label wears, exported so a plugin's own form uses
+// the convention the entry editor established rather than inventing a second
+// one. It is `aria-hidden` on purpose — the control carries `aria-required`,
+// and marking the asterisk up too announces "required" twice per field. State
+// what it means once, in a visible legend above the fields.
+export { RequiredMark } from './lib/presentation/components/EntryFieldInput/RequiredMark';
+
+// The record picker a relation-id filter rule needs. The query builder holds no
+// data layer, so it takes this through `renderRelationValue` — and a consumer
+// that mounts the builder without it gets a *plain text box* where a relation
+// rule's value should be, i.e. a rule you can only complete by pasting a uuid.
+// Exported so the alarms rule editor offers the same picker the records list
+// does rather than that.
+export { RelationValuePicker } from './lib/presentation/components/RelationValuePicker';

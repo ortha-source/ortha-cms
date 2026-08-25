@@ -283,7 +283,7 @@ export class AlarmRuleRepository {
     }
 
     /**
-     * Every rule in a workspace, with its live open/muted counts — the alarms
+     * Every rule in a workspace, with its live open count — the alarms
      * page's list.
      *
      * The counts come from one grouped query over `alarm_findings` rather than
@@ -299,11 +299,7 @@ export class AlarmRuleRepository {
         if (rows.length === 0) return [];
 
         const counts = await this.db
-            .select({
-                ruleId: alarmFindings.ruleId,
-                state: alarmFindings.state,
-                total: count()
-            })
+            .select({ ruleId: alarmFindings.ruleId, total: count() })
             .from(alarmFindings)
             .where(
                 and(
@@ -312,20 +308,14 @@ export class AlarmRuleRepository {
                         alarmFindings.ruleId,
                         rows.map((row) => row.id)
                     ),
-                    inArray(alarmFindings.state, [
-                        FINDING_STATE.Open,
-                        FINDING_STATE.Muted
-                    ])
+                    eq(alarmFindings.state, FINDING_STATE.Open)
                 )
             )
-            .groupBy(alarmFindings.ruleId, alarmFindings.state);
+            .groupBy(alarmFindings.ruleId);
 
-        const open = new Map<string, number>();
-        const muted = new Map<string, number>();
-        for (const row of counts) {
-            const bucket = row.state === FINDING_STATE.Muted ? muted : open;
-            bucket.set(row.ruleId, Number(row.total));
-        }
+        const open = new Map<string, number>(
+            counts.map((row) => [row.ruleId, Number(row.total)])
+        );
 
         return rows.map((row) => ({
             id: row.id,
@@ -340,8 +330,7 @@ export class AlarmRuleRepository {
             lastScanAt: row.lastScanAt?.toISOString() ?? null,
             createdAt: row.createdAt.toISOString(),
             updatedAt: row.updatedAt.toISOString(),
-            openCount: open.get(row.id) ?? 0,
-            mutedCount: muted.get(row.id) ?? 0
+            openCount: open.get(row.id) ?? 0
         }));
     }
 }

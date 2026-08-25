@@ -1,6 +1,6 @@
 /** Params the findings list is keyed and requested by. */
 export type FindingsListParams = {
-    state?: 'open' | 'muted' | 'resolved';
+    state?: 'open' | 'resolved';
     ruleId?: string;
     severity?: 'info' | 'warn' | 'error';
     page?: number;

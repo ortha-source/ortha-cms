@@ -29,6 +29,8 @@ import {
 } from '@orthacms/query-builder-admin';
 import {
     RECORDS_FILTER_FIELDS_SLOT,
+    RelationValuePicker,
+    RequiredMark,
     useContentSchema,
     useContentTypes,
     useFilterFields,
@@ -173,6 +175,11 @@ const messages = defineMessages({
         defaultMessage: 'This condition no longer matches the content type'
     },
     save: { id: 'alarms.editor.save', defaultMessage: 'Save changes' },
+    requiredLegend: {
+        id: 'alarms.editor.requiredLegend',
+        defaultMessage:
+            'Fields marked * are required, and an alarm needs at least one condition.'
+    },
     saved: { id: 'alarms.editor.saved', defaultMessage: 'Alarm saved.' },
     saveFailed: {
         id: 'alarms.editor.saveFailed',
@@ -564,6 +571,18 @@ export function AlarmRuleEditorPage({
                     ) : null}
 
                     <div className="flex flex-col gap-4">
+                        {/* The convention stated once, in the page, rather than
+                            as a `title` on each mark — a `title` is mouse-only,
+                            not dismissible, and on an `aria-hidden` element no
+                            assistive tech can reach it either. Only rendered
+                            where something is actually marked, i.e. for a
+                            caller who can edit. */}
+                        {canManage ? (
+                            <p className="text-xs text-muted-foreground">
+                                {intl.formatMessage(messages.requiredLegend)}
+                            </p>
+                        ) : null}
+
                         {/* Only while creating. An existing alarm's type is
                             fixed: every finding it holds is a statement about a
                             record of that type, so changing it would not edit
@@ -572,6 +591,7 @@ export function AlarmRuleEditorPage({
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="alarms-editor-type">
                                     {intl.formatMessage(messages.contentType)}
+                                    <RequiredMark />
                                 </Label>
                                 <Select
                                     value={contentType}
@@ -585,7 +605,10 @@ export function AlarmRuleEditorPage({
                                         setTree(null);
                                     }}
                                 >
-                                    <SelectTrigger id="alarms-editor-type">
+                                    <SelectTrigger
+                                        id="alarms-editor-type"
+                                        aria-required
+                                    >
                                         <SelectValue
                                             placeholder={intl.formatMessage(
                                                 messages.contentTypePlaceholder
@@ -616,16 +639,32 @@ export function AlarmRuleEditorPage({
                             </div>
                         ) : null}
 
+                        {/* `label` is wrapped in **one** element, not a
+                            fragment: `FieldLabel` is a flex row with a `gap-2`,
+                            so two items put 8px between the word and the `*`
+                            that belongs to it. */}
                         <InputField
                             id="alarms-editor-name"
-                            label={intl.formatMessage(messages.name)}
+                            label={
+                                <span>
+                                    {intl.formatMessage(messages.name)}
+                                    <RequiredMark />
+                                </span>
+                            }
+                            aria-required
                             value={name}
                             disabled={!canManage}
                             onChange={(event) => setName(event.target.value)}
                         />
                         <InputField
                             id="alarms-editor-finding-title"
-                            label={intl.formatMessage(messages.findingTitle)}
+                            label={
+                                <span>
+                                    {intl.formatMessage(messages.findingTitle)}
+                                    <RequiredMark />
+                                </span>
+                            }
+                            aria-required
                             description={intl.formatMessage(
                                 messages.findingHint
                             )}
@@ -754,6 +793,17 @@ export function AlarmRuleEditorPage({
                             onRetryFields={filterFields.refetch}
                             value={tree}
                             onApply={setTree}
+                            // Without this a relation rule's value cell is a
+                            // plain text box: the query builder deliberately
+                            // holds no data layer, so the record picker is
+                            // injected by whoever mounts it. The records list
+                            // passes it and this did not, which is why picking
+                            // a related record worked in the table and not
+                            // here — the same class of omission as the field
+                            // surface above.
+                            renderRelationValue={(props) => (
+                                <RelationValuePicker {...props} />
+                            )}
                             labelledBy="alarms-editor-condition-toggle"
                         />
 

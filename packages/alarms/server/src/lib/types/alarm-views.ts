@@ -22,10 +22,8 @@ export interface AlarmRuleView {
     lastScanAt: string | null;
     createdAt: string;
     updatedAt: string;
-    /** Findings currently open (not muted, not resolved). */
+    /** Findings currently open (i.e. not resolved). */
     openCount: number;
-    /** Findings currently muted. */
-    mutedCount: number;
 }
 
 /** One finding, joined to the rule that produced it. */
@@ -41,7 +39,6 @@ export interface AlarmFindingView {
     detail: unknown;
     firstSeenAt: string;
     lastSeenAt: string;
-    mutedReason: string | null;
 }
 
 /** A page of findings. */

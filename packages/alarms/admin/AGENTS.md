@@ -130,7 +130,7 @@ they get fixed" since the first commit; the code never did it. This is that
 claim implemented.
 
 - **The groups come from the alarms, not from a page of findings.** Each alarm
-  row already carries `openCount` / `mutedCount`, so the list of groups and the
+  row already carries its `openCount`, so the list of groups and the
   number on each header are exact without reading a single finding. Grouping a
   _page_ of findings client-side would have produced headers describing
   whichever twenty-five rows came back — "3 records" over a pile of ninety.
@@ -138,18 +138,18 @@ claim implemented.
   would otherwise fire twenty list requests to draw a screen on which nineteen
   are shut. `useAlarmFindings(..., open)`.
 - **Each group pages on its own**, ten at a time, and clamps its page the way
-  the flat list used to — muting the last row of a trailing page otherwise
-  strands the reader on an empty list with the pager hidden, now once per group.
+  the flat list used to — a page past the end otherwise strands the reader on an
+  empty list with the pager hidden, now once per group.
 - **Ordered loudest first, then biggest.** Someone scanning this wants the
   errors and the pile-ups at the top, not whatever order the API returned.
 - **One group opens on arrival**; more than one and everything starts closed, so
   the page is a summary you drill into. An alarm card's "N records flagged" no
   longer _filters_ the list — it opens that alarm's group and leaves the rest
   visible, which is strictly more information for the same click.
-- **A grouped row is one dense line**, indented under the header: which record,
-  how long, and Mute. The alarm, the sentence editors read and the severity are
-  all on the header, so repeating them per row is the noise this exists to
-  remove.
+- **A grouped row is one dense line**, indented under the header: which record
+  and how long. The alarm, the sentence editors read and the severity are all on
+  the header, so repeating them per row is the noise this exists to remove. It
+  carries no action either — see muting, below.
 
 **A finding can only name its record by id.** There is no display-field concept
 on the server for the store to join, so the row shows `contentType` + the entry
@@ -183,7 +183,7 @@ src/lib/
     alarmsColumnMessages/    # the one descriptor the factory itself needs
   application/               # TanStack hooks over the gateway
     useAlarmRules, useAlarmFindings, useFindingsByEntry, useAlarmSummary
-    useAlarmRuleMutations, useMuteFinding
+    useAlarmRuleMutations
   infrastructure/
     alarmsGateway/           # the port the presentation layer depends on
     httpAlarmsGateway/       # its impl — the only file importing apiClient
@@ -194,10 +194,9 @@ src/lib/
     pages/AlarmsPage, pages/AlarmRuleEditorPage  # the editor serves create + edit
     components/…             # SeverityBadge, RuleList, the slots
       FindingGroupList/      # one collapsible group per alarm, + FindingGroup
-      FindingRow/            # one record — dense inside a group, full outside
+      FindingRow/            # one record, inside its alarm's group
       FindingsPager/         # previous/next, one per open group
       AlarmsEmpty/           # the centred nothing-here figure
-      MuteFindingDialog/     # the mute reason (was a window.prompt)
       FindingsToolResult/    # the copilot's `admin_alarms_findings`, rendered
   types/alarm/               # the view models
 ```
@@ -270,8 +269,8 @@ locally is a hue nobody measured.
   check" render identically if you let the error fall through, and only one of
   them is reassuring. The findings list, the rule list, the entry widget and the
   records cell each give the failure its own words.
-- **Each group clamps `page` to `pageCount`.** Muting the last row of a trailing
-  page leaves the pager hidden and the user stranded on an empty page.
+- **Each group clamps `page` to `pageCount`.** A page past the end leaves the
+  pager hidden and the user stranded on an empty list.
 - **Empty states are the centred figure, not an `Alert`.** A full-width bordered
   banner is the shape of a notification about something that just happened; on a
   wide screen an otherwise blank page wearing one reads as a warning strip.
@@ -289,18 +288,20 @@ locally is a hue nobody measured.
   picker and the Filters toggle are default-size outline buttons with
   `shadow-none`; "Save as alarm" carried `size="sm"` and a shadow, so it read as
   a different class of control wedged into their row.
-- **Mutations invalidate the workspace's alarms root.** A mute moves a finding
-  between tabs, changes two counts on its rule and the summary badge; a rule
-  edit triggers a server-side rescan. There is no narrower placement worth the
-  bookkeeping.
+- **Mutations invalidate the workspace's alarms root.** An alarm edit triggers a
+  server-side rescan, which changes the count on its own card, the groups on the
+  Flagged tab and the summary badge at once. There is no narrower placement
+  worth the bookkeeping.
 - **Severity is a word as well as a colour.** Encoding the whole meaning of a
   finding in hue fails WCAG 1.4.1 and fails anyone who cannot tell the three
   apart.
-- **Muting asks for its reason in a dialog, never `window.prompt`.** The native
-  prompt blocks the whole tab — so the record the finding is about cannot be
-  consulted while answering — and a browser that suppresses it (a background
-  tab, or after "prevent additional dialogs") returns `null`, which is
-  indistinguishable from Cancel. The mute then silently did not happen.
+- **Muting one finding at a time is gone.** It shipped, briefly, and was
+  withdrawn: an alarm is either right about a record or wrong about it, and
+  silencing them individually is a way of living with a bad condition instead of
+  narrowing or disabling the alarm, where the next person can see the decision.
+  Nothing here half-remembers it — no tab, no per-row action, no state — and
+  `alarms.spec.ts` asserts the absence, because a withdrawn affordance that
+  leaves a stub is worse than either state.
 - **Both pages carry a `PageTopBar`.** It is the chrome every other workspace
   section has, and it is where the way back lives: the editor's breadcrumb is
   `Alarms › <the alarm's name>`, so two open tabs are told apart by which alarm
@@ -314,7 +315,7 @@ locally is a hue nobody measured.
 - `npx eslint packages/alarms/admin`
 - `npx nx e2e admin-e2e -- --project=chromium src/alarms` — the browser suite
   (`apps/admin-e2e/src/alarms`, seeded by `support/api/alarms.ts`). It covers the
-  page chrome, the mute dialog, the condition chips and the live match count, an
+  page chrome, the condition chips and the live match count, an
   alarm over a **slot-contributed** locale field, the create flow, the
   filterable-field load states, and axe scans of every state. `ALL_PERMISSIONS`
   in `support/api/auth.ts` had to gain `alarms:read` / `alarms:manage` first —

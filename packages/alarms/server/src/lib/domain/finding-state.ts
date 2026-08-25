@@ -1,17 +1,22 @@
 /**
  * The state of one finding — a single (rule, entry) pair.
  *
- * Three values, and the third is the reason this is a state machine rather
- * than a row that is deleted when it stops applying: `resolved` keeps
+ * Two values, and the second is the reason this is a state machine rather than
+ * a row that is deleted when it stops applying: `resolved` keeps
  * `firstSeenAt`, so an entry that starts matching again is the *same* finding
  * with its history intact instead of a fresh one that looks like it appeared
  * today.
+ *
+ * There was a third, `muted`, with a `muted_at` timestamp beside it so a mute
+ * survived the finding resolving and re-opening. The whole idea is gone: an
+ * alarm is either right about a record or it is wrong about it, and silencing
+ * one record at a time is a way of living with a bad condition instead of
+ * fixing it. Disabling the alarm, or narrowing its filter, says the same thing
+ * where the next person can see it.
  */
 export const FINDING_STATE = {
-    /** Matches the rule and nobody has silenced it. */
+    /** Matches the rule. */
     Open: 'open',
-    /** Matches the rule, but someone said it is fine here. */
-    Muted: 'muted',
     /** Stopped matching. Kept for its history; invisible in every surface. */
     Resolved: 'resolved'
 } as const;
@@ -22,7 +27,6 @@ export type FindingState = (typeof FINDING_STATE)[keyof typeof FINDING_STATE];
 /** Every state — the DTO's enum and the list filter's whitelist. */
 export const FINDING_STATES: readonly FindingState[] = [
     FINDING_STATE.Open,
-    FINDING_STATE.Muted,
     FINDING_STATE.Resolved
 ];
 
@@ -33,20 +37,12 @@ export function isFindingState(value: unknown): value is FindingState {
 
 /**
  * The state a finding takes after an evaluation, given whether the entry
- * matches the rule now and whether someone has muted this pair.
+ * matches the rule now.
  *
- * Muting is stored as its own timestamp rather than being *only* a state, and
- * this function is why: a muted finding that stops matching resolves like any
- * other, and when it matches again it must come back **muted**, not open. If
- * mute lived only in `state` it would be erased by the first resolution, and
- * every silenced finding would come back shouting the next time its entry was
- * edited — which is precisely the behaviour that gets an alarms feature turned
- * off.
+ * Trivial today, and still the one place the rule lives: `reconcile` writes
+ * this value in an upsert's conflict clause, where getting it wrong is a
+ * silent data bug rather than a failed request.
  */
-export function nextFindingState(
-    matches: boolean,
-    muted: boolean
-): FindingState {
-    if (!matches) return FINDING_STATE.Resolved;
-    return muted ? FINDING_STATE.Muted : FINDING_STATE.Open;
+export function nextFindingState(matches: boolean): FindingState {
+    return matches ? FINDING_STATE.Open : FINDING_STATE.Resolved;
 }

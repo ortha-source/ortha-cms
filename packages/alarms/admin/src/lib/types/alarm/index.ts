@@ -9,7 +9,7 @@ export const ALARM_SEVERITIES: readonly AlarmSeverity[] = [
 ];
 
 /** The state of one finding. Mirrors the server's `FINDING_STATE`. */
-export type FindingState = 'open' | 'muted' | 'resolved';
+export type FindingState = 'open' | 'resolved';
 
 /** A rule as the admin renders it. */
 export type AlarmRule = {
@@ -32,7 +32,6 @@ export type AlarmRule = {
     brokenReason: string | null;
     lastScanAt: string | null;
     openCount: number;
-    mutedCount: number;
 };
 
 /** One finding, already joined to the rule that produced it. */
@@ -47,7 +46,6 @@ export type AlarmFinding = {
     state: FindingState;
     firstSeenAt: string;
     lastSeenAt: string;
-    mutedReason: string | null;
 };
 
 /** A page of findings. */
@@ -74,9 +72,8 @@ export type AlarmRulePreview = {
     sampleIds: string[];
 };
 
-/** Open and muted counts for the workspace. */
+/** Open counts for the workspace. */
 export type AlarmSummary = {
     open: Record<AlarmSeverity, number>;
     openTotal: number;
-    muted: number;
 };

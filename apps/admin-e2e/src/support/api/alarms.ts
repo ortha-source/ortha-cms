@@ -20,7 +20,6 @@ export interface AlarmRuleSeed {
     brokenReason: string | null;
     lastScanAt: string | null;
     openCount: number;
-    mutedCount: number;
 }
 
 /** One finding as `GET /api/alarms/findings` returns it. */
@@ -31,11 +30,10 @@ export interface AlarmFindingSeed {
     contentType: string;
     entryId: string;
     severity: 'error' | 'warn' | 'info';
-    state: 'open' | 'muted' | 'resolved';
+    state: 'open' | 'resolved';
     detail: Record<string, unknown> | null;
     firstSeenAt: string;
     lastSeenAt: string;
-    mutedReason: string | null;
 }
 
 /**
@@ -66,8 +64,7 @@ export const CONTAINS_RULE: AlarmRuleSeed = {
     enabled: true,
     brokenReason: null,
     lastScanAt: '2026-08-25T09:00:00.000Z',
-    openCount: 1,
-    mutedCount: 0
+    openCount: 1
 };
 
 /** The finding that rule has open. */
@@ -81,8 +78,7 @@ export const OPEN_FINDING: AlarmFindingSeed = {
     state: 'open',
     detail: null,
     firstSeenAt: '2026-08-25T09:00:00.000Z',
-    lastSeenAt: '2026-08-25T09:00:00.000Z',
-    mutedReason: null
+    lastSeenAt: '2026-08-25T09:00:00.000Z'
 };
 
 /**
@@ -110,6 +106,15 @@ export const FILTER_FIELDS = {
             type: 'enum',
             enumValues: ['draft', 'published'],
             group: []
+        },
+        // A relation-id path, so the builder's value cell is the record picker
+        // rather than a text box — the case that needs `renderRelationValue`.
+        {
+            path: 'author.id',
+            label: 'Author',
+            type: 'uuid',
+            relationTarget: 'test_author',
+            group: ['Author']
         }
     ]
 };
@@ -195,8 +200,6 @@ export interface AlarmsApiRecorder {
     creates: Record<string, unknown>[];
     /** Bodies of `PATCH /api/alarms/rules/:id`. */
     updates: Record<string, unknown>[];
-    /** Bodies of `PUT /api/alarms/findings/:rule/:entry/mute`. */
-    mutes: Record<string, unknown>[];
 }
 
 /**
@@ -221,7 +224,7 @@ export async function mockAlarmsApi(
         previewTotal = 312
     } = options;
 
-    const recorder: AlarmsApiRecorder = { creates: [], updates: [], mutes: [] };
+    const recorder: AlarmsApiRecorder = { creates: [], updates: [] };
 
     // The type catalogue, for the create form's picker. Anchored so it does not
     // also swallow the detail and filter-fields sub-routes below.
@@ -341,24 +344,9 @@ export async function mockAlarmsApi(
         await route.fulfill(
             json({
                 open: { error: open.length, warn: 0, info: 0 },
-                openTotal: open.length,
-                muted: findings.filter((f) => f.state === 'muted').length
+                openTotal: open.length
             })
         );
-    });
-
-    // The mute path needs its own pattern: a `*` segment does not cross `/`,
-    // so `findings*` never matched `findings/:rule/:entry/mute` and the PUT
-    // fell through to the dev server's proxy — where it failed silently and
-    // the recorder stayed empty.
-    await page.route('**/api/alarms/findings/*/*/mute', async (route) => {
-        const request = route.request();
-        if (request.method() === 'PUT') {
-            recorder.mutes.push(
-                (request.postDataJSON() ?? {}) as Record<string, unknown>
-            );
-        }
-        await route.fulfill(json({ ok: true }));
     });
 
     return recorder;

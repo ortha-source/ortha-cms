@@ -59,12 +59,16 @@ twice; the upsert makes the second pass a no-op. `first_seen_at` is written by
 the insert and never updated, so "this has been open for three months" survives
 the finding resolving and re-opening.
 
-`muted_at` is a column of its own rather than only a `state` value. A muted
-finding whose entry stops matching resolves like any other, and when it matches
-again it must come back **muted** — `nextFindingState` is the one place that
-rule lives, and `finding-state.spec.ts` pins it. Writing a constant `'open'`
-into the conflict clause is the bug that makes every silenced finding shout
-again on the next edit, which is how a feature like this gets switched off.
+**Muting one finding at a time existed and was withdrawn** (`0001_drop_finding_mute`).
+An alarm is either right about a record or wrong about it; silencing them
+individually is a way of living with a bad condition instead of narrowing or
+disabling the alarm, where the next person can see the decision. The removal was
+whole — the state, the `muted_at`/`muted_by`/`muted_reason` columns, both routes,
+the counts and the copilot projection — because a half-removed feature is worse
+than either state. The migration normalises surviving `muted` rows to `open`
+**before** dropping the columns: afterwards there is nothing left to identify
+them by, and they would sit in a state no code recognises, excluded from every
+`state = 'open'` count yet included by the list's `state <> 'resolved'`.
 
 ### 4. Findings close themselves, and the reverse pass is why
 
@@ -90,7 +94,7 @@ src/lib/
   alarms.constants.ts         # page sizes, length caps
   domain/                     # pure TS — no Nest, no Drizzle
     alarm-severity.ts         #   info | warn | error, and their order
-    finding-state.ts          #   open | muted | resolved + nextFindingState
+    finding-state.ts          #   open | resolved + nextFindingState
     filter-tree-segments.ts   #   which relations a stored filter traverses
     errors/                   #   transport-agnostic errors
   application/
@@ -99,7 +103,7 @@ src/lib/
   infrastructure/
     schema/                   # alarm_rules, alarm_findings
     alarm-rule.repository.ts  # rule storage + the traversing-rule lookup
-    alarm-finding.store.ts    # reconcile / mute / read — the idempotent half
+    alarm-finding.store.ts    # reconcile / read — the idempotent half
     alarm-evaluator.service.ts# the three evaluation paths
     entry-event.subscriber.ts # outbox → evaluation
     alarm-sweep.service.ts    # the periodic rescan
@@ -122,18 +126,17 @@ apart from "who decides what the workspace considers wrong". Writes additionally
 carry `OriginGuard`, per route rather than per class, matching content's
 controllers: these are cookie-authenticated and therefore CSRF-able.
 
-| Route                                             | Permission      |
-| ------------------------------------------------- | --------------- |
-| `GET    /alarms/rules`                            | `alarms:read`   |
-| `POST   /alarms/rules`                            | `alarms:manage` |
-| `POST   /alarms/rules/preview`                    | `alarms:manage` |
-| `PATCH  /alarms/rules/:id`                        | `alarms:manage` |
-| `DELETE /alarms/rules/:id`                        | `alarms:manage` |
-| `POST   /alarms/rules/:id/rescan`                 | `alarms:manage` |
-| `GET    /alarms/findings`                         | `alarms:read`   |
-| `GET    /alarms/findings/by-entry`                | `alarms:read`   |
-| `GET    /alarms/findings/summary`                 | `alarms:read`   |
-| `PUT`/`DELETE /alarms/findings/:rule/:entry/mute` | `alarms:manage` |
+| Route                              | Permission      |
+| ---------------------------------- | --------------- |
+| `GET    /alarms/rules`             | `alarms:read`   |
+| `POST   /alarms/rules`             | `alarms:manage` |
+| `POST   /alarms/rules/preview`     | `alarms:manage` |
+| `PATCH  /alarms/rules/:id`         | `alarms:manage` |
+| `DELETE /alarms/rules/:id`         | `alarms:manage` |
+| `POST   /alarms/rules/:id/rescan`  | `alarms:manage` |
+| `GET    /alarms/findings`          | `alarms:read`   |
+| `GET    /alarms/findings/by-entry` | `alarms:read`   |
+| `GET    /alarms/findings/summary`  | `alarms:read`   |
 
 A content type that is unregistered and one the workspace was never granted
 produce the **same** 404 with the same message — content's own rule
@@ -185,15 +188,13 @@ so the model's natural next call is `admin_content_get`.
   kind of confident wrongness a model repeats as fact.
 - **The projection is narrow on purpose.** `findings-tool-output.ts` (pure,
   unit-tested) drops `detail` — a jsonb bag whose shape belongs to the rule that
-  wrote it — and both raw timestamps in favour of `openForDays`, and omits
-  `mutedReason` entirely rather than sending a `null` on every unmuted row. The
+  wrote it — and both raw timestamps in favour of `openForDays`. The
   list is named `items` so the run engine's shape-driven `summarizeToolOutput`
   reads it as "14 results" with no tool-specific code.
-- **There is no write tool.** Muting is the act of deciding an exception is
-  acceptable, which is the one judgement this feature exists to ask a human for.
-  Creating a rule is defensible as a `propose` tool, but only once the proposal
-  can carry the live preview ("matches 14 of 312") — a JSON filter tree on a card
-  is not something a reviewer can meaningfully approve.
+- **There is no write tool.** Creating an alarm is defensible as a `propose`
+  tool, but only once the proposal can carry the live preview ("matches 14 of
+  312") — a JSON filter tree on a card is not something a reviewer can
+  meaningfully approve.
 
 `@orthacms/alarms-admin` renders the result rather than leaving it as JSON —
 see its AGENTS.md.
@@ -201,9 +202,9 @@ see its AGENTS.md.
 ## Schema
 
 Two tables, migrations committed here (`__drizzle_migrations_alarms`).
-`workspace_id`, `entry_id`, `created_by` and `muted_by` carry **no FK** — the
-first two point at identity- and host-owned tables, and the last two must
-outlive the users they name, exactly like `activity_events.actor_id`.
+`workspace_id`, `entry_id` and `created_by` carry **no FK** — the first two
+point at identity- and host-owned tables, and the last must outlive the user it
+names, exactly like `activity_events.actor_id`.
 
 ## Commands
 

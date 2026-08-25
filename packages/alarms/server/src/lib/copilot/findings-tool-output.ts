@@ -15,16 +15,12 @@ import type { AlarmFindingView } from '../types/alarm-views';
 export interface FindingToolItem {
     /** What the editor is told, e.g. "Author is not published". */
     title: string;
-    /** The rule that produced it, in the language of editorial policy. */
+    /** The alarm that produced it, in the language of editorial policy. */
     rule: string;
     severity: AlarmSeverity;
     contentType: string;
     /** The entry id, so a follow-up `admin_content_get` can open it. */
     entryId: string;
-    /** `true` when someone has deliberately silenced this one. */
-    muted: boolean;
-    /** Why it was silenced, when a reason was given. */
-    mutedReason?: string;
     /** Whole days since the finding first appeared. */
     openForDays: number;
 }
@@ -77,19 +73,12 @@ export function toFindingToolItem(
     finding: AlarmFindingView,
     now: Date
 ): FindingToolItem {
-    const muted = finding.state === 'muted';
     return {
         title: finding.title,
         rule: finding.ruleName,
         severity: finding.severity,
         contentType: finding.contentType,
         entryId: finding.entryId,
-        muted,
-        // Only when there is one to give. A `mutedReason: null` on every
-        // unmuted row is a key the model has to read and discard.
-        ...(muted && finding.mutedReason
-            ? { mutedReason: finding.mutedReason }
-            : {}),
         openForDays: daysSince(finding.firstSeenAt, now)
     };
 }

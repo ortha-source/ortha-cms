@@ -80,8 +80,8 @@ export class AlarmsPage extends BasePage {
 
     // --- the three tabs ---
 
-    /** One of the Flagged / Muted / Rules tabs. */
-    tab(name: 'Flagged' | 'Muted' | 'Rules'): Locator {
+    /** One of the Flagged / Alarms tabs. */
+    tab(name: 'Flagged' | 'Alarms'): Locator {
         // A `radiogroup`, not a `group`: the design system's SegmentedControl
         // is a Radix ToggleGroup in single-select mode, so the items are radios
         // and the container takes the matching role.
@@ -118,33 +118,9 @@ export class AlarmsPage extends BasePage {
             .filter({ hasText: text });
     }
 
-    /** The Mute button on one finding's row. */
-    muteButton(title: string): Locator {
-        return this.page.getByRole('button', {
-            name: `Mute “${title}” on this record`
-        });
-    }
-
     /** The centred empty state's heading. */
     emptyHeading(text: string): Locator {
         return this.page.getByRole('heading', { name: text, level: 2 });
-    }
-
-    // --- the mute dialog (this used to be a `window.prompt`) ---
-
-    /** The mute dialog. */
-    muteDialog(): Locator {
-        return this.page.getByRole('dialog', { name: 'Mute this check' });
-    }
-
-    /** The reason field inside it. */
-    muteReason(): Locator {
-        return this.muteDialog().getByLabel('Why is this one fine?');
-    }
-
-    /** The dialog's confirming button. */
-    muteConfirm(): Locator {
-        return this.muteDialog().getByRole('button', { name: 'Mute' });
     }
 
     // --- the rule editor's condition block ---

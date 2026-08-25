@@ -1,31 +1,25 @@
-import { FINDING_STATE, nextFindingState } from './finding-state';
+import {
+    FINDING_STATE,
+    FINDING_STATES,
+    nextFindingState
+} from './finding-state';
 
 describe('nextFindingState', () => {
     it('opens a finding for an entry that matches', () => {
-        expect(nextFindingState(true, false)).toBe(FINDING_STATE.Open);
+        expect(nextFindingState(true)).toBe(FINDING_STATE.Open);
     });
 
     it('resolves a finding for an entry that no longer matches', () => {
-        expect(nextFindingState(false, false)).toBe(FINDING_STATE.Resolved);
+        expect(nextFindingState(false)).toBe(FINDING_STATE.Resolved);
     });
+});
 
-    it('keeps a muted finding muted while it still matches', () => {
-        expect(nextFindingState(true, true)).toBe(FINDING_STATE.Muted);
-    });
-
-    it('resolves a muted finding whose entry stopped matching', () => {
-        // Mute is a property of the pair, not of the occurrence — so a muted
-        // finding resolves like any other rather than lingering as muted.
-        expect(nextFindingState(false, true)).toBe(FINDING_STATE.Resolved);
-    });
-
-    it('brings a re-matching muted finding back muted, not open', () => {
-        // The regression this whole three-state design exists to prevent: if a
-        // resolution erased the mute, every deliberate exception would shout
-        // again the next time its entry was touched, and the feature would be
-        // switched off within a fortnight.
-        const afterResolve = nextFindingState(false, true);
-        expect(afterResolve).toBe(FINDING_STATE.Resolved);
-        expect(nextFindingState(true, true)).toBe(FINDING_STATE.Muted);
+describe('FINDING_STATES', () => {
+    it('has no muted state', () => {
+        // Muting is gone, and this is the assertion that keeps it gone: the
+        // list DTO's enum and the query whitelist are both built from this
+        // array, so a `muted` sneaking back in would quietly re-open a filter
+        // value nothing can produce.
+        expect(FINDING_STATES).toEqual(['open', 'resolved']);
     });
 });

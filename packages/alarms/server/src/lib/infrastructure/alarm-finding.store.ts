@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import { AlarmFindingNotFoundError } from '../domain/errors';
 import { FINDING_STATE, type FindingState } from '../domain/finding-state';
 import {
     isAlarmSeverity,
@@ -40,7 +39,7 @@ function chunked<T>(items: readonly T[]): T[][] {
 export interface ReconcileResult {
     /** Findings that were absent or resolved and are now open. */
     opened: number;
-    /** Findings that were open or muted and are now resolved. */
+    /** Findings that were open and are now resolved. */
     resolved: number;
 }
 
@@ -76,9 +75,8 @@ export class AlarmFindingStore {
      *
      * Idempotency lives in the `ON CONFLICT` clause. `firstSeenAt` is written
      * only by the insert, so a re-delivered event refreshes `lastSeenAt` and
-     * changes nothing else; and the state is recomputed from `mutedAt` rather
-     * than being overwritten with a constant, so a re-opened finding comes back
-     * muted if it was muted.
+     * changes nothing else, and an entry that matches again comes back open
+     * carrying the history it already had.
      */
     async reconcile(
         rule: { id: string; workspaceId: string; contentType: string },
@@ -113,11 +111,7 @@ export class AlarmFindingStore {
                         lastSeenAt: now,
                         resolvedAt: null,
                         detail: sql`excluded.detail`,
-                        // The state machine, in one expression: a finding that
-                        // carries a mute comes back muted, everything else
-                        // comes back open. Writing a constant here is the bug
-                        // that makes silenced findings shout again.
-                        state: sql`case when ${alarmFindings.mutedAt} is null then ${FINDING_STATE.Open} else ${FINDING_STATE.Muted} end`
+                        state: FINDING_STATE.Open
                     }
                 })
                 .returning({
@@ -217,60 +211,6 @@ export class AlarmFindingStore {
         return Number(row?.total ?? 0);
     }
 
-    /** Silences one finding, with a reason the next reader can weigh. */
-    async mute(
-        workspaceId: string,
-        ruleId: string,
-        entryId: string,
-        actorId: string | null,
-        reason: string | null
-    ): Promise<void> {
-        const [row] = await this.db
-            .update(alarmFindings)
-            .set({
-                // A resolved finding stays resolved — muting it would put a row
-                // nobody can see into a state that claims to be visible.
-                state: sql`case when ${alarmFindings.state} = ${FINDING_STATE.Resolved} then ${FINDING_STATE.Resolved} else ${FINDING_STATE.Muted} end`,
-                mutedAt: new Date(),
-                mutedBy: actorId,
-                mutedReason: reason
-            })
-            .where(
-                and(
-                    eq(alarmFindings.workspaceId, workspaceId),
-                    eq(alarmFindings.ruleId, ruleId),
-                    eq(alarmFindings.entryId, entryId)
-                )
-            )
-            .returning({ entryId: alarmFindings.entryId });
-        if (!row) throw new AlarmFindingNotFoundError(ruleId, entryId);
-    }
-
-    /** Lifts a mute, putting a still-matching finding back in view. */
-    async unmute(
-        workspaceId: string,
-        ruleId: string,
-        entryId: string
-    ): Promise<void> {
-        const [row] = await this.db
-            .update(alarmFindings)
-            .set({
-                state: sql`case when ${alarmFindings.state} = ${FINDING_STATE.Muted} then ${FINDING_STATE.Open} else ${alarmFindings.state} end`,
-                mutedAt: null,
-                mutedBy: null,
-                mutedReason: null
-            })
-            .where(
-                and(
-                    eq(alarmFindings.workspaceId, workspaceId),
-                    eq(alarmFindings.ruleId, ruleId),
-                    eq(alarmFindings.entryId, entryId)
-                )
-            )
-            .returning({ entryId: alarmFindings.entryId });
-        if (!row) throw new AlarmFindingNotFoundError(ruleId, entryId);
-    }
-
     /**
      * The predicate behind both {@link list} and {@link severityCounts}.
      *
@@ -316,7 +256,6 @@ export class AlarmFindingStore {
                 detail: alarmFindings.detail,
                 firstSeenAt: alarmFindings.firstSeenAt,
                 lastSeenAt: alarmFindings.lastSeenAt,
-                mutedReason: alarmFindings.mutedReason,
                 ruleName: alarmRules.name,
                 findingTitle: alarmRules.findingTitle,
                 severity: alarmRules.severity
@@ -357,7 +296,6 @@ export class AlarmFindingStore {
                 detail: alarmFindings.detail,
                 firstSeenAt: alarmFindings.firstSeenAt,
                 lastSeenAt: alarmFindings.lastSeenAt,
-                mutedReason: alarmFindings.mutedReason,
                 ruleName: alarmRules.name,
                 findingTitle: alarmRules.findingTitle,
                 severity: alarmRules.severity
@@ -421,20 +359,6 @@ export class AlarmFindingStore {
         });
     }
 
-    /** How many findings a workspace has muted — the page's second tab count. */
-    async mutedCount(workspaceId: string): Promise<number> {
-        const [row] = await this.db
-            .select({ total: count() })
-            .from(alarmFindings)
-            .where(
-                and(
-                    eq(alarmFindings.workspaceId, workspaceId),
-                    eq(alarmFindings.state, FINDING_STATE.Muted),
-                    isNotNull(alarmFindings.mutedAt)
-                )
-            );
-        return Number(row?.total ?? 0);
-    }
 }
 
 /** Joined row → wire view. */
@@ -446,7 +370,6 @@ function toView(row: {
     detail: unknown;
     firstSeenAt: Date;
     lastSeenAt: Date;
-    mutedReason: string | null;
     ruleName: string;
     findingTitle: string;
     severity: string;
@@ -463,7 +386,6 @@ function toView(row: {
         state: row.state as FindingState,
         detail: row.detail,
         firstSeenAt: row.firstSeenAt.toISOString(),
-        lastSeenAt: row.lastSeenAt.toISOString(),
-        mutedReason: row.mutedReason
+        lastSeenAt: row.lastSeenAt.toISOString()
     };
 }

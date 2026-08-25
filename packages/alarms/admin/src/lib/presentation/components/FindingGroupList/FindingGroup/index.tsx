@@ -10,11 +10,7 @@ import {
 } from '@orthacms/design-system';
 import { ChevronRight } from 'lucide-react';
 import { useAlarmFindings } from '../../../../application/useAlarmFindings';
-import type {
-    AlarmFinding,
-    AlarmRule,
-    FindingState
-} from '../../../../types/alarm';
+import type { AlarmRule } from '../../../../types/alarm';
 import { severityLook } from '../../../severityLook';
 import { FindingRow } from '../../FindingRow';
 import { FindingsPager } from '../../FindingsPager';
@@ -40,7 +36,7 @@ const messages = defineMessages({
     },
     gone: {
         id: 'alarms.group.gone',
-        defaultMessage: 'Nothing here any more — it was fixed or muted.'
+        defaultMessage: 'Nothing here any more — these records were fixed.'
     }
 });
 
@@ -51,10 +47,8 @@ const GROUP_PAGE_SIZE = 10;
 export type FindingGroupProps = {
     /** The alarm this group is about. */
     rule: AlarmRule;
-    /** Which state the page is showing — `open` or `muted`. */
-    state: Exclude<FindingState, 'resolved'>;
     /**
-     * How many records this alarm has in that state.
+     * How many records this alarm currently flags.
      *
      * **Taken from the alarm, never from the page of findings below it.** A
      * header reading "3 records" over a first page of three, when there are
@@ -63,12 +57,6 @@ export type FindingGroupProps = {
     count: number;
     /** Whether this group starts expanded. */
     defaultOpen: boolean;
-    /** Whether the caller may mute (i.e. holds `alarms:manage`). */
-    canManage: boolean;
-    /** Mute one finding. */
-    onMute: (finding: AlarmFinding) => void;
-    /** Lift the mute on one finding. */
-    onUnmute: (finding: AlarmFinding) => void;
 };
 
 /**
@@ -89,22 +77,14 @@ export type FindingGroupProps = {
  * **Each group pages on its own**, ten at a time. A group is a work queue you
  * go down, and a shared pager would make "page 3" mean nothing in particular.
  */
-export function FindingGroup({
-    rule,
-    state,
-    count,
-    defaultOpen,
-    canManage,
-    onMute,
-    onUnmute
-}: FindingGroupProps) {
+export function FindingGroup({ rule, count, defaultOpen }: FindingGroupProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
     const [page, setPage] = useState(1);
     const { Icon, ink, label } = severityLook(rule.severity);
 
     const findings = useAlarmFindings(
-        { state, ruleId: rule.id, page, pageSize: GROUP_PAGE_SIZE },
+        { state: 'open', ruleId: rule.id, page, pageSize: GROUP_PAGE_SIZE },
         open
     );
 
@@ -193,14 +173,6 @@ export function FindingGroup({
                                     <FindingRow
                                         key={`${finding.ruleId}:${finding.entryId}`}
                                         finding={finding}
-                                        canManage={canManage}
-                                        onMute={onMute}
-                                        onUnmute={onUnmute}
-                                        // Inside a group the alarm's name and
-                                        // the sentence editors read are both on
-                                        // the header above, so the row carries
-                                        // only what differs between records.
-                                        grouped
                                     />
                                 ))}
                             </ul>

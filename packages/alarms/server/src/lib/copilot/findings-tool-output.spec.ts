@@ -21,7 +21,6 @@ const finding = (
     detail: { field: 'author' },
     firstSeenAt: '2026-08-20T12:00:00.000Z',
     lastSeenAt: '2026-08-24T09:00:00.000Z',
-    mutedReason: null,
     ...overrides
 });
 
@@ -58,7 +57,6 @@ describe('toFindingToolItem', () => {
             severity: 'warn',
             contentType: 'article',
             entryId: 'entry-1',
-            muted: false,
             openForDays: 4
         });
     });
@@ -75,29 +73,15 @@ describe('toFindingToolItem', () => {
         expect(item).not.toHaveProperty('lastSeenAt');
     });
 
-    it('omits mutedReason entirely when there is none', () => {
-        // Not `mutedReason: null` on every unmuted row: a key the model has to
-        // read and discard, on every finding, forever.
-        expect(toFindingToolItem(finding(), NOW)).not.toHaveProperty(
-            'mutedReason'
-        );
-    });
-
-    it('carries the mute and its reason when one was given', () => {
-        const item = toFindingToolItem(
-            finding({ state: 'muted', mutedReason: 'a stub on purpose' }),
-            NOW
-        );
-        expect(item.muted).toBe(true);
-        expect(item.mutedReason).toBe('a stub on purpose');
-    });
-
-    it('reports a mute with no reason as muted, without inventing one', () => {
-        const item = toFindingToolItem(
-            finding({ state: 'muted', mutedReason: null }),
-            NOW
-        );
-        expect(item.muted).toBe(true);
+    it('says nothing about muting, which no longer exists', () => {
+        // The projection is what a model reads as fact. A leftover `muted:
+        // false` on every row would have it explaining a distinction the
+        // product no longer makes.
+        const item = toFindingToolItem(finding(), NOW) as Record<
+            string,
+            unknown
+        >;
+        expect(item).not.toHaveProperty('muted');
         expect(item).not.toHaveProperty('mutedReason');
     });
 });

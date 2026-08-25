@@ -21,15 +21,10 @@ import {
     useDeleteAlarmRule,
     useRescanAlarmRule
 } from '../../../application/useAlarmRuleMutations';
-import {
-    useMuteFinding,
-    useUnmuteFinding
-} from '../../../application/useMuteFinding';
-import type { AlarmFinding, AlarmRule } from '../../../types/alarm';
+import type { AlarmRule } from '../../../types/alarm';
 import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
 import { FindingGroupList } from '../../components/FindingGroupList';
-import { MuteFindingDialog } from '../../components/MuteFindingDialog';
 import { RuleList } from '../../components/RuleList';
 
 const messages = defineMessages({
@@ -40,7 +35,6 @@ const messages = defineMessages({
             'Rules that watch this workspace’s content. They flag problems; they never block a save or a publish.'
     },
     tabOpen: { id: 'alarms.page.tabOpen', defaultMessage: 'Flagged' },
-    tabMuted: { id: 'alarms.page.tabMuted', defaultMessage: 'Muted' },
     // "Alarms" rather than "Rules": the object a person creates here is an
     // alarm, and "rule" meant nothing outside this page — the records
     // toolbar's button was the complaint that surfaced it. It repeats the
@@ -49,8 +43,6 @@ const messages = defineMessages({
     tabsLabel: { id: 'alarms.page.tabsLabel', defaultMessage: 'Alarms view' },
     crumb: { id: 'alarms.page.crumb', defaultMessage: 'Alarms' },
     newAlarm: { id: 'alarms.page.newAlarm', defaultMessage: 'New alarm' },
-    muted: { id: 'alarms.page.muted', defaultMessage: 'Muted on this record.' },
-    unmuted: { id: 'alarms.page.unmuted', defaultMessage: 'Unmuted.' },
     rescanned: {
         id: 'alarms.page.rescanned',
         defaultMessage:
@@ -77,7 +69,7 @@ const messages = defineMessages({
 });
 
 /** Which of the three views the page is showing. */
-type AlarmsTab = 'open' | 'muted' | 'rules';
+type AlarmsTab = 'open' | 'rules';
 
 /**
  * The workspace's alarms: what is flagged, what has been silenced, and the
@@ -101,7 +93,6 @@ export function AlarmsPage() {
     // so narrowing to one would hide the rest for no gain.
     const [focusRuleId, setFocusRuleId] = useState<string | undefined>();
     const [pendingDelete, setPendingDelete] = useState<AlarmRule | null>(null);
-    const [pendingMute, setPendingMute] = useState<AlarmFinding | null>(null);
     const [rescanning, setRescanning] = useState<ReadonlySet<string>>(
         () => new Set()
     );
@@ -109,8 +100,6 @@ export function AlarmsPage() {
     const summary = useAlarmSummary(canRead);
     const rules = useAlarmRules(canRead);
 
-    const mute = useMuteFinding();
-    const unmute = useUnmuteFinding();
     const rescan = useRescanAlarmRule();
     const remove = useDeleteAlarmRule();
 
@@ -134,33 +123,6 @@ export function AlarmsPage() {
     }
 
     if (summary.isPending && rules.isPending) return <AlarmsSkeleton />;
-
-    const onConfirmMute = (reason: string) => {
-        if (!pendingMute) return;
-        mute.mutate(
-            {
-                ruleId: pendingMute.ruleId,
-                entryId: pendingMute.entryId,
-                reason: reason || undefined
-            },
-            {
-                onSuccess: () => {
-                    toast.success(intl.formatMessage(messages.muted));
-                    setPendingMute(null);
-                }
-            }
-        );
-    };
-
-    const onUnmute = (finding: AlarmFinding) => {
-        unmute.mutate(
-            { ruleId: finding.ruleId, entryId: finding.entryId },
-            {
-                onSuccess: () =>
-                    toast.success(intl.formatMessage(messages.unmuted))
-            }
-        );
-    };
 
     const onRescan = (rule: AlarmRule) => {
         setRescanning((current) => new Set(current).add(rule.id));
@@ -195,7 +157,6 @@ export function AlarmsPage() {
     };
 
     const openTotal = summary.data?.openTotal ?? 0;
-    const mutedTotal = summary.data?.muted ?? 0;
 
     return (
         <>
@@ -245,12 +206,6 @@ export function AlarmsPage() {
                                 {openTotal}
                             </SegmentedControlCount>
                         </SegmentedControlItem>
-                        <SegmentedControlItem value="muted">
-                            {intl.formatMessage(messages.tabMuted)}
-                            <SegmentedControlCount>
-                                {mutedTotal}
-                            </SegmentedControlCount>
-                        </SegmentedControlItem>
                         <SegmentedControlItem value="rules">
                             {intl.formatMessage(messages.tabRules)}
                             <SegmentedControlCount>
@@ -277,11 +232,7 @@ export function AlarmsPage() {
                     ) : (
                         <FindingGroupList
                             rules={rules.data ?? []}
-                            state={tab}
                             isError={rules.isError}
-                            canManage={canManage}
-                            onMute={setPendingMute}
-                            onUnmute={onUnmute}
                             onCreate={
                                 canManage
                                     ? () =>
@@ -316,13 +267,6 @@ export function AlarmsPage() {
                         });
                         setPendingDelete(null);
                     }}
-                />
-
-                <MuteFindingDialog
-                    finding={pendingMute}
-                    isPending={mute.isPending}
-                    onCancel={() => setPendingMute(null)}
-                    onConfirm={onConfirmMute}
                 />
             </Container>
         </>

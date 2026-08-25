@@ -8,7 +8,6 @@ import {
     IsOptional,
     IsUUID,
     Max,
-    MaxLength,
     Min
 } from 'class-validator';
 import {
@@ -96,18 +95,4 @@ export class FindingsByEntryQueryDto {
     @ArrayMaxSize(MAX_BATCH_ENTRY_IDS)
     @IsUUID('4', { each: true })
     entryIds?: string[];
-}
-
-/** Body of `PUT /api/alarms/findings/:ruleId/:entryId/mute`. */
-export class MuteFindingDto {
-    @ApiPropertyOptional({
-        type: String,
-        maxLength: 500,
-        description:
-            'Why this one is fine. Optional in the contract, asked for in the ' +
-            'UI: a mute with no reason is indistinguishable from giving up.'
-    })
-    @IsOptional()
-    @MaxLength(500)
-    reason?: string;
 }

@@ -6,7 +6,6 @@ const item = (overrides: Record<string, unknown> = {}) => ({
     severity: 'warn',
     contentType: 'article',
     entryId: 'entry-1',
-    muted: false,
     openForDays: 4,
     ...overrides
 });
@@ -32,19 +31,22 @@ describe('readToolFindings', () => {
             severity: 'warn',
             contentType: 'article',
             entryId: 'entry-1',
-            muted: false,
             openForDays: 4
         });
     });
 
-    it('keeps a mute and its reason', () => {
+    it('ignores a mute left over from an older payload', () => {
+        // Muting is gone. A transcript replayed from history still carries it,
+        // and the renderer must simply not care rather than fall through to the
+        // raw JSON over a key it no longer models.
         const read = readToolFindings(
             payload({
                 items: [item({ muted: true, mutedReason: 'a stub on purpose' })]
             })
         );
-        expect(read?.items[0].muted).toBe(true);
-        expect(read?.items[0].mutedReason).toBe('a stub on purpose');
+        expect(read?.items).toHaveLength(1);
+        expect(read?.items[0]).not.toHaveProperty('muted');
+        expect(read?.items[0]).not.toHaveProperty('mutedReason');
     });
 
     // ---------------------------------------------------------------- refusal
@@ -95,7 +97,6 @@ describe('readToolFindings', () => {
             severity: 'error',
             contentType: '',
             entryId: '',
-            muted: false,
             openForDays: 0
         });
     });

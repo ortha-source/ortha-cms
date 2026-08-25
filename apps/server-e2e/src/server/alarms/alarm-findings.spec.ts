@@ -51,9 +51,8 @@ afterAll(async () => {
  *
  * This is the half a unit test cannot reach: findings are produced by an outbox
  * subscriber reacting to `entry.*` events, and the two behaviours that make the
- * feature usable rather than noisy — a finding closing itself, and a mute
- * surviving that closure — are only observable once a real write has gone
- * through the real event path.
+ * feature usable rather than noisy — above all a finding closing itself — is
+ * only observable once a real write has gone through the real event path.
  */
 describe('Alarm findings lifecycle', () => {
     let admin: SeededUser;
@@ -186,46 +185,26 @@ describe('Alarm findings lifecycle', () => {
         expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
     });
 
-    it('keeps a mute across the finding resolving and re-opening', async () => {
+    it('has no mute route left to call', async () => {
         const client = await api();
         await createRule(client);
         const entryId = await publishArticle(client);
         await drainOutbox(harness.app);
 
+        // Muting existed and was withdrawn. Leaving the route behind the
+        // removed UI would be a capability nothing exercises and nobody
+        // reviews — reachable by anyone who remembers the URL, and the first
+        // thing to rot.
         await client
             .put(`/api/alarms/findings/${ruleId}/${entryId}/mute`)
             .send({ reason: 'this one is a stub on purpose' })
-            .expect(204);
+            .expect(404);
+        await client
+            .delete(`/api/alarms/findings/${ruleId}/${entryId}/mute`)
+            .expect(404);
 
-        const muted = await client
-            .get('/api/alarms/findings?state=muted')
-            .expect(200);
-        expect(muted.body.total).toBe(1);
-
-        // Fix it, which resolves the finding...
-        await rewriteAndPublish(client, entryId, { number: 5 });
-        await drainOutbox(harness.app);
-        expect(
-            (await client.get('/api/alarms/findings?state=muted')).body.total
-        ).toBe(0);
-
-        // ...then break it again. The finding must come back MUTED, not open:
-        // a mute erased by a resolution means every deliberate exception starts
-        // shouting again on the next edit, which is how a feature like this
-        // gets switched off.
-        await rewriteAndPublish(client, entryId, {});
-        await drainOutbox(harness.app);
-
-        const again = await client
-            .get('/api/alarms/findings?state=muted')
-            .expect(200);
-        expect(again.body.total).toBe(1);
-        expect(again.body.items[0].mutedReason).toBe(
-            'this one is a stub on purpose'
-        );
-        expect(
-            (await client.get('/api/alarms/findings?state=open')).body.total
-        ).toBe(0);
+        // And `muted` is no longer a state the list will filter by.
+        await client.get('/api/alarms/findings?state=muted').expect(400);
     });
 
     it('serves findings for a batch of entries in one request', async () => {
@@ -236,9 +215,7 @@ describe('Alarm findings lifecycle', () => {
         await drainOutbox(harness.app);
 
         const res = await client
-            .get(
-                `/api/alarms/findings/by-entry?entryIds=${first},${second}`
-            )
+            .get(`/api/alarms/findings/by-entry?entryIds=${first},${second}`)
             .expect(200);
 
         expect(Object.keys(res.body.byEntry)).toEqual([first]);
@@ -256,9 +233,9 @@ describe('Alarm findings lifecycle', () => {
             .expect(200);
         expect(summary.body).toMatchObject({
             openTotal: 1,
-            muted: 0,
             open: { error: 0, warn: 1, info: 0 }
         });
+        expect(summary.body).not.toHaveProperty('muted');
     });
 
     it('closes the findings on an entry when it is deleted', async () => {
@@ -268,9 +245,7 @@ describe('Alarm findings lifecycle', () => {
         await drainOutbox(harness.app);
         expect((await client.get('/api/alarms/findings')).body.total).toBe(1);
 
-        await client
-            .delete(`/api/content/test_article/${entryId}`)
-            .expect(204);
+        await client.delete(`/api/content/test_article/${entryId}`).expect(204);
         await drainOutbox(harness.app);
 
         expect((await client.get('/api/alarms/findings')).body.total).toBe(0);

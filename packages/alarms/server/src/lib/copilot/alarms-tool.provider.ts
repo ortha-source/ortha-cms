@@ -102,11 +102,8 @@ export class AlarmsCopilotToolProvider implements ToolProvider, OnModuleInit {
                 'entry id, so follow one up with admin_content_get. ' +
                 'Findings never block a save or a publish: they are ' +
                 'information, and severity only orders them. ' +
-                'By default this returns everything currently flagged except ' +
-                'resolved findings, which are history. Pass state="muted" for ' +
-                'the ones someone has deliberately silenced, and note that a ' +
-                'muted finding is not an oversight — a person decided it was ' +
-                'acceptable and usually said why.',
+                'This returns everything currently flagged. Resolved findings ' +
+                'are history and are excluded unless asked for by name.',
             inputSchema: {
                 type: 'object',
                 properties: {

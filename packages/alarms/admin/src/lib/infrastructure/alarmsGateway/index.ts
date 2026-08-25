@@ -56,10 +56,7 @@ export type AlarmsGateway = {
     findingsByEntry(
         entryIds: readonly string[]
     ): Promise<Record<string, AlarmFinding[]>>;
-    /** Open and muted counts for the workspace. */
+    /** Open counts for the workspace. */
     summary(): Promise<AlarmSummary>;
     /** Silences one finding. */
-    mute(ruleId: string, entryId: string, reason?: string): Promise<void>;
-    /** Lifts a mute. */
-    unmute(ruleId: string, entryId: string): Promise<void>;
 };

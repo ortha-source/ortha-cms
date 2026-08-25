@@ -29,7 +29,6 @@ export type AlarmRuleResponse = {
     brokenReason: string | null;
     lastScanAt: string | null;
     openCount: number;
-    mutedCount: number;
 };
 
 /** One finding on the wire. */
@@ -43,7 +42,6 @@ export type AlarmFindingResponse = {
     state: string;
     firstSeenAt: string;
     lastSeenAt: string;
-    mutedReason: string | null;
 };
 
 /** The findings page envelope. */
@@ -74,7 +72,6 @@ export type AlarmRulePreviewResponse = {
 export type AlarmSummaryResponse = {
     open: Record<string, number>;
     openTotal: number;
-    muted: number;
 };
 
 /** The batch keyed by entry id. */
@@ -83,7 +80,7 @@ export type AlarmFindingsByEntryResponse = {
 };
 
 const SEVERITIES = new Set(['info', 'warn', 'error']);
-const STATES = new Set(['open', 'muted', 'resolved']);
+const STATES = new Set(['open', 'resolved']);
 
 /**
  * A severity the UI does not know reads as `warn`.
@@ -116,8 +113,7 @@ export function toAlarmRule(dto: AlarmRuleResponse): AlarmRule {
         enabled: dto.enabled,
         brokenReason: dto.brokenReason,
         lastScanAt: dto.lastScanAt,
-        openCount: dto.openCount,
-        mutedCount: dto.mutedCount
+        openCount: dto.openCount
     };
 }
 
@@ -132,8 +128,7 @@ export function toAlarmFinding(dto: AlarmFindingResponse): AlarmFinding {
         severity: toSeverity(dto.severity),
         state: toState(dto.state),
         firstSeenAt: dto.firstSeenAt,
-        lastSeenAt: dto.lastSeenAt,
-        mutedReason: dto.mutedReason
+        lastSeenAt: dto.lastSeenAt
     };
 }
 
@@ -169,8 +164,7 @@ export function toAlarmSummary(dto: AlarmSummaryResponse): AlarmSummary {
             warn: dto.open?.['warn'] ?? 0,
             info: dto.open?.['info'] ?? 0
         },
-        openTotal: dto.openTotal,
-        muted: dto.muted
+        openTotal: dto.openTotal
     };
 }
 

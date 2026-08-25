@@ -17,7 +17,6 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, =0 {Nothing flagged} one {# record flagged} other {# records flagged}}'
     },
-    muted: { id: 'alarms.rule.muted', defaultMessage: '{count} muted' },
     disabled: { id: 'alarms.rule.disabled', defaultMessage: 'Off' },
     lastScan: {
         id: 'alarms.rule.lastScan',
@@ -117,13 +116,6 @@ export function RuleCard({
                             {intl.formatMessage(messages.disabled)}
                         </Badge>
                     )}
-                    {rule.mutedCount > 0 ? (
-                        <Badge variant="outline">
-                            {intl.formatMessage(messages.muted, {
-                                count: rule.mutedCount
-                            })}
-                        </Badge>
-                    ) : null}
                     <Button
                         variant={rule.openCount > 0 ? 'secondary' : 'ghost'}
                         size="sm"

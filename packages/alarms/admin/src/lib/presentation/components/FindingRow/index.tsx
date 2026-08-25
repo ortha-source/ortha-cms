@@ -1,38 +1,12 @@
 import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Button } from '@orthacms/design-system';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
-import { BellOff, BellRing } from 'lucide-react';
 import type { AlarmFinding } from '../../../types/alarm';
-import { SeverityBadge } from '../SeverityBadge';
 
 const messages = defineMessages({
-    context: {
-        id: 'alarms.finding.context',
-        defaultMessage: '{ruleName} · {contentType}'
-    },
     openRecord: {
         id: 'alarms.finding.openRecord',
         defaultMessage: 'Open record {id}'
-    },
-    open: { id: 'alarms.finding.open', defaultMessage: 'Open record' },
-    mute: { id: 'alarms.finding.mute', defaultMessage: 'Mute' },
-    unmute: { id: 'alarms.finding.unmute', defaultMessage: 'Unmute' },
-    muteLabel: {
-        id: 'alarms.finding.muteLabel',
-        defaultMessage: 'Mute “{title}” on this record'
-    },
-    unmuteLabel: {
-        id: 'alarms.finding.unmuteLabel',
-        defaultMessage: 'Unmute “{title}” on this record'
-    },
-    mutedBecause: {
-        id: 'alarms.finding.mutedBecause',
-        defaultMessage: 'Muted: {reason}'
-    },
-    mutedNoReason: {
-        id: 'alarms.finding.mutedNoReason',
-        defaultMessage: 'Muted, with no reason given'
     },
     since: {
         id: 'alarms.finding.since',
@@ -44,178 +18,52 @@ const messages = defineMessages({
 export type FindingRowProps = {
     /** The finding this row is about. */
     finding: AlarmFinding;
-    /** Whether the caller may mute (i.e. holds `alarms:manage`). */
-    canManage: boolean;
-    /** Mute this finding. */
-    onMute: (finding: AlarmFinding) => void;
-    /** Lift the mute on this finding. */
-    onUnmute: (finding: AlarmFinding) => void;
-    /**
-     * Rendered inside a {@link FindingGroup}, under a header that already names
-     * the alarm and the sentence editors read.
-     *
-     * The row then carries only what differs between records — which record,
-     * and how long it has been flagged. Repeating the same finding title down
-     * eight rows is the noise grouping exists to remove.
-     */
-    grouped?: boolean;
 };
 
 /**
- * One finding: what is wrong, on which record, and the two things you can do
- * about it.
+ * One flagged record, inside its alarm's group.
  *
- * The title is the **rule's finding title**, not its name — the rule is called
- * something in the language of editorial policy ("Relations point at published
- * records") and the row has to speak to whoever is looking at one article
- * ("Author is not published").
+ * The group header already carries the alarm, the sentence editors read on the
+ * record, and the severity — so the row is one dense line of what differs
+ * between records: which one, and how long it has been flagged.
+ *
+ * **There is no record title to show.** A finding carries the entry's id and
+ * nothing else, and content types declare no display field for the server to
+ * join, so the id is the honest identifier — in tabular figures, because a
+ * column of them is read by scanning rather than by reading. Giving a finding a
+ * human title is a server change worth making, not something to fake here.
+ *
+ * There is no action either. Muting one record at a time is gone: an alarm is
+ * either right about a record or wrong about it, and the answer to a wrong one
+ * is to narrow or disable the alarm, where the next person can see the decision.
  */
-export function FindingRow({
-    finding,
-    canManage,
-    onMute,
-    onUnmute,
-    grouped = false
-}: FindingRowProps) {
+export function FindingRow({ finding }: FindingRowProps) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
-    const isMuted = finding.state === 'muted';
     const entryPath = `/workspaces/${workspace.id}/content/${finding.contentType}/${finding.entryId}`;
 
-    // Inside a group the header already carries the alarm, the sentence editors
-    // read, and the severity — so the row is one dense line: which record, how
-    // long, and the one action. The record's id is the whole identifier a
-    // finding has (content types declare no display field for the server to
-    // join), so it is the link text, in tabular figures because a column of
-    // them is read by scanning rather than by reading.
-    if (grouped) {
-        return (
-            <li className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 pl-11 pr-4 sm:pr-5">
-                <Link
-                    to={entryPath}
-                    className="min-w-0 flex-1 truncate text-sm tabular-nums hover:underline"
-                    aria-label={intl.formatMessage(messages.openRecord, {
-                        id: finding.entryId
-                    })}
-                >
-                    <span className="text-muted-foreground">
-                        {finding.contentType}
-                    </span>{' '}
-                    <span className="font-medium">{finding.entryId}</span>
-                </Link>
-
-                <span className="shrink-0 text-xs text-muted-foreground">
-                    {isMuted
-                        ? finding.mutedReason
-                            ? intl.formatMessage(messages.mutedBecause, {
-                                  reason: finding.mutedReason
-                              })
-                            : intl.formatMessage(messages.mutedNoReason)
-                        : intl.formatMessage(messages.since, {
-                              date: intl.formatDate(finding.firstSeenAt, {
-                                  dateStyle: 'medium'
-                              })
-                          })}
-                </span>
-
-                {canManage ? (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() =>
-                            isMuted ? onUnmute(finding) : onMute(finding)
-                        }
-                        aria-label={intl.formatMessage(
-                            isMuted ? messages.unmuteLabel : messages.muteLabel,
-                            { title: finding.title }
-                        )}
-                    >
-                        {isMuted ? (
-                            <BellRing aria-hidden="true" />
-                        ) : (
-                            <BellOff aria-hidden="true" />
-                        )}
-                        {intl.formatMessage(
-                            isMuted ? messages.unmute : messages.mute
-                        )}
-                    </Button>
-                ) : null}
-            </li>
-        );
-    }
-
     return (
-        <li className="flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-4 sm:px-5">
-            <SeverityBadge severity={finding.severity} className="mt-0.5" />
+        <li className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 pl-11 pr-4 sm:pr-5">
+            <Link
+                to={entryPath}
+                className="min-w-0 flex-1 truncate text-sm tabular-nums hover:underline"
+                aria-label={intl.formatMessage(messages.openRecord, {
+                    id: finding.entryId
+                })}
+            >
+                <span className="text-muted-foreground">
+                    {finding.contentType}
+                </span>{' '}
+                <span className="font-medium">{finding.entryId}</span>
+            </Link>
 
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span
-                    className={
-                        isMuted
-                            ? 'truncate font-medium text-muted-foreground'
-                            : 'truncate font-medium'
-                    }
-                >
-                    {finding.title}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.context, {
-                        ruleName: finding.ruleName,
-                        contentType: finding.contentType
-                    })}
-                </span>
-                {isMuted ? (
-                    <span className="truncate text-xs text-muted-foreground">
-                        {finding.mutedReason
-                            ? intl.formatMessage(messages.mutedBecause, {
-                                  reason: finding.mutedReason
-                              })
-                            : intl.formatMessage(messages.mutedNoReason)}
-                    </span>
-                ) : (
-                    <span className="text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.since, {
-                            date: intl.formatDate(finding.firstSeenAt, {
-                                dateStyle: 'medium'
-                            })
-                        })}
-                    </span>
-                )}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-                <Button asChild variant="outline" size="sm">
-                    <Link to={entryPath}>
-                        {intl.formatMessage(messages.open)}
-                    </Link>
-                </Button>
-                {canManage ? (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                            isMuted ? onUnmute(finding) : onMute(finding)
-                        }
-                        // The visible label is one word; the accessible name
-                        // says which finding it acts on, because a list of
-                        // identically-labelled buttons is unusable by ear.
-                        aria-label={intl.formatMessage(
-                            isMuted ? messages.unmuteLabel : messages.muteLabel,
-                            { title: finding.title }
-                        )}
-                    >
-                        {isMuted ? (
-                            <BellRing aria-hidden="true" />
-                        ) : (
-                            <BellOff aria-hidden="true" />
-                        )}
-                        {intl.formatMessage(
-                            isMuted ? messages.unmute : messages.mute
-                        )}
-                    </Button>
-                ) : null}
-            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">
+                {intl.formatMessage(messages.since, {
+                    date: intl.formatDate(finding.firstSeenAt, {
+                        dateStyle: 'medium'
+                    })
+                })}
+            </span>
         </li>
     );
 }

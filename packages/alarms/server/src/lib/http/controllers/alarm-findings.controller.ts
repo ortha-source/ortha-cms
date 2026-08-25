@@ -1,32 +1,15 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    HttpCode,
-    NotFoundException,
-    Param,
-    ParseUUIDPipe,
-    Put,
-    Query,
-    UseGuards
-} from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-    CurrentUser,
-    OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions,
-    type PublicUser
+    RequirePermissions
 } from '@orthacms/identity-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import {
     FindingsByEntryQueryDto,
-    ListFindingsQueryDto,
-    MuteFindingDto
+    ListFindingsQueryDto
 } from '../../application/dto/list-findings-query.dto';
-import { AlarmFindingNotFoundError } from '../../domain/errors';
 import { AlarmFindingStore } from '../../infrastructure/alarm-finding.store';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../../alarms.constants';
 import type {
@@ -41,16 +24,14 @@ export interface AlarmSummaryView {
     open: Record<AlarmSeverity, number>;
     /** Total open findings, at any severity. */
     openTotal: number;
-    /** Findings someone has silenced. */
-    muted: number;
 }
 
 /**
  * The finding surface: `/api/alarms/findings`.
  *
- * Everything here is workspace-scoped and gated on `alarms:read`, except the
- * two mute routes — silencing a finding is a statement about what the workspace
- * considers acceptable, so it needs `alarms:manage` like a rule does.
+ * Everything here is workspace-scoped and gated on `alarms:read`. It is
+ * read-only: an alarm is changed by editing or disabling the alarm, never by
+ * silencing one of its findings.
  */
 @ApiTags('alarms')
 @UseGuards(PermissionsGuard, WorkspaceGuard)
@@ -85,27 +66,24 @@ export class AlarmFindingsController {
         return { byEntry };
     }
 
-    /** Open and muted counts, for the sidebar badge and the home panel. */
+    /** Open counts, for the sidebar badge and the home panel. */
     @ApiOperation({
         summary: 'Alarm counts',
         description:
-            'Open findings per severity plus the muted total — the numbers ' +
-            'the nav badge and the dashboard panel render.'
+            'Open findings per severity — the numbers the nav badge and the ' +
+            'dashboard panel render.'
     })
     @RequirePermissions(PERMISSIONS.ALARMS_READ)
     @Get('summary')
     async summary(
         @CurrentWorkspace() workspaceId: string
     ): Promise<AlarmSummaryView> {
-        const [open, muted] = await Promise.all([
-            this.findings.openCountsBySeverity(workspaceId),
-            this.findings.mutedCount(workspaceId)
-        ]);
+        const open = await this.findings.openCountsBySeverity(workspaceId);
         const openTotal = Object.values(open).reduce(
             (sum, count) => sum + count,
             0
         );
-        return { open, openTotal, muted };
+        return { open, openTotal };
     }
 
     /** One page of the workspace's findings. */
@@ -136,63 +114,4 @@ export class AlarmFindingsController {
         });
     }
 
-    /** Silences one finding, with a reason the next reader can weigh. */
-    @ApiOperation({
-        summary: 'Mute a finding',
-        description:
-            'Silences this rule for this entry. The mute survives the finding ' +
-            'resolving and re-opening, so a deliberate exception stays quiet.'
-    })
-    @UseGuards(OriginGuard)
-    @RequirePermissions(PERMISSIONS.ALARMS_MANAGE)
-    @HttpCode(204)
-    @Put(':ruleId/:entryId/mute')
-    async mute(
-        @CurrentWorkspace() workspaceId: string,
-        @Param('ruleId', ParseUUIDPipe) ruleId: string,
-        @Param('entryId', ParseUUIDPipe) entryId: string,
-        @CurrentUser() user: PublicUser | undefined,
-        @Body() dto: MuteFindingDto
-    ): Promise<void> {
-        await notFoundOnMissing(() =>
-            this.findings.mute(
-                workspaceId,
-                ruleId,
-                entryId,
-                user?.id ?? null,
-                dto.reason ?? null
-            )
-        );
-    }
-
-    /** Lifts a mute, putting a still-matching finding back in view. */
-    @ApiOperation({
-        summary: 'Unmute a finding',
-        description: 'Puts a silenced finding back in view if it still matches.'
-    })
-    @UseGuards(OriginGuard)
-    @RequirePermissions(PERMISSIONS.ALARMS_MANAGE)
-    @HttpCode(204)
-    @Delete(':ruleId/:entryId/mute')
-    async unmute(
-        @CurrentWorkspace() workspaceId: string,
-        @Param('ruleId', ParseUUIDPipe) ruleId: string,
-        @Param('entryId', ParseUUIDPipe) entryId: string
-    ): Promise<void> {
-        await notFoundOnMissing(() =>
-            this.findings.unmute(workspaceId, ruleId, entryId)
-        );
-    }
-}
-
-/** Maps the one domain error these routes raise onto a 404. */
-async function notFoundOnMissing(run: () => Promise<void>): Promise<void> {
-    try {
-        await run();
-    } catch (error) {
-        if (error instanceof AlarmFindingNotFoundError) {
-            throw new NotFoundException(error.message);
-        }
-        throw error;
-    }
 }

@@ -146,47 +146,30 @@ test.describe('The alarms page', () => {
 });
 
 /**
- * Muting, which used to go through `window.prompt`.
+ * Muting is gone, and this is what keeps it gone.
  *
- * A native prompt is not merely ugly here: it blocks the whole tab, so the
- * record the finding is about cannot be consulted while answering, and a
- * browser that suppresses it returns `null` — indistinguishable from Cancel, so
- * the mute silently did not happen. Playwright dismisses dialogs by default,
- * which means the old flow would have failed this test by doing nothing at all.
+ * It existed for one release and was withdrawn: an alarm is either right about
+ * a record or wrong about it, and silencing them one at a time is a way of
+ * living with a bad condition instead of narrowing it. The affordance leaves no
+ * trace — no tab, no per-row action — because a half-removed feature is worse
+ * than either state.
  */
-test.describe('Muting a finding', () => {
-    test('asks for the reason in a dialog, and sends it', async ({
-        page,
-        alarmsPage
-    }) => {
-        const api = await mockAlarmsApi(page);
-        await alarmsPage.goto(WORKSPACE_ID);
-
-        await alarmsPage.muteButton(OPEN_FINDING.title).click();
-        await expect(alarmsPage.muteDialog()).toBeVisible();
-
-        await alarmsPage.muteReason().fill('Deliberately a stub for now');
-        await alarmsPage.muteConfirm().click();
-
-        await expect
-            .poll(() => api.mutes.length, { timeout: 5000 })
-            .toBeGreaterThan(0);
-        expect(api.mutes[0]).toMatchObject({
-            reason: 'Deliberately a stub for now'
-        });
-    });
-
-    test('has no axe violations with the dialog open', async ({
-        page,
-        alarmsPage,
-        makeAxe
-    }) => {
+test.describe('Muting', () => {
+    test('is offered nowhere', async ({ page, alarmsPage }) => {
         await mockAlarmsApi(page);
         await alarmsPage.goto(WORKSPACE_ID);
-        await alarmsPage.muteButton(OPEN_FINDING.title).click();
-        await expect(alarmsPage.muteDialog()).toBeVisible();
+        await expect(
+            alarmsPage.groupRow(CONTAINS_RULE.name, OPEN_FINDING.entryId)
+        ).toBeVisible();
 
-        await expectNoA11yViolations(makeAxe());
+        await expect(page.getByRole('button', { name: /mute/i })).toHaveCount(
+            0
+        );
+        // The Muted tab went with it; the strip is Flagged and Alarms.
+        await expect(alarmsPage.tab('Flagged')).toBeVisible();
+        await expect(page.getByRole('radio', { name: /^Muted/ })).toHaveCount(
+            0
+        );
     });
 });
 
@@ -366,6 +349,31 @@ test.describe('The rule editor', () => {
         // update that quietly kept the old one would be the worst outcome
         // available to it.
         expect(api.updates[0].filter).toEqual(CONTAINS_RULE.filter);
+    });
+
+    test('offers the record picker for a relation condition', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page);
+        await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
+        await alarmsPage.conditionToggle().click();
+        await alarmsPage.addRule();
+        await alarmsPage.selectFieldSearch('Author', 'Author');
+
+        // `renderRelationValue` is how the picker reaches the builder — the
+        // query builder holds no data layer of its own. Without it the value
+        // cell falls back to a plain text box, so a relation condition could
+        // only be completed by pasting a uuid, which is exactly what "relations
+        // are not loaded in the creating alarm view" meant.
+        // Located by its text rather than its accessible name: the picker's
+        // trigger has none today. That is a real (pre-existing) defect in
+        // `RelationValuePicker`, in content-admin — noted rather than papered
+        // over, since asserting a name it does not have would fail for the
+        // wrong reason.
+        await expect(
+            alarmsPage.filterSurface().getByText('Select records')
+        ).toBeVisible();
     });
 
     test('has no axe violations with the builder open', async ({

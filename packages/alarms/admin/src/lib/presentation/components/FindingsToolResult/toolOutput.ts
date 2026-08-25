@@ -7,8 +7,6 @@ export interface ToolFinding {
     severity: AlarmSeverity;
     contentType: string;
     entryId: string;
-    muted: boolean;
-    mutedReason?: string;
     openForDays: number;
 }
 
@@ -70,10 +68,6 @@ export function readToolFindings(output: unknown): ToolFindings | null {
             severity: item['severity'] as AlarmSeverity,
             contentType: str(item['contentType']),
             entryId: str(item['entryId']),
-            muted: item['muted'] === true,
-            ...(typeof item['mutedReason'] === 'string'
-                ? { mutedReason: item['mutedReason'] }
-                : {}),
             openForDays: num(item['openForDays'])
         }));
 

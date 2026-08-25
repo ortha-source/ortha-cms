@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import type { CopilotToolResultContext } from '@orthacms/copilot-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
-import { BellOff } from 'lucide-react';
 import { severityLook } from '../../severityLook';
 import { FindingAgeBar } from './FindingAgeBar';
 import { oldestOf, readToolFindings } from './toolOutput';
@@ -31,7 +30,6 @@ const messages = defineMessages({
         defaultMessage:
             '{days, plural, =0 {flagged today} one {open for # day} other {open for # days}}'
     },
-    muted: { id: 'alarms.toolResult.muted', defaultMessage: 'Muted' },
     more: {
         id: 'alarms.toolResult.more',
         defaultMessage:
@@ -161,26 +159,13 @@ export function FindingsToolResult({ output }: CopilotToolResultContext) {
                                 </span>
                             </span>
 
-                            {finding.muted ? (
-                                <span
-                                    className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-[11px]"
-                                    title={finding.mutedReason}
-                                >
-                                    <BellOff
-                                        aria-hidden="true"
-                                        className="size-3"
-                                    />
-                                    {intl.formatMessage(messages.muted)}
-                                </span>
-                            ) : (
-                                <FindingAgeBar
-                                    days={finding.openForDays}
-                                    oldestDays={oldest}
-                                    label={intl.formatMessage(messages.age, {
-                                        days: finding.openForDays
-                                    })}
-                                />
-                            )}
+                            <FindingAgeBar
+                                days={finding.openForDays}
+                                oldestDays={oldest}
+                                label={intl.formatMessage(messages.age, {
+                                    days: finding.openForDays
+                                })}
+                            />
                         </li>
                     );
                 })}

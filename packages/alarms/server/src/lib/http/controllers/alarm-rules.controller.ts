@@ -63,7 +63,7 @@ export class AlarmRulesController {
         summary: 'List alarm rules',
         description:
             'Every rule the workspace has, with how many findings each ' +
-            'currently has open and muted.'
+            'currently has open.'
     })
     @RequirePermissions(PERMISSIONS.ALARMS_READ)
     @Get()
