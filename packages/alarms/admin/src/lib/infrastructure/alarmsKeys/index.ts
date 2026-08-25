@@ -28,5 +28,6 @@ export const alarmsKeys = {
      */
     byEntry: (workspaceId: string, entryIds: readonly string[]) =>
         ['alarms', workspaceId, 'by-entry', [...entryIds].sort()] as const,
-    summary: (workspaceId: string) => ['alarms', workspaceId, 'summary'] as const
+    summary: (workspaceId: string) =>
+        ['alarms', workspaceId, 'summary'] as const
 };

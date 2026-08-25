@@ -1,43 +1,48 @@
-import { defineMessages, useIntl } from 'react-intl';
+import { useIntl } from 'react-intl';
 import { Badge, cn } from '@orthacms/design-system';
 import type { AlarmSeverity } from '../../../types/alarm';
-
-const messages = defineMessages({
-    error: { id: 'alarms.severity.error', defaultMessage: 'Error' },
-    warn: { id: 'alarms.severity.warn', defaultMessage: 'Warning' },
-    info: { id: 'alarms.severity.info', defaultMessage: 'Info' }
-});
-
-/**
- * Severity as colour **and** a word.
- *
- * Colour alone would put the whole meaning of a finding behind hue, which fails
- * for anyone who cannot distinguish the three (WCAG 1.4.1). The tints are drawn
- * from the design system's semantic palette rather than the accent, because
- * severity is not branding.
- */
-const TINTS: Record<AlarmSeverity, string> = {
-    error: 'border-destructive/30 bg-destructive/10 text-destructive',
-    warn: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    info: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-400'
-};
+import { severityLook } from '../../severityLook';
 
 /** Props for {@link SeverityBadge}. */
 export type SeverityBadgeProps = {
     /** Which severity to render. */
     severity: AlarmSeverity;
+    /** Render the glyph without the word — for a dense row. */
+    iconOnly?: boolean;
     className?: string;
 };
 
-/** Renders one severity as a tinted, labelled badge. */
-export function SeverityBadge({ severity, className }: SeverityBadgeProps) {
+/**
+ * Severity as shape, colour **and** a word.
+ *
+ * The shape is doing real work, not decoration: the design system's
+ * `destructive` and `warning` are ΔE 0.9 apart under deuteranopia, so a reader
+ * who cannot separate red from orange has only the glyph and the text to go on.
+ * See `severityLook` for the measurement and the rest of the reasoning.
+ *
+ * It declares no messages of its own — the severity words live in
+ * `severityLook` so the badge, the records column and the copilot's strip
+ * cannot end up calling the same severity three different things.
+ */
+export function SeverityBadge({
+    severity,
+    iconOnly = false,
+    className
+}: SeverityBadgeProps) {
     const intl = useIntl();
+    const { chip, Icon, label } = severityLook(severity);
+    const word = intl.formatMessage(label);
+
     return (
         <Badge
             variant="outline"
-            className={cn(TINTS[severity], 'font-medium', className)}
+            className={cn(chip, 'gap-1 font-medium', className)}
         >
-            {intl.formatMessage(messages[severity])}
+            <Icon aria-hidden="true" className="size-3" />
+            {/* Visually hidden when the row has no space for it, never
+                dropped: colour and shape are two encodings, and the word is
+                the one a screen reader gets. */}
+            <span className={iconOnly ? 'sr-only' : undefined}>{word}</span>
         </Badge>
     );
 }

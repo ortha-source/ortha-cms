@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1340 test cases across 88 spec files._
+_1348 test cases across 88 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -1913,6 +1913,23 @@ _<sub>apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts</sub>_
 | lists this workspace’s members with their roles |
 | does not list accounts that are not members of this workspace |
 
+### admin_alarms_findings
+
+| Test case |
+| --- |
+| reports what the workspace’s rules have flagged |
+| spends no prompt tokens on the detail bag or the timestamps |
+| tallies severity across the whole set, not the returned page |
+| restricts to one severity when asked |
+| does not see another workspace’s findings |
+
+### admin_alarms_findings › a role without alarms:read
+
+| Test case |
+| --- |
+| is never told the tool exists |
+| is refused if the model names it anyway |
+
 <!-- source: apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts -->
 _<sub>apps/server-e2e/src/server/copilot/copilot-run-authority.spec.ts</sub>_
 
@@ -2398,6 +2415,7 @@ _<sub>apps/server-e2e/src/server/mcp/mcp.spec.ts</sub>_
 | refuses a write tool a read token invokes by name |
 | refuses each write tool to a read token |
 | refuses draft visibility to a read token |
+| refuses a copilot-only tool a full-scope token names |
 | reports an unknown tool as not_found |
 
 ### argument validation

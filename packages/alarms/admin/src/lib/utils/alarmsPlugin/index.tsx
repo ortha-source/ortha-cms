@@ -7,12 +7,17 @@ import {
     type ContentTypeDetail,
     type EntryRecord
 } from '@orthacms/content-admin';
-import { WORKSPACE_NAV_SLOT, WORKSPACE_ROUTE_SLOT } from '@orthacms/workspaces-admin';
+import {
+    WORKSPACE_NAV_SLOT,
+    WORKSPACE_ROUTE_SLOT
+} from '@orthacms/workspaces-admin';
+import { COPILOT_TOOL_RESULT_SLOT } from '@orthacms/copilot-admin';
 import { BellRing } from 'lucide-react';
 import { AlarmsSkeleton } from '../../presentation/components/AlarmsSkeleton';
 import { AlarmsColumnCell } from '../../presentation/components/AlarmsColumnCell';
 import { EntryAlarmsWidget } from '../../presentation/components/EntryAlarmsWidget';
 import { SaveFilterAsRuleAction } from '../../presentation/components/SaveFilterAsRuleAction';
+import { FindingsToolResult } from '../../presentation/components/FindingsToolResult';
 import { useFindingsByEntry } from '../../application/useFindingsByEntry';
 import { alarmsColumnMessages } from '../alarmsColumnMessages';
 
@@ -48,6 +53,11 @@ export type AlarmsAdminPlugin = AdminPlugin;
  * - `RECORDS_COLUMN_SLOT` — an optional Checks column in the records table.
  * - `RECORDS_TOOLBAR_SLOT` — "Save as rule", which is how rules are actually
  *   created: from a filter someone has already built and already looked at.
+ *
+ * It also fills the copilot's `COPILOT_TOOL_RESULT_SLOT`, so
+ * `admin_alarms_findings` reads as a list of linked records with their ages
+ * rather than as a JSON array. The copilot package learns nothing about alarms
+ * for it — the same inversion as the content slots above.
  *
  * @example
  * ```tsx
@@ -150,6 +160,16 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                     {
                         id: 'alarms.records.saveAsRule',
                         Component: SaveFilterAsRuleAction
+                    }
+                ]
+            },
+            {
+                slot: COPILOT_TOOL_RESULT_SLOT,
+                items: [
+                    {
+                        id: 'alarms.copilot.findings',
+                        toolName: 'admin_alarms_findings',
+                        Component: FindingsToolResult
                     }
                 ]
             }

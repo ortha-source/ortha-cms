@@ -1,7 +1,7 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { cn } from '@orthacms/design-system';
 import type { RecordsColumnCellContext } from '@orthacms/content-admin';
 import type { AlarmFinding, AlarmSeverity } from '../../../types/alarm';
+import { severityLook } from '../../severityLook';
 
 const messages = defineMessages({
     none: { id: 'alarms.column.none', defaultMessage: 'Nothing flagged' },
@@ -14,24 +14,21 @@ const messages = defineMessages({
     }
 });
 
-/** Dot colours, matching {@link SeverityBadge}'s tints. */
-const DOTS: Record<AlarmSeverity, string> = {
-    error: 'bg-destructive',
-    warn: 'bg-amber-500',
-    info: 'bg-sky-500'
-};
-
 /** Severity order, most severe first. */
 const ORDER: readonly AlarmSeverity[] = ['error', 'warn', 'info'];
 
 /**
- * The records table's Checks cell: a dot per severity present, plus a count.
+ * The records table's Checks cell: one glyph per severity present, plus a count.
  *
  * Deliberately not a badge per finding — a row is one line and a busy record
- * would push the rest of the table off screen. The colour is never the only
- * signal: the count is text, and the whole cell carries a title listing what
- * was flagged, so the meaning survives both a screen reader and a viewer who
- * cannot tell the three tints apart.
+ * would push the rest of the table off screen.
+ *
+ * **Glyphs rather than coloured dots.** Three dots would put the whole meaning
+ * of the cell into hue, and the two hues that matter most here are ΔE 0.9 apart
+ * under deuteranopia (see `severityLook`) — so an error and a warning would be
+ * the same dot to a large minority of readers. Distinct shapes carry it
+ * instead, with colour agreeing rather than deciding, the count as text, and
+ * the whole cell summarised for a screen reader.
  */
 export function AlarmsColumnCell({ entry, data }: RecordsColumnCellContext) {
     const intl = useIntl();
@@ -85,16 +82,16 @@ export function AlarmsColumnCell({ entry, data }: RecordsColumnCellContext) {
 
     return (
         <span className="inline-flex items-center gap-1.5" title={label}>
-            <span className="inline-flex items-center gap-0.5" aria-hidden="true">
-                {present.map((severity) => (
-                    <span
-                        key={severity}
-                        className={cn(
-                            'inline-block size-2 rounded-full',
-                            DOTS[severity]
-                        )}
-                    />
-                ))}
+            <span
+                className="inline-flex items-center gap-0.5"
+                aria-hidden="true"
+            >
+                {present.map((severity) => {
+                    const { Icon, ink } = severityLook(severity);
+                    return (
+                        <Icon key={severity} className={`size-3.5 ${ink}`} />
+                    );
+                })}
             </span>
             <span className="tabular-nums">{findings.length}</span>
             <span className="sr-only">{label}</span>

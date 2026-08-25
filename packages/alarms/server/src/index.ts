@@ -44,6 +44,14 @@ export type { AlarmSummaryView } from './lib/http/controllers/alarm-findings.con
 // read these tables directly.
 export { alarmRules, alarmFindings } from './lib/infrastructure/schema';
 
+// The copilot tool's output contract, exported so the admin renders the shape
+// the tool actually returns rather than a hand-copied guess at it.
+export type {
+    FindingsToolOutput,
+    FindingToolItem
+} from './lib/copilot/findings-tool-output';
+export { severityTally } from './lib/copilot/findings-tool-output';
+
 // Services other plugins may inject: the evaluator (to force a scan) and the
 // finding store (to read findings without going through HTTP).
 export { AlarmEvaluator } from './lib/infrastructure/alarm-evaluator.service';

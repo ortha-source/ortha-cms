@@ -1,4 +1,8 @@
-import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import {
+    Injectable,
+    Logger,
+    type OnApplicationBootstrap
+} from '@nestjs/common';
 import {
     OutboxDispatcher,
     type DomainEvent,

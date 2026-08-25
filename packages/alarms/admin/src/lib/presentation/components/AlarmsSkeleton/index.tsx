@@ -2,7 +2,10 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Skeleton, SkeletonRegion } from '@orthacms/design-system';
 
 const messages = defineMessages({
-    loading: { id: 'alarms.skeleton.loading', defaultMessage: 'Loading alarms…' }
+    loading: {
+        id: 'alarms.skeleton.loading',
+        defaultMessage: 'Loading alarms…'
+    }
 });
 
 /**

@@ -61,8 +61,7 @@ const messages = defineMessages({
     },
     findingHint: {
         id: 'alarms.editor.findingHint',
-        defaultMessage:
-            'Shown on the record itself: “Author is not published”.'
+        defaultMessage: 'Shown on the record itself: “Author is not published”.'
     },
     description: {
         id: 'alarms.editor.description',
@@ -174,9 +173,7 @@ export function AlarmRuleEditorPage() {
     if (!canRead) {
         return (
             <Container>
-                <ContainerHeader
-                    title={intl.formatMessage(messages.title)}
-                />
+                <ContainerHeader title={intl.formatMessage(messages.title)} />
                 <AlarmsNoAccess />
             </Container>
         );
@@ -231,7 +228,9 @@ export function AlarmRuleEditorPage() {
         if (!json) return null;
         try {
             const parsed: unknown = JSON.parse(json);
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            return parsed &&
+                typeof parsed === 'object' &&
+                !Array.isArray(parsed)
                 ? (parsed as Record<string, unknown>)
                 : null;
         } catch {
@@ -334,9 +333,7 @@ export function AlarmRuleEditorPage() {
                         <SelectContent>
                             {ALARM_SEVERITIES.map((value) => (
                                 <SelectItem key={value} value={value}>
-                                    {intl.formatMessage(
-                                        SEVERITY_LABELS[value]
-                                    )}
+                                    {intl.formatMessage(SEVERITY_LABELS[value])}
                                 </SelectItem>
                             ))}
                         </SelectContent>

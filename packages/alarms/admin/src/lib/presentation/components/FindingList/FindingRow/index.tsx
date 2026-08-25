@@ -124,9 +124,7 @@ export function FindingRow({
                         // says which finding it acts on, because a list of
                         // identically-labelled buttons is unusable by ear.
                         aria-label={intl.formatMessage(
-                            isMuted
-                                ? messages.unmuteLabel
-                                : messages.muteLabel,
+                            isMuted ? messages.unmuteLabel : messages.muteLabel,
                             { title: finding.title }
                         )}
                     >

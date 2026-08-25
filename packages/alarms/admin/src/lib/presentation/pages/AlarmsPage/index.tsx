@@ -129,8 +129,7 @@ export function AlarmsPage() {
     const remove = useDeleteAlarmRule();
 
     const pageCount = useMemo(
-        () =>
-            Math.max(1, Math.ceil((findings.data?.total ?? 0) / PAGE_SIZE)),
+        () => Math.max(1, Math.ceil((findings.data?.total ?? 0) / PAGE_SIZE)),
         [findings.data?.total]
     );
 
@@ -335,9 +334,7 @@ export function AlarmsPage() {
                     if (!pendingDelete) return;
                     remove.mutate(pendingDelete.id, {
                         onSuccess: () =>
-                            toast.success(
-                                intl.formatMessage(messages.deleted)
-                            )
+                            toast.success(intl.formatMessage(messages.deleted))
                     });
                     setPendingDelete(null);
                 }}

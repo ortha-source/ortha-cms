@@ -51,10 +51,7 @@ export class AlarmSweepService
     onApplicationBootstrap(): void {
         const minutes = this.config.sweepIntervalMinutes;
         if (minutes <= 0) return;
-        this.timer = setInterval(
-            () => void this.sweep(),
-            minutes * 60 * 1000
-        );
+        this.timer = setInterval(() => void this.sweep(), minutes * 60 * 1000);
         // Never hold the process open for a periodic rescan.
         this.timer.unref?.();
     }

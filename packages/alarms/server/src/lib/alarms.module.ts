@@ -6,6 +6,7 @@ import { AlarmFindingStore } from './infrastructure/alarm-finding.store';
 import { AlarmRuleRepository } from './infrastructure/alarm-rule.repository';
 import { AlarmSweepService } from './infrastructure/alarm-sweep.service';
 import { EntryEventSubscriber } from './infrastructure/entry-event.subscriber';
+import { AlarmsCopilotToolProvider } from './copilot/alarms-tool.provider';
 import { AlarmFindingsController } from './http/controllers/alarm-findings.controller';
 import { AlarmRulesController } from './http/controllers/alarm-rules.controller';
 import {
@@ -34,7 +35,10 @@ export class AlarmsModule {
             global: true,
             controllers: [AlarmFindingsController, AlarmRulesController],
             providers: [
-                { provide: ALARMS_CONFIG, useValue: resolveAlarmsConfig(config) },
+                {
+                    provide: ALARMS_CONFIG,
+                    useValue: resolveAlarmsConfig(config)
+                },
                 AlarmRuleRepository,
                 AlarmFindingStore,
                 AlarmEvaluator,
@@ -43,7 +47,12 @@ export class AlarmsModule {
                 EntryEventSubscriber,
                 // Arms the periodic rescan — the only path that covers rules
                 // about entries nobody is touching.
-                AlarmSweepService
+                AlarmSweepService,
+                // Contributes the one alarms read tool to the shared registry,
+                // narrowed to the copilot surface. Registers itself from
+                // `onModuleInit` against an optionally-injected registry, so a
+                // deployment running neither consumer simply skips it.
+                AlarmsCopilotToolProvider
             ],
             exports: [
                 ALARMS_CONFIG,

@@ -101,11 +101,21 @@ export class AlarmEvaluator {
             // composed filter; the union is what gets reconciled, so an entry
             // that started matching opens a finding and one that stopped
             // matching closes it, in one pass.
-            const linked = await this.safeMatch(rule, type, {
-                and: [
-                    { field: `${relationField}.id`, op: 'eq', value: changedEntryId }
-                ]
-            }, undefined, this.config.maxDependentsPerEvent);
+            const linked = await this.safeMatch(
+                rule,
+                type,
+                {
+                    and: [
+                        {
+                            field: `${relationField}.id`,
+                            op: 'eq',
+                            value: changedEntryId
+                        }
+                    ]
+                },
+                undefined,
+                this.config.maxDependentsPerEvent
+            );
             if (linked === null) continue;
 
             // The flagged set is bounded too: a rule with thousands of open
@@ -171,10 +181,7 @@ export class AlarmEvaluator {
                 {},
                 rule.workspaceId,
                 {
-                    limit: Math.min(
-                        batch,
-                        this.config.maxScanEntries - offset
-                    ),
+                    limit: Math.min(batch, this.config.maxScanEntries - offset),
                     offset
                 }
             );

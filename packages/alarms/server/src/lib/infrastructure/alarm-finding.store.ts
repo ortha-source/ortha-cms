@@ -271,15 +271,19 @@ export class AlarmFindingStore {
         if (!row) throw new AlarmFindingNotFoundError(ruleId, entryId);
     }
 
-    /** One page of a workspace's findings, joined to their rules. */
-    async list(
+    /**
+     * The predicate behind both {@link list} and {@link severityCounts}.
+     *
+     * Resolved findings are history rather than a view, so they are excluded
+     * unless asked for by name — stating that once, here, is what keeps the
+     * list and the tally beside it talking about the same rows.
+     */
+    private findingsWhere(
         workspaceId: string,
-        filter: ListFindingsFilter
-    ): Promise<AlarmFindingListView> {
-        const where = and(
+        filter: Omit<ListFindingsFilter, 'page' | 'pageSize'>
+    ) {
+        return and(
             eq(alarmFindings.workspaceId, workspaceId),
-            // Resolved findings are history, not a view: they are reachable
-            // only by asking for them by name.
             filter.state
                 ? eq(alarmFindings.state, filter.state)
                 : ne(alarmFindings.state, FINDING_STATE.Resolved),
@@ -288,6 +292,14 @@ export class AlarmFindingStore {
                 ? eq(alarmRules.severity, filter.severity)
                 : undefined
         );
+    }
+
+    /** One page of a workspace's findings, joined to their rules. */
+    async list(
+        workspaceId: string,
+        filter: ListFindingsFilter
+    ): Promise<AlarmFindingListView> {
+        const where = this.findingsWhere(workspaceId, filter);
 
         const [total] = await this.db
             .select({ total: count() })
@@ -368,20 +380,23 @@ export class AlarmFindingStore {
         return byEntry;
     }
 
-    /** Open findings per severity for a workspace — the home panel's counts. */
-    async openCountsBySeverity(
-        workspaceId: string
+    /**
+     * How the findings matching `filter` break down by severity.
+     *
+     * Shares the `where` builder with {@link list}, so the tally and the page
+     * it accompanies can never describe different sets — the failure mode a
+     * second hand-written predicate would eventually produce, and the one that
+     * makes a summary worse than no summary.
+     */
+    async severityCounts(
+        workspaceId: string,
+        filter: Omit<ListFindingsFilter, 'page' | 'pageSize'> = {}
     ): Promise<Record<AlarmSeverity, number>> {
         const rows = await this.db
             .select({ severity: alarmRules.severity, total: count() })
             .from(alarmFindings)
             .innerJoin(alarmRules, eq(alarmRules.id, alarmFindings.ruleId))
-            .where(
-                and(
-                    eq(alarmFindings.workspaceId, workspaceId),
-                    eq(alarmFindings.state, FINDING_STATE.Open)
-                )
-            )
+            .where(this.findingsWhere(workspaceId, filter))
             .groupBy(alarmRules.severity);
 
         const counts: Record<AlarmSeverity, number> = {
@@ -395,6 +410,15 @@ export class AlarmFindingStore {
             }
         }
         return counts;
+    }
+
+    /** Open findings per severity for a workspace — the badge's counts. */
+    openCountsBySeverity(
+        workspaceId: string
+    ): Promise<Record<AlarmSeverity, number>> {
+        return this.severityCounts(workspaceId, {
+            state: FINDING_STATE.Open
+        });
     }
 
     /** How many findings a workspace has muted — the page's second tab count. */

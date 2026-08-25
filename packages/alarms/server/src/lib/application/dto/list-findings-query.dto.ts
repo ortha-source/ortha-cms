@@ -11,7 +11,10 @@ import {
     MaxLength,
     Min
 } from 'class-validator';
-import { ALARM_SEVERITIES, type AlarmSeverity } from '../../domain/alarm-severity';
+import {
+    ALARM_SEVERITIES,
+    type AlarmSeverity
+} from '../../domain/alarm-severity';
 import { FINDING_STATES, type FindingState } from '../../domain/finding-state';
 import {
     DEFAULT_PAGE_SIZE,

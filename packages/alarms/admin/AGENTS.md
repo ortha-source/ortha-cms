@@ -67,7 +67,7 @@ editor.
 ```
 src/lib/
   utils/
-    alarmsPlugin/            # the AdminPlugin factory — routes + four slots
+    alarmsPlugin/            # the AdminPlugin factory — routes + five slots
     alarmsColumnMessages/    # the one descriptor the factory itself needs
   application/               # TanStack hooks over the gateway
     useAlarmRules, useAlarmFindings, useFindingsByEntry, useAlarmSummary
@@ -78,8 +78,10 @@ src/lib/
     alarmMapper/             # wire → view (the anti-corruption layer)
     alarmsKeys/              # query keys, all prefixed with the workspace id
   presentation/
+    severityLook/            # severity → icon + classes (the one place)
     pages/AlarmsPage, pages/AlarmRuleEditorPage
     components/…             # SeverityBadge, FindingList, RuleList, the slots
+      FindingsToolResult/    # the copilot's `admin_alarms_findings`, rendered
   types/alarm/               # the view models
 ```
 
@@ -87,6 +89,56 @@ src/lib/
 viewer gets a mapper and query hooks rather than client value objects it would
 have nothing to validate. The one real invariant — a finding's state machine —
 is enforced server-side and merely rendered here.
+
+## The copilot's findings, rendered
+
+`FindingsToolResult` is contributed to `COPILOT_TOOL_RESULT_SLOT` for
+`admin_alarms_findings`, so a copilot answer about flagged content renders as
+rows with links instead of a JSON blob. Most tool results are provenance — the
+answer is the assistant's prose and the call is the receipt. This one is
+different: a list of flagged records **is** the answer, and every row has
+somewhere to go.
+
+**The one thing on it that exists nowhere else in the product is how long each
+finding has been open.** The alarms page shows a date; the entry rail shows
+none. Neither answers the question a person actually has when handed a list of
+problems — _which of these have been rotting?_ — and that question is what turns
+a list into a priority. `FindingAgeBar` draws it scaled to the oldest finding in
+the same result (`ageBarWidth`, 4% floor so a brand-new finding still reads as a
+row rather than as an absence), with the number in text beside it: the number is
+the data, the bar is only the comparison, so a screen reader, forced colors or a
+printout loses the ranking-at-a-glance and nothing else.
+
+The bar is a single neutral colour deliberately. Length already carries
+magnitude, and colouring it by severity would put two encodings on one mark
+while leaning on exactly the red/amber pair a colourblind reader cannot
+separate. Severity is the glyph at the start of the row instead.
+
+- **`readToolFindings` returns `null` rather than throwing.** A transcript is
+  replayed from stored history, so a result written by an older build of the tool
+  reaches today's renderer. Every malformed shape falls through to the raw
+  payload `ToolStep` renders anyway — a JSON blob is a far better outcome than a
+  crashed conversation. A row whose severity this build does not know is dropped
+  rather than rendered under the wrong one; the header's count comes from
+  `bySeverity`, so the total stays honest either way.
+- **The header describes the whole set, not the page.** `total` and `bySeverity`
+  are the tool's, and the "N more not shown" line is the difference — a strip
+  saying "1 warning" over a workspace with fourteen is worse than no strip.
+
+## Severity has a shape, not only a colour
+
+`severityLook` is the one place a severity becomes a look, and it hands back an
+**icon** as well as classes: `CircleAlert` for error, `TriangleAlert` for warn,
+`Info` for info. The colours are the design system's reserved status tokens
+(`destructive` / `warning` / `info`), not raw palette steps — and the icons are
+not decoration. Converting those tokens to hex and running the dataviz skill's
+palette validator puts error against warn at **ΔE 0.9 under deuteranopia and
+14.8 with normal vision**, below the 15 floor: the two loudest severities are
+the pair a reader cannot tell apart by hue. Shape carries the distinction, the
+label carries it in words, and the colour is the redundant third.
+
+Anything new that renders a severity goes through `severityLook`. A hue picked
+locally is a hue nobody measured.
 
 ## Details worth keeping
 
@@ -114,4 +166,6 @@ is enforced server-side and merely rendered here.
 ## Commands
 
 - `npx nx run-many -t typecheck -p @orthacms/alarms-admin`
+- `npx nx test @orthacms/alarms-admin` — `toolOutput` is unit-tested
+  (`testEnvironment: 'node'`, as in copilot-admin: the tested code is pure)
 - `npx eslint packages/alarms/admin`

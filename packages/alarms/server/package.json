@@ -22,6 +22,7 @@
         "@orthacms/content-server": "*",
         "@orthacms/database": "*",
         "@orthacms/identity-server": "*",
+        "@orthacms/tools-server": "*",
         "@orthacms/utils-server": "*",
         "@orthacms/workspaces-server": "*",
         "class-transformer": "^0.5.1",

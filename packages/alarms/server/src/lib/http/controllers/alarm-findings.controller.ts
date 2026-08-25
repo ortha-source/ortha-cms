@@ -28,10 +28,7 @@ import {
 } from '../../application/dto/list-findings-query.dto';
 import { AlarmFindingNotFoundError } from '../../domain/errors';
 import { AlarmFindingStore } from '../../infrastructure/alarm-finding.store';
-import {
-    DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE
-} from '../../alarms.constants';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../../alarms.constants';
 import type {
     AlarmFindingListView,
     AlarmFindingsByEntryView

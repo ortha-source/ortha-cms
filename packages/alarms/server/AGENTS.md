@@ -47,7 +47,7 @@ engine cannot express, extend the engine — `@orthacms/utils-server`'s
 traversal precisely so the picker and the parser cannot disagree.
 
 **What this model cannot express**, and deliberately does not try to: anything
-that is a *group by* rather than a predicate on one row. "Two products share a
+that is a _group by_ rather than a predicate on one row. "Two products share a
 slug", "this section has fewer than three articles". Those need a second kind of
 rule and a second evaluator; they are out of scope, not pending.
 
@@ -122,17 +122,17 @@ apart from "who decides what the workspace considers wrong". Writes additionally
 carry `OriginGuard`, per route rather than per class, matching content's
 controllers: these are cookie-authenticated and therefore CSRF-able.
 
-| Route                                         | Permission      |
-| --------------------------------------------- | --------------- |
-| `GET    /alarms/rules`                        | `alarms:read`   |
-| `POST   /alarms/rules`                        | `alarms:manage` |
-| `POST   /alarms/rules/preview`                | `alarms:manage` |
-| `PATCH  /alarms/rules/:id`                    | `alarms:manage` |
-| `DELETE /alarms/rules/:id`                    | `alarms:manage` |
-| `POST   /alarms/rules/:id/rescan`             | `alarms:manage` |
-| `GET    /alarms/findings`                     | `alarms:read`   |
-| `GET    /alarms/findings/by-entry`            | `alarms:read`   |
-| `GET    /alarms/findings/summary`             | `alarms:read`   |
+| Route                                             | Permission      |
+| ------------------------------------------------- | --------------- |
+| `GET    /alarms/rules`                            | `alarms:read`   |
+| `POST   /alarms/rules`                            | `alarms:manage` |
+| `POST   /alarms/rules/preview`                    | `alarms:manage` |
+| `PATCH  /alarms/rules/:id`                        | `alarms:manage` |
+| `DELETE /alarms/rules/:id`                        | `alarms:manage` |
+| `POST   /alarms/rules/:id/rescan`                 | `alarms:manage` |
+| `GET    /alarms/findings`                         | `alarms:read`   |
+| `GET    /alarms/findings/by-entry`                | `alarms:read`   |
+| `GET    /alarms/findings/summary`                 | `alarms:read`   |
 | `PUT`/`DELETE /alarms/findings/:rule/:entry/mute` | `alarms:manage` |
 
 A content type that is unregistered and one the workspace was never granted
@@ -146,7 +146,7 @@ deployment's content model.
   entries edited after it existed — reporting a clean collection on the one day
   it is most likely to be wrong.
 - **Editing a filter forces a rescan before the response returns.** Otherwise
-  the findings table describes the *previous* condition, confidently.
+  the findings table describes the _previous_ condition, confidently.
 - **A rule whose filter stops parsing is marked `broken`**, skipped by the
   evaluator, and surfaced in the UI. Silently never matching looks exactly like
   "everything is fine", which is the worst thing a correctness tool can do.
@@ -159,6 +159,44 @@ deployment's content model.
   entries **nobody is touching** ("not updated in 90 days"), which by definition
   produce no events. `OutboxDispatcher` is the precedent for the mechanism. It
   is therefore not suitable for anything that must happen exactly once.
+
+## The copilot can read findings
+
+`AlarmsCopilotToolProvider` registers one tool with the shared registry
+(`@orthacms/tools-server`): **`admin_alarms_findings`**, a read over the same
+`AlarmFindingStore` the HTTP routes use. It exists because the feature's whole
+claim is that "what is wrong with this workspace's content?" is now answerable,
+and until it the copilot could search entries and read revisions while knowing
+nothing about which of them a rule had flagged. A finding carries an `entryId`,
+so the model's natural next call is `admin_content_get`.
+
+- **`surfaces: ['copilot']`, and the reason is recorded in the provider's
+  JSDoc.** Per the checklist in
+  [`tools/server/AGENTS.md`](../../tools/server/AGENTS.md#adding-a-tool-decide-surfaces-deliberately)
+  the first yes decides it, and this is a yes at (3): `scopePermissions` mints
+  `content:*` plus `media:read`/`media:create` and nothing else, so `alarms:read`
+  can never be held by an API token. Offered to MCP the tool would appear in
+  `tools/list` and be refused on every call — worse than absent, because it
+  advertises a capability that does not exist.
+- **The page and its severity tally are two reads of one predicate.**
+  `severityCounts` shares `list`'s `where` builder, so the tally can never
+  describe a different set from the list beside it. It is the whole set's tally,
+  not the page's — a sample describing itself as the workspace is exactly the
+  kind of confident wrongness a model repeats as fact.
+- **The projection is narrow on purpose.** `findings-tool-output.ts` (pure,
+  unit-tested) drops `detail` — a jsonb bag whose shape belongs to the rule that
+  wrote it — and both raw timestamps in favour of `openForDays`, and omits
+  `mutedReason` entirely rather than sending a `null` on every unmuted row. The
+  list is named `items` so the run engine's shape-driven `summarizeToolOutput`
+  reads it as "14 results" with no tool-specific code.
+- **There is no write tool.** Muting is the act of deciding an exception is
+  acceptable, which is the one judgement this feature exists to ask a human for.
+  Creating a rule is defensible as a `propose` tool, but only once the proposal
+  can carry the live preview ("matches 14 of 312") — a JSON filter tree on a card
+  is not something a reviewer can meaningfully approve.
+
+`@orthacms/alarms-admin` renders the result rather than leaving it as JSON —
+see its AGENTS.md.
 
 ## Schema
 

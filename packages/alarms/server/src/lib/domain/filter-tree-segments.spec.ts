@@ -18,9 +18,7 @@ describe('filterTreeSegments', () => {
                 { field: 'author.status', op: 'ne', value: 'published' }
             ]
         };
-        expect(filterTreeSegments(tree)).toEqual(
-            new Set(['status', 'author'])
-        );
+        expect(filterTreeSegments(tree)).toEqual(new Set(['status', 'author']));
     });
 
     it('walks nested groups', () => {

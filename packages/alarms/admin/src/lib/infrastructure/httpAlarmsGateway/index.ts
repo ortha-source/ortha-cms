@@ -38,9 +38,8 @@ import {
  */
 export const httpAlarmsGateway: AlarmsGateway = {
     async listRules(): Promise<AlarmRule[]> {
-        const { data } = await apiClient.get<AlarmRuleResponse[]>(
-            '/alarms/rules'
-        );
+        const { data } =
+            await apiClient.get<AlarmRuleResponse[]>('/alarms/rules');
         return data.map(toAlarmRule);
     },
 
@@ -110,10 +109,9 @@ export const httpAlarmsGateway: AlarmsGateway = {
     },
 
     async summary(): Promise<AlarmSummary> {
-        const { data } =
-            await apiClient.get<AlarmSummaryResponse>(
-                '/alarms/findings/summary'
-            );
+        const { data } = await apiClient.get<AlarmSummaryResponse>(
+            '/alarms/findings/summary'
+        );
         return toAlarmSummary(data);
     },
 

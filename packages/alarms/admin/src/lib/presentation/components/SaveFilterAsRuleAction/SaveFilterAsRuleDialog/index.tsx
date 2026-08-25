@@ -148,7 +148,9 @@ export function SaveFilterAsRuleDialog({
     const filter = useMemo<Record<string, unknown> | null>(() => {
         try {
             const parsed: unknown = JSON.parse(rawFilter);
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            return parsed &&
+                typeof parsed === 'object' &&
+                !Array.isArray(parsed)
                 ? (parsed as Record<string, unknown>)
                 : null;
         } catch {
@@ -284,10 +286,7 @@ export function SaveFilterAsRuleDialog({
                 )}
 
                 <DialogFooter>
-                    <Button
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                    >
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
                         {intl.formatMessage(messages.cancel)}
                     </Button>
                     <Button disabled={!canSubmit} onClick={submit}>
