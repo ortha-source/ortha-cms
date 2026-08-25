@@ -22,6 +22,7 @@ import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
+import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
@@ -181,6 +182,8 @@ export interface OrthaConfig {
         mcp: McpPluginConfig;
         /** Transfer plugin settings — per-type identity fields + transfer ceilings. */
         transfer: TransferPluginConfig;
+        /** Segmentation settings — the reader axes and where a reader's tags come from. */
+        segments: SegmentsPluginConfig;
     };
 }
 
@@ -485,10 +488,7 @@ const config: OrthaConfig = {
                 ...(process.env['SSO_PROVISION_DOMAINS']
                     ? {
                           provisioning: {
-                              domains: readList(
-                                  'SSO_PROVISION_DOMAINS',
-                                  ''
-                              ),
+                              domains: readList('SSO_PROVISION_DOMAINS', ''),
                               defaultRole:
                                   process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
                           }
@@ -677,6 +677,27 @@ const config: OrthaConfig = {
             // lowering them costs nothing and raising them should be
             // deliberate.
             limits: {}
+        },
+        segments: {
+            // The axes reader access is decided on. Declaring one here rather
+            // than creating it in the admin is what makes it reproducible from
+            // this checkout — the same reason content types live in code.
+            //
+            //   types: [
+            //       { key: 'plan', label: 'Plan' },
+            //       { key: 'org', label: 'Organisation', cardinality: 'high' }
+            //   ]
+            //
+            // The shipped template declares none, so the read predicate is
+            // never emitted and every content read costs what it did before the
+            // plugin existed.
+            types: [],
+            // Where a reader's tags come from. Left absent deliberately: the
+            // CMS does not own subscriptions or org charts, and every reader is
+            // anonymous until an adapter says otherwise — which serves
+            // unrestricted content and nothing else. Fill it in with the
+            // adapter for your own source of truth once one is chosen.
+            resolver: undefined
         },
         media: {
             // Settings for the storage backend `plugins.ts` constructs. There

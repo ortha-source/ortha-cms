@@ -17,6 +17,7 @@ import { createOidcProvider } from '@orthacms/identity-provider-oidc';
 import { createGithubProvider } from '@orthacms/identity-provider-github';
 import { createSamlProvider } from '@orthacms/identity-provider-saml';
 import { McpPlugin } from '@orthacms/mcp-server';
+import { SegmentsPlugin } from '@orthacms/segments-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
@@ -234,6 +235,16 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // derived fallback is a heuristic, and a catalogue keyed on `sku`
         // should say so rather than hope the heuristic agrees.
         TransferPlugin(config.plugins.transfer),
+        // Segmentation — reader entitlements over published content. After
+        // content, whose `CONTENT_READ_SCOPE` port it binds.
+        //
+        // Registering it changes nothing on its own: with no segment type
+        // declared here and none created in the admin, the read predicate is
+        // never emitted and every read costs exactly what it did before. The
+        // `resolver` is the line to fill in per install — it says where a
+        // reader's tags come from, and its absence means every reader is
+        // anonymous, which serves unrestricted content and nothing else.
+        SegmentsPlugin(config.plugins.segments),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place

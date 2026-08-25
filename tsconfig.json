@@ -176,6 +176,9 @@
         },
         {
             "path": "./packages/segments/domain"
+        },
+        {
+            "path": "./packages/segments/server"
         }
     ]
 }

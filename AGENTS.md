@@ -90,8 +90,12 @@
   are disjunctive normal form with one absolute exclusion list, and inheritance
   merges the installation → workspace → type → entry chain. Deliberately separate
   from RBAC and from `workspace_content`, which answer who may _touch_ content.
-  Enforced through content-server's `CONTENT_READ_SCOPE` port, so one predicate
-  covers REST, GraphQL, MCP and the copilot's reads at once.
+  Enforced through content-server's read-scope port by
+  `packages/segments/server` — `@orthacms/segments-server`, which owns the six
+  tables, the slot-based `entry_access` projection, the predicate compiler and
+  the per-request reader context. One predicate covers REST, GraphQL, MCP and
+  the copilot's reads at once, because every protocol reads through
+  `PublicEntriesQuery`. Inert until a segment type exists.
 - `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token
