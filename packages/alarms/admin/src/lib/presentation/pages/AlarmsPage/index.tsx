@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import {
@@ -15,7 +15,6 @@ import { useHasPermission } from '@orthacms/identity-admin';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { BellRing, Plus } from 'lucide-react';
-import { useAlarmFindings } from '../../../application/useAlarmFindings';
 import { useAlarmRules } from '../../../application/useAlarmRules';
 import { useAlarmSummary } from '../../../application/useAlarmSummary';
 import {
@@ -29,7 +28,7 @@ import {
 import type { AlarmFinding, AlarmRule } from '../../../types/alarm';
 import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
-import { FindingList } from '../../components/FindingList';
+import { FindingGroupList } from '../../components/FindingGroupList';
 import { MuteFindingDialog } from '../../components/MuteFindingDialog';
 import { RuleList } from '../../components/RuleList';
 
@@ -50,10 +49,6 @@ const messages = defineMessages({
     tabsLabel: { id: 'alarms.page.tabsLabel', defaultMessage: 'Alarms view' },
     crumb: { id: 'alarms.page.crumb', defaultMessage: 'Alarms' },
     newAlarm: { id: 'alarms.page.newAlarm', defaultMessage: 'New alarm' },
-    clearRule: {
-        id: 'alarms.page.clearRule',
-        defaultMessage: 'Showing {ruleName} only — show everything'
-    },
     muted: { id: 'alarms.page.muted', defaultMessage: 'Muted on this record.' },
     unmuted: { id: 'alarms.page.unmuted', defaultMessage: 'Unmuted.' },
     rescanned: {
@@ -78,19 +73,11 @@ const messages = defineMessages({
         id: 'alarms.page.deleteConfirm',
         defaultMessage: 'Delete alarm'
     },
-    deleted: { id: 'alarms.page.deleted', defaultMessage: 'Alarm deleted.' },
-    prev: { id: 'alarms.page.prev', defaultMessage: 'Previous' },
-    next: { id: 'alarms.page.next', defaultMessage: 'Next' },
-    pageOf: {
-        id: 'alarms.page.pageOf',
-        defaultMessage: 'Page {page} of {pages}'
-    }
+    deleted: { id: 'alarms.page.deleted', defaultMessage: 'Alarm deleted.' }
 });
 
 /** Which of the three views the page is showing. */
 type AlarmsTab = 'open' | 'muted' | 'rules';
-
-const PAGE_SIZE = 25;
 
 /**
  * The workspace's alarms: what is flagged, what has been silenced, and the
@@ -109,8 +96,10 @@ export function AlarmsPage() {
     const canManage = useHasPermission('alarms:manage');
 
     const [tab, setTab] = useState<AlarmsTab>('open');
-    const [page, setPage] = useState(1);
-    const [ruleFilter, setRuleFilter] = useState<AlarmRule | null>(null);
+    // Which alarm's group to open on arrival, set by an alarm card's "N records
+    // flagged". Not a filter any more: grouping already separates the alarms,
+    // so narrowing to one would hide the rest for no gain.
+    const [focusRuleId, setFocusRuleId] = useState<string | undefined>();
     const [pendingDelete, setPendingDelete] = useState<AlarmRule | null>(null);
     const [pendingMute, setPendingMute] = useState<AlarmFinding | null>(null);
     const [rescanning, setRescanning] = useState<ReadonlySet<string>>(
@@ -119,32 +108,11 @@ export function AlarmsPage() {
 
     const summary = useAlarmSummary(canRead);
     const rules = useAlarmRules(canRead);
-    const findings = useAlarmFindings(
-        {
-            state: tab === 'rules' ? undefined : tab,
-            ruleId: ruleFilter?.id,
-            page,
-            pageSize: PAGE_SIZE
-        },
-        canRead && tab !== 'rules'
-    );
 
     const mute = useMuteFinding();
     const unmute = useUnmuteFinding();
     const rescan = useRescanAlarmRule();
     const remove = useDeleteAlarmRule();
-
-    const pageCount = useMemo(
-        () => Math.max(1, Math.ceil((findings.data?.total ?? 0) / PAGE_SIZE)),
-        [findings.data?.total]
-    );
-
-    // Muting the last row of a trailing page leaves `page` past the end, and the
-    // refetch then lands on an empty page with the pager hidden — the user is
-    // stranded with no way back. Clamp whenever the total shrinks under us.
-    useEffect(() => {
-        if (page > pageCount) setPage(pageCount);
-    }, [page, pageCount]);
 
     const crumbs = [
         { key: 'alarms', label: intl.formatMessage(messages.crumb) }
@@ -222,9 +190,8 @@ export function AlarmsPage() {
     };
 
     const showFindings = (rule: AlarmRule) => {
-        setRuleFilter(rule);
+        setFocusRuleId(rule.id);
         setTab('open');
-        setPage(1);
     };
 
     const openTotal = summary.data?.openTotal ?? 0;
@@ -269,7 +236,7 @@ export function AlarmsPage() {
                         value={tab}
                         onValueChange={(next) => {
                             setTab(next as AlarmsTab);
-                            setPage(1);
+                            setFocusRuleId(undefined);
                         }}
                     >
                         <SegmentedControlItem value="open">
@@ -308,58 +275,23 @@ export function AlarmsPage() {
                             onShowFindings={showFindings}
                         />
                     ) : (
-                        <div className="flex flex-col gap-3">
-                            {ruleFilter ? (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="self-start"
-                                    onClick={() => {
-                                        setRuleFilter(null);
-                                        setPage(1);
-                                    }}
-                                >
-                                    {intl.formatMessage(messages.clearRule, {
-                                        ruleName: ruleFilter.name
-                                    })}
-                                </Button>
-                            ) : null}
-
-                            <FindingList
-                                findings={findings.data?.items ?? []}
-                                isError={findings.isError}
-                                canManage={canManage}
-                                onMute={setPendingMute}
-                                onUnmute={onUnmute}
-                            />
-
-                            {pageCount > 1 ? (
-                                <div className="flex items-center justify-end gap-3">
-                                    <span className="text-sm text-muted-foreground tabular-nums">
-                                        {intl.formatMessage(messages.pageOf, {
-                                            page,
-                                            pages: pageCount
-                                        })}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={page <= 1}
-                                        onClick={() => setPage((n) => n - 1)}
-                                    >
-                                        {intl.formatMessage(messages.prev)}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={page >= pageCount}
-                                        onClick={() => setPage((n) => n + 1)}
-                                    >
-                                        {intl.formatMessage(messages.next)}
-                                    </Button>
-                                </div>
-                            ) : null}
-                        </div>
+                        <FindingGroupList
+                            rules={rules.data ?? []}
+                            state={tab}
+                            isError={rules.isError}
+                            canManage={canManage}
+                            onMute={setPendingMute}
+                            onUnmute={onUnmute}
+                            onCreate={
+                                canManage
+                                    ? () =>
+                                          navigate(
+                                              `/workspaces/${workspace.id}/alarms/rules/new`
+                                          )
+                                    : undefined
+                            }
+                            focusRuleId={focusRuleId}
+                        />
                     )}
                 </div>
 

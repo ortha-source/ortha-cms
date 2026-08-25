@@ -3,13 +3,17 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Button } from '@orthacms/design-system';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { BellOff, BellRing } from 'lucide-react';
-import type { AlarmFinding } from '../../../../types/alarm';
-import { SeverityBadge } from '../../SeverityBadge';
+import type { AlarmFinding } from '../../../types/alarm';
+import { SeverityBadge } from '../SeverityBadge';
 
 const messages = defineMessages({
     context: {
         id: 'alarms.finding.context',
         defaultMessage: '{ruleName} · {contentType}'
+    },
+    openRecord: {
+        id: 'alarms.finding.openRecord',
+        defaultMessage: 'Open record {id}'
     },
     open: { id: 'alarms.finding.open', defaultMessage: 'Open record' },
     mute: { id: 'alarms.finding.mute', defaultMessage: 'Mute' },
@@ -46,6 +50,15 @@ export type FindingRowProps = {
     onMute: (finding: AlarmFinding) => void;
     /** Lift the mute on this finding. */
     onUnmute: (finding: AlarmFinding) => void;
+    /**
+     * Rendered inside a {@link FindingGroup}, under a header that already names
+     * the alarm and the sentence editors read.
+     *
+     * The row then carries only what differs between records — which record,
+     * and how long it has been flagged. Repeating the same finding title down
+     * eight rows is the noise grouping exists to remove.
+     */
+    grouped?: boolean;
 };
 
 /**
@@ -61,12 +74,76 @@ export function FindingRow({
     finding,
     canManage,
     onMute,
-    onUnmute
+    onUnmute,
+    grouped = false
 }: FindingRowProps) {
     const intl = useIntl();
     const workspace = useCurrentWorkspace();
     const isMuted = finding.state === 'muted';
     const entryPath = `/workspaces/${workspace.id}/content/${finding.contentType}/${finding.entryId}`;
+
+    // Inside a group the header already carries the alarm, the sentence editors
+    // read, and the severity — so the row is one dense line: which record, how
+    // long, and the one action. The record's id is the whole identifier a
+    // finding has (content types declare no display field for the server to
+    // join), so it is the link text, in tabular figures because a column of
+    // them is read by scanning rather than by reading.
+    if (grouped) {
+        return (
+            <li className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 pl-11 pr-4 sm:pr-5">
+                <Link
+                    to={entryPath}
+                    className="min-w-0 flex-1 truncate text-sm tabular-nums hover:underline"
+                    aria-label={intl.formatMessage(messages.openRecord, {
+                        id: finding.entryId
+                    })}
+                >
+                    <span className="text-muted-foreground">
+                        {finding.contentType}
+                    </span>{' '}
+                    <span className="font-medium">{finding.entryId}</span>
+                </Link>
+
+                <span className="shrink-0 text-xs text-muted-foreground">
+                    {isMuted
+                        ? finding.mutedReason
+                            ? intl.formatMessage(messages.mutedBecause, {
+                                  reason: finding.mutedReason
+                              })
+                            : intl.formatMessage(messages.mutedNoReason)
+                        : intl.formatMessage(messages.since, {
+                              date: intl.formatDate(finding.firstSeenAt, {
+                                  dateStyle: 'medium'
+                              })
+                          })}
+                </span>
+
+                {canManage ? (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() =>
+                            isMuted ? onUnmute(finding) : onMute(finding)
+                        }
+                        aria-label={intl.formatMessage(
+                            isMuted ? messages.unmuteLabel : messages.muteLabel,
+                            { title: finding.title }
+                        )}
+                    >
+                        {isMuted ? (
+                            <BellRing aria-hidden="true" />
+                        ) : (
+                            <BellOff aria-hidden="true" />
+                        )}
+                        {intl.formatMessage(
+                            isMuted ? messages.unmute : messages.mute
+                        )}
+                    </Button>
+                ) : null}
+            </li>
+        );
+    }
 
     return (
         <li className="flex flex-wrap items-start gap-x-4 gap-y-3 px-4 py-4 sm:px-5">

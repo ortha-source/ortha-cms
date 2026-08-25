@@ -90,18 +90,32 @@ export class AlarmsPage extends BasePage {
             .getByRole('radio', { name: new RegExp(`^${name}`) });
     }
 
-    // --- findings ---
+    // --- findings, grouped by alarm ---
 
-    /** The findings list. */
-    findingList(): Locator {
-        return this.page.getByRole('list', { name: 'Findings' });
+    /** One alarm's collapsible group header, by the alarm's name. */
+    group(name: string): Locator {
+        return this.page.getByRole('button', {
+            name: new RegExp(`^${name} — `)
+        });
     }
 
-    /** One finding row, by the finding title it shows. */
-    finding(title: string): Locator {
-        return this.findingList().getByRole('listitem').filter({
-            hasText: title
+    /** Expand one alarm's group. */
+    async openGroup(name: string) {
+        await this.group(name).click();
+    }
+
+    /** The records list inside one alarm's group. */
+    groupList(name: string): Locator {
+        return this.page.getByRole('list', {
+            name: `Records flagged by ${name}`
         });
+    }
+
+    /** One record row inside a group, by any text it shows. */
+    groupRow(name: string, text: string): Locator {
+        return this.groupList(name)
+            .getByRole('listitem')
+            .filter({ hasText: text });
     }
 
     /** The Mute button on one finding's row. */
@@ -109,6 +123,11 @@ export class AlarmsPage extends BasePage {
         return this.page.getByRole('button', {
             name: `Mute “${title}” on this record`
         });
+    }
+
+    /** The centred empty state's heading. */
+    emptyHeading(text: string): Locator {
+        return this.page.getByRole('heading', { name: text, level: 2 });
     }
 
     // --- the mute dialog (this used to be a `window.prompt`) ---

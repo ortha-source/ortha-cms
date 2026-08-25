@@ -39,12 +39,95 @@ test.describe('The alarms page', () => {
         await expect(alarmsPage.breadcrumbCurrent('Alarms')).toBeVisible();
     });
 
-    test('lists what is flagged', async ({ page, alarmsPage }) => {
+    test('groups what is flagged by the alarm responsible', async ({
+        page,
+        alarmsPage
+    }) => {
         await mockAlarmsApi(page);
         await alarmsPage.goto(WORKSPACE_ID);
 
-        await expect(alarmsPage.finding(OPEN_FINDING.title)).toBeVisible();
+        // The header's count comes from the alarm, not from a page of
+        // findings — the whole point of grouping is that "8 records" means
+        // eight, not "eight on this page of twenty-five".
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toContainText(
+            '1 record'
+        );
         await expect(alarmsPage.tab('Flagged')).toBeVisible();
+    });
+
+    test('opens the only group on arrival, and lists its records', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page);
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // One group is its own answer; making the reader click to see the only
+        // thing on the page is a click for nothing.
+        await expect(
+            alarmsPage.groupRow(CONTAINS_RULE.name, OPEN_FINDING.entryId)
+        ).toBeVisible();
+    });
+
+    test('does not load a collapsed group’s records', async ({
+        page,
+        alarmsPage
+    }) => {
+        // Two alarms, so neither opens by default.
+        const second = {
+            ...CONTAINS_RULE,
+            id: 'rule-2',
+            name: 'Second alarm',
+            openCount: 3
+        };
+        await mockAlarmsApi(page, { rules: [CONTAINS_RULE, second] });
+
+        const listed: string[] = [];
+        page.on('request', (request) => {
+            if (request.url().includes('/api/alarms/findings?')) {
+                listed.push(request.url());
+            }
+        });
+
+        await alarmsPage.goto(WORKSPACE_ID);
+        await expect(alarmsPage.group(second.name)).toBeVisible();
+
+        // A workspace with twenty alarms must not fire twenty list requests to
+        // draw a screen on which nineteen of them are shut.
+        expect(listed).toHaveLength(0);
+
+        await alarmsPage.openGroup(second.name);
+        await expect
+            .poll(() => listed.length, { timeout: 5000 })
+            .toBeGreaterThan(0);
+        expect(listed[0]).toContain(`ruleId=${second.id}`);
+    });
+
+    test('shows a centred empty state when nothing is flagged', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page, {
+            rules: [{ ...CONTAINS_RULE, openCount: 0 }],
+            findings: []
+        });
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        await expect(
+            alarmsPage.emptyHeading('Nothing is flagged')
+        ).toBeVisible();
+    });
+
+    test('tells "no alarms yet" apart from "nothing matches"', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page, { rules: [], findings: [] });
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // Different facts, and only one of them is reassuring: a workspace with
+        // no alarms is not a clean workspace, it is an unwatched one.
+        await expect(alarmsPage.emptyHeading('No alarms yet')).toBeVisible();
     });
 
     test('has no axe violations with a finding on screen', async ({
@@ -54,7 +137,9 @@ test.describe('The alarms page', () => {
     }) => {
         await mockAlarmsApi(page);
         await alarmsPage.goto(WORKSPACE_ID);
-        await expect(alarmsPage.finding(OPEN_FINDING.title)).toBeVisible();
+        await expect(
+            alarmsPage.groupRow(CONTAINS_RULE.name, OPEN_FINDING.entryId)
+        ).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
     });

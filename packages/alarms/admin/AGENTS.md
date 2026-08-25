@@ -14,7 +14,7 @@ article. So the primary contribution here is the **entry rail's checks block**
 the record, with a link to the author, without knowing a rule exists.
 
 The page is for the person who owns editorial policy — what is flagged across
-the workspace, grouped by rule, and the rules themselves.
+the workspace, grouped by alarm, and the alarms themselves.
 
 ## The user-facing noun is **alarm**; the code's is `rule`
 
@@ -121,6 +121,42 @@ empty, which the API reads as "leave it alone" — so clearing every condition a
 pressing Save silently kept the old one. Saving with no conditions is refused
 instead: an alarm with no condition flags every record in the collection.
 
+## Findings are grouped by alarm, not listed flat
+
+A workspace with a thousand flagged records used to give forty pages of rows in
+which nothing said which alarm was responsible and every row repeated the same
+sentence. The page's own documentation had claimed grouping "because that is how
+they get fixed" since the first commit; the code never did it. This is that
+claim implemented.
+
+- **The groups come from the alarms, not from a page of findings.** Each alarm
+  row already carries `openCount` / `mutedCount`, so the list of groups and the
+  number on each header are exact without reading a single finding. Grouping a
+  _page_ of findings client-side would have produced headers describing
+  whichever twenty-five rows came back — "3 records" over a pile of ninety.
+- **A group's records load when it is opened.** A workspace with twenty alarms
+  would otherwise fire twenty list requests to draw a screen on which nineteen
+  are shut. `useAlarmFindings(..., open)`.
+- **Each group pages on its own**, ten at a time, and clamps its page the way
+  the flat list used to — muting the last row of a trailing page otherwise
+  strands the reader on an empty list with the pager hidden, now once per group.
+- **Ordered loudest first, then biggest.** Someone scanning this wants the
+  errors and the pile-ups at the top, not whatever order the API returned.
+- **One group opens on arrival**; more than one and everything starts closed, so
+  the page is a summary you drill into. An alarm card's "N records flagged" no
+  longer _filters_ the list — it opens that alarm's group and leaves the rest
+  visible, which is strictly more information for the same click.
+- **A grouped row is one dense line**, indented under the header: which record,
+  how long, and Mute. The alarm, the sentence editors read and the severity are
+  all on the header, so repeating them per row is the noise this exists to
+  remove.
+
+**A finding can only name its record by id.** There is no display-field concept
+on the server for the store to join, so the row shows `contentType` + the entry
+id in tabular figures and links it. That is the honest identifier available
+today; giving a finding a human title is a server change worth making and not
+one to fake client-side.
+
 ## The one non-obvious call in the code
 
 `AlarmRuleEditorPage` serialises with
@@ -156,7 +192,11 @@ src/lib/
   presentation/
     severityLook/            # severity → icon + classes (the one place)
     pages/AlarmsPage, pages/AlarmRuleEditorPage  # the editor serves create + edit
-    components/…             # SeverityBadge, FindingList, RuleList, the slots
+    components/…             # SeverityBadge, RuleList, the slots
+      FindingGroupList/      # one collapsible group per alarm, + FindingGroup
+      FindingRow/            # one record — dense inside a group, full outside
+      FindingsPager/         # previous/next, one per open group
+      AlarmsEmpty/           # the centred nothing-here figure
       MuteFindingDialog/     # the mute reason (was a window.prompt)
       FindingsToolResult/    # the copilot's `admin_alarms_findings`, rendered
   types/alarm/               # the view models
@@ -230,8 +270,25 @@ locally is a hue nobody measured.
   check" render identically if you let the error fall through, and only one of
   them is reassuring. The findings list, the rule list, the entry widget and the
   records cell each give the failure its own words.
-- **The findings page clamps `page` to `pageCount`.** Muting the last row of a
-  trailing page leaves the pager hidden and the user stranded on an empty page.
+- **Each group clamps `page` to `pageCount`.** Muting the last row of a trailing
+  page leaves the pager hidden and the user stranded on an empty page.
+- **Empty states are the centred figure, not an `Alert`.** A full-width bordered
+  banner is the shape of a notification about something that just happened; on a
+  wide screen an otherwise blank page wearing one reads as a warning strip.
+  `AlarmsEmpty` matches `ApiTokensEmpty` and the rest of the admin — and it
+  tells "no alarms at all" apart from "alarms exist and nothing matches", since
+  only the second is reassuring and only the first has something to do about it.
+- **A description-only `Alert` puts its icon _inside_ the description.** `Alert`
+  absolutely positions a top-level `<svg>` at `left-4 top-4` and nudges the
+  block beside it up 3px — geometry tuned for a title over a description. A
+  one-line banner with no title gets the icon near the top of the box and the
+  sentence off its centre. Wrapping icon and text in a flex row means none of
+  the `[&>svg]` selectors match. (Five other call sites in users and api-tokens
+  have the same defect; a generic `Alert` grid rewrite would fix them all.)
+- **Slot-contributed toolbar controls match their neighbours.** The column
+  picker and the Filters toggle are default-size outline buttons with
+  `shadow-none`; "Save as alarm" carried `size="sm"` and a shadow, so it read as
+  a different class of control wedged into their row.
 - **Mutations invalidate the workspace's alarms root.** A mute moves a finding
   between tabs, changes two counts on its rule and the summary badge; a rule
   edit triggers a server-side rescan. There is no narrower placement worth the

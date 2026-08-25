@@ -816,9 +816,23 @@ export function AlarmRuleEditorPage({
                     </section>
 
                     {conditionsDirty && filterJson ? (
+                        // The icon is **inside** the description rather than a
+                        // top-level child of `Alert`. `Alert` absolutely
+                        // positions a top-level `<svg>` at `left-4 top-4` and
+                        // nudges the block beside it up 3px — geometry tuned
+                        // for a title over a description. This banner is a
+                        // description alone, one line long, so those rules put
+                        // the icon near the top of the box and the sentence off
+                        // its centre. Wrapping both in a flex row means none of
+                        // the `[&>svg]` selectors match, which fixes it here
+                        // without touching the geometry the admin's other
+                        // ~25 alerts are drawn with.
                         <Alert variant="warning">
-                            <TriangleAlert aria-hidden="true" />
-                            <AlertDescription>
+                            <AlertDescription className="flex items-center gap-2">
+                                <TriangleAlert
+                                    aria-hidden="true"
+                                    className="size-4 shrink-0 text-warning"
+                                />
                                 {intl.formatMessage(messages.unsaved)}
                             </AlertDescription>
                         </Alert>

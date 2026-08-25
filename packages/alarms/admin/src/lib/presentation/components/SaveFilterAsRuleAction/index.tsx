@@ -16,7 +16,7 @@ const messages = defineMessages({
 });
 
 /**
- * "Save as rule" in the records toolbar — the feature's main entrance.
+ * "Save as alarm" in the records toolbar — the feature's main entrance.
  *
  * Nobody arrives at alarms by deciding to write a rule. They filter a list
  * because something looks wrong, see the fourteen records, and want the CMS to
@@ -44,13 +44,18 @@ export function SaveFilterAsRuleAction({ schema }: RecordsToolbarContext) {
 
     return (
         <>
+            {/* Sized and styled like the controls it stands beside — the
+                column picker and the Filters toggle are default-size outline
+                buttons with `shadow-none`. This carried `size="sm"` and kept
+                its shadow, so it read as a different class of control wedged
+                into their row. */}
             <Button
                 variant="outline"
-                size="sm"
+                className="shadow-none"
                 onClick={() => setOpen(true)}
                 aria-label={intl.formatMessage(messages.label)}
             >
-                <BellPlus aria-hidden="true" />
+                <BellPlus aria-hidden className="size-4" />
                 {intl.formatMessage(messages.save)}
             </Button>
             {/* Kept mounted and driven by state — a dialog rendered inside a
