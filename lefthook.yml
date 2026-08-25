@@ -1,28 +1,8 @@
 # Git hooks (installed via the root `prepare` script → `lefthook install`).
 # Docs: https://lefthook.dev/configuration/
 #
-# `glob` takes a **list**, not a brace expansion. `{a,b}` is passed through to
-# the matcher verbatim and matches nothing, silently — which is how the
-# `e2e-test-catalog` job below sat dead: every commit logged
-# "(skip) no matching staged files" and no reviewer reads a skip line.
-pre-commit:
-    parallel: true
-    jobs:
-        # Keep apps/server-e2e/TESTS.md in sync with the spec describe/it tree.
-        # Regenerates and re-stages it whenever a spec or the generator changes,
-        # so the committed catalog can never drift. See apps/server-e2e/CLAUDE.md.
-        - name: e2e-test-catalog
-          glob:
-              - 'apps/server-e2e/src/**/*.spec.ts'
-              - 'apps/server-e2e/tools/generate-test-catalog.mjs'
-          run: npx nx catalog server-e2e && git add apps/server-e2e/TESTS.md
-
-        # The same for apps/admin-e2e — the larger of the two catalogs, and the
-        # one that had no job at all. `catalog:check` runs in no CI, because
-        # there is none, so this hook is the whole of the drift protection.
-        # See apps/admin-e2e/AGENTS.md.
-        - name: admin-e2e-test-catalog
-          glob:
-              - 'apps/admin-e2e/src/**/*.spec.ts'
-              - 'apps/admin-e2e/tools/generate-test-catalog.mjs'
-          run: npx nx catalog admin-e2e && git add apps/admin-e2e/TESTS.md
+# No hooks are configured today. When adding one, note that `glob` takes a
+# **list**, not a brace expansion: `{a,b}` is passed through to the matcher
+# verbatim and matches nothing, silently — a job wired that way logs
+# "(skip) no matching staged files" on every commit and no reviewer reads a
+# skip line.

@@ -47,9 +47,11 @@ export interface Feature {
  * `media`, `users`) depend on `copilot-server` to contribute their tools, so
  * the code is on disk whatever the manifest says, and leaving it undeclared
  * bought nothing but a missing chat panel. And `fake` needs no key and no
- * network, so a default app gets a copilot that genuinely works offline —
- * while `COPILOT_ENABLED` stays `false`, so nothing reaches a model until an
- * operator says so.
+ * network, so a default app gets a copilot that genuinely works offline once
+ * `COPILOT_ENABLED=true` — while it stays `false`, so nothing reaches a model
+ * until an operator says so. That flag unregisters the copilot's routes, so a
+ * generated app ships with the chat surfaces absent rather than visible and
+ * refusing.
  *
  * The **extension points** are here for the same reason — `content-domain`,
  * `copilot-domain`, `tools-server`, `query-builder-admin`. Every one of them

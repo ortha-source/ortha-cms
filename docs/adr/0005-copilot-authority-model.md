@@ -25,6 +25,21 @@
 > propose-then-apply and §7's no-publish rule all still hold — but a tool now
 > declares which surface it is offered to, and the "unknown tool" wording in §3
 > follows ADR-0006 §5 instead of hiding a withheld name.
+>
+> **Update (2026-08-24).** §10 stands as a decision and is corrected on two
+> points of fact. The **per-workspace** half of it went with ADR-0009, which
+> deleted `copilot:configure` and the policy it gated; the global `enabled`
+> flag is the whole of it now. And its stated reason — "enabling a hosted
+> provider sends workspace content to a third party" — is no longer what the
+> flag protects: since ADR-0004's provider registrations, `ortha.config.ts`
+> builds a provider entry only when its credentials exist and `plugins.ts`
+> registers only what was built, with the offline `fake` adapter last, so a
+> deployment holding no key reaches no third party whatever this flag says.
+> **The absent key is the egress guard; this flag is the operator's off
+> switch** — and it is now implemented as one: `CopilotModule.forRoot`
+> registers no controller when it is off, the way `McpModule` has always
+> treated `MCP_ENABLED`, so the routes 404 and the admin's surfaces stand down
+> instead of the feature staying fully present and refusing at send time.
 
 ## Context
 

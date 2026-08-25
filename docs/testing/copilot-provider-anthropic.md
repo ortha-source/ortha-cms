@@ -53,7 +53,7 @@ behaviour a caller can reach on its own" (AGENTS.md).
 | Requirement | Where | Notes |
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | `ortha.config.ts:217` | **Only needed if this provider is selected.** The client is lazy (`client.ts:16-40`), so an operator running local inference boots fine with none |
-| `COPILOT_ENABLED=true` | `ortha.config.ts:194` | The engine's kill switch |
+| `COPILOT_ENABLED=true` | `ortha.config.ts:194` | The kill switch — without it the copilot's controllers are not registered and every `/api/copilot` route 404s |
 | `COPILOT_PROVIDER=claude` | `ortha.config.ts:198` | **Otherwise the default is `fake`** — see `docs/testing/copilot-provider-fake.md` 🐞 BUG-copilot-provider-fake-01 |
 | A non-empty `models` list | `ortha.config.ts:222-228` | `CopilotPlugin` fails boot on an empty one (`copilot-plugin.ts:61-67`) |
 | Network egress to `api.anthropic.com` (or `ANTHROPIC_BASE_URL`) | — | Absent, streaming throws and the probe falls back |

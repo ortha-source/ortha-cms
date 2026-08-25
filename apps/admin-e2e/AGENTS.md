@@ -79,19 +79,12 @@ states.
   `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)
   and the rule stays on to guard against regressions.
 
-## Test catalog
-
-[`TESTS.md`](./TESTS.md) is a **generated** index of every `test.describe`/`test`
-case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`) — it
-never runs Playwright, so it needs no browser. **Don't edit it by hand.** After
-adding, renaming, or removing a test, run `npx nx catalog admin-e2e` and commit
-the result; `npx nx catalog:check admin-e2e` fails if it has drifted, and the
-`admin-e2e-test-catalog` pre-commit hook regenerates and re-stages it for you.
+## No CI runs this suite
 
 **Nothing in CI runs any of this** — `.github/workflows/` holds `release.yml`
-alone, with no `e2e`, `lint`, `typecheck` or `catalog:check`. That hook and
-whatever you run locally are the entire gate for this suite. Run the full thing
-before merging and never merge red.
+alone, with no `e2e`, `lint` or `typecheck`. Whatever you run locally is the
+entire gate for this suite. Run the full thing before merging and never merge
+red.
 
 ## Conventions
 
@@ -188,5 +181,3 @@ admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
 - `npx nx e2e admin-e2e` — run the suites (starts the dev server automatically).
 - `npx nx e2e admin-e2e -- --project=chromium` — single browser, faster locally.
 - `npx nx lint admin-e2e` / `npx nx typecheck admin-e2e`.
-- `npx nx catalog admin-e2e` — regenerate `TESTS.md` from the specs.
-- `npx nx catalog:check admin-e2e` — fail if `TESTS.md` is stale.

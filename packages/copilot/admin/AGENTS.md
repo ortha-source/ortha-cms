@@ -56,7 +56,7 @@ application/
   groupConversations.ts    # pure: the rail's date buckets + its filter (tested)
   useAgentThread.ts        # binds the URL to one chat; the page's whole state
   useDecideToolPermission.ts # answer a parked run (mutation)
-  useCopilotModels.ts      # the model catalogue + choice-key helpers
+  useCopilotModels.ts      # the model catalogue, choice-key helpers, is-it-on
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
   sessions.ts              # pure reducer over the set of open chats (tested)
@@ -972,6 +972,31 @@ doc's §11; what follows is only what is true of _this_ package.
 - **The rail's link is permission-gated and fail-closed.** Skills are visible to
   everyone in the picker; authoring is admin-only, so a contributor gets no link
   rather than a page that greets them with "no access".
+
+## When the deployment has the copilot off
+
+`COPILOT_ENABLED=false` unregisters every copilot controller on the server, so
+there is nothing here to talk to. The surfaces stand down rather than fail:
+`useCopilotAvailable` — the launcher, the `ViewSwitcher`, the Agents page and
+the Skills page all read it — reports off, so neither entry point renders and
+the two pages, reachable only by a bookmark once the entry points are gone,
+draw a "turned off" empty state instead of a screen whose every query 404s.
+
+- **The probe is the model catalogue, not a capability endpoint.** A deployment
+  that cannot serve `GET /copilot/models` cannot serve a run either, which is
+  the question all four surfaces are asking — and a second endpoint would be a
+  second thing to keep in step with the switch.
+- **Only an explicit `404` counts as off** (`copilotIsOff`, pure and
+  unit-tested). Still loading, a network blip, a `5xx` and a `403` all leave the
+  surfaces up: the server refuses regardless, so being wrong this way costs a
+  control that answers "not found", while being wrong the other way would make a
+  transient failure look like a feature the operator removed.
+- **It is only probed for a user who could use it anyway** (`enabled: canUse` /
+  `canManage`), so it costs one cached request per session and only for the
+  people it can be true for.
+- **"Turned off" and "no access" are told apart**, not collapsed into one empty
+  state. "Nobody may here" and "you may not" send the reader to different
+  people.
 
 ## Conventions
 
