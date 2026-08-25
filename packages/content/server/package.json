@@ -17,7 +17,8 @@
         "./package.json": "./package.json"
     },
     "files": [
-        "src"
+        "src",
+        "migrations"
     ],
     "dependencies": {
         "@nestjs/common": "^11.0.0",
@@ -37,5 +38,8 @@
         "class-validator": "^0.15.1",
         "drizzle-orm": "^0.45.0",
         "express": "^5.0.0"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.31.0"
     }
 }

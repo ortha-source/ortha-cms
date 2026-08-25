@@ -6,6 +6,27 @@ export type {
     ContentServerPlugin
 } from './lib/utils/content-plugin';
 
+// Saved list views. A second `ServerPlugin` entry from this package because
+// `ServerPlugin.migrations` holds one descriptor and content's is already the
+// HOST's generated collection tables — see `content-views-plugin.ts`.
+export { ContentViewsPlugin } from './lib/utils/content-views-plugin';
+export type { ContentViewsPluginOptions } from './lib/utils/content-views-plugin';
+export { ContentViewsModule } from './lib/views/content-views.module';
+export {
+    savedViews,
+    savedViewDefaults,
+    viewVisibility
+} from './lib/views/infrastructure/schema';
+export {
+    VIEW_VISIBILITY,
+    VIEW_VISIBILITY_VALUES
+} from './lib/views/domain/saved-view';
+export type {
+    SavedView,
+    SavedViewPayload,
+    ViewVisibility
+} from './lib/views/domain/saved-view';
+
 export { collection, single, joinTableOf } from './lib/collection/define';
 export { field } from './lib/fields';
 

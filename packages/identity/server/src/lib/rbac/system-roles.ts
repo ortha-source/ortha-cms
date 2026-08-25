@@ -32,7 +32,8 @@ export const PERMISSIONS = {
     COPILOT_USE: 'copilot:use',
     COPILOT_SKILLS_MANAGE: 'copilot:skills:manage',
     ALARMS_READ: 'alarms:read',
-    ALARMS_MANAGE: 'alarms:manage'
+    ALARMS_MANAGE: 'alarms:manage',
+    VIEWS_SHARE: 'views:share'
 } as const;
 
 /**
@@ -89,6 +90,13 @@ export interface SystemRole {
  * `content:update` for each write it performs, so importing can never do more
  * than the caller could have done by hand.
  *
+ * `views:share` gates only **sharing** a saved list view with the workspace,
+ * not saving one. Every role can save private views — that is a personal
+ * bookmark over content they can already read — but a shared view becomes a
+ * navigation item for the whole workspace, which is an editorial decision.
+ * Contributors hold it; viewers do not, and are not blocked from anything by
+ * its absence.
+ *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
  * instructions are prompt text that runs for every member of the workspace, so
@@ -117,7 +125,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             // rules is `alarms:manage` and stays with admin: a rule is
             // editorial policy, not an edit.
             PERMISSIONS.ALARMS_READ,
-            PERMISSIONS.COPILOT_USE
+            PERMISSIONS.COPILOT_USE,
+            PERMISSIONS.VIEWS_SHARE
         ]
     },
     {

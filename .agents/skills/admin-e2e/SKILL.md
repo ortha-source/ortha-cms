@@ -164,23 +164,15 @@ Mock that page's data with a `support/api/<domain>.ts` helper (mirror
 
 ## After writing
 
-Regenerate the catalog when you add/rename/remove a suite or case:
-
 ```bash
 npx nx e2e admin-e2e                          # chromium is the only project
 npx nx run-many -t typecheck lint -p admin-e2e
-npx nx catalog admin-e2e                      # regenerate TESTS.md (the pre-commit
-                                              # hook does this too), then commit
 npx nx format:write -- --uncommitted          # never bare: it reformats the repo
 ```
 
 **There is no CI.** `.github/workflows/` holds `release.yml` and nothing else —
-no `e2e`, no `lint`, no `typecheck`, no `catalog:check`. Whatever you run
-locally *is* the gate for this suite and `server-e2e` both, so run the whole
-thing before you merge and never merge red. `chromium` is likewise the only
-declared project; the mobile and branded entries in `playwright.config.ts` are
-commented out, so `--project=firefox` errors rather than doing anything.
-
-`TESTS.md` is generated from the spec AST (`tools/generate-test-catalog.mjs`);
-`npx nx catalog:check admin-e2e` fails on drift, and the `admin-e2e-test-catalog`
-pre-commit hook regenerates and re-stages it. Don't hand-edit it.
+no `e2e`, no `lint`, no `typecheck`. Whatever you run locally *is* the gate for
+this suite and `server-e2e` both, so run the whole thing before you merge and
+never merge red. `chromium` is likewise the only declared project; the mobile
+and branded entries in `playwright.config.ts` are commented out, so
+`--project=firefox` errors rather than doing anything.
