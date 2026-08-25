@@ -49,8 +49,12 @@ test.describe('The alarms page', () => {
         // The header's count comes from the alarm, not from a page of
         // findings — the whole point of grouping is that "8 records" means
         // eight, not "eight on this page of twenty-five".
-        await expect(alarmsPage.group(CONTAINS_RULE.name)).toContainText(
-            '1 record'
+        //
+        // Read off the accessible name rather than the trigger's text: the
+        // count sits *beside* the trigger, because Re-check is a second button
+        // on the same row and a `<button>` cannot contain another one.
+        await expect(alarmsPage.group(CONTAINS_RULE.name)).toHaveAccessibleName(
+            /1 record/
         );
         await expect(alarmsPage.tab('Flagged')).toBeVisible();
     });
@@ -101,6 +105,23 @@ test.describe('The alarms page', () => {
             .poll(() => listed.length, { timeout: 5000 })
             .toBeGreaterThan(0);
         expect(listed[0]).toContain(`ruleId=${second.id}`);
+    });
+
+    test('re-checks one alarm from its group header', async ({
+        page,
+        alarmsPage
+    }) => {
+        const api = await mockAlarmsApi(page);
+        await alarmsPage.goto(WORKSPACE_ID);
+
+        // Beside the count, because this is where someone reads a number they
+        // doubt — "is that still true?" is the question they have here, not on
+        // the Alarms tab.
+        await alarmsPage.groupRecheck(CONTAINS_RULE.name).click();
+
+        await expect
+            .poll(() => api.rescans, { timeout: 5000 })
+            .toEqual([CONTAINS_RULE.id]);
     });
 
     test('shows a centred empty state when nothing is flagged', async ({
@@ -374,6 +395,35 @@ test.describe('The rule editor', () => {
         await expect(
             alarmsPage.filterSurface().getByText('Select records')
         ).toBeVisible();
+    });
+
+    test('collapses the builder once conditions are applied', async ({
+        page,
+        alarmsPage
+    }) => {
+        await mockAlarmsApi(page);
+        await alarmsPage.gotoRule(WORKSPACE_ID, CONTAINS_RULE.id);
+        await alarmsPage.conditionToggle().click();
+        await expect(alarmsPage.applyButton()).toBeEnabled();
+
+        await alarmsPage.applyButton().click();
+
+        // Apply commits into the chips *above* the builder, so leaving it
+        // expanded hides the one thing that just moved. (The records list
+        // keeps its panel open for the opposite reason: the table underneath
+        // is what changed and is still on screen.)
+        //
+        // The panel collapses by animating `grid-template-rows` to `0fr` and
+        // going `inert`, so assert the state the toggle publishes rather than
+        // the Apply button's box: a clipped child still reports one.
+        await expect(alarmsPage.conditionToggle()).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+        await expect(alarmsPage.conditionChip(/QWERT/)).toBeVisible();
+        // Focus comes back with it: collapsing makes the region `inert`, so a
+        // focus left inside would drop to `<body>`.
+        await expect(alarmsPage.conditionToggle()).toBeFocused();
     });
 
     test('has no axe violations with the builder open', async ({

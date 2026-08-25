@@ -3,12 +3,14 @@ import { defineMessages, useIntl } from 'react-intl';
 import {
     Alert,
     AlertDescription,
+    Button,
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
-    Skeleton
+    Skeleton,
+    Spinner
 } from '@orthacms/design-system';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RefreshCw } from 'lucide-react';
 import { useAlarmFindings } from '../../../../application/useAlarmFindings';
 import type { AlarmRule } from '../../../../types/alarm';
 import { severityLook } from '../../../severityLook';
@@ -28,6 +30,11 @@ const messages = defineMessages({
     listLabel: {
         id: 'alarms.group.listLabel',
         defaultMessage: 'Records flagged by {name}'
+    },
+    recheck: { id: 'alarms.group.recheck', defaultMessage: 'Re-check' },
+    recheckLabel: {
+        id: 'alarms.group.recheckLabel',
+        defaultMessage: 'Re-check {name} against the whole collection'
     },
     error: {
         id: 'alarms.group.error',
@@ -57,6 +64,12 @@ export type FindingGroupProps = {
     count: number;
     /** Whether this group starts expanded. */
     defaultOpen: boolean;
+    /** Whether the caller may rescan (i.e. holds `alarms:manage`). */
+    canManage: boolean;
+    /** Re-run this alarm over its whole collection. */
+    onRescan: (rule: AlarmRule) => void;
+    /** A rescan of this alarm is in flight. */
+    isRescanning: boolean;
 };
 
 /**
@@ -77,7 +90,14 @@ export type FindingGroupProps = {
  * **Each group pages on its own**, ten at a time. A group is a work queue you
  * go down, and a shared pager would make "page 3" mean nothing in particular.
  */
-export function FindingGroup({ rule, count, defaultOpen }: FindingGroupProps) {
+export function FindingGroup({
+    rule,
+    count,
+    defaultOpen,
+    canManage,
+    onRescan,
+    isRescanning
+}: FindingGroupProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(defaultOpen);
     const [page, setPage] = useState(1);
@@ -108,40 +128,75 @@ export function FindingGroup({ rule, count, defaultOpen }: FindingGroupProps) {
             onOpenChange={setOpen}
             className="rounded-xl border bg-card"
         >
-            <CollapsibleTrigger
-                className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5"
-                aria-label={intl.formatMessage(messages.toggle, {
-                    name: rule.name,
-                    count
-                })}
-            >
-                <ChevronRight
-                    aria-hidden="true"
-                    className={`size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${
-                        open ? 'rotate-90' : ''
-                    }`}
-                />
-                <Icon aria-hidden="true" className={`size-4 shrink-0 ${ink}`} />
-                {/* The severity in words, for anyone the glyph and its colour
-                    do not reach. */}
-                <span className="sr-only">{intl.formatMessage(label)}</span>
+            {/* The trigger covers the chevron and the wording only. Re-check
+                is a second action on the same row, and a `<button>` cannot
+                contain another one — nesting it would produce invalid markup
+                that browsers repair by hoisting it out of the trigger, which
+                is exactly where a click would then not toggle anything. */}
+            <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                <CollapsibleTrigger
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    aria-label={intl.formatMessage(messages.toggle, {
+                        name: rule.name,
+                        count
+                    })}
+                >
+                    <ChevronRight
+                        aria-hidden="true"
+                        className={`size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none ${
+                            open ? 'rotate-90' : ''
+                        }`}
+                    />
+                    <Icon
+                        aria-hidden="true"
+                        className={`size-4 shrink-0 ${ink}`}
+                    />
+                    {/* The severity in words, for anyone the glyph and its
+                        colour do not reach. */}
+                    <span className="sr-only">{intl.formatMessage(label)}</span>
 
-                <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium">
-                        {rule.name}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate text-sm font-medium">
+                            {rule.name}
+                        </span>
+                        {/* What an editor reads on the record itself. It is
+                            constant across this group, which is exactly why it
+                            belongs on the header and not on every row. */}
+                        <span className="truncate text-xs text-muted-foreground">
+                            {rule.findingTitle}
+                        </span>
                     </span>
-                    {/* What an editor reads on the record itself. It is
-                        constant across this group, which is exactly why it
-                        belongs on the header and not on every row. */}
-                    <span className="truncate text-xs text-muted-foreground">
-                        {rule.findingTitle}
-                    </span>
-                </span>
+                </CollapsibleTrigger>
 
                 <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                     {intl.formatMessage(messages.count, { count })}
                 </span>
-            </CollapsibleTrigger>
+
+                {/* Beside the count rather than only on the Alarms tab: this is
+                    where someone reads a number they doubt, and "is that still
+                    true?" is the question they have here. The accessible name
+                    says which alarm, because several of these are on screen at
+                    once. */}
+                {canManage ? (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={isRescanning}
+                        aria-label={intl.formatMessage(messages.recheckLabel, {
+                            name: rule.name
+                        })}
+                        onClick={() => onRescan(rule)}
+                    >
+                        {isRescanning ? (
+                            <Spinner />
+                        ) : (
+                            <RefreshCw aria-hidden="true" />
+                        )}
+                        {intl.formatMessage(messages.recheck)}
+                    </Button>
+                ) : null}
+            </div>
 
             <CollapsibleContent>
                 <div className="border-t">

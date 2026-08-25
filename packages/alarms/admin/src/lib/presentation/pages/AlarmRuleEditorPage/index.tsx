@@ -793,6 +793,28 @@ export function AlarmRuleEditorPage({
                             onRetryFields={filterFields.refetch}
                             value={tree}
                             onApply={setTree}
+                            // The panel stays open after Apply by default,
+                            // which is right for the records list — the table
+                            // underneath is what changed, and it is still on
+                            // screen. Here Apply commits into the chips *above*
+                            // the builder, so leaving it expanded hides the one
+                            // thing that just moved.
+                            //
+                            // Focus has to come back with it: collapsing makes
+                            // the region `inert`, so a focus still inside it
+                            // drops to `<body>` and the next Tab restarts at
+                            // the top of the document. The toggle is where the
+                            // gesture started and where Esc already returns to.
+                            onApplied={() => {
+                                setBuilderOpen(false);
+                                requestAnimationFrame(() =>
+                                    document
+                                        .getElementById(
+                                            'alarms-editor-condition-toggle'
+                                        )
+                                        ?.focus()
+                                );
+                            }}
                             // Without this a relation rule's value cell is a
                             // plain text box: the query builder deliberately
                             // holds no data layer, so the record picker is

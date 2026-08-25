@@ -46,6 +46,12 @@ export type FindingGroupListProps = {
     rules: readonly AlarmRule[];
     /** The rules request failed — rendered instead of an empty state. */
     isError: boolean;
+    /** Whether the caller may rescan (i.e. holds `alarms:manage`). */
+    canManage: boolean;
+    /** Re-run one alarm over its whole collection. */
+    onRescan: (rule: AlarmRule) => void;
+    /** Ids of alarms with a rescan in flight. */
+    rescanningIds: ReadonlySet<string>;
     /** Start a new alarm — offered from the "no alarms yet" state. */
     onCreate?: () => void;
     /** Expand this alarm's group on arrival (from an alarm card's count). */
@@ -68,6 +74,9 @@ export type FindingGroupListProps = {
 export function FindingGroupList({
     rules,
     isError,
+    canManage,
+    onRescan,
+    rescanningIds,
     onCreate,
     focusRuleId
 }: FindingGroupListProps) {
@@ -137,6 +146,9 @@ export function FindingGroupList({
                     // Otherwise everything starts closed and the page is a
                     // summary you drill into.
                     defaultOpen={groups.length === 1 || rule.id === focusRuleId}
+                    canManage={canManage}
+                    onRescan={onRescan}
+                    isRescanning={rescanningIds.has(rule.id)}
                 />
             ))}
         </div>

@@ -104,6 +104,13 @@ export class AlarmsPage extends BasePage {
         await this.group(name).click();
     }
 
+    /** The Re-check button on one alarm's group header. */
+    groupRecheck(name: string): Locator {
+        return this.page.getByRole('button', {
+            name: `Re-check ${name} against the whole collection`
+        });
+    }
+
     /** The records list inside one alarm's group. */
     groupList(name: string): Locator {
         return this.page.getByRole('list', {

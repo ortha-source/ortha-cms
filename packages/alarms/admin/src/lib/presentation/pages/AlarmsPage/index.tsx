@@ -233,6 +233,9 @@ export function AlarmsPage() {
                         <FindingGroupList
                             rules={rules.data ?? []}
                             isError={rules.isError}
+                            canManage={canManage}
+                            onRescan={onRescan}
+                            rescanningIds={rescanning}
                             onCreate={
                                 canManage
                                     ? () =>

@@ -200,6 +200,8 @@ export interface AlarmsApiRecorder {
     creates: Record<string, unknown>[];
     /** Bodies of `PATCH /api/alarms/rules/:id`. */
     updates: Record<string, unknown>[];
+    /** Rule ids passed to `POST /api/alarms/rules/:id/rescan`. */
+    rescans: string[];
 }
 
 /**
@@ -224,7 +226,11 @@ export async function mockAlarmsApi(
         previewTotal = 312
     } = options;
 
-    const recorder: AlarmsApiRecorder = { creates: [], updates: [] };
+    const recorder: AlarmsApiRecorder = {
+        creates: [],
+        updates: [],
+        rescans: []
+    };
 
     // The type catalogue, for the create form's picker. Anchored so it does not
     // also swallow the detail and filter-fields sub-routes below.
@@ -295,6 +301,23 @@ export async function mockAlarmsApi(
             return;
         }
         await route.fulfill(json(rules));
+    });
+
+    // Order-independent, unlike `rules/preview`: a `*` segment does not cross
+    // `/`, so `rules/*` cannot match this two-segment path however it is
+    // registered.
+    await page.route('**/api/alarms/rules/*/rescan', async (route) => {
+        const parts = new URL(route.request().url()).pathname.split('/');
+        recorder.rescans.push(parts[parts.length - 2] ?? '');
+        await route.fulfill(
+            json({
+                ruleId: rules[0].id,
+                scanned: previewTotal,
+                opened: 0,
+                resolved: 0,
+                open: previewMatched
+            })
+        );
     });
 
     await page.route('**/api/alarms/rules/*', async (route) => {
