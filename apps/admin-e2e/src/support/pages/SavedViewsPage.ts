@@ -64,6 +64,47 @@ export class SavedViewsPage extends BasePage {
         return this.group().getByRole('button', { name: 'Reset' });
     }
 
+    /** The menu's "Set as my default" / "Clear my default" item. */
+    defaultItem(cleared = false): Locator {
+        return this.menuItem(
+            cleared ? 'Clear my default' : 'Set as my default'
+        );
+    }
+
+    /** The menu's "Delete view" item — which only asks; the dialog deletes. */
+    deleteItem(): Locator {
+        return this.menuItem('Delete view');
+    }
+
+    // --- the delete confirmation ---
+
+    /** The delete confirm dialog. */
+    confirmDeleteDialog(): Locator {
+        return this.page.getByRole('dialog', { name: 'Delete this view?' });
+    }
+
+    /**
+     * The dialog's confirm button. Scoped to the dialog: the menu item that
+     * opened it carries the same label.
+     */
+    confirmDelete(): Locator {
+        return this.confirmDeleteDialog().getByRole('button', {
+            name: 'Delete view'
+        });
+    }
+
+    /** The dialog's Cancel. */
+    cancelDelete(): Locator {
+        return this.confirmDeleteDialog().getByRole('button', {
+            name: 'Cancel'
+        });
+    }
+
+    /** A toast message (sonner, portaled to the body). */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
     // --- the save dialog ---
 
     /** The dialog itself. */

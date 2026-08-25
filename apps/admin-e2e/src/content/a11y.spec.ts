@@ -126,14 +126,34 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         makeAxe
     }) => {
         await mockSavedViews(page, [NEEDS_REVIEW_VIEW]);
-        // The amber pill and the three inline actions only exist once the live
-        // state has drifted, and the pill's contrast is the reason to scan it.
+        // The amber trigger and the three inline actions only exist once the
+        // live state has drifted, and that trigger's contrast is the reason to
+        // scan it.
         await savedViewsPage.goto(
             LIBRARY_WORKSPACE.id,
             'blog_post',
             `?view=${NEEDS_REVIEW_VIEW.id}&sort=title`
         );
         await savedViewsPage.reset().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('saved-view delete confirmation', async ({
+        page,
+        savedViewsPage,
+        makeAxe
+    }) => {
+        await mockSavedViews(page, [NEEDS_REVIEW_VIEW]);
+        await savedViewsPage.goto(
+            LIBRARY_WORKSPACE.id,
+            'blog_post',
+            `?view=${NEEDS_REVIEW_VIEW.id}`
+        );
+        // A modal over a records page: its own name, and the page behind it
+        // going `aria-hidden` while it is up, are what this scan is for.
+        await savedViewsPage.open();
+        await savedViewsPage.deleteItem().click();
+        await savedViewsPage.confirmDeleteDialog().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

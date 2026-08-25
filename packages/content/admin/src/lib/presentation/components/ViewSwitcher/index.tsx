@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Check,
@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
     Button,
+    ConfirmDialog,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -76,6 +77,28 @@ const messages = defineMessages({
     delete: {
         id: 'content.views.switcher.delete',
         defaultMessage: 'Delete view'
+    },
+    deleteTitle: {
+        id: 'content.views.switcher.deleteTitle',
+        defaultMessage: 'Delete this view?'
+    },
+    deleteBody: {
+        id: 'content.views.switcher.deleteBody',
+        defaultMessage:
+            '“{name}” will be removed. The records it filtered are untouched, and the list falls back to All records.'
+    },
+    deleteBodyShared: {
+        id: 'content.views.switcher.deleteBodyShared',
+        defaultMessage:
+            '“{name}” is shared with the workspace — deleting it removes it for everyone. The records it filtered are untouched.'
+    },
+    deleteConfirm: {
+        id: 'content.views.switcher.deleteConfirm',
+        defaultMessage: 'Delete view'
+    },
+    cancel: {
+        id: 'content.views.switcher.cancel',
+        defaultMessage: 'Cancel'
     }
 });
 
@@ -132,6 +155,30 @@ export function ViewSwitcher({
 }: ViewSwitcherProps) {
     const intl = useIntl();
     const [open, setOpen] = useState(false);
+    // The view the confirm dialog is asking about, held by value rather than by
+    // a boolean: the menu that named it is gone by the time the dialog is up.
+    const [pendingDelete, setPendingDelete] = useState<SavedView | null>(null);
+    // Where focus goes when the dialog closes — see the dialog's own comment.
+    // The same ref serves both branches below; only one is ever mounted.
+    const triggerRef = useRef<HTMLButtonElement>(null);
+
+    // With nothing saved and nothing applied there is no state to switch
+    // between — the cluster collapses to the affordance that creates the first
+    // view, so the header isn't carrying an empty menu on every collection.
+    const collapsed = views.length === 0 && !active;
+
+    // Deleting the **last** view is what reaches that state, and the swap
+    // arrives with the refetched list — i.e. *after* the dialog has handed
+    // focus to the very button being replaced, which would leave focus on
+    // `<body>`. Put it on the button that took over. Armed only by a confirmed
+    // delete and disarmed whenever the dialog opens, so a list that changed for
+    // some other reason (a colleague's shared view arriving) never steals it.
+    const justDeleted = useRef(false);
+    useEffect(() => {
+        if (!justDeleted.current) return;
+        justDeleted.current = false;
+        triggerRef.current?.focus();
+    }, [collapsed]);
 
     const personal = views.filter(
         (view) => view.visibility === VIEW_VISIBILITY.Private
@@ -140,10 +187,7 @@ export function ViewSwitcher({
         (view) => view.visibility === VIEW_VISIBILITY.Workspace
     );
 
-    // With nothing saved and nothing applied there is no state to switch
-    // between — render only the affordance that creates the first view, so the
-    // header isn't carrying an empty menu on every collection.
-    if (views.length === 0 && !active) {
+    if (collapsed) {
         return (
             <div
                 role="group"
@@ -151,6 +195,7 @@ export function ViewSwitcher({
                 className="flex items-center gap-2"
             >
                 <Button
+                    ref={triggerRef}
                     variant="outline"
                     className="shadow-none"
                     onClick={onSaveAs}
@@ -179,6 +224,7 @@ export function ViewSwitcher({
             <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
                 <DropdownMenuTrigger asChild>
                     <Button
+                        ref={triggerRef}
                         variant="outline"
                         aria-label={intl.formatMessage(messages.trigger)}
                         className={cn(
@@ -285,7 +331,10 @@ export function ViewSwitcher({
                             {active.isOwn ? (
                                 <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onSelect={() => onDelete(active)}
+                                    onSelect={() => {
+                                        justDeleted.current = false;
+                                        setPendingDelete(active);
+                                    }}
                                 >
                                     <Trash2 aria-hidden className="size-3.5" />
                                     {intl.formatMessage(messages.delete)}
@@ -326,6 +375,50 @@ export function ViewSwitcher({
                         {intl.formatMessage(messages.reset)}
                     </Button>
                 </>
+            ) : null}
+
+            {/* Outside `DropdownMenuContent`, which unmounts the instant the
+                menu closes — precisely when this dialog is meant to appear.
+                Same rule the entry editor's ⋯ menu follows.
+
+                A view is a slice, not records, so deleting one destroys no
+                content — but it is not undoable and a shared view is somebody
+                else's tool too, which is what the confirm is for. The body says
+                which of the two this is.
+
+                `onCloseAutoFocus`: the control that opened this — a menu item —
+                is long gone, so Radix's restore would target a detached node
+                and drop focus on `<body>`. Put it back on the switcher. */}
+            {pendingDelete ? (
+                <ConfirmDialog
+                    open
+                    onOpenChange={(next) => {
+                        if (!next) setPendingDelete(null);
+                    }}
+                    title={intl.formatMessage(messages.deleteTitle)}
+                    description={intl.formatMessage(
+                        pendingDelete.visibility === VIEW_VISIBILITY.Workspace
+                            ? messages.deleteBodyShared
+                            : messages.deleteBody,
+                        { name: pendingDelete.name }
+                    )}
+                    confirmLabel={intl.formatMessage(messages.deleteConfirm)}
+                    cancelLabel={intl.formatMessage(messages.cancel)}
+                    confirmVariant="destructive"
+                    onCloseAutoFocus={(event) => {
+                        if (!triggerRef.current) return;
+                        event.preventDefault();
+                        triggerRef.current.focus();
+                    }}
+                    onConfirm={() => {
+                        // Closed here rather than held open behind `busy`: the
+                        // outcome lands as a toast either way, which is how the
+                        // entry editor's delete behaves too.
+                        justDeleted.current = true;
+                        onDelete(pendingDelete);
+                        setPendingDelete(null);
+                    }}
+                />
             ) : null}
         </div>
     );

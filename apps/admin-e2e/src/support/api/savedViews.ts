@@ -120,3 +120,78 @@ export function spySaveView(page: Page): {
     });
     return spy;
 }
+
+/**
+ * Records every `DELETE /api/views/:id`, answering 204, and re-serves the list
+ * without the deleted view.
+ *
+ * The re-serve is what makes a delete assertion mean anything: the switcher
+ * reads the list, so a mock that kept returning the deleted row would show the
+ * view coming back and read as a failed delete.
+ */
+export function spyDeleteView(
+    page: Page,
+    views: SavedViewSeed[]
+): { count: number; lastId: string | null } {
+    const spy = { count: 0, lastId: null as string | null };
+    let remaining = views;
+    void page.route('**/api/views?*', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(remaining)
+        });
+    });
+    void page.route('**/api/views/*', async (route) => {
+        if (route.request().method() !== 'DELETE') {
+            await route.fallback();
+            return;
+        }
+        const id = new URL(route.request().url()).pathname.split('/').pop();
+        spy.count += 1;
+        spy.lastId = id ?? null;
+        remaining = remaining.filter((view) => view.id !== id);
+        await route.fulfill({ status: 204, body: '' });
+    });
+    return spy;
+}
+
+/**
+ * Answers the two default endpoints — `PUT /api/views/:id/default` and its
+ * `DELETE` counterpart — and re-serves the list with `isDefault` moved.
+ *
+ * A default is exclusive per person, so setting one has to unset the others;
+ * mirroring that here is what lets a spec assert the menu flipping to "Clear my
+ * default" rather than only the toast.
+ */
+export function spySetDefaultView(
+    page: Page,
+    views: SavedViewSeed[]
+): { set: number; cleared: number; lastId: string | null } {
+    const spy = { set: 0, cleared: 0, lastId: null as string | null };
+    let current = views;
+    void page.route('**/api/views?*', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(current)
+        });
+    });
+    void page.route('**/api/views/*/default', async (route) => {
+        const method = route.request().method();
+        if (method !== 'PUT' && method !== 'DELETE') {
+            await route.fallback();
+            return;
+        }
+        const id = new URL(route.request().url()).pathname.split('/').at(-2);
+        spy.lastId = id ?? null;
+        if (method === 'PUT') spy.set += 1;
+        else spy.cleared += 1;
+        current = current.map((view) => ({
+            ...view,
+            isDefault: method === 'PUT' && view.id === id
+        }));
+        await route.fulfill({ status: 204, body: '' });
+    });
+    return spy;
+}

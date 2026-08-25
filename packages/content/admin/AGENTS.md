@@ -470,6 +470,31 @@ None of the three is `variant="default"` — the header's one primary button is
 **Add record**, and a second would compete with it. Save is absent on someone
 else's shared view — that one is theirs, and "Save as new" is the remedy.
 
+**Deleting a view asks first; changing your default says so afterwards.** The
+two consequential menu actions each get the treatment the _other_ one doesn't
+need:
+
+- **Delete** opens a `ConfirmDialog` naming the view, rendered outside
+  `DropdownMenuContent` (which unmounts the instant the menu closes — the same
+  rule `ENTRY_MENU_SLOT` overlays follow). A view holds no records, so nothing
+  is destroyed, but it is not undoable and a **shared** one is a colleague's
+  tool too — which is why the body has two variants. Confirm closes the dialog
+  and lets the outcome land as a toast, exactly like the entry editor's delete.
+  Focus is put back by hand (`onCloseAutoFocus`): the menu item that opened the
+  dialog is long gone, so Radix's restore would target a detached node. And
+  deleting the **last** view swaps the whole cluster for the "save the first
+  one" affordance — a swap that arrives with the refetched list, _after_ that
+  restore — so a `justDeleted` ref re-places focus on whichever button took
+  over when `collapsed` flips.
+- **Set as my default** gets the toast instead, because a default decides the
+  _next_ visit: nothing on this screen moves, so a silent success reads as a
+  dead menu item. The message names the view, which also covers the
+  exclusivity — pointing your default at one view unsets another, and only the
+  server knows which. Creating a view with the dialog's "open by default"
+  checkbox is confirmed the same way, and a plain save is now toasted too: the
+  slice is already on screen, so the dialog closing was the only evidence the
+  write landed.
+
 **A stale view degrades, it does not fail.** The server stores the payload
 opaquely, so a view outlives the field it was saved over. `reconcileColumns`
 drops column ids the type no longer has (falling back to the defaults when none

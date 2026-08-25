@@ -15,7 +15,9 @@ import {
     SHARED_VIEW,
     mockSavedViews,
     mockSavedViewsError,
+    spyDeleteView,
     spySaveView,
+    spySetDefaultView,
     type SavedViewSeed
 } from '../support/api/savedViews';
 
@@ -460,6 +462,173 @@ test.describe('Saved views', () => {
 
         await expect(savedViewsPage.trigger()).toContainText('All records');
         expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+    });
+
+    test.describe('deleting a view', () => {
+        test('asks first, and Cancel leaves the view alone', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spyDeleteView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${NEEDS_REVIEW_VIEW.id}`
+            );
+
+            await savedViewsPage.open();
+            await savedViewsPage.deleteItem().click();
+
+            // The menu item only asks — a view is somebody's saved work and
+            // deleting it cannot be undone.
+            await expect(savedViewsPage.confirmDeleteDialog()).toBeVisible();
+            await expect(savedViewsPage.confirmDeleteDialog()).toContainText(
+                'Needs review'
+            );
+            expect(spy.count).toBe(0);
+
+            await savedViewsPage.cancelDelete().click();
+
+            await expect(savedViewsPage.confirmDeleteDialog()).toHaveCount(0);
+            expect(spy.count).toBe(0);
+            await expect(savedViewsPage.trigger()).toContainText(
+                'Needs review'
+            );
+        });
+
+        test('confirming deletes it and returns focus to the switcher', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spyDeleteView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${NEEDS_REVIEW_VIEW.id}`
+            );
+
+            await savedViewsPage.open();
+            await savedViewsPage.deleteItem().click();
+            await savedViewsPage.confirmDelete().click();
+
+            await expect(savedViewsPage.confirmDeleteDialog()).toHaveCount(0);
+            await expect(savedViewsPage.toast('View deleted.')).toBeVisible();
+            expect(spy.count).toBe(1);
+            expect(spy.lastId).toBe(NEEDS_REVIEW_VIEW.id);
+            expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+
+            // The control that opened the dialog was a menu item, and it is
+            // gone — so focus has to be put back by hand or it lands on <body>.
+            await expect(savedViewsPage.saveFirstButton()).toBeFocused();
+        });
+
+        test('keeps focus on the switcher when other views remain', async ({
+            page,
+            savedViewsPage
+        }) => {
+            // The common path, and the counterweight to the case above: with a
+            // view left the cluster does not swap, so the focus the dialog
+            // placed on the trigger must simply stay there.
+            const mine = { ...SHARED_VIEW, isOwn: true };
+            await seed(page, [NEEDS_REVIEW_VIEW, mine]);
+            const spy = spyDeleteView(page, [NEEDS_REVIEW_VIEW, mine]);
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${mine.id}`
+            );
+
+            await savedViewsPage.open();
+            await savedViewsPage.deleteItem().click();
+            await savedViewsPage.confirmDelete().click();
+
+            expect(spy.count).toBe(1);
+            await expect(savedViewsPage.trigger()).toBeFocused();
+            await expect(savedViewsPage.trigger()).toContainText('All records');
+        });
+
+        test('says a shared view is being removed for everyone', async ({
+            page,
+            savedViewsPage
+        }) => {
+            // Someone else's shared view can't be deleted here at all (the item
+            // is `isOwn`-gated), so the case worth pinning is your **own**
+            // shared one — where the confirm is the only place the blast radius
+            // is stated.
+            const ownShared = { ...SHARED_VIEW, isOwn: true };
+            await seed(page, [ownShared]);
+            spyDeleteView(page, [ownShared]);
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${ownShared.id}`
+            );
+
+            await savedViewsPage.open();
+            await savedViewsPage.deleteItem().click();
+
+            await expect(savedViewsPage.confirmDeleteDialog()).toContainText(
+                'removes it for everyone'
+            );
+        });
+    });
+
+    test.describe('the default view', () => {
+        test('setting one is confirmed by name, and clearing it says so', async ({
+            page,
+            savedViewsPage
+        }) => {
+            // Nothing on screen moves when a default changes — it decides the
+            // *next* visit — so the toast is the only evidence the click landed.
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            const spy = spySetDefaultView(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(
+                RELATIONS_WORKSPACE.id,
+                'article',
+                `?view=${NEEDS_REVIEW_VIEW.id}`
+            );
+
+            await savedViewsPage.open();
+            await savedViewsPage.defaultItem().click();
+
+            await expect(
+                savedViewsPage.toast(/“Needs review” is now your default view/)
+            ).toBeVisible();
+            expect(spy.set).toBe(1);
+            expect(spy.lastId).toBe(NEEDS_REVIEW_VIEW.id);
+
+            // The list re-reads, so the menu now offers the way back out.
+            await savedViewsPage.open();
+            await savedViewsPage.defaultItem(true).click();
+
+            await expect(
+                savedViewsPage.toast(/Cleared your default view/)
+            ).toBeVisible();
+            expect(spy.cleared).toBe(1);
+        });
+
+        test('the save dialog’s default checkbox is confirmed too', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, []);
+            const spy = spySaveView(page);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.nameInput().fill('My slice');
+            await savedViewsPage.makeDefault().click();
+            await savedViewsPage.submit().click();
+
+            expect(spy.lastBody?.makeDefault).toBe(true);
+            await expect(
+                savedViewsPage.toast(
+                    /“My slice” saved and set as your default view/
+                )
+            ).toBeVisible();
+        });
     });
 
     test('a link with its own params beats the default view', async ({

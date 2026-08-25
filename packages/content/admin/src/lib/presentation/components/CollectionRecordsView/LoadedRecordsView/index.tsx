@@ -183,6 +183,23 @@ const messages = defineMessages({
         id: 'content.records.viewDeleteFailed',
         defaultMessage: 'Couldn’t delete this view. Please try again.'
     },
+    viewCreated: {
+        id: 'content.records.viewCreated',
+        defaultMessage: '“{name}” saved.'
+    },
+    viewCreatedDefault: {
+        id: 'content.records.viewCreatedDefault',
+        defaultMessage: '“{name}” saved and set as your default view.'
+    },
+    viewDefaultSet: {
+        id: 'content.records.viewDefaultSet',
+        defaultMessage: '“{name}” is now your default view for this collection.'
+    },
+    viewDefaultCleared: {
+        id: 'content.records.viewDefaultCleared',
+        defaultMessage:
+            'Cleared your default view — this collection opens on All records.'
+    },
     viewDefaultFailed: {
         id: 'content.records.viewDefaultFailed',
         defaultMessage: 'Couldn’t change your default view. Please try again.'
@@ -581,10 +598,23 @@ export function LoadedRecordsView({
                 {
                     onSuccess: (created) => {
                         setSaveViewOpen(false);
-                        // Point the URL at the new view so the pill names it
+                        // Point the URL at the new view so the trigger names it
                         // immediately; the slice is already on screen, so this
                         // is the only param that changes.
                         updateParams({ [VIEW_PARAM]: created.id }, false);
+                        // Which is also why the save needs saying out loud: the
+                        // table doesn't move, so the only evidence of a
+                        // successful save is the dialog going away. The
+                        // default variant reports the checkbox the dialog
+                        // offered, which changes nothing visible at all.
+                        toast.success(
+                            intl.formatMessage(
+                                input.makeDefault
+                                    ? messages.viewCreatedDefault
+                                    : messages.viewCreated,
+                                { name: created.name }
+                            )
+                        );
                     },
                     // The name collision is the one failure worth its own copy —
                     // it names something the user can fix in the field they are
@@ -593,7 +623,7 @@ export function LoadedRecordsView({
                 }
             );
         },
-        [saveView, scope, listState, updateParams]
+        [saveView, scope, listState, updateParams, intl]
     );
 
     const handleSaveChanges = useCallback(() => {
@@ -631,6 +661,22 @@ export function LoadedRecordsView({
             setDefaultView.mutate(
                 { id: view.id, isDefault },
                 {
+                    // Worth a toast even though the menu's own label flips:
+                    // setting a default changes what happens on the *next*
+                    // visit, so nothing on this screen moves to confirm it —
+                    // the one case where a silent success reads as a dead
+                    // menu item. Naming the view also covers the exclusivity:
+                    // pointing the default at one view unsets another.
+                    onSuccess: () =>
+                        toast.success(
+                            isDefault
+                                ? intl.formatMessage(messages.viewDefaultSet, {
+                                      name: view.name
+                                  })
+                                : intl.formatMessage(
+                                      messages.viewDefaultCleared
+                                  )
+                        ),
                     onError: () =>
                         toast.error(
                             intl.formatMessage(messages.viewDefaultFailed)
