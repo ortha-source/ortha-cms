@@ -21,6 +21,7 @@
         }
     },
     "devDependencies": {
+        "@orthacms/copilot-provider-fake": "*",
         "@orthacms/media-provider-memory": "*",
         "@testcontainers/postgresql": "^12.0.1",
         "@types/supertest": "^7.2.0",

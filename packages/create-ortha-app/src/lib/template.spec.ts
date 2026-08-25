@@ -243,8 +243,10 @@ describe('with nothing optional chosen', () => {
 
     /**
      * The copilot ships with every app: its server half arrives transitively
-     * whatever the manifest says, and the bundled `fake` adapter needs no key
-     * and no network — so a default app has a chat that works offline.
+     * whatever the manifest says, so declaring it costs nothing and leaving it
+     * out bought only a missing chat panel. No **backend** comes with it — those
+     * are opt-in — so a default app has the plugin installed and nothing
+     * registered, with the kill switch off.
      */
     it('installs and registers the copilot', () => {
         const names = Object.keys(manifest().dependencies);
@@ -252,8 +254,7 @@ describe('with nothing optional chosen', () => {
         expect(names).toEqual(
             expect.arrayContaining([
                 '@orthacms/copilot-server',
-                '@orthacms/copilot-admin',
-                '@orthacms/copilot-provider-fake'
+                '@orthacms/copilot-admin'
             ])
         );
         expect(rendered('apps/server/src/plugins.ts')).toContain(
@@ -268,18 +269,25 @@ describe('with nothing optional chosen', () => {
         expect(rendered('.env')).toContain('COPILOT_ENABLED=false');
     });
 
-    it('installs no model backend beyond the offline one', () => {
+    it('installs no model backend at all', () => {
         const names = Object.keys(manifest().dependencies);
 
         expect(names).not.toContain('@orthacms/copilot-provider-anthropic');
         expect(names).not.toContain('@orthacms/copilot-provider-openai');
+        expect(names).not.toContain('@orthacms/copilot-provider-fake');
         expect(rendered('.env')).not.toContain('ANTHROPIC_API_KEY');
     });
 
-    it('registers only the offline provider', () => {
+    /**
+     * And registers none either. The scripted `fake` adapter is a private test
+     * fixture of the CMS repo rather than a published package, so there is
+     * nothing to fall back on — which is why the kill switch above has to stay
+     * off until a backend is configured.
+     */
+    it('registers no provider', () => {
         const plugins = rendered('apps/server/src/plugins.ts');
 
-        expect(plugins).toContain('createFakeProvider');
+        expect(plugins).not.toContain('createFakeProvider');
         expect(plugins).not.toContain('createAnthropicProvider');
         expect(plugins).not.toContain('createOpenAiProvider');
     });
@@ -329,16 +337,14 @@ describe('with a copilot provider', () => {
     });
 
     /**
-     * `fake` is a shipped adapter, not test scaffolding: it needs no key and no
-     * network, so it is what makes the chat work with nothing configured — and
-     * being last it is the default only when it is the only one.
+     * And nothing else. There is no scripted stand-in appended after the chosen
+     * backend any more — it was a private test fixture registered in every
+     * generated app, and a keyless deployment answering every question with a
+     * canned sentence is worse than having no copilot.
      */
-    it('always registers the offline provider, last', () => {
-        const plugins = rendered('apps/server/src/plugins.ts');
-
-        expect(plugins).toContain('createFakeProvider');
-        expect(plugins.indexOf('createFakeProvider()')).toBeGreaterThan(
-            plugins.indexOf('createAnthropicProvider')
+    it('registers no offline stand-in alongside it', () => {
+        expect(rendered('apps/server/src/plugins.ts')).not.toContain(
+            'createFakeProvider'
         );
     });
 

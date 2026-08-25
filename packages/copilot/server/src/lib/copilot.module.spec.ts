@@ -30,7 +30,7 @@ const config: CopilotPluginConfig = { enabled: true, maxOutputTokens: 1_024 };
 const registrations: ProviderRegistration[] = [
     { name: 'claude', provider: provider(['big', 'small']) },
     { name: 'ollama', provider: provider(['llama3.1']) },
-    { name: 'fake', provider: provider(['fake-1']) }
+    { name: 'local', provider: provider(['llama3.1-70b']) }
 ];
 
 /** The bound resolver, as DI would hand it to the engine. */
@@ -64,7 +64,7 @@ describe('CopilotModule provider defaulting', () => {
 
     it('follows the list when the host reorders it', () => {
         expect(resolverOf([...registrations].reverse())(ctx, registry)).toBe(
-            'fake'
+            'local'
         );
     });
 
@@ -84,10 +84,27 @@ describe('CopilotModule provider defaulting', () => {
         expect(bound?.useValue(ctx, registry)).toBe('ollama');
     });
 
-    it('refuses to build with no providers at all', () => {
+    /**
+     * An enabled copilot with nothing to call is a misconfiguration, and this
+     * is the last place to catch it before the first chat message. It is only a
+     * misconfiguration when the copilot is **on**: there is no scripted offline
+     * adapter registered any more, so a deployment that configured no backend
+     * reaches this constructor with an empty list, and that is the ordinary
+     * state of a fresh checkout.
+     */
+    it('refuses to build with no providers once the copilot is on', () => {
         expect(() => CopilotModule.forRoot({ providers: [], config })).toThrow(
-            /at least one model provider/
+            /enabled but has no model provider/
         );
+    });
+
+    it('builds with no providers while the copilot is off', () => {
+        expect(() =>
+            CopilotModule.forRoot({
+                providers: [],
+                config: { ...config, enabled: false }
+            })
+        ).not.toThrow();
     });
 });
 

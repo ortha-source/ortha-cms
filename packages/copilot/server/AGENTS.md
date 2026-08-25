@@ -638,9 +638,11 @@ than provided, so the shared tool catalogue the MCP endpoint serves is identical
 either way (`tool-registry.spec.ts` asserts both halves).
 
 **It is not the egress guard, and never really was.** Since ADR-0004's provider
-registrations, a backend is registered only if its credentials exist, with
-`fake` last — so a deployment holding no key reaches no third party whatever
-this flag says. The flag is the operator's off switch for the feature; the
+registrations, a backend is registered only if its credentials exist — so a
+deployment holding no key reaches no third party whatever this flag says, and
+since the scripted `fake` adapter stopped being registered it reaches no model
+at all. (An empty provider list is accepted only while this flag is off: an
+enabled copilot with nothing to call fails at construction.) The flag is the operator's off switch for the feature; the
 absent key is what keeps content in-house. See the 2026-08-24 update on
 ADR-0005.
 

@@ -130,7 +130,6 @@
         "@orthacms/content-graphql": "*",
         "@orthacms/content-server": "*",
         "@orthacms/copilot-provider-anthropic": "*",
-        "@orthacms/copilot-provider-fake": "*",
         "@orthacms/copilot-provider-openai": "*",
         "@orthacms/copilot-server": "*",
         "@orthacms/database": "*",

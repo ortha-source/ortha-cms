@@ -35,7 +35,6 @@ import {
     CopilotPlugin,
     type ProviderRegistration
 } from '@orthacms/copilot-server';
-import { createFakeProvider } from '@orthacms/copilot-provider-fake';
 // ortha:if copilot-anthropic
 import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 // ortha:end
@@ -54,9 +53,10 @@ import type { OrthaConfig } from '../ortha.config';
  * one at the top of the list would be the house default and would fail on the
  * first message.
  *
- * `fake` is last and unconditional. It is a shipped adapter, not test
- * scaffolding — it needs no key and no network, so it is what makes the chat
- * work offline, and being last it is the default only when it is the only one.
+ * **An app that configured no backend registers none**, and has no copilot.
+ * There is no scripted offline adapter to fall back on, so `COPILOT_ENABLED`
+ * must stay `false` until a backend is configured — enabling it with an empty
+ * list fails at boot rather than shipping a chat that cannot answer.
  */
 // ortha:if sso-oidc
 /**
@@ -105,7 +105,6 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
         });
     }
     // ortha:end
-    providers.push({ name: 'fake', provider: createFakeProvider() });
 
     return providers;
 }

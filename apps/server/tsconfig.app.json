@@ -34,9 +34,6 @@
             "path": "../../packages/database/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/content/server/tsconfig.lib.json"
         },
         {
