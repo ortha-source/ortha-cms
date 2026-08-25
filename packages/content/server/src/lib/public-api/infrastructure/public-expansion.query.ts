@@ -1,9 +1,4 @@
-import {
-    BadRequestException,
-    Inject,
-    Injectable,
-    Optional
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import {
     and,
     eq,
@@ -20,10 +15,7 @@ import {
     InjectMediaAssetResolver,
     type MediaAssetResolver
 } from '../../extension/media-asset-resolver';
-import {
-    CONTENT_READ_SCOPE,
-    type ContentReadScope
-} from '../../extension/read-scope';
+import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
 import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
@@ -113,8 +105,7 @@ export class PublicExpansionQuery {
         // an entry is not thereby allowed to see everything it points at, and
         // an expansion that skipped this would be a way around the scope.
         @Optional()
-        @Inject(CONTENT_READ_SCOPE)
-        private readonly readScopes?: readonly ContentReadScope[]
+        private readonly readScopes?: ContentReadScopeRegistry
     ) {}
 
     /**
@@ -128,12 +119,7 @@ export class PublicExpansionQuery {
         type: AnyContentType,
         workspaceId: string
     ): (SQL | undefined)[] {
-        if (!this.readScopes?.length) {
-            return [];
-        }
-        return this.readScopes.map((readScope) =>
-            readScope.scope({ type, workspaceId })
-        );
+        return this.readScopes?.fragments({ type, workspaceId }) ?? [];
     }
 
     /**

@@ -58,7 +58,10 @@ export {
 // The read-scope port. Separate from CONTENT_ENTRY_EXTENSION on purpose — that
 // one is single-binding and i18n holds it; see the file header for why a
 // composite was the wrong shape here.
-export { CONTENT_READ_SCOPE } from './lib/extension/read-scope';
+export {
+    ContentReadScopeRegistry,
+    contentReadScopeRegistrar
+} from './lib/extension/read-scope';
 export type {
     ContentReadScope,
     ContentReadScopeContext

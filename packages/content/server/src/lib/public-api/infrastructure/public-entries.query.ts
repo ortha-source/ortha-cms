@@ -23,10 +23,7 @@ import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../extension/entry-extension';
-import {
-    CONTENT_READ_SCOPE,
-    type ContentReadScope
-} from '../../extension/read-scope';
+import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../types/fields';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
@@ -109,12 +106,11 @@ export class PublicEntriesQuery {
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
         private readonly extension?: ContentEntryExtension,
-        // Read-scope providers (e.g. segments' reader entitlements). A **multi**
-        // token, so this is an array; absent entirely when nothing binds it,
-        // which is every installation that has not enabled a scoping plugin.
+        // Registered read scopes (e.g. segments' reader entitlements). Always
+        // provided by this plugin's own module; optional so a unit test can
+        // construct the query without one.
         @Optional()
-        @Inject(CONTENT_READ_SCOPE)
-        private readonly readScopes?: readonly ContentReadScope[]
+        private readonly readScopes?: ContentReadScopeRegistry
     ) {}
 
     /**
@@ -829,12 +825,7 @@ export class PublicEntriesQuery {
         type: AnyContentType,
         workspaceId: string
     ): (SQL | undefined)[] {
-        if (!this.readScopes?.length) {
-            return [];
-        }
-        return this.readScopes.map((readScope) =>
-            readScope.scope({ type, workspaceId })
-        );
+        return this.readScopes?.fragments({ type, workspaceId }) ?? [];
     }
 
     /**

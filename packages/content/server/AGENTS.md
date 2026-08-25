@@ -309,19 +309,22 @@ the **public** content API returns. `PublicEntriesQuery` and
 `PublicExpansionQuery` inject it `@Optional()` and AND every returned fragment
 onto the visibility predicate they already state, so a scope can only ever
 subtract rows — there is no return value that widens a read.
-`@orthacms/segments-domain` is the kernel behind the first implementation
-(reader entitlements); with nothing bound, which is every installation today,
-the port costs a null check.
+`@orthacms/segments-server` is the first implementation (reader entitlements,
+over the `@orthacms/segments-domain` kernel); with nothing registered — the
+state of an installation that has not enabled it — the port costs a length
+check.
 
 Three things distinguish it from `CONTENT_ENTRY_EXTENSION`:
 
-- **Multi-provider, not single.** That port is documented as one binding per app
-  and i18n holds it. Its own note suggests a composite for a second consumer,
-  which composes fine for a write-pipeline extension — but "narrow a read" and
-  "extend a write" are different responsibilities, and a composite would fuse
-  i18n and entitlements into one provider where a fault in either silently drops
-  the other's clause. Bind with `{ provide: CONTENT_READ_SCOPE, useClass: …,
-multi: true }`; order does not matter, since the fragments are AND-ed.
+- **A registry, not a DI token.** Nest has **no multi-provider**: two dynamic
+  modules binding one token do not merge, the second silently replaces the
+  first, and for a visibility rule that means content quietly becoming visible.
+  So a plugin registers at bootstrap with
+  `contentReadScopeRegistrar('<label>', <ScopeClass>)` — the same shape
+  `copilotToolsRegistrar` uses, for the same reason. `CONTENT_ENTRY_EXTENSION`
+  stays a single binding held by i18n: a composite over it would fuse "narrow a
+  read" and "extend a write" into one provider where a fault in either silently
+  drops the other's clause.
 - **Synchronous.** The predicate is assembled inside the query builder, and
   making that path async would ripple through every public read for one
   provider's benefit. An implementation needing I/O — resolving who the caller
