@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, Star } from 'lucide-react';
+import { Check, Pin } from 'lucide-react';
 import { DropdownMenuItem, cn } from '@orthacms/design-system';
 import type { SavedView } from '../../../../domain/types/savedView';
 
@@ -41,7 +41,7 @@ export function ViewRow({ view, active, onSelect }: ViewRowProps) {
             />
             <span className="flex-1 truncate">{view.name}</span>
             {view.isDefault ? (
-                <Star
+                <Pin
                     aria-label={intl.formatMessage(messages.defaultBadge)}
                     className="size-3.5 text-muted-foreground"
                 />

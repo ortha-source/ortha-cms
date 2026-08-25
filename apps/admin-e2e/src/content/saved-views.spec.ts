@@ -318,7 +318,7 @@ test.describe('Saved views', () => {
     });
 
     test.describe('keyboard', () => {
-        test('opens the menu, picks a view and returns focus to the pill', async ({
+        test('opens the menu, picks a view and returns focus to the trigger', async ({
             page,
             savedViewsPage
         }) => {
@@ -420,6 +420,46 @@ test.describe('Saved views', () => {
         expect(url.searchParams.get('filter')).toBe(
             NEEDS_REVIEW_VIEW.payload.filter
         );
+    });
+
+    test('the sidebar back to the collection lands on the default again', async ({
+        page,
+        savedViewsPage,
+        contentLibraryPage
+    }) => {
+        // The records route is **one element** for every collection, so the
+        // sidebar link back to the list does not remount this view. Resolving
+        // the default once per mount meant it only ever took effect on a full
+        // page load: set one, click the collection in the sidebar, and the
+        // plain list came back.
+        await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
+        await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+
+        await contentLibraryPage.typeLink('Articles').click();
+
+        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        expect(new URL(page.url()).searchParams.get('view')).toBe(
+            NEEDS_REVIEW_VIEW.id
+        );
+    });
+
+    test('All records stays picked over the reader’s own default', async ({
+        page,
+        savedViewsPage
+    }) => {
+        // The counterweight to the case above: clearing a view produces the
+        // same bare URL a fresh arrival has, and re-applying the default there
+        // would make "All records" un-pickable.
+        await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
+        await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+
+        await savedViewsPage.open();
+        await savedViewsPage.menuItem('All records').click();
+
+        await expect(savedViewsPage.trigger()).toContainText('All records');
+        expect(new URL(page.url()).searchParams.get('view')).toBeNull();
     });
 
     test('a link with its own params beats the default view', async ({

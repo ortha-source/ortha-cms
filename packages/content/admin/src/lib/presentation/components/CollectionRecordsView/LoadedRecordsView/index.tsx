@@ -6,7 +6,13 @@ import {
     useRef,
     useState
 } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+    Link,
+    NavigationType,
+    useNavigate,
+    useNavigationType,
+    useSearchParams
+} from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
 import { ArrowLeft, ChevronDown, Filter, Plus, Trash2 } from 'lucide-react';
 import {
@@ -184,6 +190,13 @@ const messages = defineMessages({
     viewsError: {
         id: 'content.records.viewsError',
         defaultMessage: 'Saved views are unavailable right now.'
+    },
+    // Keeps the switcher's original message id: the copy didn't change, only
+    // where it is drawn, and re-keying it would throw away its translations.
+    viewDroppedColumns: {
+        id: 'content.views.switcher.droppedColumns',
+        defaultMessage:
+            '{count, plural, one {# column in this view no longer exists and was skipped.} other {# columns in this view no longer exist and were skipped.}}'
     }
 });
 
@@ -628,11 +641,11 @@ export function LoadedRecordsView({
         [setDefaultView, intl]
     );
 
-    // Which view the reader lands on, resolved once per mount:
+    // Which view the reader lands on, resolved on every **arrival**:
     //
     //   1. `?view=<id>` with no competing slice params → apply that view. This
     //      is what makes `?view=` a complete address rather than a label: a
-    //      bare pointer used to arrive reading "Modified", because the pill
+    //      bare pointer used to arrive reading "Modified", because the trigger
     //      named a view whose slice was nowhere in the URL.
     //   2. Any slice param present (`filter`/`sort`/`pageSize`) → leave the URL
     //      alone. The link carried a deliberate deviation, and with a `?view=`
@@ -643,22 +656,62 @@ export function LoadedRecordsView({
     // — "this view, and I was searching in it" is a coherent link. They do
     // block the **default** in step 3: someone who sent a search of the plain
     // list did not mean to send someone else's saved slice.
-    const defaultResolved = useRef(false);
+    //
+    // **Every arrival, not once per mount.** This route is `:typeName`, one
+    // element for every collection, so React Router keeps this component
+    // mounted across the two navigations that matter most here: the sidebar
+    // link back to the list you are already on, and the sidebar link to a
+    // different collection. A one-shot ref meant a default only ever applied on
+    // a full page load — set one, click the collection in the sidebar, and the
+    // plain list came back.
+    //
+    // What separates an arrival from the reader's own moves is the navigation
+    // type: `updateParams` and `applyView` always **replace**, so picking
+    // "All records" stays picked, while a `<Link>` (PUSH) or Back (POP) re-arms
+    // the ladder.
+    const navigationType = useNavigationType();
+    // The view id last expanded into the URL from a bare `?view=`. Without it a
+    // view whose payload sets no params at all — no filter, no sort, default
+    // page size — would fail the step-2 check forever and re-apply on every
+    // render.
+    const hydratedView = useRef<string | null>(null);
     useEffect(() => {
-        if (!viewsEnabled || defaultResolved.current) return;
-        if (viewsPending) return;
-        defaultResolved.current = true;
+        if (!viewsEnabled || viewsPending) return;
         const named = viewParam
             ? views.find((view) => view.id === viewParam)
             : undefined;
         if (named) {
-            if (!hasPayloadParams(searchParams)) applyView(named);
+            const key = `${scope}|${named.id}`;
+            if (
+                hydratedView.current !== key &&
+                !hasPayloadParams(searchParams)
+            ) {
+                hydratedView.current = key;
+                applyView(named);
+            }
             return;
         }
+        // A `?view=` naming something this reader can't see (renamed, deleted,
+        // unshared) is still an explicit address: show the plain list rather
+        // than substituting a personal default for it.
+        if (viewParam) return;
         if (hasAnyListParams(searchParams)) return;
+        if (navigationType === NavigationType.Replace) return;
         const fallback = views.find((view) => view.isDefault);
-        if (fallback) applyView(fallback);
-    }, [viewsEnabled, viewsPending, views, viewParam, searchParams, applyView]);
+        if (fallback) {
+            hydratedView.current = `${scope}|${fallback.id}`;
+            applyView(fallback);
+        }
+    }, [
+        viewsEnabled,
+        viewsPending,
+        views,
+        viewParam,
+        searchParams,
+        navigationType,
+        scope,
+        applyView
+    ]);
 
     // The inline filter panel: its own open state (the toolbar button toggles
     // it), with the ids wiring the button's `aria-controls` to the region.
@@ -714,33 +767,6 @@ export function LoadedRecordsView({
         <Container className="max-w-none p-6 sm:p-6">
             <ContainerHeader
                 titleClassName="text-lg"
-                titleAdornment={
-                    // Only once the views request has settled. Rendering a
-                    // switcher that says "All records" before we know whether
-                    // any views exist flashes a control that may be about to
-                    // name something else — and on an error there is nothing
-                    // truthful to show, so the header stays as it was.
-                    viewsEnabled && !viewsPending && !viewsError ? (
-                        <ViewSwitcher
-                            views={views}
-                            active={activeView}
-                            isDirty={viewIsDirty}
-                            isSaving={updateView.isPending}
-                            droppedColumns={droppedColumns}
-                            onSelect={applyView}
-                            onSaveAs={() => {
-                                setSaveViewError(null);
-                                setSaveViewOpen(true);
-                            }}
-                            onSaveChanges={handleSaveChanges}
-                            onReset={() =>
-                                activeView ? applyView(activeView) : undefined
-                            }
-                            onSetDefault={handleSetDefault}
-                            onDelete={handleDeleteView}
-                        />
-                    ) : undefined
-                }
                 title={
                     trashed
                         ? intl.formatMessage(messages.trashTitle, {
@@ -765,7 +791,36 @@ export function LoadedRecordsView({
                             </Link>
                         </Button>
                     ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            {/* The switcher leads the cluster, before the two
+                                whole-collection actions: it says *which slice*
+                                the actions beside it would act on. Rendered
+                                only once the views request has settled —
+                                a control that says "All records" before we know
+                                whether any views exist flashes a label that may
+                                be about to change, and on an error there is
+                                nothing truthful to show. */}
+                            {viewsEnabled && !viewsPending && !viewsError ? (
+                                <ViewSwitcher
+                                    views={views}
+                                    active={activeView}
+                                    isDirty={viewIsDirty}
+                                    isSaving={updateView.isPending}
+                                    onSelect={applyView}
+                                    onSaveAs={() => {
+                                        setSaveViewError(null);
+                                        setSaveViewOpen(true);
+                                    }}
+                                    onSaveChanges={handleSaveChanges}
+                                    onReset={() =>
+                                        activeView
+                                            ? applyView(activeView)
+                                            : undefined
+                                    }
+                                    onSetDefault={handleSetDefault}
+                                    onDelete={handleDeleteView}
+                                />
+                            ) : null}
                             {paranoid && canDelete ? (
                                 <Button
                                     variant="outline"
@@ -788,6 +843,23 @@ export function LoadedRecordsView({
                     )
                 }
             />
+
+            {/* A view outlives the field it was saved over, so applying one
+                drops what no longer exists. Say so — a silently shorter table
+                reads as a bug in the view, not as a changed content type. It is
+                a full-width line under the header rather than part of the
+                switcher: a wrapping sentence inside a right-aligned row of
+                buttons would push them around every time a stale view loads. */}
+            {droppedColumns > 0 ? (
+                <p
+                    className="-mt-2 mb-4 text-sm text-muted-foreground"
+                    role="status"
+                >
+                    {intl.formatMessage(messages.viewDroppedColumns, {
+                        count: droppedColumns
+                    })}
+                </p>
+            ) : null}
 
             <SearchToolbar
                 value={searchInput}

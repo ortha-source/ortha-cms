@@ -2,8 +2,9 @@ import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
- * The saved-view switcher above a collection's records table, plus its save
- * dialog. Selectors only — the assertions live in the specs.
+ * The saved-view switcher in a collection's header action cluster (beside
+ * Trash and Add record), plus its save dialog. Selectors only — the assertions
+ * live in the specs.
  */
 export class SavedViewsPage extends BasePage {
     constructor(page: Page) {
@@ -18,7 +19,7 @@ export class SavedViewsPage extends BasePage {
     }
 
     /**
-     * The switcher's control cluster — the pill plus the modified-state
+     * The switcher's control cluster — the trigger plus the modified-state
      * actions. Scoped, because "Reset" is also a filter-panel button and
      * "Save" is a common label on a records page.
      */
@@ -26,12 +27,12 @@ export class SavedViewsPage extends BasePage {
         return this.page.getByRole('group', { name: 'View controls' });
     }
 
-    /** The switcher pill. Its label is the applied view's name, or "All records". */
+    /** The switcher button. Its label is the applied view's name, or "All records". */
     trigger(): Locator {
         return this.page.getByRole('button', { name: 'Saved views' });
     }
 
-    /** The affordance shown instead of the pill when nothing is saved yet. */
+    /** The affordance shown instead of the switcher when nothing is saved yet. */
     saveFirstButton(): Locator {
         return this.group().getByRole('button', {
             name: 'Save current as view…'

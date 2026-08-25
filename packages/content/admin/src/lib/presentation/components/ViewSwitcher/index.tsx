@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
-import { Check, ChevronDown, Star, Trash2 } from 'lucide-react';
+import {
+    Check,
+    ChevronDown,
+    LayoutList,
+    Pin,
+    PinOff,
+    Trash2
+} from 'lucide-react';
 import {
     Button,
     DropdownMenu,
@@ -69,11 +76,6 @@ const messages = defineMessages({
     delete: {
         id: 'content.views.switcher.delete',
         defaultMessage: 'Delete view'
-    },
-    droppedColumns: {
-        id: 'content.views.switcher.droppedColumns',
-        defaultMessage:
-            '{count, plural, one {# column in this view no longer exists and was skipped.} other {# columns in this view no longer exist and were skipped.}}'
     }
 });
 
@@ -87,8 +89,6 @@ export type ViewSwitcherProps = {
     isDirty: boolean;
     /** Whether a save/update is in flight. */
     isSaving: boolean;
-    /** How many of the active view's columns this type no longer has. */
-    droppedColumns: number;
     /** Applies a view, or clears back to the unfiltered list when null. */
     onSelect: (view: SavedView | null) => void;
     /** Opens the "Save current as view" dialog. */
@@ -104,12 +104,14 @@ export type ViewSwitcherProps = {
 };
 
 /**
- * The saved-view picker that sits under the collection's `<h1>`.
+ * The saved-view picker, sitting in the collection header's action cluster
+ * beside **View trash** and **Add record**.
  *
- * Placed there, not in the toolbar beside Columns and Filters, because it
- * answers a different question: *which slice am I looking at*, rather than *how
- * do I narrow it*. Sitting it in the toolbar makes a view read as one more
- * filter control, which is exactly what it is not.
+ * It is a button of the same weight as its neighbours rather than a pill under
+ * the `<h1>`: which slice is on screen is something the reader *changes*, and
+ * the header's trailing edge is where this page keeps the things you act on.
+ * Under the title it read as a caption on the heading — decoration rather than
+ * a control — and it pushed the subtitle down on every collection.
  *
  * When the live state drifts from the saved payload the trigger says so and the
  * three resolutions appear inline beside it. Nothing autosaves: silently
@@ -121,7 +123,6 @@ export function ViewSwitcher({
     active,
     isDirty,
     isSaving,
-    droppedColumns,
     onSelect,
     onSaveAs,
     onSaveChanges,
@@ -150,11 +151,11 @@ export function ViewSwitcher({
                 className="flex items-center gap-2"
             >
                 <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground"
+                    variant="outline"
+                    className="shadow-none"
                     onClick={onSaveAs}
                 >
+                    <LayoutList />
                     {intl.formatMessage(messages.saveAs)}
                 </Button>
             </div>
@@ -162,31 +163,36 @@ export function ViewSwitcher({
     }
 
     return (
-        // A labelled group: the pill and the Save / Save as new / Reset buttons
-        // beside it are one cluster, and the page has other buttons by those
-        // names (the filter panel's own Reset). The name disambiguates them for
-        // a screen reader the same way position does visually.
+        // A labelled group: the trigger and the Save / Save as new / Reset
+        // buttons beside it are one cluster, and the page has other buttons by
+        // those names (the filter panel's own Reset). The name disambiguates
+        // them for a screen reader the same way position does visually.
         <div
             role="group"
             aria-label={intl.formatMessage(messages.group)}
             className="flex flex-wrap items-center gap-2"
         >
-            <DropdownMenu open={open} onOpenChange={setOpen}>
+            {/* `modal={false}`, like every other menu in the admin: a modal
+                Radix menu `aria-hidden`s the page root, which holds focusable
+                content, and axe's `aria-hidden-focus` fires on it (the whole
+                page — the `<h1>` included — also drops out of the a11y tree). */}
+            <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="outline"
-                        size="sm"
                         aria-label={intl.formatMessage(messages.trigger)}
                         className={cn(
-                            'h-7 rounded-full px-3 text-xs font-medium shadow-none',
+                            'shadow-none',
                             isDirty &&
                                 'border-amber-500/60 text-amber-700 dark:text-amber-400'
                         )}
                     >
-                        <ChevronDown aria-hidden className="size-3" />
-                        {active
-                            ? active.name
-                            : intl.formatMessage(messages.all)}
+                        <LayoutList aria-hidden />
+                        <span className="max-w-[14rem] truncate">
+                            {active
+                                ? active.name
+                                : intl.formatMessage(messages.all)}
+                        </span>
                         {isDirty ? (
                             <>
                                 <span aria-hidden className="opacity-50">
@@ -195,10 +201,11 @@ export function ViewSwitcher({
                                 {intl.formatMessage(messages.modified)}
                             </>
                         ) : null}
+                        <ChevronDown aria-hidden className="opacity-60" />
                     </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="start" className="w-72">
+                <DropdownMenuContent align="end" className="w-72">
                     {personal.length > 0 ? (
                         <>
                             <DropdownMenuLabel>
@@ -264,7 +271,11 @@ export function ViewSwitcher({
                                     onSetDefault(active, !active.isDefault)
                                 }
                             >
-                                <Star aria-hidden className="size-3.5" />
+                                {active.isDefault ? (
+                                    <PinOff aria-hidden className="size-3.5" />
+                                ) : (
+                                    <Pin aria-hidden className="size-3.5" />
+                                )}
                                 {intl.formatMessage(
                                     active.isDefault
                                         ? messages.clearDefault
@@ -286,52 +297,35 @@ export function ViewSwitcher({
             </DropdownMenu>
 
             {/* The three resolutions, inline rather than inside the menu: the
-                reader is already looking at the pill that says "Modified", and
-                burying the fix one click deeper buys nothing. `Save` is absent
-                on someone else's shared view — that one is theirs. */}
+                reader is already looking at the trigger that says "Modified",
+                and burying the fix one click deeper buys nothing. `Save` is
+                absent on someone else's shared view — that one is theirs.
+                None of them is `variant="default"`: the header's one primary
+                button is "Add record", and a second would compete with it. */}
             {isDirty && active ? (
                 <>
                     {active.isOwn ? (
                         <Button
-                            size="sm"
-                            className="h-7 px-2 text-xs"
+                            variant="secondary"
+                            className="shadow-none"
                             disabled={isSaving}
                             onClick={onSaveChanges}
                         >
-                            {isSaving ? (
-                                <Spinner aria-hidden className="size-3" />
-                            ) : null}
+                            {isSaving ? <Spinner aria-hidden /> : null}
                             {intl.formatMessage(messages.save)}
                         </Button>
                     ) : null}
                     <Button
                         variant="outline"
-                        size="sm"
-                        className="h-7 px-2 text-xs shadow-none"
+                        className="shadow-none"
                         onClick={onSaveAs}
                     >
                         {intl.formatMessage(messages.saveNew)}
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={onReset}
-                    >
+                    <Button variant="ghost" onClick={onReset}>
                         {intl.formatMessage(messages.reset)}
                     </Button>
                 </>
-            ) : null}
-
-            {/* A view outlives the field it was saved over, so applying one
-                drops what no longer exists. Say so — a silently shorter table
-                reads as a bug in the view, not as a changed content type. */}
-            {droppedColumns > 0 ? (
-                <p className="text-xs text-muted-foreground" role="status">
-                    {intl.formatMessage(messages.droppedColumns, {
-                        count: droppedColumns
-                    })}
-                </p>
             ) : null}
         </div>
     );

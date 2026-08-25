@@ -25,18 +25,6 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
     subtitle?: React.ReactNode;
     /** Optional trailing actions (e.g. a primary button). */
     actions?: React.ReactNode;
-    /**
-     * Optional control rendered between the `<h1>` and the subtitle — a
-     * switcher that says *which* slice of the page is on screen (the records
-     * table's saved-view picker).
-     *
-     * A slot of its own rather than composing it into `title`: `title` is a
-     * `ReactNode`, so a control could be passed there, but it would then render
-     * **inside the `<h1>`** — an interactive menu nested in a heading, which
-     * breaks heading navigation for screen readers and stops the heading naming
-     * the page.
-     */
-    titleAdornment?: React.ReactNode;
     /** Override classes for the `<h1>` (e.g. a smaller size on dense pages). */
     titleClassName?: string;
 };
@@ -48,15 +36,7 @@ type ContainerHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
  */
 const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
     (
-        {
-            className,
-            title,
-            subtitle,
-            actions,
-            titleAdornment,
-            titleClassName,
-            ...props
-        },
+        { className, title, subtitle, actions, titleClassName, ...props },
         ref
     ) => (
         <div
@@ -76,7 +56,6 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                 >
                     {title}
                 </h1>
-                {titleAdornment}
                 {subtitle ? (
                     <p className="max-w-2xl text-sm text-muted-foreground">
                         {subtitle}
@@ -84,7 +63,12 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                 ) : null}
             </div>
             {actions ? (
-                <div className="flex shrink-0 items-center gap-2">
+                // Wraps rather than refusing to shrink: a header whose actions
+                // row has grown past two buttons (the records table's, which
+                // also carries the saved-view switcher) used to push itself
+                // off the right edge on a narrow viewport instead of taking a
+                // second line.
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     {actions}
                 </div>
             ) : null}

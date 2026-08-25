@@ -410,19 +410,35 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
 
-## Saved views — the switcher under the collection title
+## Saved views — the switcher in the collection header
 
 A saved view is a named slice of a collection's records list: the filter, the
 sort, the visible columns, the page size, and the slot-owned params (i18n's
 locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
 
-**Where it lives, and why not the toolbar.** `ViewSwitcher` renders through
-`ContainerHeader`'s `titleAdornment` slot — between the `<h1>` and the record
-count. It answers _which slice am I looking at_; Columns and Filters answer _how
-do I narrow it_. Putting the switcher in the toolbar beside them makes a view
-read as one more filter control, which is exactly what it is not. It is not
-passed as part of `title` either: `title` is a `ReactNode`, so it would render
-**inside the `<h1>`** — an interactive menu nested in a heading.
+**Where it lives, and why not the toolbar.** `ViewSwitcher` is a **button of
+the same weight as its neighbours**, first in `ContainerHeader`'s `actions`
+cluster — before **Trash** and **Add record**. It leads that cluster because it
+says _which slice_ the actions beside it would act on. It is not in the toolbar
+with Columns and Filters: those answer _how do I narrow it_, and sitting the
+switcher among them makes a view read as one more filter control, which is
+exactly what it is not.
+
+It used to render under the `<h1>` (through a `titleAdornment` slot on
+`ContainerHeader`, since removed with its last caller): as a small pill there it
+read as a caption on the heading rather than a control, and it pushed the record
+count down on every collection. `ContainerHeader`'s actions row is `flex-wrap`
+for the same move — the records header now carries up to six controls, and a
+`shrink-0` row of them ran off the right edge on a narrow viewport.
+
+The menu is `modal={false}`, like every other menu in this admin: a modal Radix
+menu `aria-hidden`s the page root, so `aria-hidden-focus` fires and the page —
+its `<h1>` included — drops out of the a11y tree while the menu is open.
+
+The **dropped-columns notice** is drawn by `LoadedRecordsView` under the header,
+not by the switcher: a wrapping sentence inside a right-aligned row of buttons
+would shove them around every time a stale view loads. It keeps the switcher's
+original message id, so its translations survive the move.
 
 **`?view=` is a pointer, not the slice.** `filter`, `sort`, `pageSize` and the
 slot params stay in the URL as themselves; `?view=<id>` only names which saved
@@ -448,9 +464,11 @@ the one commit where both change — a deep link into another collection's view.
 Seeding during render instead means the two fight and the columns flicker back
 to the type's defaults.
 
-**Nothing autosaves.** When the live state drifts from the saved payload the pill
-says "Modified" and offers Save / Save as new / Reset inline. Save is absent on
-someone else's shared view — that one is theirs, and "Save as new" is the remedy.
+**Nothing autosaves.** When the live state drifts from the saved payload the
+trigger says "Modified" and offers Save / Save as new / Reset inline beside it.
+None of the three is `variant="default"` — the header's one primary button is
+**Add record**, and a second would compete with it. Save is absent on someone
+else's shared view — that one is theirs, and "Save as new" is the remedy.
 
 **A stale view degrades, it does not fail.** The server stores the payload
 opaquely, so a view outlives the field it was saved over. `reconcileColumns`
@@ -464,6 +482,23 @@ strand the reader in an error card.
 wins over the reader's default view — a deep link out of a mail or a chat has to
 show what its sender saw. Only a bare URL falls through to the default, applied
 with `replace: true` so Back doesn't bounce off the redirect.
+
+**The ladder runs on every arrival, not once per mount.** `:typeName` is **one
+route element for every collection**, so React Router keeps `LoadedRecordsView`
+mounted across the two navigations that matter most: the sidebar link back to
+the list you are already on, and the sidebar link to a _different_ collection.
+Resolving the default once per mount (a `defaultResolved` ref) meant a default
+only ever took effect on a full page load — set one, click the collection in the
+sidebar, and the plain list came back.
+
+What tells an arrival apart from the reader's own moves is the **navigation
+type**: `updateParams` and `applyView` always `replace`, so `NavigationType.Replace`
+is our own write and never re-arms the ladder — which is what keeps "All records"
+picked, since clearing a view produces exactly the bare URL a fresh arrival has.
+A `<Link>` (PUSH) or Back (POP) does re-arm it. A second ref (`hydratedView`,
+scope-qualified) guards the `?view=`-only branch, so a view whose payload sets no
+params at all can't fail the "already applied" check forever and re-expand on
+every render. Both directions are pinned in `saved-views.spec.ts`.
 
 **Trash is excluded.** `/trash` is a route segment over a different row set, not
 a param, so a view saved there would describe a slice that only makes sense on
