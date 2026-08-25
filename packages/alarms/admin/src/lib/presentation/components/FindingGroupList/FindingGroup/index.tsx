@@ -204,14 +204,22 @@ export function FindingGroup({
                                     />
                                 ))}
                             </ul>
-                            <div className="px-4 pb-4 pt-3">
-                                <FindingsPager
-                                    page={page}
-                                    pageCount={pageCount}
-                                    onPage={setPage}
-                                    label={rule.name}
-                                />
-                            </div>
+                            {/* The wrapper is conditional, not just its
+                                contents. `FindingsPager` renders nothing at one
+                                page, but a padded box around nothing is still a
+                                padded box — it left ~28px of dead space under
+                                the last row of every group small enough not to
+                                need paging, which is most of them. */}
+                            {pageCount > 1 ? (
+                                <div className="px-4 pb-4 pt-3">
+                                    <FindingsPager
+                                        page={page}
+                                        pageCount={pageCount}
+                                        onPage={setPage}
+                                        label={rule.name}
+                                    />
+                                </div>
+                            ) : null}
                         </>
                     )}
                 </div>
