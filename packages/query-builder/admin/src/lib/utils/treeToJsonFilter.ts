@@ -20,6 +20,23 @@ export type JsonFilterNode =
     | { or: JsonFilterNode[] }
     | { field: string; op: WireOp; value: unknown };
 
+/** How a tree should be serialised — see {@link treeToJsonFilter}. */
+export type TreeToJsonOptions = {
+    /**
+     * Keep `within_last` as a relative window instead of resolving it to a
+     * concrete cutoff.
+     *
+     * **Pass this whenever the filter is going to be stored and replayed**, and
+     * leave it off whenever it is going into a URL. The default freezes the
+     * cutoff, which is right for a deep link — someone opening a shared "last 7
+     * days" list should see the rows the sender saw. It is exactly wrong for a
+     * saved filter: an alarm rule reading "not updated in 90 days" would mean
+     * "not updated since the day it was written", for ever, and would look
+     * completely normal in the editor while doing it.
+     */
+    relativeDates?: boolean;
+};
+
 /**
  * Serialise a {@link FilterGroup} into the BE-native JSON tree shape.
  * Returns the JSON string (ready to drop into a `?filter=` query param)
@@ -29,14 +46,15 @@ export type JsonFilterNode =
  *
  * Operators that don't have a single wire op map to a small AND group:
  * `between` → `{ and: [{op:'gte'}, {op:'lte'}] }`. `within_last` resolves
- * to a concrete ISO `gte` cutoff at serialise time — same trade-off as
- * the bracket serialiser (intentional: deep links pin the instant).
+ * to a concrete ISO `gte` cutoff at serialise time unless
+ * {@link TreeToJsonOptions.relativeDates} says otherwise.
  */
 export function treeToJsonFilter(
     tree: FilterGroup | null,
-    now: Date = new Date()
+    now: Date = new Date(),
+    options: TreeToJsonOptions = {}
 ): string | null {
-    const node = treeToJsonNode(tree, now);
+    const node = treeToJsonNode(tree, now, options);
     return node ? JSON.stringify(node) : null;
 }
 
@@ -48,10 +66,11 @@ export function treeToJsonFilter(
  */
 export function treeToJsonNode(
     tree: FilterGroup | null,
-    now: Date = new Date()
+    now: Date = new Date(),
+    options: TreeToJsonOptions = {}
 ): JsonFilterNode | null {
     if (!tree || tree.children.length === 0) return null;
-    return serialise(tree, now);
+    return serialise(tree, now, options);
 }
 
 /**
@@ -66,17 +85,24 @@ export function treeToJsonNode(
  */
 function serialise(
     n: FilterGroup | FilterRule,
-    now: Date
+    now: Date,
+    options: TreeToJsonOptions
 ): JsonFilterNode | null {
-    if (isRule(n)) return isRuleComplete(n) ? ruleToJson(n, now) : null;
+    if (isRule(n)) {
+        return isRuleComplete(n) ? ruleToJson(n, now, options) : null;
+    }
     const children = n.children
-        .map((c) => serialise(c, now))
+        .map((c) => serialise(c, now, options))
         .filter((c): c is JsonFilterNode => c !== null);
     if (children.length === 0) return null;
     return { [n.combinator]: children } as JsonFilterNode;
 }
 
-function ruleToJson(rule: FilterRule, now: Date): JsonFilterNode {
+function ruleToJson(
+    rule: FilterRule,
+    now: Date,
+    options: TreeToJsonOptions
+): JsonFilterNode {
     const f = rule.fieldId;
     switch (rule.op) {
         case OP.Contains:
@@ -122,6 +148,15 @@ function ruleToJson(rule: FilterRule, now: Date): JsonFilterNode {
         }
         case OP.WithinLast: {
             const v = rule.value as { n: number; unit: WithinUnit };
+            if (options.relativeDates) {
+                // Carried to the server as the window itself, so the cutoff is
+                // computed by the database on every evaluation.
+                return {
+                    field: f,
+                    op: WIRE_OP.WithinLast,
+                    value: { n: Number(v.n), unit: v.unit }
+                };
+            }
             const cutoff = new Date(
                 cutoffMs(now.getTime(), v.n, v.unit)
             ).toISOString();

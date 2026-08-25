@@ -60,7 +60,13 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   rendered as an element (`renderRelationValue={(p) => <Picker {...p} />}`)
   so its hooks get their own component scope, not the rule cell's.
 - `FilterTree`, `FilterGroup`, `FilterRule`, `OpId`, `RuleValue` — tree types
-- `treeToJsonFilter(tree, now?)` — serialise tree → JSON string for `?filter=`
+- `treeToJsonFilter(tree, now?, options?)` — serialise tree → JSON string for
+  `?filter=`. `options.relativeDates` keeps a `within_last` rule relative
+  instead of resolving it to a cutoff: **pass it whenever the filter is going to
+  be stored and replayed**, leave it off whenever it is going into a URL. The
+  default is right for a deep link (the sender and the receiver see the same
+  rows) and silently wrong for a saved filter, which would freeze its window on
+  the day it was written and look entirely normal doing so.
 - `jsonFilterToTree(params)` — inverse; reads `params.get('filter')`
 - `countRules(tree)` — leaf count for a "Filters (N)" badge
 - `treeHasInvalidRules` / `validateRule` — the Apply gate
@@ -78,7 +84,7 @@ Each leaf serialises to `{ field, op, value }`; groups to `{ and: [...] }` /
 | `is_empty`              | `null`, value `true`                                      |
 | `between`               | small `and` group of `gte` + `lte`                        |
 | `gt`/`gte`/`lt`/`lte`   | matching wire op                                          |
-| `within_last`           | `gte` with resolved ISO cutoff (pinned at serialise time) |
+| `within_last`           | `gte` with resolved ISO cutoff, **or** `within_last` with `{n,unit}` when the caller passes `relativeDates` |
 
 Incomplete rules and empty groups are pruned at serialise time, so the
 wire payload is always well-formed even while the drawer holds drafts.

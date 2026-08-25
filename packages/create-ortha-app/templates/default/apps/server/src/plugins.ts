@@ -25,6 +25,7 @@ import { createGcsStorageProvider } from '@orthacms/media-provider-gcs';
 import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel-blob';
 // ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
+import { AlarmsPlugin } from '@orthacms/alarms-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 // ortha:end
@@ -192,6 +193,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // provider, writing every upload to local disk. A deployment runs
         // exactly one; swapping backend is swapping this expression (and the
         // type of `media.storage` with it).
+        // Content alarms — rules that flag content problems without ever
+        // blocking a save or a publish. After content, whose registry and
+        // filter surface it evaluates rules through.
+        AlarmsPlugin(),
         MediaServerPlugin({
             // ortha:if media-local
             provider: createLocalStorageProvider(config.plugins.media.storage),

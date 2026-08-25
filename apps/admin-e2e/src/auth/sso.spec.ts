@@ -44,7 +44,7 @@ test.describe('Single sign-on on the sign-in page', () => {
             ]);
         });
 
-        test('points each link at that provider\'s start route', async ({
+        test("points each link at that provider's start route", async ({
             loginPage
         }) => {
             await expect(loginPage.ssoLink('Google')).toHaveAttribute(

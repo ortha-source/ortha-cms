@@ -18,6 +18,7 @@ import { createSamlProvider } from '@orthacms/identity-provider-saml';
 import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
+import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
@@ -248,6 +249,17 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // derived fallback is a heuristic, and a catalogue keyed on `sku`
         // should say so rather than hope the heuristic agrees.
         TransferPlugin(config.plugins.transfer),
+        // Alarms — non-blocking content rules. After content, whose registry,
+        // filter surface and grant query it uses: a rule *is* a records-list
+        // filter, evaluated through content's own `EntryMatchQuery`, so it can
+        // only ever mean what the list means. It subscribes to the entry
+        // lifecycle events on the shared outbox and owns two tables of its own.
+        //
+        // It never blocks a write, at any severity
+        // ([ADR-0015](../../../docs/adr/0015-alarms-are-non-blocking.md)) —
+        // that is the line that keeps it from becoming a second, competing
+        // authority on whether an entry is valid.
+        AlarmsPlugin(),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place

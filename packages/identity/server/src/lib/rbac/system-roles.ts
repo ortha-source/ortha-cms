@@ -31,6 +31,8 @@ export const PERMISSIONS = {
     TOKENS_DELETE: 'tokens:delete',
     COPILOT_USE: 'copilot:use',
     COPILOT_SKILLS_MANAGE: 'copilot:skills:manage',
+    ALARMS_READ: 'alarms:read',
+    ALARMS_MANAGE: 'alarms:manage',
     VIEWS_SHARE: 'views:share'
 } as const;
 
@@ -118,6 +120,11 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
             PERMISSIONS.MEDIA_UPDATE,
+            // Findings are shown inline in the entry editor, so the role
+            // that edits entries has to be able to read them. Writing the
+            // rules is `alarms:manage` and stays with admin: a rule is
+            // editorial policy, not an edit.
+            PERMISSIONS.ALARMS_READ,
             PERMISSIONS.COPILOT_USE,
             PERMISSIONS.VIEWS_SHARE
         ]
@@ -130,6 +137,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.USERS_READ,
             PERMISSIONS.CONTENT_READ,
             PERMISSIONS.MEDIA_READ,
+            PERMISSIONS.ALARMS_READ,
             PERMISSIONS.COPILOT_USE
         ]
     }

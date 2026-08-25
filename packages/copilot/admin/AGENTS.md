@@ -79,6 +79,7 @@ presentation/
   PanelResizeHandles/      # the eight grab strips
   MessageList/             # the transcript
   ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
+  slots/copilotSlots/      # COPILOT_TOOL_RESULT_SLOT — a plugin renders its own result
   Composer/  ModelPicker/  ConversationPicker/
   AttachmentChip/          # one attached file — staged in the composer, sent in the transcript
   SkillPicker/             # the composer's skills popover
@@ -537,6 +538,37 @@ sentences, and a run that made six calls should read back as six of them.
   `ok: true` with `summary: 'failed'` — a green tick beside the word "failed".
   The block the _model_ gets stays a normal result whose text says NOT applied,
   because that is a receipt to report rather than an error to recover from.
+
+### A plugin can render its own tool's result
+
+`COPILOT_TOOL_RESULT_SLOT` (`presentation/slots/copilotSlots`) takes a
+contribution of `{ id, toolName, Component }` and `ToolStep` renders it inside
+the expanded panel, **above** the raw payload it would have shown anyway.
+`@orthacms/alarms-admin` is the first user: `admin_alarms_findings` comes back as
+a list of flagged records, and a list of records is something a person clicks,
+not something they read as JSON.
+
+Four rules, and the specs pin all of them:
+
+- **The renderer is resolved only for a step that succeeded and produced
+  output.** A running step has nothing to render and a failed one has an error
+  the step line already states; handing either to a plugin's component means
+  every such component has to re-derive those states for itself.
+- **The raw payload stays.** A rich rendering is a convenience over the
+  transcript's own receipt, never a replacement for it — someone checking what
+  the model actually saw must still be able to.
+- **Matching is on the exact tool name.** No prefix, no namespace-stripping: an
+  MCP connector's `mcp.acme.admin_alarms_findings` is a third party's tool that
+  happens to share a suffix, and rendering it with this workspace's component
+  would be a claim about data nobody here produced.
+- **A component that cannot read its payload returns `null`.** A transcript is
+  replayed from stored history, so a result written by an older build of the
+  tool reaches today's renderer; falling through to the payload costs the reader
+  nothing, and a throw inside a transcript costs them the conversation.
+
+`toolResultRendererFor` is a plain function over `getItems()`, not a hook —
+`ToolStep` calls it inside a render for one name and the slot's contents are
+fixed at plugin-registration time, so there is nothing to subscribe to.
 
 ## Changes the copilot makes
 
@@ -1010,7 +1042,7 @@ co-located `defineMessages`.
 ## Testing
 
 `chatReducer`, the model-choice key helpers, `panelFrame`, `sessions`,
-`groupConversations`, `agentsRoute`, `ToolStep/labels` and
+`groupConversations`, `agentsRoute`, `ToolStep/labels`, `copilotSlots` and
 `MessageList/activity` are unit-tested (`nx test`) — this is the
 first admin package with a jest config, `testEnvironment: 'node'` because the
 tested code is pure. Anything that has to

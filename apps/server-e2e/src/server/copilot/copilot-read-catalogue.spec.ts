@@ -12,9 +12,11 @@ import {
     seedMediaAsset,
     seedMediaFolder,
     seedMembership,
+    seedUserWithPermissions,
     seedWorkspace,
     type SeededWorkspace
 } from '../../support/seed';
+import { drainOutbox } from '../../support/outbox';
 import { copilotCalls, scriptCopilot } from '../../support/copilot';
 import { framesOfType, parseSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
@@ -125,7 +127,8 @@ describe('Copilot read catalogue', () => {
                     'media_folders_list',
                     'media_asset_read',
                     'activity_recent',
-                    'workspace_members_list'
+                    'workspace_members_list',
+                    'admin_alarms_findings'
                 ])
             );
         });
@@ -209,7 +212,10 @@ describe('Copilot read catalogue', () => {
                     'media_assets_search',
                     'media_folders_list',
                     'media_asset_read',
-                    'workspace_members_list'
+                    'workspace_members_list',
+                    // Every role holds `alarms:read` — see the tool provider's
+                    // note on why that is deliberate rather than lax.
+                    'admin_alarms_findings'
                 ])
             );
             // Every offered tool reads. A viewer's copilot being provably
@@ -846,6 +852,264 @@ describe('Copilot read catalogue', () => {
             expect(output.items.map((item) => item.email)).toEqual([
                 ADMIN_EMAIL
             ]);
+        });
+    });
+
+    // ---------------------------------------------------------------- alarms
+    describe('admin_alarms_findings', () => {
+        /** The values every fixture article needs in order to publish at all. */
+        const REQUIRED_VALUES = { text: 'A body', select: 'article' };
+
+        /**
+         * Published articles with no `number`.
+         *
+         * A rule has to be about an **optional** field to be worth writing:
+         * `text` and `select` are required, so an article missing one cannot be
+         * published in the first place and the publish gate already covers it.
+         */
+        const NO_NUMBER = {
+            and: [
+                { field: 'status', op: 'eq', value: 'published' },
+                { field: 'number', op: 'null', value: true }
+            ]
+        };
+
+        /** Create an alarm rule through the real route. */
+        async function createRule(
+            agent: request.Agent,
+            overrides: Record<string, unknown> = {}
+        ): Promise<string> {
+            const response = await agent
+                .post('/api/alarms/rules')
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    contentType: 'test_article',
+                    name: 'Published with no number',
+                    findingTitle: 'This is published without a number',
+                    severity: 'warn',
+                    filter: NO_NUMBER,
+                    ...overrides
+                })
+                .expect(201);
+            return response.body.rule.id as string;
+        }
+
+        /** Create an article through the API and publish it. */
+        async function publishArticle(
+            agent: request.Agent,
+            values: Record<string, unknown> = {}
+        ): Promise<string> {
+            const created = await agent
+                .post('/api/content/test_article')
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ values: { ...REQUIRED_VALUES, ...values } })
+                .expect(201);
+            const id = created.body.id as string;
+            await agent
+                .post(`/api/content/test_article/${id}/publish`)
+                .set('X-Workspace-Id', workspace.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(201);
+            return id;
+        }
+
+        it('reports what the workspace’s rules have flagged', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await createRule(agent);
+            const entryId = await publishArticle(agent);
+            await drainOutbox(harness.app);
+
+            const result = await callTool(agent, 'admin_alarms_findings');
+
+            expect(result.ok).toBe(true);
+            const output = result.output as {
+                total: number;
+                items: Record<string, unknown>[];
+            };
+            expect(output.total).toBe(1);
+            expect(output.items[0]).toMatchObject({
+                title: 'This is published without a number',
+                rule: 'Published with no number',
+                severity: 'warn',
+                contentType: 'test_article',
+                entryId,
+                muted: false
+            });
+            // The entry id is the whole point of composability: the model's
+            // next call is `admin_content_get` with exactly this argument.
+            const followUp = await callTool(agent, 'admin_content_get', {
+                typeName: 'test_article',
+                id: output.items[0].entryId
+            });
+            expect(followUp.ok).toBe(true);
+        });
+
+        // The projection is unit-tested; this is the end-to-end proof that what
+        // the *store* returns is not what reaches the prompt. `detail` is a
+        // jsonb bag whose shape belongs to the rule that wrote it, and the raw
+        // timestamps are tokens spent on something `openForDays` already says.
+        it('spends no prompt tokens on the detail bag or the timestamps', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await createRule(agent);
+            await publishArticle(agent);
+            await drainOutbox(harness.app);
+
+            const result = await callTool(agent, 'admin_alarms_findings');
+
+            const item = (result.output as { items: Record<string, unknown>[] })
+                .items[0];
+            expect(item).not.toHaveProperty('detail');
+            expect(item).not.toHaveProperty('firstSeenAt');
+            expect(item).not.toHaveProperty('lastSeenAt');
+            expect(item).not.toHaveProperty('ruleId');
+            // An unmuted finding carries no `mutedReason` key at all, rather
+            // than a null the model has to read and discard on every row.
+            expect(item).not.toHaveProperty('mutedReason');
+            expect(item.openForDays).toBe(0);
+        });
+
+        // The strip the admin renders above this list is drawn from
+        // `bySeverity`. Deriving it from the page would let a sample describe
+        // itself as the whole set — "1 warning" over a workspace with three.
+        it('tallies severity across the whole set, not the returned page', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await createRule(agent);
+            await createRule(agent, {
+                name: 'Published with no number (error)',
+                findingTitle: 'Still no number',
+                severity: 'error'
+            });
+            await publishArticle(agent);
+            await publishArticle(agent);
+            await drainOutbox(harness.app);
+
+            const result = await callTool(agent, 'admin_alarms_findings', {
+                pageSize: 1
+            });
+
+            const output = result.output as {
+                total: number;
+                items: unknown[];
+                bySeverity: { error: number; warn: number; info: number };
+                page: number;
+                pageSize: number;
+            };
+            expect(output.items).toHaveLength(1);
+            expect(output.total).toBe(4);
+            expect(output.bySeverity).toEqual({ error: 2, warn: 2, info: 0 });
+            expect(output).toMatchObject({ page: 1, pageSize: 1 });
+        });
+
+        it('restricts to one severity when asked', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await createRule(agent);
+            await createRule(agent, {
+                name: 'Published with no number (error)',
+                findingTitle: 'Still no number',
+                severity: 'error'
+            });
+            await publishArticle(agent);
+            await drainOutbox(harness.app);
+
+            const result = await callTool(agent, 'admin_alarms_findings', {
+                severity: 'error'
+            });
+
+            const output = result.output as {
+                total: number;
+                items: { severity: string }[];
+                bySeverity: { error: number; warn: number };
+            };
+            expect(output.total).toBe(1);
+            expect(output.items[0].severity).toBe('error');
+            // The tally follows the same predicate the list did, so it
+            // describes the filtered set rather than the workspace.
+            expect(output.bySeverity).toMatchObject({ error: 1, warn: 0 });
+        });
+
+        it('does not see another workspace’s findings', async () => {
+            const { agent } = await signIn(ADMIN_EMAIL, 'admin');
+            await createRule(agent);
+            await publishArticle(agent);
+            await drainOutbox(harness.app);
+
+            // A second workspace the same admin belongs to. `ToolContext`
+            // resolves the workspace before dispatch, so the run header is the
+            // whole scope — there is no argument a model could pass to widen it.
+            const other = await seedWorkspace({ name: 'Other', slug: 'other' });
+            await seedContentGrants(other.id, ['test_article']);
+            const outsider = await seedActiveUser(harness.app, {
+                email: 'alarms-other-admin@example.com',
+                password: PASSWORD,
+                role: 'admin'
+            });
+            await seedMembership(outsider.id, other.id);
+            const otherAgent = await login('alarms-other-admin@example.com');
+
+            scriptCopilot(
+                { toolCalls: [{ name: 'admin_alarms_findings', input: {} }] },
+                { text: 'done' }
+            );
+            const response = await otherAgent
+                .post('/api/copilot/runs')
+                .set('X-Workspace-Id', other.id)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ message: 'what is flagged?' })
+                .expect(200);
+            const result = framesOfType(parseSse(response.text), 'tool-result')[0];
+
+            expect(result.ok).toBe(true);
+            expect(result.output).toMatchObject({
+                total: 0,
+                items: [],
+                bySeverity: { error: 0, warn: 0, info: 0 }
+            });
+        });
+
+        // `requires` is the gate, and `surfaces` is not a substitute for
+        // testing it: every built-in role happens to hold `alarms:read`, so a
+        // missing `requires` would go unnoticed by every other case here. A
+        // custom role is the only principal that can prove the check runs.
+        describe('a role without alarms:read', () => {
+            const EMAIL = 'alarms-blind@example.com';
+
+            async function signInBlind() {
+                const user = await seedUserWithPermissions(harness.app, {
+                    email: EMAIL,
+                    password: PASSWORD,
+                    roleKey: 'no-alarms',
+                    permissions: ['copilot:use', 'content:read']
+                });
+                await seedMembership(user.id, workspace.id);
+                return login(EMAIL);
+            }
+
+            it('is never told the tool exists', async () => {
+                scriptCopilot({ text: 'ok' });
+                const agent = await signInBlind();
+
+                await run(agent, { message: 'hello' });
+
+                const offered = (copilotCalls()[0].tools ?? []).map(
+                    (t) => t.name
+                );
+                expect(offered).not.toContain('admin_alarms_findings');
+                // Still a working copilot — this is a permission gate, not a
+                // role-shaped allowlist.
+                expect(offered).toContain('admin_content_search');
+            });
+
+            it('is refused if the model names it anyway', async () => {
+                const agent = await signInBlind();
+
+                const result = await callTool(agent, 'admin_alarms_findings');
+
+                // The second enforcement point: authorized at execution against
+                // a freshly resolved session, not only withheld at offer time.
+                expect(result.ok).toBe(false);
+            });
         });
     });
 });
