@@ -90,3 +90,52 @@ describe('CopilotModule provider defaulting', () => {
         );
     });
 });
+
+/**
+ * The operator's kill switch, applied where MCP applies its own: a disabled
+ * deployment registers no controller, so every `/api/copilot/*` route 404s.
+ *
+ * It used to be read in one place only — `RunEngine.run` — which made "off"
+ * mean *the send button returns an error frame*, with the model catalogue, the
+ * conversation and skill routes and both admin surfaces still live behind it.
+ */
+describe('CopilotModule kill switch', () => {
+    it('registers the routes when the copilot is on', () => {
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: true }
+        });
+
+        expect(module.controllers?.length).toBeGreaterThan(0);
+    });
+
+    it('registers no controller at all when it is off', () => {
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: false }
+        });
+
+        expect(module.controllers).toEqual([]);
+    });
+
+    it('still binds the model registry and resolver when it is off', () => {
+        // The switch takes away the *routes*, not the wiring. A disabled
+        // deployment must still construct: the module is global, the shared
+        // `ToolsModule` is imported rather than provided, and the MCP endpoint
+        // serves the same tool catalogue either way.
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: false }
+        });
+
+        expect(module.imports).toBeDefined();
+        expect(
+            (module.providers ?? []).some(
+                (entry) =>
+                    typeof entry === 'object' &&
+                    'provide' in entry &&
+                    entry.provide === MODEL_RESOLVER
+            )
+        ).toBe(true);
+    });
+});

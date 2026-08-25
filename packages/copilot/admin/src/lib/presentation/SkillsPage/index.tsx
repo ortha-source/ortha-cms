@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+    ArrowLeft,
+    BookOpen,
+    Lock,
+    Pencil,
+    Plus,
+    PowerOff,
+    Trash2
+} from 'lucide-react';
 import {
     Badge,
     Button,
@@ -23,6 +31,7 @@ import {
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { useCopilotAvailable } from '../../application/useCopilotModels';
 import {
     skillWriteMessage,
     useCreateSkill,
@@ -101,6 +110,15 @@ const messages = defineMessages({
         defaultMessage:
             'You don’t have permission to manage skills in this workspace.'
     },
+    offTitle: {
+        id: 'copilot.skills.page.offTitle',
+        defaultMessage: 'Ortha AI is turned off'
+    },
+    offBody: {
+        id: 'copilot.skills.page.offBody',
+        defaultMessage:
+            'This deployment doesn’t run Ortha AI, so there are no skills to manage.'
+    },
     deleteTitle: {
         id: 'copilot.skills.page.deleteTitle',
         defaultMessage: 'Delete this skill?'
@@ -152,6 +170,10 @@ export function SkillsPage() {
     useDocumentTitle(intl.formatMessage(messages.title));
     const workspace = useCurrentWorkspace();
     const canManage = useHasPermission(COPILOT_SKILLS_MANAGE);
+    // Same probe as the Agents page, for the same reason: with the copilot off
+    // every route under `/api/copilot` 404s, and a skills table that cannot
+    // load reads as a broken page rather than a switched-off feature.
+    const deploymentRunsCopilot = useCopilotAvailable({ enabled: canManage });
 
     const skills = useManageSkills(canManage ? workspace.id : null);
     const [editing, setEditing] = useState<{ id: string | null } | null>(null);
@@ -163,19 +185,31 @@ export function SkillsPage() {
     const update = useUpdateSkill(workspace.id);
     const remove = useDeleteSkill(workspace.id);
 
-    if (!canManage) {
+    if (!canManage || !deploymentRunsCopilot) {
+        // Told apart rather than collapsed, exactly as on the Agents page:
+        // "you may not" and "nobody may here" send the reader to different
+        // people.
+        const denied = !canManage;
         return (
             <Container className="py-8">
                 <Empty className="border" role="alert">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
-                            <Lock />
+                            {denied ? <Lock /> : <PowerOff />}
                         </EmptyMedia>
                         <EmptyTitle>
-                            {intl.formatMessage(messages.forbiddenTitle)}
+                            {intl.formatMessage(
+                                denied
+                                    ? messages.forbiddenTitle
+                                    : messages.offTitle
+                            )}
                         </EmptyTitle>
                         <EmptyDescription>
-                            {intl.formatMessage(messages.forbiddenBody)}
+                            {intl.formatMessage(
+                                denied
+                                    ? messages.forbiddenBody
+                                    : messages.offBody
+                            )}
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>
