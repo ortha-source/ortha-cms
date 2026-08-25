@@ -4,7 +4,7 @@ import { alarmsKeys } from '../../infrastructure/alarmsKeys';
 import { httpAlarmsGateway } from '../../infrastructure/httpAlarmsGateway';
 
 /**
- * Every rule in the open workspace, with its live open/muted counts.
+ * Every rule in the open workspace, with its live open-finding count.
  *
  * Disabled until the caller confirms `alarms:read`, so a member without it
  * never fires a request the server would 403.

@@ -3,7 +3,7 @@ import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
 import { alarmsKeys } from '../../infrastructure/alarmsKeys';
 import { httpAlarmsGateway } from '../../infrastructure/httpAlarmsGateway';
 
-/** Open and muted counts for the workspace — the nav badge's numbers. */
+/** Open finding counts for the workspace — the nav badge's numbers. */
 export function useAlarmSummary(enabled = true) {
     const workspace = useCurrentWorkspace();
     return useQuery({
