@@ -7,6 +7,11 @@ import {
     mockContentSchemaDetail,
     mockContentEntries
 } from '../support/api/content';
+import {
+    NEEDS_REVIEW_VIEW,
+    SHARED_VIEW,
+    mockSavedViews
+} from '../support/api/savedViews';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -21,6 +26,10 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockContentSchema(page);
         await mockContentSchemaDetail(page);
         await mockContentEntries(page);
+        // Settle the switcher's query for every scan below. Left unmocked the
+        // request fails, the switcher never renders, and the scans would pass
+        // by looking at markup that is not there.
+        await mockSavedViews(page, []);
     });
 
     test('sidebar + welcome pane', async ({ contentLibraryPage, makeAxe }) => {
@@ -90,6 +99,56 @@ test.describe('Content Library accessibility (axe, WCAG 2.1 A/AA)', () => {
         await page
             .locator('[data-sonner-toast]')
             .waitFor({ state: 'detached', timeout: 15_000 });
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('saved-view switcher — menu open', async ({
+        page,
+        contentLibraryPage,
+        savedViewsPage,
+        makeAxe
+    }) => {
+        await mockSavedViews(page, [NEEDS_REVIEW_VIEW, SHARED_VIEW]);
+        await contentLibraryPage.goto(LIBRARY_WORKSPACE.id);
+        await contentLibraryPage.expandGroup('Collections');
+        await contentLibraryPage.typeLink('Blog posts').click();
+        await contentLibraryPage.recordsTable('Blog posts').waitFor();
+        // The menu holds the two visibility sections, the tick column and the
+        // per-view actions — none of which exist until it is open.
+        await savedViewsPage.open();
+        await savedViewsPage.menuItem('Needs review').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('saved-view switcher — modified state', async ({
+        page,
+        savedViewsPage,
+        makeAxe
+    }) => {
+        await mockSavedViews(page, [NEEDS_REVIEW_VIEW]);
+        // The amber pill and the three inline actions only exist once the live
+        // state has drifted, and the pill's contrast is the reason to scan it.
+        await savedViewsPage.goto(
+            LIBRARY_WORKSPACE.id,
+            'blog_post',
+            `?view=${NEEDS_REVIEW_VIEW.id}&sort=title`
+        );
+        await savedViewsPage.reset().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('save-view dialog — Shared disabled without the permission', async ({
+        page,
+        savedViewsPage,
+        makeAxe
+    }) => {
+        await mockSignedIn(page, { permissions: ['content:read'] });
+        await mockSavedViews(page, []);
+        await savedViewsPage.goto(LIBRARY_WORKSPACE.id, 'blog_post');
+        await savedViewsPage.saveFirstButton().click();
+        // A disabled radio whose only explanation is its description — exactly
+        // the pairing axe checks and a reader depends on.
+        await savedViewsPage.dialog().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 });

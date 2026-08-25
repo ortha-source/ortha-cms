@@ -410,6 +410,69 @@ staged.added`), not the values bag it doesn't live in — mirroring the server's
   `multi-select` primitives this plugin relies on were added there via the
   shadcn skill (consumed from `@orthacms/design-system`).
 
+## Saved views — the switcher under the collection title
+
+A saved view is a named slice of a collection's records list: the filter, the
+sort, the visible columns, the page size, and the slot-owned params (i18n's
+locale). Served by `/api/views` (`packages/content/server/src/lib/views/`).
+
+**Where it lives, and why not the toolbar.** `ViewSwitcher` renders through
+`ContainerHeader`'s `titleAdornment` slot — between the `<h1>` and the record
+count. It answers _which slice am I looking at_; Columns and Filters answer _how
+do I narrow it_. Putting the switcher in the toolbar beside them makes a view
+read as one more filter control, which is exactly what it is not. It is not
+passed as part of `title` either: `title` is a `ReactNode`, so it would render
+**inside the `<h1>`** — an interactive menu nested in a heading.
+
+**`?view=` is a pointer, not the slice.** `filter`, `sort`, `pageSize` and the
+slot params stay in the URL as themselves; `?view=<id>` only names which saved
+view they came from. So a link keeps working when the view it names is renamed
+or deleted, Back/Forward switch views like any other navigation, and "Copy link"
+needed no new code.
+
+**The payload rules live in `domain/viewPayload/`** — `captureViewPayload`,
+`isViewDirty`, `viewPayloadToParams`, `reconcileColumns` — and are the one part
+of this feature with unit tests, because their whole job is comparing states the
+UI can only reach one keystroke at a time. Two normalizations carry the weight:
+an empty filter and an absent one serialize the same (or the badge burns the
+moment you clear a filter the view never had), and `extra` keys are compared
+sorted while **column order is significant** (reordering columns really is a
+change to the view). `search` and `page` are never captured — a search is a
+one-off question, a page is a reading position.
+
+**Applying a view seeds columns from an effect, not during render.**
+`useEntryColumns` re-seeds its selection whenever the open type changes, using
+the adjust-state-while-rendering pattern. The view's columns are applied in a
+`useEffect` keyed on the active view's id so they land _after_ that re-seed on
+the one commit where both change — a deep link into another collection's view.
+Seeding during render instead means the two fight and the columns flicker back
+to the type's defaults.
+
+**Nothing autosaves.** When the live state drifts from the saved payload the pill
+says "Modified" and offers Save / Save as new / Reset inline. Save is absent on
+someone else's shared view — that one is theirs, and "Save as new" is the remedy.
+
+**A stale view degrades, it does not fail.** The server stores the payload
+opaquely, so a view outlives the field it was saved over. `reconcileColumns`
+drops column ids the type no longer has (falling back to the defaults when none
+survive) and the switcher says how many were skipped — the same posture as the
+`pageSize` clamp in `LoadedRecordsView`, where an out-of-range URL param used to
+strand the reader in an error card.
+
+**The landing ladder.** An explicit `?view=`, or _any_ list param (`filter`,
+`sort`, `page`, `pageSize`, `q`), means the link already carried an intent and
+wins over the reader's default view — a deep link out of a mail or a chat has to
+show what its sender saw. Only a bare URL falls through to the default, applied
+with `replace: true` so Back doesn't bounce off the redirect.
+
+**Trash is excluded.** `/trash` is a route segment over a different row set, not
+a param, so a view saved there would describe a slice that only makes sense on
+one of the two pages.
+
+`views:share` gates only **sharing**; saving a personal view needs nothing beyond
+`content:read`, and the dialog's Shared option explains why it is disabled rather
+than just being dead.
+
 ## The Properties panel + the editor's actions live in the app chrome
 
 The entry editor no longer draws its own rail or its own action bar. Both render
@@ -498,7 +561,7 @@ a third state with no column value spelling it made unavoidable.
   twice. If the chained publish 422s, the flow runs the deferred pass itself so a
   landed save isn't left with stale caches.
 - **The query-key roots are `content-entries` / `content-entry` / … — never
-  `content`.** TanStack matches key *segments*, so the obvious
+  `content`.** TanStack matches key _segments_, so the obvious
   `invalidateQueries({ queryKey: ['content'] })` matches **nothing**:
   `'content' !== 'content-entries'`. It throws no error and reports no count, so
   the mutation succeeds, the toast appears, and the table never moves —
@@ -677,7 +740,7 @@ fetching internally.
   `trashed`, plus `onDone` to clear the selection.
     - The bar's own layout is **count · Clear · ⋯**: everything the bar can do
       to the selection lives in the menu, and **Clear** stays outside it,
-      because it is the way *out* of a selection the user may have made by
+      because it is the way _out_ of a selection the user may have made by
       accident — burying that behind the same menu as Delete would be the wrong
       shape. Contributions sort after the built-ins and above the separator the
       destructive actions sit below.
@@ -916,7 +979,7 @@ pinned by `apps/admin-e2e/src/content/records-resilience.spec.ts` or
   and drop it on `<body>`.
 - **A field the editor renders nowhere must not gate the form.** `admin.hidden`
   fields join ungranted relations and link-managed relations in
-  `validationIgnored`. The publish gate is built from the *visible* fields, so a
+  `validationIgnored`. The publish gate is built from the _visible_ fields, so a
   hidden required field made the rail read "ready" while validation still counted
   it and the toast named it — a control the user could never find. The server
   stays the authority; `submitWith` promotes a 422 issue naming an unrendered
@@ -925,7 +988,7 @@ pinned by `apps/admin-e2e/src/content/records-resilience.spec.ts` or
 **Contributed tab slugs are a closed set.** `ENTRY_TAB_SLOT` items whose `slug`
 is not in `ENTRY_TAB_SLUGS` are dropped (with a console error): the route table
 would match the segment, but `entryTabFromPath` cannot resolve it, so the tab
-rendered a trigger that navigated and then showed *General* under a URL saying
+rendered a trigger that navigated and then showed _General_ under a URL saying
 otherwise.
 
 **Cells state values, they do not echo them.** A `boolean` cell reads

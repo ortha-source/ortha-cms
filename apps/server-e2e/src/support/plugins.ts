@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
-import { ContentPlugin } from '@orthacms/content-server';
+import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import { CopilotPlugin } from '@orthacms/copilot-server';
 import { DatabasePlugin } from '@orthacms/database';
@@ -94,6 +94,12 @@ export function buildTestPlugins(
         ActivityPlugin(),
         UsersPlugin(),
         content,
+        // Saved list views — its own plugin entry from the content package,
+        // carrying the feature's own migrations descriptor (content's single
+        // slot is already the harness-owned generated tables above). After
+        // identity and workspaces: `saved_views` foreign-keys into both, and
+        // `global-setup` migrates in this array's order.
+        ContentViewsPlugin({ content }),
         // The GraphQL protocol over the same public content API — registered
         // here so the e2e suite exercises the real composition, including the
         // shared bearer guards it depends on.

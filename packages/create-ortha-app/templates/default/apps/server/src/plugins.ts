@@ -1,6 +1,6 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
-import { ContentPlugin } from '@orthacms/content-server';
+import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
@@ -169,6 +169,12 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // Until then the plugin serves its generic routes with an empty
         // registry, and owns no tables of its own.
         content,
+        // Saved list views — the named filter/sort/column slices an editor
+        // returns to. A second plugin entry from the content package because
+        // `ServerPlugin.migrations` holds one descriptor per entry; this one
+        // ships the feature's own tables. Must follow identity and workspaces:
+        // its foreign keys point at their tables and migrations run in order.
+        ContentViewsPlugin({ content }),
         // ortha:if graphql
         // The same public content API over GraphQL, on /api/v1/graphql. It owns
         // no schema and adds no credential — it reuses content's bearer guards
