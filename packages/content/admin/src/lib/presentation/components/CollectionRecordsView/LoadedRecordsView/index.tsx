@@ -14,7 +14,7 @@ import {
     useSearchParams
 } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { ArrowLeft, ChevronDown, Filter, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Filter, Plus } from 'lucide-react';
 import {
     QueryBuilderPanel,
     QueryBuilderSummary,
@@ -117,7 +117,6 @@ const messages = defineMessages({
         defaultMessage:
             '{count, plural, one {# deleted record} other {# deleted records}}.'
     },
-    viewTrash: { id: 'content.records.viewTrash', defaultMessage: 'Trash' },
     backToRecords: {
         id: 'content.records.backToRecords',
         defaultMessage: 'Back to records'
@@ -837,54 +836,31 @@ export function LoadedRecordsView({
                             </Link>
                         </Button>
                     ) : (
+                        // The header carries what you do **to** the
+                        // collection, and only that: one primary action and the
+                        // ⋯ for the rare ones. Everything that changes *which
+                        // records you are looking at* — the saved view, the
+                        // locale, the columns, the filters — sits on the
+                        // toolbar row below, next to the search box it belongs
+                        // with. Two right-aligned rows of identical outline
+                        // buttons gave no clue which was which.
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                            {/* The switcher leads the cluster, before the two
-                                whole-collection actions: it says *which slice*
-                                the actions beside it would act on. Rendered
-                                only once the views request has settled —
-                                a control that says "All records" before we know
-                                whether any views exist flashes a label that may
-                                be about to change, and on an error there is
-                                nothing truthful to show. */}
-                            {viewsEnabled && !viewsPending && !viewsError ? (
-                                <ViewSwitcher
-                                    views={views}
-                                    active={activeView}
-                                    isDirty={viewIsDirty}
-                                    isSaving={updateView.isPending}
-                                    onSelect={applyView}
-                                    onSaveAs={() => {
-                                        setSaveViewError(null);
-                                        setSaveViewOpen(true);
-                                    }}
-                                    onSaveChanges={handleSaveChanges}
-                                    onReset={() =>
-                                        activeView
-                                            ? applyView(activeView)
-                                            : undefined
-                                    }
-                                    onSetDefault={handleSetDefault}
-                                    onDelete={handleDeleteView}
-                                />
-                            ) : null}
-                            {paranoid && canDelete ? (
-                                <Button
-                                    variant="outline"
-                                    className="shadow-none"
-                                    asChild
-                                >
-                                    <Link to={`${typePath}/${TRASH_SEGMENT}`}>
-                                        <Trash2 />
-                                        {intl.formatMessage(messages.viewTrash)}
-                                    </Link>
-                                </Button>
-                            ) : null}
                             {canCreate ? (
                                 <Button onClick={openCreate}>
                                     <Plus />
                                     {intl.formatMessage(messages.add)}
                                 </Button>
                             ) : null}
+                            <CollectionRecordsMenu
+                                schema={schema}
+                                workspaceId={workspace.id}
+                                trashed={trashed}
+                                trashHref={
+                                    paranoid && canDelete
+                                        ? `${typePath}/${TRASH_SEGMENT}`
+                                        : undefined
+                                }
+                            />
                         </div>
                     )
                 }
@@ -916,7 +892,34 @@ export function LoadedRecordsView({
                     messages.searchPlaceholder
                 )}
                 actions={
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {/* The switcher leads the row: it says *which slice* the
+                            controls beside it are narrowing. Rendered only once
+                            the views request has settled — a control that says
+                            "All records" before we know whether any views exist
+                            flashes a label that may be about to change, and on
+                            an error there is nothing truthful to show. */}
+                        {viewsEnabled && !viewsPending && !viewsError ? (
+                            <ViewSwitcher
+                                views={views}
+                                active={activeView}
+                                isDirty={viewIsDirty}
+                                isSaving={updateView.isPending}
+                                onSelect={applyView}
+                                onSaveAs={() => {
+                                    setSaveViewError(null);
+                                    setSaveViewOpen(true);
+                                }}
+                                onSaveChanges={handleSaveChanges}
+                                onReset={() =>
+                                    activeView
+                                        ? applyView(activeView)
+                                        : undefined
+                                }
+                                onSetDefault={handleSetDefault}
+                                onDelete={handleDeleteView}
+                            />
+                        ) : null}
                         {toolbarItems.map((item) => (
                             <item.Component
                                 key={item.id}
@@ -955,15 +958,6 @@ export function LoadedRecordsView({
                                 )}
                             />
                         </Button>
-                        {/* Last: whole-collection actions. The occasional ones
-                            sit at the end of the row rather than taking the
-                            leading position from the controls used on every
-                            visit. Renders nothing when no plugin fills it. */}
-                        <CollectionRecordsMenu
-                            schema={schema}
-                            workspaceId={workspace.id}
-                            trashed={trashed}
-                        />
                     </div>
                 }
             />

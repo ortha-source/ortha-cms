@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Check,
@@ -127,14 +127,19 @@ export type ViewSwitcherProps = {
 };
 
 /**
- * The saved-view picker, sitting in the collection header's action cluster
- * beside **View trash** and **Add record**.
+ * The saved-view picker, leading the records toolbar's action row — beside the
+ * locale, column and filter controls, and above the table they all describe.
  *
- * It is a button of the same weight as its neighbours rather than a pill under
- * the `<h1>`: which slice is on screen is something the reader *changes*, and
- * the header's trailing edge is where this page keeps the things you act on.
- * Under the title it read as a caption on the heading — decoration rather than
- * a control — and it pushed the subtitle down on every collection.
+ * It sits with those rather than in the header's action cluster because it
+ * answers the same question they do: *which slice am I looking at*. The header
+ * is left to the things you do **to** the collection (add a record, the ⋯).
+ *
+ * The trigger renders the same way whether or not anything is saved. It used to
+ * collapse to a lone "Save current as view…" button when the list was empty,
+ * which put the loudest secondary control on the page in service of an action
+ * that is only useful *after* the reader has changed something — and gave the
+ * control two shapes to learn instead of one. The save-as affordance is where
+ * the rest of the view actions are: inside the menu.
  *
  * When the live state drifts from the saved payload the trigger says so and the
  * three resolutions appear inline beside it. Nothing autosaves: silently
@@ -159,26 +164,16 @@ export function ViewSwitcher({
     // a boolean: the menu that named it is gone by the time the dialog is up.
     const [pendingDelete, setPendingDelete] = useState<SavedView | null>(null);
     // Where focus goes when the dialog closes — see the dialog's own comment.
-    // The same ref serves both branches below; only one is ever mounted.
+    // The trigger outlives every list change, deleting the last view included,
+    // so it is always there to take focus back.
     const triggerRef = useRef<HTMLButtonElement>(null);
-
-    // With nothing saved and nothing applied there is no state to switch
-    // between — the cluster collapses to the affordance that creates the first
-    // view, so the header isn't carrying an empty menu on every collection.
-    const collapsed = views.length === 0 && !active;
-
-    // Deleting the **last** view is what reaches that state, and the swap
-    // arrives with the refetched list — i.e. *after* the dialog has handed
-    // focus to the very button being replaced, which would leave focus on
-    // `<body>`. Put it on the button that took over. Armed only by a confirmed
-    // delete and disarmed whenever the dialog opens, so a list that changed for
-    // some other reason (a colleague's shared view arriving) never steals it.
-    const justDeleted = useRef(false);
-    useEffect(() => {
-        if (!justDeleted.current) return;
-        justDeleted.current = false;
-        triggerRef.current?.focus();
-    }, [collapsed]);
+    // Set by the one menu item that opens a dialog on the way out. Radix runs
+    // its close-autofocus *after* the dialog has mounted and taken its own
+    // `autoFocus`, so the restore lands on the trigger and the reader's first
+    // keystroke goes nowhere — the save dialog opened with its name field
+    // unfocused. Yield the restore for that exit only; Escape and picking a
+    // view still put focus back where it belongs.
+    const openingDialog = useRef(false);
 
     const personal = views.filter(
         (view) => view.visibility === VIEW_VISIBILITY.Private
@@ -186,26 +181,6 @@ export function ViewSwitcher({
     const shared = views.filter(
         (view) => view.visibility === VIEW_VISIBILITY.Workspace
     );
-
-    if (collapsed) {
-        return (
-            <div
-                role="group"
-                aria-label={intl.formatMessage(messages.group)}
-                className="flex items-center gap-2"
-            >
-                <Button
-                    ref={triggerRef}
-                    variant="outline"
-                    className="shadow-none"
-                    onClick={onSaveAs}
-                >
-                    <LayoutList />
-                    {intl.formatMessage(messages.saveAs)}
-                </Button>
-            </div>
-        );
-    }
 
     return (
         // A labelled group: the trigger and the Save / Save as new / Reset
@@ -251,7 +226,15 @@ export function ViewSwitcher({
                     </Button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuContent
+                    align="end"
+                    className="w-72"
+                    onCloseAutoFocus={(event) => {
+                        if (!openingDialog.current) return;
+                        openingDialog.current = false;
+                        event.preventDefault();
+                    }}
+                >
                     {personal.length > 0 ? (
                         <>
                             <DropdownMenuLabel>
@@ -306,7 +289,12 @@ export function ViewSwitcher({
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={onSaveAs}>
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            openingDialog.current = true;
+                            onSaveAs();
+                        }}
+                    >
                         {intl.formatMessage(messages.saveAs)}
                     </DropdownMenuItem>
 
@@ -331,10 +319,7 @@ export function ViewSwitcher({
                             {active.isOwn ? (
                                 <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"
-                                    onSelect={() => {
-                                        justDeleted.current = false;
-                                        setPendingDelete(active);
-                                    }}
+                                    onSelect={() => setPendingDelete(active)}
                                 >
                                     <Trash2 aria-hidden className="size-3.5" />
                                     {intl.formatMessage(messages.delete)}
@@ -414,7 +399,6 @@ export function ViewSwitcher({
                         // Closed here rather than held open behind `busy`: the
                         // outcome lands as a toast either way, which is how the
                         // entry editor's delete behaves too.
-                        justDeleted.current = true;
                         onDelete(pendingDelete);
                         setPendingDelete(null);
                     }}

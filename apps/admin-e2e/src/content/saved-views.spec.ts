@@ -55,10 +55,14 @@ test.describe('Saved views', () => {
         await seed(page, []);
         await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-        // No menu to open on a collection nobody has saved a view for — just
-        // the affordance that creates one.
-        await expect(savedViewsPage.saveFirstButton()).toBeVisible();
-        await expect(savedViewsPage.trigger()).toHaveCount(0);
+        // The switcher has one shape whether or not anything is saved: the
+        // trigger is here, and the way to create the first view is inside it
+        // rather than a second control taking its place in the row.
+        await expect(savedViewsPage.trigger()).toBeVisible();
+
+        await savedViewsPage.open();
+        await expect(savedViewsPage.saveAsItem()).toBeVisible();
+        await expect(savedViewsPage.menuItem('All records')).toBeVisible();
     });
 
     test('renders the switcher when views exist, grouped by visibility', async ({
@@ -232,7 +236,7 @@ test.describe('Saved views', () => {
                 '?sort=-updatedAt&q=gdansk&page=3'
             );
 
-            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.saveAs();
             await expect(savedViewsPage.dialog()).toBeVisible();
             await expect(savedViewsPage.capturedSummary()).toBeVisible();
 
@@ -270,7 +274,7 @@ test.describe('Saved views', () => {
             await mockSavedViews(page, []);
 
             await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
-            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.saveAs();
 
             await expect(savedViewsPage.visibility('Personal')).toBeChecked();
             await expect(savedViewsPage.visibility('Shared')).toBeDisabled();
@@ -290,7 +294,7 @@ test.describe('Saved views', () => {
             const spy = spySaveView(page);
             await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.saveAs();
             await expect(savedViewsPage.submit()).toBeDisabled();
             expect(spy.count).toBe(0);
         });
@@ -316,7 +320,6 @@ test.describe('Saved views', () => {
         // so their outage must not take the collection down with them.
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         await expect(savedViewsPage.trigger()).toHaveCount(0);
-        await expect(savedViewsPage.saveFirstButton()).toHaveCount(0);
     });
 
     test.describe('keyboard', () => {
@@ -370,7 +373,7 @@ test.describe('Saved views', () => {
             const spy = spySaveView(page);
             await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.saveAs();
             await expect(savedViewsPage.nameInput()).toBeFocused();
 
             await page.keyboard.type('Typed in');
@@ -521,7 +524,8 @@ test.describe('Saved views', () => {
 
             // The control that opened the dialog was a menu item, and it is
             // gone — so focus has to be put back by hand or it lands on <body>.
-            await expect(savedViewsPage.saveFirstButton()).toBeFocused();
+            // The trigger survives the list emptying, so it is what takes it.
+            await expect(savedViewsPage.trigger()).toBeFocused();
         });
 
         test('keeps focus on the switcher when other views remain', async ({
@@ -617,7 +621,7 @@ test.describe('Saved views', () => {
             const spy = spySaveView(page);
             await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
 
-            await savedViewsPage.saveFirstButton().click();
+            await savedViewsPage.saveAs();
             await savedViewsPage.nameInput().fill('My slice');
             await savedViewsPage.makeDefault().click();
             await savedViewsPage.submit().click();

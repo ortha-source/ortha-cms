@@ -2,9 +2,9 @@ import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 /**
- * The saved-view switcher in a collection's header action cluster (beside
- * Trash and Add record), plus its save dialog. Selectors only — the assertions
- * live in the specs.
+ * The saved-view switcher leading the records toolbar's action row (beside the
+ * locale, column and filter controls), plus its save dialog. Selectors only —
+ * the assertions live in the specs.
  */
 export class SavedViewsPage extends BasePage {
     constructor(page: Page) {
@@ -32,16 +32,20 @@ export class SavedViewsPage extends BasePage {
         return this.page.getByRole('button', { name: 'Saved views' });
     }
 
-    /** The affordance shown instead of the switcher when nothing is saved yet. */
-    saveFirstButton(): Locator {
-        return this.group().getByRole('button', {
-            name: 'Save current as view…'
-        });
-    }
-
     /** Open the switcher menu. */
     async open() {
         await this.trigger().click();
+    }
+
+    /** The menu's "Save current as view…" item — the only way in to the dialog. */
+    saveAsItem(): Locator {
+        return this.menuItem('Save current as view…');
+    }
+
+    /** Open the menu and start saving the live state as a new view. */
+    async saveAs() {
+        await this.open();
+        await this.saveAsItem().click();
     }
 
     /** A view row in the open menu, by name. */
