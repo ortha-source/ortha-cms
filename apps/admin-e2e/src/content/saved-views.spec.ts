@@ -316,4 +316,125 @@ test.describe('Saved views', () => {
         await expect(savedViewsPage.trigger()).toHaveCount(0);
         await expect(savedViewsPage.saveFirstButton()).toHaveCount(0);
     });
+
+    test.describe('keyboard', () => {
+        test('opens the menu, picks a view and returns focus to the pill', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.trigger().focus();
+            await expect(savedViewsPage.trigger()).toBeFocused();
+
+            // Opening must land focus **inside** the menu, on its first item —
+            // otherwise a keyboard user gets a visible menu and no way into it.
+            await page.keyboard.press('Enter');
+            await expect(savedViewsPage.menuItem('Needs review')).toBeFocused();
+
+            await page.keyboard.press('Enter');
+            await expect(savedViewsPage.trigger()).toContainText(
+                'Needs review'
+            );
+            // The menu is gone, so focus must be back on its trigger rather
+            // than dropped on the body.
+            await expect(savedViewsPage.trigger()).toBeFocused();
+        });
+
+        test('Escape closes the menu without applying anything', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, [NEEDS_REVIEW_VIEW]);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.open();
+            await expect(savedViewsPage.menuItem('Needs review')).toBeVisible();
+            await page.keyboard.press('Escape');
+
+            await expect(savedViewsPage.menuItem('Needs review')).toHaveCount(
+                0
+            );
+            await expect(savedViewsPage.trigger()).toBeFocused();
+            expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+        });
+
+        test('the dialog focuses the name field and submits on Enter', async ({
+            page,
+            savedViewsPage
+        }) => {
+            await seed(page, []);
+            const spy = spySaveView(page);
+            await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+            await savedViewsPage.saveFirstButton().click();
+            await expect(savedViewsPage.nameInput()).toBeFocused();
+
+            await page.keyboard.type('Typed in');
+            await page.keyboard.press('Enter');
+
+            await expect(savedViewsPage.dialog()).toHaveCount(0);
+            expect(spy.count).toBe(1);
+            expect(spy.lastBody?.name).toBe('Typed in');
+        });
+    });
+
+    test('says how many columns a stale view lost, without calling it modified', async ({
+        page,
+        savedViewsPage
+    }) => {
+        // The view pins a column the type no longer has. Applying it shows the
+        // survivors; the reader changed nothing, so the badge must stay off.
+        await seed(page, [
+            {
+                ...NEEDS_REVIEW_VIEW,
+                payload: {
+                    ...NEEDS_REVIEW_VIEW.payload,
+                    columns: ['text', 'long_gone_field']
+                }
+            }
+        ]);
+        await savedViewsPage.goto(
+            RELATIONS_WORKSPACE.id,
+            'article',
+            `?view=${NEEDS_REVIEW_VIEW.id}`
+        );
+
+        await expect(
+            page.getByText(/column in this view no longer exists/)
+        ).toBeVisible();
+        await expect(savedViewsPage.trigger()).not.toContainText('Modified');
+    });
+
+    test('lands on the reader’s default view from a bare URL', async ({
+        page,
+        savedViewsPage
+    }) => {
+        await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
+        await savedViewsPage.goto(RELATIONS_WORKSPACE.id, 'article');
+
+        await expect(savedViewsPage.trigger()).toContainText('Needs review');
+        const url = new URL(page.url());
+        expect(url.searchParams.get('view')).toBe(NEEDS_REVIEW_VIEW.id);
+        expect(url.searchParams.get('filter')).toBe(
+            NEEDS_REVIEW_VIEW.payload.filter
+        );
+    });
+
+    test('a link with its own params beats the default view', async ({
+        page,
+        savedViewsPage
+    }) => {
+        // A deep link out of a mail or a chat has to show what its sender saw.
+        await seed(page, [{ ...NEEDS_REVIEW_VIEW, isDefault: true }]);
+        await savedViewsPage.goto(
+            RELATIONS_WORKSPACE.id,
+            'article',
+            '?q=gdansk'
+        );
+
+        await expect(savedViewsPage.trigger()).toContainText('All records');
+        expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+    });
 });

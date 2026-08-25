@@ -4,7 +4,7 @@
 > `npx nx catalog admin-e2e`. CI runs `npx nx catalog:check admin-e2e`
 > and fails if this file has drifted from the specs.
 
-_770 test cases across 76 spec files._
+_779 test cases across 76 spec files._
 
 <!-- source: apps/admin-e2e/src/activity/activity-filter.spec.ts -->
 _<sub>apps/admin-e2e/src/activity/activity-filter.spec.ts</sub>_
@@ -474,6 +474,9 @@ _<sub>apps/admin-e2e/src/content/a11y.spec.ts</sub>_
 | search palette — open |
 | sidebar error state |
 | entry editor — publish gate showing a refusal |
+| saved-view switcher — menu open |
+| saved-view switcher — modified state |
+| save-view dialog — Shared disabled without the permission |
 
 <!-- source: apps/admin-e2e/src/content/content-library.spec.ts -->
 _<sub>apps/admin-e2e/src/content/content-library.spec.ts</sub>_
@@ -835,6 +838,20 @@ _<sub>apps/admin-e2e/src/content/saved-views.spec.ts</sub>_
 | Test case |
 | --- |
 | renders the table without a switcher when views fail to load |
+
+### keyboard
+
+| Test case |
+| --- |
+| opens the menu, picks a view and returns focus to the pill |
+| Escape closes the menu without applying anything |
+| the dialog focuses the name field and submits on Enter |
+
+| Test case |
+| --- |
+| says how many columns a stale view lost, without calling it modified |
+| lands on the reader’s default view from a bare URL |
+| a link with its own params beats the default view |
 
 <!-- source: apps/admin-e2e/src/content/wysiwyg-fields.spec.ts -->
 _<sub>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</sub>_
