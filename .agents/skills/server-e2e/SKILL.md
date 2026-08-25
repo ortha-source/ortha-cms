@@ -41,10 +41,6 @@ a plugin, add an e2e suite here that exercises it end-to-end.
    reuses its public `ServerModule` + `buildPlugins`; extend the harness
    instead.
 
-After adding, renaming, or removing a suite or a case, **regenerate the catalog**:
-`npx nx catalog server-e2e` (writes the generated `TESTS.md`) and commit it.
-`npx nx catalog:check server-e2e` fails on drift.
-
 ---
 
 ## Harness API (`src/support/`)
