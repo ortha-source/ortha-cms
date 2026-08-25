@@ -66,13 +66,20 @@ export class CopilotModule {
         // and its order is the preference order (`catalogue()` renders in it,
         // and the admin's picker opens on its first entry).
         const [first] = options.providers;
-        if (!first) {
+        if (!first && options.config.enabled) {
             throw new Error(
-                'CopilotModule requires at least one model provider — the first one registered ' +
+                'CopilotModule is enabled but has no model provider — the first one registered ' +
                     'is what serves a run that names none.'
             );
         }
-        const resolver: ModelResolver = options.resolve ?? (() => first.name);
+        // A disabled copilot registers no controller, so nothing can reach the
+        // resolver and there is no default to name. It still has to resolve to
+        // *something*: the module binds `MODEL_RESOLVER` either way, because the
+        // switch must not change the shape of the DI graph. Asking for a
+        // provider through it fails in `ModelRegistry.get`, naming the empty
+        // catalogue, which is the same error an unknown name gets.
+        const resolver: ModelResolver =
+            options.resolve ?? ((): string => first?.name ?? '');
 
         return {
             module: CopilotModule,

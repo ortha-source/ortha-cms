@@ -280,8 +280,8 @@ function describeSelection(
         [
             'Copilot',
             providers.length > 0
-                ? `${providers.map((p) => p.label).join(', ')} + offline fake`
-                : 'offline fake only'
+                ? providers.map((p) => p.label).join(', ')
+                : ui.dim('no backend')
         ],
         ['Sign-in', labelsFor(SSO_PROVIDERS)],
         ['Ortha packages', String(resolvePackages(selection).length + 1)]

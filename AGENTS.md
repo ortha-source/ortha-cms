@@ -50,8 +50,11 @@
   full-page **Agents view** at `/workspaces/:id/agents` (thread rail + one
   conversation, with a CMS ⇄ Agents switch in the workspace sidebar) — sharing
   one transcript, composer and change card;
-  `provider-anthropic` / `provider-openai` / `provider-fake` are the three
-  shipped adapters, constructed at the composition root. Only
+  `provider-anthropic` / `provider-openai` are the two shipped adapters,
+  constructed at the composition root; `provider-fake` is a **private test
+  fixture** — scripted and deterministic, published nowhere, registered by
+  `server-e2e` and never by a host, so a deployment that configured no backend
+  has no copilot rather than one answering from a canned script. Only
   `provider-anthropic` may import a vendor SDK
   ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Its tools live
   in the shared registry, marked `surfaces: ['copilot']`

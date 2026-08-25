@@ -18,10 +18,12 @@ import { chunkText } from './text';
 import { estimateUsage } from './usage';
 
 /**
- * Creates the scripted, deterministic provider. **Shipped, not test
- * scaffolding** ([ADR-0004](../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3):
+ * Creates the scripted, deterministic provider. A **test fixture only**
+ * ([ADR-0004](../../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3):
  * it is how `server-e2e` drives the whole tool loop with no API key and no
- * network, and how a contributor runs the admin offline.
+ * network. This package is private and publishes nowhere, and no composition
+ * root registers it — a host that configured no backend has no copilot, rather
+ * than one answering every question from this script.
  *
  * No network, no clock, no randomness — the run engine is a non-deterministic
  * multi-step loop, and a flaky fake would make every assertion downstream of

@@ -30,7 +30,7 @@ const config = (
 const options = (
     overrides: Partial<CopilotPluginOptions> = {}
 ): CopilotPluginOptions => ({
-    providers: [{ name: 'fake', provider: provider() }],
+    providers: [{ name: 'claude', provider: provider() }],
     config: config(),
     ...overrides
 });
@@ -66,20 +66,38 @@ describe('CopilotPlugin config validation', () => {
         expect(() => CopilotPlugin(options())).not.toThrow();
     });
 
-    it('rejects an empty provider list', () => {
-        expect(() => CopilotPlugin(options({ providers: [] }))).toThrow(
-            /at least one model provider/
-        );
+    /**
+     * The empty list is a misconfiguration only when the copilot is **on**.
+     * There is no scripted offline adapter registered any more — the fake
+     * provider is a private test fixture — so a checkout with no keys reaches
+     * this constructor with nothing, and that is the ordinary state: the
+     * kill switch is off, no controller is mounted, and no run can be served.
+     * Booting it is right; booting an *enabled* copilot that has nothing to
+     * call is not, and the message must arrive at construction rather than on
+     * the first chat message.
+     */
+    it('accepts an empty provider list while the copilot is off', () => {
+        expect(() =>
+            CopilotPlugin(options({ providers: [], config: config() }))
+        ).not.toThrow();
+    });
+
+    it('rejects an empty provider list once the copilot is on', () => {
+        expect(() =>
+            CopilotPlugin(
+                options({ providers: [], config: config({ enabled: true }) })
+            )
+        ).toThrow(/enabled but has no model provider/);
     });
 
     it('rejects a provider declaring no models', () => {
         expect(() =>
             CopilotPlugin(
                 options({
-                    providers: [{ name: 'fake', provider: provider([]) }]
+                    providers: [{ name: 'claude', provider: provider([]) }]
                 })
             )
-        ).toThrow(/"fake" declares no models/);
+        ).toThrow(/"claude" declares no models/);
     });
 
     it('rejects a non-positive maxOutputTokens', () => {

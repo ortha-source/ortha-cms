@@ -53,7 +53,7 @@ identical to media storage.
    an optional router, mirroring `MediaServerPlugin`'s storage options. Adding a
    provider is a new package, never a change to the engine.
 
-3. **We ship three adapters**, which together cover the field:
+3. **We ship two adapters**, which together cover the field:
    - `copilot-provider-anthropic` — native Claude; the default for tool-heavy
      work, and the path on which native features (tool-use fidelity, prompt
      caching) stay available.
@@ -61,9 +61,17 @@ identical to media storage.
      and headers. Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter, Azure
      and OpenAI itself all speak this wire format, so one adapter makes a local,
      air-gapped install a configuration choice rather than a fork.
-   - `copilot-provider-fake` — scripted and deterministic. **Shipped, not test
-     scaffolding**: it is how `server-e2e` exercises the whole tool loop in CI,
-     and how a contributor runs the admin without a key.
+   A third adapter, `copilot-provider-fake`, is scripted and deterministic and
+   is how `server-e2e` exercises the whole tool loop in CI. It was originally
+   shipped rather than treated as test scaffolding, on the reasoning that a
+   contributor should be able to run the admin without a key. **That is no
+   longer the decision.** Being shipped meant being registered in every
+   composition root, including generated apps, where it was last in the list and
+   therefore the whole catalogue of any deployment that had configured nothing —
+   so a production install that enabled the copilot and forgot the key answered
+   every question with a canned sentence instead of failing. It is now a private
+   workspace package, published nowhere and registered by tests only, and a
+   deployment with no configured backend has no copilot at all.
 
 4. **Providers declare their capabilities, and the engine degrades
    explicitly.** `ModelCapabilities` reports tool calling, streaming, vision and
