@@ -235,7 +235,10 @@ The same reasoning as the copilot's kill switch.
 
 The **registry still binds when disabled**, and only the controller is removed:
 the copilot consumes the registry in-process and has nothing to do with whether
-an external endpoint is exposed.
+an external endpoint is exposed. `CopilotModule` now applies `COPILOT_ENABLED`
+the same way, for the mirror-image reason — so either switch takes its own
+surface away and neither shrinks the catalogue they share
+(`server-e2e/src/server/tools/tool-registry.spec.ts` asserts both directions).
 
 ## Connecting a client
 

@@ -713,10 +713,12 @@ below is an assertion about that string.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Restart with `COPILOT_ENABLED=false` (the default) | Boot succeeds |
-| 2 | `GET /copilot/models` | `200` with the full catalogue — the switch does not gate the reads |
-| 3 | `RUN admin.txt '{"message":"hi"}'` | HTTP `200`, stream opens, one `error` frame: `Ortha AI is turned off for this deployment. An administrator can enable it.`, then `done` with `stopReason: "error"` |
-| 4 | `select count(*) from copilot_conversations` | Unchanged — the switch is checked before anything is written (`run-engine.service.ts:168`) |
+| 1 | Restart with `COPILOT_ENABLED=false` (the default) | Boot succeeds — being disabled is not a wiring error |
+| 2 | `GET /copilot/models` | `404`. The switch unregisters **every** copilot controller (`copilot.module.ts`), so it gates the reads too. It used to answer `200` with the full catalogue |
+| 3 | `GET /copilot/conversations`, `GET /copilot/skills` | `404`, same reason |
+| 4 | `RUN admin.txt '{"message":"hi"}'` | `404` — the run route is not mounted. No stream opens, so there is no `error` frame any more; `RunEngine`'s own `CopilotDisabledError` survives as belt-and-braces for a caller that drains the generator without HTTP |
+| 5 | `select count(*) from copilot_conversations` | Unchanged — nothing was reachable to write one |
+| 6 | With `MCP_ENABLED=true` in the same boot, `tools/list` over MCP | Full catalogue. The shared registry is imported by both consumers and owned by neither, so this switch must not shrink it |
 
 ### F94 — eager config validation
 
@@ -1827,7 +1829,7 @@ All server-side, in `apps/server-e2e` (testcontainer + supertest, per the
 | 7 | `apps/server-e2e` | `copilot/copilot-permission-gate.spec.ts` | The broker's other two exits: a decision arriving after the 5-minute timeout 404s (pin the timeout via a test binding rather than waiting), and an abort while parked unwinds cleanly | F35, F36, F37, EC-41 |
 | 8 | `apps/server-e2e` | `copilot/copilot-chat.spec.ts` (extend) | Fence integrity: an entry whose body contains a literal `</untrusted-data>` and an injected instruction reaches the model with `<` escaped, and the model's answer does not act on it | EC-17, F11 |
 | 9 | `apps/server-e2e` | `copilot/copilot-chat.spec.ts` (extend) | A role revoked **mid-run** causes the next tool call to be refused with "You are not permitted to use …" — the ADR-0005 §3 re-authorization that is currently only tested through a never-offered tool | F28, EC-43 |
-| 10 | `apps/server-e2e` | `copilot/copilot-chat.spec.ts` (extend) | With `COPILOT_ENABLED=false`: `POST /runs` returns 200 + one `error` frame + `done`, and writes **no** conversation row; `GET /models` still 200s | F93 |
+| 10 | `apps/server-e2e` | `tools/tool-registry.spec.ts` (done) | With `COPILOT_ENABLED=false` every `/api/copilot` route 404s — `models`, `conversations` and `skills` — while the shared tool registry stays bound and MCP serves the full catalogue. The flag now unregisters the controllers (`copilot.module.ts`), so the old expectation (a 200 SSE stream carrying one `error` frame, and a `GET /models` that still answers) no longer holds | F93 |
 | 11 | 🧪 unit (`packages/copilot/server`) | `run-engine.service.spec.ts` (new) | Drain the generator against a scripted fake: a propose tool returning a non-draft produces a tool error and no row; `mayRun` returns null for reads; the loop guard's key-ordering case | F40, F15/F16, EC-06, EC-22 |
 | 12 | `apps/server-e2e` | `copilot/copilot-conversations.spec.ts` (extend) | Two concurrent runs in one conversation produce four distinct `position` values, twenty times over | F62, EC-39 |
 | 13 | `apps/server-e2e` | `copilot/copilot-proposals.spec.ts` (extend) | Deleting the user who made a change does not destroy the `copilot_proposals` row (or, if the cascade is intended, pins that intent explicitly) | 🐞 BUG-copilot-server-05, F97 step 5 |

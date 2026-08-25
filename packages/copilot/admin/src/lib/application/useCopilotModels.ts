@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, STALE_TIME } from '@orthacms/utils-admin';
+import {
+    apiClient,
+    HTTP_STATUS,
+    STALE_TIME,
+    toApiError
+} from '@orthacms/utils-admin';
 
 /** One selectable backend: a registered provider plus one of its models. */
 export interface CopilotModelChoice {
@@ -32,17 +37,64 @@ export const copilotModelsKey = ['copilot', 'models'] as const;
  * cannot change while the tab is open, so refetching it would only add
  * requests. A deployment that adds a provider requires a restart, which the
  * user's next page load picks up anyway.
+ *
+ * `enabled` exists for {@link useCopilotAvailable}, which runs on every admin
+ * page rather than only inside a chat: a user without `copilot:use` should not
+ * spend a request per session on a catalogue they are not allowed to read.
  */
-export function useCopilotModels() {
+export function useCopilotModels(options: { enabled?: boolean } = {}) {
     return useQuery({
         queryKey: copilotModelsKey,
         staleTime: STALE_TIME.Forever,
+        enabled: options.enabled ?? true,
         queryFn: async (): Promise<CopilotModelCatalogue> => {
             const response =
                 await apiClient.get<CopilotModelCatalogue>('/copilot/models');
             return response.data;
         }
     });
+}
+
+/**
+ * Whether this deployment runs the copilot at all.
+ *
+ * The switch is the operator's `COPILOT_ENABLED`, and it is answered by the
+ * **routes themselves**: `CopilotModule.forRoot` registers no controller when
+ * it is off, so the catalogue 404s along with everything else under
+ * `/api/copilot`. There is no separate capability endpoint to keep in step with
+ * it — a deployment that cannot serve a model list cannot serve a run either,
+ * which is exactly the question every surface here is asking.
+ *
+ * **Only an explicit `404` counts as off**, and every other outcome — still
+ * loading, a network blip, a `5xx`, a `403` for a user who may not read the
+ * catalogue — leaves the surfaces up. The server is the authority either way
+ * (the route 404s regardless of what this decides), so being wrong in this
+ * direction costs a control that answers "not found", while being wrong in the
+ * other would make a transient failure look like a feature the operator
+ * removed. A 404 is not retried by the shared client, so this settles on the
+ * first response.
+ */
+export function useCopilotAvailable(
+    options: { enabled?: boolean } = {}
+): boolean {
+    const { error } = useCopilotModels(options);
+    return !copilotIsOff(error);
+}
+
+/**
+ * The rule {@link useCopilotAvailable} applies, as a function — pure, so the
+ * cases that matter are unit-tested rather than driven through a query.
+ *
+ * Only a `404` from the catalogue says the deployment turned the copilot off.
+ * `null` (no error) is the ordinary answer, and so are a still-loading query, a
+ * transport failure and a `5xx`: none of them is the operator's decision, and
+ * reading them as one would make a blip look like a removed feature.
+ */
+export function copilotIsOff(error: unknown): boolean {
+    if (!error) {
+        return false;
+    }
+    return toApiError(error).status === HTTP_STATUS.NOT_FOUND;
 }
 
 /** A stable string key for one choice, for use as a select value. */

@@ -6,7 +6,7 @@
 > specs — run it locally; **no CI pipeline runs it today**, and none runs the
 > suite itself either.
 
-_1348 test cases across 88 spec files._
+_1349 test cases across 88 spec files._
 
 <!-- source: apps/server-e2e/src/harness/blob-store-isolation.spec.ts -->
 _<sub>apps/server-e2e/src/harness/blob-store-isolation.spec.ts</sub>_
@@ -2735,6 +2735,7 @@ _<sub>apps/server-e2e/src/server/tools/tool-registry.spec.ts</sub>_
 | Test case |
 | --- |
 | leaves the MCP endpoint a full catalogue |
+| serves no copilot route at all |
 
 <!-- source: apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts -->
 _<sub>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</sub>_

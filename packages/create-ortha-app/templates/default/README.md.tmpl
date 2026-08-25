@@ -145,8 +145,14 @@ talking to itself.
 ### AI copilot
 
 Installed, and **off** until you turn it on: set `COPILOT_ENABLED=true` in
-`.env`. Enabling a hosted backend sends workspace content to a third party, so
-it is an explicit decision rather than a default.
+`.env`. Off means off — with it `false` the app registers no `/api/copilot`
+route, so those endpoints 404 and the admin's chat panel, Agents view and
+Skills page are not there. Whether this app offers an AI assistant at all is a
+decision rather than a default.
+
+It is not the switch that keeps your content in-house, though. A backend is
+registered only when its settings are present (below), so an app with no key
+reaches no third party either way.
 
 Backends are registered in `src/server/plugins.ts`, and **the order is the
 setting** — there is no `defaultProvider`. The first registered backend serves a
