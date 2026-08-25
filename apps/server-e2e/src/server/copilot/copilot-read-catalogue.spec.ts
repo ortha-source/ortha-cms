@@ -934,8 +934,7 @@ describe('Copilot read catalogue', () => {
                 rule: 'Published with no number',
                 severity: 'warn',
                 contentType: 'test_article',
-                entryId,
-                muted: false
+                entryId
             });
             // The entry id is the whole point of composability: the model's
             // next call is `admin_content_get` with exactly this argument.
