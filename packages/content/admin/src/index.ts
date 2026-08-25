@@ -119,3 +119,14 @@ export { contentEntryKey } from './lib/application/useContentEntry';
 // something the list never meant.
 export { useFilterFields } from './lib/application/useFilterFields';
 export type { FilterFieldsResult } from './lib/application/useFilterFields';
+
+// The catalogue and one type's schema, for the same reason. A plugin that
+// stores a filter has to let someone **choose what to store it against**, and
+// `RECORDS_FILTER_FIELDS_SLOT.useFields` takes a `ContentTypeDetail` — so a
+// consumer that offers the records list's full filterable surface (rather than
+// the server-derived half of it) needs the schema too. Without it a rule saved
+// over a slot-contributed field, like i18n's `localeCount`, reads back as
+// "this field is no longer available" in the editor that is supposed to edit
+// it.
+export { useContentTypes } from './lib/application/useContentTypes';
+export { useContentSchema } from './lib/application/useContentSchema';

@@ -27,17 +27,17 @@ import { ALARM_SEVERITIES, type AlarmSeverity } from '../../../../types/alarm';
 const messages = defineMessages({
     title: {
         id: 'alarms.saveDialog.title',
-        defaultMessage: 'Save as rule'
+        defaultMessage: 'Save as alarm'
     },
     description: {
         id: 'alarms.saveDialog.description',
         defaultMessage:
             'The CMS will keep checking {contentType} against this filter and flag whatever matches. It never blocks a save or a publish.'
     },
-    name: { id: 'alarms.saveDialog.name', defaultMessage: 'Rule name' },
+    name: { id: 'alarms.saveDialog.name', defaultMessage: 'Alarm name' },
     nameHint: {
         id: 'alarms.saveDialog.nameHint',
-        defaultMessage: 'How this rule is listed. Must be unique.'
+        defaultMessage: 'How this alarm is listed. Must be unique.'
     },
     findingTitle: {
         id: 'alarms.saveDialog.findingTitle',
@@ -81,7 +81,7 @@ const messages = defineMessages({
     },
     failed: {
         id: 'alarms.saveDialog.failed',
-        defaultMessage: 'The rule could not be saved: {reason}'
+        defaultMessage: 'The alarm could not be saved: {reason}'
     },
     badFilter: {
         id: 'alarms.saveDialog.badFilter',

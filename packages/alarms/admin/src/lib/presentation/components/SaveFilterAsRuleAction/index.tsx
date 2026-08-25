@@ -8,7 +8,7 @@ import { BellPlus } from 'lucide-react';
 import { SaveFilterAsRuleDialog } from './SaveFilterAsRuleDialog';
 
 const messages = defineMessages({
-    save: { id: 'alarms.saveAsRule.save', defaultMessage: 'Save as rule' },
+    save: { id: 'alarms.saveAsRule.save', defaultMessage: 'Save as alarm' },
     label: {
         id: 'alarms.saveAsRule.label',
         defaultMessage: 'Watch for the records this filter matches'

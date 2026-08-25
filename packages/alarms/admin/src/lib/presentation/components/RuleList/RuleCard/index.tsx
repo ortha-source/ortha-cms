@@ -29,7 +29,7 @@ const messages = defineMessages({
     },
     brokenTitle: {
         id: 'alarms.rule.brokenTitle',
-        defaultMessage: 'This rule no longer matches the content type'
+        defaultMessage: 'This alarm no longer matches the content type'
     },
     brokenBody: {
         id: 'alarms.rule.brokenBody',

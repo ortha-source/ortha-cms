@@ -20,7 +20,7 @@ const messages = defineMessages({
     },
     clean: {
         id: 'alarms.toolResult.clean',
-        defaultMessage: 'No rule flags anything in this workspace right now.'
+        defaultMessage: 'No alarm flags anything in this workspace right now.'
     },
     context: {
         id: 'alarms.toolResult.context',

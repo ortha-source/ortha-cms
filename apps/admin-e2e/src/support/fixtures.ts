@@ -20,6 +20,7 @@ import { AgentsPage } from './pages/AgentsPage';
 import { CopilotDockPage } from './pages/CopilotDockPage';
 import { CopilotSkillsPage } from './pages/CopilotSkillsPage';
 import { InsightsPage } from './pages/InsightsPage';
+import { AlarmsPage } from './pages/AlarmsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
 import { HostPage } from './pages/HostPage';
 
@@ -109,6 +110,7 @@ interface Fixtures {
     copilotDockPage: CopilotDockPage;
     copilotSkillsPage: CopilotSkillsPage;
     insightsPage: InsightsPage;
+    alarmsPage: AlarmsPage;
     apiTokensPage: ApiTokensPage;
     hostPage: HostPage;
     /**
@@ -183,6 +185,9 @@ export const test = base.extend<Fixtures>({
     },
     insightsPage: async ({ page }, use) => {
         await use(new InsightsPage(page));
+    },
+    alarmsPage: async ({ page }, use) => {
+        await use(new AlarmsPage(page));
     },
     apiTokensPage: async ({ page }, use) => {
         await use(new ApiTokensPage(page));

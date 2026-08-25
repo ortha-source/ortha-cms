@@ -7,23 +7,23 @@ import { RuleCard } from './RuleCard';
 const messages = defineMessages({
     errorTitle: {
         id: 'alarms.rules.errorTitle',
-        defaultMessage: "Couldn't load rules"
+        defaultMessage: "Couldn't load alarms"
     },
     errorBody: {
         id: 'alarms.rules.errorBody',
         defaultMessage:
-            'The request failed, so this is not a statement that the workspace has no rules. Try again.'
+            'The request failed, so this is not a statement that the workspace has no alarms. Try again.'
     },
     emptyTitle: {
         id: 'alarms.rules.emptyTitle',
-        defaultMessage: 'No rules yet'
+        defaultMessage: 'No alarms yet'
     },
     emptyBody: {
         id: 'alarms.rules.emptyBody',
         defaultMessage:
-            'Filter a content list down to the records that look wrong, then use “Save as rule” to have the CMS watch for them.'
+            'Filter a content list down to the records that look wrong, then use “Save as alarm” to have the CMS watch for them — or start one from New alarm above.'
     },
-    listLabel: { id: 'alarms.rules.listLabel', defaultMessage: 'Alarm rules' }
+    listLabel: { id: 'alarms.rules.listLabel', defaultMessage: 'Alarms' }
 });
 
 /** Props for {@link RuleList}. */

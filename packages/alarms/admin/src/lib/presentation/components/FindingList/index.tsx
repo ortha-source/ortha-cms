@@ -89,7 +89,7 @@ export function FindingList({
 
     return (
         <ul
-            className="flex flex-col divide-y divide-border rounded-md border"
+            className="flex flex-col divide-y divide-border rounded-xl border bg-card"
             aria-label={intl.formatMessage(messages.listLabel)}
         >
             {findings.map((finding) => (

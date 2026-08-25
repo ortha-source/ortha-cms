@@ -91,8 +91,23 @@ export function AlarmsPlugin(): AlarmsAdminPlugin {
                         )
                     },
                     {
-                        path: 'alarms/rules/:ruleId',
+                        // Before the `:ruleId` route below. React Router v6
+                        // ranks a static segment above a dynamic one regardless
+                        // of declaration order, so this is belt and braces —
+                        // but the editor also takes `mode` as a prop rather
+                        // than sniffing the param, so neither route can be
+                        // mistaken for the other.
+                        path: 'alarms/rules/new',
                         order: 61,
+                        element: (
+                            <Suspense fallback={<AlarmsSkeleton />}>
+                                <AlarmRuleEditorPage mode="create" />
+                            </Suspense>
+                        )
+                    },
+                    {
+                        path: 'alarms/rules/:ruleId',
+                        order: 62,
                         element: (
                             <Suspense fallback={<AlarmsSkeleton />}>
                                 <AlarmRuleEditorPage />

@@ -12,7 +12,9 @@ import {
     toast
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
+import { PageTopBar } from '@orthacms/shell-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { BellRing, Plus } from 'lucide-react';
 import { useAlarmFindings } from '../../../application/useAlarmFindings';
 import { useAlarmRules } from '../../../application/useAlarmRules';
 import { useAlarmSummary } from '../../../application/useAlarmSummary';
@@ -28,6 +30,7 @@ import type { AlarmFinding, AlarmRule } from '../../../types/alarm';
 import { AlarmsNoAccess } from '../../components/AlarmsNoAccess';
 import { AlarmsSkeleton } from '../../components/AlarmsSkeleton';
 import { FindingList } from '../../components/FindingList';
+import { MuteFindingDialog } from '../../components/MuteFindingDialog';
 import { RuleList } from '../../components/RuleList';
 
 const messages = defineMessages({
@@ -39,15 +42,17 @@ const messages = defineMessages({
     },
     tabOpen: { id: 'alarms.page.tabOpen', defaultMessage: 'Flagged' },
     tabMuted: { id: 'alarms.page.tabMuted', defaultMessage: 'Muted' },
-    tabRules: { id: 'alarms.page.tabRules', defaultMessage: 'Rules' },
+    // "Alarms" rather than "Rules": the object a person creates here is an
+    // alarm, and "rule" meant nothing outside this page — the records
+    // toolbar's button was the complaint that surfaced it. It repeats the
+    // section name, which is mild and unambiguous: the tab lists the alarms.
+    tabRules: { id: 'alarms.page.tabRules', defaultMessage: 'Alarms' },
     tabsLabel: { id: 'alarms.page.tabsLabel', defaultMessage: 'Alarms view' },
+    crumb: { id: 'alarms.page.crumb', defaultMessage: 'Alarms' },
+    newAlarm: { id: 'alarms.page.newAlarm', defaultMessage: 'New alarm' },
     clearRule: {
         id: 'alarms.page.clearRule',
         defaultMessage: 'Showing {ruleName} only — show everything'
-    },
-    mutePrompt: {
-        id: 'alarms.page.mutePrompt',
-        defaultMessage: 'Why is this one fine? (optional)'
     },
     muted: { id: 'alarms.page.muted', defaultMessage: 'Muted on this record.' },
     unmuted: { id: 'alarms.page.unmuted', defaultMessage: 'Unmuted.' },
@@ -62,7 +67,7 @@ const messages = defineMessages({
     },
     deleteTitle: {
         id: 'alarms.page.deleteTitle',
-        defaultMessage: 'Delete this rule?'
+        defaultMessage: 'Delete this alarm?'
     },
     deleteBody: {
         id: 'alarms.page.deleteBody',
@@ -71,9 +76,9 @@ const messages = defineMessages({
     },
     deleteConfirm: {
         id: 'alarms.page.deleteConfirm',
-        defaultMessage: 'Delete rule'
+        defaultMessage: 'Delete alarm'
     },
-    deleted: { id: 'alarms.page.deleted', defaultMessage: 'Rule deleted.' },
+    deleted: { id: 'alarms.page.deleted', defaultMessage: 'Alarm deleted.' },
     prev: { id: 'alarms.page.prev', defaultMessage: 'Previous' },
     next: { id: 'alarms.page.next', defaultMessage: 'Next' },
     pageOf: {
@@ -107,6 +112,7 @@ export function AlarmsPage() {
     const [page, setPage] = useState(1);
     const [ruleFilter, setRuleFilter] = useState<AlarmRule | null>(null);
     const [pendingDelete, setPendingDelete] = useState<AlarmRule | null>(null);
+    const [pendingMute, setPendingMute] = useState<AlarmFinding | null>(null);
     const [rescanning, setRescanning] = useState<ReadonlySet<string>>(
         () => new Set()
     );
@@ -140,34 +146,40 @@ export function AlarmsPage() {
         if (page > pageCount) setPage(pageCount);
     }, [page, pageCount]);
 
+    const crumbs = [
+        { key: 'alarms', label: intl.formatMessage(messages.crumb) }
+    ];
+
     if (!canRead) {
         return (
-            <Container>
-                <ContainerHeader
-                    title={intl.formatMessage(messages.title)}
-                    subtitle={intl.formatMessage(messages.subtitle)}
-                />
-                <AlarmsNoAccess />
-            </Container>
+            <>
+                <PageTopBar icon={BellRing} crumbs={crumbs} />
+                <Container>
+                    <ContainerHeader
+                        title={intl.formatMessage(messages.title)}
+                        subtitle={intl.formatMessage(messages.subtitle)}
+                    />
+                    <AlarmsNoAccess />
+                </Container>
+            </>
         );
     }
 
     if (summary.isPending && rules.isPending) return <AlarmsSkeleton />;
 
-    const onMute = (finding: AlarmFinding) => {
-        const reason = window.prompt(
-            intl.formatMessage(messages.mutePrompt) ?? undefined
-        );
-        if (reason === null) return;
+    const onConfirmMute = (reason: string) => {
+        if (!pendingMute) return;
         mute.mutate(
             {
-                ruleId: finding.ruleId,
-                entryId: finding.entryId,
+                ruleId: pendingMute.ruleId,
+                entryId: pendingMute.entryId,
                 reason: reason || undefined
             },
             {
-                onSuccess: () =>
-                    toast.success(intl.formatMessage(messages.muted))
+                onSuccess: () => {
+                    toast.success(intl.formatMessage(messages.muted));
+                    setPendingMute(null);
+                }
             }
         );
     };
@@ -219,126 +231,168 @@ export function AlarmsPage() {
     const mutedTotal = summary.data?.muted ?? 0;
 
     return (
-        <Container>
-            <ContainerHeader
-                title={intl.formatMessage(messages.title)}
-                subtitle={intl.formatMessage(messages.subtitle)}
-            />
-
-            <SegmentedControl
-                aria-label={intl.formatMessage(messages.tabsLabel)}
-                value={tab}
-                onValueChange={(next) => {
-                    setTab(next as AlarmsTab);
-                    setPage(1);
-                }}
-            >
-                <SegmentedControlItem value="open">
-                    {intl.formatMessage(messages.tabOpen)}
-                    <SegmentedControlCount>{openTotal}</SegmentedControlCount>
-                </SegmentedControlItem>
-                <SegmentedControlItem value="muted">
-                    {intl.formatMessage(messages.tabMuted)}
-                    <SegmentedControlCount>{mutedTotal}</SegmentedControlCount>
-                </SegmentedControlItem>
-                <SegmentedControlItem value="rules">
-                    {intl.formatMessage(messages.tabRules)}
-                    <SegmentedControlCount>
-                        {rules.data?.length ?? 0}
-                    </SegmentedControlCount>
-                </SegmentedControlItem>
-            </SegmentedControl>
-
-            {tab === 'rules' ? (
-                <RuleList
-                    rules={rules.data ?? []}
-                    isError={rules.isError}
-                    canManage={canManage}
-                    rescanningIds={rescanning}
-                    onRescan={onRescan}
-                    onEdit={(rule) =>
-                        navigate(
-                            `/workspaces/${workspace.id}/alarms/rules/${rule.id}`
-                        )
+        <>
+            <PageTopBar icon={BellRing} crumbs={crumbs} />
+            <Container>
+                <ContainerHeader
+                    title={intl.formatMessage(messages.title)}
+                    subtitle={intl.formatMessage(messages.subtitle)}
+                    actions={
+                        canManage ? (
+                            <Button
+                                onClick={() =>
+                                    navigate(
+                                        `/workspaces/${workspace.id}/alarms/rules/new`
+                                    )
+                                }
+                            >
+                                <Plus />
+                                {intl.formatMessage(messages.newAlarm)}
+                            </Button>
+                        ) : undefined
                     }
-                    onDelete={setPendingDelete}
-                    onShowFindings={showFindings}
                 />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    {ruleFilter ? (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="self-start"
-                            onClick={() => {
-                                setRuleFilter(null);
-                                setPage(1);
-                            }}
-                        >
-                            {intl.formatMessage(messages.clearRule, {
-                                ruleName: ruleFilter.name
-                            })}
-                        </Button>
-                    ) : null}
 
-                    <FindingList
-                        findings={findings.data?.items ?? []}
-                        isError={findings.isError}
-                        canManage={canManage}
-                        onMute={onMute}
-                        onUnmute={onUnmute}
-                    />
+                {/* The page's own vertical rhythm. `Container` sets padding but
+                    no gap, and `ContainerHeader`'s `mb-6` is the only margin in
+                    play — so without this the tab strip and whatever it selects
+                    sat flush against each other and the page read as one
+                    undifferentiated block. */}
+                <div className="flex flex-col items-stretch gap-6">
+                    <SegmentedControl
+                        // `self-start`, because a flex column stretches its
+                        // children: without it the tab strip spanned the full
+                        // width of the page and read as a header band rather
+                        // than as three tabs.
+                        className="self-start"
+                        aria-label={intl.formatMessage(messages.tabsLabel)}
+                        value={tab}
+                        onValueChange={(next) => {
+                            setTab(next as AlarmsTab);
+                            setPage(1);
+                        }}
+                    >
+                        <SegmentedControlItem value="open">
+                            {intl.formatMessage(messages.tabOpen)}
+                            <SegmentedControlCount>
+                                {openTotal}
+                            </SegmentedControlCount>
+                        </SegmentedControlItem>
+                        <SegmentedControlItem value="muted">
+                            {intl.formatMessage(messages.tabMuted)}
+                            <SegmentedControlCount>
+                                {mutedTotal}
+                            </SegmentedControlCount>
+                        </SegmentedControlItem>
+                        <SegmentedControlItem value="rules">
+                            {intl.formatMessage(messages.tabRules)}
+                            <SegmentedControlCount>
+                                {rules.data?.length ?? 0}
+                            </SegmentedControlCount>
+                        </SegmentedControlItem>
+                    </SegmentedControl>
 
-                    {pageCount > 1 ? (
-                        <div className="flex items-center justify-end gap-3">
-                            <span className="text-sm text-muted-foreground tabular-nums">
-                                {intl.formatMessage(messages.pageOf, {
-                                    page,
-                                    pages: pageCount
-                                })}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page <= 1}
-                                onClick={() => setPage((n) => n - 1)}
-                            >
-                                {intl.formatMessage(messages.prev)}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={page >= pageCount}
-                                onClick={() => setPage((n) => n + 1)}
-                            >
-                                {intl.formatMessage(messages.next)}
-                            </Button>
+                    {tab === 'rules' ? (
+                        <RuleList
+                            rules={rules.data ?? []}
+                            isError={rules.isError}
+                            canManage={canManage}
+                            rescanningIds={rescanning}
+                            onRescan={onRescan}
+                            onEdit={(rule) =>
+                                navigate(
+                                    `/workspaces/${workspace.id}/alarms/rules/${rule.id}`
+                                )
+                            }
+                            onDelete={setPendingDelete}
+                            onShowFindings={showFindings}
+                        />
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            {ruleFilter ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="self-start"
+                                    onClick={() => {
+                                        setRuleFilter(null);
+                                        setPage(1);
+                                    }}
+                                >
+                                    {intl.formatMessage(messages.clearRule, {
+                                        ruleName: ruleFilter.name
+                                    })}
+                                </Button>
+                            ) : null}
+
+                            <FindingList
+                                findings={findings.data?.items ?? []}
+                                isError={findings.isError}
+                                canManage={canManage}
+                                onMute={setPendingMute}
+                                onUnmute={onUnmute}
+                            />
+
+                            {pageCount > 1 ? (
+                                <div className="flex items-center justify-end gap-3">
+                                    <span className="text-sm text-muted-foreground tabular-nums">
+                                        {intl.formatMessage(messages.pageOf, {
+                                            page,
+                                            pages: pageCount
+                                        })}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page <= 1}
+                                        onClick={() => setPage((n) => n - 1)}
+                                    >
+                                        {intl.formatMessage(messages.prev)}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={page >= pageCount}
+                                        onClick={() => setPage((n) => n + 1)}
+                                    >
+                                        {intl.formatMessage(messages.next)}
+                                    </Button>
+                                </div>
+                            ) : null}
                         </div>
-                    ) : null}
+                    )}
                 </div>
-            )}
 
-            <ConfirmDialog
-                open={pendingDelete !== null}
-                onOpenChange={(next) => {
-                    if (!next) setPendingDelete(null);
-                }}
-                title={intl.formatMessage(messages.deleteTitle)}
-                description={intl.formatMessage(messages.deleteBody, {
-                    name: pendingDelete?.name ?? ''
-                })}
-                confirmLabel={intl.formatMessage(messages.deleteConfirm)}
-                confirmVariant="destructive"
-                onConfirm={() => {
-                    if (!pendingDelete) return;
-                    remove.mutate(pendingDelete.id, {
-                        onSuccess: () =>
-                            toast.success(intl.formatMessage(messages.deleted))
-                    });
-                    setPendingDelete(null);
-                }}
-            />
-        </Container>
+                <ConfirmDialog
+                    open={pendingDelete !== null}
+                    onOpenChange={(next) => {
+                        if (!next) setPendingDelete(null);
+                    }}
+                    title={intl.formatMessage(messages.deleteTitle)}
+                    description={intl.formatMessage(messages.deleteBody, {
+                        name: pendingDelete?.name ?? ''
+                    })}
+                    confirmLabel={intl.formatMessage(messages.deleteConfirm)}
+                    confirmVariant="destructive"
+                    onConfirm={() => {
+                        if (!pendingDelete) return;
+                        remove.mutate(pendingDelete.id, {
+                            onSuccess: () =>
+                                toast.success(
+                                    intl.formatMessage(messages.deleted)
+                                )
+                        });
+                        setPendingDelete(null);
+                    }}
+                />
+
+                <MuteFindingDialog
+                    finding={pendingMute}
+                    isPending={mute.isPending}
+                    onCancel={() => setPendingMute(null)}
+                    onConfirm={onConfirmMute}
+                />
+            </Container>
+        </>
     );
 }

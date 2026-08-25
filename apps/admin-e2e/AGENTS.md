@@ -98,8 +98,26 @@ red.
 - **Network is the seed.** All backend state comes from `support/api/*` mocks.
 - **Role/label locators** over CSS (`getByRole`, `getByLabel`) — resilient and
   a11y-aligned.
+- **A new surface needs its permissions in `ALL_PERMISSIONS`
+  (`support/api/auth.ts`) before it needs a spec.** The signed-in admin every
+  suite shares is that list, and a permission-gated plugin whose key is missing
+  renders for _nobody_ — so the surface is invisible to every spec while the
+  suite still reports green. It has happened four times now (`tokens:*`,
+  `content:export`/`import`, `copilot:use`, `alarms:*`), and each time the gap
+  was found by a person using the product rather than by the suite. Add the keys
+  in the same change that adds the plugin.
 
 ## Gotchas
+
+- **`page.route` matches in reverse registration order — the _last_ one
+  registered wins.** So register the general pattern first and the specific one
+  last, or the wildcard swallows the specific route: `**/api/alarms/rules/*`
+  registered after `…/rules/preview` answers the preview POST with an unrelated
+  body, and the page renders `NaN` off it rather than failing.
+- **A `*` segment does not cross `/`.** `**/api/alarms/findings*` never matches
+  `…/findings/:rule/:entry/mute`, so that request falls through to the dev
+  server's proxy and fails silently — the assertion then reads as "the UI did
+  not send it".
 
 - **`role="alert"` is shared.** Both the credential-error banner _and_ each
   field error render `role="alert"` (design-system `FieldError`). `LoginPage`

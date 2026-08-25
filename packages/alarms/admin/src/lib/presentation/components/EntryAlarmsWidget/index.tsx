@@ -24,7 +24,7 @@ const messages = defineMessages({
     },
     clean: {
         id: 'alarms.widget.clean',
-        defaultMessage: 'No rule flags this record.'
+        defaultMessage: 'No alarm flags this record.'
     },
     failed: {
         id: 'alarms.widget.failed',

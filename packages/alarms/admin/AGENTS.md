@@ -16,34 +16,110 @@ the record, with a link to the author, without knowing a rule exists.
 The page is for the person who owns editorial policy — what is flagged across
 the workspace, grouped by rule, and the rules themselves.
 
-## How a rule gets made
+## The user-facing noun is **alarm**; the code's is `rule`
 
-Through **"Save as rule"** in the records toolbar (`RECORDS_TOOLBAR_SLOT`), not
-through a blank form. The sequence a person actually goes through is:
+Every string a person reads says "alarm" — "Save as alarm", "New alarm",
+"Delete this alarm?", and the third tab is **Alarms**. Message **ids**, types,
+components, query keys and the API's `/alarms/rules` paths all keep `rule`.
 
-1. Something looks wrong, so they filter the content list.
-2. They see the fourteen records and confirm it with their eyes.
-3. They ask the CMS to keep watching.
+The split is deliberate and came from a bug report: "rule" is coherent inside a
+page titled Alarms and means nothing in the records toolbar, where the button
+sits beside Filters and the column picker. The one place `rule` survives in copy
+is as a message _placeholder_ name (`{rule} · {contentType}`), which nobody
+reads.
 
-At step 3 the condition is already built and already verified. Asking them to
-re-enter it in a rule editor would be asking them to check their own work; a
-blank condition form invites writing a rule against a collection nobody has
-looked at, which is how you get a rule that matches everything.
+## How an alarm gets made
 
-There is therefore **no "create rule" page**. `AlarmRuleEditorPage` edits an
-existing rule — its wording, its level, its condition — with the records list's
-own `QueryBuilderPanel` over `useFilterFields`, the same server-derived paths.
+Two ways, and the first is much better:
 
-Two fields in the save dialog look redundant and are not:
+1. **"Save as alarm"** in the records toolbar (`RECORDS_TOOLBAR_SLOT`). The
+   sequence a person actually goes through is: something looks wrong, so they
+   filter the content list; they see the fourteen records and confirm it with
+   their eyes; they ask the CMS to keep watching. At the third step the
+   condition is already built and already verified against rows they looked at.
+2. **New alarm**, from the alarms page — `AlarmRuleEditorPage` in
+   `mode="create"` at `alarms/rules/new`, with a content-type picker in front of
+   the condition builder.
 
-- **Rule name** — how the rule is listed, in the language of editorial policy:
+The second was **added at a user's request, reversing a documented decision**,
+and the original reasoning still holds: a blank condition form invites writing
+an alarm against a collection nobody has looked at, which is how you get one
+that matches everything. What makes it acceptable is the live match count — the
+form runs the preview on every condition change and says "312 of 312 — that is
+every record in the collection, the condition is probably inverted" before
+anything is saved. If that readout regresses, this form becomes the footgun the
+decision was about.
+
+One component serves both modes, keyed by a `mode` prop rather than by sniffing
+the route param. The two forms _are_ the same form; the only genuine difference
+is whether the collection is chosen or already fixed, and an alarm's type is
+fixed on purpose — changing it would not edit the alarm, it would silently
+repurpose every finding it has already opened.
+
+Two fields on both forms look redundant and are not:
+
+- **Alarm name** — how it is listed, in the language of editorial policy:
   "Relations point at published records".
 - **What editors will see** — the finding's title, on the record itself:
   "Author is not published".
 
-Collapsing them gives you either a rule list full of instructions or an editor
+Collapsing them gives you either a list full of instructions or an editor
 being told about "relations pointing at published records" while looking at the
 piece they are writing.
+
+## The condition editor offers the records list's **full** field surface
+
+`useFilterFields` alone is not enough, and this was a real bug: the records list
+offers the server-derived paths **plus** whatever plugins contribute through
+`RECORDS_FILTER_FIELDS_SLOT` — i18n's `localeCount` / `hasLocale` /
+`missingLocale`, resolved at evaluation time by that plugin's own virtual-field
+subqueries. An alarm saved from that list can carry either kind. Reading only
+the server half meant a locale condition came back as _"This field is no longer
+available — pick another one"_, and the Apply gate then refused **every** edit
+to that alarm, because it rejects any rule whose field it cannot resolve.
+
+Two things about the fix are easy to get wrong:
+
+- **`useFields` is a hook**, so it is called unconditionally with a
+  module-constant placeholder schema until the real one loads. Guarding the call
+  on `schema.data` changes the hook count between renders and takes the page
+  down with the error boundary — React counts hooks, not intentions, and the
+  crash is total rather than a degraded field list.
+- **The load state travels with the fields.** `useFilterFields` documents this
+  itself: an empty surface, a still-loading surface and a failed request are
+  three different things, and collapsing them "makes Apply a silent no-op with
+  nothing on screen explaining why". The panel gets `fieldsPending`,
+  `fieldsError` and `onRetryFields`, and the schema's own pending state is
+  folded in — gated on there _being_ a type, since a disabled query reports
+  `isPending` for ever.
+
+## Apply changes the chips; Save re-checks the collection
+
+In the records list, Apply has an obvious consequence: the table underneath
+re-runs. The rule editor has no table, so committing a condition changed nothing
+a person could see and Apply read as a dead button. Both halves of the fix are
+on screen at rest rather than behind another click:
+
+- The committed conditions render as **`QueryBuilderSummary` chips**, so Apply
+  visibly moves the edit out of the builder and into the alarm. Removing a chip
+  re-commits immediately, exactly as in the records toolbar.
+- The **match count re-runs on its own** whenever those conditions change. It
+  used to sit behind a button labelled "Count matches" — the one number that
+  says whether the alarm means what its author thinks, available only if you
+  knew to ask for it. The auto-preview keys on the serialised filter through a
+  ref, not on `preview.mutate`: that identity changes every render, so
+  depending on it fired one collection scan per keystroke in the name field.
+
+An unsaved-conditions notice completes the split in words. It fires whenever the
+on-screen conditions differ from the stored ones — **including when they have
+been cleared**, which an earlier `filterKey !== null` guard treated as "nothing
+to report" — but renders only when there is something saveable, because the
+empty state and a disabled Save already say something more specific.
+
+**Save always sends the filter.** It used to omit the key when the condition was
+empty, which the API reads as "leave it alone" — so clearing every condition and
+pressing Save silently kept the old one. Saving with no conditions is refused
+instead: an alarm with no condition flags every record in the collection.
 
 ## The one non-obvious call in the code
 
@@ -79,8 +155,9 @@ src/lib/
     alarmsKeys/              # query keys, all prefixed with the workspace id
   presentation/
     severityLook/            # severity → icon + classes (the one place)
-    pages/AlarmsPage, pages/AlarmRuleEditorPage
+    pages/AlarmsPage, pages/AlarmRuleEditorPage  # the editor serves create + edit
     components/…             # SeverityBadge, FindingList, RuleList, the slots
+      MuteFindingDialog/     # the mute reason (was a window.prompt)
       FindingsToolResult/    # the copilot's `admin_alarms_findings`, rendered
   types/alarm/               # the view models
 ```
@@ -162,6 +239,15 @@ locally is a hue nobody measured.
 - **Severity is a word as well as a colour.** Encoding the whole meaning of a
   finding in hue fails WCAG 1.4.1 and fails anyone who cannot tell the three
   apart.
+- **Muting asks for its reason in a dialog, never `window.prompt`.** The native
+  prompt blocks the whole tab — so the record the finding is about cannot be
+  consulted while answering — and a browser that suppresses it (a background
+  tab, or after "prevent additional dialogs") returns `null`, which is
+  indistinguishable from Cancel. The mute then silently did not happen.
+- **Both pages carry a `PageTopBar`.** It is the chrome every other workspace
+  section has, and it is where the way back lives: the editor's breadcrumb is
+  `Alarms › <the alarm's name>`, so two open tabs are told apart by which alarm
+  they are editing rather than both reading "Edit alarm".
 
 ## Commands
 
@@ -169,3 +255,11 @@ locally is a hue nobody measured.
 - `npx nx test @orthacms/alarms-admin` — `toolOutput` is unit-tested
   (`testEnvironment: 'node'`, as in copilot-admin: the tested code is pure)
 - `npx eslint packages/alarms/admin`
+- `npx nx e2e admin-e2e -- --project=chromium src/alarms` — the browser suite
+  (`apps/admin-e2e/src/alarms`, seeded by `support/api/alarms.ts`). It covers the
+  page chrome, the mute dialog, the condition chips and the live match count, an
+  alarm over a **slot-contributed** locale field, the create flow, the
+  filterable-field load states, and axe scans of every state. `ALL_PERMISSIONS`
+  in `support/api/auth.ts` had to gain `alarms:read` / `alarms:manage` first —
+  without them this whole surface renders for nobody and no browser test can see
+  it, which is why it shipped with a `window.prompt` in it.
