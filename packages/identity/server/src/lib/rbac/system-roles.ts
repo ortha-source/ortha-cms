@@ -31,6 +31,9 @@ export const PERMISSIONS = {
     TOKENS_DELETE: 'tokens:delete',
     COPILOT_USE: 'copilot:use',
     COPILOT_SKILLS_MANAGE: 'copilot:skills:manage',
+    ALARMS_READ: 'alarms:read',
+    ALARMS_MANAGE: 'alarms:manage',
+    VIEWS_SHARE: 'views:share',
     ACCESS_READ: 'access:read',
     ACCESS_MANAGE: 'access:manage',
     ACCESS_SIMULATE: 'access:simulate'
@@ -104,6 +107,13 @@ export interface SystemRole {
  * all), and it is the only way to check a rule before publishing behind it.
  * Viewer does not get it: a viewer has no rule to check.
  *
+ * `views:share` gates only **sharing** a saved list view with the workspace,
+ * not saving one. Every role can save private views — that is a personal
+ * bookmark over content they can already read — but a shared view becomes a
+ * navigation item for the whole workspace, which is an editorial decision.
+ * Contributors hold it; viewers do not, and are not blocked from anything by
+ * its absence.
+ *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
  * instructions are prompt text that runs for every member of the workspace, so
@@ -127,7 +137,13 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
             PERMISSIONS.MEDIA_UPDATE,
+            // Findings are shown inline in the entry editor, so the role
+            // that edits entries has to be able to read them. Writing the
+            // rules is `alarms:manage` and stays with admin: a rule is
+            // editorial policy, not an edit.
+            PERMISSIONS.ALARMS_READ,
             PERMISSIONS.COPILOT_USE,
+            PERMISSIONS.VIEWS_SHARE,
             PERMISSIONS.ACCESS_READ,
             PERMISSIONS.ACCESS_SIMULATE
         ]
@@ -140,6 +156,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.USERS_READ,
             PERMISSIONS.CONTENT_READ,
             PERMISSIONS.MEDIA_READ,
+            PERMISSIONS.ALARMS_READ,
             PERMISSIONS.COPILOT_USE,
             PERMISSIONS.ACCESS_READ
         ]

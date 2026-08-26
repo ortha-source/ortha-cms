@@ -111,3 +111,37 @@ export { EntrySidebarRow } from './lib/presentation/components/EntrySidebarRow';
 export { refreshEntryCaches } from './lib/application/refreshEntryCaches';
 export { contentEntriesPrefix } from './lib/application/useContentEntries';
 export { contentEntryKey } from './lib/application/useContentEntry';
+
+// The type's filterable surface, exported so a plugin that stores a *saved*
+// records filter (the alarms plugin's rules) edits it with the same query
+// builder, over the same server-derived paths, as the list it came from. A
+// second source of filterable fields is how a saved filter starts meaning
+// something the list never meant.
+export { useFilterFields } from './lib/application/useFilterFields';
+export type { FilterFieldsResult } from './lib/application/useFilterFields';
+
+// The catalogue and one type's schema, for the same reason. A plugin that
+// stores a filter has to let someone **choose what to store it against**, and
+// `RECORDS_FILTER_FIELDS_SLOT.useFields` takes a `ContentTypeDetail` — so a
+// consumer that offers the records list's full filterable surface (rather than
+// the server-derived half of it) needs the schema too. Without it a rule saved
+// over a slot-contributed field, like i18n's `localeCount`, reads back as
+// "this field is no longer available" in the editor that is supposed to edit
+// it.
+export { useContentTypes } from './lib/application/useContentTypes';
+export { useContentSchema } from './lib/application/useContentSchema';
+
+// The `*` a required field's label wears, exported so a plugin's own form uses
+// the convention the entry editor established rather than inventing a second
+// one. It is `aria-hidden` on purpose — the control carries `aria-required`,
+// and marking the asterisk up too announces "required" twice per field. State
+// what it means once, in a visible legend above the fields.
+export { RequiredMark } from './lib/presentation/components/EntryFieldInput/RequiredMark';
+
+// The record picker a relation-id filter rule needs. The query builder holds no
+// data layer, so it takes this through `renderRelationValue` — and a consumer
+// that mounts the builder without it gets a *plain text box* where a relation
+// rule's value should be, i.e. a rule you can only complete by pasting a uuid.
+// Exported so the alarms rule editor offers the same picker the records list
+// does rather than that.
+export { RelationValuePicker } from './lib/presentation/components/RelationValuePicker';

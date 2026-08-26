@@ -13,6 +13,7 @@ import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { SegmentsPlugin } from '@orthacms/segments-admin';
+import { AlarmsPlugin } from '@orthacms/alarms-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring
@@ -70,6 +71,13 @@ export function buildPlugins(): AdminPlugin[] {
         // the records selection bar and the collection toolbar — so it reads
         // after ContentPlugin() for the same reason I18nPlugin() does.
         transferAdminPlugin(),
+        // Content alarms. Another Content Library slot filler — the entry
+        // rail's checks block, an optional records column, and the toolbar's
+        // "Save as rule" — so it reads after ContentPlugin() for the same
+        // reason the two above it do. It also contributes its own workspace
+        // route and nav entry: alarms are per-workspace content rules, not a
+        // global page.
+        AlarmsPlugin(),
         // The docked chat panel plus the full-page Agents view. Belongs with the
         // workspace-interior features: the panel mounts into the workspace
         // shell's sidebar footer.

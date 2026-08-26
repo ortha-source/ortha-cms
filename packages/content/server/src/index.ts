@@ -6,6 +6,27 @@ export type {
     ContentServerPlugin
 } from './lib/utils/content-plugin';
 
+// Saved list views. A second `ServerPlugin` entry from this package because
+// `ServerPlugin.migrations` holds one descriptor and content's is already the
+// HOST's generated collection tables — see `content-views-plugin.ts`.
+export { ContentViewsPlugin } from './lib/utils/content-views-plugin';
+export type { ContentViewsPluginOptions } from './lib/utils/content-views-plugin';
+export { ContentViewsModule } from './lib/views/content-views.module';
+export {
+    savedViews,
+    savedViewDefaults,
+    viewVisibility
+} from './lib/views/infrastructure/schema';
+export {
+    VIEW_VISIBILITY,
+    VIEW_VISIBILITY_VALUES
+} from './lib/views/domain/saved-view';
+export type {
+    SavedView,
+    SavedViewPayload,
+    ViewVisibility
+} from './lib/views/domain/saved-view';
+
 export { collection, single, joinTableOf } from './lib/collection/define';
 export { field } from './lib/fields';
 
@@ -108,6 +129,11 @@ export type {
     SerializedField
 } from './lib/registry/content-type-registry';
 
+// Filter evaluation over a content type, exported for `@orthacms/alarms-server`:
+// an alarm rule IS a records-list filter, so it must be parsed and translated
+// by the same surface the list uses rather than by a second implementation.
+export { EntryMatchQuery } from './lib/entries/infrastructure/queries/entry-match.query';
+export type { EntryMatchOptions } from './lib/entries/infrastructure/queries/entry-match.query';
 export { EntryValidationService } from './lib/validation/services/entry-validation.service';
 export type {
     ValidationIssue,

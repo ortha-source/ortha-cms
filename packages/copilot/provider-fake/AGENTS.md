@@ -1,15 +1,19 @@
 # @orthacms/copilot-provider-fake
 
-A scripted, deterministic `ModelProvider`. **Shipped, not test scaffolding**
-([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3): it
-is how `server-e2e` will exercise the whole tool loop with no API key and no
-network, and how a contributor runs the admin offline. It is registered in
-`apps/server/src/plugins.ts` **last**, after whichever real adapters this
-deployment configured — and a clone with no keys configures none, so `fake` is
-the only provider there is, which is what lets a fresh checkout chat without
-configuration. The first registered provider serves a run that names none, so
-being last is also what keeps it out of the way of a deployment that has a real
-one.
+A scripted, deterministic `ModelProvider`, and a **test fixture only**
+([ADR-0004](../../../docs/adr/0004-model-agnostic-copilot-provider.md) §3). It
+is how `server-e2e` exercises the whole tool loop with no API key and no
+network. It is `private` in its manifest and excluded from `nx.json`'s release
+projects, so it publishes nowhere and a generated app never installs it.
+
+**Do not register it in a composition root.** It used to be, unconditionally and
+last, on the reasoning that a contributor should be able to run the admin
+offline — which meant it was the entire catalogue of any deployment that had
+configured no real backend, so a production install that turned the copilot on
+and forgot the key answered every question with a canned sentence rather than
+failing. A host now registers exactly the backends it configured;
+`CopilotPlugin` accepts an empty list only while the copilot is switched off,
+and refuses to build an enabled copilot that has nothing to call.
 
 Depends only on `@orthacms/copilot-domain`. No network, no clock, no randomness
 — the run engine is a non-deterministic multi-step loop, and a flaky fake would
@@ -46,12 +50,13 @@ src/lib/
 
 ## Two modes, and the difference matters
 
-- **No `script` (dev mode).** Every call returns the same canned reply, forever.
-  A contributor running the admin offline never hits an end.
-- **`script` supplied (test mode).** Turns are consumed in order, and running
-  past the end **throws**, naming how many turns were scripted and which call
-  asked for one. Silently inventing a turn would let a test assert the wrong
-  number of model calls and still pass.
+- **No `script` (unscripted).** Every call returns the same canned reply,
+  forever. It is what a harness constructs before a test has scripted anything,
+  and what a test that does not care what the model says can leave in place.
+- **`script` supplied.** Turns are consumed in order, and running past the end
+  **throws**, naming how many turns were scripted and which call asked for one.
+  Silently inventing a turn would let a test assert the wrong number of model
+  calls and still pass.
 
 ## Behaviour
 

@@ -1,14 +1,13 @@
 import { join } from 'node:path';
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
-import { ContentPlugin } from '@orthacms/content-server';
+import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 import {
     CopilotPlugin,
     type ProviderRegistration
 } from '@orthacms/copilot-server';
 import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
-import { createFakeProvider } from '@orthacms/copilot-provider-fake';
 import { createOpenAiProvider } from '@orthacms/copilot-provider-openai';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
@@ -20,6 +19,7 @@ import { McpPlugin } from '@orthacms/mcp-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
+import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
@@ -29,15 +29,22 @@ import { contentTypes } from './content';
 
 /**
  * The copilot backends this deployment can actually reach, in preference
- * order — a real one first, `fake` last.
+ * order.
  *
  * **Only what is configured is registered.** `ortha.config.ts` omits a
  * provider whose connection settings are absent, and an unconfigured backend
  * is not registered here either: the first entry is what a run that names no
  * provider gets, so a keyless `claude` at the top of the list would be the
- * house default and would fail on the first message. A clone with no keys is
- * left with `fake` alone, which is a working chat and a picker with nothing to
- * choose (the admin hides a one-option picker).
+ * house default and would fail on the first message.
+ *
+ * **A clone with no keys gets an empty list**, and therefore no copilot: there
+ * is no scripted offline adapter in this list any more. The fake provider is a
+ * test fixture (`@orthacms/copilot-provider-fake`, private and unpublished) and
+ * registering it here made a misconfigured production deployment answer every
+ * question with a canned sentence instead of failing. `COPILOT_ENABLED` is off
+ * by default, so an empty list is the ordinary state of a fresh clone and boots
+ * fine; turning the copilot on with no backend configured fails at boot, where
+ * it is cheapest to diagnose.
  *
  * **Exported for `plugins.spec.ts`.** The order this returns is what decides
  * the house default, and it is unreachable from the outside otherwise: the
@@ -54,12 +61,7 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
             : []),
         ...(ollama
             ? [{ name: 'ollama', provider: createOpenAiProvider(ollama) }]
-            : []),
-        // Shipped, not test scaffolding (ADR-0004 §3): it is how server-e2e
-        // drives the loop with no key and no network, and how a contributor
-        // runs the admin offline. Last, so it is the default only when it is
-        // the only thing there is.
-        { name: 'fake', provider: createFakeProvider() }
+            : [])
     ];
 }
 
@@ -72,10 +74,11 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
  * can only fail, and every SSO failure deliberately looks the same, so the
  * person clicking it would learn nothing.
  *
- * There is no `fake` counterpart to the copilot's offline adapter in this list.
- * `@orthacms/identity-provider-fake` ships and is what `server-e2e` registers,
- * but a scripted identity provider in a running deployment signs people in
- * without anyone authenticating, so the host does not register one.
+ * No scripted provider is registered here. `@orthacms/identity-provider-fake`
+ * ships and is what `server-e2e` registers, but a scripted identity provider in
+ * a running deployment signs people in without anyone authenticating, so the
+ * host does not register one — the same reason the copilot's fake adapter is
+ * now a private test fixture rather than something this file wires up.
  *
  * **Exported for `plugins.spec.ts`.** The plugin object carries its
  * `identityConfig`, not its providers, so a config threaded into the wrong
@@ -194,6 +197,18 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         ActivityPlugin(),
         UsersPlugin(),
         content,
+        // Saved list views — a second `ServerPlugin` entry from the content
+        // package, not a second package. `ServerPlugin.migrations` carries one
+        // descriptor and content's is already the HOST's generated collection
+        // tables, so the feature's own fixed tables ride their own entry
+        // (tracked under `__drizzle_migrations_content_views`).
+        //
+        // Placement is load-bearing twice over: `saved_views` has foreign keys
+        // into identity's `users` and workspaces' `workspaces`, and migrations
+        // run in this list's order with nothing declaring that dependency; and
+        // it takes `content` by value for the registry that resolves a view's
+        // `content:<typeName>` scope.
+        ContentViewsPlugin({ content }),
         // The same public content API over GraphQL, on `/api/v1/graphql`. It
         // owns no schema and adds no credential — it reuses content's bearer
         // guards and read/write services, so a token minted before it existed
@@ -245,6 +260,17 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // reader's tags come from, and its absence means every reader is
         // anonymous, which serves unrestricted content and nothing else.
         SegmentsPlugin(config.plugins.segments),
+        // Alarms — non-blocking content rules. After content, whose registry,
+        // filter surface and grant query it uses: a rule *is* a records-list
+        // filter, evaluated through content's own `EntryMatchQuery`, so it can
+        // only ever mean what the list means. It subscribes to the entry
+        // lifecycle events on the shared outbox and owns two tables of its own.
+        //
+        // It never blocks a write, at any severity
+        // ([ADR-0015](../../../docs/adr/0015-alarms-are-non-blocking.md)) —
+        // that is the line that keeps it from becoming a second, competing
+        // authority on whether an entry is valid.
+        AlarmsPlugin(),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place

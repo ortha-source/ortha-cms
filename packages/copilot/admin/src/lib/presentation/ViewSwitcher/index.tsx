@@ -8,6 +8,7 @@ import {
     SidebarGroup
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
+import { useCopilotAvailable } from '../../application/useCopilotModels';
 import {
     COPILOT_USE,
     agentsPath,
@@ -83,13 +84,18 @@ function readCmsPath(workspaceId: string): string | null {
  * It renders in the sidebar's contextual region — **above**
  * `CurrentWorkspaceProvider`, like every other section there — so it resolves the
  * open workspace from the route rather than from context. Nothing renders
- * outside a workspace or without `copilot:use`.
+ * outside a workspace, without `copilot:use`, or on a deployment that turned
+ * the copilot off.
  */
 export function ViewSwitcher() {
     const intl = useIntl();
     const match = useMatch('/workspaces/:id/*');
     const workspaceId = match?.params.id;
     const canUse = useHasPermission(COPILOT_USE);
+    // A deployment that turned the copilot off registers no copilot route, so
+    // the Agents half of this control would switch to a page with nothing
+    // behind it. Same probe the launcher uses, off the same cached query.
+    const deploymentRunsCopilot = useCopilotAvailable({ enabled: canUse });
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -103,7 +109,7 @@ export function ViewSwitcher() {
         rememberCmsPath(workspaceId, here);
     }, [workspaceId, inAgents, here]);
 
-    if (!workspaceId || !canUse) {
+    if (!workspaceId || !canUse || !deploymentRunsCopilot) {
         return null;
     }
 

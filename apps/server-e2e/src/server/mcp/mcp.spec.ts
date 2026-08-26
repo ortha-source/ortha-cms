@@ -401,6 +401,9 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
                     // to a coincidence of the scope table.
                     'activity_recent',
                     'workspace_members_list',
+                    // `alarms:read` is mintable by no scope either, and a
+                    // finding names entries regardless of publish state.
+                    'admin_alarms_findings',
                     // Every propose tool: the handler writes nothing and hands
                     // back a change for the run engine to record and apply.
                     // There is no engine here, so a call would look like a
@@ -584,6 +587,23 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
             expect(isError).toBe(true);
             expect(data['code']).toBe('forbidden');
+        });
+
+        // `surfaces` is scoping, not decoration: `ToolRegistry.call` looks the
+        // name up **within** the caller's surface, so a copilot-only tool is
+        // not merely hidden from `tools/list` — it does not exist here. Which
+        // is the honest answer: `alarms:read` is mintable by no scope, so a
+        // token that could reach the handler would be refused by it anyway.
+        it('refuses a copilot-only tool a full-scope token names', async () => {
+            const { secret } = await mintToken({ scope: 'full' });
+
+            const { isError, data } = await callTool(
+                secret,
+                'admin_alarms_findings'
+            );
+
+            expect(isError).toBe(true);
+            expect(data['code']).toBe('not_found');
         });
 
         it('reports an unknown tool as not_found', async () => {

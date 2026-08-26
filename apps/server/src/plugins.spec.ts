@@ -29,11 +29,13 @@ const EXPECTED_PLUGINS = [
     'activity',
     'users',
     'content',
+    'content-views',
     'content-graphql',
     'media',
     'i18n',
     'transfer',
     'segments',
+    'alarms',
     'copilot',
     'mcp'
 ];
@@ -64,6 +66,14 @@ describe('buildPlugins()', () => {
         );
         expect(migrating.indexOf('workspaces')).toBeLessThan(
             migrating.indexOf('activity')
+        );
+        // `saved_views` references identity's `users` and workspaces'
+        // `workspaces`, so the views entry has to follow both.
+        expect(migrating.indexOf('identity')).toBeLessThan(
+            migrating.indexOf('content-views')
+        );
+        expect(migrating.indexOf('workspaces')).toBeLessThan(
+            migrating.indexOf('content-views')
         );
     });
 
@@ -170,14 +180,14 @@ describe('ssoProviders()', () => {
  * Load-bearing since the copilot lost its `defaultProvider`: the **first**
  * registration serves any run that names none, and it is what the admin's model
  * picker opens on. Nothing else covers this — `buildPlugins` is called above
- * under the ambient environment, which has no keys, so only the `[fake]` path
- * ever ran; `server-e2e` registers its own two fakes and never reaches this
- * file; and the plugin object exposes `copilotConfig`, not the providers. A
+ * under the ambient environment, which has no keys, so only the empty path ever
+ * ran; `server-e2e` registers its own two scripted providers and never reaches
+ * this file; and the plugin object exposes `copilotConfig`, not the providers. A
  * `claude` entry handed the *ollama* settings would have been green everywhere.
  *
  * Constructing an adapter costs nothing here — `createAnthropicProvider` builds
- * its client lazily, so a fake key makes no network call and no SDK is touched
- * until a run streams.
+ * its client lazily, so a placeholder key makes no network call and no SDK is
+ * touched until a run streams.
  */
 describe('copilotProviders()', () => {
     /** The shipped config with a copilot provider set substituted in. */
@@ -201,26 +211,32 @@ describe('copilotProviders()', () => {
         apiKey: ''
     };
 
-    it('registers the scripted fake alone when nothing is configured', () => {
-        // The fresh-clone case: a working chat, a picker the admin hides
-        // because there is nothing to choose, and `fake` as the default only
-        // because it is the only thing there is.
-        expect(copilotProviders(withProviders({})).map((p) => p.name)).toEqual([
-            'fake'
-        ]);
+    it('registers nothing when nothing is configured', () => {
+        // The fresh-clone case. There is no scripted offline adapter in this
+        // list any more — the fake provider is a private test fixture — so a
+        // keyless deployment gets no copilot rather than one that answers every
+        // question with a canned sentence. `COPILOT_ENABLED` is off by default,
+        // so an empty list boots; turning the copilot on without configuring a
+        // backend fails at construction.
+        expect(copilotProviders(withProviders({})).map((p) => p.name)).toEqual(
+            []
+        );
     });
 
-    it('puts a configured backend ahead of the fake', () => {
-        // Order is the whole assertion: `fake` first would make every run in a
-        // configured deployment answer with the canned dev reply.
+    it('registers exactly the configured backends, in preference order', () => {
+        // Order is the whole assertion: the first entry serves a run that names
+        // no provider, so a swap here silently reroutes every default run.
         expect(
             copilotProviders(withProviders({ claude })).map((p) => p.name)
-        ).toEqual(['claude', 'fake']);
+        ).toEqual(['claude']);
+        expect(
+            copilotProviders(withProviders({ ollama })).map((p) => p.name)
+        ).toEqual(['ollama']);
         expect(
             copilotProviders(withProviders({ claude, ollama })).map(
                 (p) => p.name
             )
-        ).toEqual(['claude', 'ollama', 'fake']);
+        ).toEqual(['claude', 'ollama']);
     });
 
     it('hands each adapter its own settings', () => {

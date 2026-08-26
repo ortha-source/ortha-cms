@@ -5,8 +5,13 @@ import {
 } from './filter-exceptions';
 import { operatorsFor } from './operator-support';
 import { own } from './own-property';
-import { FilterOperator, ScalarFieldType } from './types';
-import type { FilterSchema, ParsedFilter, ScalarFieldSchema } from './types';
+import { FilterOperator, ScalarFieldType, WithinLastUnit } from './types';
+import type {
+    FilterSchema,
+    ParsedFilter,
+    ScalarFieldSchema,
+    WithinLastValue
+} from './types';
 
 const OPS: readonly FilterOperator[] = Object.values(FilterOperator);
 
@@ -131,6 +136,9 @@ function coerce(
     maxInListLength: number
 ): unknown {
     const pathStr = path.join('.');
+    if (op === FilterOperator.WithinLast) {
+        return withinLastValue(raw, pathStr);
+    }
     if (op === FilterOperator.Null) {
         if (raw === 'true' || raw === true) return true;
         if (raw === 'false' || raw === false) return false;
@@ -169,6 +177,49 @@ function coerce(
         return items.map((v) => scalarOf(v, field, pathStr));
     }
     return scalarOf(raw, field, pathStr);
+}
+
+/** Units a `within_last` window may name, as a set for membership checks. */
+const WITHIN_LAST_UNITS = new Set<string>(Object.values(WithinLastUnit));
+
+/**
+ * Coerce a `within_last` value — `{ n, unit }`, the only object-shaped value in
+ * the grammar.
+ *
+ * The bound on `n` is not decoration. `now() - make_interval(days => 1e9)`
+ * overflows Postgres' timestamp range and raises a `22008` the caller sees as a
+ * 500; a client asking for a window that long means to say "all of it", and
+ * should be told so with a 400 rather than a stack trace. Ten years of minutes
+ * is far past any real window and comfortably inside what a timestamp can hold.
+ */
+const MAX_WITHIN_LAST_N = 10_000_000;
+
+function withinLastValue(raw: unknown, pathStr: string): WithinLastValue {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw new FilterException(
+            FilterErrorCode.InvalidValue,
+            'within_last expects { n, unit }',
+            { path: pathStr, op: FilterOperator.WithinLast }
+        );
+    }
+    const value = raw as Record<string, unknown>;
+    const n = Number(value['n']);
+    const unit = value['unit'];
+    if (!Number.isInteger(n) || n < 1 || n > MAX_WITHIN_LAST_N) {
+        throw new FilterException(
+            FilterErrorCode.InvalidValue,
+            `within_last n must be an integer between 1 and ${MAX_WITHIN_LAST_N}`,
+            { path: pathStr, op: FilterOperator.WithinLast, value: value['n'] }
+        );
+    }
+    if (typeof unit !== 'string' || !WITHIN_LAST_UNITS.has(unit)) {
+        throw new FilterException(
+            FilterErrorCode.InvalidValue,
+            `within_last unit must be one of ${[...WITHIN_LAST_UNITS].join(', ')}`,
+            { path: pathStr, op: FilterOperator.WithinLast, value: unit }
+        );
+    }
+    return { n, unit: unit as WithinLastUnit };
 }
 
 function scalarOf(

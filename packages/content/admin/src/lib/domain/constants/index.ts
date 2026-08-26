@@ -20,6 +20,13 @@ export const CONTENT_PUBLISH = 'content:publish';
 export const CONTENT_DELETE = 'content:delete';
 
 /**
+ * Permission required to share a saved list view with the whole workspace.
+ * Saving a **personal** view needs nothing beyond `content:read` — the gate is
+ * on turning one into a navigation item for everyone else.
+ */
+export const VIEWS_SHARE = 'views:share';
+
+/**
  * Path segment under the workspace shell where the Content Library mounts
  * (`/workspaces/:id/content`). Shared by the plugin's slot contribution and the
  * page's `basePath` so they can never drift apart.
@@ -128,6 +135,16 @@ export const SEARCH_PARAM = 'q';
  * default (insertion) order. The bare-`-` convention keeps the URL unescaped.
  */
 export const SORT_PARAM = 'sort';
+
+/**
+ * Query-param name pointing at the applied saved view. Holds the view's id, so
+ * the link is shareable and Back/Forward switch views like any other navigation.
+ *
+ * A **pointer**, not the slice: `filter`/`sort`/`pageSize` stay in the URL as
+ * themselves, so a link keeps working when the view it names is renamed or
+ * deleted, and a hand-edited link is still just a link.
+ */
+export const VIEW_PARAM = 'view';
 
 /** Default rows-per-page for a collection's records table. */
 export const DEFAULT_PAGE_SIZE = 10;
