@@ -7,6 +7,7 @@ src/lib/
   domain/types.ts               Segment, EntryAccess, and the three-state algebra
   infrastructure/               the gateway port + its HTTP impl + query keys
   application/hooks.ts          the TanStack hooks
+  application/useEntryAccessPresave.ts   the save step + the tab's staging
   presentation/
     segmentsPlugin/             the factory
     pages/SegmentsPage/         the directory at /segments
@@ -19,11 +20,12 @@ src/lib/
 
 ## What it contributes
 
-| Surface            | Where               | What it is for                   |
-| ------------------ | ------------------- | -------------------------------- |
-| Audience directory | `/segments`         | the vocabulary                   |
-| Entry header chip  | `ENTRY_HEADER_SLOT` | is this entry restricted         |
-| **Access** tab     | `ENTRY_TAB_SLOT`    | every decision, one per audience |
+| Surface            | Where                | What it is for                   |
+| ------------------ | -------------------- | -------------------------------- |
+| Audience directory | `/segments`          | the vocabulary                   |
+| Entry header chip  | `ENTRY_HEADER_SLOT`  | is this entry restricted         |
+| **Access** tab     | `ENTRY_TAB_SLOT`     | every decision, one per audience |
+| The save step      | `ENTRY_PRESAVE_SLOT` | applying them, on Save / Publish |
 
 There is nothing between the directory and the entry — no rule library, no
 assignment screen — because there is nothing in the model between them.
@@ -40,10 +42,35 @@ server accepts and the reader resolves as _denied_ — while the editor's screen
 says allowed. The order of those two operations is what makes it unreachable,
 and it is the one thing here with a unit test.
 
-**The draft is local until Save.** Each toggle is a small change and the set of
-them is one decision — "these three see it, that one does not" — so writing on
-every click would publish intermediate answers to real readers on the way to the
-intended one.
+**There is no Save button on the Access tab — it rides the entry's own.** Who may
+read a record is part of the record, so a change is staged and written when the
+entry is written, marked with the same `ChangedBadge` a field carries. Two things
+that ruled out the alternatives: writing on every toggle would publish three
+intermediate answers to real readers on the way to the intended one, and a second
+Save button on a tab of the editor asks the user to remember which of two buttons
+their change belonged to.
+
+**The staging is mounted above the tab, and the write happens in `settle`.**
+Editor tabs are **routes**, so the Access panel unmounts on every tab switch —
+hence `ENTRY_PRESAVE_SLOT`, reached back down through `EntryTabContext.presave`,
+exactly as the media plugin's staged uploads are. It is `settle` rather than
+`commit` because access is stored against the **entry id**, and on a create there
+is no id until the row exists. The consequence is worth stating: the entry lands
+first and its audiences a moment later, so a failure leaves a saved entry whose
+access did not change — the staging is kept and the toast says to press Save
+again. The other order would restrict a record that never changed, which is the
+worse half of the same trade.
+
+**Nothing staged is not the same as open access.** `EntryAccessStaging.draft` is
+`null` until something is set, and a save with `null` writes nothing at all —
+which is what keeps the feature inert for an editor who never opens the tab.
+Toggling back to what is already stored clears the staging (`sameAccess`) rather
+than staging a round trip.
+
+**The header chip says what readers get *now*, the tab says what the next save
+will make of it.** The chip renders from `EntrySlotContext`, which carries no
+`presave` handle, so it cannot see the staging — and that is the honest reading
+anyway: until Save, the restriction the chip reports is still the live one.
 
 **The save response seeds the cache rather than invalidating it.** The server
 returns the lists it stored, so there is nothing a refetch would learn — and a

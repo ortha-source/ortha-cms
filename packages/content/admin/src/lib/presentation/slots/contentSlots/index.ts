@@ -406,6 +406,24 @@ export type EntryMenuItem = {
 export const ENTRY_MENU_SLOT = createSlot<EntryMenuItem>('content.entry.menu');
 
 /**
+ * What the write turned out to be, handed to {@link EntryPresave.settle}.
+ *
+ * A step that has to write **against the record** — rather than only rewrite the
+ * values on their way in — can only do it here: on a create there is no id until
+ * the row exists, and `commit` runs before it does.
+ */
+export type EntryPresaveResult = {
+    /** The record as the write returned it — on a create, the row that now exists. */
+    entry: EntryRecord;
+    /** The type it was saved against. */
+    schema: ContentTypeDetail;
+    /** Whether this write created the record. */
+    created: boolean;
+    /** Whether the record is live after this write. */
+    published: boolean;
+};
+
+/**
  * One plugin's participation in the **save itself** — work that must happen
  * between "the user pressed Save/Publish" and the write, plus the state that
  * work is staged in.
@@ -424,8 +442,18 @@ export type EntryPresave = {
         values: Record<string, unknown>;
         publish: boolean;
     }) => Promise<Record<string, unknown>>;
-    /** Called after the write succeeded, to drop whatever `commit` consumed. */
-    settle?: () => void;
+    /**
+     * Called after the write succeeded — to drop whatever `commit` consumed, and
+     * to do the work that needed the saved record. It is **awaited**, still under
+     * the busy cover, so a step may finish a write of its own here: that is how
+     * `@orthacms/segments-admin` applies an entry's audiences on Save, which is
+     * impossible from `commit` because a create has no id yet.
+     *
+     * The entry is already written by the time this runs, so throwing cannot
+     * abort anything — a step owns surfacing its own failure (and leaving its
+     * staging in place so the next Save retries it), exactly as `commit` does.
+     */
+    settle?: (result: EntryPresaveResult) => void | Promise<void>;
     /**
      * Opaque handle published to contributed tabs as
      * `EntryTabContext.presave[id]`. This is how a tab's controls reach staging

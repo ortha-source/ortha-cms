@@ -774,7 +774,10 @@ contracts, the same idiom as the workspace shell's slots.
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
-`RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import).
+`RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
+`@orthacms/segments-admin` fills three (`ENTRY_HEADER_SLOT`, the restricted chip;
+`ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
+an entry's audiences on Save rather than on a button of its own).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -899,9 +902,15 @@ fetching internally.
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client
   validation and **before** the write, under the busy cover, and returns the
   values actually saved — throwing aborts the save (the step owns surfacing its
-  own failure). `settle()` runs once the write succeeded. `handle` is published
-  to contributed tabs as `EntryTabContext.presave[id]`, opaque, each tab reading
-  only its own key.
+  own failure). `settle(result)` is **awaited** once the write succeeded, still
+  under the cover, and is handed the saved `entry` + `schema` + `created` +
+  `published` — so a step may finish a write of its own there, which is the only
+  place it can: on a create there is no entry id until the row exists.
+  `@orthacms/segments-admin` applies an entry's audiences from it. A `settle`
+  that throws cannot abort anything (the entry is written), so the loop swallows
+  it and the step owns surfacing its own failure, exactly as `commit` does.
+  `handle` is published to contributed tabs as `EntryTabContext.presave[id]`,
+  opaque, each tab reading only its own key.
   This is what lets `@orthacms/media-admin` **defer uploads to Save**: files
   chosen on a media field are staged under a placeholder uuid (which the values
   bag holds, so validation and the publish gate treat them like any asset id),

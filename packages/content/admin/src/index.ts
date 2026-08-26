@@ -32,6 +32,7 @@ export type {
     EntryParamsItem,
     EntryPresave,
     EntryPresaveItem,
+    EntryPresaveResult,
     EntrySlotContext,
     EntrySidebarWidgetItem,
     EntryTabContext,

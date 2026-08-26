@@ -1,30 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Globe, Lock, ShieldCheck } from 'lucide-react';
-import type { EntryTabContext } from '@orthacms/content-admin';
+import { ChangedBadge, type EntryTabContext } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import {
-    Badge,
-    Button,
-    Skeleton,
-    Spinner,
-    toast
-} from '@orthacms/design-system';
+import { Badge, Button, Skeleton } from '@orthacms/design-system';
 import {
     isOpen,
     sameAccess,
     stateOf,
     withState,
     OPEN_ACCESS,
-    type EntryAccess
+    type EntryAccessStaging
 } from '../../../domain/types';
 import {
     SEGMENTS_MANAGE,
-    useEntryAccess,
     useSegments,
-    useSetEntryAccess
+    useEntryAccess
 } from '../../../application/hooks';
+import { ENTRY_ACCESS_PRESAVE_ID } from '../../../application/useEntryAccessPresave';
 import { SegmentStateControl } from '../SegmentStateControl';
 
 const messages = defineMessages({
@@ -45,20 +38,9 @@ const messages = defineMessages({
         id: 'segments.entryTab.restricted',
         defaultMessage: 'Restricted'
     },
-    save: { id: 'segments.entryTab.save', defaultMessage: 'Save access' },
-    reset: { id: 'segments.entryTab.reset', defaultMessage: 'Undo' },
-    saved: {
-        id: 'segments.entryTab.saved',
-        defaultMessage: 'Saved — readers are being served the new answer'
-    },
-    error: {
-        id: 'segments.entryTab.error',
-        defaultMessage: 'Couldn’t save that. Please try again.'
-    },
-    unsaved: {
-        id: 'segments.entryTab.unsaved',
-        defaultMessage:
-            'Save the entry first — access attaches to an entry that exists.'
+    pending: {
+        id: 'segments.entryTab.pending',
+        defaultMessage: 'Applied when you save the entry.'
     },
     readOnly: {
         id: 'segments.entryTab.readOnly',
@@ -77,21 +59,27 @@ const messages = defineMessages({
 /**
  * The entry editor's **Access** tab — the whole feature, from an editor's side.
  *
- * One row per audience, each with the three-state control. There is nothing
- * else on this tab because there is nothing else in the model: no rule to pick,
- * no level to inherit from, no window. What is set here is what a reader is
- * matched against on the next request.
+ * One row per audience, each with the three-state control. There is nothing else
+ * on this tab because there is nothing else in the model: no rule to pick, no
+ * level to inherit from, no window. What is set here is what a reader is matched
+ * against on the next request.
  *
- * **The draft is local until Save.** Each toggle is a small change and the set
- * of them is one decision — "these three see it, that one does not" — so
- * writing on every click would publish four intermediate answers to real
- * readers on the way to the intended one.
+ * **It has no Save button, on purpose.** Who may read a record is part of the
+ * record, so it rides the editor's own Save / Publish like a field does —
+ * staged here, written by the presave step when the entry is written. A second
+ * Save on a tab of the editor asks the user to remember which of two buttons
+ * their change belonged to, and publishes intermediate answers to real readers
+ * on the way to the one they meant.
+ *
+ * The staging lives **above this component** ({@link EntryAccessStaging}, reached
+ * through `presave`) because editor tabs are routes: this panel unmounts the
+ * moment the user switches tab, and an unsaved decision must not go with it.
  */
 export function EntryAccessTab({
     workspaceId,
-    schema,
     entry,
-    readOnly
+    readOnly,
+    presave
 }: EntryTabContext) {
     const intl = useIntl();
     // Two gates, and they are not the same one. `readOnly` says the caller may
@@ -101,34 +89,20 @@ export function EntryAccessTab({
     const canManage = useHasPermission(SEGMENTS_MANAGE);
     const segments = useSegments();
     const saved = useEntryAccess(workspaceId, entry?.id);
-    const save = useSetEntryAccess(workspaceId);
+    const staging = presave[ENTRY_ACCESS_PRESAVE_ID] as
+        | EntryAccessStaging
+        | undefined;
 
-    const [draft, setDraft] = useState<EntryAccess>(OPEN_ACCESS);
+    // What the entry is set to now, and what the next save will make of it. On a
+    // create there is nothing saved to read, so the base is open access — which
+    // is what an entry that nobody has restricted is.
+    const savedAccess = saved.data ?? OPEN_ACCESS;
+    const draft = staging?.draft ?? savedAccess;
+    const dirty = Boolean(staging?.draft);
 
-    // Re-seed whenever the server's answer changes — the first load, and after
-    // a save lands. Keyed on the value rather than a ref so a change made in
-    // another tab is picked up rather than silently overwritten.
-    const savedAccess = saved.data;
-    useEffect(() => {
-        if (savedAccess) setDraft(savedAccess);
-    }, [savedAccess]);
-
-    const dirty = useMemo(
-        () =>
-            Boolean(savedAccess) &&
-            !sameAccess(draft, savedAccess as EntryAccess),
-        [draft, savedAccess]
-    );
-
-    if (!entry) {
-        return (
-            <p className="text-sm text-muted-foreground">
-                {intl.formatMessage(messages.unsaved)}
-            </p>
-        );
-    }
-
-    if (segments.isPending || saved.isPending) {
+    // The read is disabled without an entry id, so it never resolves on a create
+    // — waiting on it there would leave the tab on skeletons forever.
+    if (segments.isPending || (entry && saved.isPending)) {
         return (
             <div className="flex flex-col gap-3">
                 <Skeleton className="h-5 w-40" />
@@ -154,23 +128,7 @@ export function EntryAccessTab({
         );
     }
 
-    const locked = readOnly || !canManage;
-
-    const submit = () => {
-        save.mutate(
-            {
-                entryId: entry.id,
-                typeSlug: schema.name,
-                allow: draft.allow,
-                deny: draft.deny
-            },
-            {
-                onSuccess: () =>
-                    toast.success(intl.formatMessage(messages.saved)),
-                onError: () => toast.error(intl.formatMessage(messages.error))
-            }
-        );
-    };
+    const locked = readOnly || !canManage || !staging;
 
     return (
         <div className="flex flex-col gap-5">
@@ -192,6 +150,7 @@ export function EntryAccessTab({
                                     : messages.restricted
                             )}
                         </Badge>
+                        {dirty ? <ChangedBadge /> : null}
                     </h3>
                     <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                         {intl.formatMessage(messages.body)}
@@ -224,39 +183,30 @@ export function EntryAccessTab({
                         <SegmentStateControl
                             name={segment.label}
                             value={stateOf(draft, segment.id)}
-                            disabled={locked || save.isPending}
-                            onChange={(state) =>
-                                setDraft((current) =>
-                                    withState(current, segment.id, state)
-                                )
-                            }
+                            disabled={locked}
+                            onChange={(state) => {
+                                const next = withState(
+                                    draft,
+                                    segment.id,
+                                    state
+                                );
+                                // Staging what is already stored would light the
+                                // Changed badge and cost a write for a round
+                                // trip back to where the entry started.
+                                staging?.stage(
+                                    sameAccess(next, savedAccess) ? null : next
+                                );
+                            }}
                         />
                     </li>
                 ))}
             </ul>
 
-            {locked ? (
-                <p className="text-xs text-muted-foreground">
-                    {intl.formatMessage(messages.readOnly)}
-                </p>
-            ) : (
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={submit}
-                        disabled={!dirty || save.isPending}
-                    >
-                        {save.isPending ? <Spinner /> : null}
-                        {intl.formatMessage(messages.save)}
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        disabled={!dirty || save.isPending}
-                        onClick={() => setDraft(savedAccess ?? OPEN_ACCESS)}
-                    >
-                        {intl.formatMessage(messages.reset)}
-                    </Button>
-                </div>
-            )}
+            <p className="text-xs text-muted-foreground">
+                {intl.formatMessage(
+                    locked ? messages.readOnly : messages.pending
+                )}
+            </p>
         </div>
     );
 }

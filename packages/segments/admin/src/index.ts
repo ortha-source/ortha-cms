@@ -15,4 +15,10 @@ export {
     OPEN_ACCESS,
     SEGMENT_STATE
 } from './lib/domain/types';
-export type { EntryAccess, Segment, SegmentState } from './lib/domain/types';
+export type {
+    EntryAccess,
+    EntryAccessStaging,
+    Segment,
+    SegmentState
+} from './lib/domain/types';
+export { ENTRY_ACCESS_PRESAVE_ID } from './lib/application/useEntryAccessPresave';

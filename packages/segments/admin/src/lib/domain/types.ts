@@ -75,6 +75,27 @@ export function isOpen(access: EntryAccess): boolean {
     return access.allow.length === 0 && access.deny.length === 0;
 }
 
+/**
+ * The Access tab's staging, mounted above the editor and reached back down
+ * through `EntryTabContext.presave`.
+ *
+ * Editor tabs are **routes**, so the Access panel unmounts the moment the user
+ * switches tab — and a decision they made there has to survive that, because it
+ * is not written until they press Save. It lives in the presave hook for exactly
+ * the reason the media plugin's staged uploads do.
+ */
+export type EntryAccessStaging = {
+    /**
+     * What the next save will write, or `null` when nothing is staged — which is
+     * not the same as `OPEN_ACCESS`: nothing staged means the save leaves the
+     * entry's audiences alone, while open access means it opens them to
+     * everyone.
+     */
+    draft: EntryAccess | null;
+    /** Stage a change, or clear the staging with `null`. */
+    stage: (next: EntryAccess | null) => void;
+};
+
 /** Whether two sets of lists say the same thing, order ignored. */
 export function sameAccess(a: EntryAccess, b: EntryAccess): boolean {
     const same = (left: string[], right: string[]) =>

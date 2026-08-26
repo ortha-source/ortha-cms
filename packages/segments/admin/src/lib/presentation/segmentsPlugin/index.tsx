@@ -3,12 +3,17 @@ import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
 import {
     ENTRY_HEADER_SLOT,
+    ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
     ENTRY_TAB_SLOT
 } from '@orthacms/content-admin';
 import { Spinner } from '@orthacms/design-system';
 import { ShieldCheck } from 'lucide-react';
 import { SEGMENTS_READ } from '../../application/hooks';
+import {
+    ENTRY_ACCESS_PRESAVE_ID,
+    useEntryAccessPresave
+} from '../../application/useEntryAccessPresave';
 import { EntryAccessChip } from '../components/EntryAccessChip';
 import { EntryAccessTab } from '../components/EntryAccessTab';
 
@@ -102,6 +107,19 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
                         // yet" state when none exists.
                         appliesTo: () => true,
                         Component: EntryAccessTab
+                    }
+                ]
+            },
+            {
+                // Access rides the entry's own Save / Publish rather than a
+                // button of its own — and it has to be staged here, above the
+                // editor, because the tab that stages it is a route and unmounts
+                // on every tab switch.
+                slot: ENTRY_PRESAVE_SLOT,
+                items: [
+                    {
+                        id: ENTRY_ACCESS_PRESAVE_ID,
+                        usePresave: useEntryAccessPresave
                     }
                 ]
             }
