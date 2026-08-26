@@ -16,11 +16,11 @@ with zero links is a 422. That is not what alarms are for.
 
 Alarms are for content that is **schema-valid and wrong**:
 
-| Case                                       | Why the schema cannot catch it                                                                                       |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| A published article whose author is a draft | `publishedOnly` is a **read-time** visibility filter. The publish succeeds; the relation simply vanishes from the API. |
-| A published article with no cover image     | Making it `required` would stop an incomplete draft from being saved, which is the whole point of a draft.            |
-| Three thousand records written before Tuesday's policy | Nothing will ever raise an event about them again.                                                        |
+| Case                                                   | Why the schema cannot catch it                                                                                         |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| A published article whose author is a draft            | `publishedOnly` is a **read-time** visibility filter. The publish succeeds; the relation simply vanishes from the API. |
+| A published article with no cover image                | Making it `required` would stop an incomplete draft from being saved, which is the whole point of a draft.             |
+| Three thousand records written before Tuesday's policy | Nothing will ever raise an event about them again.                                                                     |
 
 ## The model
 
@@ -64,27 +64,27 @@ whoever is looking at one article ("Author is not published").
 
 ## Where a finding shows up
 
-| Surface                     | Slot                        | For whom                                     |
-| --------------------------- | --------------------------- | -------------------------------------------- |
-| The entry editor's rail     | `ENTRY_SIDEBAR_WIDGET_SLOT` | An editor, on the page where it gets fixed    |
-| A records-table column      | `RECORDS_COLUMN_SLOT`       | Someone scanning a collection (off by default)|
-| The workspace's alarms page | its own workspace route     | Whoever owns editorial policy                 |
+| Surface                     | Slot                        | For whom                                       |
+| --------------------------- | --------------------------- | ---------------------------------------------- |
+| The entry editor's rail     | `ENTRY_SIDEBAR_WIDGET_SLOT` | An editor, on the page where it gets fixed     |
+| A records-table column      | `RECORDS_COLUMN_SLOT`       | Someone scanning a collection (off by default) |
+| The workspace's alarms page | its own workspace route     | Whoever owns editorial policy                  |
 
 The first is the one the feature exists for: an editor never has to know a rule
 exists. None of the three required a line of change in `content-admin`.
 
 ## When rules run
 
-| Trigger                                | Examines                                             |
-| -------------------------------------- | ---------------------------------------------------- |
-| `entry.created` / `updated`             | that entry, against every rule of its type            |
-| `entry.published` / `unpublished` / …   | ...plus the entries whose rules traverse **to** it    |
-| Saving or editing a rule                | the whole collection, against that one rule           |
-| The periodic sweep                      | every active rule, one at a time                      |
+| Trigger                               | Examines                                           |
+| ------------------------------------- | -------------------------------------------------- |
+| `entry.created` / `updated`           | that entry, against every rule of its type         |
+| `entry.published` / `unpublished` / … | ...plus the entries whose rules traverse **to** it |
+| Saving or editing a rule              | the whole collection, against that one rule        |
+| The periodic sweep                    | every active rule, one at a time                   |
 
 The second row is the non-obvious one and the reason findings close themselves.
-"This published article links to a draft author" is a fact about the *article*,
-but the event that fixes it arrives about the *author*. So publishing an author
+"This published article links to a draft author" is a fact about the _article_,
+but the event that fixes it arrives about the _author_. So publishing an author
 re-evaluates the articles whose rules traverse an author relation — the stored
 rule composed with `AND author.id = <the author>`, which is expressible only
 because the filter is a tree we can compose rather than a string.

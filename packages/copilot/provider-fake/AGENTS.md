@@ -72,12 +72,13 @@ src/lib/
   first delta, between deltas, before a tool call, and before `done`. The script
   still advances: the run happened, it just didn't finish.
 
-  It used to report a partial estimate on a mid-stream abort, which is the one
-  path where the fake behaved differently from both production adapters — so any
-  assertion about an aborted run's token columns was written against fake-only
-  numbers. `conformance.spec.ts` runs the domain's
-  `runModelProviderConformance` kit, the same one both production adapters run,
-  so the three cannot drift apart again.
+    It used to report a partial estimate on a mid-stream abort, which is the one
+    path where the fake behaved differently from both production adapters — so any
+    assertion about an aborted run's token columns was written against fake-only
+    numbers. `conformance.spec.ts` runs the domain's
+    `runModelProviderConformance` kit, the same one both production adapters run,
+    so the three cannot drift apart again.
+
 - `calls` records a **snapshot** of each request. The run engine appends to the
   very array it passes as `messages`, so an aliased record would report the whole
   conversation as what the first call was shown.

@@ -92,9 +92,9 @@ describe('within_last', () => {
         // `now() - make_interval(days => 1e9)` is a Postgres 22008, which the
         // caller sees as a 500. A window that long means "everything", and the
         // client should be told so rather than handed a stack trace.
-        expect(
-            reject('updatedAt', { n: 10_000_001, unit: 'days' }).code
-        ).toBe(FilterErrorCode.InvalidValue);
+        expect(reject('updatedAt', { n: 10_000_001, unit: 'days' }).code).toBe(
+            FilterErrorCode.InvalidValue
+        );
     });
 
     it('translates to a now()-relative comparison, not a baked-in cutoff', async () => {
@@ -102,7 +102,11 @@ describe('within_last', () => {
         // to be computed by the database at query time, so a stored filter
         // replayed a month later still means "the last 90 days".
         const tree = parseFilterTree(
-            { field: 'updatedAt', op: 'within_last', value: { n: 90, unit: 'days' } },
+            {
+                field: 'updatedAt',
+                op: 'within_last',
+                value: { n: 90, unit: 'days' }
+            },
             schema
         );
         const statement = await applyFilterTree(tree, schema, entries, db);
@@ -117,7 +121,11 @@ describe('within_last', () => {
     it('emits the unit the caller asked for', async () => {
         const forUnit = async (unit: string) => {
             const tree = parseFilterTree(
-                { field: 'updatedAt', op: 'within_last', value: { n: 2, unit } },
+                {
+                    field: 'updatedAt',
+                    op: 'within_last',
+                    value: { n: 2, unit }
+                },
                 schema
             );
             return serialize(

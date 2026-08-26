@@ -358,7 +358,6 @@ export class AlarmFindingStore {
             state: FINDING_STATE.Open
         });
     }
-
 }
 
 /** Joined row → wire view. */

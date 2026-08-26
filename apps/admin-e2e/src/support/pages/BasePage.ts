@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Common base for all page objects: holds the Playwright `page` and the shared
@@ -143,6 +143,26 @@ export abstract class BasePage {
         await this.page
             .getByRole('option', { name: label, exact: true })
             .click();
+    }
+
+    /**
+     * Tick members in the enum **multi**-select — the value editor an enum
+     * field gets under `is one of`, which is a checkbox group rather than the
+     * third combobox {@link selectEnumValue} drives.
+     *
+     * `click()`, not `check()`: Playwright's `_setChecked` re-reads the state a
+     * tick later and raises a non-recoverable error if it hasn't landed, which
+     * is a coin flip for any control that re-renders through a parent's state.
+     */
+    async pickEnumValues(...labels: string[]) {
+        const group = this.filterSurface().getByRole('group', {
+            name: 'Value'
+        });
+        for (const label of labels) {
+            const box = group.getByRole('checkbox', { name: label });
+            await box.click();
+            await expect(box).toBeChecked();
+        }
     }
 
     /** The inline validation error rendered under an invalid rule. */

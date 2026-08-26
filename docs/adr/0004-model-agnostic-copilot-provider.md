@@ -5,8 +5,8 @@
 - **Deciders:** Engineering
 
 > Context for the feature this decision serves lives in
-> [`docs/design/copilot.md`](../design/copilot.md). This ADR settles only *how
-> the copilot talks to a model*; [ADR-0005](0005-copilot-authority-model.md)
+> [`docs/design/copilot.md`](../design/copilot.md). This ADR settles only _how
+> the copilot talks to a model_; [ADR-0005](0005-copilot-authority-model.md)
 > settles what it is allowed to do once it can.
 
 ## Context
@@ -54,24 +54,24 @@ identical to media storage.
    provider is a new package, never a change to the engine.
 
 3. **We ship two adapters**, which together cover the field:
-   - `copilot-provider-anthropic` — native Claude; the default for tool-heavy
-     work, and the path on which native features (tool-use fidelity, prompt
-     caching) stay available.
-   - `copilot-provider-openai-compatible` — a configurable `baseUrl`, model id
-     and headers. Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter, Azure
-     and OpenAI itself all speak this wire format, so one adapter makes a local,
-     air-gapped install a configuration choice rather than a fork.
-   A third adapter, `copilot-provider-fake`, is scripted and deterministic and
-   is how `server-e2e` exercises the whole tool loop in CI. It was originally
-   shipped rather than treated as test scaffolding, on the reasoning that a
-   contributor should be able to run the admin without a key. **That is no
-   longer the decision.** Being shipped meant being registered in every
-   composition root, including generated apps, where it was last in the list and
-   therefore the whole catalogue of any deployment that had configured nothing —
-   so a production install that enabled the copilot and forgot the key answered
-   every question with a canned sentence instead of failing. It is now a private
-   workspace package, published nowhere and registered by tests only, and a
-   deployment with no configured backend has no copilot at all.
+    - `copilot-provider-anthropic` — native Claude; the default for tool-heavy
+      work, and the path on which native features (tool-use fidelity, prompt
+      caching) stay available.
+    - `copilot-provider-openai-compatible` — a configurable `baseUrl`, model id
+      and headers. Ollama, vLLM, llama.cpp, LM Studio, LiteLLM, OpenRouter, Azure
+      and OpenAI itself all speak this wire format, so one adapter makes a local,
+      air-gapped install a configuration choice rather than a fork.
+      A third adapter, `copilot-provider-fake`, is scripted and deterministic and
+      is how `server-e2e` exercises the whole tool loop in CI. It was originally
+      shipped rather than treated as test scaffolding, on the reasoning that a
+      contributor should be able to run the admin without a key. **That is no
+      longer the decision.** Being shipped meant being registered in every
+      composition root, including generated apps, where it was last in the list and
+      therefore the whole catalogue of any deployment that had configured nothing —
+      so a production install that enabled the copilot and forgot the key answered
+      every question with a canned sentence instead of failing. It is now a private
+      workspace package, published nowhere and registered by tests only, and a
+      deployment with no configured backend has no copilot at all.
 
 4. **Providers declare their capabilities, and the engine degrades
    explicitly.** `ModelCapabilities` reports tool calling, streaming, vision and
@@ -126,7 +126,7 @@ identical to media storage.
 
 **What this rules out:** importing a vendor SDK into `copilot/domain` or
 `copilot/server`; assuming tool calling is always available; env-only model
-configuration as the *only* mechanism; and per-provider branching inside the
+configuration as the _only_ mechanism; and per-provider branching inside the
 engine.
 
 ## Alternatives considered

@@ -1057,7 +1057,10 @@ describe('Copilot read catalogue', () => {
                 .set('Origin', TEST_ALLOWED_ORIGIN)
                 .send({ message: 'what is flagged?' })
                 .expect(200);
-            const result = framesOfType(parseSse(response.text), 'tool-result')[0];
+            const result = framesOfType(
+                parseSse(response.text),
+                'tool-result'
+            )[0];
 
             expect(result.ok).toBe(true);
             expect(result.output).toMatchObject({

@@ -16,6 +16,7 @@ import {
 } from '@orthacms/utils-server';
 import { entryAccess } from '../schema/entry-access';
 import { SegmentCatalogService } from '../application/segment-catalog.service';
+import { uuidArray } from './uuid-array';
 
 /**
  * The three virtual filter fields, by wire name.
@@ -180,7 +181,7 @@ export class AccessFilterProvider implements EntryFilterProvider {
         // straight.
         return exists(
             rows.where(
-                and(forThisEntry, sql`${column} && ${sql`${wanted}::uuid[]`}`)
+                and(forThisEntry, sql`${column} && ${uuidArray(wanted)}`)
             )
         );
     }

@@ -625,7 +625,7 @@ and it is applied where MCP applies its own — `CopilotModule.forRoot` register
 
 It was read in one place only for a while — `RunEngine.run`, throwing
 `CopilotDisabledError` for the controller to turn into an error frame — which
-made "off" mean *the send button says no*. The panel, the Agents view, the model
+made "off" mean _the send button says no_. The panel, the Agents view, the model
 catalogue, the conversation and skill routes and the tables all stayed live, so
 a deployment that had opted out still shipped the entire feature and refused at
 the last step. The engine's check is still there as belt-and-braces (the

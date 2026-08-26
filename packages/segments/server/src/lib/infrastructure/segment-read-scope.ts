@@ -8,6 +8,7 @@ import type {
 import { entryAccess } from '../schema/entry-access';
 import { SegmentCatalogService } from '../application/segment-catalog.service';
 import { ReaderStore } from '../application/reader.store';
+import { uuidArray } from './uuid-array';
 
 /**
  * The enforcement — one predicate AND-ed onto every public content read.
@@ -64,11 +65,11 @@ export class SegmentReadScope implements ContentReadScope {
             );
         }
 
-        const readerIds = [...this.reader.current().segmentIds];
-        // Cast at the boundary rather than relying on inference: an empty array
-        // literal has no element type in Postgres, and `uuid[] && text[]` is an
-        // operator error rather than a false.
-        const ids = sql`${readerIds}::uuid[]`;
+        // One bind parameter, cast at the boundary: an empty array literal has
+        // no element type in Postgres, and `uuid[] && text[]` is an operator
+        // error rather than a false. See `uuidArray` for why the obvious
+        // spelling of this is wrong.
+        const ids = uuidArray([...this.reader.current().segmentIds]);
 
         return sql`COALESCE((
             SELECT NOT (${entryAccess.deny} && ${ids})

@@ -69,7 +69,7 @@ own variable rather than reusing `DATABASE_URL`, which is routinely set in a
 developer's `.env` and points at their working database — a name that cannot be
 triggered by accident is the whole point. The testcontainer stays the default.
 
-The convention is also *enforced*: the run refuses to start if
+The convention is also _enforced_: the run refuses to start if
 `E2E_DATABASE_URL` resolves to the same database as `DATABASE_URL`, or if its
 database name does not read as disposable (`…e2e…` / `…test…`).
 `E2E_ALLOW_UNSAFE_DATABASE=true` waives the name check for an oddly-named
@@ -128,7 +128,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   `createTestApp({ rateLimit: { ttlSeconds, limit } })`. The throttle is
   per-app + in-memory, so it never bleeds across suites.
   The throttler's bucket is in-memory **per app**, so it never bleeds across
-  suites — but it does persist across *tests in one file*. A throttle suite
+  suites — but it does persist across _tests in one file_. A throttle suite
   therefore boots per test (`beforeEach`), or each test uses addresses no other
   test touches; otherwise the second test's expected status depends on the
   first, the file passes as a whole, and it fails under `-t`.
@@ -137,7 +137,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   **Failure modes**). Parallelism would need a DB-per-worker scheme.
 - Each spec **file** gets its own module registry (own app instance, own pool,
   own throttler) — that's why `closeTestApp` closes the pool per file. Two apps
-  *in sequence* in one file are fine; two apps *open at once* are not, because
+  _in sequence_ in one file are fine; two apps _open at once_ are not, because
   the `@orthacms/database` handle is a module singleton.
 
 ## No CI runs this suite

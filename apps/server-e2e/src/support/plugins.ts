@@ -10,6 +10,7 @@ import { TransferPlugin } from '@orthacms/transfer-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
 import { McpPlugin } from '@orthacms/mcp-server';
+import { SegmentsPlugin } from '@orthacms/segments-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { UsersPlugin } from '@orthacms/users-server';
@@ -18,6 +19,7 @@ import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
 import { fakeAltProvider, fakeProvider, testCodeSkills } from './copilot';
 import { fakeSsoProvider, ssoRoleResolver } from './sso';
+import { headerSegmentResolver } from './segments';
 import {
     createInMemoryStorageProvider,
     createSigningStorageProvider
@@ -159,6 +161,14 @@ export function buildTestPlugins(
             skills: testCodeSkills,
             config: config.plugins.copilot
         }),
+        // Reader entitlements. After content, whose read-scope, entry-write and
+        // filter-field ports it registers into — all three are runtime
+        // registrations, so a boot with segments first would silently register
+        // nothing. Its resolver reads a header, which is the production seam
+        // (the port hands over the request precisely so a header the CDN sets
+        // is reachable) rather than a test hook beside one: with no header
+        // every reader is anonymous, which is what a fresh install is.
+        SegmentsPlugin({ resolver: headerSegmentResolver }),
         // MCP last, as in the host. Enabled here regardless of the
         // `MCP_ENABLED` default so the endpoint is testable; the disabled path
         // is covered by a per-suite config override.

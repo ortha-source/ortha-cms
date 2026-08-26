@@ -5,10 +5,7 @@ import {
 } from './index';
 
 /** A contribution — the component is never mounted here, only resolved. */
-const item = (
-    id: string,
-    toolName: string
-): CopilotToolResultItem =>
+const item = (id: string, toolName: string): CopilotToolResultItem =>
     ({
         id,
         toolName,

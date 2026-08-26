@@ -67,6 +67,15 @@ export const OPS_FOR_TYPE: Record<FieldType, readonly OpId[]> = {
  * it — a virtual field resolved by a subquery may be enum-shaped and still
  * support only a couple of operators. Resolving both here keeps the picker and
  * the field-change reset from drifting apart.
+ *
+ * **A declared list also decides the order**, and therefore the default: picking
+ * a field resets its rule to the first operator offered. `OPS_FOR_TYPE` orders
+ * for the general case, where `equals` is what a scalar column is usually asked;
+ * a field that declares its own list knows better. Segments' audience fields
+ * lead with `is one of` for that reason — the question is "which audiences", and
+ * the multi-select is one control that answers both it and the single-audience
+ * case, where the two-operator route makes a reader discover a second operator
+ * before they can name a second audience.
  */
 export function opsForField(field: {
     type: FieldType;
@@ -80,7 +89,10 @@ export function opsForField(field: {
         ? OPS_FOR_TYPE[field.type]
         : [];
     if (!field.operators) return allowed;
-    const narrowed = allowed.filter((op) => field.operators?.includes(op));
+    // The declared list drives the order, narrowed by what the type admits —
+    // rather than the other way round, which would silently ignore the order a
+    // field author wrote and hand every enum field `equals` as its default.
+    const narrowed = field.operators.filter((op) => allowed.includes(op));
     // A narrowing that matches nothing is a config error; falling back beats
     // rendering an operator picker with no options at all.
     return narrowed.length > 0 ? narrowed : allowed;

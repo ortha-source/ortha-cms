@@ -110,7 +110,13 @@ export function useAccessFilterFields(): FilterField[] {
             // "Both" is an `and` of two `equals` rules, which the builder
             // composes — one operator with two readings is the thing nobody
             // could keep straight.
-            operators: [OP.Equals, OP.IsOneOf],
+            //
+            // It leads the list, so it is what picking the field opens with: the
+            // question here is *which audiences*, and the multi-select answers
+            // the one-audience case too (a single tick is the same `in` the
+            // server reads as an overlap). Led by `equals`, naming a second
+            // audience meant first discovering there was a second operator.
+            operators: [OP.IsOneOf, OP.Equals],
             enumValues
         },
         {
@@ -118,7 +124,7 @@ export function useAccessFilterFields(): FilterField[] {
             label: messages.denied,
             group: GROUP,
             type: FIELD_TYPE.Enum,
-            operators: [OP.Equals, OP.IsOneOf],
+            operators: [OP.IsOneOf, OP.Equals],
             enumValues
         },
         {

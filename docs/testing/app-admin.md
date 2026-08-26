@@ -27,12 +27,12 @@ the chrome (`packages/shell/admin`).
 
 **Entry points**
 
-| Entry | What | Where |
-| --- | --- | --- |
-| `src/main.tsx` | side-effecting `createAdmin({ plugins })` call | `src/main.tsx:16-48` |
-| `index.html` | `<div id="root">`, `<title>`, `<html lang>`, pre-paint theme script | `index.html:2,5,11-35,38` |
-| `src/styles.css` | Tailwind entry, token palette, `@source` globs | `src/styles.css:1-10,29+` |
-| `vite.config.mts` | dev server + `^/api/` proxy + build + vitest | `vite.config.mts:5-61` |
+| Entry             | What                                                                | Where                     |
+| ----------------- | ------------------------------------------------------------------- | ------------------------- |
+| `src/main.tsx`    | side-effecting `createAdmin({ plugins })` call                      | `src/main.tsx:16-48`      |
+| `index.html`      | `<div id="root">`, `<title>`, `<html lang>`, pre-paint theme script | `index.html:2,5,11-35,38` |
+| `src/styles.css`  | Tailwind entry, token palette, `@source` globs                      | `src/styles.css:1-10,29+` |
+| `vite.config.mts` | dev server + `^/api/` proxy + build + vitest                        | `vite.config.mts:5-61`    |
 
 **Registered plugins, in order** (`src/main.tsx:17-47`) — `IdentityPlugin`, `ShellPlugin`,
 `WorkspacesPlugin`, `InsightsPlugin`, `ContentPlugin`, `I18nPlugin`, `WysiwygPlugin`,
@@ -64,27 +64,27 @@ npx nx e2e admin-e2e -- --project=chromium src/**/a11y.spec.ts src/**/keyboard.s
 
 ## 2. Feature Inventory
 
-| # | Feature | Where it lives | Coverage |
-| --- | --- | --- | --- |
-| F1 | Hand the ordered plugin list to `createAdmin` | `src/main.tsx:16-48` | ✅ E2E |
-| F2 | `IdentityPlugin` first — contributes the public sign-in/accept-invite routes and the auth client state | `src/main.tsx:18` | ✅ E2E |
-| F3 | `ShellPlugin` contributes the one `layout` (chrome + auth gate) | `src/main.tsx:19` | ✅ E2E |
-| F4 | `WorkspacesPlugin` before every workspace-interior plugin (it defines their slots) | `src/main.tsx:20,27-42` | ✅ E2E |
-| F5 | `InsightsPlugin` before other interior plugins — section contributions merge by id, **last wins** | `src/main.tsx:21-26` | ⚠️ PARTIAL |
-| F6 | `ContentPlugin` before `I18nPlugin` and `WysiwygPlugin` (both fill its slots) | `src/main.tsx:27-35` | ✅ E2E |
-| F7 | `MediaPlugin`, `CopilotPlugin`, `UsersPlugin`, `ActivityPlugin`, `ApiTokensPlugin` registered | `src/main.tsx:36-46` | ✅ E2E |
-| F8 | `index.html` provides `<div id="root">` and loads `/src/main.tsx` as a module | `index.html:38-39` | ✅ E2E |
-| F9 | Pre-paint theme script applies `.dark` + `color-scheme` before first paint, defaulting to `system` on a corrupt value | `index.html:11-35` | ⚠️ PARTIAL |
-| F10 | `<html lang="en">` and `<title>Admin</title>` | `index.html:2,5` | ❌ NONE |
-| F11 | `<meta name="viewport" content="width=device-width, initial-scale=1">` | `index.html:8` | ❌ NONE |
-| F12 | `styles.css` imports Tailwind + the design-system tokens + the WYSIWYG scope | `src/styles.css:1-6` | ⚠️ PARTIAL |
-| F13 | `@source` globs cover design-system and every `packages/*/admin` package so their classes survive tree-shaking | `src/styles.css:8-10` | ❌ NONE |
-| F14 | The `--color-*` token palette, with a `.dark` re-declaration via `@custom-variant` | `src/styles.css:12-29+` | ⚠️ PARTIAL |
-| F15 | Dev server on `:4200`, host `localhost` | `vite.config.mts:7-8` | ✅ E2E |
-| F16 | `^/api/` **regex** proxy to `:3000` with `changeOrigin` — deliberately not the bare `/api` prefix | `vite.config.mts:12-28` | ⚠️ PARTIAL |
-| F17 | Production build to `./dist` with `emptyOutDir` | `vite.config.mts:41-48` | ❌ NONE |
-| F18 | Vitest config (jsdom, globals, v8 coverage) | `vite.config.mts:47-61` | ❌ NONE |
-| F19 | `admin:dev:typecheck` target — `tsc --build --watch`, because Vite never typechecks | `apps/admin/package.json` `nx.targets` | ⚠️ PARTIAL |
+| #   | Feature                                                                                                               | Where it lives                         | Coverage   |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------- |
+| F1  | Hand the ordered plugin list to `createAdmin`                                                                         | `src/main.tsx:16-48`                   | ✅ E2E     |
+| F2  | `IdentityPlugin` first — contributes the public sign-in/accept-invite routes and the auth client state                | `src/main.tsx:18`                      | ✅ E2E     |
+| F3  | `ShellPlugin` contributes the one `layout` (chrome + auth gate)                                                       | `src/main.tsx:19`                      | ✅ E2E     |
+| F4  | `WorkspacesPlugin` before every workspace-interior plugin (it defines their slots)                                    | `src/main.tsx:20,27-42`                | ✅ E2E     |
+| F5  | `InsightsPlugin` before other interior plugins — section contributions merge by id, **last wins**                     | `src/main.tsx:21-26`                   | ⚠️ PARTIAL |
+| F6  | `ContentPlugin` before `I18nPlugin` and `WysiwygPlugin` (both fill its slots)                                         | `src/main.tsx:27-35`                   | ✅ E2E     |
+| F7  | `MediaPlugin`, `CopilotPlugin`, `UsersPlugin`, `ActivityPlugin`, `ApiTokensPlugin` registered                         | `src/main.tsx:36-46`                   | ✅ E2E     |
+| F8  | `index.html` provides `<div id="root">` and loads `/src/main.tsx` as a module                                         | `index.html:38-39`                     | ✅ E2E     |
+| F9  | Pre-paint theme script applies `.dark` + `color-scheme` before first paint, defaulting to `system` on a corrupt value | `index.html:11-35`                     | ⚠️ PARTIAL |
+| F10 | `<html lang="en">` and `<title>Admin</title>`                                                                         | `index.html:2,5`                       | ❌ NONE    |
+| F11 | `<meta name="viewport" content="width=device-width, initial-scale=1">`                                                | `index.html:8`                         | ❌ NONE    |
+| F12 | `styles.css` imports Tailwind + the design-system tokens + the WYSIWYG scope                                          | `src/styles.css:1-6`                   | ⚠️ PARTIAL |
+| F13 | `@source` globs cover design-system and every `packages/*/admin` package so their classes survive tree-shaking        | `src/styles.css:8-10`                  | ❌ NONE    |
+| F14 | The `--color-*` token palette, with a `.dark` re-declaration via `@custom-variant`                                    | `src/styles.css:12-29+`                | ⚠️ PARTIAL |
+| F15 | Dev server on `:4200`, host `localhost`                                                                               | `vite.config.mts:7-8`                  | ✅ E2E     |
+| F16 | `^/api/` **regex** proxy to `:3000` with `changeOrigin` — deliberately not the bare `/api` prefix                     | `vite.config.mts:12-28`                | ⚠️ PARTIAL |
+| F17 | Production build to `./dist` with `emptyOutDir`                                                                       | `vite.config.mts:41-48`                | ❌ NONE    |
+| F18 | Vitest config (jsdom, globals, v8 coverage)                                                                           | `vite.config.mts:47-61`                | ❌ NONE    |
+| F19 | `admin:dev:typecheck` target — `tsc --build --watch`, because Vite never typechecks                                   | `apps/admin/package.json` `nx.targets` | ⚠️ PARTIAL |
 
 ## 3. Manual Test Plan
 
@@ -92,12 +92,12 @@ Each block carries a keyboard-only path and a screen-reader expectation.
 
 ### F1 / F2 / F3 — Boot and the public/private split
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `npm run dev`; open `http://localhost:4200/` signed out | Redirected to `/identity/signin`; the sign-in form renders with **no** sidebar |
-| 2 | Sign in with valid credentials | Land on `/`; the home dashboard renders inside the shell with the sidebar visible |
-| 3 | Comment out `ShellPlugin()` (`src/main.tsx:19`), reload, sign out, load `/` | The home page renders **ungated** under a bare `<Outlet/>` — the gate lives in the shell's layout. See `docs/testing/bootstrap-admin.md` `🐞 BUG-bootstrap-admin-01` |
-| 4 | Restore | Gated again |
+| Step | Action                                                                      | Expected result                                                                                                                                                      |
+| ---- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npm run dev`; open `http://localhost:4200/` signed out                     | Redirected to `/identity/signin`; the sign-in form renders with **no** sidebar                                                                                       |
+| 2    | Sign in with valid credentials                                              | Land on `/`; the home dashboard renders inside the shell with the sidebar visible                                                                                    |
+| 3    | Comment out `ShellPlugin()` (`src/main.tsx:19`), reload, sign out, load `/` | The home page renders **ungated** under a bare `<Outlet/>` — the gate lives in the shell's layout. See `docs/testing/bootstrap-admin.md` `🐞 BUG-bootstrap-admin-01` |
+| 4    | Restore                                                                     | Gated again                                                                                                                                                          |
 
 **Keyboard path:** on the sign-in page the first `Tab` stop is the email field
 (`apps/admin-e2e/src/auth/keyboard.spec.ts:13`); the whole login completes with `Tab` +
@@ -108,13 +108,13 @@ announced** — see `♿ A11Y-app-admin-01`.
 
 ### F4 / F5 / F6 / F7 — Plugin ordering constraints
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Sign in, open a workspace, look at the workspace sidebar | Entries from content, media, insights and the copilot's CMS ⇄ Agents switch are all present |
-| 2 | Move `ContentPlugin()` **after** `I18nPlugin()` and reload | The locale switcher, Locales column and editor locale panel are **still present** — slots are module-level singletons and `createAdmin` registers every plugin's contributions before render (`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`). Only their position **within** each slot changes. The comment at `src/main.tsx:30-31` overstates the constraint — see `🐞 BUG-app-admin-02` |
-| 3 | Move `InsightsPlugin()` after `ContentPlugin()` and open Insights | Section bands may be renamed/re-iconed by whichever plugin now registers last — the merge is by id, field-by-field, last winning, keeping the first position (`packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.ts:49-72`) |
-| 4 | Move `WorkspacesPlugin()` after `MediaPlugin()` and open a workspace | The Media entry is **still present** in the workspace nav, for the same reason as step 2 |
-| 5 | Restore the original order | Everything returns to its documented position |
+| Step | Action                                                               | Expected result                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Sign in, open a workspace, look at the workspace sidebar             | Entries from content, media, insights and the copilot's CMS ⇄ Agents switch are all present                                                                                                                                                                                                                                                                                                                |
+| 2    | Move `ContentPlugin()` **after** `I18nPlugin()` and reload           | The locale switcher, Locales column and editor locale panel are **still present** — slots are module-level singletons and `createAdmin` registers every plugin's contributions before render (`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`). Only their position **within** each slot changes. The comment at `src/main.tsx:30-31` overstates the constraint — see `🐞 BUG-app-admin-02` |
+| 3    | Move `InsightsPlugin()` after `ContentPlugin()` and open Insights    | Section bands may be renamed/re-iconed by whichever plugin now registers last — the merge is by id, field-by-field, last winning, keeping the first position (`packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.ts:49-72`)                                                                                                                                                                |
+| 4    | Move `WorkspacesPlugin()` after `MediaPlugin()` and open a workspace | The Media entry is **still present** in the workspace nav, for the same reason as step 2                                                                                                                                                                                                                                                                                                                   |
+| 5    | Restore the original order                                           | Everything returns to its documented position                                                                                                                                                                                                                                                                                                                                                              |
 
 **Keyboard path:** the workspace nav is a list of links; `Tab` moves through them in DOM
 order, which is slot order (`byOrder`, `packages/utils/admin/src/lib/byOrder/index.ts:6`).
@@ -123,14 +123,14 @@ step 2 the count silently drops with no explanation.
 
 ### F8 / F9 — HTML entry and the theme flash
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Set the app theme to Dark; hard-reload with the network throttled to Slow 3G | The page is dark from the **first** paint — no white flash. The inline script in `index.html` runs before the module bundle. **In a browser that has run the app before** — see the note under this table (ORT-151) |
-| 2 | `localStorage.setItem('ortha.theme','purple')`; reload | Falls back to `system` (`index.html:19-24`); no console error (the whole block is `try`/`catch`) |
-| 3 | Disable JavaScript entirely and load the page | A blank white page with no message — an SPA with no `<noscript>` fallback |
-| 4 | Set the OS to dark, theme to `system`, reload | Dark; `document.documentElement.style.colorScheme === 'dark'`, so native form controls and scrollbars render dark too |
-| 5 | Block `localStorage` (Safari private / cookie-blocking) | The `try`/`catch` swallows it; the app defaults to light regardless of the OS setting |
-| 6 | Clear site data, set the account theme to Dark and the OS to Light, reload (ORT-151) | Light on first paint, then dark one network round trip later. **Expected**, and once per browser: the durable theme is the server's and the pre-paint script can only read `localStorage`. The flip persists the value, so the next load is dark from the first paint |
+| Step | Action                                                                               | Expected result                                                                                                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Set the app theme to Dark; hard-reload with the network throttled to Slow 3G         | The page is dark from the **first** paint — no white flash. The inline script in `index.html` runs before the module bundle. **In a browser that has run the app before** — see the note under this table (ORT-151)                                                   |
+| 2    | `localStorage.setItem('ortha.theme','purple')`; reload                               | Falls back to `system` (`index.html:19-24`); no console error (the whole block is `try`/`catch`)                                                                                                                                                                      |
+| 3    | Disable JavaScript entirely and load the page                                        | A blank white page with no message — an SPA with no `<noscript>` fallback                                                                                                                                                                                             |
+| 4    | Set the OS to dark, theme to `system`, reload                                        | Dark; `document.documentElement.style.colorScheme === 'dark'`, so native form controls and scrollbars render dark too                                                                                                                                                 |
+| 5    | Block `localStorage` (Safari private / cookie-blocking)                              | The `try`/`catch` swallows it; the app defaults to light regardless of the OS setting                                                                                                                                                                                 |
+| 6    | Clear site data, set the account theme to Dark and the OS to Light, reload (ORT-151) | Light on first paint, then dark one network round trip later. **Expected**, and once per browser: the durable theme is the server's and the pre-paint script can only read `localStorage`. The flip persists the value, so the next load is dark from the first paint |
 
 **Step 1 was written as though the script always prevents the flash, and it
 cannot** (ORT-151). It covers returning visits; a browser that has never run the
@@ -145,41 +145,41 @@ explanation at all.
 
 ### F10 / F11 — Title, language, viewport
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Sign in and visit `/`, `/users`, `/workspaces`, a content record, `/workspaces/:id/agents` | The browser tab reads **"Admin"** on every one. See `♿ A11Y-app-admin-01` |
-| 2 | Open the copilot dock and let a run finish while on another tab | The title becomes `(1) Admin` — the **only** title writer in the app (`packages/copilot/admin/src/lib/application/useTabBadge.ts:34-36`) |
-| 3 | `document.documentElement.lang` in the console | `'en'`, always (`index.html:2`) |
-| 4 | Resize to 320 px wide | The viewport meta (`index.html:8`) is present and correct — no forced desktop zoom; then verify reflow per `♿ A11Y-app-admin-05` |
+| Step | Action                                                                                     | Expected result                                                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Sign in and visit `/`, `/users`, `/workspaces`, a content record, `/workspaces/:id/agents` | The browser tab reads **"Admin"** on every one. See `♿ A11Y-app-admin-01`                                                               |
+| 2    | Open the copilot dock and let a run finish while on another tab                            | The title becomes `(1) Admin` — the **only** title writer in the app (`packages/copilot/admin/src/lib/application/useTabBadge.ts:34-36`) |
+| 3    | `document.documentElement.lang` in the console                                             | `'en'`, always (`index.html:2`)                                                                                                          |
+| 4    | Resize to 320 px wide                                                                      | The viewport meta (`index.html:8`) is present and correct — no forced desktop zoom; then verify reflow per `♿ A11Y-app-admin-05`        |
 
 ### F12 / F13 / F14 — Styles and tokens
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `npx nx build admin`; inspect the emitted CSS | Utility classes used only inside `packages/*/admin` are present — the `@source` globs at `src/styles.css:9-10` are what keeps them |
-| 2 | Add a new admin package at `packages/newthing/admin` using a class no other package uses; build | The class is included (the glob is `packages/*/admin/**`). Now try `packages/deep/nested/admin` | The second is **not** matched — the glob is one level deep |
-| 3 | Toggle Light/Dark and re-check contrast on muted text, disabled buttons, table borders, and focus rings | Every text-on-surface pairing should clear 4.5:1; `src/styles.css:23-25` records that this was verified and that the axe scan enforces it. Verify **both** themes |
-| 4 | Confirm the documented brand caveat | White text on `bg-brand` (flame orange) does **not** clear AA — `src/styles.css:25-27` says to use ink text or keep orange to icons/accents. Spot-check that no component violates it |
-| 5 | With the WYSIWYG editor open, inspect `.ortha-wysiwyg` | The rich-text scope reads the same `--color-*` tokens, so it follows the theme (`src/styles.css:3-6`) |
+| Step | Action                                                                                                  | Expected result                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 1    | `npx nx build admin`; inspect the emitted CSS                                                           | Utility classes used only inside `packages/*/admin` are present — the `@source` globs at `src/styles.css:9-10` are what keeps them                                                    |
+| 2    | Add a new admin package at `packages/newthing/admin` using a class no other package uses; build         | The class is included (the glob is `packages/*/admin/**`). Now try `packages/deep/nested/admin`                                                                                       | The second is **not** matched — the glob is one level deep |
+| 3    | Toggle Light/Dark and re-check contrast on muted text, disabled buttons, table borders, and focus rings | Every text-on-surface pairing should clear 4.5:1; `src/styles.css:23-25` records that this was verified and that the axe scan enforces it. Verify **both** themes                     |
+| 4    | Confirm the documented brand caveat                                                                     | White text on `bg-brand` (flame orange) does **not** clear AA — `src/styles.css:25-27` says to use ink text or keep orange to icons/accents. Spot-check that no component violates it |
+| 5    | With the WYSIWYG editor open, inspect `.ortha-wysiwyg`                                                  | The rich-text scope reads the same `--color-*` tokens, so it follows the theme (`src/styles.css:3-6`)                                                                                 |
 
 ### F15 / F16 — Dev server and the API proxy
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `npm run dev`; `curl -sD- -o/dev/null localhost:4200/api/auth/me` | `401` from the API — the request was proxied to `:3000` |
-| 2 | Sign in, then hard-refresh on `/api-tokens` | The **SPA page** loads. This is exactly what the regex key protects: a plain `/api` string prefix would have swallowed `/api-tokens` and returned `Cannot GET /api-tokens` (`vite.config.mts:14-21`) |
-| 3 | `curl -i localhost:4200/apifoo` | Served by Vite (index.html), not proxied |
-| 4 | Stop the API and reload the admin | The app renders; every data request fails. Check that each page shows an **error** state rather than an empty one (`.cursor/BUGBOT.md`, "Error masquerading as empty") |
-| 5 | Inspect a request's cookies | The session cookie is first-party — same origin via the proxy, so `SameSite=Lax` works and no CORS is involved (`vite.config.mts:11-13`) |
+| Step | Action                                                            | Expected result                                                                                                                                                                                      |
+| ---- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npm run dev`; `curl -sD- -o/dev/null localhost:4200/api/auth/me` | `401` from the API — the request was proxied to `:3000`                                                                                                                                              |
+| 2    | Sign in, then hard-refresh on `/api-tokens`                       | The **SPA page** loads. This is exactly what the regex key protects: a plain `/api` string prefix would have swallowed `/api-tokens` and returned `Cannot GET /api-tokens` (`vite.config.mts:14-21`) |
+| 3    | `curl -i localhost:4200/apifoo`                                   | Served by Vite (index.html), not proxied                                                                                                                                                             |
+| 4    | Stop the API and reload the admin                                 | The app renders; every data request fails. Check that each page shows an **error** state rather than an empty one (`.cursor/BUGBOT.md`, "Error masquerading as empty")                               |
+| 5    | Inspect a request's cookies                                       | The session cookie is first-party — same origin via the proxy, so `SameSite=Lax` works and no CORS is involved (`vite.config.mts:11-13`)                                                             |
 
 ### F17 / F18 / F19 — Build, tests, typecheck
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `npx nx build admin` | Emits to `apps/admin/dist`, clearing it first (`vite.config.mts:42-43`) |
-| 2 | `npx nx preview admin` and hard-refresh a deep route like `/workspaces/x/content` | Loads — Vite's preview supplies an SPA fallback. **Note:** a real static host needs one configured; nothing here documents that |
-| 3 | Introduce a type error in a plugin and watch `npm run dev` | The `admin:dev:typecheck` pane reports it; the Vite pane does **not** — "Vite never typechecks" (root `AGENTS.md`) |
-| 4 | `npx nx test admin` | Runs vitest in jsdom over `{src,tests}/**/*.{test,spec}.*` — today that set is **empty** (`apps/admin/src` contains only `main.tsx`, `styles.css`, `assets/`) |
+| Step | Action                                                                            | Expected result                                                                                                                                               |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npx nx build admin`                                                              | Emits to `apps/admin/dist`, clearing it first (`vite.config.mts:42-43`)                                                                                       |
+| 2    | `npx nx preview admin` and hard-refresh a deep route like `/workspaces/x/content` | Loads — Vite's preview supplies an SPA fallback. **Note:** a real static host needs one configured; nothing here documents that                               |
+| 3    | Introduce a type error in a plugin and watch `npm run dev`                        | The `admin:dev:typecheck` pane reports it; the Vite pane does **not** — "Vite never typechecks" (root `AGENTS.md`)                                            |
+| 4    | `npx nx test admin`                                                               | Runs vitest in jsdom over `{src,tests}/**/*.{test,spec}.*` — today that set is **empty** (`apps/admin/src` contains only `main.tsx`, `styles.css`, `assets/`) |
 
 ## 4. Edge Cases & Negative Paths
 
@@ -409,15 +409,15 @@ ring) and give the region an accessible name (`role="region"` + `aria-label`), o
   (`AppShell/index.tsx:61`) is precisely the shape that produces two-dimensional scrolling at
   400 % zoom, and content tables (`content/admin`, `users/admin`) are the usual clipping
   victims.
-**What I could not confirm:** whether the layout actually reflows — I read the CSS classes
-but did not render the app at 320 px or 400 %. No suite exercises it: a grep of
-`apps/admin-e2e/src` finds no viewport-resize or zoom assertions.
-**Keyboard-only user:** horizontal scrolling makes tab-following unpredictable when the
-focused element sits outside the visible box.
-**Screen-reader user:** unaffected by reflow; affected by any content that becomes clipped
-rather than reflowed.
-**Remediation:** add a reflow suite at 320 × 256 CSS px and a text-spacing override pass, and
-assert `document.documentElement.scrollWidth <= clientWidth`.
+  **What I could not confirm:** whether the layout actually reflows — I read the CSS classes
+  but did not render the app at 320 px or 400 %. No suite exercises it: a grep of
+  `apps/admin-e2e/src` finds no viewport-resize or zoom assertions.
+  **Keyboard-only user:** horizontal scrolling makes tab-following unpredictable when the
+  focused element sits outside the visible box.
+  **Screen-reader user:** unaffected by reflow; affected by any content that becomes clipped
+  rather than reflowed.
+  **Remediation:** add a reflow suite at 320 × 256 CSS px and a text-spacing override pass, and
+  assert `document.documentElement.scrollWidth <= clientWidth`.
 
 #### ♿ A11Y-app-admin-06 — `prefers-reduced-motion` is honoured; `forced-colors` is not handled anywhere
 
@@ -470,29 +470,29 @@ and update `SKILL.md`.
 **Remaining WCAG 2.1 AA checklist for the app surface** (items this unit either satisfies,
 delegates, or must be verified per-plugin):
 
-| SC | Verdict here | Note |
-| --- | --- | --- |
-| 1.1.1 Non-text Content (A) | Delegated | The app ships one asset, `public/favicon.ico`; images live in `media/admin` and the WYSIWYG |
-| 1.3.1 Info & Relationships (A) | Supports at this layer | One `<main>`, `<nav>` in the sidebar; page semantics are per-plugin |
-| 1.3.2 Meaningful Sequence (A) | Supports | DOM order matches visual order in the three-column shell |
-| 1.3.5 Identify Input Purpose (AA) | Delegated | Sign-in email/password `autocomplete` is `identity/admin`'s |
-| 1.4.1 Use of Colour (A) | Delegated | Status chips, publish state, locale coverage all pair colour with text — verify per plugin |
-| 1.4.13 Content on Hover/Focus (AA) | Supports | Radix tooltips via the host's `TooltipProvider` |
-| 2.1.1 Keyboard (A) | Partially Supports | Good per-page coverage (`apps/admin-e2e/src/{auth,users,workspaces}/keyboard.spec.ts`); no coverage for media, shell/home, i18n, wysiwyg |
-| 2.1.2 No Keyboard Trap (A) | Unverified | Radix overlays trap and release correctly; the TipTap editor and the copilot dock are the untested risk areas |
-| 2.4.6 Headings & Labels (AA) | Delegated | `ContainerHeader` renders the single `<h1>` per page |
-| 3.1.1 Language of Page (A) | Partially Supports | `lang="en"` is correct for today's English-only UI but does not track `locale` — see `docs/testing/bootstrap-admin.md` `♿ A11Y-bootstrap-admin-03` |
-| 3.1.2 Language of Parts (AA) | Not Applicable today | Becomes applicable as soon as the UI ships a second locale, or when a content entry in another locale renders inside an English page — a real near-term gap for `i18n/admin` |
-| 3.2.1 / 3.2.2 On Focus / On Input (A) | Delegated | |
-| 3.3.1–3.3.3 (A/AA) | Delegated | Covered per page; `auth/a11y.spec.ts:23,35,60,74` scans **error-visible** states, which is the right pattern |
-| 3.3.4 Error Prevention (AA) | Supports | Destructive actions use `ConfirmDialog`; navigation away from unsaved edits is guarded |
-| 4.1.2 Name, Role, Value (A) | Partially Supports | Radix primitives handle this; the unnamed focusable scrollport (`♿ A11Y-app-admin-04`) is the known exception |
-| 4.1.3 Status Messages (AA) | Supports for toasts and lists | The toast live region is mounted at app start; several pages ship `role="status" aria-live="polite"` result counts (e.g. `packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:237`, `packages/content/admin/src/lib/presentation/components/CollectionRecordsView/LoadedRecordsView/index.tsx:531`). **Route changes are the gap** (`♿ A11Y-app-admin-02`) |
-| 2.4.11 Focus Not Obscured (AA, **WCAG 2.2 — advisory, out of scope for 508**) | Flagged | Bottom-right toasts over the bottom-right copilot dock |
-| 2.5.8 Target Size (AA, **WCAG 2.2 — advisory, out of scope for 508**) | Flagged | Icon-only sidebar and table row actions are the candidates to measure |
-| 503.4 Caption / audio controls | Not Applicable | The admin plays no media of its own; the WYSIWYG's resizable **video** embeds (`CONTEXT-MAP.md`, wysiwyg/admin) make this applicable to that plugin |
+| SC                                                                            | Verdict here                  | Note                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1.1 Non-text Content (A)                                                    | Delegated                     | The app ships one asset, `public/favicon.ico`; images live in `media/admin` and the WYSIWYG                                                                                                                                                                                                                                                                                   |
+| 1.3.1 Info & Relationships (A)                                                | Supports at this layer        | One `<main>`, `<nav>` in the sidebar; page semantics are per-plugin                                                                                                                                                                                                                                                                                                           |
+| 1.3.2 Meaningful Sequence (A)                                                 | Supports                      | DOM order matches visual order in the three-column shell                                                                                                                                                                                                                                                                                                                      |
+| 1.3.5 Identify Input Purpose (AA)                                             | Delegated                     | Sign-in email/password `autocomplete` is `identity/admin`'s                                                                                                                                                                                                                                                                                                                   |
+| 1.4.1 Use of Colour (A)                                                       | Delegated                     | Status chips, publish state, locale coverage all pair colour with text — verify per plugin                                                                                                                                                                                                                                                                                    |
+| 1.4.13 Content on Hover/Focus (AA)                                            | Supports                      | Radix tooltips via the host's `TooltipProvider`                                                                                                                                                                                                                                                                                                                               |
+| 2.1.1 Keyboard (A)                                                            | Partially Supports            | Good per-page coverage (`apps/admin-e2e/src/{auth,users,workspaces}/keyboard.spec.ts`); no coverage for media, shell/home, i18n, wysiwyg                                                                                                                                                                                                                                      |
+| 2.1.2 No Keyboard Trap (A)                                                    | Unverified                    | Radix overlays trap and release correctly; the TipTap editor and the copilot dock are the untested risk areas                                                                                                                                                                                                                                                                 |
+| 2.4.6 Headings & Labels (AA)                                                  | Delegated                     | `ContainerHeader` renders the single `<h1>` per page                                                                                                                                                                                                                                                                                                                          |
+| 3.1.1 Language of Page (A)                                                    | Partially Supports            | `lang="en"` is correct for today's English-only UI but does not track `locale` — see `docs/testing/bootstrap-admin.md` `♿ A11Y-bootstrap-admin-03`                                                                                                                                                                                                                           |
+| 3.1.2 Language of Parts (AA)                                                  | Not Applicable today          | Becomes applicable as soon as the UI ships a second locale, or when a content entry in another locale renders inside an English page — a real near-term gap for `i18n/admin`                                                                                                                                                                                                  |
+| 3.2.1 / 3.2.2 On Focus / On Input (A)                                         | Delegated                     |                                                                                                                                                                                                                                                                                                                                                                               |
+| 3.3.1–3.3.3 (A/AA)                                                            | Delegated                     | Covered per page; `auth/a11y.spec.ts:23,35,60,74` scans **error-visible** states, which is the right pattern                                                                                                                                                                                                                                                                  |
+| 3.3.4 Error Prevention (AA)                                                   | Supports                      | Destructive actions use `ConfirmDialog`; navigation away from unsaved edits is guarded                                                                                                                                                                                                                                                                                        |
+| 4.1.2 Name, Role, Value (A)                                                   | Partially Supports            | Radix primitives handle this; the unnamed focusable scrollport (`♿ A11Y-app-admin-04`) is the known exception                                                                                                                                                                                                                                                                |
+| 4.1.3 Status Messages (AA)                                                    | Supports for toasts and lists | The toast live region is mounted at app start; several pages ship `role="status" aria-live="polite"` result counts (e.g. `packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:237`, `packages/content/admin/src/lib/presentation/components/CollectionRecordsView/LoadedRecordsView/index.tsx:531`). **Route changes are the gap** (`♿ A11Y-app-admin-02`) |
+| 2.4.11 Focus Not Obscured (AA, **WCAG 2.2 — advisory, out of scope for 508**) | Flagged                       | Bottom-right toasts over the bottom-right copilot dock                                                                                                                                                                                                                                                                                                                        |
+| 2.5.8 Target Size (AA, **WCAG 2.2 — advisory, out of scope for 508**)         | Flagged                       | Icon-only sidebar and table row actions are the candidates to measure                                                                                                                                                                                                                                                                                                         |
+| 503.4 Caption / audio controls                                                | Not Applicable                | The admin plays no media of its own; the WYSIWYG's resizable **video** embeds (`CONTEXT-MAP.md`, wysiwyg/admin) make this applicable to that plugin                                                                                                                                                                                                                           |
 
-**508 Chapter 5 — Authoring Tools (504).** `apps/admin` *is* the authoring tool, but it
+**508 Chapter 5 — Authoring Tools (504).** `apps/admin` _is_ the authoring tool, but it
 implements none of the authoring behaviour itself — it composes the plugins that do. So the
 verdicts belong to `content/admin`, `wysiwyg/admin` and `media/admin`, and are recorded here
 as the app-level obligations they roll up to:
@@ -522,25 +522,25 @@ as the app-level obligations they roll up to:
 mocked via `page.route`, so it is genuine coverage of this unit's composition — unlike the
 server side, there is no parallel composition root.
 
-| Feature | Spec | Asserts | Verdict |
-| --- | --- | --- | --- |
-| F1/F8 boot | every spec in `apps/admin-e2e/src` | The composed app renders | ✅ E2E — implicit but total |
-| F2 identity public routes | `apps/admin-e2e/src/auth/login.spec.ts`, `auth/accept-invite.spec.ts`, `auth/routing.spec.ts:12-21` | Sign-in and accept-invite render outside the shell; `/identity` redirects to `/identity/signin` | ✅ E2E |
-| F3 shell layout + gate | `apps/admin-e2e/src/auth/private-routes.spec.ts:22-31,33-42,44-61`; `auth/routing.spec.ts:31-40` | Signed-out users are redirected from `/` and from unknown paths; signing in returns them; `/` renders inside the shell with `homePage.nav` visible | ✅ E2E |
-| F4 workspace shell + interior nav | `apps/admin-e2e/src/workspaces/workspaces.spec.ts`, `workspaces/settings.spec.ts`, `workspaces/permissions.spec.ts` | The workspace shell and its nav render | ✅ E2E |
-| F6 content + i18n + wysiwyg slot filling | `apps/admin-e2e/src/content/content-library.spec.ts`, `content/i18n.spec.ts`, `content/wysiwyg-fields.spec.ts`, `content/records-filter.spec.ts` | i18n's locale switcher/column/panel and the wysiwyg field control render **inside** content's surfaces — i.e. the ordering constraint at `src/main.tsx:27-35` held | ✅ E2E |
-| F7 media / copilot / users / activity / api-tokens | `apps/admin-e2e/src/media/media-library.spec.ts`, `copilot/*.spec.ts` (9 files), `users/*.spec.ts`, `activity/*.spec.ts` | Each plugin's pages render and behave | ✅ E2E |
-| F5 insights ordering | `apps/admin-e2e/src/insights/insights.spec.ts` | The dashboard renders with contributed widgets | ⚠️ PARTIAL — asserts the result, not the **last-wins section merge** the ordering comment (`src/main.tsx:21-26`) depends on |
-| F9 pre-paint theme | `apps/admin-e2e/src/users/preferences.spec.ts` | Theme selection applies and persists | ⚠️ PARTIAL — no assertion that the **inline script** prevents a flash, which is the script's whole purpose |
-| F15 dev server | `apps/admin-e2e` `baseURL` | Tests reach `:4200` | ✅ E2E — implicit |
-| F16 `^/api/` proxy regex | — | — | ⚠️ PARTIAL — the e2e suite intercepts `/api` with `page.route`, so the **proxy** is bypassed entirely. The `/api-tokens` hard-refresh case the regex exists for (`vite.config.mts:14-21`) is never exercised |
-| F12/F14 styles + tokens | `apps/admin-e2e/src/**/a11y.spec.ts` (`color-contrast` rule via axe) | Contrast on scanned pages, in one theme | ⚠️ PARTIAL — see `♿ A11Y-app-admin-03` |
-| F19 typecheck | `admin:dev:typecheck` + `nx typecheck admin` in CI | Type errors fail | ⚠️ PARTIAL — a build-time guard, not a test |
-| F10 title / lang, F11 viewport, F13 `@source` globs, F17 build, F18 vitest | — | — | ❌ NONE — `apps/admin/src` contains no spec file at all, so `nx test admin` runs zero tests |
-| **a11y — axe** | `apps/admin-e2e/src/auth/a11y.spec.ts:17,23,35,48,60,74,89,101,107`; `users/a11y.spec.ts:18,24,37,44,59,66,73`; `workspaces/a11y.spec.ts:23,28,41,51,63,68`; plus `content/a11y.spec.ts`, `copilot/a11y.spec.ts`, `insights/a11y.spec.ts` | Zero violations across genuinely varied states — initial, loading skeleton, validation errors visible, error banners visible, open row menu, open wizard steps, empty state, no-access state, dead invite link, auth probe pending | ✅ E2E **for what axe can see** — and the state coverage is better than most codebases. ⚠️ PARTIAL as conformance: an axe scan with a dialog **closed** says nothing about the dialog, and none of this unit's seven ♿ findings is detectable by axe |
-| **a11y — coverage gaps** | — | — | ❌ NONE for `media`, `shell`/home, `i18n`, `wysiwyg` — four surfaces with no axe suite, including the WYSIWYG editor, which is the single most 504-relevant component in the product |
-| **a11y — keyboard** | `apps/admin-e2e/src/auth/keyboard.spec.ts:13,26,45,67`; `users/keyboard.spec.ts:16,25,39`; `workspaces/keyboard.spec.ts:18,31,42,69,84` | First focus stop; keyboard-only login and invite acceptance; source-order reachability; menu and wizard opening from the keyboard; arrow-key filter chips; Enter-to-open a row; keyboard colour-swatch selection | ✅ E2E for those flows |
-| **a11y — skip link, route focus, title, dark-theme contrast, reflow, forced-colors** | — | — | ❌ NONE |
+| Feature                                                                              | Spec                                                                                                                                                                                                                                      | Asserts                                                                                                                                                                                                                            | Verdict                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1/F8 boot                                                                           | every spec in `apps/admin-e2e/src`                                                                                                                                                                                                        | The composed app renders                                                                                                                                                                                                           | ✅ E2E — implicit but total                                                                                                                                                                                                                           |
+| F2 identity public routes                                                            | `apps/admin-e2e/src/auth/login.spec.ts`, `auth/accept-invite.spec.ts`, `auth/routing.spec.ts:12-21`                                                                                                                                       | Sign-in and accept-invite render outside the shell; `/identity` redirects to `/identity/signin`                                                                                                                                    | ✅ E2E                                                                                                                                                                                                                                                |
+| F3 shell layout + gate                                                               | `apps/admin-e2e/src/auth/private-routes.spec.ts:22-31,33-42,44-61`; `auth/routing.spec.ts:31-40`                                                                                                                                          | Signed-out users are redirected from `/` and from unknown paths; signing in returns them; `/` renders inside the shell with `homePage.nav` visible                                                                                 | ✅ E2E                                                                                                                                                                                                                                                |
+| F4 workspace shell + interior nav                                                    | `apps/admin-e2e/src/workspaces/workspaces.spec.ts`, `workspaces/settings.spec.ts`, `workspaces/permissions.spec.ts`                                                                                                                       | The workspace shell and its nav render                                                                                                                                                                                             | ✅ E2E                                                                                                                                                                                                                                                |
+| F6 content + i18n + wysiwyg slot filling                                             | `apps/admin-e2e/src/content/content-library.spec.ts`, `content/i18n.spec.ts`, `content/wysiwyg-fields.spec.ts`, `content/records-filter.spec.ts`                                                                                          | i18n's locale switcher/column/panel and the wysiwyg field control render **inside** content's surfaces — i.e. the ordering constraint at `src/main.tsx:27-35` held                                                                 | ✅ E2E                                                                                                                                                                                                                                                |
+| F7 media / copilot / users / activity / api-tokens                                   | `apps/admin-e2e/src/media/media-library.spec.ts`, `copilot/*.spec.ts` (9 files), `users/*.spec.ts`, `activity/*.spec.ts`                                                                                                                  | Each plugin's pages render and behave                                                                                                                                                                                              | ✅ E2E                                                                                                                                                                                                                                                |
+| F5 insights ordering                                                                 | `apps/admin-e2e/src/insights/insights.spec.ts`                                                                                                                                                                                            | The dashboard renders with contributed widgets                                                                                                                                                                                     | ⚠️ PARTIAL — asserts the result, not the **last-wins section merge** the ordering comment (`src/main.tsx:21-26`) depends on                                                                                                                           |
+| F9 pre-paint theme                                                                   | `apps/admin-e2e/src/users/preferences.spec.ts`                                                                                                                                                                                            | Theme selection applies and persists                                                                                                                                                                                               | ⚠️ PARTIAL — no assertion that the **inline script** prevents a flash, which is the script's whole purpose                                                                                                                                            |
+| F15 dev server                                                                       | `apps/admin-e2e` `baseURL`                                                                                                                                                                                                                | Tests reach `:4200`                                                                                                                                                                                                                | ✅ E2E — implicit                                                                                                                                                                                                                                     |
+| F16 `^/api/` proxy regex                                                             | —                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                  | ⚠️ PARTIAL — the e2e suite intercepts `/api` with `page.route`, so the **proxy** is bypassed entirely. The `/api-tokens` hard-refresh case the regex exists for (`vite.config.mts:14-21`) is never exercised                                          |
+| F12/F14 styles + tokens                                                              | `apps/admin-e2e/src/**/a11y.spec.ts` (`color-contrast` rule via axe)                                                                                                                                                                      | Contrast on scanned pages, in one theme                                                                                                                                                                                            | ⚠️ PARTIAL — see `♿ A11Y-app-admin-03`                                                                                                                                                                                                               |
+| F19 typecheck                                                                        | `admin:dev:typecheck` + `nx typecheck admin` in CI                                                                                                                                                                                        | Type errors fail                                                                                                                                                                                                                   | ⚠️ PARTIAL — a build-time guard, not a test                                                                                                                                                                                                           |
+| F10 title / lang, F11 viewport, F13 `@source` globs, F17 build, F18 vitest           | —                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                  | ❌ NONE — `apps/admin/src` contains no spec file at all, so `nx test admin` runs zero tests                                                                                                                                                           |
+| **a11y — axe**                                                                       | `apps/admin-e2e/src/auth/a11y.spec.ts:17,23,35,48,60,74,89,101,107`; `users/a11y.spec.ts:18,24,37,44,59,66,73`; `workspaces/a11y.spec.ts:23,28,41,51,63,68`; plus `content/a11y.spec.ts`, `copilot/a11y.spec.ts`, `insights/a11y.spec.ts` | Zero violations across genuinely varied states — initial, loading skeleton, validation errors visible, error banners visible, open row menu, open wizard steps, empty state, no-access state, dead invite link, auth probe pending | ✅ E2E **for what axe can see** — and the state coverage is better than most codebases. ⚠️ PARTIAL as conformance: an axe scan with a dialog **closed** says nothing about the dialog, and none of this unit's seven ♿ findings is detectable by axe |
+| **a11y — coverage gaps**                                                             | —                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                  | ❌ NONE for `media`, `shell`/home, `i18n`, `wysiwyg` — four surfaces with no axe suite, including the WYSIWYG editor, which is the single most 504-relevant component in the product                                                                  |
+| **a11y — keyboard**                                                                  | `apps/admin-e2e/src/auth/keyboard.spec.ts:13,26,45,67`; `users/keyboard.spec.ts:16,25,39`; `workspaces/keyboard.spec.ts:18,31,42,69,84`                                                                                                   | First focus stop; keyboard-only login and invite acceptance; source-order reachability; menu and wizard opening from the keyboard; arrow-key filter chips; Enter-to-open a row; keyboard colour-swatch selection                   | ✅ E2E for those flows                                                                                                                                                                                                                                |
+| **a11y — skip link, route focus, title, dark-theme contrast, reflow, forced-colors** | —                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                  | ❌ NONE                                                                                                                                                                                                                                               |
 
 **Coverage tally:** `19 features · 8 ✅ · 6 ⚠️ · 5 ❌`
 **♿ tally:** `7 findings — 1 Supports · 2 Partially Supports · 3 Does Not Support · 1 Unverified` (plus 1 Not Applicable verdict for public-route bypass blocks and 1 for 503.4).
@@ -555,8 +555,8 @@ server side, there is no parallel composition root.
 **What the code does:** `main.tsx` imports thirteen `@orthacms/*` packages:
 
 ```ts
-import { I18nPlugin } from '@orthacms/i18n-admin';        // line 6
-import { CopilotPlugin } from '@orthacms/copilot-admin';  // line 13
+import { I18nPlugin } from '@orthacms/i18n-admin'; // line 6
+import { CopilotPlugin } from '@orthacms/copilot-admin'; // line 13
 ```
 
 but the manifest declares eleven — `activity-admin`, `api-tokens-admin`, `bootstrap-admin`,
@@ -577,6 +577,7 @@ new plugin registration is copied from, and the same omission in a published pac
 ship a broken tarball.
 
 **Repro:**
+
 ```bash
 node -e "
 const pkg=require('./apps/admin/package.json');
@@ -585,6 +586,7 @@ const imports=[...src.matchAll(/from '(@orthacms\/[^']+)'/g)].map(m=>m[1]);
 console.log(imports.filter(i=>!Object.keys(pkg.dependencies).includes(i)));
 "
 ```
+
 → Observed: `[ '@orthacms/i18n-admin', '@orthacms/copilot-admin' ]`.
 → Expected: `[]`.
 
@@ -615,7 +617,7 @@ ContentPlugin(),
 I18nPlugin(),
 ```
 
-**Why it is wrong — and, importantly, *how much* it is wrong.** Verification of the source
+**Why it is wrong — and, importantly, _how much_ it is wrong.** Verification of the source
 does **not** support the strong reading these comments invite (that a mis-ordered plugin
 loses its contributions). Two mechanisms rule that out:
 
@@ -623,9 +625,9 @@ loses its contributions). Two mechanisms rule that out:
   (`packages/content/admin/src/lib/presentation/slots/contentSlots/index.ts:66,109,161,…`,
   all `export const … = createSlot(…)`), and `createSlot` closes over a plain array
   (`packages/utils/admin/src/lib/slot/index.ts:31-37`).
-- `createAdmin` registers **every** plugin's contributions in one pass *before* render
+- `createAdmin` registers **every** plugin's contributions in one pass _before_ render
   (`packages/bootstrap/admin/src/lib/createAdmin/index.tsx:51-55`), and consumers read
-  `getItems()` during render. So `I18nPlugin()` placed *before* `ContentPlugin()` still
+  `getItems()` during render. So `I18nPlugin()` placed _before_ `ContentPlugin()` still
   pushes into the same array the Content Library reads — the locale switcher, Locales column,
   entry sidebar widget and locale filters all still appear.
 
@@ -649,22 +651,23 @@ contributing one wins), filed separately as
 `docs/testing/bootstrap-admin.md` `🐞 BUG-bootstrap-admin-01`.
 
 **Repro:**
+
 1. Swap `ContentPlugin()` (`:29`) and `I18nPlugin()` (`:32`).
 2. `npm run dev`; open a localized collection.
-→ Observed: **everything still works** — the locale switcher, Locales column and locale
-filters are all present, contradicting the comment at `:30-31`. Only the relative position of
-i18n's contributions inside each slot changes.
+   → Observed: **everything still works** — the locale switcher, Locales column and locale
+   filters are all present, contradicting the comment at `:30-31`. Only the relative position of
+   i18n's contributions inside each slot changes.
 3. Now move `InsightsPlugin()` (`:26`) to the end of the array and reload `/insights`.
-→ Observed: any band title another plugin overrides now resolves to the *built-in* default
-instead of the override, with no warning. → Expected: either an explicit `order` on section
-contributions so the outcome does not depend on array position, or comments that say what is
-actually true.
+   → Observed: any band title another plugin overrides now resolves to the _built-in_ default
+   instead of the override, with no warning. → Expected: either an explicit `order` on section
+   contributions so the outcome does not depend on array position, or comments that say what is
+   actually true.
 
 **Blast radius:** low. Nothing disappears; a maintainer's mental model and the Insights band
 titles are what is at risk. `apps/admin-e2e` would not catch the Insights case, since no suite
 asserts a band title's provenance.
-**Suggested fix:** correct the three comments to describe ordering as affecting *item order
-and section-override precedence* rather than presence, and give `INSIGHTS_SECTION_SLOT`
+**Suggested fix:** correct the three comments to describe ordering as affecting _item order
+and section-override precedence_ rather than presence, and give `INSIGHTS_SECTION_SLOT`
 contributions an explicit precedence field so the merge outcome is declared rather than
 positional.
 
@@ -699,12 +702,13 @@ the repo.
    this constraint.
 
 **Repro:**
+
 1. Start the API on `PORT=3001`.
 2. `npm run dev`, sign in.
-→ Observed: every request 502s through the proxy; the only fix is editing
-`vite.config.mts:25`. → Expected: `VITE_API_TARGET` (dev) and a build-time or
-runtime-configurable `baseURL` (production), or an explicit documented statement that
-same-origin deployment is required.
+   → Observed: every request 502s through the proxy; the only fix is editing
+   `vite.config.mts:25`. → Expected: `VITE_API_TARGET` (dev) and a build-time or
+   runtime-configurable `baseURL` (production), or an explicit documented statement that
+   same-origin deployment is required.
 
 **Blast radius:** contributor friction, plus a deployment topology that is silently
 unsupported.
@@ -735,17 +739,17 @@ And `apps/admin/AGENTS.md`'s claim that this app "holds almost no logic" is accu
 
 ## 7. Recommended E2E Tests
 
-| Priority | Harness | Proposed spec | Asserts | Closes |
-| --- | --- | --- | --- | --- |
-| 1 | `apps/admin-e2e` (POM + `page.route` mock) | `apps/admin-e2e/src/a11y/spa-navigation.spec.ts` | ♿ For each of five routes: `document.title` is unique and non-"Admin", and after a sidebar navigation `document.activeElement` is within `#main-content`. Currently fails on both | `♿ A11Y-app-admin-01`, `♿ A11Y-app-admin-02` |
-| 2 | `apps/admin-e2e` | `apps/admin-e2e/src/media/a11y.spec.ts`, `shell/a11y.spec.ts`, `content/wysiwyg-a11y.spec.ts`, `content/i18n-a11y.spec.ts` | ♿ axe (via `makeAxe`, following `apps/admin-e2e/src/support/a11y.ts`) over the four surfaces with **no** suite today — including the WYSIWYG editor **open**, the media upload dialog **open**, and the locale switcher **open**, since a scan with an overlay closed proves nothing about it | The four ❌ a11y coverage gaps |
-| 3 | `apps/admin-e2e` | extend `apps/admin-e2e/src/auth/keyboard.spec.ts` | ♿ First `Tab` after load focuses a **visible** "Skip to main content" link; `Enter` moves focus into `<main id="main-content">`; the next `Tab` is page content. Also assert every tab stop between them has a visible focus indicator — which will surface `♿ A11Y-app-admin-04` | `♿ A11Y-app-admin-07`, `♿ A11Y-app-admin-04` |
-| 4 | Unit (`apps/admin/src/__test__/plugins.spec.ts`, vitest — the app currently has **zero** tests) | registry invariants | `ShellPlugin` is the only plugin contributing a `layout` (the one genuinely order-sensitive slot); every plugin `name` is unique; and — the assertion that matters — reordering `ContentPlugin`/`I18nPlugin` leaves every content slot's item **set** unchanged, so the comments' "must follow" claim is either enforced or corrected | `🐞 BUG-app-admin-02`, F4, F5, F6 |
-| 5 | Unit (`apps/admin/src/__test__/manifest.spec.ts`) | manifest integrity | Every `@orthacms/*` specifier imported by `src/main.tsx` appears in `package.json` `dependencies`. Currently fails with two entries | `🐞 BUG-app-admin-01`, EC-05 |
-| 6 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/dark-theme.spec.ts` | ♿ Re-run every existing axe suite with the app forced to Dark, so `color-contrast` is enforced in both palettes — the `styles.css:22-24` claim currently holds for one theme only | `♿ A11Y-app-admin-03`, EC-14 |
-| 7 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/reflow.spec.ts` | ♿ At 320 × 256 CSS px and at 400 % zoom, `document.documentElement.scrollWidth <= clientWidth` on the home, members, records and media pages, and the sidebar remains reachable; plus a text-spacing override pass asserting no clipping | `♿ A11Y-app-admin-05` (1.4.4 / 1.4.10 / 1.4.12) |
-| 8 | `apps/admin-e2e` | `apps/admin-e2e/src/a11y/forced-colors.spec.ts` | ♿ With `forced-colors: active` emulated, focus indicators and control borders remain perceivable on the sidebar, buttons and table rows | `♿ A11Y-app-admin-06` (508 503.2) |
-| 9 | `apps/admin-e2e` | `apps/admin-e2e/src/shell/api-down.spec.ts` | With every `/api` route mocked to 500 (and a second run to `abort()`), each top-level page shows a distinct **error** state — never the empty state — and offers a retry. Directly targets `.cursor/BUGBOT.md`'s "Error masquerading as empty" | EC-21, EC-22 |
-| 10 | Unit (`apps/admin/src/__test__/theme-script.spec.ts`, jsdom) | pre-paint theme | The inline script from `index.html` applied to a jsdom document sets `.dark` + `colorScheme` for `dark`, for `system` + `prefers-color-scheme: dark`, falls back to `system` on a corrupt value, and does not throw when `localStorage` throws | F9, EC-07, EC-08 |
-| 11 | `apps/admin-e2e` (running against the **real** dev server, proxy not mocked) | `apps/admin-e2e/src/shell/spa-fallback.spec.ts` | A hard refresh on `/api-tokens` serves the SPA page, not `Cannot GET /api-tokens` — the one behaviour the `^/api/` regex exists for, currently untested because the suite mocks `/api` | F16, EC-17 |
-| 12 | CI check | CSS purge guard | Build the admin and assert a known utility used only inside `packages/*/admin` survives in the emitted CSS — guarding the `@source` globs against a package added at a nesting depth the glob does not match | F13, EC-13 |
+| Priority | Harness                                                                                         | Proposed spec                                                                                                              | Asserts                                                                                                                                                                                                                                                                                                                               | Closes                                           |
+| -------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1        | `apps/admin-e2e` (POM + `page.route` mock)                                                      | `apps/admin-e2e/src/a11y/spa-navigation.spec.ts`                                                                           | ♿ For each of five routes: `document.title` is unique and non-"Admin", and after a sidebar navigation `document.activeElement` is within `#main-content`. Currently fails on both                                                                                                                                                    | `♿ A11Y-app-admin-01`, `♿ A11Y-app-admin-02`   |
+| 2        | `apps/admin-e2e`                                                                                | `apps/admin-e2e/src/media/a11y.spec.ts`, `shell/a11y.spec.ts`, `content/wysiwyg-a11y.spec.ts`, `content/i18n-a11y.spec.ts` | ♿ axe (via `makeAxe`, following `apps/admin-e2e/src/support/a11y.ts`) over the four surfaces with **no** suite today — including the WYSIWYG editor **open**, the media upload dialog **open**, and the locale switcher **open**, since a scan with an overlay closed proves nothing about it                                        | The four ❌ a11y coverage gaps                   |
+| 3        | `apps/admin-e2e`                                                                                | extend `apps/admin-e2e/src/auth/keyboard.spec.ts`                                                                          | ♿ First `Tab` after load focuses a **visible** "Skip to main content" link; `Enter` moves focus into `<main id="main-content">`; the next `Tab` is page content. Also assert every tab stop between them has a visible focus indicator — which will surface `♿ A11Y-app-admin-04`                                                   | `♿ A11Y-app-admin-07`, `♿ A11Y-app-admin-04`   |
+| 4        | Unit (`apps/admin/src/__test__/plugins.spec.ts`, vitest — the app currently has **zero** tests) | registry invariants                                                                                                        | `ShellPlugin` is the only plugin contributing a `layout` (the one genuinely order-sensitive slot); every plugin `name` is unique; and — the assertion that matters — reordering `ContentPlugin`/`I18nPlugin` leaves every content slot's item **set** unchanged, so the comments' "must follow" claim is either enforced or corrected | `🐞 BUG-app-admin-02`, F4, F5, F6                |
+| 5        | Unit (`apps/admin/src/__test__/manifest.spec.ts`)                                               | manifest integrity                                                                                                         | Every `@orthacms/*` specifier imported by `src/main.tsx` appears in `package.json` `dependencies`. Currently fails with two entries                                                                                                                                                                                                   | `🐞 BUG-app-admin-01`, EC-05                     |
+| 6        | `apps/admin-e2e`                                                                                | `apps/admin-e2e/src/a11y/dark-theme.spec.ts`                                                                               | ♿ Re-run every existing axe suite with the app forced to Dark, so `color-contrast` is enforced in both palettes — the `styles.css:22-24` claim currently holds for one theme only                                                                                                                                                    | `♿ A11Y-app-admin-03`, EC-14                    |
+| 7        | `apps/admin-e2e`                                                                                | `apps/admin-e2e/src/a11y/reflow.spec.ts`                                                                                   | ♿ At 320 × 256 CSS px and at 400 % zoom, `document.documentElement.scrollWidth <= clientWidth` on the home, members, records and media pages, and the sidebar remains reachable; plus a text-spacing override pass asserting no clipping                                                                                             | `♿ A11Y-app-admin-05` (1.4.4 / 1.4.10 / 1.4.12) |
+| 8        | `apps/admin-e2e`                                                                                | `apps/admin-e2e/src/a11y/forced-colors.spec.ts`                                                                            | ♿ With `forced-colors: active` emulated, focus indicators and control borders remain perceivable on the sidebar, buttons and table rows                                                                                                                                                                                              | `♿ A11Y-app-admin-06` (508 503.2)               |
+| 9        | `apps/admin-e2e`                                                                                | `apps/admin-e2e/src/shell/api-down.spec.ts`                                                                                | With every `/api` route mocked to 500 (and a second run to `abort()`), each top-level page shows a distinct **error** state — never the empty state — and offers a retry. Directly targets `.cursor/BUGBOT.md`'s "Error masquerading as empty"                                                                                        | EC-21, EC-22                                     |
+| 10       | Unit (`apps/admin/src/__test__/theme-script.spec.ts`, jsdom)                                    | pre-paint theme                                                                                                            | The inline script from `index.html` applied to a jsdom document sets `.dark` + `colorScheme` for `dark`, for `system` + `prefers-color-scheme: dark`, falls back to `system` on a corrupt value, and does not throw when `localStorage` throws                                                                                        | F9, EC-07, EC-08                                 |
+| 11       | `apps/admin-e2e` (running against the **real** dev server, proxy not mocked)                    | `apps/admin-e2e/src/shell/spa-fallback.spec.ts`                                                                            | A hard refresh on `/api-tokens` serves the SPA page, not `Cannot GET /api-tokens` — the one behaviour the `^/api/` regex exists for, currently untested because the suite mocks `/api`                                                                                                                                                | F16, EC-17                                       |
+| 12       | CI check                                                                                        | CSS purge guard                                                                                                            | Build the admin and assert a known utility used only inside `packages/*/admin` survives in the emitted CSS — guarding the `@source` globs against a package added at a nesting depth the glob does not match                                                                                                                          | F13, EC-13                                       |

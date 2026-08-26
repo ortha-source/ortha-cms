@@ -103,9 +103,7 @@ export function createFakeSsoProvider(
 
         calls: () => ({ authorize: authorizeCalls, complete: completeCalls }),
 
-        authorize(
-            request: SsoAuthorizeRequest
-        ): Promise<SsoAuthorizeRedirect> {
+        authorize(request: SsoAuthorizeRequest): Promise<SsoAuthorizeRedirect> {
             authorizeCalls += 1;
             const code = encodeSubject(current.subject);
             const url = new URL(request.redirectUri);

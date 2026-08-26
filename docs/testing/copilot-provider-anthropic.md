@@ -34,11 +34,11 @@ files here — and **nowhere else in the monorepo**.
 
 ### Entry points (exported API — `src/index.ts:1-2`)
 
-| Export | Kind | Notes |
-| --- | --- | --- |
-| `createAnthropicProvider(config): ModelProvider` | factory | Returns `{ models, capabilities, stream }` |
-| `AnthropicProviderConfig` | type | `{ apiKey, models, baseUrl?, effort?, maxRetries?, timeoutMs? }` |
-| `AnthropicEffort` | type | `'low' \| 'medium' \| 'high' \| 'xhigh' \| 'max'` |
+| Export                                           | Kind    | Notes                                                            |
+| ------------------------------------------------ | ------- | ---------------------------------------------------------------- |
+| `createAnthropicProvider(config): ModelProvider` | factory | Returns `{ models, capabilities, stream }`                       |
+| `AnthropicProviderConfig`                        | type    | `{ apiKey, models, baseUrl?, effort?, maxRetries?, timeoutMs? }` |
+| `AnthropicEffort`                                | type    | `'low' \| 'medium' \| 'high' \| 'xhigh' \| 'max'`                |
 
 Not exported (internal): `createLazyClient`, `probeCapabilities`,
 `FALLBACK_CAPABILITIES`, `toStreamParams`, `toAnthropicTools`,
@@ -50,14 +50,14 @@ behaviour a caller can reach on its own" (AGENTS.md).
 
 ### Runtime prerequisites
 
-| Requirement | Where | Notes |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | `ortha.config.ts:217` | **Only needed if this provider is selected.** The client is lazy (`client.ts:16-40`), so an operator running local inference boots fine with none |
-| `COPILOT_ENABLED=true` | `ortha.config.ts:194` | The kill switch — without it the copilot's controllers are not registered and every `/api/copilot` route 404s |
-| `COPILOT_PROVIDER=claude` | `ortha.config.ts:198` | **Otherwise the default is `fake`** — see `docs/testing/copilot-provider-fake.md` 🐞 BUG-copilot-provider-fake-01 |
-| A non-empty `models` list | `ortha.config.ts:222-228` | `CopilotPlugin` fails boot on an empty one (`copilot-plugin.ts:61-67`) |
-| Network egress to `api.anthropic.com` (or `ANTHROPIC_BASE_URL`) | — | Absent, streaming throws and the probe falls back |
-| A user holding `copilot:use`, and a workspace | identity / workspaces | To reach it through the run route at all |
+| Requirement                                                     | Where                     | Notes                                                                                                                                             |
+| --------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`                                             | `ortha.config.ts:217`     | **Only needed if this provider is selected.** The client is lazy (`client.ts:16-40`), so an operator running local inference boots fine with none |
+| `COPILOT_ENABLED=true`                                          | `ortha.config.ts:194`     | The kill switch — without it the copilot's controllers are not registered and every `/api/copilot` route 404s                                     |
+| `COPILOT_PROVIDER=claude`                                       | `ortha.config.ts:198`     | **Otherwise the default is `fake`** — see `docs/testing/copilot-provider-fake.md` 🐞 BUG-copilot-provider-fake-01                                 |
+| A non-empty `models` list                                       | `ortha.config.ts:222-228` | `CopilotPlugin` fails boot on an empty one (`copilot-plugin.ts:61-67`)                                                                            |
+| Network egress to `api.anthropic.com` (or `ANTHROPIC_BASE_URL`) | —                         | Absent, streaming throws and the probe falls back                                                                                                 |
+| A user holding `copilot:use`, and a workspace                   | identity / workspaces     | To reach it through the run route at all                                                                                                          |
 
 ### How to exercise it manually
 
@@ -112,37 +112,37 @@ Note: `AGENTS.md`'s Commands section lists only `typecheck` and `lint`, but
 
 ## 2. Feature Inventory
 
-| # | Feature | Where it lives | Coverage |
-| --- | --- | --- | --- |
-| F1 | The SDK client is constructed on **first use**, not in the factory | `src/lib/client.ts:16-40` | 🧪 UNIT `src/lib/anthropic-provider.spec.ts:74` |
-| F2 | Selecting it with no key fails with a message naming the fix | `client.ts:21-26` | 🧪 UNIT `:83` |
-| F3 | The client is constructed **once** and memoized | `client.ts:17-19` | 🧪 UNIT `:94` |
-| F4 | `baseUrl` overrides the API host | `client.ts:29` | 🧪 UNIT `:94` |
-| F5 | `maxRetries` / `timeoutMs` are forwarded only when set | `client.ts:30-35` | ❌ NONE |
-| F6 | `models()` advertises every declared model, in order | `anthropic-provider.ts:100` | 🧪 UNIT `:411` |
-| F7 | The **first** declared model is the default | `resolveModel` via `anthropic-provider.ts:50` | 🧪 UNIT `:290` |
-| F8 | A per-request `model` override is honoured | same | 🧪 UNIT `:290` · ✅ E2E `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:677` |
-| F9 | A model this provider does not offer raises `UnknownModelError` **before** any network call | `anthropic-provider.ts:48-50` | 🧪 UNIT `:302` · ✅ E2E `copilot-chat.spec.ts:733` |
-| F10 | Text deltas are forwarded as they arrive | `anthropic-provider.ts:61-68` | 🧪 UNIT `:115` |
-| F11 | Tool calls come from `finalMessage()`, whole and parsed — never from `input_json_delta` | `anthropic-provider.ts:70-83` | 🧪 UNIT `:173` |
-| F12 | Exactly one `done` carries the stop reason and usage | `anthropic-provider.ts:85-89` | 🧪 UNIT `:115` |
-| F13 | `cachedInputTokens` is omitted when the API reports none | `src/lib/wire/response.ts:23-32` | 🧪 UNIT `:148` |
-| F14 | An abort **ends** the stream with `stopReason:'aborted'` and zero usage | `anthropic-provider.ts:90-96` | 🧪 UNIT `:232` |
-| F15 | A genuine API failure is re-thrown, not swallowed as an abort | `anthropic-provider.ts:95` | 🧪 UNIT `:257` |
-| F16 | **No `thinking` configuration is sent** | `src/lib/wire/request.ts:67-81` | 🧪 UNIT `:273` |
-| F17 | **No sampling parameters** (`temperature`, `top_p`, `top_k`) | `wire/request.ts:67-81` | 🧪 UNIT `:282` |
-| F18 | `effort` is sent as `output_config.effort`, only when configured | `wire/request.ts:79` | 🧪 UNIT `:315` |
-| F19 | `system` is sent only when non-empty | `wire/request.ts:76` | ⚠️ PARTIAL — implied by `:327` |
-| F20 | Tools are mapped to `{name, description, input_schema}` | `wire/request.ts:18-24` | 🧪 UNIT `:327` |
-| F21 | The `tools` key is omitted entirely when the run offers none | `wire/request.ts:78` | 🧪 UNIT `:403` |
-| F22 | Block-structured turns map onto `MessageParam` (text / tool_use / tool_result, with `is_error`) | `wire/request.ts:27-53` | 🧪 UNIT `:327` |
-| F23 | Stop-reason mapping: `tool_use`→`tool_use`, `refusal`→`refusal`, `max_tokens` + `model_context_window_exceeded`→`max_tokens`, everything else→`end` | `src/lib/wire/response.ts:5-20` | ⚠️ PARTIAL — `:115` and `:173` cover `end` and `tool_use` only |
-| F24 | `capabilities(model?)` probes the Models API | `src/lib/capabilities.ts:16-34` | 🧪 UNIT `:420` |
-| F25 | The probe result is cached **per model** | `anthropic-provider.ts:42`, `:217-225` | 🧪 UNIT `:420`, `:442` |
-| F26 | A failed probe falls back to `FALLBACK_CAPABILITIES` rather than reporting "unsupported" | `capabilities.ts:31-33` | 🧪 UNIT `:463` |
-| F27 | `toolCalling` is always `true` — the Models API exposes no flag | `capabilities.ts:24` | 🧪 UNIT `:420` |
-| F28 | **A failed probe is cached forever** | `anthropic-provider.ts:103-108` | ❌ NONE → 🐞 BUG-copilot-provider-anthropic-01 |
-| F29 | `capabilities()` is consulted by production code | *nowhere* | ❌ NONE → cross-ref 🐞 BUG-copilot-domain-01 |
+| #   | Feature                                                                                                                                             | Where it lives                                | Coverage                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| F1  | The SDK client is constructed on **first use**, not in the factory                                                                                  | `src/lib/client.ts:16-40`                     | 🧪 UNIT `src/lib/anthropic-provider.spec.ts:74`                                       |
+| F2  | Selecting it with no key fails with a message naming the fix                                                                                        | `client.ts:21-26`                             | 🧪 UNIT `:83`                                                                         |
+| F3  | The client is constructed **once** and memoized                                                                                                     | `client.ts:17-19`                             | 🧪 UNIT `:94`                                                                         |
+| F4  | `baseUrl` overrides the API host                                                                                                                    | `client.ts:29`                                | 🧪 UNIT `:94`                                                                         |
+| F5  | `maxRetries` / `timeoutMs` are forwarded only when set                                                                                              | `client.ts:30-35`                             | ❌ NONE                                                                               |
+| F6  | `models()` advertises every declared model, in order                                                                                                | `anthropic-provider.ts:100`                   | 🧪 UNIT `:411`                                                                        |
+| F7  | The **first** declared model is the default                                                                                                         | `resolveModel` via `anthropic-provider.ts:50` | 🧪 UNIT `:290`                                                                        |
+| F8  | A per-request `model` override is honoured                                                                                                          | same                                          | 🧪 UNIT `:290` · ✅ E2E `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:677` |
+| F9  | A model this provider does not offer raises `UnknownModelError` **before** any network call                                                         | `anthropic-provider.ts:48-50`                 | 🧪 UNIT `:302` · ✅ E2E `copilot-chat.spec.ts:733`                                    |
+| F10 | Text deltas are forwarded as they arrive                                                                                                            | `anthropic-provider.ts:61-68`                 | 🧪 UNIT `:115`                                                                        |
+| F11 | Tool calls come from `finalMessage()`, whole and parsed — never from `input_json_delta`                                                             | `anthropic-provider.ts:70-83`                 | 🧪 UNIT `:173`                                                                        |
+| F12 | Exactly one `done` carries the stop reason and usage                                                                                                | `anthropic-provider.ts:85-89`                 | 🧪 UNIT `:115`                                                                        |
+| F13 | `cachedInputTokens` is omitted when the API reports none                                                                                            | `src/lib/wire/response.ts:23-32`              | 🧪 UNIT `:148`                                                                        |
+| F14 | An abort **ends** the stream with `stopReason:'aborted'` and zero usage                                                                             | `anthropic-provider.ts:90-96`                 | 🧪 UNIT `:232`                                                                        |
+| F15 | A genuine API failure is re-thrown, not swallowed as an abort                                                                                       | `anthropic-provider.ts:95`                    | 🧪 UNIT `:257`                                                                        |
+| F16 | **No `thinking` configuration is sent**                                                                                                             | `src/lib/wire/request.ts:67-81`               | 🧪 UNIT `:273`                                                                        |
+| F17 | **No sampling parameters** (`temperature`, `top_p`, `top_k`)                                                                                        | `wire/request.ts:67-81`                       | 🧪 UNIT `:282`                                                                        |
+| F18 | `effort` is sent as `output_config.effort`, only when configured                                                                                    | `wire/request.ts:79`                          | 🧪 UNIT `:315`                                                                        |
+| F19 | `system` is sent only when non-empty                                                                                                                | `wire/request.ts:76`                          | ⚠️ PARTIAL — implied by `:327`                                                        |
+| F20 | Tools are mapped to `{name, description, input_schema}`                                                                                             | `wire/request.ts:18-24`                       | 🧪 UNIT `:327`                                                                        |
+| F21 | The `tools` key is omitted entirely when the run offers none                                                                                        | `wire/request.ts:78`                          | 🧪 UNIT `:403`                                                                        |
+| F22 | Block-structured turns map onto `MessageParam` (text / tool_use / tool_result, with `is_error`)                                                     | `wire/request.ts:27-53`                       | 🧪 UNIT `:327`                                                                        |
+| F23 | Stop-reason mapping: `tool_use`→`tool_use`, `refusal`→`refusal`, `max_tokens` + `model_context_window_exceeded`→`max_tokens`, everything else→`end` | `src/lib/wire/response.ts:5-20`               | ⚠️ PARTIAL — `:115` and `:173` cover `end` and `tool_use` only                        |
+| F24 | `capabilities(model?)` probes the Models API                                                                                                        | `src/lib/capabilities.ts:16-34`               | 🧪 UNIT `:420`                                                                        |
+| F25 | The probe result is cached **per model**                                                                                                            | `anthropic-provider.ts:42`, `:217-225`        | 🧪 UNIT `:420`, `:442`                                                                |
+| F26 | A failed probe falls back to `FALLBACK_CAPABILITIES` rather than reporting "unsupported"                                                            | `capabilities.ts:31-33`                       | 🧪 UNIT `:463`                                                                        |
+| F27 | `toolCalling` is always `true` — the Models API exposes no flag                                                                                     | `capabilities.ts:24`                          | 🧪 UNIT `:420`                                                                        |
+| F28 | **A failed probe is cached forever**                                                                                                                | `anthropic-provider.ts:103-108`               | ❌ NONE → 🐞 BUG-copilot-provider-anthropic-01                                        |
+| F29 | `capabilities()` is consulted by production code                                                                                                    | _nowhere_                                     | ❌ NONE → cross-ref 🐞 BUG-copilot-domain-01                                          |
 
 ---
 
@@ -163,76 +163,76 @@ reachable from a terminal. See §4A below.
 
 ### F1–F5 — the lazy client
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Start with **no** `ANTHROPIC_API_KEY` and `COPILOT_PROVIDER=fake` | Boot succeeds with no warning. The adapter is registered and inert |
-| 2 | Send a chat message | Answered by `fake`. No Anthropic client was ever constructed |
-| 3 | Switch the model picker to a `claude` model and send | An `error` frame: *"The Anthropic copilot provider was selected but no API key is configured. Set ANTHROPIC_API_KEY, or point plugins.copilot.defaultProvider at another provider."* — the message names both fixes |
-| 4 | Set the key, restart, send twice | Both turns answer. Only **one** `Anthropic` instance exists (assert in a unit test; the spec at `:94` does) |
-| 5 | Set `ANTHROPIC_BASE_URL=http://localhost:8081/v1` and point a logging proxy there | The request lands on the proxy, not on `api.anthropic.com` |
-| 6 | Add `maxRetries: 0` to the `claude` config, make the proxy return 529 | The request is attempted **once**. With `maxRetries` unset the SDK retries twice |
+| Step | Action                                                                            | Expected result                                                                                                                                                                                                     |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Start with **no** `ANTHROPIC_API_KEY` and `COPILOT_PROVIDER=fake`                 | Boot succeeds with no warning. The adapter is registered and inert                                                                                                                                                  |
+| 2    | Send a chat message                                                               | Answered by `fake`. No Anthropic client was ever constructed                                                                                                                                                        |
+| 3    | Switch the model picker to a `claude` model and send                              | An `error` frame: _"The Anthropic copilot provider was selected but no API key is configured. Set ANTHROPIC_API_KEY, or point plugins.copilot.defaultProvider at another provider."_ — the message names both fixes |
+| 4    | Set the key, restart, send twice                                                  | Both turns answer. Only **one** `Anthropic` instance exists (assert in a unit test; the spec at `:94` does)                                                                                                         |
+| 5    | Set `ANTHROPIC_BASE_URL=http://localhost:8081/v1` and point a logging proxy there | The request lands on the proxy, not on `api.anthropic.com`                                                                                                                                                          |
+| 6    | Add `maxRetries: 0` to the `claude` config, make the proxy return 529             | The request is attempted **once**. With `maxRetries` unset the SDK retries twice                                                                                                                                    |
 
 ### F6–F9 — model resolution
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `GET /api/copilot/models` | `items` contains `{"provider":"claude","model":"claude-opus-5"}`, `{"…","claude-sonnet-5"}`, `{"…","claude-haiku-4-5"}` in that order (`ortha.config.ts:224`) |
-| 2 | Send with `{"provider":"claude"}` and no `model` | `GET /conversations/:id` shows the assistant turn with `"model":"claude-opus-5"` — the first |
-| 3 | Send with `{"provider":"claude","model":"claude-haiku-4-5"}` | Recorded as `claude-haiku-4-5`; the wire shows `"model":"claude-haiku-4-5"` |
-| 4 | Send with `{"provider":"claude","model":"claude-3-opus-20240229"}` | An `error` frame naming the requested model **and** the three available. **No HTTP request is made** — `resolveModel` runs before the `try` (`anthropic-provider.ts:48-50`) |
-| 5 | Set `COPILOT_ANTHROPIC_MODELS=claude-sonnet-5` and restart | Only one entry in the catalogue; the picker hides itself (one backend) |
+| Step | Action                                                             | Expected result                                                                                                                                                             |
+| ---- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `GET /api/copilot/models`                                          | `items` contains `{"provider":"claude","model":"claude-opus-5"}`, `{"…","claude-sonnet-5"}`, `{"…","claude-haiku-4-5"}` in that order (`ortha.config.ts:224`)               |
+| 2    | Send with `{"provider":"claude"}` and no `model`                   | `GET /conversations/:id` shows the assistant turn with `"model":"claude-opus-5"` — the first                                                                                |
+| 3    | Send with `{"provider":"claude","model":"claude-haiku-4-5"}`       | Recorded as `claude-haiku-4-5`; the wire shows `"model":"claude-haiku-4-5"`                                                                                                 |
+| 4    | Send with `{"provider":"claude","model":"claude-3-opus-20240229"}` | An `error` frame naming the requested model **and** the three available. **No HTTP request is made** — `resolveModel` runs before the `try` (`anthropic-provider.ts:48-50`) |
+| 5    | Set `COPILOT_ANTHROPIC_MODELS=claude-sonnet-5` and restart         | Only one entry in the catalogue; the picker hides itself (one backend)                                                                                                      |
 
 ### F10–F15 — streaming
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `curl -N` a run and watch frames arrive | Many `event: text-delta` frames, spread over time — **not** one burst at the end. (AGENTS.md's warning about `yield*` in `streamTurn` is about the engine; this is the adapter half) |
-| 2 | Ask something requiring a tool ("how many drafts?") | The frame order is: `run-started`, some `text-delta`s, then `tool-call`, then `tool-result`, then more `text-delta`s, then `done`. Note the adapter emits **all** tool calls after **all** text for a turn (`anthropic-provider.ts:61-83`) |
-| 3 | Expand the tool step in the panel | The `input` is a parsed object, never a JSON string and never a fragment |
-| 4 | Read the `done` frame's `usage` | `inputTokens` and `outputTokens` both > 0 |
-| 5 | Ask a question long enough to hit a prompt cache on a second identical run | The second run's `usage` carries `cachedInputTokens`; the first does not |
-| 6 | Press **Stop** mid-answer | The stream ends. The persisted turn has `stopReason:'aborted'` and **zero** usage. No exception in the server log |
-| 7 | Kill network egress (`iptables`/proxy down) mid-answer | An `error` frame. The error is **re-thrown**, not converted to an abort — `isAbortError` checks the signal first and the signal is not aborted |
-| 8 | Send with an intentionally invalid key | An `error` frame carrying the SDK's message. **Check it does not contain the key** — the SDK's error text is forwarded verbatim by `userFacingMessage` (see 🐞 BUG-copilot-provider-anthropic-04) |
+| Step | Action                                                                     | Expected result                                                                                                                                                                                                                            |
+| ---- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | `curl -N` a run and watch frames arrive                                    | Many `event: text-delta` frames, spread over time — **not** one burst at the end. (AGENTS.md's warning about `yield*` in `streamTurn` is about the engine; this is the adapter half)                                                       |
+| 2    | Ask something requiring a tool ("how many drafts?")                        | The frame order is: `run-started`, some `text-delta`s, then `tool-call`, then `tool-result`, then more `text-delta`s, then `done`. Note the adapter emits **all** tool calls after **all** text for a turn (`anthropic-provider.ts:61-83`) |
+| 3    | Expand the tool step in the panel                                          | The `input` is a parsed object, never a JSON string and never a fragment                                                                                                                                                                   |
+| 4    | Read the `done` frame's `usage`                                            | `inputTokens` and `outputTokens` both > 0                                                                                                                                                                                                  |
+| 5    | Ask a question long enough to hit a prompt cache on a second identical run | The second run's `usage` carries `cachedInputTokens`; the first does not                                                                                                                                                                   |
+| 6    | Press **Stop** mid-answer                                                  | The stream ends. The persisted turn has `stopReason:'aborted'` and **zero** usage. No exception in the server log                                                                                                                          |
+| 7    | Kill network egress (`iptables`/proxy down) mid-answer                     | An `error` frame. The error is **re-thrown**, not converted to an abort — `isAbortError` checks the signal first and the signal is not aborted                                                                                             |
+| 8    | Send with an intentionally invalid key                                     | An `error` frame carrying the SDK's message. **Check it does not contain the key** — the SDK's error text is forwarded verbatim by `userFacingMessage` (see 🐞 BUG-copilot-provider-anthropic-04)                                          |
 
 ### F16–F22 — request construction
 
 Watch the wire for every step.
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Any run | The body has **no** `thinking` key at all |
-| 2 | Any run | The body has **no** `temperature`, `top_p` or `top_k` |
-| 3 | Any run | `max_tokens` equals `COPILOT_MAX_OUTPUT_TOKENS` (default 8 192 — `ortha.config.ts:200`) |
-| 4 | Any run | `system` is a single string starting `You are Ortha AI` |
-| 5 | Add `effort: 'low'` to the `claude` config and restart | The body carries `"output_config":{"effort":"low"}` |
-| 6 | Remove it | The key is absent entirely — not `undefined`, not `"high"` |
-| 7 | Sign in as a **viewer** (read-only tools) and send | `tools` is present with only read tools; no `*_propose_*` entry |
-| 8 | Run a turn where the profile offers nothing (remove every capability plugin) | The `tools` **key is absent**, not `[]` — several models reject an empty array |
-| 9 | After a tool round trip, inspect the second request | Message 2 is `role:"assistant"` with a `text` block and a `tool_use` block; message 3 is `role:"user"` with a `tool_result` block whose `content` is the fenced string and `tool_use_id` matching |
-| 10 | Force a tool error (stop Postgres mid-run) | The `tool_result` block carries `"is_error":true` |
+| Step | Action                                                                       | Expected result                                                                                                                                                                                   |
+| ---- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Any run                                                                      | The body has **no** `thinking` key at all                                                                                                                                                         |
+| 2    | Any run                                                                      | The body has **no** `temperature`, `top_p` or `top_k`                                                                                                                                             |
+| 3    | Any run                                                                      | `max_tokens` equals `COPILOT_MAX_OUTPUT_TOKENS` (default 8 192 — `ortha.config.ts:200`)                                                                                                           |
+| 4    | Any run                                                                      | `system` is a single string starting `You are Ortha AI`                                                                                                                                           |
+| 5    | Add `effort: 'low'` to the `claude` config and restart                       | The body carries `"output_config":{"effort":"low"}`                                                                                                                                               |
+| 6    | Remove it                                                                    | The key is absent entirely — not `undefined`, not `"high"`                                                                                                                                        |
+| 7    | Sign in as a **viewer** (read-only tools) and send                           | `tools` is present with only read tools; no `*_propose_*` entry                                                                                                                                   |
+| 8    | Run a turn where the profile offers nothing (remove every capability plugin) | The `tools` **key is absent**, not `[]` — several models reject an empty array                                                                                                                    |
+| 9    | After a tool round trip, inspect the second request                          | Message 2 is `role:"assistant"` with a `text` block and a `tool_use` block; message 3 is `role:"user"` with a `tool_result` block whose `content` is the fenced string and `tool_use_id` matching |
+| 10   | Force a tool error (stop Postgres mid-run)                                   | The `tool_result` block carries `"is_error":true`                                                                                                                                                 |
 
 ### F23 — stop-reason mapping
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Normal completion | Persisted `stopReason:'end'` (via `end_turn`) |
-| 2 | A run that ends asking for a tool | The adapter emits `tool_use`; the engine continues the loop |
-| 3 | Set `COPILOT_MAX_OUTPUT_TOKENS=32` and ask for a long answer | `stopReason:'max-output-tokens'`; the transcript shows the warning Alert "The answer was cut short by the response limit" |
-| 4 | Provoke a refusal (a request the safety classifiers decline) | `stopReason:'refusal'`; the transcript says "The model declined to answer." |
-| 5 | Send a conversation exceeding the model's context window | `model_context_window_exceeded` maps to `max_tokens` → run reason `max-output-tokens`. **Note this is a misleading label**: the answer was not cut short by the *response* limit, the *input* did not fit. See EC-14 |
+| Step | Action                                                       | Expected result                                                                                                                                                                                                      |
+| ---- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Normal completion                                            | Persisted `stopReason:'end'` (via `end_turn`)                                                                                                                                                                        |
+| 2    | A run that ends asking for a tool                            | The adapter emits `tool_use`; the engine continues the loop                                                                                                                                                          |
+| 3    | Set `COPILOT_MAX_OUTPUT_TOKENS=32` and ask for a long answer | `stopReason:'max-output-tokens'`; the transcript shows the warning Alert "The answer was cut short by the response limit"                                                                                            |
+| 4    | Provoke a refusal (a request the safety classifiers decline) | `stopReason:'refusal'`; the transcript says "The model declined to answer."                                                                                                                                          |
+| 5    | Send a conversation exceeding the model's context window     | `model_context_window_exceeded` maps to `max_tokens` → run reason `max-output-tokens`. **Note this is a misleading label**: the answer was not cut short by the _response_ limit, the _input_ did not fit. See EC-14 |
 
 ### F24–F28 — capabilities
 
-| Step | Action | Expected result / **Observed** |
-| --- | --- | --- |
-| 1 | `npx nx test @orthacms/copilot-provider-anthropic` | `:420` asserts the probe runs once and is cached; `:442` that each model caches independently; `:463` the fallback |
-| 2 | In a REPL: `const p = createAnthropicProvider({apiKey, models:['claude-opus-5']}); await p.capabilities()` | `{model:'claude-opus-5', toolCalling:true, streaming:true, vision:<live>, contextWindow:<live>, maxOutputTokens:<live>}` |
-| 3 | Call it again with the proxy down | The **cached** value, no second request |
-| 4 | Restart the process, take the network down, call `capabilities()` | `FALLBACK_CAPABILITIES` — `contextWindow: 200 000`, `maxOutputTokens: 8 192`, `vision: true` |
-| 5 | Bring the network back **without restarting** and call again | **Observed:** still the fallback, forever — the failed promise is cached (`anthropic-provider.ts:103-108`) → 🐞 BUG-copilot-provider-anthropic-01. **Expected:** a re-probe |
-| 6 | Point `ANTHROPIC_BASE_URL` at a gateway that proxies `/v1/messages` but 404s `/v1/models` | Chat works; capabilities are silently the fallback with no log line |
-| 7 | `grep -rn "\.capabilities(" packages apps \| grep -v spec` | Only `apps/server-e2e/src/support/copilot.ts:37`. **Nothing in production calls it** → cross-ref 🐞 BUG-copilot-domain-01 |
+| Step | Action                                                                                                     | Expected result / **Observed**                                                                                                                                              |
+| ---- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npx nx test @orthacms/copilot-provider-anthropic`                                                         | `:420` asserts the probe runs once and is cached; `:442` that each model caches independently; `:463` the fallback                                                          |
+| 2    | In a REPL: `const p = createAnthropicProvider({apiKey, models:['claude-opus-5']}); await p.capabilities()` | `{model:'claude-opus-5', toolCalling:true, streaming:true, vision:<live>, contextWindow:<live>, maxOutputTokens:<live>}`                                                    |
+| 3    | Call it again with the proxy down                                                                          | The **cached** value, no second request                                                                                                                                     |
+| 4    | Restart the process, take the network down, call `capabilities()`                                          | `FALLBACK_CAPABILITIES` — `contextWindow: 200 000`, `maxOutputTokens: 8 192`, `vision: true`                                                                                |
+| 5    | Bring the network back **without restarting** and call again                                               | **Observed:** still the fallback, forever — the failed promise is cached (`anthropic-provider.ts:103-108`) → 🐞 BUG-copilot-provider-anthropic-01. **Expected:** a re-probe |
+| 6    | Point `ANTHROPIC_BASE_URL` at a gateway that proxies `/v1/messages` but 404s `/v1/models`                  | Chat works; capabilities are silently the fallback with no log line                                                                                                         |
+| 7    | `grep -rn "\.capabilities(" packages apps \| grep -v spec`                                                 | Only `apps/server-e2e/src/support/copilot.ts:37`. **Nothing in production calls it** → cross-ref 🐞 BUG-copilot-domain-01                                                   |
 
 ---
 
@@ -310,12 +310,12 @@ Watch the wire for every step.
 The adapter is permission-agnostic — it receives an already-filtered `tools`
 list. What varies by role is therefore the **request body**:
 
-| Role | `tools` in the request | Observable |
-| --- | --- | --- |
-| admin | 17 entries incl. every `*_propose_*` | ✅ `copilot-proposals.spec.ts:181` |
-| contributor | as admin minus `activity_recent` | ✅ `copilot-read-catalogue.spec.ts:173` |
-| viewer | reads only | ✅ `copilot-chat.spec.ts:579` |
-| no `copilot:use` | the adapter is never reached — 403 at the route | ✅ `copilot-chat.spec.ts:126` |
+| Role             | `tools` in the request                          | Observable                              |
+| ---------------- | ----------------------------------------------- | --------------------------------------- |
+| admin            | 17 entries incl. every `*_propose_*`            | ✅ `copilot-proposals.spec.ts:181`      |
+| contributor      | as admin minus `activity_recent`                | ✅ `copilot-read-catalogue.spec.ts:173` |
+| viewer           | reads only                                      | ✅ `copilot-chat.spec.ts:579`           |
+| no `copilot:use` | the adapter is never reached — 403 at the route | ✅ `copilot-chat.spec.ts:126`           |
 
 - **EC-20 — Could a caller reach this adapter without a workspace?** No —
   `WorkspaceGuard` is on the run route (`create-run.controller.ts:51`).
@@ -368,7 +368,7 @@ list. What varies by role is therefore the **request body**:
 ### Idempotency & replay
 
 - **EC-31 — The same request sent twice.** Non-deterministic by nature. The
-  engine's repeat guard is about *tool calls*, not model calls.
+  engine's repeat guard is about _tool calls_, not model calls.
 - **EC-32 — `capabilities()` after `models` mutates.** `❌ NONE`
   `models` is snapshotted at construction (`anthropic-provider.ts:39`), so a
   later mutation of the host's array cannot change resolution. Matches
@@ -396,7 +396,7 @@ Verdicts cite WCAG **2.1** AA SC numbers alongside the 508 provision.
   parsed event (never fragments — `:186-199`), and exactly one `done` with a
   stop reason. A client can therefore route tokens away from an announcement
   channel and announce only the coarse events. **Note the ordering
-  divergence** recorded in §6: this adapter emits all tool calls *after* all
+  divergence** recorded in §6: this adapter emits all tool calls _after_ all
   text for a turn, while `provider-openai` does the same but for a different
   reason and `provider-fake` interleaves differently — a client that assumed one
   ordering would announce steps in the wrong place. That is a correctness
@@ -451,33 +451,33 @@ Covered by one unit spec (`src/lib/anthropic-provider.spec.ts`, 470 lines,
 against a mocked SDK) and, indirectly and thinly, by the copilot server e2e —
 which runs on `fake`, so **no e2e in this repo exercises this adapter**.
 
-| Feature | Spec | Asserts | Verdict |
-| --- | --- | --- | --- |
-| F1 lazy client | `anthropic-provider.spec.ts:74` | No SDK constructor call until used | ✅ |
-| F2 missing key | `:83` | The message names the fix | ✅ |
-| F3/F4 memoize + baseUrl | `:94` | Constructed once; `baseURL` forwarded | ✅ |
-| F5 retries/timeout | — | — | ❌ NONE |
-| F10/F12 deltas + usage | `:115` | Text forwarded in order; a `done` with usage | ✅ |
-| F13 cache tokens | `:148` | Key omitted when absent | ✅ — the negative shape, which is the one that matters |
-| F11 tool calls | `:173` | From the assembled message, "parsed and whole" | ✅ |
-| F14 abort | `:232` | Ends with `aborted` rather than throwing | ✅ |
-| F15 real failure | `:257` | Re-thrown, not swallowed | ✅ — the pair with `:232` is what makes `isAbortError` trustworthy |
-| F16 no thinking | `:273` | No `thinking` key | ✅ — pins a decision with a stated lethal failure mode |
-| F17 no sampling | `:282` | No `temperature`/`top_p`/`top_k` | ✅ |
-| F7/F8 model default + override | `:290` | First as default; override honoured | ✅ |
-| F9 unknown model | `:302` | Rejected | ⚠️ PARTIAL — does not assert **no HTTP call was made**, which is the reason the resolve sits before the `try` |
-| F18 effort | `:315` | Sent only when configured | ✅ |
-| F20/F22 wire mapping | `:327` | Tools and block-structured turns | ✅ |
-| F21 no tools key | `:403` | Omitted, not `[]` | ✅ |
-| F6 models() | `:411` | Every declared model, in order | ✅ |
-| F24/F25 probe + cache | `:420`, `:442` | Probed once; per-model caching | ✅ |
-| F26 fallback | `:463` | Conservative fallback on failure | ⚠️ PARTIAL — asserts the **first** call falls back; nothing asserts a **later** call re-probes, which is 🐞 BUG-copilot-provider-anthropic-01 |
-| F19 system omitted | — | — | ⚠️ PARTIAL — implied by `:327` |
-| F23 stop reasons | — | — | ⚠️ PARTIAL — only `end` and `tool_use`; `refusal`, `max_tokens` and `model_context_window_exceeded` untested |
-| F27 toolCalling always true | `:420` | Part of the probe assertion | ✅ |
-| F28 failed probe cached forever | — | — | ❌ NONE |
-| F29 capabilities consulted | — | — | ❌ NONE — nothing to test; nothing calls it |
-| **Any e2e at all** | — | — | ❌ NONE. `apps/server-e2e/src/support/copilot.ts` drives `fake`; the anthropic adapter is never exercised end to end |
+| Feature                         | Spec                            | Asserts                                        | Verdict                                                                                                                                       |
+| ------------------------------- | ------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 lazy client                  | `anthropic-provider.spec.ts:74` | No SDK constructor call until used             | ✅                                                                                                                                            |
+| F2 missing key                  | `:83`                           | The message names the fix                      | ✅                                                                                                                                            |
+| F3/F4 memoize + baseUrl         | `:94`                           | Constructed once; `baseURL` forwarded          | ✅                                                                                                                                            |
+| F5 retries/timeout              | —                               | —                                              | ❌ NONE                                                                                                                                       |
+| F10/F12 deltas + usage          | `:115`                          | Text forwarded in order; a `done` with usage   | ✅                                                                                                                                            |
+| F13 cache tokens                | `:148`                          | Key omitted when absent                        | ✅ — the negative shape, which is the one that matters                                                                                        |
+| F11 tool calls                  | `:173`                          | From the assembled message, "parsed and whole" | ✅                                                                                                                                            |
+| F14 abort                       | `:232`                          | Ends with `aborted` rather than throwing       | ✅                                                                                                                                            |
+| F15 real failure                | `:257`                          | Re-thrown, not swallowed                       | ✅ — the pair with `:232` is what makes `isAbortError` trustworthy                                                                            |
+| F16 no thinking                 | `:273`                          | No `thinking` key                              | ✅ — pins a decision with a stated lethal failure mode                                                                                        |
+| F17 no sampling                 | `:282`                          | No `temperature`/`top_p`/`top_k`               | ✅                                                                                                                                            |
+| F7/F8 model default + override  | `:290`                          | First as default; override honoured            | ✅                                                                                                                                            |
+| F9 unknown model                | `:302`                          | Rejected                                       | ⚠️ PARTIAL — does not assert **no HTTP call was made**, which is the reason the resolve sits before the `try`                                 |
+| F18 effort                      | `:315`                          | Sent only when configured                      | ✅                                                                                                                                            |
+| F20/F22 wire mapping            | `:327`                          | Tools and block-structured turns               | ✅                                                                                                                                            |
+| F21 no tools key                | `:403`                          | Omitted, not `[]`                              | ✅                                                                                                                                            |
+| F6 models()                     | `:411`                          | Every declared model, in order                 | ✅                                                                                                                                            |
+| F24/F25 probe + cache           | `:420`, `:442`                  | Probed once; per-model caching                 | ✅                                                                                                                                            |
+| F26 fallback                    | `:463`                          | Conservative fallback on failure               | ⚠️ PARTIAL — asserts the **first** call falls back; nothing asserts a **later** call re-probes, which is 🐞 BUG-copilot-provider-anthropic-01 |
+| F19 system omitted              | —                               | —                                              | ⚠️ PARTIAL — implied by `:327`                                                                                                                |
+| F23 stop reasons                | —                               | —                                              | ⚠️ PARTIAL — only `end` and `tool_use`; `refusal`, `max_tokens` and `model_context_window_exceeded` untested                                  |
+| F27 toolCalling always true     | `:420`                          | Part of the probe assertion                    | ✅                                                                                                                                            |
+| F28 failed probe cached forever | —                               | —                                              | ❌ NONE                                                                                                                                       |
+| F29 capabilities consulted      | —                               | —                                              | ❌ NONE — nothing to test; nothing calls it                                                                                                   |
+| **Any e2e at all**              | —                               | —                                              | ❌ NONE. `apps/server-e2e/src/support/copilot.ts` drives `fake`; the anthropic adapter is never exercised end to end                          |
 
 **Coverage tally: 29 features · 17 ✅ · 5 ⚠️ · 7 ❌**
 
@@ -526,7 +526,7 @@ invalidated.
 **Why it is wrong:** the fallback exists for a stated reason — "reporting
 'unknown' as 'unsupported' would drop a frontier model into degraded mode over a
 transient network blip" (`capabilities.ts:8-11`). That reasoning is about a
-*transient* failure and it argues for a **retry**, not for making the transient
+_transient_ failure and it argues for a **retry**, not for making the transient
 answer permanent. Caching the promise is correct for the success case
 (one probe per model, and it deduplicates concurrent callers — EC-24); it is
 wrong for the failure case. The consequence: a deployment whose first
@@ -539,14 +539,15 @@ adapter's lifetime", describes the mechanism without noticing it applies to the
 failure too.
 
 **Repro:**
+
 1. `ANTHROPIC_BASE_URL=http://localhost:9999/v1` (nothing listening),
    `COPILOT_PROVIDER=claude`, start the server.
 2. In a REPL against the same provider instance: `await provider.capabilities()`
    → `{contextWindow: 200_000, maxOutputTokens: 8_192, vision: true, …}`.
 3. Start a correct proxy on `:9999`.
 4. `await provider.capabilities()` again.
-→ **Observed:** the same fallback, no request made. Only a process restart
-recovers. / **Expected:** the second call re-probes and returns live numbers.
+   → **Observed:** the same fallback, no request made. Only a process restart
+   recovers. / **Expected:** the second call re-probes and returns live numbers.
 
 **Blast radius:** today, **none observable**, because nothing in production
 calls `capabilities()` at all (see `docs/testing/copilot-domain.md`
@@ -606,14 +607,15 @@ API does require the blocks back, the failure mode is a 400 on the **second**
 request of a tool-using turn, which is the most common shape this feature has.
 
 **Repro:**
+
 1. `COPILOT_PROVIDER=claude` with a current model, real key.
 2. Ask something requiring two tool round trips ("find every draft article and
    tell me which has no summary").
 3. Watch the wire for request #2.
-→ **Observe:** whether request #2's assistant message contains a `thinking`
-block. It will not. Then observe whether the API accepts it. If it 400s, this is
-a High-severity bug; if it accepts, this is a fidelity loss only (the model
-cannot see its own prior reasoning across a tool round trip) and stays Medium.
+   → **Observe:** whether request #2's assistant message contains a `thinking`
+   block. It will not. Then observe whether the API accepts it. If it 400s, this is
+   a High-severity bug; if it accepts, this is a fidelity loss only (the model
+   cannot see its own prior reasoning across a tool round trip) and stays Medium.
 
 **Blast radius:** if confirmed, every multi-step tool run on the default
 provider. If not, degraded multi-step reasoning quality with no error.
@@ -652,18 +654,19 @@ by the response limit." (`run-limits.ts:63`, and the admin's own copy at
 means the **input** did not fit — start a new thread, shorten the conversation,
 or use a larger-window model. Telling a user the response limit cut their answer
 short when the real problem is that their conversation no longer fits sends them
-to the wrong lever, and raising the output ceiling makes the input case *worse*.
+to the wrong lever, and raising the output ceiling makes the input case _worse_.
 The comment's "ran out of room" is true and unhelpfully abstract. `RunStopReason`
 already has room for the distinction — it is a superset of `ModelStopReason` for
 exactly this kind of reason (`run-limits.ts:34-38`).
 
 **Repro:**
+
 1. `COPILOT_PROVIDER=claude`, a long thread against a small-window model.
 2. Keep asking until the accumulated transcript exceeds the window.
-→ **Observed:** the warning Alert reads "This answer is incomplete — Stopped
-because it hit the response length limit." / **Expected:** something naming the
-conversation length, e.g. "this conversation is too long for the model — start a
-new one".
+   → **Observed:** the warning Alert reads "This answer is incomplete — Stopped
+   because it hit the response length limit." / **Expected:** something naming the
+   conversation length, e.g. "this conversation is too long for the model — start a
+   new one".
 
 **Blast radius:** every long conversation, on every deployment using this
 adapter. Low severity (misleading, not incorrect behaviour) and high visibility
@@ -703,12 +706,13 @@ hostname. The API key itself is not in the message, but the base URL of an
 internal gateway can be.
 
 **Repro:**
+
 1. `ANTHROPIC_BASE_URL=http://internal-llm-gw.corp.local/v1`,
    `ANTHROPIC_API_KEY=bad`, `COPILOT_PROVIDER=claude`.
 2. Send a message from the panel.
-→ **Observed:** the transcript's destructive Alert shows the SDK's raw error
-text. / **Expected:** a classified sentence, with the detail in the server log
-only.
+   → **Observed:** the transcript's destructive Alert shows the SDK's raw error
+   text. / **Expected:** a classified sentence, with the detail in the server log
+   only.
 
 **Blast radius:** any user holding `copilot:use` — which is every role. The
 sibling adapter is worse (`provider-openai` deliberately embeds 500 characters
@@ -729,7 +733,7 @@ sentences and re-throw a typed error the controller can forward — leaving
 **Location:** `packages/copilot/provider-anthropic/src/lib/anthropic-provider.ts:61-89`
 **Category:** correctness (cross-adapter divergence)
 
-**What the code does:** the delta loop runs to completion, *then* `finalMessage()`
+**What the code does:** the delta loop runs to completion, _then_ `finalMessage()`
 is awaited and its `tool_use` blocks are yielded. So the event order is always
 `[all text-deltas…][all tool-calls…][done]`, whatever order the model actually
 produced them in.
@@ -751,11 +755,12 @@ where the change happened" — the same argument, applied to proposals, that thi
 ordering defeats for steps).
 
 **Repro:**
+
 1. `COPILOT_PROVIDER=claude`. Ask something that makes the model narrate between
    two tool calls.
-→ **Observed:** in the transcript, both tool steps appear after all the prose of
-that turn. / **Expected** (per the admin's own stated principle): interleaved in
-the order they happened.
+   → **Observed:** in the transcript, both tool steps appear after all the prose of
+   that turn. / **Expected** (per the admin's own stated principle): interleaved in
+   the order they happened.
 
 **Blast radius:** transcript legibility on every multi-tool turn, on both real
 adapters. Low: nothing is wrong, only mis-ordered, and the fix is genuinely hard
@@ -809,17 +814,17 @@ the SDK's own accumulated block rather than raw fragments. Do NOT implement.
 Harness: **unit** = `npx nx test @orthacms/copilot-provider-anthropic` (mocked
 SDK, no network); **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 
-| Priority | Harness | Proposed spec | Asserts | Closes |
-| --- | --- | --- | --- | --- |
-| 1 | unit | `anthropic-provider.spec.ts` — extend `describe('capabilities')` | After a failing probe, a **second** `capabilities()` call re-probes and returns the live record; a succeeding probe is still called once | 🐞 BUG-copilot-provider-anthropic-01, F28 ❌ |
-| 2 | unit | `anthropic-provider.spec.ts` — new `describe('stop reasons')` | `refusal`, `max_tokens`, `model_context_window_exceeded`, `end_turn`, `stop_sequence` and `null` each map to the documented port value — a table-driven case over `toStopReason` | F23 ⚠️, 🐞 BUG-copilot-provider-anthropic-03 |
-| 3 | unit | new `src/lib/model-provider.contract.spec.ts` importing the proposed shared kit | The port contract: abort ends rather than throws, reports zero usage, exactly one `done`, tool calls whole and parsed. Run the identical kit in all three adapters' specs | 🐞 BUG-copilot-domain-06, cross-adapter divergence |
-| 4 | unit | `anthropic-provider.spec.ts` — extend `:302` | An unknown model rejects **without any SDK call** — the reason `resolveModel` sits outside the `try` | F9 ⚠️ |
-| 5 | unit | `anthropic-provider.spec.ts` — new case | A `finalMessage()` containing a `thinking` block: record what the adapter does with it, so the answer to 🐞 BUG-copilot-provider-anthropic-02 is a pinned fact | 🐞 BUG-copilot-provider-anthropic-02 |
-| 6 | unit | `anthropic-provider.spec.ts` — new `describe('errors')` | A 401 / 429 / connection failure each produce an error whose message contains **no** base URL and no key; today this **fails**, which is the point | 🐞 BUG-copilot-provider-anthropic-04 |
-| 7 | unit | `anthropic-provider.spec.ts` — extend `describe('the lazy client')` | `maxRetries: 0` reaches the SDK constructor; unset means the key is absent; the same for `timeoutMs` | F5 ❌ |
-| 8 | unit | `anthropic-provider.spec.ts` — new case | `finalMessage()` rejecting **after** deltas have streamed still leaves the yielded text delivered, and the throw propagates | EC-26 |
-| 9 | server-e2e | new `apps/server-e2e/src/server/copilot/copilot-provider-wire.spec.ts` | Against a **local HTTP stub** standing in for the Anthropic API (via `ANTHROPIC_BASE_URL`), a full run through the real adapter: frame order, tool round trip, `is_error` on a failed tool, and the persisted `model`/`provider` columns. This is the missing end-to-end layer — every current e2e runs on `fake` | "Any e2e at all" ❌ |
-| 10 | unit | `anthropic-provider.spec.ts` — new case | Two concurrent `capabilities()` calls for one model issue **one** request — pinning the promise-cache property that EC-24 relies on | EC-24 |
-| 11 | unit | `anthropic-provider.spec.ts` — extend `:327` | A `tool_result` block with `isError: true` maps to `is_error: true` on the wire, and one without omits the key | F22 partial, EC in §4 |
-| 12 | doc | `packages/copilot/provider-anthropic/AGENTS.md` | Add `npx nx test @orthacms/copilot-provider-anthropic` to Commands — the target exists and is not listed | doc drift noted in §1 |
+| Priority | Harness    | Proposed spec                                                                   | Asserts                                                                                                                                                                                                                                                                                                           | Closes                                             |
+| -------- | ---------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 1        | unit       | `anthropic-provider.spec.ts` — extend `describe('capabilities')`                | After a failing probe, a **second** `capabilities()` call re-probes and returns the live record; a succeeding probe is still called once                                                                                                                                                                          | 🐞 BUG-copilot-provider-anthropic-01, F28 ❌       |
+| 2        | unit       | `anthropic-provider.spec.ts` — new `describe('stop reasons')`                   | `refusal`, `max_tokens`, `model_context_window_exceeded`, `end_turn`, `stop_sequence` and `null` each map to the documented port value — a table-driven case over `toStopReason`                                                                                                                                  | F23 ⚠️, 🐞 BUG-copilot-provider-anthropic-03       |
+| 3        | unit       | new `src/lib/model-provider.contract.spec.ts` importing the proposed shared kit | The port contract: abort ends rather than throws, reports zero usage, exactly one `done`, tool calls whole and parsed. Run the identical kit in all three adapters' specs                                                                                                                                         | 🐞 BUG-copilot-domain-06, cross-adapter divergence |
+| 4        | unit       | `anthropic-provider.spec.ts` — extend `:302`                                    | An unknown model rejects **without any SDK call** — the reason `resolveModel` sits outside the `try`                                                                                                                                                                                                              | F9 ⚠️                                              |
+| 5        | unit       | `anthropic-provider.spec.ts` — new case                                         | A `finalMessage()` containing a `thinking` block: record what the adapter does with it, so the answer to 🐞 BUG-copilot-provider-anthropic-02 is a pinned fact                                                                                                                                                    | 🐞 BUG-copilot-provider-anthropic-02               |
+| 6        | unit       | `anthropic-provider.spec.ts` — new `describe('errors')`                         | A 401 / 429 / connection failure each produce an error whose message contains **no** base URL and no key; today this **fails**, which is the point                                                                                                                                                                | 🐞 BUG-copilot-provider-anthropic-04               |
+| 7        | unit       | `anthropic-provider.spec.ts` — extend `describe('the lazy client')`             | `maxRetries: 0` reaches the SDK constructor; unset means the key is absent; the same for `timeoutMs`                                                                                                                                                                                                              | F5 ❌                                              |
+| 8        | unit       | `anthropic-provider.spec.ts` — new case                                         | `finalMessage()` rejecting **after** deltas have streamed still leaves the yielded text delivered, and the throw propagates                                                                                                                                                                                       | EC-26                                              |
+| 9        | server-e2e | new `apps/server-e2e/src/server/copilot/copilot-provider-wire.spec.ts`          | Against a **local HTTP stub** standing in for the Anthropic API (via `ANTHROPIC_BASE_URL`), a full run through the real adapter: frame order, tool round trip, `is_error` on a failed tool, and the persisted `model`/`provider` columns. This is the missing end-to-end layer — every current e2e runs on `fake` | "Any e2e at all" ❌                                |
+| 10       | unit       | `anthropic-provider.spec.ts` — new case                                         | Two concurrent `capabilities()` calls for one model issue **one** request — pinning the promise-cache property that EC-24 relies on                                                                                                                                                                               | EC-24                                              |
+| 11       | unit       | `anthropic-provider.spec.ts` — extend `:327`                                    | A `tool_result` block with `isError: true` maps to `is_error: true` on the wire, and one without omits the key                                                                                                                                                                                                    | F22 partial, EC in §4                              |
+| 12       | doc        | `packages/copilot/provider-anthropic/AGENTS.md`                                 | Add `npx nx test @orthacms/copilot-provider-anthropic` to Commands — the target exists and is not listed                                                                                                                                                                                                          | doc drift noted in §1                              |

@@ -15,6 +15,9 @@
             "path": "../../packages/identity/domain"
         },
         {
+            "path": "../../packages/segments/domain"
+        },
+        {
             "path": "../server"
         },
         {
@@ -22,6 +25,9 @@
         },
         {
             "path": "../../packages/media/provider-local"
+        },
+        {
+            "path": "../../packages/segments/server"
         },
         {
             "path": "../../packages/mcp/server"
@@ -40,9 +46,6 @@
         },
         {
             "path": "../../packages/copilot/server"
-        },
-        {
-            "path": "../../packages/copilot/provider-fake"
         },
         {
             "path": "../../packages/tools/server"
@@ -76,6 +79,9 @@
         },
         {
             "path": "../../packages/media/provider-memory"
+        },
+        {
+            "path": "../../packages/copilot/provider-fake"
         }
     ]
 }
