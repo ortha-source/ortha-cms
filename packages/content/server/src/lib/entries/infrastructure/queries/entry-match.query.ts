@@ -132,10 +132,7 @@ export class EntryMatchQuery {
      * the rule editor shows beside a match count ("14 of 312"), which is what
      * turns a number into a judgement about whether the rule is too broad.
      */
-    async countAll(
-        type: AnyContentType,
-        workspaceId: string
-    ): Promise<number> {
+    async countAll(type: AnyContentType, workspaceId: string): Promise<number> {
         const [row] = await this.db
             .select({ total: count() })
             .from(type.table)

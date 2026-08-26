@@ -9,6 +9,7 @@ import {
     httpSegmentsGateway,
     segmentsKeys,
     type CreateSegmentInput,
+    type ListSegmentsParams,
     type UpdateSegmentInput
 } from '../infrastructure/segmentsGateway';
 
@@ -18,21 +19,50 @@ export const SEGMENTS_READ = 'segments:read';
 export const SEGMENTS_MANAGE = 'segments:manage';
 
 /**
- * Every segment, optionally narrowed by a search term.
+ * One page of the directory, narrowed by a search term and — in the entry
+ * editor — by the open workspace.
  *
- * `keepPreviousData` holds the rows while a new search resolves — a list that
- * empties between keystrokes reads as "no matches" rather than "still looking".
+ * `keepPreviousData` holds the rows while a new page or search resolves: a list
+ * that empties between keystrokes reads as "no matches" rather than "still
+ * looking", and one that empties between pages reads as the end of the list.
  *
  * Disabled until the caller confirms `segments:read`; the server would refuse
  * otherwise, and the entry editor mounts this on every entry open.
  */
-export function useSegments(query?: string) {
+export function useSegments(params: ListSegmentsParams = {}) {
     const canRead = useHasPermission(SEGMENTS_READ);
     return useQuery({
-        queryKey: segmentsKeys.list(query),
-        queryFn: () => httpSegmentsGateway.listSegments(query),
+        queryKey: segmentsKeys.list(params),
+        queryFn: () => httpSegmentsGateway.listSegments(params),
         placeholderData: keepPreviousData,
         enabled: canRead
+    });
+}
+
+/**
+ * Named segments, whatever page they would fall on.
+ *
+ * For the components that hold **ids** rather than a page — the entry header
+ * chip and a revision's captured access. A paginated directory cannot serve
+ * them: the first page is not where their ids necessarily are, and reading a
+ * miss as "deleted" would slander an audience that is merely on page three.
+ */
+export function useSegmentLookup(ids: readonly string[]) {
+    const canRead = useHasPermission(SEGMENTS_READ);
+    return useQuery({
+        queryKey: segmentsKeys.lookup(ids),
+        queryFn: () => httpSegmentsGateway.lookupSegments(ids),
+        enabled: canRead && ids.length > 0
+    });
+}
+
+/** One segment, for the editor page. Disabled while creating. */
+export function useSegment(id?: string) {
+    const canRead = useHasPermission(SEGMENTS_READ);
+    return useQuery({
+        queryKey: segmentsKeys.detail(id ?? ''),
+        queryFn: () => httpSegmentsGateway.getSegment(id as string),
+        enabled: canRead && Boolean(id)
     });
 }
 

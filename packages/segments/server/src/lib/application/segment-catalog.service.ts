@@ -49,7 +49,8 @@ export class SegmentCatalogService implements OnApplicationBootstrap {
             id: row.id,
             key: row.key,
             label: row.label,
-            tags: row.tags ?? []
+            tags: row.tags ?? [],
+            workspaceIds: row.workspaceIds ?? []
         }));
     }
 

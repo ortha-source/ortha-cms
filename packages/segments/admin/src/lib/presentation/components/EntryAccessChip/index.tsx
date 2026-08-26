@@ -39,11 +39,14 @@ export function EntryAccessChip({
     typePath
 }: EntrySlotContext) {
     const intl = useIntl();
-    const segments = useSegments();
+    // One row is all this needs: the chip says *whether* the entry is
+    // restricted, never by whom, so it asks whether the workspace has any
+    // audience at all rather than pulling a page of them into every entry open.
+    const segments = useSegments({ workspaceId, pageSize: 1 });
     const access = useEntryAccess(workspaceId, entry?.id, entry?.updatedAt);
 
-    // Nothing configured, no entry yet, or the caller cannot read this.
-    if (!segments.data?.length || !entry) {
+    // Nothing configured here, no entry yet, or the caller cannot read this.
+    if (!segments.data?.total || !entry) {
         return null;
     }
     if (access.isPending) {

@@ -1,12 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
     ArrayMaxSize,
     IsArray,
+    IsInt,
     IsOptional,
     IsString,
     IsUUID,
     Matches,
+    Max,
     MaxLength,
+    Min,
     MinLength
 } from 'class-validator';
 
@@ -21,7 +25,13 @@ import {
 /** Segments one entry may name on either side. */
 const IDS_MAX = 200;
 
-/** Narrow the segment list. */
+/** Workspaces one segment may be scoped to. Empty means every one. */
+const WORKSPACES_MAX = 100;
+
+/** Most rows one page of the directory may carry. */
+const PAGE_SIZE_MAX = 100;
+
+/** Narrow and page the segment list. */
 export class ListSegmentsQueryDto {
     @ApiPropertyOptional({
         description:
@@ -32,6 +42,53 @@ export class ListSegmentsQueryDto {
     @IsString()
     @MaxLength(LABEL_MAX)
     q?: string;
+
+    @ApiPropertyOptional({
+        format: 'uuid',
+        description:
+            'Only audiences offered in this workspace — those naming it, plus those naming no workspace at all, which are offered everywhere. Omit to list the installation’s whole vocabulary (what the directory shows).'
+    })
+    @IsOptional()
+    @IsUUID()
+    workspace?: string;
+
+    @ApiPropertyOptional({ minimum: 1, default: 1 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    page?: number;
+
+    @ApiPropertyOptional({ minimum: 1, maximum: PAGE_SIZE_MAX, default: 25 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(PAGE_SIZE_MAX)
+    pageSize?: number;
+}
+
+/** Resolve named segments, whatever page they would fall on. */
+export class LookupSegmentsQueryDto {
+    @ApiProperty({
+        type: [String],
+        maxItems: IDS_MAX,
+        description:
+            'Segment ids to resolve. Unknown ids are skipped rather than refused — a segment a revision captured really can have been deleted since.'
+    })
+    // `?ids=a,b` and `?ids=a&ids=b` are both what a client naturally sends, and
+    // Express parses the first as a string and the second as an array — so a
+    // one-id lookup would fail `@IsArray()` while a two-id one passed.
+    @Transform(({ value }) =>
+        (Array.isArray(value) ? value : [value])
+            .flatMap((entry: unknown) => String(entry ?? '').split(','))
+            .map((entry) => entry.trim())
+            .filter(Boolean)
+    )
+    @IsArray()
+    @ArrayMaxSize(IDS_MAX)
+    @IsUUID('4', { each: true })
+    ids!: string[];
 }
 
 /** Create a segment. */
@@ -61,9 +118,21 @@ export class CreateSegmentDto {
     @IsString({ each: true })
     @MaxLength(TAG_MAX, { each: true })
     tags?: string[];
+
+    @ApiPropertyOptional({
+        type: [String],
+        maxItems: WORKSPACES_MAX,
+        description:
+            'The workspaces this audience is offered in. **An empty list means every one**, not none — the same reading as an entry’s empty allow list, and the state every segment starts in.'
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(WORKSPACES_MAX)
+    @IsUUID('4', { each: true })
+    workspaceIds?: string[];
 }
 
-/** Rename a segment or change its tags. */
+/** Rename a segment, change its tags, or change where it is offered. */
 export class UpdateSegmentDto {
     @ApiPropertyOptional({ maxLength: LABEL_MAX })
     @IsOptional()
@@ -79,6 +148,18 @@ export class UpdateSegmentDto {
     @IsString({ each: true })
     @MaxLength(TAG_MAX, { each: true })
     tags?: string[];
+
+    @ApiPropertyOptional({
+        type: [String],
+        maxItems: WORKSPACES_MAX,
+        description:
+            'The workspaces this audience is offered in; an empty list means every one. Narrowing it stops the audience being offered on new decisions — it does **not** retract it from entries that already name it.'
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayMaxSize(WORKSPACES_MAX)
+    @IsUUID('4', { each: true })
+    workspaceIds?: string[];
 }
 
 /**

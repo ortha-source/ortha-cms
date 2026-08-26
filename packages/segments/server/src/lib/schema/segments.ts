@@ -29,6 +29,24 @@ export const segments = pgTable(
             .array()
             .notNull()
             .default(sql`'{}'::text[]`),
+        /**
+         * The workspaces this audience is offered in. **Empty means every one.**
+         *
+         * The same reading as an entry's empty allow list, and for the same
+         * reason: it is the state every existing row is already in, and taking
+         * emptiness for "nowhere" would make an audience nobody had scoped yet
+         * vanish from every editor the day the column shipped.
+         *
+         * Plain uuids, no foreign key — `workspaces` is identity-owned, and this
+         * plugin holds no cross-plugin FK (the same rule `entry_access` follows
+         * for `workspace_id`). A workspace deleted out from under a segment
+         * leaves an id that matches nothing, which narrows the audience rather
+         * than widening it.
+         */
+        workspaceIds: uuid('workspace_ids')
+            .array()
+            .notNull()
+            .default(sql`'{}'::uuid[]`),
         createdAt: timestamp('created_at', { withTimezone: true })
             .notNull()
             .defaultNow(),
@@ -36,5 +54,10 @@ export const segments = pgTable(
             .notNull()
             .defaultNow()
     },
-    (table) => [index('segments_label_idx').on(table.label)]
+    (table) => [
+        index('segments_label_idx').on(table.label),
+        // The directory and the entry editor both ask "which audiences apply
+        // here?" on every open, and the answer is an array overlap.
+        index('segments_workspaces_idx').using('gin', table.workspaceIds)
+    ]
 );

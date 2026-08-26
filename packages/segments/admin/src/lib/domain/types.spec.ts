@@ -3,6 +3,7 @@ import {
     sameAccess,
     stateOf,
     withState,
+    withStates,
     OPEN_ACCESS,
     SEGMENT_STATE
 } from './types';
@@ -81,5 +82,51 @@ describe('sameAccess', () => {
         expect(
             sameAccess({ allow: ['a'], deny: [] }, { allow: [], deny: ['a'] })
         ).toBe(false);
+    });
+});
+
+describe('withStates', () => {
+    const base = { allow: ['a'], deny: ['b'] };
+
+    it('moves every named segment to one state in one pass', () => {
+        expect(withStates(base, ['a', 'b', 'c'], SEGMENT_STATE.Allow)).toEqual({
+            allow: ['a', 'b', 'c'],
+            deny: []
+        });
+    });
+
+    it('leaves segments it was not given alone', () => {
+        // What makes the control safe beside a search: setting everything
+        // matching "acme" must not touch the rest of the entry's decisions.
+        expect(withStates(base, ['c'], SEGMENT_STATE.Deny)).toEqual({
+            allow: ['a'],
+            deny: ['b', 'c']
+        });
+    });
+
+    it('removes before it adds, so nothing lands in both lists', () => {
+        // The same invariant `withState` carries, and the reason it has a test:
+        // a segment in both lists resolves as denied while the screen says
+        // allowed.
+        const both = withStates(base, ['a'], SEGMENT_STATE.Deny);
+        expect(both.allow).not.toContain('a');
+        expect(both.deny).toEqual(['b', 'a']);
+    });
+
+    it('clears the named segments on Unset', () => {
+        expect(withStates(base, ['a', 'b'], SEGMENT_STATE.Unset)).toEqual({
+            allow: [],
+            deny: []
+        });
+    });
+
+    it('deduplicates the ids it is handed', () => {
+        expect(
+            withStates(OPEN_ACCESS, ['a', 'a'], SEGMENT_STATE.Allow).allow
+        ).toEqual(['a']);
+    });
+
+    it('is a no-op for an empty list', () => {
+        expect(withStates(base, [], SEGMENT_STATE.Allow)).toBe(base);
     });
 });

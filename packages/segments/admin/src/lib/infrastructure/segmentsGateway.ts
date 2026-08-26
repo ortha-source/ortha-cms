@@ -1,12 +1,14 @@
 import { apiClient, toApiError } from '@orthacms/utils-admin';
 import type { EntryAccess, Segment } from '../domain/types';
 
-/** What the create dialog submits. */
+/** What the editor page submits to create. */
 export type CreateSegmentInput = {
     key: string;
     label: string;
     /** Reader tags; the server defaults to the key. */
     tags?: string[];
+    /** Workspaces it is offered in. **Empty means every one.** */
+    workspaceIds?: string[];
 };
 
 /** A partial segment edit. The key is immutable. */
@@ -14,6 +16,38 @@ export type UpdateSegmentInput = {
     id: string;
     label?: string;
     tags?: string[];
+    workspaceIds?: string[];
+};
+
+/** How the directory is narrowed and paged. */
+export type ListSegmentsParams = {
+    /** Case-insensitive substring over the label and the key. */
+    query?: string;
+    /**
+     * Only audiences offered in this workspace. The entry editor passes it; the
+     * directory does not, because it manages the installation's whole
+     * vocabulary.
+     */
+    workspaceId?: string;
+    /** 1-based. */
+    page?: number;
+    pageSize?: number;
+};
+
+/** One page of the directory. */
+export type SegmentPage = {
+    items: Segment[];
+    total: number;
+    page: number;
+    pageSize: number;
+    /**
+     * Every id the filter matched, not only this page's — what "set every
+     * audience to…" acts on, so a bulk action means the whole list rather than
+     * whichever rows are on screen. Capped by the server.
+     */
+    ids: string[];
+    /** Whether {@link SegmentPage.ids} was cut short by that cap. */
+    idsTruncated: boolean;
 };
 
 /** Replace one entry's lists. Both travel whole — see the port note. */
@@ -40,8 +74,16 @@ export type SetEntryAccessInput = {
  * express a removal.
  */
 export type SegmentsGateway = {
-    /** Every segment, optionally narrowed by a search term. */
-    listSegments(query?: string): Promise<Segment[]>;
+    /** One page of the directory. */
+    listSegments(params?: ListSegmentsParams): Promise<SegmentPage>;
+    /**
+     * Named segments, whatever page they would fall on — for a caller holding
+     * **ids** rather than a page (the entry header chip, a revision's captured
+     * access). Unknown ids are skipped, not refused.
+     */
+    lookupSegments(ids: readonly string[]): Promise<Segment[]>;
+    /** One segment — what the editor page loads. */
+    getSegment(id: string): Promise<Segment>;
     /** Create a segment. */
     createSegment(input: CreateSegmentInput): Promise<Segment>;
     /** Rename a segment, or change the tags it answers to. */
@@ -61,7 +103,18 @@ type SegmentResponse = {
     key: string;
     label: string;
     tags: string[];
+    workspaceIds: string[];
     usageCount: number;
+};
+
+/** One page of segments as the wire returns it. */
+type SegmentPageResponse = {
+    items: SegmentResponse[];
+    total: number;
+    page: number;
+    pageSize: number;
+    ids: string[];
+    idsTruncated: boolean;
 };
 
 /** Maps a segment from the wire. Nothing to enrich — the shapes agree. */
@@ -71,6 +124,7 @@ function toSegment(dto: SegmentResponse): Segment {
         key: dto.key,
         label: dto.label,
         tags: dto.tags ?? [],
+        workspaceIds: dto.workspaceIds ?? [],
         usageCount: dto.usageCount ?? 0
     };
 }
@@ -82,13 +136,55 @@ function toSegment(dto: SegmentResponse): Segment {
  * rather than axios internals. The single place `apiClient` is used here.
  */
 export const httpSegmentsGateway: SegmentsGateway = {
-    async listSegments(query?: string): Promise<Segment[]> {
+    async listSegments(params: ListSegmentsParams = {}): Promise<SegmentPage> {
+        try {
+            const { data } = await apiClient.get<SegmentPageResponse>(
+                '/segments',
+                {
+                    params: {
+                        ...(params.query ? { q: params.query } : {}),
+                        ...(params.workspaceId
+                            ? { workspace: params.workspaceId }
+                            : {}),
+                        ...(params.page ? { page: params.page } : {}),
+                        ...(params.pageSize
+                            ? { pageSize: params.pageSize }
+                            : {})
+                    }
+                }
+            );
+            return {
+                items: data.items.map(toSegment),
+                total: data.total,
+                page: data.page,
+                pageSize: data.pageSize,
+                ids: data.ids ?? [],
+                idsTruncated: data.idsTruncated ?? false
+            };
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async lookupSegments(ids: readonly string[]): Promise<Segment[]> {
+        if (!ids.length) return [];
         try {
             const { data } = await apiClient.get<SegmentResponse[]>(
-                '/segments',
-                { params: query ? { q: query } : undefined }
+                '/segments/lookup',
+                { params: { ids: [...ids].join(',') } }
             );
             return data.map(toSegment);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async getSegment(id: string): Promise<Segment> {
+        try {
+            const { data } = await apiClient.get<SegmentResponse>(
+                `/segments/${id}`
+            );
+            return toSegment(data);
         } catch (error) {
             throw toApiError(error);
         }
@@ -165,8 +261,27 @@ export const httpSegmentsGateway: SegmentsGateway = {
 export const segmentsKeys = {
     /** Root covering the installation-wide directory. */
     catalogue: ['segments'] as const,
-    /** The directory, for one search term. */
-    list: (query?: string) => ['segments', 'list', query ?? ''] as const,
+    /** One page of the directory, for one set of list params. */
+    list: (params: ListSegmentsParams = {}) =>
+        [
+            'segments',
+            'list',
+            params.query ?? '',
+            params.workspaceId ?? '',
+            params.page ?? 1,
+            params.pageSize ?? 0
+        ] as const,
+    /**
+     * Named segments, resolved by id.
+     *
+     * Sorted into the key: two components asking for the same ids in a
+     * different order are asking the same question, and an unsorted key would
+     * fetch it twice.
+     */
+    lookup: (ids: readonly string[]) =>
+        ['segments', 'lookup', [...new Set(ids)].sort().join(',')] as const,
+    /** One segment, for the editor page. */
+    detail: (id: string) => ['segments', 'detail', id] as const,
     /**
      * One entry's lists. The workspace is in the key because it reaches the
      * server only as an ambient header, which is never sent on a cache hit.

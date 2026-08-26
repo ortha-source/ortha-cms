@@ -8,6 +8,12 @@ export type Segment = {
     label: string;
     /** The reader tags it answers to — any one is enough. */
     tags: string[];
+    /**
+     * The workspaces it is offered in. **Empty means every one** — the same
+     * reading as an entry's empty allow list, and the state every segment
+     * starts in.
+     */
+    workspaceIds: string[];
     /** How many entries name it, either way. */
     usageCount: number;
 };
@@ -67,6 +73,35 @@ export function withState(
     const deny = access.deny.filter((id) => id !== segmentId);
     if (state === SEGMENT_STATE.Allow) allow.push(segmentId);
     if (state === SEGMENT_STATE.Deny) deny.push(segmentId);
+    return { allow, deny };
+}
+
+/**
+ * The lists with **many** segments moved to one state — what "set every audience
+ * to Can see" produces.
+ *
+ * Not a fold of {@link withState} over the ids, though it agrees with one: it
+ * removes every named id from both lists first and appends once, so applying it
+ * to two hundred audiences is two filters rather than four hundred.
+ *
+ * Segments **not** named are untouched, which is what makes the control safe to
+ * offer beside a search: setting everything matching "acme" leaves the rest of
+ * the entry's decisions exactly as they were.
+ */
+export function withStates(
+    access: EntryAccess,
+    segmentIds: readonly string[],
+    state: SegmentState
+): EntryAccess {
+    if (!segmentIds.length) return access;
+    const named = new Set(segmentIds);
+    const allow = access.allow.filter((id) => !named.has(id));
+    const deny = access.deny.filter((id) => !named.has(id));
+    // Deduplicated and in the caller's order, so the stored list reads the way
+    // the directory does rather than in whatever order the entry was edited.
+    const added = [...new Set(segmentIds)];
+    if (state === SEGMENT_STATE.Allow) allow.push(...added);
+    if (state === SEGMENT_STATE.Deny) deny.push(...added);
     return { allow, deny };
 }
 

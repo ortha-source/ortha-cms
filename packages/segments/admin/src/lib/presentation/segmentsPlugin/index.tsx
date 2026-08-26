@@ -29,6 +29,11 @@ const SegmentsPage = lazy(() =>
         default: module.SegmentsPage
     }))
 );
+const SegmentEditorPage = lazy(() =>
+    import('../pages/SegmentEditorPage').then((module) => ({
+        default: module.SegmentEditorPage
+    }))
+);
 
 /** Admin-side segments plugin shape — a named alias of {@link AdminPlugin}. */
 export type SegmentsAdminPlugin = AdminPlugin;
@@ -37,9 +42,11 @@ export type SegmentsAdminPlugin = AdminPlugin;
  * Creates the admin-side segments plugin — two surfaces and no more.
  *
  * The **directory** at `/segments` manages the vocabulary: the audiences
- * readers are divided into. It is a top-level page rather than a workspace one
- * because an audience is installation-wide, like a content type — the same
- * customer whichever workspace's content they are reading.
+ * readers are divided into, created and edited on their own pages at
+ * `/segments/new` and `/segments/:segmentId`. It is a top-level page rather than
+ * a workspace one because an audience is installation-wide, like a content type
+ * — the same customer whichever workspace's content they are reading. Which
+ * workspaces may *use* one is a property of the audience, set on its page.
  *
  * The **entry editor** is where every decision is made: a chip in the title row
  * saying whether the entry is restricted, and the Access tab behind it with one
@@ -63,6 +70,24 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
                 element: (
                     <Suspense fallback={<Spinner />}>
                         <SegmentsPage />
+                    </Suspense>
+                )
+            },
+            // The static `new` segment is declared **before** `:segmentId` so it
+            // wins the match — the same rule content's `:typeName/new` follows.
+            {
+                path: '/segments/new',
+                element: (
+                    <Suspense fallback={<Spinner />}>
+                        <SegmentEditorPage />
+                    </Suspense>
+                )
+            },
+            {
+                path: '/segments/:segmentId',
+                element: (
+                    <Suspense fallback={<Spinner />}>
+                        <SegmentEditorPage />
                     </Suspense>
                 )
             }

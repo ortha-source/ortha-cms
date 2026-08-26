@@ -2,7 +2,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Globe, Lock } from 'lucide-react';
 import type { RevisionExtraValueContext } from '@orthacms/content-admin';
 import { Badge } from '@orthacms/design-system';
-import { useSegments } from '../../../application/hooks';
+import { useSegmentLookup } from '../../../application/hooks';
 import type { EntryAccess } from '../../../domain/types';
 
 const messages = defineMessages({
@@ -48,7 +48,15 @@ function parse(value: unknown): EntryAccess | null {
  */
 export function RevisionAccessValue({ value }: RevisionExtraValueContext) {
     const intl = useIntl();
-    const segments = useSegments();
+    const access = parse(value);
+    // Resolved **by id**, not from a page of the directory. The directory is
+    // paginated, so an audience a version captured is as likely to be on page
+    // three as on page one — and a miss there would render as "deleted
+    // audience", which is a claim rather than a gap.
+    const segments = useSegmentLookup([
+        ...(access?.allow ?? []),
+        ...(access?.deny ?? [])
+    ]);
 
     if (value === undefined) {
         return (
@@ -58,7 +66,6 @@ export function RevisionAccessValue({ value }: RevisionExtraValueContext) {
         );
     }
 
-    const access = parse(value);
     if (!access || (!access.allow.length && !access.deny.length)) {
         return (
             <span className="inline-flex items-center gap-1.5">

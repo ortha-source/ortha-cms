@@ -11,7 +11,7 @@
  * content, and they already exist.
  */
 
-export { segmentIdsForTags } from './lib/segment';
+export { isOfferedIn, segmentIdsForTags } from './lib/segment';
 export type { Segment } from './lib/segment';
 
 export { ACCESS_MODE, OPEN_ACCESS, canRead, isOpen } from './lib/entry-access';

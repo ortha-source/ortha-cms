@@ -11,25 +11,57 @@ src/lib/
   presentation/
     segmentsPlugin/             the factory
     pages/SegmentsPage/         the directory at /segments
+    pages/SegmentEditorPage/    create / edit, at /segments/new and /segments/:id
     components/
       EntryAccessChip/          the entry header badge
       EntryAccessTab/           the Access tab — where every decision is made
+      EntryAccessBulkActions/   set every matched audience at once
       SegmentStateControl/      one audience's three-state control
-      SegmentDialog/            create / edit an audience
+      SegmentWorkspacesField/   where an audience is offered
+      SegmentsPagination/       the pager both lists share
 ```
 
 ## What it contributes
 
-| Surface            | Where                 | What it is for                   |
-| ------------------ | --------------------- | -------------------------------- |
-| Audience directory | `/segments`           | the vocabulary                   |
-| Entry header chip  | `ENTRY_HEADER_SLOT`   | is this entry restricted         |
-| **Access** tab     | `ENTRY_TAB_SLOT`      | every decision, one per audience |
-| The save step      | `ENTRY_PRESAVE_SLOT`  | applying them, on Save / Publish |
-| Revision row       | `REVISION_EXTRA_SLOT` | who could read a past version    |
+| Surface            | Where                   | What it is for                   |
+| ------------------ | ----------------------- | -------------------------------- |
+| Audience directory | `/segments`             | the vocabulary                   |
+| Audience editor    | `/segments/new`, `/:id` | create / edit one                |
+| Entry header chip  | `ENTRY_HEADER_SLOT`     | is this entry restricted         |
+| **Access** tab     | `ENTRY_TAB_SLOT`        | every decision, one per audience |
+| The save step      | `ENTRY_PRESAVE_SLOT`    | applying them, on Save / Publish |
+| Revision row       | `REVISION_EXTRA_SLOT`   | who could read a past version    |
 
 There is nothing between the directory and the entry — no rule library, no
 assignment screen — because there is nothing in the model between them.
+
+## Both lists are paginated, and they share one pager
+
+The directory and the Access tab are two views of the same list — one manages
+the vocabulary, the other decides against it — so they use one
+`SegmentsPagination`. A reader moving between them should not meet two different
+pagers.
+
+Three consequences worth keeping:
+
+**A page is not the whole list, so anything holding _ids_ reads by id.** The
+entry header chip and a revision's captured access resolve their labels through
+`useSegmentLookup` (`GET /segments/lookup?ids=`), never by searching a page. A
+miss on page one would have rendered as "deleted audience" for an audience that
+is merely on page three — a claim rather than a gap.
+
+**The bulk control acts on every match, not on the rows on screen.** The ids
+come from the list response's `ids`, which is every id the filter matched. A
+control called "set every audience" that quietly set ten of forty would be worse
+than no control: the mistake is invisible until a reader is turned away. Past
+the server's cap the controls disable with the reason — that many could not be
+stored on one entry anyway, so offering it would be offering a save that 400s.
+
+**Decisions the list does not show are kept and counted.** A search hides rows,
+and an audience can be narrowed away from this workspace after an entry named
+it. The tab counts those below the list rather than dropping them, because
+dropping them would rewrite who can read published content from a screen that
+never mentioned them.
 
 ## The decisions that are easy to get wrong
 
@@ -99,6 +131,25 @@ to rewrite the article and not to publish it to a new audience.
 inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
+**Creating and editing are pages, not a dialog.** It was a dialog while an
+audience was three short fields; it now also decides which workspaces may use
+it, which is a list that grows with the installation. A modal that scrolls is a
+modal that has outgrown being one — and a page gives each audience a URL, which
+is what makes "look at this one" a link instead of a set of directions.
+
+**Nothing ticked under "Offered in" means every workspace.** The same reading as
+an entry's empty allow list, and the state every audience starts in. The control
+says so on screen rather than leaving it to be inferred: the opposite reading —
+an audience nobody has scoped being offered nowhere — is the one that would make
+it look broken. A **failed** workspace read is not an empty one either; it
+renders as a warning that leaves the current scope alone.
+
+**The create form no longer pre-checks the key against a list.** The directory
+is paginated, so a local "existing keys" list would be one page of them, and a
+check that is right most of the time is worse than one that is honestly late.
+The server's 409 lands on the key field, holding the refused **key** so the
+message clears itself the moment a different one is typed.
+
 **Field rules come from the kernel, not from a pattern spelled out here.**
 `validateSegment` is the same function the server's DTO reads its constants
 from, so the dialog cannot accept something the API then refuses. Errors appear
@@ -110,12 +161,6 @@ character is noise about a state they are on their way out of.
 nothing, and pressing it is how somebody with nothing focused finds out which
 field is wrong: the submit handler refuses and marks every field due for its
 message.
-
-**A 409 lands on the key field, and the refused key is what is stored.** The
-local collision check reads the list the page is showing, which a search
-narrows — that can only miss a collision, never invent one, so the server's
-refusal is what covers the rest. Holding the **key** rather than a flag is what
-makes the message clear itself the moment a different one is typed.
 
 **The workspace is in the entry cache key.** It reaches the server only as
 `apiClient`'s ambient `X-Workspace-Id` header, which is never sent on a cache

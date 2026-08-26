@@ -1,7 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import { isOpen, type EntryAccess } from '@orthacms/segments-domain';
+import {
+    isOfferedIn,
+    isOpen,
+    type EntryAccess
+} from '@orthacms/segments-domain';
 import { entryAccess } from '../schema/entry-access';
 import { SegmentCatalogService } from './segment-catalog.service';
 
@@ -112,8 +116,16 @@ export class EntryAccessService {
         executor?: AccessExecutor;
     }): Promise<EntryAccessView> {
         const executor = input.executor ?? this.db;
-        const allow = this.validate(input.allow);
-        const deny = this.validate(input.deny);
+        // What the entry already names, on either side. Ids it already holds
+        // are exempt from the workspace-scope check below — see `validate`.
+        const current = await this.get(
+            input.workspaceId,
+            input.entryId,
+            executor
+        );
+        const held = new Set([...current.allow, ...current.deny]);
+        const allow = this.validate(input.allow, input.workspaceId, held);
+        const deny = this.validate(input.deny, input.workspaceId, held);
 
         if (isOpen({ allow, deny })) {
             await executor
@@ -145,20 +157,49 @@ export class EntryAccessService {
     }
 
     /**
-     * Deduplicates and checks that every id is a segment that exists.
+     * Deduplicates, and checks that every id is a segment that exists **and is
+     * offered in this workspace**.
      *
      * An unknown id is refused rather than stored. Kept, it would be a decision
      * that matches nobody — closing content on the allow side and doing nothing
      * on the deny side — with nothing on screen to say the entry is governed by
      * a segment that is not there.
+     *
+     * An out-of-scope id is refused for a plainer reason: the editor was never
+     * offered it, so a request naming one did not come from the screen.
+     *
+     * That check applies only to ids the entry does **not already hold**. A
+     * segment narrowed away from a workspace after the fact leaves the decisions
+     * already made there exactly as their editors left them — re-deciding who
+     * may read published content from a screen about where an audience is
+     * *offered* is a change nobody would connect to what they did. It is also
+     * what keeps a **restore** working: putting back a version that named an
+     * audience the entry still holds is not a new decision, and refusing it
+     * would block the restore of the entry's words along with it.
      */
-    private validate(ids: readonly string[]): string[] {
+    private validate(
+        ids: readonly string[],
+        workspaceId: string,
+        held: ReadonlySet<string> = new Set()
+    ): string[] {
         const unique = [...new Set(ids)];
-        const known = new Set(this.catalog.all().map((segment) => segment.id));
-        const unknown = unique.filter((id) => !known.has(id));
+        const catalogue = new Map(
+            this.catalog.all().map((segment) => [segment.id, segment])
+        );
+        const unknown = unique.filter((id) => !catalogue.has(id));
         if (unknown.length) {
             throw new BadRequestException(
                 `Unknown segment(s): ${unknown.join(', ')}.`
+            );
+        }
+        const foreign = unique.filter((id) => {
+            if (held.has(id)) return false;
+            const segment = catalogue.get(id);
+            return segment && !isOfferedIn(segment, workspaceId);
+        });
+        if (foreign.length) {
+            throw new BadRequestException(
+                `Segment(s) not offered in this workspace: ${foreign.join(', ')}.`
             );
         }
         return unique;

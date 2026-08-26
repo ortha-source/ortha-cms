@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { Link } from 'react-router-dom';
 import {
+    Globe,
     MoreHorizontal,
     Pencil,
     Plus,
@@ -10,14 +12,11 @@ import {
 } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import {
-    ApiError,
-    useDebouncedValue,
-    useDocumentTitle
-} from '@orthacms/utils-admin';
+import { useDebouncedValue, useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
+    Badge,
     Button,
     ConfirmDialog,
     Container,
@@ -46,15 +45,10 @@ import type { Segment } from '../../../domain/types';
 import {
     SEGMENTS_MANAGE,
     SEGMENTS_READ,
-    useCreateSegment,
     useDeleteSegment,
-    useSegments,
-    useUpdateSegment
+    useSegments
 } from '../../../application/hooks';
-import {
-    SegmentDialog,
-    type SegmentDraft
-} from '../../components/SegmentDialog';
+import { SegmentsPagination } from '../../components/SegmentsPagination';
 
 const messages = defineMessages({
     title: { id: 'segments.page.title', defaultMessage: 'Segments' },
@@ -67,14 +61,27 @@ const messages = defineMessages({
     search: { id: 'segments.page.search', defaultMessage: 'Search audiences' },
     colName: { id: 'segments.page.colName', defaultMessage: 'Audience' },
     colTags: { id: 'segments.page.colTags', defaultMessage: 'Reader tags' },
+    colWorkspaces: {
+        id: 'segments.page.colWorkspaces',
+        defaultMessage: 'Offered in'
+    },
     colUsage: { id: 'segments.page.colUsage', defaultMessage: 'Used by' },
+    everywhere: {
+        id: 'segments.page.everywhere',
+        defaultMessage: 'Every workspace'
+    },
+    workspaceCount: {
+        id: 'segments.page.workspaceCount',
+        defaultMessage:
+            '{count, plural, one {# workspace} other {# workspaces}}'
+    },
     usage: {
         id: 'segments.page.usage',
         defaultMessage: '{count, plural, one {# entry} other {# entries}}'
     },
     unused: { id: 'segments.page.unused', defaultMessage: 'Not used yet' },
     menu: { id: 'segments.page.menu', defaultMessage: 'Actions for {name}' },
-    edit: { id: 'segments.page.edit', defaultMessage: 'Edit…' },
+    edit: { id: 'segments.page.edit', defaultMessage: 'Edit' },
     remove: { id: 'segments.page.remove', defaultMessage: 'Delete' },
     confirmTitle: {
         id: 'segments.page.confirmTitle',
@@ -92,6 +99,7 @@ const messages = defineMessages({
     },
     confirm: { id: 'segments.page.confirmCta', defaultMessage: 'Delete' },
     cancel: { id: 'segments.page.cancel', defaultMessage: 'Cancel' },
+    retry: { id: 'segments.page.retry', defaultMessage: 'Try again' },
     emptyTitle: {
         id: 'segments.page.emptyTitle',
         defaultMessage: 'No audiences yet'
@@ -128,12 +136,19 @@ const messages = defineMessages({
     }
 });
 
+/** Rows per page before anyone changes it. */
+const DEFAULT_PAGE_SIZE = 25;
+
 /**
  * The audience directory at `/segments`.
  *
  * One list, four actions. Everything about *what an audience may read* happens
  * on the entry, which is why this page has no notion of rules, targets or
  * levels — it manages the vocabulary, and the entry editor uses it.
+ *
+ * Creating and editing are **pages** (`/segments/new`, `/segments/:id`), not a
+ * dialog: an audience now also decides which workspaces may use it, and a modal
+ * that scrolls is a modal that has outgrown being one.
  *
  * Gated on `segments:read`; the write controls additionally on
  * `segments:manage`. The split is the point of two permissions: an editor needs
@@ -149,23 +164,21 @@ export function SegmentsPage() {
 
     const [query, setQuery] = useState('');
     const debounced = useDebouncedValue(query, 250);
-    const { data, isPending, isError, refetch } = useSegments(
-        debounced || undefined
-    );
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-    const [dialog, setDialog] = useState<{
-        open: boolean;
-        editing: Segment | null;
-    }>({ open: false, editing: null });
+    // A narrowed search almost always has fewer pages than the one before it,
+    // so staying on page four is how a reader lands on "no matches" for a term
+    // that matches plenty.
+    useEffect(() => setPage(1), [debounced, pageSize]);
+
+    const { data, isPending, isError, refetch } = useSegments({
+        query: debounced || undefined,
+        page,
+        pageSize
+    });
+
     const [pending, setPending] = useState<Segment | null>(null);
-    // The key the server refused with a 409 — one the search had filtered out
-    // of the list, or one somebody else took a moment ago. Held as the key
-    // rather than a flag so the dialog's message clears itself the moment a
-    // different one is typed.
-    const [keyConflict, setKeyConflict] = useState<string | null>(null);
-
-    const create = useCreateSegment();
-    const update = useUpdateSegment();
     const remove = useDeleteSegment();
 
     const bar = (
@@ -203,44 +216,9 @@ export function SegmentsPage() {
     }
 
     const failed = () => toast.error(intl.formatMessage(messages.writeError));
-    const segments = data ?? [];
-
-    const submit = (draft: SegmentDraft) => {
-        const done = () => setDialog({ open: false, editing: null });
-        setKeyConflict(null);
-        if (dialog.editing) {
-            update.mutate(
-                {
-                    id: dialog.editing.id,
-                    label: draft.label,
-                    tags: draft.tags
-                },
-                { onSuccess: done, onError: failed }
-            );
-            return;
-        }
-        create.mutate(
-            {
-                key: draft.key,
-                label: draft.label,
-                // An empty list means "use the key", which the server fills in
-                // — sending `[]` would be an audience matching nobody.
-                ...(draft.tags.length ? { tags: draft.tags } : {})
-            },
-            {
-                onSuccess: done,
-                onError: (error) => {
-                    // A taken key belongs on the field, not in a toast about a
-                    // form that is still open and still looks fine.
-                    if (error instanceof ApiError && error.status === 409) {
-                        setKeyConflict(draft.key);
-                        return;
-                    }
-                    failed();
-                }
-            }
-        );
-    };
+    const segments = data?.items ?? [];
+    const total = data?.total ?? 0;
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
     return (
         <>
@@ -250,26 +228,22 @@ export function SegmentsPage() {
                     title={intl.formatMessage(messages.title)}
                     subtitle={intl.formatMessage(messages.subtitle)}
                     actions={
-                        canManage && segments.length > 0 ? (
-                            <Button
-                                onClick={() =>
-                                    setDialog({ open: true, editing: null })
-                                }
-                            >
-                                <Plus aria-hidden />
-                                {intl.formatMessage(messages.create)}
+                        canManage && (total > 0 || Boolean(debounced)) ? (
+                            <Button asChild>
+                                <Link to="/segments/new">
+                                    <Plus aria-hidden />
+                                    {intl.formatMessage(messages.create)}
+                                </Link>
                             </Button>
                         ) : undefined
                     }
                 />
 
-                {/* Creating and deleting change the table without a navigation
-                    and without a heading change, so announce the count. */}
+                {/* Deleting changes the table without a navigation and without a
+                    heading change, so announce the count. */}
                 {!isPending && !isError ? (
                     <p role="status" aria-live="polite" className="sr-only">
-                        {intl.formatMessage(messages.results, {
-                            count: segments.length
-                        })}
+                        {intl.formatMessage(messages.results, { count: total })}
                     </p>
                 ) : null}
 
@@ -289,11 +263,11 @@ export function SegmentsPage() {
                                 className="shadow-none"
                                 onClick={() => refetch()}
                             >
-                                {intl.formatMessage(messages.cancel)}
+                                {intl.formatMessage(messages.retry)}
                             </Button>
                         </AlertDescription>
                     </Alert>
-                ) : segments.length === 0 && !debounced ? (
+                ) : total === 0 && !debounced ? (
                     <Empty>
                         <EmptyHeader>
                             <EmptyMedia variant="icon">
@@ -308,13 +282,11 @@ export function SegmentsPage() {
                         </EmptyHeader>
                         {canManage ? (
                             <EmptyContent>
-                                <Button
-                                    onClick={() =>
-                                        setDialog({ open: true, editing: null })
-                                    }
-                                >
-                                    <Plus aria-hidden />
-                                    {intl.formatMessage(messages.create)}
+                                <Button asChild>
+                                    <Link to="/segments/new">
+                                        <Plus aria-hidden />
+                                        {intl.formatMessage(messages.create)}
+                                    </Link>
                                 </Button>
                             </EmptyContent>
                         ) : null}
@@ -340,149 +312,197 @@ export function SegmentsPage() {
                             />
                         </div>
 
-                        {segments.length === 0 ? (
+                        {total === 0 ? (
                             <p className="mt-4 text-sm text-muted-foreground">
                                 {intl.formatMessage(messages.noMatches, {
                                     query: debounced
                                 })}
                             </p>
                         ) : (
-                            <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>
-                                                {intl.formatMessage(
-                                                    messages.colName
-                                                )}
-                                            </TableHead>
-                                            <TableHead>
-                                                {intl.formatMessage(
-                                                    messages.colTags
-                                                )}
-                                            </TableHead>
-                                            <TableHead>
-                                                {intl.formatMessage(
-                                                    messages.colUsage
-                                                )}
-                                            </TableHead>
-                                            <TableHead className="w-12" />
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {segments.map((segment) => (
-                                            <TableRow key={segment.id}>
-                                                <TableCell className="font-medium">
-                                                    {segment.label}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {segment.tags.map(
-                                                            (tag) => (
-                                                                <code
-                                                                    key={tag}
-                                                                    className="rounded bg-muted px-1.5 py-0.5 text-xs"
-                                                                >
-                                                                    {tag}
-                                                                </code>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {segment.usageCount > 0
-                                                        ? intl.formatMessage(
-                                                              messages.usage,
-                                                              {
-                                                                  count: segment.usageCount
-                                                              }
-                                                          )
-                                                        : intl.formatMessage(
-                                                              messages.unused
-                                                          )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {canManage ? (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="ml-auto"
-                                                                    aria-label={intl.formatMessage(
-                                                                        messages.menu,
-                                                                        {
-                                                                            name: segment.label
-                                                                        }
-                                                                    )}
-                                                                >
-                                                                    <MoreHorizontal
-                                                                        aria-hidden
-                                                                    />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem
-                                                                    onSelect={() =>
-                                                                        setDialog(
-                                                                            {
-                                                                                open: true,
-                                                                                editing:
-                                                                                    segment
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Pencil
-                                                                        aria-hidden
-                                                                    />
-                                                                    {intl.formatMessage(
-                                                                        messages.edit
-                                                                    )}
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    className="text-destructive focus:text-destructive"
-                                                                    onSelect={() =>
-                                                                        setPending(
-                                                                            segment
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Trash2
-                                                                        aria-hidden
-                                                                    />
-                                                                    {intl.formatMessage(
-                                                                        messages.remove
-                                                                    )}
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    ) : null}
-                                                </TableCell>
+                            <>
+                                <div className="mt-4 overflow-hidden rounded-xl border bg-card shadow-xs">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>
+                                                    {intl.formatMessage(
+                                                        messages.colName
+                                                    )}
+                                                </TableHead>
+                                                <TableHead>
+                                                    {intl.formatMessage(
+                                                        messages.colTags
+                                                    )}
+                                                </TableHead>
+                                                <TableHead>
+                                                    {intl.formatMessage(
+                                                        messages.colWorkspaces
+                                                    )}
+                                                </TableHead>
+                                                <TableHead>
+                                                    {intl.formatMessage(
+                                                        messages.colUsage
+                                                    )}
+                                                </TableHead>
+                                                <TableHead className="w-12" />
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {segments.map((segment) => (
+                                                <TableRow key={segment.id}>
+                                                    <TableCell className="font-medium">
+                                                        {canManage ? (
+                                                            <Link
+                                                                to={`/segments/${segment.id}`}
+                                                                className="hover:underline"
+                                                            >
+                                                                {segment.label}
+                                                            </Link>
+                                                        ) : (
+                                                            segment.label
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {segment.tags.map(
+                                                                (tag) => (
+                                                                    <code
+                                                                        key={
+                                                                            tag
+                                                                        }
+                                                                        className="rounded bg-muted px-1.5 py-0.5 text-xs"
+                                                                    >
+                                                                        {tag}
+                                                                    </code>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {/* Empty means every
+                                                            workspace, so it is
+                                                            said rather than
+                                                            left blank. */}
+                                                        <Badge
+                                                            variant={
+                                                                segment
+                                                                    .workspaceIds
+                                                                    .length
+                                                                    ? 'secondary'
+                                                                    : 'outline'
+                                                            }
+                                                        >
+                                                            {segment
+                                                                .workspaceIds
+                                                                .length ? null : (
+                                                                <Globe
+                                                                    className="size-3"
+                                                                    aria-hidden
+                                                                />
+                                                            )}
+                                                            {segment
+                                                                .workspaceIds
+                                                                .length
+                                                                ? intl.formatMessage(
+                                                                      messages.workspaceCount,
+                                                                      {
+                                                                          count: segment
+                                                                              .workspaceIds
+                                                                              .length
+                                                                      }
+                                                                  )
+                                                                : intl.formatMessage(
+                                                                      messages.everywhere
+                                                                  )}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">
+                                                        {segment.usageCount > 0
+                                                            ? intl.formatMessage(
+                                                                  messages.usage,
+                                                                  {
+                                                                      count: segment.usageCount
+                                                                  }
+                                                              )
+                                                            : intl.formatMessage(
+                                                                  messages.unused
+                                                              )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {canManage ? (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger
+                                                                    asChild
+                                                                >
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="ml-auto"
+                                                                        aria-label={intl.formatMessage(
+                                                                            messages.menu,
+                                                                            {
+                                                                                name: segment.label
+                                                                            }
+                                                                        )}
+                                                                    >
+                                                                        <MoreHorizontal
+                                                                            aria-hidden
+                                                                        />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem
+                                                                        asChild
+                                                                    >
+                                                                        <Link
+                                                                            to={`/segments/${segment.id}`}
+                                                                        >
+                                                                            <Pencil
+                                                                                aria-hidden
+                                                                            />
+                                                                            {intl.formatMessage(
+                                                                                messages.edit
+                                                                            )}
+                                                                        </Link>
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        className="text-destructive focus:text-destructive"
+                                                                        onSelect={() =>
+                                                                            setPending(
+                                                                                segment
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Trash2
+                                                                            aria-hidden
+                                                                        />
+                                                                        {intl.formatMessage(
+                                                                            messages.remove
+                                                                        )}
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        ) : null}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                <SegmentsPagination
+                                    page={page}
+                                    pageCount={pageCount}
+                                    pageSize={pageSize}
+                                    total={total}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                />
+                            </>
                         )}
                     </>
                 )}
             </Container>
-
-            <SegmentDialog
-                open={dialog.open}
-                onOpenChange={(open) => {
-                    setDialog((current) => ({ ...current, open }));
-                    if (!open) setKeyConflict(null);
-                }}
-                editing={dialog.editing}
-                existingKeys={segments.map((segment) => segment.key)}
-                keyConflict={keyConflict}
-                onSubmit={submit}
-                submitting={create.isPending || update.isPending}
-            />
 
             <ConfirmDialog
                 open={pending !== null}
@@ -507,7 +527,18 @@ export function SegmentsPage() {
                 confirmVariant="destructive"
                 onConfirm={() => {
                     if (pending) {
-                        remove.mutate(pending.id, { onError: failed });
+                        remove.mutate(pending.id, {
+                            onError: failed,
+                            // Deleting the last row of the last page would
+                            // otherwise strand the reader on a page that no
+                            // longer exists, looking at an empty table.
+                            onSuccess: () =>
+                                setPage((current) =>
+                                    segments.length === 1 && current > 1
+                                        ? current - 1
+                                        : current
+                                )
+                        });
                     }
                     setPending(null);
                 }}

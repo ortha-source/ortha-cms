@@ -20,6 +20,38 @@ export interface Segment {
      * the key, which is what an installation that never renames anything wants.
      */
     readonly tags: readonly string[];
+    /**
+     * The workspaces this audience is offered in. **Empty means every one.**
+     *
+     * The same reading as an entry's empty allow list, and it is deliberate
+     * rather than convenient: it is the state every segment starts in, and
+     * taking emptiness for "nowhere" would make an audience nobody had scoped
+     * yet disappear from every editor.
+     *
+     * It narrows **where the audience can be chosen**, never who it lets in. A
+     * decision already made on an entry stays as its editor left it even if the
+     * segment is later scoped away from that workspace — see `isOfferedIn`.
+     */
+    readonly workspaceIds?: readonly string[];
+}
+
+/**
+ * Whether an audience may be chosen on content in this workspace.
+ *
+ * Not a reader rule. `canRead` never consults it, and it must not: a stored
+ * decision means what its editor meant, and re-deciding it from a screen about
+ * where an audience is *offered* would change who can read published content
+ * with nothing on either screen to say so. This answers the editor's question —
+ * "may I pick this here?" — and nothing else.
+ */
+export function isOfferedIn(
+    segment: Segment,
+    workspaceId: string | undefined
+): boolean {
+    if (!segment.workspaceIds?.length) return true;
+    return workspaceId !== undefined
+        ? segment.workspaceIds.includes(workspaceId)
+        : false;
 }
 
 /**

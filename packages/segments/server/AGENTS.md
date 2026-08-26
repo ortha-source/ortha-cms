@@ -27,6 +27,8 @@ src/lib/
 | Route                        | Scope        | Permission                          |
 | ---------------------------- | ------------ | ----------------------------------- |
 | `/segments`                  | installation | `segments:read` / `segments:manage` |
+| `/segments/lookup`           | installation | `segments:read`                     |
+| `/segments/:id`              | installation | `segments:read`                     |
 | `/segments/entries/:entryId` | workspace    | `segments:read` / `segments:manage` |
 
 …plus the `access` key of every entry save's `extensions` bag, which is how the
@@ -112,6 +114,37 @@ that silently stopped running would be the failure nobody notices.
 
 The `PUT /segments/entries/:entryId` route stays, for an API client that is not
 saving an entry. It simply gets neither the atomicity nor the version.
+
+**A segment names the workspaces it is offered in, and empty means every one.**
+`segments.workspace_ids` is a plain uuid array (no cross-plugin FK, like
+`entry_access.workspace_id`), read as "offered everywhere" when empty — the same
+reading as an entry's empty allow list, and the state every existing row is
+already in. Taking emptiness for "nowhere" would have made every audience vanish
+from every editor the day the column shipped.
+
+It narrows **where an audience can be chosen**, never who it lets in. `canRead`
+does not consult it and must not: a stored decision means what its editor meant,
+and re-deciding it from a screen about where an audience is _offered_ would
+change who can read published content with nothing on either screen to say so.
+So `EntryAccessService.validate` refuses an out-of-scope id **only when the entry
+does not already hold it** — which is also what keeps a restore working, since
+putting back a version that named an audience the entry still holds is not a new
+decision.
+
+**The list is paginated, and it carries every matched id alongside the page.**
+`ids` is not this page's — it is every id the filter matched, capped at the same
+number an entry may name on one side. The entry editor's "set every audience
+to…" acts on it, so a bulk action means the whole list rather than whichever
+rows are on screen; past the cap `idsTruncated` tells the editor to say so
+rather than silently doing part of the job.
+
+**`GET /segments/lookup?ids=` exists because a page is not the whole list.** A
+caller holding _ids_ — the entry header chip, a revision's captured access — can
+no longer count on the first page containing the rows it has to name. Without it
+those would print a uuid, or claim an audience was deleted when it is merely on
+page three. Unknown ids are skipped rather than refused: a segment a revision
+captured really can have been deleted since, and that is a state the caller
+renders. It is declared **before** `:id` so the literal segment wins the match.
 
 **Two empty lists delete the row.** Storing them would work and would leave
 every entry anyone ever opened paying for a row on the read path.

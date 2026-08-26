@@ -21,11 +21,13 @@ import {
 } from '@orthacms/identity-server';
 import {
     SegmentsService,
+    type SegmentListView,
     type SegmentView
 } from '../application/segments.service';
 import {
     CreateSegmentDto,
     ListSegmentsQueryDto,
+    LookupSegmentsQueryDto,
     UpdateSegmentDto
 } from './segments.dto';
 
@@ -47,16 +49,45 @@ import {
 export class SegmentsController {
     constructor(private readonly segments: SegmentsService) {}
 
-    /** Every segment, with how many entries name it. */
+    /** One page of the directory, with how many entries name each row. */
     @Get()
     @RequirePermissions(PERMISSIONS.SEGMENTS_READ)
     @ApiOperation({
         summary: 'List segments',
         description:
-            'Every audience readers can be divided into. An empty list means nothing is segmented: every published entry is readable by everyone.'
+            'One page of the audiences readers can be divided into. `total: 0` with no filter means nothing is segmented: every published entry is readable by everyone. `ids` carries **every** match rather than this page’s, capped — it is what the entry editor’s "set every audience to…" acts on, so a bulk action means the whole list rather than whichever rows are on screen.'
     })
-    list(@Query() query: ListSegmentsQueryDto): Promise<SegmentView[]> {
-        return this.segments.list(query.q);
+    list(@Query() query: ListSegmentsQueryDto): Promise<SegmentListView> {
+        return this.segments.list({
+            query: query.q,
+            workspaceId: query.workspace,
+            page: query.page,
+            pageSize: query.pageSize
+        });
+    }
+
+    /**
+     * Resolve named segments, whatever page they would fall on.
+     *
+     * Declared **before** `:id` so the literal segment wins the match.
+     */
+    @Get('lookup')
+    @RequirePermissions(PERMISSIONS.SEGMENTS_READ)
+    @ApiOperation({
+        summary: 'Resolve segments by id',
+        description:
+            'For a caller holding ids rather than a page — the entry header chip, a revision’s captured access. Without it a paginated directory would leave those printing a uuid, or claiming an audience was deleted when it is merely on page three. Unknown ids are skipped, not refused.'
+    })
+    lookup(@Query() query: LookupSegmentsQueryDto): Promise<SegmentView[]> {
+        return this.segments.byIds(query.ids);
+    }
+
+    /** One segment — what the editor page loads. */
+    @Get(':id')
+    @RequirePermissions(PERMISSIONS.SEGMENTS_READ)
+    @ApiOperation({ summary: 'Read one segment' })
+    get(@Param('id', ParseUUIDPipe) id: string): Promise<SegmentView> {
+        return this.segments.get(id);
     }
 
     /** Create a segment. */

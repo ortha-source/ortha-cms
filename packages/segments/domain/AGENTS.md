@@ -6,12 +6,12 @@ pure function over two lists. No NestJS, no Drizzle, no React.
 This is the reader-facing half of access. It is **not** RBAC and not
 `workspace_content`: those answer who may _touch_ content and already exist.
 
-| File                       | What lives there                            |
-| -------------------------- | ------------------------------------------- |
-| `segment.ts`               | A named set of reader tags, plus tag → id.  |
-| `entry-access.ts`          | The two lists, and `canRead`. The decision. |
-| `segment-resolver.port.ts` | Where a reader's tags come from.            |
-| `validation.ts`            | What a segment's fields may hold.           |
+| File                       | What lives there                                                     |
+| -------------------------- | -------------------------------------------------------------------- |
+| `segment.ts`               | A named set of reader tags, plus tag → id, plus where it is offered. |
+| `entry-access.ts`          | The two lists, and `canRead`. The decision.                          |
+| `segment-resolver.port.ts` | Where a reader's tags come from.                                     |
+| `validation.ts`            | What a segment's fields may hold.                                    |
 
 ## The model, in full
 
@@ -36,7 +36,15 @@ what a reader gets** — which is what makes the admin's screen and the SQL
 predicate two renderings of the same three lines rather than two models to keep
 in step.
 
-## Two other rules worth keeping
+## Other rules worth keeping
+
+**Where an audience is _offered_ is not a reader rule.** `isOfferedIn` answers
+the editor's question — may I pick this here? — and `canRead` never consults it.
+A stored decision means what its editor meant, so re-deciding it from a screen
+about a segment's availability would change who can read published content with
+nothing on either screen to say so. An empty `workspaceIds` means every
+workspace, the same reading as an empty allow list and the state every segment
+starts in.
 
 **Nothing outside `segment.ts` compares a raw tag.** Rules point at segment ids;
 a tag is matched once, when a reader arrives. That indirection is what makes an
