@@ -316,7 +316,7 @@ renders no UI. See §4A.
 | --- | --- | --- |
 | 1 | Boot with `MCP_ENABLED=true` and `COPILOT_ENABLED=true` | `tools/list` over MCP and the copilot's offered set are both non-empty, and `media_assets_search` appears in both |
 | 2 | Boot with `MCP_ENABLED=false`, `COPILOT_ENABLED=true` | The copilot still has tools. `POST /api/v1/mcp` 404s |
-| 3 | Boot with `MCP_ENABLED=true`, `COPILOT_ENABLED=false` | `tools/list` still works. A copilot run returns an error frame saying the copilot is off |
+| 3 | Boot with `MCP_ENABLED=true`, `COPILOT_ENABLED=false` | `tools/list` still works. The copilot's own routes are gone — `POST /api/copilot/runs` 404s rather than streaming an error frame — which is the point: the registry is imported, not owned by either consumer |
 
 ### F21 — a capability plugin boots with neither consumer
 

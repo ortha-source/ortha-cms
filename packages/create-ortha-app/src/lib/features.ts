@@ -41,15 +41,18 @@ export interface Feature {
 /**
  * The packages every app gets, whatever it opts into.
  *
- * The **copilot** is here — plugin, admin panel and the offline `fake` adapter —
- * even though it is a large feature nobody may want. Two reasons. Its server
- * half arrives anyway: five core plugins (`content`, `activity`, `i18n`,
- * `media`, `users`) depend on `copilot-server` to contribute their tools, so
- * the code is on disk whatever the manifest says, and leaving it undeclared
- * bought nothing but a missing chat panel. And `fake` needs no key and no
- * network, so a default app gets a copilot that genuinely works offline —
- * while `COPILOT_ENABLED` stays `false`, so nothing reaches a model until an
- * operator says so.
+ * The **copilot** is here — plugin and admin panel — even though it is a large
+ * feature nobody may want, because its server half arrives anyway: five core
+ * plugins (`content`, `activity`, `i18n`, `media`, `users`) depend on
+ * `copilot-server` to contribute their tools, so the code is on disk whatever
+ * the manifest says, and leaving it undeclared bought nothing but a missing chat
+ * panel. No **model backend** comes with it: those are the opt-in
+ * `COPILOT_PROVIDERS` below, and an app that picks none has the plugin
+ * installed and nothing registered. `COPILOT_ENABLED` stays `false`, which
+ * unregisters the copilot's routes, so a generated app ships with the chat
+ * surfaces absent rather than visible and refusing — and turning it on without
+ * a configured backend fails at boot rather than shipping a chat that cannot
+ * answer.
  *
  * The **extension points** are here for the same reason — `content-domain`,
  * `copilot-domain`, `tools-server`, `query-builder-admin`. Every one of them
@@ -66,9 +69,9 @@ export interface Feature {
  * what makes that resolution something the app owns rather than borrows.
  * `identity-provider-fake` is the scripted identity provider: it needs no
  * tenant and no network, so it is how a generated app's sign-in page can be
- * exercised offline, exactly as `copilot-provider-fake` is for the chat. Note
- * that shipping it installs nothing: an adapter only does something once the
- * composition root registers it, and the template registers none.
+ * exercised offline. Note that shipping it installs nothing: an adapter only
+ * does something once the composition root registers it, and the template
+ * registers none.
  *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
@@ -80,6 +83,8 @@ export interface Feature {
 export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/activity-admin',
     '@orthacms/activity-server',
+    '@orthacms/alarms-admin',
+    '@orthacms/alarms-server',
     '@orthacms/api-tokens-admin',
     '@orthacms/bootstrap-admin',
     '@orthacms/bootstrap-server',
@@ -88,7 +93,6 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/content-server',
     '@orthacms/copilot-admin',
     '@orthacms/copilot-domain',
-    '@orthacms/copilot-provider-fake',
     '@orthacms/copilot-server',
     '@orthacms/database',
     '@orthacms/design-system',
@@ -201,11 +205,10 @@ export const MEDIA_PROVIDERS: readonly Feature[] = [
  * §10 says is an operator's decision to make explicitly. Pick nothing and the
  * copilot is not registered at all.
  *
- * `copilot-provider-fake` is not offered here — it is installed automatically
- * whenever the copilot is on. It is a shipped adapter rather than test
- * scaffolding (ADR-0004 §3): it needs no key and no network, so it is what
- * makes the chat work offline, and it is registered last so it is the default
- * only when it is the only one.
+ * There is no offline stand-in to fall back on. The scripted `fake` adapter is
+ * a private test fixture of the CMS repo, not a published package, so an app
+ * that picks nothing here has the copilot plugin installed with no backend
+ * registered — and `COPILOT_ENABLED` must stay `false` until one is.
  */
 export const COPILOT_PROVIDERS: readonly Feature[] = [
     {
@@ -248,8 +251,8 @@ export const COPILOT_PROVIDERS: readonly Feature[] = [
  * second reason not to install them for an app that will never speak them.
  *
  * `identity-provider-fake` is not offered: it is installed unconditionally,
- * like `copilot-provider-fake`, because it needs no tenant and no network and
- * is how a generated app's sign-in page is exercised offline. Installing it
+ * because it needs no tenant and no network and is how a generated app's
+ * sign-in page is exercised offline. Installing it
  * registers nothing — an adapter only does something once the composition root
  * names it, and the template names none.
  */

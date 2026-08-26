@@ -7,7 +7,7 @@ import {
 
 /** One provider the host offers, under the name runs refer to it by. */
 export interface ProviderRegistration {
-    /** Unique, operator-chosen name — `claude`, `ollama-big`, `fake`. */
+    /** Unique, operator-chosen name — `claude`, `ollama-big`, `local`. */
     name: string;
     /** The adapter instance, already constructed with its own config. */
     provider: ModelProvider;

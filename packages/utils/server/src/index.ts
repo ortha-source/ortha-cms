@@ -8,13 +8,15 @@ export type { DbLike, TableLike } from './lib/filters/table-helpers';
 export {
     FilterOperator,
     ScalarFieldType,
-    RelationKind
+    RelationKind,
+    WithinLastUnit
 } from './lib/filters/types';
 export {
     OPERATORS_BY_TYPE,
     operatorsFor
 } from './lib/filters/operator-support';
 export type {
+    WithinLastValue,
     ScalarFieldSchema,
     FieldSchema,
     RelationSchema,

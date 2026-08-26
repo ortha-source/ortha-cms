@@ -31,6 +31,7 @@ import {
 } from './copilot/entry-proposal.applier';
 import { EntryValidationService } from './validation/services/entry-validation.service';
 import { EntriesService } from './entries/infrastructure/queries/entries.service';
+import { EntryMatchQuery } from './entries/infrastructure/queries/entry-match.query';
 import { MediaRefsQuery } from './entries/infrastructure/queries/media-refs.query';
 import { EntryWriterService } from './entries/infrastructure/persistence/entry-writer.service';
 import { EntryCounterService } from './entries/infrastructure/persistence/entry-counter.service';
@@ -166,6 +167,9 @@ export class ContentModule {
                 // it, so it is resolved from this module's context.
                 ContentGrantGuard,
                 EntriesService,
+                // Filter evaluation as a reusable question ('which entries match
+                // this tree?'), exported for `@orthacms/alarms-server`.
+                EntryMatchQuery,
                 ContentInsightsQuery,
                 // Resolves media field ids → display refs (thumbnails); injected
                 // by the entry-media read endpoint and the revision refs query.
@@ -271,7 +275,12 @@ export class ContentModule {
                 // and it has to be through the same service the entries
                 // pipeline writes with — a second implementation of the join
                 // table's ordering and de-duplication is how the two drift.
-                RelationLinkService
+                RelationLinkService,
+                // Filter evaluation, for the alarms plugin: a stored rule is a
+                // records-list filter, and it has to keep meaning exactly what
+                // the list showed when it was saved. Sharing the query is what
+                // makes that structural instead of aspirational.
+                EntryMatchQuery
             ]
         };
     }

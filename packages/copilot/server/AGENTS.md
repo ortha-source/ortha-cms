@@ -620,8 +620,31 @@ All three ceilings are env-exposed, so a typo reaches them.
 
 Being **disabled is not a wiring error**: `config.enabled: false` is the default
 and constructs fine. That switch is the operator's kill switch (ADR-0005 §10),
-read by the engine — so a disabled deployment answers with a readable error
-frame rather than an opaque 403.
+and it is applied where MCP applies its own — `CopilotModule.forRoot` registers
+**no controller** when it is off, so every `/api/copilot/*` route 404s.
+
+It was read in one place only for a while — `RunEngine.run`, throwing
+`CopilotDisabledError` for the controller to turn into an error frame — which
+made "off" mean *the send button says no*. The panel, the Agents view, the model
+catalogue, the conversation and skill routes and the tables all stayed live, so
+a deployment that had opted out still shipped the entire feature and refused at
+the last step. The engine's check is still there as belt-and-braces (the
+generator is drainable without a socket), exactly as `McpController` keeps its
+own.
+
+**What the switch does not take away** is the wiring: providers, the model
+registry and the skill registry stay bound, and `ToolsModule` is imported rather
+than provided, so the shared tool catalogue the MCP endpoint serves is identical
+either way (`tool-registry.spec.ts` asserts both halves).
+
+**It is not the egress guard, and never really was.** Since ADR-0004's provider
+registrations, a backend is registered only if its credentials exist — so a
+deployment holding no key reaches no third party whatever this flag says, and
+since the scripted `fake` adapter stopped being registered it reaches no model
+at all. (An empty provider list is accepted only while this flag is off: an
+enabled copilot with nothing to call fails at construction.) The flag is the operator's off switch for the feature; the
+absent key is what keeps content in-house. See the 2026-08-24 update on
+ADR-0005.
 
 ## Permissions
 

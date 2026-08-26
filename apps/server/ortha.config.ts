@@ -52,8 +52,10 @@ export interface OrthaCopilotConfig extends CopilotPluginConfig {
     /**
      * Model backends, keyed by the name they are registered under, in
      * preference order. Each is absent unless its connection settings are
-     * present — a keyless clone gets neither, and the shipped `fake` provider
-     * (registered unconditionally in `plugins.ts`) is the whole catalogue.
+     * present — a keyless clone gets neither, and therefore no copilot at all.
+     * There is no scripted fallback: `plugins.ts` registers exactly what is
+     * configured here, so `COPILOT_ENABLED=true` with nothing configured fails
+     * at boot rather than answering every question with a canned sentence.
      */
     providers: {
         /** Native Claude. Present when `ANTHROPIC_API_KEY` is set. */

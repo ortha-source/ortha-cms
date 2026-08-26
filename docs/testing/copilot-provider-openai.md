@@ -55,7 +55,7 @@ Not exported: `DEFAULT_CAPABILITIES`, `DEFAULT_TIMEOUT_MS`, `resolveEndpoint`,
 
 | Requirement | Where | Notes |
 | --- | --- | --- |
-| `COPILOT_ENABLED=true` | `ortha.config.ts:194` | The kill switch |
+| `COPILOT_ENABLED=true` | `ortha.config.ts:194` | The kill switch — without it the copilot's controllers are not registered and every `/api/copilot` route 404s |
 | `COPILOT_PROVIDER=ollama` | `ortha.config.ts:198` | **Otherwise the default is `fake`** — see `docs/testing/copilot-provider-fake.md` 🐞 BUG-copilot-provider-fake-01 |
 | A reachable `baseUrl` | `ortha.config.ts:236-238`, default `http://localhost:11434/v1` | The API root **including** the version segment; `/chat/completions` is appended |
 | `COPILOT_OPENAI_MODELS` | `ortha.config.ts:239`, default `llama3.1` | Comma-separated; first is the default |

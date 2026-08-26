@@ -76,7 +76,21 @@ const ALL_PERMISSIONS = [
     // Admin-only: authoring a skill writes prompt text that runs for everyone in
     // the workspace (ADR-0010). Narrow this away to assert the rail's skills
     // link is absent for a contributor.
-    'copilot:skills:manage'
+    'copilot:skills:manage',
+    // Content alarms. Missing these made the whole surface invisible to every
+    // suite — the alarms page, the rule editor, the entry rail's checks block
+    // and the records "Save as rule" action all render for nobody without
+    // them, which is how a broken condition editor reached a user. `read` goes
+    // to every role on the server; `manage` is admin-only, so narrow this away
+    // to assert a contributor gets findings without the mute and rule
+    // controls.
+    'alarms:read',
+    'alarms:manage',
+    // Saved list views. Only `share` is a permission — a private view needs
+    // none — so without it the switcher's "share with the workspace" half is
+    // invisible. Added here because `seed-drift.spec.ts` compares this list to
+    // the server catalogue key for key, which is the check that found it.
+    'views:share'
 ];
 
 /**

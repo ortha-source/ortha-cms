@@ -66,13 +66,20 @@ export class CopilotModule {
         // and its order is the preference order (`catalogue()` renders in it,
         // and the admin's picker opens on its first entry).
         const [first] = options.providers;
-        if (!first) {
+        if (!first && options.config.enabled) {
             throw new Error(
-                'CopilotModule requires at least one model provider — the first one registered ' +
+                'CopilotModule is enabled but has no model provider — the first one registered ' +
                     'is what serves a run that names none.'
             );
         }
-        const resolver: ModelResolver = options.resolve ?? (() => first.name);
+        // A disabled copilot registers no controller, so nothing can reach the
+        // resolver and there is no default to name. It still has to resolve to
+        // *something*: the module binds `MODEL_RESOLVER` either way, because the
+        // switch must not change the shape of the DI graph. Asking for a
+        // provider through it fails in `ModelRegistry.get`, naming the empty
+        // catalogue, which is the same error an unknown name gets.
+        const resolver: ModelResolver =
+            options.resolve ?? ((): string => first?.name ?? '');
 
         return {
             module: CopilotModule,
@@ -84,34 +91,52 @@ export class CopilotModule {
             // so a deployment running the copilot *without* MCP still has one,
             // and one running both has exactly one.
             imports: [DatabaseModule, ToolsModule],
-            controllers: [
-                CreateRunController,
-                // Before `GetConversationController`: `conversations/:id` and
-                // `models` can't collide (different first segments), but keep
-                // the read routes grouped after the run route.
-                ListModelsController,
-                ListConversationsController,
-                // `PATCH conversations/:id`. No ordering hazard with the `GET`
-                // wildcard below — Express matches method and path together —
-                // but it reads with the other conversation routes.
-                UpdateConversationController,
-                // Before `GetConversationController`, whose `conversations/:id`
-                // is the only wildcard here — Express matches in declaration
-                // order, so the literal-prefixed routes go first.
-                ProposalsController,
-                // Before `GetConversationController` for the same reason as
-                // the others: its `conversations/:id` is the only wildcard, and
-                // Express matches in declaration order.
-                ToolPermissionController,
-                // Both skill controllers before the conversation wildcard, for
-                // the same declaration-order reason as the rest. `skills` and
-                // `skills/:id` live in different controllers and cannot
-                // collide (different segment counts); `skills/manage` is
-                // declared above `skills/:id` inside the manage controller.
-                ListSkillsController,
-                ManageSkillsController,
-                GetConversationController
-            ],
+            // **The kill switch, applied where MCP applies its own**
+            // (`mcp.module.ts`): a disabled deployment registers no copilot
+            // controller at all, so every `/api/copilot/*` route 404s.
+            //
+            // It used to be read in one place only — `RunEngine.run` — which
+            // made "off" mean *the send button returns an error frame*. The
+            // panel, the Agents view, the model catalogue, the conversation and
+            // skill routes and the tables all stayed live, so a deployment that
+            // had opted out still offered the whole feature and refused at the
+            // last step. Off is now off.
+            //
+            // The providers, the registry and the skill catalogue below stay
+            // bound either way. They cost nothing unbuilt, and the shared
+            // `ToolRegistry` must not change shape with this switch — the MCP
+            // endpoint serves the same catalogue, and a tool contributed by
+            // `content` is registered against `ToolsModule`, not this one.
+            controllers: options.config.enabled
+                ? [
+                      CreateRunController,
+                      // Before `GetConversationController`: `conversations/:id` and
+                      // `models` can't collide (different first segments), but keep
+                      // the read routes grouped after the run route.
+                      ListModelsController,
+                      ListConversationsController,
+                      // `PATCH conversations/:id`. No ordering hazard with the `GET`
+                      // wildcard below — Express matches method and path together —
+                      // but it reads with the other conversation routes.
+                      UpdateConversationController,
+                      // Before `GetConversationController`, whose `conversations/:id`
+                      // is the only wildcard here — Express matches in declaration
+                      // order, so the literal-prefixed routes go first.
+                      ProposalsController,
+                      // Before `GetConversationController` for the same reason as
+                      // the others: its `conversations/:id` is the only wildcard, and
+                      // Express matches in declaration order.
+                      ToolPermissionController,
+                      // Both skill controllers before the conversation wildcard, for
+                      // the same declaration-order reason as the rest. `skills` and
+                      // `skills/:id` live in different controllers and cannot
+                      // collide (different segment counts); `skills/manage` is
+                      // declared above `skills/:id` inside the manage controller.
+                      ListSkillsController,
+                      ManageSkillsController,
+                      GetConversationController
+                  ]
+                : [],
             providers: [
                 { provide: COPILOT_CONFIG, useValue: options.config },
                 {

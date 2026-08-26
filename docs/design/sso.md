@@ -33,10 +33,13 @@ So phase 0 is:
    depend on the port without dragging in Nest, Drizzle and identity's 108
    import sites.
 3. **`@orthacms/identity-provider-fake`** — scripted, deterministic, no network.
-   Shipped, not test scaffolding, on the same terms as
-   `copilot-provider-fake` ([ADR-0004](../adr/0004-model-agnostic-copilot-provider.md) §3):
-   it is how `server-e2e` drives the whole redirect dance in CI and how a
-   contributor exercises the login page offline.
+   It is how `server-e2e` drives the whole redirect dance in CI and how a
+   contributor exercises the login page offline. Unlike the copilot's scripted
+   adapter it is not registered by any host, and never was: a scripted identity
+   provider in a running deployment signs people in without anyone
+   authenticating. (`copilot-provider-fake` was once shipped on those terms and
+   is now a private test fixture too — see
+   [ADR-0004](../adr/0004-model-agnostic-copilot-provider.md) §3.)
 4. **Two tables + a migration** in `identity/server` — `sso_identities` and
    `sso_auth_requests`.
 5. **Three routes** — list, start, callback — issuing the *existing* session

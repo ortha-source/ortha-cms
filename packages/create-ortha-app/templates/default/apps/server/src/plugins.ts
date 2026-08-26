@@ -1,6 +1,6 @@
 import type { ServerPlugin } from '@orthacms/bootstrap-server';
 import { ActivityPlugin } from '@orthacms/activity-server';
-import { ContentPlugin } from '@orthacms/content-server';
+import { ContentPlugin, ContentViewsPlugin } from '@orthacms/content-server';
 import { DatabasePlugin } from '@orthacms/database';
 import { I18nServerPlugin } from '@orthacms/i18n-server';
 import { IdentityPlugin } from '@orthacms/identity-server';
@@ -25,6 +25,7 @@ import { createGcsStorageProvider } from '@orthacms/media-provider-gcs';
 import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel-blob';
 // ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
+import { AlarmsPlugin } from '@orthacms/alarms-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 // ortha:end
@@ -35,7 +36,6 @@ import {
     CopilotPlugin,
     type ProviderRegistration
 } from '@orthacms/copilot-server';
-import { createFakeProvider } from '@orthacms/copilot-provider-fake';
 // ortha:if copilot-anthropic
 import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
 // ortha:end
@@ -54,9 +54,10 @@ import type { OrthaConfig } from '../ortha.config';
  * one at the top of the list would be the house default and would fail on the
  * first message.
  *
- * `fake` is last and unconditional. It is a shipped adapter, not test
- * scaffolding — it needs no key and no network, so it is what makes the chat
- * work offline, and being last it is the default only when it is the only one.
+ * **An app that configured no backend registers none**, and has no copilot.
+ * There is no scripted offline adapter to fall back on, so `COPILOT_ENABLED`
+ * must stay `false` until a backend is configured — enabling it with an empty
+ * list fails at boot rather than shipping a chat that cannot answer.
  */
 // ortha:if sso-oidc
 /**
@@ -105,7 +106,6 @@ export function copilotProviders(config: OrthaConfig): ProviderRegistration[] {
         });
     }
     // ortha:end
-    providers.push({ name: 'fake', provider: createFakeProvider() });
 
     return providers;
 }
@@ -169,6 +169,12 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // Until then the plugin serves its generic routes with an empty
         // registry, and owns no tables of its own.
         content,
+        // Saved list views — the named filter/sort/column slices an editor
+        // returns to. A second plugin entry from the content package because
+        // `ServerPlugin.migrations` holds one descriptor per entry; this one
+        // ships the feature's own tables. Must follow identity and workspaces:
+        // its foreign keys point at their tables and migrations run in order.
+        ContentViewsPlugin({ content }),
         // ortha:if graphql
         // The same public content API over GraphQL, on /api/v1/graphql. It owns
         // no schema and adds no credential — it reuses content's bearer guards
@@ -187,6 +193,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // provider, writing every upload to local disk. A deployment runs
         // exactly one; swapping backend is swapping this expression (and the
         // type of `media.storage` with it).
+        // Content alarms — rules that flag content problems without ever
+        // blocking a save or a publish. After content, whose registry and
+        // filter surface it evaluates rules through.
+        AlarmsPlugin(),
         MediaServerPlugin({
             // ortha:if media-local
             provider: createLocalStorageProvider(config.plugins.media.storage),

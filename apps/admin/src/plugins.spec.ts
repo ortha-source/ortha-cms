@@ -37,6 +37,7 @@ const EXPECTED_PLUGINS = [
     'wysiwyg',
     'media',
     'transfer',
+    'alarms',
     'copilot',
     'users',
     'activity',

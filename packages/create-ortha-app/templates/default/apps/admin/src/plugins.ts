@@ -11,6 +11,7 @@ import { UsersPlugin } from '@orthacms/users-admin';
 import { WorkspacesPlugin } from '@orthacms/workspaces-admin';
 import { WysiwygPlugin } from '@orthacms/wysiwyg-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
+import { AlarmsPlugin } from '@orthacms/alarms-admin';
 
 /**
  * The admin's composition, mirroring `src/server/plugins.ts` on the UI side.
@@ -46,6 +47,9 @@ export function buildPlugins(): AdminPlugin[] {
         I18nPlugin(),
         WysiwygPlugin(),
         MediaPlugin(),
+        // Another Content Library slot filler — the entry rail's checks block,
+        // an optional records column, and "Save as rule" in the toolbar.
+        AlarmsPlugin(),
         // The docked chat panel plus the full-page Agents view. Belongs with
         // the workspace-interior features: the panel mounts into the workspace
         // shell's sidebar footer.

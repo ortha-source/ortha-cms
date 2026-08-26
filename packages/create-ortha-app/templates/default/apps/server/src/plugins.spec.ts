@@ -33,6 +33,7 @@ const EXPECTED_PLUGINS = [
     'content-graphql',
     // ortha:end
     'i18n',
+    'alarms',
     'media',
     'copilot'
     // ortha:if mcp
