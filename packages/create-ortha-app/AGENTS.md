@@ -78,7 +78,7 @@ The wizard asks three questions; everything else is installed unconditionally.
 | Question | Kind | Default |
 | --- | --- | --- |
 | Where should uploads be stored? | single | Local filesystem |
-| AI copilot — which model backends? | multiple | none beyond the offline `fake` |
+| AI copilot — which model backends? | multiple | none |
 | Which protocols should the content API speak? | multiple | REST (locked) |
 
 Both multi-selects default to **nothing extra**, deliberately: a hosted copilot
@@ -96,19 +96,26 @@ listed in the registry and marked `available: false` because the package has
 never been released, and a question with a single possible answer is noise
 pretending to be a choice. It appears the moment S3 ships.
 
-**The copilot itself is core, not a choice.** `copilot-server`, `copilot-admin`
-and `copilot-provider-fake` are in `CORE_PACKAGES`, and `CopilotPlugin` is
-registered on both sides of every generated app. Two reasons: its server half
-arrives regardless — five core plugins (`content`, `activity`, `i18n`, `media`,
-`users`) depend on `copilot-server` to contribute their tools, so the code is on
-disk whatever the manifest says — and `fake` needs no key and no network, so a
-default app has a chat that genuinely works offline. `COPILOT_ENABLED` still
-defaults to `false`, so nothing reaches a model until an operator says so.
+**The copilot itself is core, not a choice.** `copilot-server` and
+`copilot-admin` are in `CORE_PACKAGES`, and `CopilotPlugin` is registered on
+both sides of every generated app, because its server half arrives regardless —
+five core plugins (`content`, `activity`, `i18n`, `media`, `users`) depend on
+`copilot-server` to contribute their tools, so the code is on disk whatever the
+manifest says, and leaving it undeclared bought only a missing chat panel.
+`COPILOT_ENABLED` defaults to `false`, and since that flag unregisters the
+copilot's routes, a generated app ships with the surfaces **absent** rather than
+present-and-refusing.
 
-What the question actually picks is which **hosted backends** to add.
-`copilot-provider-fake` is never offered: it is a shipped adapter rather than
-test scaffolding (ADR-0004 §3), and it is registered last so it is the default
-only when it is the only one.
+What the question picks is which **backends** to add, and picking none is a
+complete answer: an app with no backend has the plugin installed and nothing
+registered, so `COPILOT_ENABLED` has to stay `false` until one is configured —
+enabling it with an empty provider list refuses to boot.
+`copilot-provider-fake` is never offered because it is not a published package
+at all. It was once shipped as an offline stand-in (ADR-0004 §3) and registered
+last in every generated app, which made it the whole catalogue of any deployment
+that configured nothing — so a keyless install answered every question with a
+canned sentence instead of failing. It is now a private test fixture of the CMS
+repo.
 
 Every question has a flag (`--media`, `--copilot`, `--protocols`, each taking a
 comma-separated list or `none`), and `--yes` plus any non-TTY takes the defaults

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { isComposingText } from '@orthacms/utils-admin';
+import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useCopilotSessions } from '../../application/useCopilotSessions';
 import { useRouteContext } from '../../application/useRouteContext';
 import { badgeCount } from '../../application/tabBadge';
@@ -53,7 +54,13 @@ export function CopilotLauncher() {
     const canUse = useHasPermission(COPILOT_USE);
     const routeContext = useRouteContext();
     const { workspaceId } = routeContext;
-    const available = canUse && !!workspaceId;
+    // The deployment's own switch, asked of the routes rather than of a
+    // capability endpoint: an operator who turned the copilot off unregisters
+    // every controller, so there is nothing here to open. Probed only for a
+    // user who could use it anyway, so the check costs a request per session
+    // and only for the people it can be true for.
+    const deploymentRunsCopilot = useCopilotAvailable({ enabled: canUse });
+    const available = canUse && deploymentRunsCopilot && !!workspaceId;
 
     // On the Agents view the whole dock stands down — the bar *and* the windows.
     // The page is already the chat surface, so a floating window over it is a

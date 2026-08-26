@@ -147,7 +147,13 @@ export function LocaleSwitcher({
         );
     }
 
-    if (locales.length === 0) return null;
+    // Fewer than **two** locales, not zero: a workspace with a single
+    // configured locale rendered a switcher whose menu could only offer the
+    // locale already selected — a control with nothing to change. The records
+    // toolbar carries it on every collection of every localized type, so this
+    // is the one button on the row that a single-locale install simply does
+    // not need.
+    if (locales.length < 2) return null;
 
     // Deliberately **not** `?? defaultLocale`: an unconfigured `?locale=` still
     // goes to the server (which 400s it), so claiming the default here would

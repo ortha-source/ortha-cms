@@ -30,7 +30,7 @@ const config: CopilotPluginConfig = { enabled: true, maxOutputTokens: 1_024 };
 const registrations: ProviderRegistration[] = [
     { name: 'claude', provider: provider(['big', 'small']) },
     { name: 'ollama', provider: provider(['llama3.1']) },
-    { name: 'fake', provider: provider(['fake-1']) }
+    { name: 'local', provider: provider(['llama3.1-70b']) }
 ];
 
 /** The bound resolver, as DI would hand it to the engine. */
@@ -64,7 +64,7 @@ describe('CopilotModule provider defaulting', () => {
 
     it('follows the list when the host reorders it', () => {
         expect(resolverOf([...registrations].reverse())(ctx, registry)).toBe(
-            'fake'
+            'local'
         );
     });
 
@@ -84,9 +84,75 @@ describe('CopilotModule provider defaulting', () => {
         expect(bound?.useValue(ctx, registry)).toBe('ollama');
     });
 
-    it('refuses to build with no providers at all', () => {
+    /**
+     * An enabled copilot with nothing to call is a misconfiguration, and this
+     * is the last place to catch it before the first chat message. It is only a
+     * misconfiguration when the copilot is **on**: there is no scripted offline
+     * adapter registered any more, so a deployment that configured no backend
+     * reaches this constructor with an empty list, and that is the ordinary
+     * state of a fresh checkout.
+     */
+    it('refuses to build with no providers once the copilot is on', () => {
         expect(() => CopilotModule.forRoot({ providers: [], config })).toThrow(
-            /at least one model provider/
+            /enabled but has no model provider/
         );
+    });
+
+    it('builds with no providers while the copilot is off', () => {
+        expect(() =>
+            CopilotModule.forRoot({
+                providers: [],
+                config: { ...config, enabled: false }
+            })
+        ).not.toThrow();
+    });
+});
+
+/**
+ * The operator's kill switch, applied where MCP applies its own: a disabled
+ * deployment registers no controller, so every `/api/copilot/*` route 404s.
+ *
+ * It used to be read in one place only — `RunEngine.run` — which made "off"
+ * mean *the send button returns an error frame*, with the model catalogue, the
+ * conversation and skill routes and both admin surfaces still live behind it.
+ */
+describe('CopilotModule kill switch', () => {
+    it('registers the routes when the copilot is on', () => {
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: true }
+        });
+
+        expect(module.controllers?.length).toBeGreaterThan(0);
+    });
+
+    it('registers no controller at all when it is off', () => {
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: false }
+        });
+
+        expect(module.controllers).toEqual([]);
+    });
+
+    it('still binds the model registry and resolver when it is off', () => {
+        // The switch takes away the *routes*, not the wiring. A disabled
+        // deployment must still construct: the module is global, the shared
+        // `ToolsModule` is imported rather than provided, and the MCP endpoint
+        // serves the same tool catalogue either way.
+        const module = CopilotModule.forRoot({
+            providers: registrations,
+            config: { ...config, enabled: false }
+        });
+
+        expect(module.imports).toBeDefined();
+        expect(
+            (module.providers ?? []).some(
+                (entry) =>
+                    typeof entry === 'object' &&
+                    'provide' in entry &&
+                    entry.provide === MODEL_RESOLVER
+            )
+        ).toBe(true);
     });
 });

@@ -3,12 +3,14 @@
 A **scripted identity provider**: no network, no tenant, no clock skew, the same
 answer every run.
 
-**Shipped, not test scaffolding.** It stands on the same footing as
-`@orthacms/copilot-provider-fake` (ADR-0004 §3, and ADR-0013 by the same
-argument): it is how `apps/server-e2e` drives the *entire* SSO redirect
-handshake in CI, and how a contributor exercises the sign-in page with no
-identity provider to hand. A deployment that registers it gets a working SSO
-button that signs in whoever the composition root scripted.
+**Shipped, not test scaffolding** (ADR-0013): it is how `apps/server-e2e` drives
+the *entire* SSO redirect handshake in CI, and how a contributor exercises the
+sign-in page with no identity provider to hand. A deployment that registers it
+gets a working SSO button that signs in whoever the composition root scripted —
+which is why no host registers it, and why shipping it is harmless in a way the
+copilot's scripted adapter was not. That one was registered unconditionally and
+last, making it the whole catalogue of a deployment with no key; it is a private
+test fixture now (ADR-0004 §3).
 
 ## It really verifies
 

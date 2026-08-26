@@ -171,8 +171,7 @@ signed header verbatim, use within 60s, one file at a time) →
   fixed", not "someone wrote a fix".
 - **Fix-then-PR, when a finding needs code.** Some tickets you'll also fix (the
   a11y findings on ORT-57). Branch, follow the target package's `AGENTS.md`
-  conventions, **add the e2e/unit test that would have caught it**, regenerate
-  `apps/admin-e2e/TESTS.md` if you added a spec (`nx catalog admin-e2e`),
+  conventions, **add the e2e/unit test that would have caught it**,
   typecheck + lint + run the affected suite, open a PR with the repo template
   (`/open-pr`), then re-verify after merge. Keep QA (this skill) and the fix as
   separate acts — tick on verification, not on authorship.

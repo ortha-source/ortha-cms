@@ -119,7 +119,7 @@ React or a model.
 | `copilot/admin`              | Chat panel, streaming transport, proposal diff UI, model/connector settings, slot contributions.                                                                |
 | `copilot/provider-anthropic` | Adapter over `@anthropic-ai/sdk`.                                                                                                                               |
 | `copilot/provider-openai`    | Configurable base URL — Ollama, vLLM, LiteLLM, OpenAI, Azure, OpenRouter.                                                                                       |
-| `copilot/provider-fake`      | Scripted provider for e2e and offline dev.                                                                                                                      |
+| `copilot/provider-fake`      | Scripted provider for e2e. A private test fixture — never published, never registered by a host.                                                                |
 
 **Tool bindings live with their owners.** Content tools ship in
 `content/server`, media tools in `media/server`, and so on — each a small

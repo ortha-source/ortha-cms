@@ -116,7 +116,16 @@ export class UnknownModelChoiceError extends Error {
     }
 }
 
-/** Thrown when a run cannot start at all — the controller maps it to a 4xx. */
+/**
+ * Thrown when a run cannot start at all — the controller turns it into an
+ * error frame.
+ *
+ * **Rarely reachable over HTTP**: the copilot's kill switch now unregisters
+ * every controller (`copilot.module.ts`), so a disabled deployment 404s the run
+ * route rather than opening a stream to say no. Kept because the engine is
+ * drainable without a socket, and a caller that gets one anyway deserves a
+ * named reason rather than a 500.
+ */
 export class CopilotDisabledError extends Error {
     constructor() {
         super('The copilot is disabled.');
@@ -172,9 +181,12 @@ export class RunEngine {
     /** Runs one turn, yielding events as they happen. */
     async *run(input: StartRunInput): AsyncGenerator<CopilotRunEvent> {
         if (!this.config.enabled) {
-            // The operator's kill switch (ADR-0005 §10). Checked here rather
-            // than in a guard so the reason reaches the user as a normal
-            // answer instead of an opaque 403.
+            // The operator's kill switch (ADR-0005 §10), belt-and-braces —
+            // `CopilotModule.forRoot` registers no controller when it is off,
+            // so a disabled deployment 404s before it reaches this line. This
+            // is the guard against a future wiring change, and against a
+            // caller that drains the generator without going through HTTP
+            // (a tool, a job, a test).
             throw new CopilotDisabledError();
         }
 

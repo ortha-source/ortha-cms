@@ -46,6 +46,19 @@ const COMPARABLE_OPERATORS: readonly FilterOperator[] = [
     FilterOperator.Null
 ];
 
+/**
+ * {@link COMPARABLE_OPERATORS} plus the relative window.
+ *
+ * `within_last` is date-only because it compares against `now()` — asking for
+ * "titles within the last 7 days" is not a narrower query, it is a category
+ * error, and Postgres would report it as a type mismatch rather than as
+ * something the client can fix.
+ */
+const DATE_OPERATORS: readonly FilterOperator[] = [
+    ...COMPARABLE_OPERATORS,
+    FilterOperator.WithinLast
+];
+
 /** {@link COMPARABLE_OPERATORS} plus the text-only `~~` family. */
 const TEXT_OPERATORS: readonly FilterOperator[] = [
     ...COMPARABLE_OPERATORS,
@@ -70,7 +83,7 @@ export const OPERATORS_BY_TYPE: Record<
     [ScalarFieldType.Number]: COMPARABLE_OPERATORS,
     [ScalarFieldType.Boolean]: COMPARABLE_OPERATORS,
     [ScalarFieldType.Uuid]: COMPARABLE_OPERATORS,
-    [ScalarFieldType.Date]: COMPARABLE_OPERATORS
+    [ScalarFieldType.Date]: DATE_OPERATORS
 };
 
 /**

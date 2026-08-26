@@ -1,6 +1,6 @@
-import { DEV_MODE_REPLY, type FakeTurn } from './config';
+import { UNSCRIPTED_REPLY, type FakeTurn } from './config';
 
-/** Hands out the next scripted turn, or the dev-mode reply. */
+/** Hands out the next scripted turn, or the unscripted reply. */
 export interface ScriptReader {
     /** The turn for the next model call. Throws once a script runs out. */
     next(): FakeTurn;
@@ -11,11 +11,11 @@ export interface ScriptReader {
 /**
  * Creates the reader behind the provider's two modes.
  *
- * - **No script (dev mode):** the same canned reply, forever. A contributor
- *   running the admin offline never hits an end.
- * - **Script supplied (test mode):** turns are consumed in order, and running
- *   past the end **throws**. Silently inventing a turn would let a test assert
- *   the wrong number of model calls and still pass.
+ * - **No script:** the same canned reply, forever. A harness constructed before
+ *   a test scripts anything never hits an end.
+ * - **Script supplied:** turns are consumed in order, and running past the end
+ *   **throws**. Silently inventing a turn would let a test assert the wrong
+ *   number of model calls and still pass.
  */
 export function createScriptReader(script?: readonly FakeTurn[]): ScriptReader {
     let index = 0;
@@ -23,7 +23,7 @@ export function createScriptReader(script?: readonly FakeTurn[]): ScriptReader {
     return {
         next(): FakeTurn {
             if (!script) {
-                return { text: DEV_MODE_REPLY };
+                return { text: UNSCRIPTED_REPLY };
             }
             const turn = script[index];
             if (!turn) {
