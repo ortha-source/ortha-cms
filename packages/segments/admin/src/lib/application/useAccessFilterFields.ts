@@ -20,8 +20,23 @@ const messages = defineMessages({
     restricted: {
         id: 'segments.filter.restricted',
         defaultMessage: 'Access restricted'
+    },
+    group: {
+        id: 'segments.filter.group',
+        defaultMessage: 'Segmentation'
     }
 });
+
+/**
+ * The picker heading these three sit under.
+ *
+ * A `group` on a **flat** field names a plain category rather than a relation
+ * (`buildFieldTree` reads the `id` to tell the two apart). Without it they
+ * scatter through the collection's own columns, where a reader has to already
+ * know the feature exists to recognise "Can be seen by" and "Access restricted"
+ * as one thing rather than two odd fields somebody added to the type.
+ */
+const GROUP = [messages.group] as const;
 
 /**
  * The wire names, matching `ACCESS_FILTER_FIELD` in `@orthacms/segments-server`.
@@ -89,6 +104,7 @@ export function useAccessFilterFields(): FilterField[] {
         {
             id: FIELD.Allowed,
             label: messages.allowed,
+            group: GROUP,
             type: FIELD_TYPE.Enum,
             // `is one of` is **any of**, matching the server's array overlap.
             // "Both" is an `and` of two `equals` rules, which the builder
@@ -100,6 +116,7 @@ export function useAccessFilterFields(): FilterField[] {
         {
             id: FIELD.Denied,
             label: messages.denied,
+            group: GROUP,
             type: FIELD_TYPE.Enum,
             operators: [OP.Equals, OP.IsOneOf],
             enumValues
@@ -107,6 +124,7 @@ export function useAccessFilterFields(): FilterField[] {
         {
             id: FIELD.Restricted,
             label: messages.restricted,
+            group: GROUP,
             // "Does this entry name any audience at all" — the question an
             // editor asks before publishing a batch, and the one that stays
             // answerable however many audiences exist.

@@ -54,6 +54,16 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   optional `group` (a `MessageDescriptor[]` breadcrumb) buckets it in the
   picker, and `relationTarget` marks a relation's `id` field so the value
   editor becomes a record picker.
+    - **`group` means two things, and the `id` is what tells them apart.** On a
+      dotted id it labels the relations the path walks. On a **flat** id it
+      names a plain **category** — a heading in the picker with no traversal
+      behind it, for fields that belong together but share no path: the virtual
+      fields a plugin contributes (`@orthacms/segments-admin`'s Segmentation
+      group). That is one field answering one question — "under what heading
+      does this belong" — rather than a second `category` prop meaning the same
+      thing, which the search breadcrumb would then have to read both of.
+    - A flat field with no `group` stays a root scalar, which is every field the
+      server derives from the type itself.
 - `RelationValueEditor`, `RelationValueEditorProps` — the record-picker
   editor a consumer injects via `QueryBuilder`/`QueryBuilderDrawer`'s
   `renderRelationValue` (this package holds no data layer). It must be
@@ -76,14 +86,14 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 Each leaf serialises to `{ field, op, value }`; groups to `{ and: [...] }` /
 `{ or: [...] }`. UI ops map to BE operators:
 
-| UI op                   | Wire op                                                   |
-| ----------------------- | --------------------------------------------------------- |
-| `equals` / `not_equals` | `eq` / `ne`                                               |
-| `contains`              | `ilike`, value wrapped in `%v%`                           |
-| `is_one_of`             | `in` (value stays an array)                               |
-| `is_empty`              | `null`, value `true`                                      |
-| `between`               | small `and` group of `gte` + `lte`                        |
-| `gt`/`gte`/`lt`/`lte`   | matching wire op                                          |
+| UI op                   | Wire op                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `equals` / `not_equals` | `eq` / `ne`                                                                                                 |
+| `contains`              | `ilike`, value wrapped in `%v%`                                                                             |
+| `is_one_of`             | `in` (value stays an array)                                                                                 |
+| `is_empty`              | `null`, value `true`                                                                                        |
+| `between`               | small `and` group of `gte` + `lte`                                                                          |
+| `gt`/`gte`/`lt`/`lte`   | matching wire op                                                                                            |
 | `within_last`           | `gte` with resolved ISO cutoff, **or** `within_last` with `{n,unit}` when the caller passes `relativeDates` |
 
 Incomplete rules and empty groups are pruned at serialise time, so the
@@ -95,7 +105,10 @@ leaf as a solid chip ("Author · Email") — or a muted "Field" placeholder;
 clicking or Enter opens the picker. The popover is a padded `Popover` + a
 plain `Input` over one `overflow-y-auto` list (the records column-picker
 pattern, **not** cmdk, so the wheel scrolls and the border stays clean). Idle,
-it groups **Fields** (the collection's own scalars, first) then **Relations**
+it groups **Fields** (the collection's own scalars, first), then any **named
+categories** (a plugin's flat virtual fields — the collection's own, so above
+Relations; not what a reader scanning for a column of their type is after, so
+below Fields), then **Relations**
 (collapsed; expanding one reveals its fields under a "<Relation> fields"
 sub-header plus its own nested relations, recursively). Typing flattens every
 reachable field into one searchable list (token-AND over breadcrumb + leaf +
@@ -110,7 +123,7 @@ name), so the existing e2e selectors keep working. Selecting a relation's own
 (our model has no field-less rule), so there is no destructive clear — the
 cell re-opens the picker to change the field.
 
-**The picker's listbox is a real listbox.** Every *navigable* row is an
+**The picker's listbox is a real listbox.** Every _navigable_ row is an
 `option` — including a relation row, which carries `aria-expanded` instead of
 a value (a listbox admits no other interactive child). Group headings are
 `role="presentation"`, so they don't sit in the tree as invalid children.
@@ -152,3 +165,8 @@ the injected `renderRelationValue` seam.)
 ## Commands
 
 - `npx nx typecheck @orthacms/query-builder-admin`
+- `npx nx test @orthacms/query-builder-admin` — the unit specs. Component
+  behaviour belongs in `admin-e2e`, which drives a real browser; what lives here
+  is what a browser cannot reach cheaply, currently `utils/fieldTree` — the pure
+  tree the picker is built from, whose whole job is deciding which of three
+  buckets a field belongs in.
