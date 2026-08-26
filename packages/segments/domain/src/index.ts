@@ -17,6 +17,24 @@ export type { Segment } from './lib/segment';
 export { ACCESS_MODE, OPEN_ACCESS, canRead, isOpen } from './lib/entry-access';
 export type { AccessMode, EntryAccess } from './lib/entry-access';
 
+// The field rules, read by both the admin's dialog and the server's DTO — two
+// copies of a validation rule is two copies to drift.
+export {
+    isValidSegment,
+    validateSegment,
+    SEGMENT_ISSUE,
+    SEGMENT_KEY_MAX,
+    SEGMENT_KEY_PATTERN,
+    SEGMENT_LABEL_MAX,
+    SEGMENT_TAG_MAX,
+    SEGMENT_TAGS_MAX
+} from './lib/validation';
+export type {
+    SegmentDraft,
+    SegmentIssue,
+    SegmentIssues
+} from './lib/validation';
+
 export {
     anonymousSegmentResolver,
     staticSegmentResolver

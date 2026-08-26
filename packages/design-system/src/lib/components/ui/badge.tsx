@@ -4,7 +4,12 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../utils';
 
 const badgeVariants = cva(
-    'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    // `gap-1` is in the base, not left to each caller. A badge is an
+    // icon-and-label chip as often as it is bare text, and every consumer that
+    // put a glyph in one had to remember to re-add the spacing — the ones that
+    // forgot rendered the icon touching the first letter. A gap costs nothing
+    // on a text-only badge, which has a single child.
+    'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     {
         variants: {
             variant: {

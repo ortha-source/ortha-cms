@@ -58,6 +58,24 @@ to rewrite the article and not to publish it to a new audience.
 inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
+**Field rules come from the kernel, not from a pattern spelled out here.**
+`validateSegment` is the same function the server's DTO reads its constants
+from, so the dialog cannot accept something the API then refuses. Errors appear
+**on blur or on submit**, never from the first keystroke — a key is malformed
+for the whole time somebody is typing it, and complaining from the second
+character is noise about a state they are on their way out of.
+
+**The Create button is never disabled on invalid input.** A dead button explains
+nothing, and pressing it is how somebody with nothing focused finds out which
+field is wrong: the submit handler refuses and marks every field due for its
+message.
+
+**A 409 lands on the key field, and the refused key is what is stored.** The
+local collision check reads the list the page is showing, which a search
+narrows — that can only miss a collision, never invent one, so the server's
+refusal is what covers the rest. Holding the **key** rather than a flag is what
+makes the message clear itself the moment a different one is typed.
+
 **The workspace is in the entry cache key.** It reaches the server only as
 `apiClient`'s ambient `X-Workspace-Id` header, which is never sent on a cache
 hit — so without it one workspace would read another's answer.

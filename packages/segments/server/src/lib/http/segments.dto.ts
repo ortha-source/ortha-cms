@@ -10,12 +10,14 @@ import {
     MinLength
 } from 'class-validator';
 
-/** Url-safe, lowercase. */
-const KEY_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
-const KEY_MAX = 120;
-const LABEL_MAX = 200;
-const TAG_MAX = 200;
-const TAGS_MAX = 20;
+import {
+    SEGMENT_KEY_MAX as KEY_MAX,
+    SEGMENT_KEY_PATTERN as KEY_PATTERN,
+    SEGMENT_LABEL_MAX as LABEL_MAX,
+    SEGMENT_TAG_MAX as TAG_MAX,
+    SEGMENT_TAGS_MAX as TAGS_MAX
+} from '@orthacms/segments-domain';
+
 /** Segments one entry may name on either side. */
 const IDS_MAX = 200;
 

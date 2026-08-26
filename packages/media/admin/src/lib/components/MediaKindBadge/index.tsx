@@ -29,7 +29,7 @@ const KIND_LABEL = {
 export function MediaKindBadge({ kind }: { kind: MediaKind }) {
     const intl = useIntl();
     return (
-        <Badge variant="secondary" className="gap-1 font-medium">
+        <Badge variant="secondary" className="font-medium">
             <MediaKindIcon kind={kind} className="size-3" />
             {intl.formatMessage(KIND_LABEL[kind])}
         </Badge>

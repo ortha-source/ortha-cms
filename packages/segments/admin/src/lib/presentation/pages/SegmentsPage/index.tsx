@@ -10,7 +10,11 @@ import {
 } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useDebouncedValue, useDocumentTitle } from '@orthacms/utils-admin';
+import {
+    ApiError,
+    useDebouncedValue,
+    useDocumentTitle
+} from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -154,6 +158,11 @@ export function SegmentsPage() {
         editing: Segment | null;
     }>({ open: false, editing: null });
     const [pending, setPending] = useState<Segment | null>(null);
+    // The key the server refused with a 409 — one the search had filtered out
+    // of the list, or one somebody else took a moment ago. Held as the key
+    // rather than a flag so the dialog's message clears itself the moment a
+    // different one is typed.
+    const [keyConflict, setKeyConflict] = useState<string | null>(null);
 
     const create = useCreateSegment();
     const update = useUpdateSegment();
@@ -198,6 +207,7 @@ export function SegmentsPage() {
 
     const submit = (draft: SegmentDraft) => {
         const done = () => setDialog({ open: false, editing: null });
+        setKeyConflict(null);
         if (dialog.editing) {
             update.mutate(
                 {
@@ -217,7 +227,18 @@ export function SegmentsPage() {
                 // — sending `[]` would be an audience matching nobody.
                 ...(draft.tags.length ? { tags: draft.tags } : {})
             },
-            { onSuccess: done, onError: failed }
+            {
+                onSuccess: done,
+                onError: (error) => {
+                    // A taken key belongs on the field, not in a toast about a
+                    // form that is still open and still looks fine.
+                    if (error instanceof ApiError && error.status === 409) {
+                        setKeyConflict(draft.key);
+                        return;
+                    }
+                    failed();
+                }
+            }
         );
     };
 
@@ -452,10 +473,13 @@ export function SegmentsPage() {
 
             <SegmentDialog
                 open={dialog.open}
-                onOpenChange={(open) =>
-                    setDialog((current) => ({ ...current, open }))
-                }
+                onOpenChange={(open) => {
+                    setDialog((current) => ({ ...current, open }));
+                    if (!open) setKeyConflict(null);
+                }}
                 editing={dialog.editing}
+                existingKeys={segments.map((segment) => segment.key)}
+                keyConflict={keyConflict}
                 onSubmit={submit}
                 submitting={create.isPending || update.isPending}
             />

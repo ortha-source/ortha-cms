@@ -11,6 +11,7 @@ This is the reader-facing half of access. It is **not** RBAC and not
 | `segment.ts`               | A named set of reader tags, plus tag → id.  |
 | `entry-access.ts`          | The two lists, and `canRead`. The decision. |
 | `segment-resolver.port.ts` | Where a reader's tags come from.            |
+| `validation.ts`            | What a segment's fields may hold.           |
 
 ## The model, in full
 
@@ -44,6 +45,13 @@ identifier renamed upstream one row edited here rather than a migration.
 **The resolver fails closed.** An adapter that cannot reach its source returns
 no tags rather than throwing. An empty set still reads everything unrestricted,
 so an outage degrades to "public content only" instead of to an outage.
+
+**The field rules live here, not in the form or the DTO.** `validateSegment` and
+the four limits are read by the admin's dialog and by the server's
+`class-validator` decorators alike. Two copies of a validation rule is two
+copies to drift, and the way it surfaces is the worst one available: a form that
+accepts what the API then refuses, with the refusal arriving as a 400 written
+for a different audience.
 
 ## Commands
 
