@@ -197,6 +197,35 @@ multi-select answers the one-audience case too — a single tick is the same `in
 the server reads as an overlap. Led by `is`, naming a second audience meant first
 noticing there was a second operator.
 
+**Both pages load into a skeleton, never a spinner.** A lazy route's fallback is
+a whole page: a spinner in the middle of an empty one says only that something is
+happening, then moves every control into place when the chunk lands. The
+skeletons say what is coming and hold the layout. Four components, and the split
+is by consumer — `SegmentsListSkeleton` and `SegmentFormSkeleton` are the bodies,
+drawn **both** by the route fallback and by the page's own pending state (so
+"loading the page" and "loading its data" are one shape); `SegmentsPageSkeleton`
+and `SegmentEditorPageSkeleton` wrap them for `Suspense`.
+
+Two rules the route-level ones follow, from `ContentLibraryPageSkeleton`:
+
+- **The bar is real, not a skeleton.** It is the page's identity and its way back
+  out, and both are known before a byte of the chunk arrives. The editor's second
+  crumb _is_ a bar, because "New audience" vs "Edit audience" is in the chunk —
+  dropping it instead would leave the trail a crumb short and shift it on resolve.
+- **The `<h1>` is visually hidden and names the state.** A fallback is a page with
+  no heading at all until the real one mounts, and it is the state a slow
+  connection sits in longest. Naming the state keeps two identically-named
+  level-one headings off the screen across the swap.
+
+**Required fields carry `*` and the page says what it means.** The mark is the
+shared `RequiredMark` from `@orthacms/content-admin` — one implementation, so the
+audience form and the entry editor cannot drift — and it is `aria-hidden`, because
+the control carries `aria-required` and announcing both would say "required"
+twice. The legend above the fields is what a sighted reader who does not know the
+convention needs; it is a line in the page rather than a tooltip, which is
+unreachable by keyboard and touch alike. Name and Key are marked; reader tags are
+not — an audience with none answers to its key.
+
 ## What is not here yet
 
 - **A records column** showing which entries in a collection are restricted.

@@ -109,10 +109,42 @@ test.describe('The audience directory', () => {
         await expect.poll(() => api.deleted).toEqual(['seg-acme']);
     });
 
+    test('sketches the table while it loads, rather than spinning', async ({
+        page,
+        segmentsPage
+    }) => {
+        // A spinner says only that something is happening, in the middle of an
+        // otherwise empty page, and then moves every control into place when the
+        // rows land. A skeleton says what is coming and leaves the layout where
+        // it will be.
+        await mockSegmentsApi(page, { listDelayMs: 1500 });
+        await segmentsPage.goto();
+
+        await expect(page.getByText('Loading audiences…')).toBeVisible();
+        await expect(segmentsPage.row('Acme Corp')).toBeVisible();
+        // …and it goes when the rows arrive, rather than sitting under them.
+        await expect(page.getByText('Loading audiences…')).toHaveCount(0);
+    });
+
     test('has no axe violations', async ({ page, segmentsPage, makeAxe }) => {
         await mockSegmentsApi(page);
         await segmentsPage.goto();
         await expect(segmentsPage.row('Acme Corp')).toBeVisible();
+
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('has no axe violations while it loads', async ({
+        page,
+        segmentsPage,
+        makeAxe
+    }) => {
+        // The state a slow connection sits in longest, and the one nothing else
+        // scans: sixty placeholder bars under one `role="status"`, and no
+        // heading order broken by the header the skeleton stands in for.
+        await mockSegmentsApi(page, { listDelayMs: 4000 });
+        await segmentsPage.goto();
+        await expect(page.getByText('Loading audiences…')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
     });
@@ -168,6 +200,35 @@ test.describe('The audience editor', () => {
         await expect
             .poll(() => api.created[0]?.['workspaceIds'])
             .toHaveLength(1);
+    });
+
+    test('marks the required fields, and says what the mark means', async ({
+        page,
+        segmentsPage
+    }) => {
+        // The asterisk is `aria-hidden` — the control carries `aria-required`,
+        // which is what is announced — so a sighted reader who does not know the
+        // convention needs the legend, and it belongs in the page rather than in
+        // a tooltip nobody can reach by keyboard.
+        await mockSegmentsApi(page);
+        await segmentsPage.gotoNew();
+
+        await expect(
+            page.getByText(/Fields marked \* are required/)
+        ).toBeVisible();
+        await expect(segmentsPage.nameField).toHaveAttribute(
+            'aria-required',
+            'true'
+        );
+        await expect(segmentsPage.keyField).toHaveAttribute(
+            'aria-required',
+            'true'
+        );
+        // Reader tags are not: an audience with none answers to its key.
+        await expect(segmentsPage.tagsField).not.toHaveAttribute(
+            'aria-required',
+            'true'
+        );
     });
 
     test('refuses an empty name, without calling the API', async ({

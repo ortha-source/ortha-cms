@@ -3,6 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
+import { RequiredMark } from '@orthacms/content-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { ApiError, slugify, useDocumentTitle } from '@orthacms/utils-admin';
 import {
@@ -27,7 +28,6 @@ import {
     FieldError,
     FieldLabel,
     Input,
-    Skeleton,
     Spinner,
     Textarea,
     toast
@@ -40,6 +40,7 @@ import {
     useUpdateSegment
 } from '../../../application/hooks';
 import { SegmentWorkspacesField } from '../../components/SegmentWorkspacesField';
+import { SegmentFormSkeleton } from '../../components/SegmentFormSkeleton';
 
 const messages = defineMessages({
     directory: { id: 'segments.editor.directory', defaultMessage: 'Segments' },
@@ -55,6 +56,10 @@ const messages = defineMessages({
     editTitle: {
         id: 'segments.editor.editTitle',
         defaultMessage: 'Edit audience'
+    },
+    requiredLegend: {
+        id: 'segments.editor.requiredLegend',
+        defaultMessage: 'Fields marked * are required.'
     },
     editBody: {
         id: 'segments.editor.editBody',
@@ -398,11 +403,10 @@ export function SegmentEditorPage() {
             <>
                 {bar}
                 <Container>
-                    <div role="status" className="mt-6 flex flex-col gap-3">
-                        <Skeleton className="h-8 w-64" />
-                        <Skeleton className="h-24 w-full" />
-                        <Skeleton className="h-24 w-full" />
-                    </div>
+                    {/* The same skeleton the route's own chunk fallback draws,
+                        so loading the page and loading the audience on it are
+                        one shape rather than two. */}
+                    <SegmentFormSkeleton />
                 </Container>
             </>
         );
@@ -456,14 +460,29 @@ export function SegmentEditorPage() {
                     className="mt-6 flex max-w-2xl flex-col gap-6"
                     onSubmit={submit}
                 >
+                    {/* The convention, stated once in the page for everyone.
+                        The asterisks themselves are `aria-hidden` — the controls
+                        carry `aria-required`, which is what is announced — so a
+                        sighted reader who does not know the convention needs
+                        this line, and nothing about it should be hoverable. */}
+                    <p className="text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.requiredLegend)}
+                    </p>
+
                     <Field data-invalid={Boolean(labelError) || undefined}>
                         <FieldLabel htmlFor="segment-label">
                             {intl.formatMessage(messages.label)}
+                            <RequiredMark />
                         </FieldLabel>
                         <Input
                             id="segment-label"
                             value={label}
                             autoFocus
+                            // `aria-required`, not the HTML `required`: the form
+                            // is `noValidate` (the submit handler owns the
+                            // messages), so the native attribute would carry the
+                            // semantics of a check that never runs.
+                            aria-required
                             aria-invalid={Boolean(labelError)}
                             aria-describedby={
                                 labelError ? 'segment-label-error' : undefined
@@ -481,11 +500,17 @@ export function SegmentEditorPage() {
                     <Field data-invalid={Boolean(keyError) || undefined}>
                         <FieldLabel htmlFor="segment-key">
                             {intl.formatMessage(messages.key)}
+                            {/* Marked even while editing: it is still a value
+                                the audience cannot be without, and the field
+                                being read-only is said by the hint under it
+                                rather than by dropping the mark. */}
+                            <RequiredMark />
                         </FieldLabel>
                         <Input
                             id="segment-key"
                             value={derivedKey}
                             readOnly={editing}
+                            aria-required
                             aria-invalid={Boolean(keyError)}
                             aria-describedby={
                                 keyError

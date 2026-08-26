@@ -110,8 +110,15 @@ export interface EntryWriteExtension {
      *
      * Called **only** when the request carried a value under {@link key} — a
      * save that said nothing about audiences must not clear them.
+     *
+     * Return the ids of **other** entries this write also changed — the locale
+     * siblings segments writes an entry's audiences to, for instance. Content
+     * appends a revision for each, exactly as it does for the rows i18n's shared
+     * -field sync rewrote: a row whose stored state moved while its timeline did
+     * not is a history that hides the change and, on the next restore, undoes
+     * it. Return nothing when only the named entry changed.
      */
-    apply(input: EntryWriteExtensionInput): Promise<void>;
+    apply(input: EntryWriteExtensionInput): Promise<readonly string[] | void>;
 
     /**
      * What the revision should record, read back on the same transaction so it
@@ -174,12 +181,23 @@ export class EntryWriteExtensionRegistry {
     async applyAll(
         target: EntryWriteExtensionTarget,
         inputs: Record<string, unknown> | undefined
-    ): Promise<void> {
-        if (!inputs || !this.extensions.length) return;
+    ): Promise<string[]> {
+        if (!inputs || !this.extensions.length) return [];
+        // Every *other* entry the extensions changed, so the caller can give
+        // each one the revision its moved state deserves. Deduplicated, and the
+        // named entry is dropped: it gets its own snapshot either way.
+        const alsoChanged = new Set<string>();
         for (const extension of this.extensions) {
             if (!(extension.key in inputs)) continue;
-            await extension.apply({ ...target, value: inputs[extension.key] });
+            const touched = await extension.apply({
+                ...target,
+                value: inputs[extension.key]
+            });
+            for (const id of touched ?? []) {
+                if (id !== target.entryId) alsoChanged.add(id);
+            }
         }
+        return [...alsoChanged];
     }
 
     /**

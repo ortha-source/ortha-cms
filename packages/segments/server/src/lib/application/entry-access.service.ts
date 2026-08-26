@@ -185,8 +185,11 @@ export class EntryAccessService {
      *
      * On a type with no locales the group is the entry, and this is `set`.
      *
-     * Returns the **named** entry's view: the caller asked about that row, and
-     * every row now says the same thing anyway.
+     * Returns the **named** entry's view — the caller asked about that row, and
+     * every row now says the same thing anyway — alongside every id it wrote.
+     * The entry-write extension hands those back to content, which appends a
+     * revision for each: a sibling whose audiences moved while its timeline did
+     * not is a history that hides the change and, on the next restore, undoes it.
      */
     async setForGroup(input: {
         workspaceId: string;
@@ -195,7 +198,7 @@ export class EntryAccessService {
         allow: readonly string[];
         deny: readonly string[];
         executor?: AccessExecutor;
-    }): Promise<EntryAccessView> {
+    }): Promise<{ access: EntryAccessView; entryIds: string[] }> {
         const executor = input.executor ?? this.db;
         const ids = await localeGroupIds(
             executor,
@@ -224,7 +227,7 @@ export class EntryAccessService {
             });
             if (entryId === input.entryId) view = written;
         }
-        return view;
+        return { access: view, entryIds: ids };
     }
 
     /**

@@ -90,12 +90,20 @@ export class EntryAccessController {
                 `Unknown content type "${body.typeSlug}".`
             );
         }
-        return this.access.setForGroup({
-            workspaceId,
-            type,
-            entryId,
-            allow: body.allow,
-            deny: body.deny
-        });
+        return (
+            this.access
+                .setForGroup({
+                    workspaceId,
+                    type,
+                    entryId,
+                    allow: body.allow,
+                    deny: body.deny
+                })
+                // The ids it also wrote matter only on the entry-save path, where
+                // content turns them into revisions. This route appends none — it is
+                // not inside a save — so the caller gets the entry's lists, which is
+                // what it asked for.
+                .then((written) => written.access)
+        );
     }
 }

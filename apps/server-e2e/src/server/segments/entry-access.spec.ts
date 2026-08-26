@@ -414,6 +414,76 @@ describe('Entry access via the entry save', () => {
             });
         });
 
+        it('appends a revision on every sibling it rewrote', async () => {
+            // The same thing content does for the rows i18n's shared-field sync
+            // rewrote, and for the same reason: a sibling whose stored state
+            // moved while its timeline did not is a history that hides the
+            // change — and restoring any of its versions would silently undo it.
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            const before = await agent
+                .get(`/api/content/test_article/${de}/revisions`)
+                .expect(200);
+
+            await agent
+                .patch(`/api/content/test_article/${en.body.id}`)
+                .send({
+                    values: VALUES,
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(200);
+
+            const after = await agent
+                .get(`/api/content/test_article/${de}/revisions`)
+                .expect(200);
+            expect(after.body.items).toHaveLength(before.body.items.length + 1);
+
+            // And it records the audiences, so a restore of that version puts
+            // them back rather than reading as a version that had none.
+            const newest = after.body.items[0].number as number;
+            const version = await agent
+                .get(`/api/content/test_article/${de}/revisions/${newest}`)
+                .expect(200);
+            expect(version.body.snapshot.extra).toEqual({
+                access: { allow: [acme], deny: [] }
+            });
+        });
+
+        it('appends exactly one revision when a save moves both a shared field and access', async () => {
+            // `select` carries no `localized` flag, so it is a **shared** field:
+            // i18n syncs it to the sibling and reports the row, while the access
+            // write reports the same id. Two paths, one row — a second revision
+            // would read as a second edit.
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            const before = await agent
+                .get(`/api/content/test_article/${de}/revisions`)
+                .expect(200);
+
+            await agent
+                .patch(`/api/content/test_article/${en.body.id}`)
+                .send({
+                    values: { ...VALUES, select: 'note' },
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(200);
+
+            const after = await agent
+                .get(`/api/content/test_article/${de}/revisions`)
+                .expect(200);
+            expect(after.body.items).toHaveLength(before.body.items.length + 1);
+        });
+
         it('refuses a content type nothing serves', async () => {
             // The slug names the table the group is walked over, so an unknown
             // one is a 400 rather than a row written under a type no read path

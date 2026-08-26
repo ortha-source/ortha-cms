@@ -143,6 +143,15 @@ Three parts, and each covers a path the others do not:
   already carries those audiences, and the alternative to inheriting is
   publishing it to everyone — which is what the permission exists to prevent.
 
+**And every sibling it rewrote gets a revision.** `apply` returns the ids it
+wrote, and content appends a snapshot for each — the same thing it does for the
+rows i18n's shared-field sync rewrote. Without it a sibling's stored audiences
+moved while its timeline did not: the history hid the change, and restoring any
+of that row's versions would have silently undone it. One save can reach a
+sibling through both paths (a shared field _and_ an audience); the ids are
+deduplicated against the rows i18n reported, because two revisions for one row
+read as two edits.
+
 The workspace-scope check is relaxed across the group for the same reason it is
 relaxed for ids an entry already holds: a segment narrowed away from the
 workspace after the fact is still held by the row the editor is looking at, and

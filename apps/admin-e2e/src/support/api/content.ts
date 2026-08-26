@@ -10,6 +10,13 @@ interface ContentTypeSummary {
     path?: string;
     /** Has a draft/published `status` envelope column. */
     publishable?: boolean;
+    /**
+     * Row-per-locale, via `locale` + `localeGroupId`. What the editor reads to
+     * decide whether a decision it is about to take covers every language of the
+     * record — segments' Access tab says so on a localized type and stays quiet
+     * on one with no translations.
+     */
+    i18n?: boolean;
 }
 
 /** One field as `GET /api/content-schema/:name` returns it. */

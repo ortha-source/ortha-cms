@@ -384,6 +384,16 @@ Four decisions worth knowing:
   clear. But a _version_ that recorded state only when it changed would restore
   as a version that had none — including the locale siblings an extension
   rewrote, which get their own revisions.
+- **`apply` reports the other rows it changed, and they get revisions too.** It
+  returns entry ids; `applyAll` collects and deduplicates them, and the writer
+  feeds them to `appendRevisionsFor` alongside the rows `CONTENT_ENTRY_EXTENSION`
+  rewrote — resolving them to rows itself, since an extension wrote a table of
+  its own and has none to hand back. It is the same defect either path would
+  otherwise have: a row whose stored state moved while its timeline did not is a
+  history that hides the change, and restoring one of that row's versions undoes
+  it silently. The dedup matters because one save can reach a sibling through
+  both paths — a shared field _and_ an audience — and two revisions for one row
+  read as two edits.
 - **`inherit` is the create-only third call, and it exists because of that
   asymmetry.** On a create, `inheritAll` runs right after `applyAll` and lets an
   extension give a just-inserted row whatever the rest of its **locale group**

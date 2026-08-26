@@ -33,10 +33,14 @@ function accessService(stored: EntryAccess = { allow: [], deny: [] }) {
         ) {
             return sameAccess(this.current, wanted);
         },
-        async setForGroup(input: { allow: string[]; deny: string[] }) {
+        async setForGroup(input: {
+            entryId: string;
+            allow: string[];
+            deny: string[];
+        }) {
             this.writes += 1;
             this.current = { allow: input.allow, deny: input.deny };
-            return this.current;
+            return { access: this.current, entryIds: [input.entryId] };
         }
     };
 }

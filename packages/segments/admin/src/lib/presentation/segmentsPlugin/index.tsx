@@ -9,8 +9,9 @@ import {
     RECORDS_FILTER_FIELDS_SLOT,
     REVISION_EXTRA_SLOT
 } from '@orthacms/content-admin';
-import { Spinner } from '@orthacms/design-system';
 import { ShieldCheck } from 'lucide-react';
+import { SegmentsPageSkeleton } from '../components/SegmentsPageSkeleton';
+import { SegmentEditorPageSkeleton } from '../components/SegmentEditorPageSkeleton';
 import { SEGMENTS_READ } from '../../application/hooks';
 import {
     ACCESS_EXTENSION_KEY,
@@ -69,8 +70,12 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
         routes: [
             {
                 path: '/segments',
+                // A skeleton, not a spinner: the fallback is a whole page, and
+                // a spinner in the middle of an empty one says only that
+                // something is happening — then moves every control into place
+                // when the chunk lands. See `SegmentsPageSkeleton`.
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<SegmentsPageSkeleton />}>
                         <SegmentsPage />
                     </Suspense>
                 )
@@ -80,7 +85,7 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
             {
                 path: '/segments/new',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<SegmentEditorPageSkeleton />}>
                         <SegmentEditorPage />
                     </Suspense>
                 )
@@ -88,7 +93,7 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
             {
                 path: '/segments/:segmentId',
                 element: (
-                    <Suspense fallback={<Spinner />}>
+                    <Suspense fallback={<SegmentEditorPageSkeleton />}>
                         <SegmentEditorPage />
                     </Suspense>
                 )

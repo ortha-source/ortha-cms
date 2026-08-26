@@ -373,10 +373,30 @@ export class EntryWriterService {
         type: AnyContentType,
         rows: Record<string, unknown>[] | void,
         workspaceId: string,
-        actorId: string | null
+        actorId: string | null,
+        /**
+         * Ids of further rows an **entry-write extension** changed, which it
+         * reports rather than returns whole — it wrote a table of its own, not
+         * these ones, so it has no row to hand back. Merged with `rows` and
+         * deduplicated by id: one save can reach a sibling through both paths
+         * (a shared field *and* an audience), and appending two revisions for it
+         * would read as two edits.
+         */
+        alsoChangedIds: readonly string[] = []
     ): Promise<void> {
-        if (!rows?.length) return;
-        const ordered = [...rows].sort((a, b) =>
+        const byId = new Map<string, Record<string, unknown>>();
+        for (const row of rows ?? []) byId.set(String(row['id']), row);
+        const missing = alsoChangedIds.filter((id) => !byId.has(id));
+        for (const row of await this.rowsByIds(
+            tx,
+            type,
+            missing,
+            workspaceId
+        )) {
+            byId.set(String(row['id']), row);
+        }
+        if (!byId.size) return;
+        const ordered = [...byId.values()].sort((a, b) =>
             String(a['id']).localeCompare(String(b['id']))
         );
         for (const row of ordered) {
@@ -388,6 +408,35 @@ export class EntryWriterService {
                 actorId
             );
         }
+    }
+
+    /**
+     * The rows behind a set of ids, on this transaction.
+     *
+     * Soft-deleted rows are **included**: a locale in the trash is still a row
+     * whose state an extension just changed, and it comes back on restore
+     * expecting a timeline that says so.
+     */
+    private async rowsByIds(
+        tx: DbTransaction,
+        type: AnyContentType,
+        ids: readonly string[],
+        workspaceId: string
+    ): Promise<Record<string, unknown>[]> {
+        if (!ids.length) return [];
+        const columns = type.table as unknown as Record<
+            string,
+            PgColumn | undefined
+        >;
+        const id = columns['id'];
+        const workspace = columns['workspaceId'];
+        if (!id || !workspace) return [];
+        return (await tx
+            .select()
+            .from(type.table)
+            .where(
+                and(inArray(id, [...ids]), eq(workspace, workspaceId))
+            )) as Record<string, unknown>[];
     }
 
     /**
@@ -551,7 +600,7 @@ export class EntryWriterService {
                     // hang off, and it lands before the snapshot below reads it
                     // back. A create is the case that forced this into the write
                     // at all: until the insert there is no id to write against.
-                    await this.writeExtensions.applyAll(
+                    const alsoChanged = await this.writeExtensions.applyAll(
                         {
                             executor: tx,
                             type,
@@ -581,14 +630,16 @@ export class EntryWriterService {
                         workspaceId,
                         actorId ?? null
                     );
-                    // …and one for every sibling the extension rewrote, so a
-                    // shared value landing on them is in their history too.
+                    // …and one for every sibling either extension path rewrote,
+                    // so a shared value — or an audience — landing on them is in
+                    // their history too.
                     await this.appendRevisionsFor(
                         tx,
                         type,
                         touched,
                         workspaceId,
-                        actorId ?? null
+                        actorId ?? null,
+                        alsoChanged
                     );
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
@@ -871,7 +922,7 @@ export class EntryWriterService {
             // than the ones it replaced. This runs even when no version is
             // appended (publish-a-version): the state is the entry's, not the
             // revision's.
-            await this.writeExtensions.applyAll(
+            const alsoChanged = await this.writeExtensions.applyAll(
                 { executor: tx, type, entryId: id, workspaceId },
                 options?.extensions
             );
@@ -887,13 +938,18 @@ export class EntryWriterService {
                     actorId ?? null
                 );
             }
-            // …and one for every sibling the extension rewrote.
+            // …and one for every sibling either extension path rewrote — the
+            // rows i18n synced a shared field to, and the rows a write extension
+            // reports it also changed (segments writes an entry's audiences to
+            // its whole locale group). Both are the same defect if skipped: a
+            // row whose state moved while its timeline did not.
             await this.appendRevisionsFor(
                 tx,
                 type,
                 touched,
                 workspaceId,
-                actorId ?? null
+                actorId ?? null,
+                alsoChanged
             );
             // A save that changed no field value raises nothing: it is a round
             // trip, not an editorial change, and the log is read by people.

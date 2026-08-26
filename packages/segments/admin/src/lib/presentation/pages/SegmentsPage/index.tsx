@@ -32,7 +32,6 @@ import {
     EmptyMedia,
     EmptyTitle,
     Input,
-    Skeleton,
     Table,
     TableBody,
     TableCell,
@@ -49,6 +48,7 @@ import {
     useSegments
 } from '../../../application/hooks';
 import { SegmentsPagination } from '../../components/SegmentsPagination';
+import { SegmentsListSkeleton } from '../../components/SegmentsListSkeleton';
 
 const messages = defineMessages({
     title: { id: 'segments.page.title', defaultMessage: 'Segments' },
@@ -249,11 +249,10 @@ export function SegmentsPage() {
                 ) : null}
 
                 {isPending ? (
-                    <div role="status" className="mt-4 flex flex-col gap-2">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
+                    // The same skeleton the route's own chunk fallback draws,
+                    // so loading the page and loading its rows are one shape
+                    // rather than two.
+                    <SegmentsListSkeleton />
                 ) : isError ? (
                     <Alert variant="destructive" role="alert" className="mt-4">
                         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">

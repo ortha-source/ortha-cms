@@ -120,6 +120,11 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
      * Written to the entry's whole **locale group**. Access is not a translated
      * field, so it travels like a non-localized one: set on the English article,
      * set on the German one. See `EntryAccessService.setForGroup`.
+     *
+     * The sibling ids are **returned**, so content appends a revision for each —
+     * the same thing it does for the rows i18n's shared-field sync rewrote. A
+     * sibling whose audiences moved while its timeline did not is a history that
+     * hides the change, and restoring any of its versions would silently undo it.
      */
     async apply({
         executor,
@@ -127,7 +132,7 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
         entryId,
         workspaceId,
         value
-    }: EntryWriteExtensionInput): Promise<void> {
+    }: EntryWriteExtensionInput): Promise<readonly string[] | void> {
         const payload = parse(value);
         // A request that asks for exactly what is already stored changes
         // nothing, so it needs no authority — and skipping the write keeps a
@@ -150,7 +155,7 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
         );
         if (settled) return;
         await this.assertMayManage();
-        await this.access.setForGroup({
+        const written = await this.access.setForGroup({
             workspaceId,
             type,
             entryId,
@@ -161,6 +166,7 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
             // port exists for.
             executor: executor as unknown as Database
         });
+        return written.entryIds;
     }
 
     /**

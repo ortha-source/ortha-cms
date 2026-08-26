@@ -87,6 +87,12 @@ export async function mockSegmentsApi(
         listStatus?: number;
         /** Fail a create with this status — 409 drives the taken-key message. */
         createStatus?: number;
+        /**
+         * Hold the directory read open this long, so a spec can observe the
+         * loading state. Without it the mock answers in the same tick and the
+         * skeleton is never on screen to assert against.
+         */
+        listDelayMs?: number;
     } = {}
 ): Promise<SegmentsApiSpy> {
     const all = options.segments ?? SEGMENT_SEED;
@@ -162,6 +168,11 @@ export async function mockSegmentsApi(
             });
         }
 
+        if (options.listDelayMs) {
+            await new Promise((resolve) =>
+                setTimeout(resolve, options.listDelayMs)
+            );
+        }
         const params = new URL(request.url()).searchParams;
         spy.listedWorkspaces.push(params.get('workspace'));
         const query = (params.get('q') ?? '').toLowerCase();

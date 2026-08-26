@@ -37,9 +37,12 @@ export class SegmentsPage extends BasePage {
         this.previousPage = page.getByRole('button', { name: 'Previous page' });
         this.errorAlert = page.getByRole('alert');
 
-        this.nameField = page.getByLabel('Name', { exact: true });
-        this.keyField = page.getByLabel('Key', { exact: true });
-        this.tagsField = page.getByLabel('Reader tags');
+        // Not `exact`: a required field's label carries the `*` mark, so its
+        // accessible name is "Name *" rather than "Name". The content library's
+        // own `fieldTextbox` defaults to the same reading for the same reason.
+        this.nameField = page.getByRole('textbox', { name: 'Name' });
+        this.keyField = page.getByRole('textbox', { name: 'Key' });
+        this.tagsField = page.getByRole('textbox', { name: 'Reader tags' });
         this.submit = page.getByRole('button', {
             name: /Create audience|^Save$/
         });
