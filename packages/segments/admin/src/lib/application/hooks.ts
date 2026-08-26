@@ -5,12 +5,10 @@ import {
     useQueryClient
 } from '@tanstack/react-query';
 import { useHasPermission } from '@orthacms/identity-admin';
-import type { EntryAccess } from '../domain/types';
 import {
     httpSegmentsGateway,
     segmentsKeys,
     type CreateSegmentInput,
-    type SetEntryAccessInput,
     type UpdateSegmentInput
 } from '../infrastructure/segmentsGateway';
 
@@ -83,33 +81,35 @@ export function useDeleteSegment() {
     });
 }
 
-/** One entry's lists. Two empty ones mean everyone. */
-export function useEntryAccess(workspaceId: string, entryId?: string) {
+/**
+ * One entry's lists. Two empty ones mean everyone.
+ *
+ * `version` is the entry row's `updatedAt`. Pass it: access is written by the
+ * entry's own save now, so it changes on paths this plugin never sees — a
+ * restore most of all — and a key that ignored the row's version would answer
+ * from a cache the entry has moved on from.
+ */
+export function useEntryAccess(
+    workspaceId: string,
+    entryId?: string,
+    version?: string
+) {
     const canRead = useHasPermission(SEGMENTS_READ);
     return useQuery({
-        queryKey: segmentsKeys.entry(workspaceId, entryId ?? ''),
+        queryKey: segmentsKeys.entry(workspaceId, entryId ?? '', version),
         queryFn: () => httpSegmentsGateway.getEntryAccess(entryId as string),
         enabled: canRead && Boolean(workspaceId) && Boolean(entryId)
     });
 }
 
 /**
- * Replaces one entry's lists.
+ * There is deliberately **no write hook here.**
  *
- * The response **seeds the cache** rather than invalidating it: the server
- * returns the lists it stored, so there is nothing a refetch would learn — and
- * a refetch here would blank the control the editor is still looking at.
+ * An entry's audiences are written by the entry's own save — staged by the
+ * Access tab, sent in the save body's `extensions` bag, applied by the server
+ * inside the save's transaction and captured by the revision it appends. A
+ * mutation of its own would be a second, later write: not atomic with the
+ * record, and invisible to the version, which is exactly what this design set
+ * out to fix. The `PUT /segments/entries/:entryId` route still exists for an API
+ * client that is not saving an entry; the admin is not that client.
  */
-export function useSetEntryAccess(workspaceId: string) {
-    const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: (input: SetEntryAccessInput) =>
-            httpSegmentsGateway.setEntryAccess(input),
-        onSuccess: (access: EntryAccess, input) => {
-            queryClient.setQueryData(
-                segmentsKeys.entry(workspaceId, input.entryId),
-                access
-            );
-        }
-    });
-}

@@ -471,6 +471,14 @@ export function ContentEntryView({
             setBusy(null);
             throw error;
         }
+        // Plugin state stored alongside the entry (segments' audiences), read
+        // after `commit` so a step may stage it there. It rides the save body
+        // rather than a request of its own, which is what makes the entry, the
+        // plugin's state and the version recording both one transaction.
+        const extensions = Object.assign(
+            {},
+            ...presaves.map((step) => step.extensions?.() ?? {})
+        ) as Record<string, unknown>;
         let result: Awaited<ReturnType<typeof flow.submit>>;
         try {
             result = await flow.submit({
@@ -481,6 +489,7 @@ export function ContentEntryView({
                 relations: options.relations,
                 entry: resolved.entry,
                 bodyExtra,
+                extensions,
                 ignoreFields: options.ignoreFields
             });
             // The write landed, so every presave step can drop what it consumed

@@ -30,6 +30,11 @@ export type SubmitEntryInput = {
     /** Slot-contributed create-body params (create only). */
     bodyExtra?: Record<string, string>;
     /**
+     * Slot-contributed plugin state stored alongside the entry (segments'
+     * audiences), sent in the save's `extensions` bag on create **and** update.
+     */
+    extensions?: Record<string, unknown>;
+    /**
      * Fields excluded from the publish gate — the hidden/ungranted relations the
      * editor also skipped in its client validation, so the flow's gate judges the
      * same value set the form did. (Link-managed many/inverse relations are skipped
@@ -142,6 +147,9 @@ export function usePublishEntryFlow(
                 deferRefresh: willPublish,
                 ...(input.bodyExtra && Object.keys(input.bodyExtra).length
                     ? { extra: input.bodyExtra }
+                    : {}),
+                ...(input.extensions && Object.keys(input.extensions).length
+                    ? { extensions: input.extensions }
                     : {})
             });
             // Record the new id before chaining publish: if publish then fails, the

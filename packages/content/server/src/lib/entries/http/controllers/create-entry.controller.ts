@@ -51,7 +51,8 @@ export class CreateEntryController {
             body.relations,
             body.locale,
             body.localeGroupId,
-            toActor(user)
+            toActor(user),
+            body.extensions
         );
     }
 }

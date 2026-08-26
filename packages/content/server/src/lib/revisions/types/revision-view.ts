@@ -21,6 +21,17 @@ export interface RevisionSnapshot {
      * never travel in {@link values}.
      */
     relations: Record<string, string[]>;
+    /**
+     * What each bound **entry-write extension** held for the entry at capture
+     * time, keyed by its `key` — state a different plugin owns in a table this
+     * package knows nothing about (`segments` records who could read the entry).
+     *
+     * Opaque here: content-server stores it, hands it back on a restore, and
+     * never looks inside. Absent on an installation with no extensions, and on
+     * every version captured before one was installed — so a reader must treat
+     * a missing bag as "nothing is known", never as "the entry had none".
+     */
+    extra?: Record<string, unknown>;
 }
 
 /**

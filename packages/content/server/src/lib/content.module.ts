@@ -11,6 +11,7 @@ import { GetContentSchemaController } from './content-types/controllers/get-cont
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
 import { ContentReadScopeRegistry } from './extension/read-scope';
+import { EntryWriteExtensionRegistry } from './extension/entry-write-extension';
 import { ContentGrantGuard } from './entries/http/guards/content-grant.guard';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
@@ -163,6 +164,7 @@ export class ContentModule {
                 // installation with no scoping plugin has, and it costs a
                 // length check per read.
                 ContentReadScopeRegistry,
+                EntryWriteExtensionRegistry,
                 // Every registry-driven `content/:typeName` route is guarded by
                 // it, so it is resolved from this module's context.
                 ContentGrantGuard,
@@ -261,6 +263,7 @@ export class ContentModule {
                 // implementation of that check, not one per binder.
                 WorkspaceGrantsQuery,
                 ContentReadScopeRegistry,
+                EntryWriteExtensionRegistry,
                 PublicEntriesQuery,
                 PublicEntryWritesService,
                 ApiTokenGuard,

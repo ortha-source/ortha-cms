@@ -14,6 +14,8 @@ src/lib/
     entry-access.service.ts     one entry's two lists — the whole write path
   infrastructure/
     segment-read-scope.ts       the CONTENT_READ_SCOPE implementation
+    entry-access-write-extension.ts  the EntryWriteExtension — access, written
+                                     inside the entry's save and versioned with it
   http/
     reader.middleware.ts        resolves the reader once per request
     segments.controller.ts      /api/segments
@@ -26,6 +28,10 @@ src/lib/
 | ---------------------------- | ------------ | ----------------------------------- |
 | `/segments`                  | installation | `segments:read` / `segments:manage` |
 | `/segments/entries/:entryId` | workspace    | `segments:read` / `segments:manage` |
+
+…plus the `access` key of every entry save's `extensions` bag, which is how the
+admin actually writes (see below). It carries no permission of its own: the save
+it rides already required `content:create` / `content:update` on the record.
 
 `segments:read` is held by contributor and viewer — an editor who cannot see
 that an entry is restricted will publish one believing it is public.
@@ -62,10 +68,50 @@ says the database agrees. `COALESCE(…, true)` is the load-bearing half — wit
 it the whole library goes dark the moment the plugin is installed.
 
 **A write is one upsert, and there is nothing else to re-derive.** The row an
-editor saves is the row a reader is matched against, so a `PUT` that returns 200
+editor saves is the row a reader is matched against, so a write that returns 200
 means the change is live. That property is the entire return on the simple
-model: no projection, no rule resolution, no re-projection sweep, no write hook
-on the entry pipeline.
+model: no projection, no rule resolution, no re-projection sweep.
+
+**The admin's write goes through the entry's own save, not the `PUT`.** The
+plugin binds content's `EntryWriteExtension` port under the key `access`, so an
+entry's audiences arrive in the save body's `extensions` bag and are applied on
+the **save's own transaction**. Three things follow, and only the first is about
+tidiness:
+
+- The access row and the entry row commit together. A save cannot land with its
+  restriction missing.
+- The revision that save appends captures the access it **applied**. A separate
+  later request could only ever be captured by the _next_ version — every
+  version would record the access the entry used to have.
+- Restoring a version puts its audiences back with its words. `capture` therefore
+  runs for **every** snapshot, not only saves that touched access: a version that
+  recorded nothing would restore as a version that had none, and quietly open the
+  entry up.
+
+`ACCESS_EXTENSION_KEY` is stable forever for the same reason — every version
+already captured names it, and a restore that finds no bag leaves access alone.
+
+**The permission is checked in the extension, because no route checks it.** The
+save this write rides asked for `content:create` / `content:update`; deciding who
+may _read_ the record is `segments:manage`, a different authority, and without
+the check a contributor could restrict — or un-restrict — any entry they can edit
+by naming the key in the save body. A caller the principal store cannot identify
+is refused rather than passed. A request that asks for exactly what is already
+stored changes nothing and needs no authority, which is what keeps a **restore**
+working for anyone who may restore; a restore that genuinely _would_ change the
+audiences is refused, and that is right rather than a special case — it is a
+change to who can read the entry, whatever button started it.
+
+**`PrincipalStore` holds the request, not the user.** Middleware is the only
+thing positioned to wrap the rest of a request in `AsyncLocalStorage.run`, and it
+runs _before_ the guards that resolve `request.user`. Holding the request object
+bridges that: the guard mutates the same object in place, so by the time the
+write runs, `user` is there. Unlike `ReaderMiddleware` it never short-circuits —
+the reader resolution is skippable when no segment exists, but a permission check
+that silently stopped running would be the failure nobody notices.
+
+The `PUT /segments/entries/:entryId` route stays, for an API client that is not
+saving an entry. It simply gets neither the atomicity nor the version.
 
 **Two empty lists delete the row.** Storing them would work and would leave
 every entry anyone ever opened paying for a row on the read path.

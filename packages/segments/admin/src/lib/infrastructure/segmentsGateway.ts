@@ -170,7 +170,16 @@ export const segmentsKeys = {
     /**
      * One entry's lists. The workspace is in the key because it reaches the
      * server only as an ambient header, which is never sent on a cache hit.
+     *
+     * `version` is the entry row's own `updatedAt`, and it is what keeps this
+     * cache honest without segments having to hear about every way an entry can
+     * change. Access is written **by the entry save** now, so it also moves on
+     * paths segments has no hook into — restoring a version, above all, which
+     * puts back that version's audiences through content's own use-case. Keying
+     * on the row's version means any of them produces a new key and a fresh
+     * read, instead of a chip that quietly reports the access the entry used to
+     * have. Absent while creating, where there is no row to have a version.
      */
-    entry: (workspaceId: string, entryId: string) =>
-        ['segments', 'entry', workspaceId, entryId] as const
+    entry: (workspaceId: string, entryId: string, version?: string) =>
+        ['segments', 'entry', workspaceId, entryId, version ?? ''] as const
 };

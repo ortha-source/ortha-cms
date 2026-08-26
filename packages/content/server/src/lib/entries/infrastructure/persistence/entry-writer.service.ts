@@ -41,6 +41,7 @@ import {
     InjectMediaAssetResolver,
     type MediaAssetResolver
 } from '../../../extension/media-asset-resolver';
+import { EntryWriteExtensionRegistry } from '../../../extension/entry-write-extension';
 import { acceptsAsset, describeAccept } from './media-accept';
 import type { AnyContentType } from '../../../types/content-type';
 import { ENTRY_STATUS } from '../../../types/content-type';
@@ -126,6 +127,13 @@ export class EntryWriterService {
         // inside the same transaction, so the version and the write commit as one.
         @InjectRevisionStore()
         private readonly revisionStore: RevisionStore,
+        // Every bound entry-write extension (segments' reader entitlements
+        // today) — state another plugin owns *about* the entry, written on this
+        // save's transaction and captured by its revision. A registry rather
+        // than a token because Nest cannot merge two bindings of one token, and
+        // an extension that silently stopped being called would silently stop
+        // restricting content.
+        private readonly writeExtensions: EntryWriteExtensionRegistry,
         // The entries extension port (e.g. the i18n plugin's locale stamping
         // and sibling sync) — absent unless a plugin binds it, hence optional.
         @Optional()
@@ -323,6 +331,17 @@ export class EntryWriterService {
     ): Promise<void> {
         const id = row['id'] as string;
         const links = await this.relations.snapshotLinks(tx, type, row);
+        // Whatever the bound extensions hold for this row *now* — read on the
+        // save's own transaction, after any `apply` has run, so the version
+        // records what committed. Captured unconditionally, including for a
+        // sibling row this save only touched indirectly: a version that omitted
+        // the state it did not change would restore as a version that had none.
+        const extra = await this.writeExtensions.captureAll({
+            executor: tx,
+            type,
+            entryId: id,
+            workspaceId
+        });
         await this.revisionStore.lockEntry(tx, id);
         const number = await this.revisionStore.nextNumber(tx, id);
         const revision = Revision.createDraft({
@@ -332,7 +351,7 @@ export class EntryWriterService {
             localeGroupId: (row['localeGroupId'] as string | undefined) ?? null,
             locale: (row['locale'] as string | undefined) ?? null,
             number,
-            snapshot: buildSnapshot(type, row, links),
+            snapshot: buildSnapshot(type, row, links, extra),
             createdBy: actorId
         });
         await this.revisionStore.append(tx, revision);
@@ -388,6 +407,11 @@ export class EntryWriterService {
      * extension validates them and stamps the envelope columns (a
      * `localeGroupId` makes the row a **sibling** in that translation group). A
      * duplicate `(group, locale)` surfaces as a **409** via {@link uniqueGuarded}.
+     *
+     * `extensions` is the same kind of thing one plugin further out: an opaque
+     * bag forwarded to the bound {@link EntryWriteExtensionRegistry}, so a plugin
+     * that owns state *about* an entry (segments' audiences) writes it inside
+     * this transaction and has it captured by the same version.
      */
     async create(
         type: AnyContentType,
@@ -396,7 +420,8 @@ export class EntryWriterService {
         relations?: Record<string, RelationDelta>,
         locale?: string,
         localeGroupId?: string,
-        actor?: EventActor | null
+        actor?: EventActor | null,
+        extensions?: Record<string, unknown>
     ): Promise<EntryRecord> {
         const actorId = actor?.id ?? null;
         // `coerceValues` stamps every declared field onto the bag, so the
@@ -520,6 +545,20 @@ export class EntryWriterService {
                         coerced,
                         workspaceId,
                         { created: true }
+                    );
+                    // Anything a bound plugin was asked to store about this
+                    // entry — the row exists now, so it finally has something to
+                    // hang off, and it lands before the snapshot below reads it
+                    // back. A create is the case that forced this into the write
+                    // at all: until the insert there is no id to write against.
+                    await this.writeExtensions.applyAll(
+                        {
+                            executor: tx,
+                            type,
+                            entryId: id,
+                            workspaceId
+                        },
+                        extensions
                     );
                     // Snapshot the just-created document as its first revision,
                     // inside this same transaction.
@@ -685,6 +724,17 @@ export class EntryWriterService {
              * really did change.
              */
             appendRevision?: boolean;
+            /**
+             * Opaque per-plugin state to store alongside the entry, forwarded to
+             * the bound {@link EntryWriteExtensionRegistry} inside this write's
+             * transaction. A key the caller omits is left alone — a save that
+             * said nothing about audiences must not clear them.
+             *
+             * A **restore** passes the restored version's `snapshot.extra` here,
+             * which is what makes going back to Tuesday put Tuesday's audiences
+             * back too rather than leaving today's readers on Tuesday's words.
+             */
+            extensions?: Record<string, unknown>;
         }
     ): Promise<EntryRecord> {
         const actorId = actor?.id ?? null;
@@ -802,6 +852,16 @@ export class EntryWriterService {
                 coerced,
                 workspaceId,
                 { created: false }
+            );
+            // Whatever a bound plugin was asked to store about this entry, on
+            // this transaction and before the snapshot reads it back — so the
+            // version records the audiences the save actually applied rather
+            // than the ones it replaced. This runs even when no version is
+            // appended (publish-a-version): the state is the entry's, not the
+            // revision's.
+            await this.writeExtensions.applyAll(
+                { executor: tx, type, entryId: id, workspaceId },
+                options?.extensions
             );
             // Snapshot the updated document as a new draft revision, inside this
             // same transaction — unless the caller is re-applying a version that

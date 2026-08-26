@@ -88,6 +88,23 @@ export type {
     ContentReadScopeContext
 } from './lib/extension/read-scope';
 
+// The entry-write extension port — how a plugin stores state *about* an entry
+// inside the entry's own write transaction, and has it captured by (and restored
+// from) the entry's own version history.
+export {
+    EntryWriteExtensionRegistry,
+    entryWriteExtensionRegistrar
+} from './lib/extension/entry-write-extension';
+export type {
+    EntryWriteExtension,
+    EntryWriteExtensionInput,
+    EntryWriteExtensionTarget
+} from './lib/extension/entry-write-extension';
+// The transaction handle an extension is handed. Exported because an
+// implementation lives in another package and has to name the type of the
+// executor it must write on — the one rule of the port.
+export type { DbTransaction } from './lib/entries/infrastructure/persistence/relation-link.service';
+
 export {
     MEDIA_ASSET_RESOLVER,
     InjectMediaAssetResolver

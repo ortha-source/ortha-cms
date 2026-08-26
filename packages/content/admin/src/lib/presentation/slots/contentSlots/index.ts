@@ -443,6 +443,23 @@ export type EntryPresave = {
         publish: boolean;
     }) => Promise<Record<string, unknown>>;
     /**
+     * State this plugin wants stored **alongside** the entry, read just before
+     * the write and sent in the save body's `extensions` bag under the returned
+     * keys — each of which must be an extension the server has registered
+     * (`@orthacms/segments-server` registers `access`).
+     *
+     * This is how a plugin's own state rides the entry's Save rather than a
+     * second request of its own, and it is not merely tidier: the server writes
+     * it inside the save's transaction and the revision that save appends
+     * captures it, so the entry cannot land with the plugin's half missing and
+     * "restore version 3" puts back version 3's state along with its words.
+     *
+     * Return `undefined` (or an empty object) when there is nothing staged —
+     * an omitted key is left untouched by the server, which is what an editor
+     * who never opened the plugin's tab must get.
+     */
+    extensions?: () => Record<string, unknown> | undefined;
+    /**
      * Called after the write succeeded — to drop whatever `commit` consumed, and
      * to do the work that needed the saved record. It is **awaited**, still under
      * the busy cover, so a step may finish a write of its own here: that is how
@@ -485,6 +502,54 @@ export type EntryPresaveItem = {
  */
 export const ENTRY_PRESAVE_SLOT = createSlot<EntryPresaveItem>(
     'content.entry.presave'
+);
+
+/** One side of a revision comparison, for a {@link RevisionExtraItem}. */
+export type RevisionExtraValueContext = {
+    /**
+     * What that version recorded under this item's `key`, verbatim — or
+     * `undefined` when it recorded nothing.
+     *
+     * `undefined` is genuinely "this version knows nothing about it", not "it was
+     * empty": versions captured before the plugin was installed carry no bag at
+     * all, and a restore leaves an unmentioned key alone. Render it as absence,
+     * never as a claim.
+     */
+    value: unknown;
+};
+
+/** One contributed row in the revision preview, for plugin-owned snapshot state. */
+export type RevisionExtraItem = {
+    /**
+     * The snapshot `extra` key this item renders — the same key the plugin's
+     * server-side entry-write extension is registered under (`access`).
+     */
+    key: string;
+    /** The row's label. */
+    label: MessageDescriptor;
+    /**
+     * Renders **one side's** value. The two-column Current → Version {n} layout,
+     * the "Changed" badge, and the unchanged-set collapse stay with content, for
+     * the reason `ENTRY_FIELD_CONTROL_SLOT` keeps the label row: a contributed
+     * renderer that drew its own chrome would drift from every built-in row in
+     * the same dialog.
+     */
+    Component: ComponentType<RevisionExtraValueContext>;
+};
+
+/**
+ * Rows in the entry editor's **revision preview** for state a plugin stores
+ * alongside the entry rather than in its values — what content-server's
+ * entry-write extensions record in `RevisionSnapshot.extra`.
+ * `@orthacms/segments-admin` fills it with the entry's audiences, so "what would
+ * restoring this version change" includes who could read it.
+ *
+ * Whether the two sides differ is decided by content (a structural compare of
+ * the raw values), not by the item — so a plugin cannot accidentally report a
+ * version as identical when a restore would change it.
+ */
+export const REVISION_EXTRA_SLOT = createSlot<RevisionExtraItem>(
+    'content.revision.extra'
 );
 
 /**

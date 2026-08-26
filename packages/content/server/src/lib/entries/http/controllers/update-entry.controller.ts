@@ -56,7 +56,8 @@ export class UpdateEntryController {
             body.values,
             workspaceId,
             body.relations,
-            toActor(user)
+            toActor(user),
+            { extensions: body.extensions }
         );
     }
 }

@@ -59,6 +59,19 @@ export type SaveEntryInput = {
      * be declared on the server's `SaveEntryDto`. Ignored on update.
      */
     extra?: Record<string, string>;
+    /**
+     * State a **different plugin** owns about this entry, keyed by its extension
+     * key — sent in the save body's `extensions` bag, on create **and** update.
+     * `@orthacms/segments-admin` puts the entry's audiences there.
+     *
+     * Unlike {@link extra} this is not create-only, because it is not an
+     * envelope param: it is the plugin's own state, which an edit changes as
+     * readily as a create sets it. It rides the save rather than a request of
+     * its own so the entry, the plugin's state, and the revision recording both
+     * commit in one transaction — see content-server's entry-write extension
+     * port.
+     */
+    extensions?: Record<string, unknown>;
 };
 
 /**

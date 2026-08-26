@@ -20,12 +20,13 @@ src/lib/
 
 ## What it contributes
 
-| Surface            | Where                | What it is for                   |
-| ------------------ | -------------------- | -------------------------------- |
-| Audience directory | `/segments`          | the vocabulary                   |
-| Entry header chip  | `ENTRY_HEADER_SLOT`  | is this entry restricted         |
-| **Access** tab     | `ENTRY_TAB_SLOT`     | every decision, one per audience |
-| The save step      | `ENTRY_PRESAVE_SLOT` | applying them, on Save / Publish |
+| Surface            | Where                 | What it is for                   |
+| ------------------ | --------------------- | -------------------------------- |
+| Audience directory | `/segments`           | the vocabulary                   |
+| Entry header chip  | `ENTRY_HEADER_SLOT`   | is this entry restricted         |
+| **Access** tab     | `ENTRY_TAB_SLOT`      | every decision, one per audience |
+| The save step      | `ENTRY_PRESAVE_SLOT`  | applying them, on Save / Publish |
+| Revision row       | `REVISION_EXTRA_SLOT` | who could read a past version    |
 
 There is nothing between the directory and the entry — no rule library, no
 assignment screen — because there is nothing in the model between them.
@@ -50,16 +51,27 @@ intermediate answers to real readers on the way to the intended one, and a secon
 Save button on a tab of the editor asks the user to remember which of two buttons
 their change belonged to.
 
-**The staging is mounted above the tab, and the write happens in `settle`.**
+**The staging is mounted above the tab; the write rides the save body.**
 Editor tabs are **routes**, so the Access panel unmounts on every tab switch —
 hence `ENTRY_PRESAVE_SLOT`, reached back down through `EntryTabContext.presave`,
-exactly as the media plugin's staged uploads are. It is `settle` rather than
-`commit` because access is stored against the **entry id**, and on a create there
-is no id until the row exists. The consequence is worth stating: the entry lands
-first and its audiences a moment later, so a failure leaves a saved entry whose
-access did not change — the staging is kept and the toast says to press Save
-again. The other order would restrict a record that never changed, which is the
-worse half of the same trade.
+exactly as the media plugin's staged uploads are. The step contributes
+`extensions`, not a request of its own, and the reasons are all server-side:
+content writes the bag inside the save's transaction, so the entry cannot land
+with its restriction missing; the revision that save appends captures the access
+it **applied** rather than the access it replaced; and restoring a version puts
+that version's audiences back with its words.
+
+**There is no write hook in `application/hooks.ts`, deliberately.** A mutation of
+its own would be a second, later write — not atomic with the record, and
+invisible to the version, which is the whole thing this design set out to fix.
+The `PUT /segments/entries/:entryId` route still exists for an API client that is
+not saving an entry; the admin is not that client.
+
+**The entry cache key carries the row's `updatedAt`.** Access now moves on paths
+this plugin has no hook into — a **restore** above all, which puts back a
+version's audiences through content's own use-case. Keying on the row's version
+means any of them produces a new key and a fresh read, instead of a chip quietly
+reporting the access the entry used to have.
 
 **Nothing staged is not the same as open access.** `EntryAccessStaging.draft` is
 `null` until something is set, and a save with `null` writes nothing at all —
@@ -67,14 +79,16 @@ which is what keeps the feature inert for an editor who never opens the tab.
 Toggling back to what is already stored clears the staging (`sameAccess`) rather
 than staging a round trip.
 
-**The header chip says what readers get *now*, the tab says what the next save
+**The header chip says what readers get _now_, the tab says what the next save
 will make of it.** The chip renders from `EntrySlotContext`, which carries no
 `presave` handle, so it cannot see the staging — and that is the honest reading
 anyway: until Save, the restriction the chip reports is still the live one.
 
-**The save response seeds the cache rather than invalidating it.** The server
-returns the lists it stored, so there is nothing a refetch would learn — and a
-refetch would blank the control the editor is still looking at.
+**`settle` seeds the cache rather than invalidating it.** The save carried these
+lists and the server stored them in the same transaction — a failure would have
+failed the save — so seeding is telling the cache what it already knows, not
+guessing. A refetch would blank the control the editor is still looking at, and
+on a create there is no query to refetch under the old (id-less) key at all.
 
 **Two permission gates on the tab, and they are different.** `readOnly` says the
 caller may not edit the entry's _values_; `segments:manage` says they may not

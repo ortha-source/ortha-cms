@@ -4,15 +4,21 @@ import {
     type MiddlewareConsumer,
     type NestModule
 } from '@nestjs/common';
-import { contentReadScopeRegistrar } from '@orthacms/content-server';
+import {
+    contentReadScopeRegistrar,
+    entryWriteExtensionRegistrar
+} from '@orthacms/content-server';
 import { SEGMENTS_CONFIG } from './segments.tokens';
 import type { SegmentsPluginConfig } from './types/segments-config';
 import { SegmentCatalogService } from './application/segment-catalog.service';
 import { SegmentsService } from './application/segments.service';
 import { EntryAccessService } from './application/entry-access.service';
 import { ReaderStore } from './application/reader.store';
+import { PrincipalStore } from './application/principal.store';
 import { SegmentReadScope } from './infrastructure/segment-read-scope';
+import { EntryAccessWriteExtension } from './infrastructure/entry-access-write-extension';
 import { ReaderMiddleware } from './http/reader.middleware';
+import { PrincipalMiddleware } from './http/principal.middleware';
 import { SegmentsController } from './http/segments.controller';
 import { EntryAccessController } from './http/entry-access.controller';
 
@@ -40,19 +46,32 @@ export class SegmentsModule implements NestModule {
                 SegmentsService,
                 EntryAccessService,
                 ReaderStore,
+                PrincipalStore,
                 SegmentReadScope,
                 // A runtime registration rather than a DI binding: Nest has no
                 // multi-provider, so two plugins binding one token would leave
                 // the second silently replacing the first — and for a
                 // visibility rule that means content quietly becoming visible.
                 contentReadScopeRegistrar('segments', SegmentReadScope),
-                ReaderMiddleware
+                EntryAccessWriteExtension,
+                // The other half, and registered the same way for the same
+                // reason: an entry's audiences are written inside the entry's
+                // own save transaction and captured by its version, so a save
+                // cannot land with its restriction missing and a restore puts
+                // back the audiences the restored version had.
+                entryWriteExtensionRegistrar(
+                    'segments',
+                    EntryAccessWriteExtension
+                ),
+                ReaderMiddleware,
+                PrincipalMiddleware
             ],
             exports: [
                 SEGMENTS_CONFIG,
                 SegmentCatalogService,
                 EntryAccessService,
-                ReaderStore
+                ReaderStore,
+                PrincipalStore
             ]
         };
     }
@@ -72,6 +91,13 @@ export class SegmentsModule implements NestModule {
      * silently never running.
      */
     configure(consumer: MiddlewareConsumer): void {
-        consumer.apply(ReaderMiddleware).forRoutes('{*splat}');
+        // Both wrap the whole request in an `AsyncLocalStorage` scope, so both
+        // have to be middleware. The principal one never short-circuits: the
+        // reader resolution is skippable when no segment exists, but a
+        // permission check that silently stopped running would be the failure
+        // nobody notices.
+        consumer
+            .apply(PrincipalMiddleware, ReaderMiddleware)
+            .forRoutes('{*splat}');
     }
 }

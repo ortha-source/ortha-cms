@@ -15,6 +15,20 @@ export interface EntryAccessView extends EntryAccess {
 const OPEN: EntryAccessView = { allow: [], deny: [] };
 
 /**
+ * Where a read or write runs.
+ *
+ * Ordinarily the plugin's own connection; on the entry-write path it is the
+ * **entry save's transaction**, handed over by content's
+ * `EntryWriteExtension` port so the access row, the entry row and the version
+ * recording both commit together. Drizzle's transaction handle carries the same
+ * query surface, which is what lets one method serve both.
+ */
+export type AccessExecutor = Pick<
+    Database,
+    'select' | 'insert' | 'delete' | 'update'
+>;
+
+/**
  * Reading and writing one entry's access.
  *
  * The whole write path, and it is a single upsert — there is nothing to
@@ -30,8 +44,12 @@ export class EntryAccessService {
     ) {}
 
     /** One entry's lists. An entry nobody restricted reads as two empty ones. */
-    async get(workspaceId: string, entryId: string): Promise<EntryAccessView> {
-        const [row] = await this.db
+    async get(
+        workspaceId: string,
+        entryId: string,
+        executor: AccessExecutor = this.db
+    ): Promise<EntryAccessView> {
+        const [row] = await executor
             .select()
             .from(entryAccess)
             .where(
@@ -85,18 +103,26 @@ export class EntryAccessService {
         entryId: string;
         allow: readonly string[];
         deny: readonly string[];
+        /**
+         * Where to write. Defaults to the plugin's own connection (the `PUT`
+         * route); the entry-write extension passes the **entry save's**
+         * transaction, so a restriction and the record it restricts commit as
+         * one — and the version taken moments later reads back what committed.
+         */
+        executor?: AccessExecutor;
     }): Promise<EntryAccessView> {
+        const executor = input.executor ?? this.db;
         const allow = this.validate(input.allow);
         const deny = this.validate(input.deny);
 
         if (isOpen({ allow, deny })) {
-            await this.db
+            await executor
                 .delete(entryAccess)
                 .where(eq(entryAccess.entryId, input.entryId));
             return OPEN;
         }
 
-        await this.db
+        await executor
             .insert(entryAccess)
             .values({
                 entryId: input.entryId,

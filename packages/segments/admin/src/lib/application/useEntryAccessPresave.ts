@@ -1,52 +1,48 @@
 import { useCallback, useRef, useState } from 'react';
-import { defineMessages, useIntl } from 'react-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import type { EntryPresave, EntryPresaveResult } from '@orthacms/content-admin';
-import { toast } from '@orthacms/design-system';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { segmentsKeys } from '../infrastructure/segmentsGateway';
 import type { EntryAccess, EntryAccessStaging } from '../domain/types';
-import { useSetEntryAccess } from './hooks';
-
-const messages = defineMessages({
-    failed: {
-        id: 'segments.presave.failed',
-        defaultMessage:
-            'Saved the entry, but who can read it was left unchanged. Press Save again to apply it.'
-    }
-});
 
 /** The id the segments plugin's presave contribution is registered (and keyed) under. */
 export const ENTRY_ACCESS_PRESAVE_ID = 'segments.entry.presave';
 
 /**
+ * The key the server's entry-write extension is registered under. Must match
+ * `ACCESS_EXTENSION_KEY` in `@orthacms/segments-server` — it is the slot in the
+ * save body's `extensions` bag *and* in the revision snapshot's `extra`.
+ */
+export const ACCESS_EXTENSION_KEY = 'access';
+
+/**
  * The segments plugin's contribution to the entry **save** — what makes "who can
  * read this" part of pressing Save or Publish rather than a second button with a
- * second save of its own.
+ * second write of its own.
  *
- * It runs in **`settle`**, after the write, not in `commit`. Access is stored
- * against the entry id, and on a create there is no id until the row exists — so
- * before the write there is nothing to write it against. That ordering has a
- * consequence worth stating plainly: the entry lands first and its audiences a
- * moment later, so a failure here leaves a saved entry whose access is still
- * whatever it was. Nothing is lost — the staging is kept and the toast says to
- * press Save again — and the alternative (writing access first, then failing to
- * write the entry) would restrict a record that never changed, which is the worse
- * half of the same trade.
+ * It contributes to the save **body**, not a request beside it. That is the
+ * whole design, and the reasons are all server-side: content writes the
+ * `extensions` bag inside the save's own transaction, so the entry cannot land
+ * with its restriction missing; the revision that save appends captures the
+ * access it applied rather than the access it replaced; and restoring a version
+ * puts that version's audiences back with its words. A second `PUT` after the
+ * save has none of those — it would be captured, at best, by the *next* version.
  *
- * A save with nothing staged writes nothing at all. That is what keeps the
- * feature inert: an editor who never opens the Access tab pays no request, and an
- * installation with no audiences has nothing to stage.
+ * A save with nothing staged sends no key at all, and a key the server does not
+ * see is a key it leaves alone. That is what keeps the feature inert: an editor
+ * who never opens the Access tab changes nothing and pays nothing.
  *
  * Mounted once per entry view through `ENTRY_PRESAVE_SLOT`, so the staging
- * outlives the Access tab unmounting on a tab switch.
+ * outlives the Access tab unmounting on a tab switch — editor tabs are routes.
  */
 export function useEntryAccessPresave(): EntryPresave {
-    const intl = useIntl();
     const workspace = useCurrentWorkspace();
-    const save = useSetEntryAccess(workspace.id);
+    const queryClient = useQueryClient();
     const [draft, setDraft] = useState<EntryAccess | null>(null);
 
-    // `settle` runs across an await and after the render that staged the change,
-    // so it reads the draft through a ref rather than a render-stale closure.
+    // `extensions` and `settle` are read from inside the save, after the render
+    // that staged the change, so they read through a ref rather than a
+    // render-stale closure.
     const draftRef = useRef(draft);
     draftRef.current = draft;
 
@@ -55,34 +51,44 @@ export function useEntryAccessPresave(): EntryPresave {
         setDraft(next);
     }, []);
 
-    // Nothing to do on the way in: access does not travel in the values bag, so
-    // there is nothing to rewrite before the write.
+    // Nothing to rewrite on the way in: access does not travel in the values
+    // bag, so there is nothing for this step to swap before the write.
     const commit = useCallback(
         async ({ values }: { values: Record<string, unknown> }) => values,
         []
     );
 
+    const extensions = useCallback(() => {
+        const staged = draftRef.current;
+        if (!staged) return undefined;
+        return {
+            [ACCESS_EXTENSION_KEY]: { allow: staged.allow, deny: staged.deny }
+        };
+    }, []);
+
     const settle = useCallback(
-        async ({ entry, schema }: EntryPresaveResult) => {
+        ({ entry }: EntryPresaveResult) => {
             const staged = draftRef.current;
             if (!staged) return;
-            try {
-                await save.mutateAsync({
-                    entryId: entry.id,
-                    typeSlug: schema.name,
-                    allow: staged.allow,
-                    deny: staged.deny
-                });
-                // The mutation seeded the cache with what the server stored, so
-                // the tab reads the saved answer from here on.
-                stage(null);
-            } catch {
-                toast.error(intl.formatMessage(messages.failed));
-            }
+            // The save carried these lists and the server stored them in the
+            // same transaction — a failure would have failed the save — so
+            // seeding the cache is telling it what it already knows, not
+            // guessing. Refetching instead would blank the control the editor is
+            // still looking at, and on a create there is no query to refetch
+            // under the old (id-less) key at all.
+            queryClient.setQueryData(
+                // Keyed on the **saved** row's version, which is the key the
+                // tab and the chip are about to read under: `useSaveEntry`
+                // seeds the entry cache with this same record, so both re-render
+                // against it in the same commit.
+                segmentsKeys.entry(workspace.id, entry.id, entry.updatedAt),
+                staged
+            );
+            stage(null);
         },
-        [intl, save, stage]
+        [queryClient, stage, workspace.id]
     );
 
     const handle: EntryAccessStaging = { draft, stage };
-    return { commit, settle, handle };
+    return { commit, extensions, settle, handle };
 }

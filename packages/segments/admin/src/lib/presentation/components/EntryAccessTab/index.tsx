@@ -88,7 +88,7 @@ export function EntryAccessTab({
     // be able to rewrite the article and not to publish it to a new audience.
     const canManage = useHasPermission(SEGMENTS_MANAGE);
     const segments = useSegments();
-    const saved = useEntryAccess(workspaceId, entry?.id);
+    const saved = useEntryAccess(workspaceId, entry?.id, entry?.updatedAt);
     const staging = presave[ENTRY_ACCESS_PRESAVE_ID] as
         | EntryAccessStaging
         | undefined;

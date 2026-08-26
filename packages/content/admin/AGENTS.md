@@ -767,7 +767,7 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes thirteen named slots (`presentation/slots/contentSlots`, via
+The library exposes fourteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
@@ -917,6 +917,23 @@ fetching internally.
   and `commit` uploads them and swaps in the real ids. The staging lives in the
   hook because editor **tabs are routes** — the Media panel unmounts on every tab
   switch, and a file staged there must not die with it.
+- **`REVISION_EXTRA_SLOT`** — a row in the **revision preview** for state a
+  plugin stores alongside the entry rather than in its values: what
+  content-server's entry-write extensions record in `RevisionSnapshot.extra`.
+  An item is `{ key, label, Component }`, and the `Component` renders **one
+  side's** value — the two-column Current → Version {n} layout, the "Changed"
+  badge and the unchanged-set collapse stay with content, for the reason
+  `ENTRY_FIELD_CONTROL_SLOT` keeps the label row.
+    - Whether the two sides differ is decided **here**, by a structural compare
+      of the raw values, never by the item: a plugin reporting its own row
+      identical would let a restore change something the dialog promised it
+      would not.
+    - A row is dropped only when **neither** side recorded anything. With one
+      side absent there is still something to say — restoring a version that
+      knows nothing leaves today's answer standing, which is exactly what the
+      reader needs told.
+    - `@orthacms/segments-admin` fills it with the entry's audiences, so "what
+      would restoring this version change" includes who could read it.
 - **`ENTRY_FIELD_CONTROL_SLOT`** — a per-field **control override**. An item is
   `{ id, appliesTo(field), Component }`; `EntryFieldInput` resolves the **first**
   match before its type switch and mounts the component in place of the built-in

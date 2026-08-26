@@ -343,6 +343,57 @@ deliberately steps around the locale scope all pass through the former.
 reader allowed to see an entry is not thereby allowed to see everything it
 points at.
 
+### The entry-write extension port (`ENTRY_WRITE_EXTENSION`)
+
+`src/lib/extension/entry-write-extension.ts` declares a third port: how a
+downstream plugin stores state **about** an entry — in a table content-server
+knows nothing about — inside the entry's own write transaction and inside the
+entry's own version history. `@orthacms/segments-server` binds one under the key
+`access`, so who may read a record is set on Save.
+
+The wire is the save body's `extensions` bag (`SaveEntryDto.extensions`),
+declared **opaque** exactly as `locale` is: content forwards it to the registry
+and never looks inside. `EntryWriterService.create`/`update` call `applyAll`
+inside the transaction, just before appending the revision, then `captureAll`
+into `RevisionSnapshot.extra`; `RestoreRevisionUseCase` passes a restored
+version's `extra` straight back through `update`.
+
+Four decisions worth knowing:
+
+- **It exists for the version, not for tidiness.** A plugin could always have
+  called a `PUT` of its own after the save. What it could not do is have the
+  revision record what it wrote: a revision is built _inside_ the write, so a
+  later request is only ever captured by the **next** save — every version would
+  record the access the entry used to have. And a restore would put back a
+  version's words without its audiences, which is the quiet half of a restore
+  nobody thinks to check.
+- **`apply` runs only for keys the caller sent; `capture` runs for every
+  snapshot.** The asymmetry is load-bearing in both directions. A save that says
+  nothing about a plugin's state must leave it alone, so an omitted key is not a
+  clear. But a _version_ that recorded state only when it changed would restore
+  as a version that had none — including the locale siblings an extension
+  rewrote, which get their own revisions.
+- **An unknown key is ignored, not refused.** The bag comes from a client that
+  may be talking to a deployment without that plugin; a 400 would make one
+  request work on one install and fail on another. What the version then records
+  is still the truth, since `capture` reports no state for a key nothing owns.
+- **A registry, not a token**, for the reason `CONTENT_READ_SCOPE` documents:
+  Nest cannot merge two bindings of one token, and an extension that silently
+  stopped being called writes nothing and captures nothing — a restriction that
+  quietly stops applying. Register with
+  `entryWriteExtensionRegistrar('<label>', <Class>)`.
+
+**Authorization stays with the extension.** The save's own gate is
+`content:create`/`content:update`, which is not the same authority as deciding
+who may _read_ the record — so segments checks `segments:manage` itself, inside
+`apply`, and refuses a caller it cannot identify. A request that asks for exactly
+what is already stored changes nothing and needs none, which is what keeps a
+restore working for anyone who may restore. The port carries no permissions of
+its own: only the extension knows what its own state is worth.
+
+The **public API's** `PublicSaveEntryDto` deliberately has no `extensions` key,
+so a bearer token cannot reach this path at all.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with

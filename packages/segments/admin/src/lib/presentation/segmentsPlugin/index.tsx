@@ -5,17 +5,20 @@ import {
     ENTRY_HEADER_SLOT,
     ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
-    ENTRY_TAB_SLOT
+    ENTRY_TAB_SLOT,
+    REVISION_EXTRA_SLOT
 } from '@orthacms/content-admin';
 import { Spinner } from '@orthacms/design-system';
 import { ShieldCheck } from 'lucide-react';
 import { SEGMENTS_READ } from '../../application/hooks';
 import {
+    ACCESS_EXTENSION_KEY,
     ENTRY_ACCESS_PRESAVE_ID,
     useEntryAccessPresave
 } from '../../application/useEntryAccessPresave';
 import { EntryAccessChip } from '../components/EntryAccessChip';
 import { EntryAccessTab } from '../components/EntryAccessTab';
+import { RevisionAccessValue } from '../components/RevisionAccessValue';
 
 // Lazy so the directory is code-split into its own chunk. The entry chip and
 // tab are **not** lazy: they mount inside the editor, which is already a chunk
@@ -120,6 +123,22 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
                     {
                         id: ENTRY_ACCESS_PRESAVE_ID,
                         usePresave: useEntryAccessPresave
+                    }
+                ]
+            },
+            {
+                // …and because it rides the save, the version that save appends
+                // captured it — so "what would restoring this change" can
+                // finally include who could read it.
+                slot: REVISION_EXTRA_SLOT,
+                items: [
+                    {
+                        key: ACCESS_EXTENSION_KEY,
+                        label: {
+                            id: 'segments.revision.label',
+                            defaultMessage: 'Who can read this'
+                        },
+                        Component: RevisionAccessValue
                     }
                 ]
             }

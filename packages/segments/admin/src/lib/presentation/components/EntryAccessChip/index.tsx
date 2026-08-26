@@ -40,7 +40,7 @@ export function EntryAccessChip({
 }: EntrySlotContext) {
     const intl = useIntl();
     const segments = useSegments();
-    const access = useEntryAccess(workspaceId, entry?.id);
+    const access = useEntryAccess(workspaceId, entry?.id, entry?.updatedAt);
 
     // Nothing configured, no entry yet, or the caller cannot read this.
     if (!segments.data?.length || !entry) {

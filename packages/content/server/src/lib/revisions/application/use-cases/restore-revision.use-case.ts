@@ -74,7 +74,18 @@ export class RestoreRevisionUseCase {
             workspaceId,
             undefined,
             actor,
-            options
+            {
+                ...options,
+                // Put back whatever the bound extensions held when this version was
+                // captured — segments' audiences, today. Without it "go back to
+                // Tuesday" would restore Tuesday's words in front of today's
+                // readers, which is the half of a restore nobody would think to
+                // check. A version captured before any extension existed carries no
+                // bag, and an absent bag changes nothing (an omitted key is left
+                // alone) — which is the right reading: that version knows nothing
+                // about audiences, it does not assert the entry had none.
+                extensions: detail.snapshot.extra
+            }
         );
     }
 }
