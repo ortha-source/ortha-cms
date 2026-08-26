@@ -3,7 +3,8 @@ import { asc, eq, gt, and, type AnyColumn } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import {
-    ContentTypeRegistry,
+    InjectContentRegistry,
+    type ContentTypeRegistry,
     type AnyContentType
 } from '@orthacms/content-server';
 import { AccessResolutionService } from './access-resolution.service';
@@ -52,6 +53,7 @@ export class ReprojectionService {
 
     constructor(
         @InjectDatabase() private readonly db: Database,
+        @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly catalog: SegmentCatalogService,
         private readonly resolution: AccessResolutionService,
