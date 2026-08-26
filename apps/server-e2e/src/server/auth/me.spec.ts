@@ -163,6 +163,11 @@ describe('GET /api/auth/me', () => {
                     // read grant goes to every role. Writing rules — and
                     // muting a finding — is `alarms:manage`, admin only.
                     'alarms:read',
+                    // Same shape as the alarms grant above: an editor who
+                    // cannot see that an entry is restricted will publish one
+                    // believing it is public, so `read` goes to every role.
+                    // Deciding *who* reads it is `segments:manage`, admin only.
+                    'segments:read',
                     'copilot:use'
                 ].sort()
             );
