@@ -313,7 +313,7 @@ also what the wider tooling ecosystem expects. See `coercedVariables` in
 - **A grant-change cache-invalidation hook.** The TTL covers it; an explicit
   bust would need a port from `workspaces-server`. Until then `SchemaCache`
   sweeps expired entries on a build once it holds more than 32, because an
-  expired entry was otherwise only ever *replaced* — so the map grew one schema
+  expired entry was otherwise only ever _replaced_ — so the map grew one schema
   per grant set the process had ever served, and editing a workspace's grants
   orphaned the old one for the life of the process.
 

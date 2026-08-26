@@ -68,10 +68,14 @@ describe('numeric settings', () => {
     it('falls back to the default when unset or empty', () => {
         // `.env.example` ships several keys with no value on the right-hand side,
         // so empty has to mean "not configured", not "configured badly".
-        expect(loadConfig({ SESSION_TTL_SECONDS: undefined }).plugins.identity
-            .session.ttlSeconds).toBe(60 * 60 * 24 * 7);
-        expect(loadConfig({ SESSION_TTL_SECONDS: '' }).plugins.identity.session
-            .ttlSeconds).toBe(60 * 60 * 24 * 7);
+        expect(
+            loadConfig({ SESSION_TTL_SECONDS: undefined }).plugins.identity
+                .session.ttlSeconds
+        ).toBe(60 * 60 * 24 * 7);
+        expect(
+            loadConfig({ SESSION_TTL_SECONDS: '' }).plugins.identity.session
+                .ttlSeconds
+        ).toBe(60 * 60 * 24 * 7);
     });
 
     it('reads a plain positive integer', () => {
@@ -142,7 +146,8 @@ describe('NODE_ENV', () => {
 
     it('lets API_DOCS override in both directions', () => {
         expect(
-            loadConfig({ NODE_ENV: 'production', API_DOCS: 'true' }).docs.enabled
+            loadConfig({ NODE_ENV: 'production', API_DOCS: 'true' }).docs
+                .enabled
         ).toBe(true);
         expect(
             loadConfig({ NODE_ENV: undefined, API_DOCS: 'false' }).docs.enabled

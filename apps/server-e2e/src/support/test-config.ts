@@ -231,8 +231,16 @@ export function buildTestConfig(
                 identity: overrides.transferIdentity ?? {},
                 // Small ceilings on purpose: a suite that can only pass with
                 // production-sized limits is not testing the limits.
-                limits: { maxEntries: 500, maxAssets: 100, ...overrides.transferLimits }
+                limits: {
+                    maxEntries: 500,
+                    maxAssets: 100,
+                    ...overrides.transferLimits
+                }
             },
+            // The reader resolver is not config — it is an object, registered
+            // directly in `buildTestPlugins` like the scripted SSO and copilot
+            // providers. Left empty here so the shape matches the host's.
+            segments: {},
             // The copilot boots ENABLED in tests. Production defaults it off
             // (ADR-0005 §10) because enabling a hosted provider ships content
             // to a third party — but the e2e run's only provider is the

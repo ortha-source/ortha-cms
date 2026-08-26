@@ -13,7 +13,7 @@ decision it depends on is drafted as
 
 ## 1. What we should do first
 
-**Not an OIDC client.** The first slice is the *seam* — the port, the link
+**Not an OIDC client.** The first slice is the _seam_ — the port, the link
 table, the redirect routes and a deterministic fake adapter — with account
 resolution restricted to accounts that already exist. A real IdP is the second
 slice, and it is small once the seam is right.
@@ -42,13 +42,13 @@ So phase 0 is:
    [ADR-0004](../adr/0004-model-agnostic-copilot-provider.md) §3.)
 4. **Two tables + a migration** in `identity/server` — `sso_identities` and
    `sso_auth_requests`.
-5. **Three routes** — list, start, callback — issuing the *existing* session
-   cookie through the *existing* `CookieService`.
+5. **Three routes** — list, start, callback — issuing the _existing_ session
+   cookie through the _existing_ `CookieService`.
 6. **One account rule**: an SSO login may only sign in a user who already
    exists and is `active`. It creates nobody. Provisioning is phase 2.
 
 That last point is what keeps phase 0 small and safe. Ortha is invite-only by
-design; phase 0 keeps it invite-only and replaces only the *credential check*.
+design; phase 0 keeps it invite-only and replaces only the _credential check_.
 A deployment that turns SSO on gets "our staff sign in with Google" without
 also getting "anyone with a Google account has an account here".
 
@@ -167,22 +167,22 @@ Two notes that will otherwise be discovered the hard way:
 
 New tables, both owned by `identity/server` and shipped in its `migrations/`:
 
-| Table | Purpose | Key constraint |
-| --- | --- | --- |
-| `sso_identities` | Links an Ortha user to an IdP subject | unique `(provider, subject)`; unique `(provider, user_id)` |
-| `sso_auth_requests` | In-flight handshake state | one-time `consumed_at`, short `expires_at` |
+| Table               | Purpose                               | Key constraint                                             |
+| ------------------- | ------------------------------------- | ---------------------------------------------------------- |
+| `sso_identities`    | Links an Ortha user to an IdP subject | unique `(provider, subject)`; unique `(provider, user_id)` |
+| `sso_auth_requests` | In-flight handshake state             | one-time `consumed_at`, short `expires_at`                 |
 
 ## 5. Decisions to settle in the ADR
 
 These are the reason the ADR comes before the code.
 
-| Question | Recommendation | Why |
-| --- | --- | --- |
-| Can SSO create accounts? | Not in phase 0. Opt-in `provisioning: 'jit'` in phase 2, with a required email-domain allow-list. | A Google OIDC client with no domain restriction means every Google account on earth can sign in. The allow-list should be required, not defaulted. |
-| Linking to an existing account | Only when `emailVerified` is true and the account is `active`. Never to `pending` or `disabled`. | Linking to a `disabled` account reopens a door an admin closed — the same rule the password-reset flow already applies. |
-| Do IdP groups set the role? | Only if the host supplies a `resolveRole` handler. Otherwise the admin's setting stands. | Silent role rewrites on every login would undo admin edits with no audit trail. Make it an explicit opt-in, and record it. |
-| Can passwords be turned off? | Yes, `allowPasswordLogin: false` — but the root admin keeps a break-glass path. | An operator who mis-scopes their IdP and disabled passwords has locked themselves out of their own CMS with no recovery. |
-| Offboarding | Say plainly that a disabled IdP user keeps their Ortha session for up to `SESSION_TTL_SECONDS`. Offer a shorter TTL for SSO sessions; back-channel logout is phase 3. | Operators buy SSO expecting instant offboarding. Left unsaid, this is a security surprise rather than a documented limit. |
+| Question                       | Recommendation                                                                                                                                                        | Why                                                                                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Can SSO create accounts?       | Not in phase 0. Opt-in `provisioning: 'jit'` in phase 2, with a required email-domain allow-list.                                                                     | A Google OIDC client with no domain restriction means every Google account on earth can sign in. The allow-list should be required, not defaulted. |
+| Linking to an existing account | Only when `emailVerified` is true and the account is `active`. Never to `pending` or `disabled`.                                                                      | Linking to a `disabled` account reopens a door an admin closed — the same rule the password-reset flow already applies.                            |
+| Do IdP groups set the role?    | Only if the host supplies a `resolveRole` handler. Otherwise the admin's setting stands.                                                                              | Silent role rewrites on every login would undo admin edits with no audit trail. Make it an explicit opt-in, and record it.                         |
+| Can passwords be turned off?   | Yes, `allowPasswordLogin: false` — but the root admin keeps a break-glass path.                                                                                       | An operator who mis-scopes their IdP and disabled passwords has locked themselves out of their own CMS with no recovery.                           |
+| Offboarding                    | Say plainly that a disabled IdP user keeps their Ortha session for up to `SESSION_TTL_SECONDS`. Offer a shorter TTL for SSO sessions; back-channel logout is phase 3. | Operators buy SSO expecting instant offboarding. Left unsaid, this is a security surprise rather than a documented limit.                          |
 
 ## 6. Providers, in the order they earn their keep
 
@@ -222,16 +222,16 @@ not a place to demonstrate independence.
 
 - **Phase 0 — the seam.** ADR-0013, `identity-domain`, `identity-provider-fake`,
   both tables, the three routes, link-only account resolution, a `server-e2e`
-  suite driving the full redirect dance offline. *Done when* a fake IdP signs an
+  suite driving the full redirect dance offline. _Done when_ a fake IdP signs an
   existing user in and the resulting session is indistinguishable from a
   password login.
 - **Phase 1 — a real IdP.** The generic OIDC adapter plus the five presets,
   discovery and JWKS caching with rotation, and the provider buttons on the
-  login page. *Done when* a Keycloak in `docker-compose` signs a seeded user in.
+  login page. _Done when_ a Keycloak in `docker-compose` signs a seeded user in.
 - **Phase 2 — authority.** JIT provisioning behind a domain allow-list, the
   `resolveRole` handler, the admin's SSO settings view, and `auth.sso_signed_in`
   / `user.sso_linked` through the existing outbox so the activity log tells the
-  truth. *Done when* the audit trail distinguishes a provisioned account from an
+  truth. _Done when_ the audit trail distinguishes a provisioned account from an
   invited one.
 - **Phase 3 — the long tail.** GitHub, SAML, back-channel logout and an
   SSO-specific session TTL.
@@ -244,7 +244,7 @@ not a place to demonstrate independence.
 - `ortha.config.ts` gains an `sso` block under `plugins.identity`, with each
   provider key present only when its settings are — the same rule the copilot
   providers follow, and for the same reason.
-- The login page needs the provider list *before* anyone is authenticated, so
+- The login page needs the provider list _before_ anyone is authenticated, so
   `GET /api/auth/sso` is `@Public()` and must not leak whether a given email is
   known to any IdP.
 - The `redirect` parameter on `start` must be validated as a relative path

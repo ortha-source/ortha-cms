@@ -54,6 +54,16 @@ running Docker daemon for testcontainers).
    `setUserStatus` for the out-of-band suspension the API never performs (its
    disable endpoint revokes sessions in the same transaction).
 
+### Seeing why a request 500ed
+
+`createTestApp` boots with `logger: false` — 70 suites each printing Nest's
+start-up banner would bury the report. **`E2E_LOG=1` puts the real logger back**,
+and it is the only way to see the _cause_ of a 500: the `ExceptionsHandler` line
+carries the failing query and the driver's own message, while a suite can only
+ever report the status code. A hand-written SQL fragment that binds its
+parameters wrongly is exactly that shape — invisible in the assertion, one line
+long in the log.
+
 ### Running without Docker
 
 Set **`E2E_DATABASE_URL`** to point the run at an already-running Postgres and
@@ -69,7 +79,7 @@ own variable rather than reusing `DATABASE_URL`, which is routinely set in a
 developer's `.env` and points at their working database — a name that cannot be
 triggered by accident is the whole point. The testcontainer stays the default.
 
-The convention is also *enforced*: the run refuses to start if
+The convention is also _enforced_: the run refuses to start if
 `E2E_DATABASE_URL` resolves to the same database as `DATABASE_URL`, or if its
 database name does not read as disposable (`…e2e…` / `…test…`).
 `E2E_ALLOW_UNSAFE_DATABASE=true` waives the name check for an oddly-named
@@ -128,7 +138,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   `createTestApp({ rateLimit: { ttlSeconds, limit } })`. The throttle is
   per-app + in-memory, so it never bleeds across suites.
   The throttler's bucket is in-memory **per app**, so it never bleeds across
-  suites — but it does persist across *tests in one file*. A throttle suite
+  suites — but it does persist across _tests in one file_. A throttle suite
   therefore boots per test (`beforeEach`), or each test uses addresses no other
   test touches; otherwise the second test's expected status depends on the
   first, the file passes as a whole, and it fails under `-t`.
@@ -137,7 +147,7 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   **Failure modes**). Parallelism would need a DB-per-worker scheme.
 - Each spec **file** gets its own module registry (own app instance, own pool,
   own throttler) — that's why `closeTestApp` closes the pool per file. Two apps
-  *in sequence* in one file are fine; two apps *open at once* are not, because
+  _in sequence_ in one file are fine; two apps _open at once_ are not, because
   the `@orthacms/database` handle is a module singleton.
 
 ## No CI runs this suite

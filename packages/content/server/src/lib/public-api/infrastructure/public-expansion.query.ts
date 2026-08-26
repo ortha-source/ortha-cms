@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
-import { and, eq, inArray, isNull, type AnyColumn } from 'drizzle-orm';
+import {
+    and,
+    eq,
+    inArray,
+    isNull,
+    type AnyColumn,
+    type SQL
+} from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
 import { toMediaValueRef, type MediaValueRef } from '@orthacms/content-domain';
 import { ENTRY_STATUS, type AnyContentType } from '../../types/content-type';
@@ -8,6 +15,7 @@ import {
     InjectMediaAssetResolver,
     type MediaAssetResolver
 } from '../../extension/media-asset-resolver';
+import { ContentReadScopeRegistry } from '../../extension/read-scope';
 import { RelationLinkService } from '../../entries/infrastructure/persistence/relation-link.service';
 import { DEFAULT_EXPANSION_LIMIT } from '../http/dto/public-list-entries-query.dto';
 import type {
@@ -92,8 +100,27 @@ export class PublicExpansionQuery {
         private readonly relationLinks: RelationLinkService,
         @Optional()
         @InjectMediaAssetResolver()
-        private readonly media?: MediaAssetResolver
+        private readonly media?: MediaAssetResolver,
+        // Read-scope providers, consulted per **hop**: a reader allowed to see
+        // an entry is not thereby allowed to see everything it points at, and
+        // an expansion that skipped this would be a way around the scope.
+        @Optional()
+        private readonly readScopes?: ContentReadScopeRegistry
     ) {}
+
+    /**
+     * The read-scope fragments for one hop's target type.
+     *
+     * The target is a different content type from the one the request named, so
+     * the scope is asked about **it** — a scope keyed to the requested type
+     * would leave every relation target unguarded.
+     */
+    private readScopeWhere(
+        type: AnyContentType,
+        workspaceId: string
+    ): (SQL | undefined)[] {
+        return this.readScopes?.fragments({ type, workspaceId }) ?? [];
+    }
 
     /**
      * Validate a `?relationFields=` list: every name must be a relation field
@@ -159,9 +186,11 @@ export class PublicExpansionQuery {
      * One capped page of links per requested relation field, for every row on
      * the page, keyed by entry id.
      *
-     * `publishedOnly` is the public difference: a draft target is neither shown
-     * nor counted, so `total` is the number of links a caller can actually
-     * reach.
+     * `publishedOnly` is the public difference: a draft target — or one a bound
+     * read scope hides from this reader — is neither shown **nor counted**, so
+     * `total` is the number of links this caller can actually reach. Counting
+     * them would leak the cardinality of what is hidden: "5 links, 2 visible"
+     * says three restricted records exist here.
      */
     async relationsForRows(
         type: AnyContentType,
@@ -196,9 +225,13 @@ export class PublicExpansionQuery {
             for (const [field, value] of Object.entries(byField)) {
                 const linked = entriesById.get(field);
                 view[field] = {
-                    // Preserve the preview's link order, and drop any id the
-                    // hydration didn't return (it named a target the caller
-                    // can't see — already excluded from `total` upstream).
+                    // Preserve the preview's link order. Nothing should drop
+                    // here any more — `previewForEntries` applies the same
+                    // visibility (published-only **and** the bound read scopes)
+                    // inside its window, so an unreachable target is already
+                    // out of both `items` and `total`. The filter stays as a
+                    // belt: a hydration miss must never leave a hole in the
+                    // array, and it is cheap to keep honest.
                     items: value.items
                         .map((ref) => linked?.get(ref.id))
                         .filter((entry): entry is PublicEntry => !!entry),
@@ -286,7 +319,8 @@ export class PublicExpansionQuery {
                                 : undefined,
                             target.paranoid
                                 ? isNull(cols['deletedAt'])
-                                : undefined
+                                : undefined,
+                            ...this.readScopeWhere(target, workspaceId)
                         )
                     )) as Row[];
                 out.set(

@@ -87,6 +87,17 @@
   goes through content's `EntryWriterService`, so an import cannot outrun
   validation, the workspace scope, or the caller's own permissions. Owns no
   tables.
+- `packages/segments/*` — reader **entitlements**: who may _read_ published
+  content. `domain` is the kernel — a segment is a named set of reader tags, an
+  entry names the segments it admits and the segments it refuses, and `canRead`
+  is the whole decision (a deny wins; an empty allow list means everyone).
+  `server` owns the two tables and compiles that decision into one SQL predicate
+  through content's `CONTENT_READ_SCOPE` port, so it covers REST, GraphQL and
+  MCP at once; `admin` is the audience directory plus the entry editor's Access
+  tab, where each audience gets one three-state control. Deliberately separate
+  from RBAC and from `workspace_content`, which answer who may _touch_ content.
+  There is no rule object and no inheritance: what an editor sets on the entry
+  is what a reader gets. Inert until an audience exists.
 - `packages/alarms/*` — content **alarms**: workspace-defined rules that flag
   content problems without ever blocking a write
   ([ADR-0015](docs/adr/0015-alarms-are-non-blocking.md)). `server` owns the two

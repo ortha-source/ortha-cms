@@ -12,6 +12,10 @@ import {
     MAX_DELTA_FIELDS,
     MAX_DELTA_IDS
 } from './relation-delta-map.validator';
+import {
+    MAX_EXTENSION_KEYS,
+    MaxExtensionKeys
+} from './extension-bag.validator';
 
 /** Longest accepted locale slug (BCP-47's practical bound). */
 const LOCALE_MAX_LENGTH = 35;
@@ -120,4 +124,32 @@ export class SaveEntryDto {
     @IsOptional()
     @IsUUID()
     localeGroupId?: string;
+
+    /**
+     * State a **different plugin** owns about this entry, keyed by that plugin's
+     * extension key — opaque here, exactly like {@link locale}: content-server
+     * forwards the bag to the bound entry-write extensions and never looks
+     * inside it. `@orthacms/segments-server` reads `access` from it.
+     *
+     * It rides the save body rather than a second request so the entry, its
+     * links, the plugin's state and the version recording all of them commit in
+     * one transaction — and so the version records what the save applied instead
+     * of what it replaced.
+     *
+     * A key **omitted** is left alone; a key present is written. An **unknown**
+     * key is ignored rather than refused, because the same client may be talking
+     * to a deployment without that plugin installed.
+     */
+    @ApiPropertyOptional({
+        type: 'object',
+        maxProperties: MAX_EXTENSION_KEYS,
+        additionalProperties: true,
+        example: { access: { allow: [], deny: [] } },
+        description:
+            'Per-plugin state stored alongside the entry, keyed by extension (e.g. `access`). Opaque to content-server: forwarded to the bound entry-write extensions, written inside the save’s transaction, and captured by the revision. An omitted key is left unchanged; an unknown key is ignored.'
+    })
+    @IsOptional()
+    @IsObject()
+    @MaxExtensionKeys()
+    extensions?: Record<string, unknown>;
 }

@@ -16,7 +16,7 @@ consumes every package from npm.
 
 The scaffolder stamps **its own version** into every `@orthacms/*` dependency of
 the generated app (`__ORTHA_VERSION__`). Since the release is lockstep, its
-version *is* the matching set — so `npx create-ortha-app@0.4.0` generates a
+version _is_ the matching set — so `npx create-ortha-app@0.4.0` generates a
 0.4.0 app, and a generated app is internally consistent by construction.
 
 They are pinned **exactly**, no caret, and the generated README says to upgrade
@@ -40,11 +40,11 @@ to update here. There is no version list to fall behind.
 must be classified in [`src/lib/features.ts`](src/lib/features.ts) as exactly
 one of:
 
-| Group | Meaning |
-| --- | --- |
-| `CORE_PACKAGES` | every app gets it |
-| a `Feature`'s `packages` | installed when that feature is chosen |
-| `TRANSITIVE_PACKAGES` | an internal detail of another package; deliberately not declared. **Currently empty** |
+| Group                    | Meaning                                                                               |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| `CORE_PACKAGES`          | every app gets it                                                                     |
+| a `Feature`'s `packages` | installed when that feature is chosen                                                 |
+| `TRANSITIVE_PACKAGES`    | an internal detail of another package; deliberately not declared. **Currently empty** |
 
 `features.spec.ts` enumerates the workspace and fails on anything unclassified,
 so a new package cannot merge without someone deciding whether a new app gets
@@ -75,11 +75,11 @@ resolve anything.
 
 The wizard asks three questions; everything else is installed unconditionally.
 
-| Question | Kind | Default |
-| --- | --- | --- |
-| Where should uploads be stored? | single | Local filesystem |
-| AI copilot — which model backends? | multiple | none |
-| Which protocols should the content API speak? | multiple | REST (locked) |
+| Question                                      | Kind     | Default          |
+| --------------------------------------------- | -------- | ---------------- |
+| Where should uploads be stored?               | single   | Local filesystem |
+| AI copilot — which model backends?            | multiple | none             |
+| Which protocols should the content API speak? | multiple | REST (locked)    |
 
 Both multi-selects default to **nothing extra**, deliberately: a hosted copilot
 provider sends workspace content to a third party (ADR-0005 §10), and an
@@ -134,12 +134,12 @@ type exists.
 Templates are **data, not source**, and this workspace has to be told so in four
 separate places — each of which failed loudly the first time:
 
-| Where | Why |
-| --- | --- |
-| `.nxignore` | Nx inference walks every directory. Left visible, `@orthacms/nx` infers a `db:migrate` target onto `templates/default/src/server` — a directory with no project name — and **the whole project graph fails to build**, taking every `nx` command in the repo with it |
-| `tsconfig.lib.json` `exclude` | `tsc --build` would compile app-shaped files against this workspace's resolve-from-source setup |
-| `eslint.config.mjs` `ignores` | Same, for lint |
-| `.prettierignore` | The files carry `__PLACEHOLDER__` tokens inside JSON |
+| Where                         | Why                                                                                                                                                                                                                                                                  |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.nxignore`                   | Nx inference walks every directory. Left visible, `@orthacms/nx` infers a `db:migrate` target onto `templates/default/src/server` — a directory with no project name — and **the whole project graph fails to build**, taking every `nx` command in the repo with it |
+| `tsconfig.lib.json` `exclude` | `tsc --build` would compile app-shaped files against this workspace's resolve-from-source setup                                                                                                                                                                      |
+| `eslint.config.mjs` `ignores` | Same, for lint                                                                                                                                                                                                                                                       |
+| `.prettierignore`             | The files carry `__PLACEHOLDER__` tokens inside JSON                                                                                                                                                                                                                 |
 
 ### File naming
 
@@ -246,12 +246,12 @@ type `reset` blind. Restoring it lives in a `finally`.
 A scaffolded app ships a working test setup, because a starter that cannot be
 tested teaches people not to.
 
-| Suite | Runner | Why that one |
-| --- | --- | --- |
-| `apps/server/**/*.spec.ts` | Jest + `@swc/jest` | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
-| `apps/admin/src/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `apps/admin/vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution |
-| `apps/server-e2e` | Jest + supertest, real Postgres | Boots **this app** through `createServer` — a harness that mirrors the bootstrap can never fail on a bootstrap defect |
-| `apps/admin-e2e` | Playwright, Vite dev server, `/api` mocked | Drives the UI with no backend: fast, hermetic, and a failure means the UI is wrong |
+| Suite                               | Runner                                                     | Why that one                                                                                                                                              |
+| ----------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/server/**/*.spec.ts`          | Jest + `@swc/jest`                                         | NestJS DI reads `emitDecoratorMetadata`; Vitest's esbuild transform does not emit it, and providers resolve as `undefined` with no error naming the cause |
+| `apps/admin/src/**/*.spec.{ts,tsx}` | Vitest + jsdom, configured in `apps/admin/vite.config.mts` | It is a Vite app; sharing the config is the only way tests and app agree on resolution                                                                    |
+| `apps/server-e2e`                   | Jest + supertest, real Postgres                            | Boots **this app** through `createServer` — a harness that mirrors the bootstrap can never fail on a bootstrap defect                                     |
+| `apps/admin-e2e`                    | Playwright, Vite dev server, `/api` mocked                 | Drives the UI with no backend: fast, hermetic, and a failure means the UI is wrong                                                                        |
 
 The e2e split mirrors `apps/server-e2e` and `apps/admin-e2e` in this repo, for
 the same reason: testing the API through a browser is slower and blames the UI
@@ -295,8 +295,8 @@ Three more details worth not re-discovering:
   `ortha.config.ts`, which deliberately refuses to load without `DATABASE_URL`.
   Nothing connects — the plugin list is a pure function of the config — so
   placeholders are what let `npm test` run in CI with no `.env`.
-- **`tsconfig.server.json` excludes `**/*.spec.ts`**, or `ortha build` compiles
-  the tests into `dist/server` and ships them.
+- **`tsconfig.server.json` excludes `**/\*.spec.ts`**, or `ortha build`compiles
+the tests into`dist/server` and ships them.
 - **The Vite config is `.mts`.** The app is `"type": "commonjs"`, and Vite warns
   (and will eventually fail) on ESM syntax in a config loaded as CJS.
 - **The server e2e specs read `ALLOWED_ORIGIN` from the config.** Login is

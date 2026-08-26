@@ -7,6 +7,7 @@ import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
 } from '../../../extension/entry-extension';
+import { EntryFilterProviderRegistry } from '../../../extension/entry-filter-provider';
 import type { AnyContentType } from '../../../types/content-type';
 import { buildEntryFilterSurface } from './entry-filter-surface';
 
@@ -61,6 +62,10 @@ export interface EntryMatchOptions {
 export class EntryMatchQuery {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        // Same pair as `EntriesService`: an alarm rule stores the records
+        // list's filter verbatim, so it has to parse against exactly the
+        // surface that list offers — including the fields other plugins add.
+        private readonly filterProviders: EntryFilterProviderRegistry,
         @Optional()
         @Inject(CONTENT_ENTRY_EXTENSION)
         private readonly extension?: ContentEntryExtension
@@ -80,7 +85,10 @@ export class EntryMatchQuery {
     ): void {
         const { schema } = buildEntryFilterSurface(type, {
             workspaceId,
-            extensionFields: this.extension?.filterExtension(type)?.fields
+            extensionFields: this.filterProviders.compose(
+                type,
+                this.extension?.filterExtension(type)
+            )?.fields
         });
         parseFilterTree(filter, schema);
     }
@@ -132,10 +140,7 @@ export class EntryMatchQuery {
      * the rule editor shows beside a match count ("14 of 312"), which is what
      * turns a number into a judgement about whether the rule is too broad.
      */
-    async countAll(
-        type: AnyContentType,
-        workspaceId: string
-    ): Promise<number> {
+    async countAll(type: AnyContentType, workspaceId: string): Promise<number> {
         const [row] = await this.db
             .select({ total: count() })
             .from(type.table)
@@ -181,7 +186,10 @@ export class EntryMatchQuery {
         workspaceId: string,
         options: EntryMatchOptions
     ) {
-        const filterExtension = this.extension?.filterExtension(type);
+        const filterExtension = this.filterProviders.compose(
+            type,
+            this.extension?.filterExtension(type)
+        );
         const { schema } = buildEntryFilterSurface(type, {
             workspaceId,
             extensionFields: filterExtension?.fields

@@ -14,7 +14,8 @@ export {
     RECORDS_COLUMN_SLOT,
     RECORDS_MENU_SLOT,
     RECORDS_FILTER_FIELDS_SLOT,
-    RECORDS_TOOLBAR_SLOT
+    RECORDS_TOOLBAR_SLOT,
+    REVISION_EXTRA_SLOT
 } from './lib/presentation/slots/contentSlots';
 export type {
     ContentOverlayItem,
@@ -32,6 +33,7 @@ export type {
     EntryParamsItem,
     EntryPresave,
     EntryPresaveItem,
+    EntryPresaveResult,
     EntrySlotContext,
     EntrySidebarWidgetItem,
     EntryTabContext,
@@ -41,7 +43,9 @@ export type {
     RecordsColumnItem,
     RecordsFilterFieldsItem,
     RecordsToolbarContext,
-    RecordsToolbarItem
+    RecordsToolbarItem,
+    RevisionExtraItem,
+    RevisionExtraValueContext
 } from './lib/presentation/slots/contentSlots';
 
 export type {

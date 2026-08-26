@@ -14,14 +14,22 @@ type Row = Record<string, unknown>;
  * `relations` is read separately from the join tables — those links never travel
  * in the `values` bag — inside the save transaction, so the snapshot reflects
  * exactly what committed.
+ *
+ * `extra` is the same idea one plugin further out: state a **bound entry-write
+ * extension** owns in a table this package knows nothing about (segments'
+ * audiences), read back on the same transaction. It is omitted when there is
+ * none, so a snapshot on an installation with no extensions is byte-for-byte
+ * what it was before the port existed.
  */
 export function buildSnapshot(
     type: AnyContentType,
     row: Row,
-    relations: Record<string, string[]>
+    relations: Record<string, string[]>,
+    extra?: Record<string, unknown>
 ): RevisionSnapshot {
     return {
         values: toRecord(type, row).values,
-        relations
+        relations,
+        ...(extra ? { extra } : {})
     };
 }

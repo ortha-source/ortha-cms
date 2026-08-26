@@ -302,6 +302,163 @@ a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
 `i18n: true` type has no extension bound. Only one binding is supported (a
 second consumer would need a composite).
 
+### The read-scope port (`CONTENT_READ_SCOPE`)
+
+`src/lib/extension/read-scope.ts` declares a second DI port, for narrowing what
+the **public** content API returns. `PublicEntriesQuery` and
+`PublicExpansionQuery` inject it `@Optional()` and AND every returned fragment
+onto the visibility predicate they already state, so a scope can only ever
+subtract rows — there is no return value that widens a read.
+`@orthacms/segments-server` is the first implementation (reader entitlements,
+over the `@orthacms/segments-domain` kernel); with nothing registered — the
+state of an installation that has not enabled it — the port costs a length
+check.
+
+Three things distinguish it from `CONTENT_ENTRY_EXTENSION`:
+
+- **A registry, not a DI token.** Nest has **no multi-provider**: two dynamic
+  modules binding one token do not merge, the second silently replaces the
+  first, and for a visibility rule that means content quietly becoming visible.
+  So a plugin registers at bootstrap with
+  `contentReadScopeRegistrar('<label>', <ScopeClass>)` — the same shape
+  `copilotToolsRegistrar` uses, for the same reason. `CONTENT_ENTRY_EXTENSION`
+  stays a single binding held by i18n: a composite over it would fuse "narrow a
+  read" and "extend a write" into one provider where a fault in either silently
+  drops the other's clause.
+- **Synchronous.** The predicate is assembled inside the query builder, and
+  making that path async would ripple through every public read for one
+  provider's benefit. An implementation needing I/O — resolving who the caller
+  is — must do it earlier in the request and read the result from its own
+  request-scoped state.
+- **Public reads only.** The fragments are not applied to the admin's entries
+  list. An admin caller is a member of the workspace looking at their own CMS,
+  while a reader entitlement is about who may consume published content; scoping
+  the editor's list by it would hide from an author the rows they are
+  responsible for. The same split content grants already make.
+
+It is applied in `liveWhere` rather than `readableWhere`, which is what makes it
+unmissable: the list, the single-entry read and the translation lookup that
+deliberately steps around the locale scope all pass through the former.
+**Every hop asks separately, about the _target_ type** — a reader allowed to see
+an entry is not thereby allowed to see everything it points at, so a scope keyed
+to the requested type would leave every relation target unguarded. Two places
+apply it, and both have to: `PublicExpansionQuery` when it hydrates linked
+entries, and `RelationLinkService.targetVisibleWhere` — the one predicate every
+relation read shares — which is what keeps `total` honest.
+
+That second one is the subtle half. While the scope was applied only at
+hydration, `items` was correct and `total` was not: a reader denied three of five
+linked records saw two items under a `total` of five, and could infer that three
+restricted records existed there. Paging for them returned nothing. The scope now
+rides `RelationTargetVisibility` alongside `publishedOnly` — one flag, because
+they answer one question and are needed at exactly the same call sites — so the
+restriction goes _inside_ the window and the count.
+
+### The entry-write extension port (`ENTRY_WRITE_EXTENSION`)
+
+`src/lib/extension/entry-write-extension.ts` declares a third port: how a
+downstream plugin stores state **about** an entry — in a table content-server
+knows nothing about — inside the entry's own write transaction and inside the
+entry's own version history. `@orthacms/segments-server` binds one under the key
+`access`, so who may read a record is set on Save.
+
+The wire is the save body's `extensions` bag (`SaveEntryDto.extensions`),
+declared **opaque** exactly as `locale` is: content forwards it to the registry
+and never looks inside. `EntryWriterService.create`/`update` call `applyAll`
+inside the transaction, just before appending the revision, then `captureAll`
+into `RevisionSnapshot.extra`; `RestoreRevisionUseCase` passes a restored
+version's `extra` straight back through `update`.
+
+Four decisions worth knowing:
+
+- **It exists for the version, not for tidiness.** A plugin could always have
+  called a `PUT` of its own after the save. What it could not do is have the
+  revision record what it wrote: a revision is built _inside_ the write, so a
+  later request is only ever captured by the **next** save — every version would
+  record the access the entry used to have. And a restore would put back a
+  version's words without its audiences, which is the quiet half of a restore
+  nobody thinks to check.
+- **`apply` runs only for keys the caller sent; `capture` runs for every
+  snapshot.** The asymmetry is load-bearing in both directions. A save that says
+  nothing about a plugin's state must leave it alone, so an omitted key is not a
+  clear. But a _version_ that recorded state only when it changed would restore
+  as a version that had none — including the locale siblings an extension
+  rewrote, which get their own revisions.
+- **`apply` reports the other rows it changed, and they get revisions too.** It
+  returns entry ids; `applyAll` collects and deduplicates them, and the writer
+  feeds them to `appendRevisionsFor` alongside the rows `CONTENT_ENTRY_EXTENSION`
+  rewrote — resolving them to rows itself, since an extension wrote a table of
+  its own and has none to hand back. It is the same defect either path would
+  otherwise have: a row whose stored state moved while its timeline did not is a
+  history that hides the change, and restoring one of that row's versions undoes
+  it silently. The dedup matters because one save can reach a sibling through
+  both paths — a shared field _and_ an audience — and two revisions for one row
+  read as two edits.
+- **`inherit` is the create-only third call, and it exists because of that
+  asymmetry.** On a create, `inheritAll` runs right after `applyAll` and lets an
+  extension give a just-inserted row whatever the rest of its **locale group**
+  already holds. "Create a translation" sends no `extensions` bag at all, so
+  `apply` never runs — and segments' state is not a column, so nothing in
+  `CONTENT_ENTRY_EXTENSION`'s own sibling sync reaches it. Without this hook,
+  translating a restricted article produced a public German copy of it: the
+  failure mode a reader notices and an editor never does. It is optional, runs
+  after `apply` so a caller who just said what to store is not overwritten, and
+  is the same create-only posture as i18n's relation inheritance.
+- **An unknown key is ignored, not refused.** The bag comes from a client that
+  may be talking to a deployment without that plugin; a 400 would make one
+  request work on one install and fail on another. What the version then records
+  is still the truth, since `capture` reports no state for a key nothing owns.
+- **A registry, not a token**, for the reason `CONTENT_READ_SCOPE` documents:
+  Nest cannot merge two bindings of one token, and an extension that silently
+  stopped being called writes nothing and captures nothing — a restriction that
+  quietly stops applying. Register with
+  `entryWriteExtensionRegistrar('<label>', <Class>)`.
+
+**Authorization stays with the extension.** The save's own gate is
+`content:create`/`content:update`, which is not the same authority as deciding
+who may _read_ the record — so segments checks `segments:manage` itself, inside
+`apply`, and refuses a caller it cannot identify. A request that asks for exactly
+what is already stored changes nothing and needs none, which is what keeps a
+restore working for anyone who may restore. The port carries no permissions of
+its own: only the extension knows what its own state is worth.
+
+The **public API's** `PublicSaveEntryDto` deliberately has no `extensions` key,
+so a bearer token cannot reach this path at all.
+
+### The virtual filter-field registry (`ENTRY_FILTER_PROVIDER`)
+
+`CONTENT_ENTRY_EXTENSION.filterExtension` already declares virtual filter fields
+(i18n's `hasLocale` / `missingLocale` / `localeCount`), but that port is a
+**single binding** and i18n holds it — so a second plugin binding the token would
+silently replace the first, which for a filter surface means fields quietly
+vanishing from the picker and saved filters starting to 400.
+
+`src/lib/extension/entry-filter-provider.ts` is the registry a second
+contributor uses instead (`entryFilterProviderRegistrar('<label>', <Class>)`),
+the same shape and the same reason as `contentReadScopeRegistrar`.
+`EntryFilterProviderRegistry.compose(type, bound)` folds the bound extension and
+every registered provider into the one `EntryFilterExtension` the query path
+already understands, so `EntriesService.listWhere` and `EntryMatchQuery` changed
+by one call each and nothing downstream moved.
+`@orthacms/segments-server` fills it with **who can read this** — `audienceAllowed`,
+`audienceDenied`, `accessRestricted`.
+
+Three rules a contribution owes:
+
+- **Every emitted subquery MUST scope to the workspace it is handed.** A virtual
+  field is a subquery over a table this package knows nothing about; one that
+  forgets the workspace turns a filter into a cross-tenant read.
+- **Only declare fields you can answer, with only the operators you support.**
+  The declared `fields` become the SQL whitelist, so an operator the resolver
+  refuses reaches the user as "couldn't load this collection" over a rule the
+  picker itself proposed — narrow the admin's `FilterField.operators` to match.
+- **A filter narrows a list; it is not a visibility rule.** Reachability is
+  `CONTENT_READ_SCOPE`'s job and is applied separately.
+
+`compose` routes each rule to **whoever declared its field**, and keeps the
+first declarer of a duplicated name. Letting the last writer win would make what
+a saved filter _means_ depend on plugin registration order.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with
@@ -1055,12 +1212,18 @@ these are per field _per entry_, so a large page multiplies: `pageSize` × field
 page, one `refsFor` per single relation, a windowed pass + titles per join-backed
 one, and **one** media resolve). Notes:
 
-- **Published-only targets.** `RelationLinkService` gained an optional
-  `RelationTargetVisibility` (`{ publishedOnly }`) that the public reads pass and
-  the admin never does. A draft target is neither shown **nor counted** — the
-  restriction goes _inside_ the window (`count(*) over`), so `total` can't
-  advertise links a caller cannot reach. Confirmed live: the same entry reads
-  `total: 2` for the admin and `total: 1` publicly.
+- **Unreachable targets are neither shown nor counted.** `RelationLinkService`
+  takes an optional `RelationTargetVisibility` (`{ publishedOnly }`) that the
+  public reads pass and the admin never does. It turns on two restrictions —
+  published-only **and** the bound `CONTENT_READ_SCOPE` providers, asked about
+  the _target_ type — and both go _inside_ the window (`count(*) over`) and
+  inside the sub-select the join reads restrict by, so `total` cannot advertise
+  links a caller cannot reach. Confirmed live for the draft half: the same entry
+  reads `total: 2` for the admin and `total: 1` publicly.
+  The two ride one flag deliberately: they answer one question ("may this caller
+  reach this target?") and are needed at exactly the same call sites. A second
+  flag would be a second thing to remember on a path where forgetting it leaks
+  the cardinality of what is hidden.
 - **Grant-pruned.** Expanding into a type the workspace wasn't granted is a
   **400**, on the query params and on `/relations/:field` alike — matching how
   `?filter=` treats a traversal into one.

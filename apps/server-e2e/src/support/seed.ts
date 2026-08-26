@@ -680,7 +680,12 @@ export async function resetDb(): Promise<void> {
                 'content_test_article, content_test_author, content_test_tag, ' +
                 'content_test_seo, content_test_comment, content_test_landing, ' +
                 'content_test_page, content_entry_revisions, ' +
-                'media_asset, media_folder, outbox_events ' +
+                'media_asset, media_folder, outbox_events, ' +
+                // Segments' two. The catalogue is cached in memory and only
+                // reloaded by writes through its own service, so a suite that
+                // truncates these must also call `reloadSegmentCatalogue` —
+                // see `support/segments.ts`.
+                'segments, entry_access ' +
                 'RESTART IDENTITY CASCADE'
         );
         // After the TRUNCATE: `users` is gone, so nothing references these any

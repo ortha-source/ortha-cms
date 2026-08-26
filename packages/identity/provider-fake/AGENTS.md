@@ -4,7 +4,7 @@ A **scripted identity provider**: no network, no tenant, no clock skew, the same
 answer every run.
 
 **Shipped, not test scaffolding** (ADR-0013): it is how `apps/server-e2e` drives
-the *entire* SSO redirect handshake in CI, and how a contributor exercises the
+the _entire_ SSO redirect handshake in CI, and how a contributor exercises the
 sign-in page with no identity provider to hand. A deployment that registers it
 gets a working SSO button that signs in whoever the composition root scripted —
 which is why no host registers it, and why shipping it is harmless in a way the
@@ -40,13 +40,17 @@ is what makes the check meaningful.
 const idp = createFakeSsoProvider({
     users: [
         { subject: 'idp-ada', email: 'ada@example.com', name: 'Ada' },
-        { subject: 'idp-grace', email: 'grace@example.com', emailVerified: false }
+        {
+            subject: 'idp-grace',
+            email: 'grace@example.com',
+            emailVerified: false
+        }
     ]
 });
 
-idp.signInAs('idp-grace');        // who the NEXT authorize hands back
-idp.failNextVerification();       // the next complete refuses, once
-idp.calls();                      // { authorize, complete } — assert none was made
+idp.signInAs('idp-grace'); // who the NEXT authorize hands back
+idp.failNextVerification(); // the next complete refuses, once
+idp.calls(); // { authorize, complete } — assert none was made
 ```
 
 `signInAs` throws for a subject the provider was not configured with, so a typo

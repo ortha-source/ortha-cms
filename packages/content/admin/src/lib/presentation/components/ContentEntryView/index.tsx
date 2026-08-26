@@ -44,6 +44,7 @@ import { EntrySlotContextProvider } from '../../hooks/useEntrySlotContext';
 import {
     ENTRY_PARAMS_SLOT,
     ENTRY_PRESAVE_SLOT,
+    type EntryPresaveResult,
     type EntrySlotContext
 } from '../../slots/contentSlots';
 import {
@@ -470,6 +471,14 @@ export function ContentEntryView({
             setBusy(null);
             throw error;
         }
+        // Plugin state stored alongside the entry (segments' audiences), read
+        // after `commit` so a step may stage it there. It rides the save body
+        // rather than a request of its own, which is what makes the entry, the
+        // plugin's state and the version recording both one transaction.
+        const extensions = Object.assign(
+            {},
+            ...presaves.map((step) => step.extensions?.() ?? {})
+        ) as Record<string, unknown>;
         let result: Awaited<ReturnType<typeof flow.submit>>;
         try {
             result = await flow.submit({
@@ -480,15 +489,35 @@ export function ContentEntryView({
                 relations: options.relations,
                 entry: resolved.entry,
                 bodyExtra,
+                extensions,
                 ignoreFields: options.ignoreFields
             });
+            // The write landed, so every presave step can drop what it consumed
+            // (the media plugin revokes its preview URLs and forgets the staged
+            // files — the saved record now carries the real ids) and do the work
+            // that needed the saved record (the segments plugin writes the
+            // entry's audiences, which on a create has only just become
+            // addressable). Inside the cover, and awaited, because that second
+            // kind is a write of its own.
+            const settled: EntryPresaveResult = {
+                entry: result.saved,
+                schema,
+                created: result.wasCreate,
+                published: result.published
+            };
+            for (const step of presaves) {
+                // The entry is already written, so a failure here cannot abort
+                // anything — the step has surfaced it itself, and swallowing it
+                // is what keeps a landed save from being reported as a failure.
+                try {
+                    await step.settle?.(settled);
+                } catch {
+                    /* the step owns its own failure */
+                }
+            }
         } finally {
             setBusy(null);
         }
-        // The write landed, so every presave step can drop what it consumed (the
-        // media plugin revokes its preview URLs and forgets the staged files —
-        // the saved record now carries the real ids).
-        for (const step of presaves) step.settle?.();
         toast.success(
             intl.formatMessage(
                 result.published

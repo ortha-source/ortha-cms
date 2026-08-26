@@ -86,6 +86,18 @@ const ALL_PERMISSIONS = [
     // controls.
     'alarms:read',
     'alarms:manage',
+    // Reader entitlements (`segments-admin`). Same failure as the alarms keys
+    // above and the tokens ones before them: without these the audience
+    // directory, its editor pages, the entry editor's Access tab and header
+    // chip, the revision preview's access row and the records list's
+    // Segmentation filter fields all render for nobody — an entire feature
+    // invisible to a mock claiming to hold every permission. `read` goes to
+    // every role on the server (an editor who cannot see that an entry is
+    // restricted will publish one believing it is public); `manage` is
+    // admin-only, so narrow this away to assert a contributor gets a read-only
+    // Access tab.
+    'segments:read',
+    'segments:manage',
     // Saved list views. Only `share` is a permission — a private view needs
     // none — so without it the switcher's "share with the workspace" half is
     // invisible. Added here because `seed-drift.spec.ts` compares this list to

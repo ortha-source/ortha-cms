@@ -39,6 +39,7 @@ const EXPECTED_PLUGINS = [
     'transfer',
     'alarms',
     'copilot',
+    'segments',
     'users',
     'activity',
     'api-tokens'
@@ -72,7 +73,9 @@ describe('buildPlugins()', () => {
         // everything else — is what keeps that impossible to introduce by
         // accident.
         const names = buildPlugins().map((plugin) => plugin.name);
-        expect(names.indexOf('shell')).toBeLessThan(names.indexOf('workspaces'));
+        expect(names.indexOf('shell')).toBeLessThan(
+            names.indexOf('workspaces')
+        );
     });
 
     it('gives identity the only public routes, so the sign-in page renders outside the gate', () => {

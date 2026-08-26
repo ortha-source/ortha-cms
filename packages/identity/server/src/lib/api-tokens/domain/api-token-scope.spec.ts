@@ -7,7 +7,13 @@ describe('scopePermissions', () => {
         // from the token that just received the URL makes the metadata useless.
         expect(scopePermissions('read')).toEqual([
             'content:read',
-            'media:read'
+            'media:read',
+            // Reader entitlements decide which published entries a request sees
+            // at all, so a token that cannot ask whether an entry is restricted
+            // reports a partial list as the whole one. It reveals nothing new
+            // about the content: the only entries whose access it can look up
+            // are the ones it can already fetch.
+            'segments:read'
         ]);
     });
 
@@ -19,7 +25,14 @@ describe('scopePermissions', () => {
             'content:publish',
             'content:delete',
             'media:read',
-            'media:create'
+            'media:create',
+            'segments:read',
+            // Setting who may read a record is an entry-level editorial
+            // decision of the same weight as publishing or deleting it. What it
+            // does not open is the audience *vocabulary* — no token-facing
+            // surface exposes the directory, so this key reaches entry access
+            // and nothing else.
+            'segments:manage'
         ]);
     });
 
@@ -31,6 +44,8 @@ describe('scopePermissions', () => {
         expect(read.has('content:delete')).toBe(false);
         // Including uploads: a read token can fetch an asset, never add one.
         expect(read.has('media:create')).toBe(false);
+        // …and never decides who may read one.
+        expect(read.has('segments:manage')).toBe(false);
     });
 
     it('never lets any token curate the media library', () => {

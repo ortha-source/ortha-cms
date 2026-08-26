@@ -35,6 +35,7 @@ const EXPECTED_PLUGINS = [
     'i18n',
     'transfer',
     'alarms',
+    'segments',
     'copilot',
     'mcp'
 ];

@@ -74,7 +74,10 @@ describe('Alarm rules (/api/alarms/rules)', () => {
             password: PASSWORD,
             role: 'viewer'
         });
-        const workspace = await seedWorkspace({ name: 'Alarms', slug: 'alarms' });
+        const workspace = await seedWorkspace({
+            name: 'Alarms',
+            slug: 'alarms'
+        });
         workspaceId = workspace.id;
         await seedMembership(admin.id, workspaceId);
         await seedMembership(viewer.id, workspaceId);
@@ -136,9 +139,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .send(
                     rulePayload({
                         filter: {
-                            and: [
-                                { field: 'nonesuch', op: 'eq', value: 'x' }
-                            ]
+                            and: [{ field: 'nonesuch', op: 'eq', value: 'x' }]
                         }
                     })
                 )
@@ -237,9 +238,7 @@ describe('Alarm rules (/api/alarms/rules)', () => {
                 .patch(`/api/alarms/rules/${created.body.rule.id}`)
                 .send({
                     filter: {
-                        and: [
-                            { field: 'status', op: 'eq', value: 'published' }
-                        ]
+                        and: [{ field: 'status', op: 'eq', value: 'published' }]
                     }
                 })
                 .expect(200);

@@ -76,6 +76,43 @@ export {
     type RelationLocaleSync
 } from './lib/extension/relation-locale-sync';
 
+// The read-scope port. Separate from CONTENT_ENTRY_EXTENSION on purpose — that
+// one is single-binding and i18n holds it; see the file header for why a
+// composite was the wrong shape here.
+export {
+    ContentReadScopeRegistry,
+    contentReadScopeRegistrar
+} from './lib/extension/read-scope';
+export type {
+    ContentReadScope,
+    ContentReadScopeContext
+} from './lib/extension/read-scope';
+
+// The entry-write extension port — how a plugin stores state *about* an entry
+// inside the entry's own write transaction, and has it captured by (and restored
+// from) the entry's own version history.
+export {
+    EntryWriteExtensionRegistry,
+    entryWriteExtensionRegistrar
+} from './lib/extension/entry-write-extension';
+export type {
+    EntryWriteExtension,
+    EntryWriteExtensionInput,
+    EntryWriteExtensionTarget
+} from './lib/extension/entry-write-extension';
+
+// The virtual filter-field registry — how a plugin other than the single bound
+// `CONTENT_ENTRY_EXTENSION` adds fields to a type's `?filter=` surface.
+export {
+    EntryFilterProviderRegistry,
+    entryFilterProviderRegistrar
+} from './lib/extension/entry-filter-provider';
+export type { EntryFilterProvider } from './lib/extension/entry-filter-provider';
+// The transaction handle an extension is handed. Exported because an
+// implementation lives in another package and has to name the type of the
+// executor it must write on — the one rule of the port.
+export type { DbTransaction } from './lib/entries/infrastructure/persistence/relation-link.service';
+
 export {
     MEDIA_ASSET_RESOLVER,
     InjectMediaAssetResolver

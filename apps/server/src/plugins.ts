@@ -19,6 +19,7 @@ import { McpPlugin } from '@orthacms/mcp-server';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
+import { SegmentsPlugin } from '@orthacms/segments-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
@@ -260,6 +261,16 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // that is the line that keeps it from becoming a second, competing
         // authority on whether an entry is valid.
         AlarmsPlugin(),
+        // Reader entitlements. After content, whose `CONTENT_READ_SCOPE` port
+        // it binds.
+        //
+        // Registering it changes nothing on its own: with no audience created
+        // in the admin the read predicate is never emitted and every read costs
+        // exactly what it did before. The `resolver` is the one line to fill in
+        // per install — it says where a reader's tags come from, and its absence
+        // means every reader is anonymous, which serves unrestricted content
+        // and nothing else.
+        SegmentsPlugin(config.plugins.segments),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place

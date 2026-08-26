@@ -29,13 +29,33 @@ export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number];
  * to a record is content authoring, but renaming or deleting somebody else's
  * library asset is media administration, and nothing on the public API needs it.
  *
+ * **Why both scopes carry `segments:read`.** Reader entitlements decide which
+ * published entries a request sees at all, so a token that cannot ask whether an
+ * entry is restricted is a client that silently reports a partial list as the
+ * whole one. It grants nothing new about the content itself: an entry a `read`
+ * token can already fetch is the only one whose access it can look up.
+ *
+ * **Why only `full` carries `segments:manage`.** Setting who may read a record
+ * is an entry-level editorial decision of the same weight as publishing or
+ * deleting it, both of which `full` already grants. What it does **not** open is
+ * the audience *vocabulary*: creating, renaming or deleting a segment changes
+ * visibility across every entry naming it, installation-wide, and no
+ * token-authenticated surface exposes it — the directory routes are
+ * session-guarded and the tool catalogue offers entry access only. A future tool
+ * over the directory is therefore a deliberate decision, not something this
+ * mapping already made.
+ *
  * Framework-free on purpose (no Nest/Drizzle), so the mapping is exhaustively
  * unit-testable and the single source of truth for "what may this scope do?".
  */
 export function scopePermissions(scope: ApiTokenScope): PermissionKey[] {
     switch (scope) {
         case 'read':
-            return [PERMISSIONS.CONTENT_READ, PERMISSIONS.MEDIA_READ];
+            return [
+                PERMISSIONS.CONTENT_READ,
+                PERMISSIONS.MEDIA_READ,
+                PERMISSIONS.SEGMENTS_READ
+            ];
         case 'full':
             return [
                 PERMISSIONS.CONTENT_READ,
@@ -44,7 +64,9 @@ export function scopePermissions(scope: ApiTokenScope): PermissionKey[] {
                 PERMISSIONS.CONTENT_PUBLISH,
                 PERMISSIONS.CONTENT_DELETE,
                 PERMISSIONS.MEDIA_READ,
-                PERMISSIONS.MEDIA_CREATE
+                PERMISSIONS.MEDIA_CREATE,
+                PERMISSIONS.SEGMENTS_READ,
+                PERMISSIONS.SEGMENTS_MANAGE
             ];
     }
 }

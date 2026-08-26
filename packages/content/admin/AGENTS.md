@@ -767,14 +767,17 @@ of the package — `infrastructure/contentInsightsGateway` (the port),
 
 ## Extension slots
 
-The library exposes thirteen named slots (`presentation/slots/contentSlots`, via
+The library exposes fourteen named slots (`presentation/slots/contentSlots`, via
 `createSlot`) another admin plugin contributes into — no coupling beyond the
 contracts, the same idiom as the workspace shell's slots.
 `@orthacms/i18n-admin` fills eight; `@orthacms/media-admin` fills two
 (`ENTRY_TAB_SLOT`, the Media tab, and `ENTRY_PRESAVE_SLOT`, its staged uploads);
 `@orthacms/wysiwyg-admin` fills one (`ENTRY_FIELD_CONTROL_SLOT`, the rich-text
 editor); `@orthacms/transfer-admin` fills three (`ENTRY_MENU_SLOT` and
-`RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import).
+`RECORDS_BULK_ACTION_SLOT` to export, `RECORDS_MENU_SLOT` to import);
+`@orthacms/segments-admin` fills three (`ENTRY_HEADER_SLOT`, the restricted chip;
+`ENTRY_TAB_SLOT`, the Access tab; and `ENTRY_PRESAVE_SLOT`, which is what applies
+an entry's audiences on Save rather than on a button of its own).
 **Slot items are boot-frozen**
 (`createAdmin` registers them once, before the first render), which is what
 makes the **hook-style** items (`RECORDS_COLUMN_SLOT.useRowsData`,
@@ -899,15 +902,38 @@ fetching internally.
   `{ commit, settle?, handle? }`. `commit(values, publish)` runs after client
   validation and **before** the write, under the busy cover, and returns the
   values actually saved — throwing aborts the save (the step owns surfacing its
-  own failure). `settle()` runs once the write succeeded. `handle` is published
-  to contributed tabs as `EntryTabContext.presave[id]`, opaque, each tab reading
-  only its own key.
+  own failure). `settle(result)` is **awaited** once the write succeeded, still
+  under the cover, and is handed the saved `entry` + `schema` + `created` +
+  `published` — so a step may finish a write of its own there, which is the only
+  place it can: on a create there is no entry id until the row exists.
+  `@orthacms/segments-admin` applies an entry's audiences from it. A `settle`
+  that throws cannot abort anything (the entry is written), so the loop swallows
+  it and the step owns surfacing its own failure, exactly as `commit` does.
+  `handle` is published to contributed tabs as `EntryTabContext.presave[id]`,
+  opaque, each tab reading only its own key.
   This is what lets `@orthacms/media-admin` **defer uploads to Save**: files
   chosen on a media field are staged under a placeholder uuid (which the values
   bag holds, so validation and the publish gate treat them like any asset id),
   and `commit` uploads them and swaps in the real ids. The staging lives in the
   hook because editor **tabs are routes** — the Media panel unmounts on every tab
   switch, and a file staged there must not die with it.
+- **`REVISION_EXTRA_SLOT`** — a row in the **revision preview** for state a
+  plugin stores alongside the entry rather than in its values: what
+  content-server's entry-write extensions record in `RevisionSnapshot.extra`.
+  An item is `{ key, label, Component }`, and the `Component` renders **one
+  side's** value — the two-column Current → Version {n} layout, the "Changed"
+  badge and the unchanged-set collapse stay with content, for the reason
+  `ENTRY_FIELD_CONTROL_SLOT` keeps the label row.
+    - Whether the two sides differ is decided **here**, by a structural compare
+      of the raw values, never by the item: a plugin reporting its own row
+      identical would let a restore change something the dialog promised it
+      would not.
+    - A row is dropped only when **neither** side recorded anything. With one
+      side absent there is still something to say — restoring a version that
+      knows nothing leaves today's answer standing, which is exactly what the
+      reader needs told.
+    - `@orthacms/segments-admin` fills it with the entry's audiences, so "what
+      would restoring this version change" includes who could read it.
 - **`ENTRY_FIELD_CONTROL_SLOT`** — a per-field **control override**. An item is
   `{ id, appliesTo(field), Component }`; `EntryFieldInput` resolves the **first**
   match before its type switch and mounts the component in place of the built-in

@@ -60,9 +60,16 @@ async function bootTestApp(
     // failure.
     await assertDatabaseReachable();
 
+    // Silent by default — 70 suites each booting an app would otherwise bury the
+    // report under Nest's start-up banner. `E2E_LOG=1` puts the real logger
+    // back, which is the only way to see *why* a request 500ed: the
+    // `ExceptionsHandler` line carries the failing query and the driver's own
+    // message, and without it a suite can only report the status code. A
+    // `malformed array literal` from a hand-written SQL fragment is exactly that
+    // shape — invisible in the assertion, one line long in the log.
     const app = await NestFactory.create<NestExpressApplication>(
         ServerModule.forRoot(plugins),
-        { logger: false }
+        { logger: process.env['E2E_LOG'] ? undefined : false }
     );
     // Mirrors `createServer`, and before anything reads `req.ip`: the login
     // throttle buckets on it, so a suite that asserts per-client limiting has

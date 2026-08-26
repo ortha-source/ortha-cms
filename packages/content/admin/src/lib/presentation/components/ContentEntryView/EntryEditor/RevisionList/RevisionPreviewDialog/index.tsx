@@ -21,11 +21,13 @@ import {
     diffRevision
 } from '../../../../../../domain/revisionDiff';
 import { useRevisionDetail } from '../../../../../../application/useRevisionDetail';
+import { REVISION_EXTRA_SLOT } from '../../../../../slots/contentSlots';
 import {
     RevisionDiffRow,
     type DiffMediaRefs,
     type DiffRelationRefs
 } from './RevisionDiffRow';
+import { RevisionExtraRow } from './RevisionExtraRow';
 
 const messages = defineMessages({
     title: {
@@ -158,7 +160,33 @@ export function RevisionPreviewDialog({
             : [];
     const changed = diff.filter((entry) => entry.changed);
     const unchanged = diff.filter((entry) => !entry.changed);
-    const changedCount = countChanges(diff);
+
+    // Plugin-owned state the two versions captured outside the values bag —
+    // segments' audiences. A row is dropped only when **neither** side recorded
+    // anything: with one side absent there is something to say, since restoring
+    // the version that knows nothing leaves today's answer standing.
+    const extras = REVISION_EXTRA_SLOT.getItems()
+        .map((item) => {
+            const current = latest.data?.snapshot.extra?.[item.key];
+            const version = selected.data?.snapshot.extra?.[item.key];
+            return {
+                item,
+                current,
+                revision: version,
+                // Structural, and decided here rather than by the item: a plugin
+                // reporting its own row identical would let a restore change
+                // something the dialog promised it would not.
+                changed:
+                    JSON.stringify(current ?? null) !==
+                    JSON.stringify(version ?? null)
+            };
+        })
+        .filter(
+            (row) => row.current !== undefined || row.revision !== undefined
+        );
+    const changedExtras = extras.filter((row) => row.changed);
+    const unchangedExtras = extras.filter((row) => !row.changed);
+    const changedCount = countChanges(diff) + changedExtras.length;
 
     // A field's linked records per side: the baseline from the latest snapshot,
     // the previewed values from the selected one (both resolved server-side).
@@ -221,7 +249,7 @@ export function RevisionPreviewDialog({
                                           }
                                       )}
                             </p>
-                            {unchanged.length > 0 && (
+                            {unchanged.length + unchangedExtras.length > 0 && (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -236,7 +264,11 @@ export function RevisionPreviewDialog({
                                           )
                                         : intl.formatMessage(
                                               messages.showUnchanged,
-                                              { count: unchanged.length }
+                                              {
+                                                  count:
+                                                      unchanged.length +
+                                                      unchangedExtras.length
+                                              }
                                           )}
                                 </Button>
                             )}
@@ -251,6 +283,16 @@ export function RevisionPreviewDialog({
                                     media={mediaFor(entry.field.name)}
                                 />
                             ))}
+                            {changedExtras.map((row) => (
+                                <RevisionExtraRow
+                                    key={row.item.key}
+                                    item={row.item}
+                                    changed
+                                    current={row.current}
+                                    revision={row.revision}
+                                    revisionNumber={revision.number}
+                                />
+                            ))}
                             {showUnchanged &&
                                 unchanged.map((entry) => (
                                     <RevisionDiffRow
@@ -259,6 +301,17 @@ export function RevisionPreviewDialog({
                                         revisionNumber={revision.number}
                                         refs={refsFor(entry.field.name)}
                                         media={mediaFor(entry.field.name)}
+                                    />
+                                ))}
+                            {showUnchanged &&
+                                unchangedExtras.map((row) => (
+                                    <RevisionExtraRow
+                                        key={row.item.key}
+                                        item={row.item}
+                                        changed={false}
+                                        current={row.current}
+                                        revision={row.revision}
+                                        revisionNumber={revision.number}
                                     />
                                 ))}
                         </div>

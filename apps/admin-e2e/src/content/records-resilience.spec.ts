@@ -186,7 +186,11 @@ test.describe('Records resilience', () => {
             'Showing 11–20 of 21, page 2 of 3.'
         );
 
-        await contentLibraryPage.columnHeader('Blog posts', 'Title').click();
+        // The header's **sort button**, not the `<th>` around it: a click on the
+        // cell lands wherever its centre happens to be, which here was beside
+        // the control and sorted nothing — so the assertion below read as "the
+        // live region never mentions the sort" rather than "nothing was sorted".
+        await contentLibraryPage.sortHeader('Title').click();
         await expect(contentLibraryPage.recordsStatus).toContainText(
             'Sorted by Title, ascending.'
         );

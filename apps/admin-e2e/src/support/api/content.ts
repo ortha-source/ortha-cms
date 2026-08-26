@@ -10,6 +10,13 @@ interface ContentTypeSummary {
     path?: string;
     /** Has a draft/published `status` envelope column. */
     publishable?: boolean;
+    /**
+     * Row-per-locale, via `locale` + `localeGroupId`. What the editor reads to
+     * decide whether a decision it is about to take covers every language of the
+     * record — segments' Access tab says so on a localized type and stays quiet
+     * on one with no translations.
+     */
+    i18n?: boolean;
 }
 
 /** One field as `GET /api/content-schema/:name` returns it. */
@@ -1621,6 +1628,14 @@ export interface CapturedSave {
         string,
         { link?: string[]; unlink?: string[]; order?: string[] }
     >;
+    /**
+     * Per-plugin state stored alongside the entry, keyed by extension — the
+     * segments plugin's `access`. It rides the save body precisely so it lands
+     * in one transaction with the record, which makes "what did the editor
+     * send" the only place a spec can check that the Access tab's staging
+     * actually reached the write.
+     */
+    extensions?: Record<string, unknown>;
 }
 
 /** Records the bodies sent to the entry create/update endpoints. */

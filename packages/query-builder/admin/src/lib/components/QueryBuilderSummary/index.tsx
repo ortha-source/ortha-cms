@@ -1,4 +1,4 @@
-import { defineMessages, useIntl } from 'react-intl';
+import { defineMessages, useIntl, type IntlShape } from 'react-intl';
 import { X } from 'lucide-react';
 import { cn } from '@orthacms/design-system';
 import type { FilterField } from '../../types/filter-field.type';
@@ -43,8 +43,32 @@ function flattenRules(group: FilterGroup): FilterRule[] {
     return out;
 }
 
-/** The value half of a chip's label, or `null` when the operator needs none. */
-function formatValue(rule: FilterRule): string | null {
+/**
+ * The value half of a chip's label, or `null` when the operator needs none.
+ *
+ * An **enum** rule is rendered through the field's declared members, because the
+ * value on the wire is an opaque id and the chip is the only place the rule is
+ * read once the panel has collapsed. A plugin's virtual fields make that
+ * unmissable: `@orthacms/segments-admin` filters by a segment's **uuid** — the
+ * key is renameable, so the id is the only stable handle — and an unresolved
+ * chip reads "Can be seen by is d19a552b-630a-…", which names neither the
+ * audience nor the mistake if it is the wrong one.
+ *
+ * An unknown member falls back to the raw value rather than disappearing: a
+ * saved view can outlive the option it names, and a chip that quietly showed
+ * nothing would read as a filter that is not applied.
+ */
+function formatValue(
+    intl: IntlShape,
+    field: FilterField | undefined,
+    rule: FilterRule
+): string | null {
+    const member = (value: unknown): string => {
+        if (typeof value !== 'string') return '';
+        const option = field?.enumValues?.find((opt) => opt.value === value);
+        return option ? intl.formatMessage(option.label) : value;
+    };
+
     switch (rule.op) {
         case OP.IsEmpty:
         case OP.IsNotEmpty:
@@ -59,9 +83,11 @@ function formatValue(rule: FilterRule): string | null {
         }
         case OP.IsOneOf:
         case OP.NotOneOf:
-            return Array.isArray(rule.value) ? rule.value.join(', ') : '';
+            return Array.isArray(rule.value)
+                ? rule.value.map(member).join(', ')
+                : '';
         default:
-            return typeof rule.value === 'string' ? rule.value : '';
+            return typeof rule.value === 'string' ? member(rule.value) : '';
     }
 }
 
@@ -96,7 +122,11 @@ export function QueryBuilderSummary({
                 // came from cannot drift into two names for one rule.
                 const path = fieldPath(intl, fields, rule.fieldId);
                 const op = intl.formatMessage(OP_LABELS[rule.op]);
-                const value = formatValue(rule);
+                const value = formatValue(
+                    intl,
+                    fields.find((field) => field.id === rule.fieldId),
+                    rule
+                );
 
                 return (
                     <span

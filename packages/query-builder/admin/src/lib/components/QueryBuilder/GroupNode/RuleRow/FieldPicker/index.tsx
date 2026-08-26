@@ -200,6 +200,29 @@ export function FieldPicker({
                 });
             }
         }
+        // Named buckets of the collection's own fields (a plugin's virtual
+        // fields), between its scalars and its relations: they are the
+        // collection's, so they sit above Relations, but they are not what a
+        // reader scanning for a column of their type is looking for, so they
+        // sit below Fields.
+        for (const category of tree.categories) {
+            if (category.fields.length === 0) continue;
+            out.push({
+                kind: 'header',
+                key: `h:c:${category.key}`,
+                label: category.label
+            });
+            for (const field of category.fields) {
+                out.push({
+                    kind: 'field',
+                    key: field.id,
+                    field,
+                    depth: 0,
+                    crumbs: []
+                });
+            }
+        }
+
         if (tree.relations.length > 0) {
             out.push({
                 kind: 'header',

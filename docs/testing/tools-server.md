@@ -22,9 +22,9 @@ exactly one registry instance to both consumers (`src/lib/tools.module.ts`).
   `activity/server`, `users/server`. This package has zero domain knowledge.
 - **Any transport.** No HTTP, no JSON-RPC, no SSE. `mcp/server` and
   `copilot/server` are the two adapters.
-- **Permission *definitions*.** `PermissionKey` is imported as a type from
+- **Permission _definitions_.** `PermissionKey` is imported as a type from
   `@orthacms/identity-server` (`src/lib/tool.ts:1`); the catalogue lives there.
-- **Permission *resolution*.** `createToolContext` explicitly never derives
+- **Permission _resolution_.** `createToolContext` explicitly never derives
   permissions — the caller hands `grantedPermissions` over already resolved
   (`src/lib/tool-context.ts:12-15`).
 - **Argument validation.** See 🐞 BUG-tools-server-01 — nothing here validates
@@ -33,14 +33,14 @@ exactly one registry instance to both consumers (`src/lib/tools.module.ts`).
 
 ### Entry points (exported API — `src/index.ts:15-38`)
 
-| Export | Kind | Notes |
-| --- | --- | --- |
-| `ToolRegistry` | class (`@Injectable()`) | `register` / `all` / `forSurface` / `visibleTo` / `call` / `resources` / `readResource` |
-| `ToolsModule` | `@Global()` NestJS module | Provides + exports `ToolRegistry`. **Imported** by MCP and copilot, provided by neither. |
-| `createToolContext(actor, workspaceId)` | function | Builds a `ToolContext` whose `can()` is a set lookup |
-| `toToolError(error)` | function | `HttpException` → `{ status, code, message, issues? }`; anything else → opaque 500 |
-| `ToolProvider` | type | `tools()` + optional `resources()` / `readResource()` |
-| `ToolDefinition`, `ToolContext`, `ToolActor`, `ToolActorKind`, `ToolEffect`, `ToolSurface`, `ToolOutput`, `JsonSchema`, `ResourceDefinition`, `ResourceContents`, `ToolError` | types | — |
+| Export                                                                                                                                                                        | Kind                      | Notes                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
+| `ToolRegistry`                                                                                                                                                                | class (`@Injectable()`)   | `register` / `all` / `forSurface` / `visibleTo` / `call` / `resources` / `readResource`  |
+| `ToolsModule`                                                                                                                                                                 | `@Global()` NestJS module | Provides + exports `ToolRegistry`. **Imported** by MCP and copilot, provided by neither. |
+| `createToolContext(actor, workspaceId)`                                                                                                                                       | function                  | Builds a `ToolContext` whose `can()` is a set lookup                                     |
+| `toToolError(error)`                                                                                                                                                          | function                  | `HttpException` → `{ status, code, message, issues? }`; anything else → opaque 500       |
+| `ToolProvider`                                                                                                                                                                | type                      | `tools()` + optional `resources()` / `readResource()`                                    |
+| `ToolDefinition`, `ToolContext`, `ToolActor`, `ToolActorKind`, `ToolEffect`, `ToolSurface`, `ToolOutput`, `JsonSchema`, `ResourceDefinition`, `ResourceContents`, `ToolError` | types                     | —                                                                                        |
 
 **No HTTP routes.** This unit contributes no controller and no route.
 
@@ -86,37 +86,37 @@ npx nx e2e server-e2e --testPathPatterns=copilot
 
 29 tools, from six plugins. `surfaces` omitted means **both**.
 
-| Tool | `requires` | `effect` | `surfaces` | Declared at |
-| --- | --- | --- | --- | --- |
-| `content_types_list` | `content:read` | (read) | `['mcp']` | `packages/content/server/src/lib/mcp/content-tools.provider.ts:127` |
-| `content_type_get` | `content:read` | (read) | `['mcp']` | …`:139` |
-| `content_list` | `content:read` | (read) | `['mcp']` | …`:155` |
-| `content_get` | `content:read` | (read) | `['mcp']` | …`:181` |
-| `content_relations` | `content:read` | (read) | `['mcp']` | …`:208` |
-| `content_media` | `content:read` + `media:read` | (read) | `['mcp']` | …`:239` |
-| `content_translations` | `content:read` | (read) | `['mcp']` | …`:269` |
-| `content_create` | `content:create` | (read†) | `['mcp']` | …`:299` |
-| `content_update` | `content:update` | (read†) | `['mcp']` | …`:324` |
-| `content_publish` | `content:publish` | (read†) | `['mcp']` | …`:358` |
-| `content_unpublish` | `content:publish` | (read†) | `['mcp']` | …`:380` |
-| `content_delete` | `content:delete` | (read†) | `['mcp']` | …`:402` |
-| `admin_content_types` | `content:read` | `read` | `['copilot']` | `packages/content/server/src/lib/copilot/content-tool.provider.ts:90` |
-| `admin_content_search` | `content:read` | `read` | `['copilot']` | …`:158` |
-| `admin_content_get` | `content:read` | `read` | `['copilot']` | …`:303` |
-| `admin_content_revisions` | `content:read` | `read` | `['copilot']` | `packages/content/server/src/lib/copilot/revision-tool.provider.ts:77` |
-| `admin_content_diff` | `content:read` | `read` | `['copilot']` | …`:157` |
-| `content_propose_create` | `content:create` | `propose` | `['copilot']` | `packages/content/server/src/lib/copilot/entry-proposal.provider.ts:152` |
-| `content_propose_update` | `content:update` | `propose` | `['copilot']` | …`:252` |
-| `i18n_locales_list` | `content:read` | `read` | **both** | `packages/i18n/server/src/lib/copilot/i18n-tool.provider.ts:67` |
-| `i18n_translations_get` | `content:read` | `read` | `['copilot']` | …`:101` |
-| `i18n_propose_translation` | `content:update` | `propose` | `['copilot']` | `packages/i18n/server/src/lib/copilot/translation-proposal.provider.ts:66` |
-| `media_assets_search` | `media:read` | `read` | **both** | `packages/media/server/src/lib/copilot/media-tool.provider.ts:88` |
-| `media_folders_list` | `media:read` | `read` | **both** | …`:203` |
-| `media_asset_read` | `media:read` | `read` | **both** | …`:243` |
-| `media_propose_alt_text` | `media:update` | `propose` | `['copilot']` | `packages/media/server/src/lib/copilot/alt-text-proposal.provider.ts:48` |
-| `media_propose_file` | `media:create` | `propose` | `['copilot']` | `packages/media/server/src/lib/copilot/create-file-proposal.provider.ts:69` |
-| `activity_recent` | `activity:read` | `read` | `['copilot']` | `packages/activity/server/src/lib/copilot/activity-tool.provider.ts:54` |
-| `workspace_members_list` | `users:read` | `read` | `['copilot']` | `packages/users/server/src/lib/copilot/workspace-tool.provider.ts:54` |
+| Tool                       | `requires`                    | `effect`  | `surfaces`    | Declared at                                                                 |
+| -------------------------- | ----------------------------- | --------- | ------------- | --------------------------------------------------------------------------- |
+| `content_types_list`       | `content:read`                | (read)    | `['mcp']`     | `packages/content/server/src/lib/mcp/content-tools.provider.ts:127`         |
+| `content_type_get`         | `content:read`                | (read)    | `['mcp']`     | …`:139`                                                                     |
+| `content_list`             | `content:read`                | (read)    | `['mcp']`     | …`:155`                                                                     |
+| `content_get`              | `content:read`                | (read)    | `['mcp']`     | …`:181`                                                                     |
+| `content_relations`        | `content:read`                | (read)    | `['mcp']`     | …`:208`                                                                     |
+| `content_media`            | `content:read` + `media:read` | (read)    | `['mcp']`     | …`:239`                                                                     |
+| `content_translations`     | `content:read`                | (read)    | `['mcp']`     | …`:269`                                                                     |
+| `content_create`           | `content:create`              | (read†)   | `['mcp']`     | …`:299`                                                                     |
+| `content_update`           | `content:update`              | (read†)   | `['mcp']`     | …`:324`                                                                     |
+| `content_publish`          | `content:publish`             | (read†)   | `['mcp']`     | …`:358`                                                                     |
+| `content_unpublish`        | `content:publish`             | (read†)   | `['mcp']`     | …`:380`                                                                     |
+| `content_delete`           | `content:delete`              | (read†)   | `['mcp']`     | …`:402`                                                                     |
+| `admin_content_types`      | `content:read`                | `read`    | `['copilot']` | `packages/content/server/src/lib/copilot/content-tool.provider.ts:90`       |
+| `admin_content_search`     | `content:read`                | `read`    | `['copilot']` | …`:158`                                                                     |
+| `admin_content_get`        | `content:read`                | `read`    | `['copilot']` | …`:303`                                                                     |
+| `admin_content_revisions`  | `content:read`                | `read`    | `['copilot']` | `packages/content/server/src/lib/copilot/revision-tool.provider.ts:77`      |
+| `admin_content_diff`       | `content:read`                | `read`    | `['copilot']` | …`:157`                                                                     |
+| `content_propose_create`   | `content:create`              | `propose` | `['copilot']` | `packages/content/server/src/lib/copilot/entry-proposal.provider.ts:152`    |
+| `content_propose_update`   | `content:update`              | `propose` | `['copilot']` | …`:252`                                                                     |
+| `i18n_locales_list`        | `content:read`                | `read`    | **both**      | `packages/i18n/server/src/lib/copilot/i18n-tool.provider.ts:67`             |
+| `i18n_translations_get`    | `content:read`                | `read`    | `['copilot']` | …`:101`                                                                     |
+| `i18n_propose_translation` | `content:update`              | `propose` | `['copilot']` | `packages/i18n/server/src/lib/copilot/translation-proposal.provider.ts:66`  |
+| `media_assets_search`      | `media:read`                  | `read`    | **both**      | `packages/media/server/src/lib/copilot/media-tool.provider.ts:88`           |
+| `media_folders_list`       | `media:read`                  | `read`    | **both**      | …`:203`                                                                     |
+| `media_asset_read`         | `media:read`                  | `read`    | **both**      | …`:243`                                                                     |
+| `media_propose_alt_text`   | `media:update`                | `propose` | `['copilot']` | `packages/media/server/src/lib/copilot/alt-text-proposal.provider.ts:48`    |
+| `media_propose_file`       | `media:create`                | `propose` | `['copilot']` | `packages/media/server/src/lib/copilot/create-file-proposal.provider.ts:69` |
+| `activity_recent`          | `activity:read`               | `read`    | `['copilot']` | `packages/activity/server/src/lib/copilot/activity-tool.provider.ts:54`     |
+| `workspace_members_list`   | `users:read`                  | `read`    | `['copilot']` | `packages/users/server/src/lib/copilot/workspace-tool.provider.ts:54`       |
 
 † the twelve MCP content tools are stamped with a shared base object at
 `content-tools.provider.ts:104-114` that sets `surfaces: ['mcp']` and **no**
@@ -136,31 +136,31 @@ tool leaks to the copilot. **Checked and cleared** — see §6.
 
 ## 2. Feature Inventory
 
-| # | Feature | Where it lives | Coverage |
-| --- | --- | --- | --- |
-| F1 | `register(provider)` — a capability plugin adds its tools at `onModuleInit` | `src/lib/tool-registry.ts:42-44` | 🧪 UNIT `src/lib/tool-registry.spec.ts:267` |
-| F2 | `all()` — every tool, in registration order | `src/lib/tool-registry.ts:53-68` | 🧪 UNIT `tool-registry.spec.ts:267-275` |
-| F3 | `all()` throws on a duplicate tool name across providers | `src/lib/tool-registry.ts:58-62` | 🧪 UNIT `tool-registry.spec.ts:280-285` |
-| F4 | `forSurface(surface)` — narrows to one consumer; omitted `surfaces` means both | `src/lib/tool-registry.ts:76-80` | 🧪 UNIT `tool-registry.spec.ts:195-223` |
-| F5 | `visibleTo(context, surface)` — the offered list, permission-filtered | `src/lib/tool-registry.ts:89-96` | 🧪 UNIT `tool-registry.spec.ts:153-167` |
-| F6 | `call()` refuses an unknown tool name with `NotFoundException` | `src/lib/tool-registry.ts:118-123` | 🧪 UNIT `tool-registry.spec.ts:171-177` · ✅ E2E `apps/server-e2e/src/server/mcp/mcp.spec.ts:588` |
-| F7 | `call()` refuses a tool narrowed to the *other* surface as **unknown**, not forbidden | `src/lib/tool-registry.ts:118-123` | 🧪 UNIT `tool-registry.spec.ts:225-238` · ✅ E2E `mcp.spec.ts:495`, `apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts:158` |
-| F8 | `call()` re-checks `requires` **before dispatch** — the security boundary | `src/lib/tool-registry.ts:124-130`, `168-171` | 🧪 UNIT `tool-registry.spec.ts:57-92` · ✅ E2E `mcp.spec.ts:541`, `553` |
-| F9 | `requires` is ALL-of, not any-of | `src/lib/tool-registry.ts:170` | 🧪 UNIT `tool-registry.spec.ts:94-124` |
-| F10 | `call()` stamps `surface` on the handler's context (never caller-asserted) | `src/lib/tool-registry.ts:131-136` | 🧪 UNIT `tool-registry.spec.ts:245-263` · ✅ E2E `mcp.spec.ts:458`, `copilot-read-catalogue.spec.ts:485` |
-| F11 | A tool requiring nothing runs for any actor | `src/lib/tool-registry.ts:170` (vacuous `every`) | 🧪 UNIT `tool-registry.spec.ts:143-149` |
-| F12 | `resources(context)` — flattens every provider's resource list | `src/lib/tool-registry.ts:140-149` | 🧪 UNIT `tool-registry.spec.ts:318-339` · ✅ E2E `mcp.spec.ts:647` |
-| F13 | `readResource(uri, context)` — first provider that claims the URI wins | `src/lib/tool-registry.ts:155-166` | 🧪 UNIT `tool-registry.spec.ts:297-316` · ✅ E2E `mcp.spec.ts:665` |
-| F14 | `readResource` 404s a URI nobody claims | `src/lib/tool-registry.ts:165` | 🧪 UNIT `tool-registry.spec.ts:289-295` |
-| F15 | `createToolContext` — `can()` is a plain set membership over `grantedPermissions` | `src/lib/tool-context.ts:17-27` | 🧪 UNIT (used throughout `tool-registry.spec.ts:9-20`) |
-| F16 | `toToolError` maps 404 → `not_found`, 403 → `forbidden`, 422 → `validation_failed`, 400 → `bad_request`, 401 → `unauthorized`, 409 → `conflict` | `src/lib/tool-error.ts:16-23`, `42-64` | 🧪 UNIT `src/lib/tool-error.spec.ts:10-28` |
-| F17 | `toToolError` carries a 422's per-field `issues` through verbatim | `src/lib/tool-error.ts:56-63` | 🧪 UNIT `tool-error.spec.ts:29-46` · ✅ E2E `mcp.spec.ts:858` |
-| F18 | `toToolError` joins an array `message` into one string | `src/lib/tool-error.ts:51-54` | 🧪 UNIT `tool-error.spec.ts:47-58` |
-| F19 | `toToolError` reduces a non-`HttpException` to an **opaque** 500 and logs the stack | `src/lib/tool-error.ts:67-77` | 🧪 UNIT `tool-error.spec.ts:59-70` |
-| F20 | `ToolsModule` is `@Global()` and yields one instance to both importers | `src/lib/tools.module.ts:22-27` | ❌ NONE (no test asserts instance identity across both modules) |
-| F21 | A capability plugin injects `ToolRegistry` `@Optional()` and boots without either consumer | `src/lib/tool-provider.ts:20-25` (contract); binders e.g. `activity-tool.provider.ts:30` | ❌ NONE |
-| F22 | **Argument validation against `inputSchema`** | *nowhere in this package* | ❌ NONE → 🐞 BUG-tools-server-01 |
-| F23 | **Resource authorization (`requires` on a resource)** | *does not exist* | ❌ NONE → 🐞 BUG-tools-server-02 |
+| #   | Feature                                                                                                                                         | Where it lives                                                                           | Coverage                                                                                                                                    |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | `register(provider)` — a capability plugin adds its tools at `onModuleInit`                                                                     | `src/lib/tool-registry.ts:42-44`                                                         | 🧪 UNIT `src/lib/tool-registry.spec.ts:267`                                                                                                 |
+| F2  | `all()` — every tool, in registration order                                                                                                     | `src/lib/tool-registry.ts:53-68`                                                         | 🧪 UNIT `tool-registry.spec.ts:267-275`                                                                                                     |
+| F3  | `all()` throws on a duplicate tool name across providers                                                                                        | `src/lib/tool-registry.ts:58-62`                                                         | 🧪 UNIT `tool-registry.spec.ts:280-285`                                                                                                     |
+| F4  | `forSurface(surface)` — narrows to one consumer; omitted `surfaces` means both                                                                  | `src/lib/tool-registry.ts:76-80`                                                         | 🧪 UNIT `tool-registry.spec.ts:195-223`                                                                                                     |
+| F5  | `visibleTo(context, surface)` — the offered list, permission-filtered                                                                           | `src/lib/tool-registry.ts:89-96`                                                         | 🧪 UNIT `tool-registry.spec.ts:153-167`                                                                                                     |
+| F6  | `call()` refuses an unknown tool name with `NotFoundException`                                                                                  | `src/lib/tool-registry.ts:118-123`                                                       | 🧪 UNIT `tool-registry.spec.ts:171-177` · ✅ E2E `apps/server-e2e/src/server/mcp/mcp.spec.ts:588`                                           |
+| F7  | `call()` refuses a tool narrowed to the _other_ surface as **unknown**, not forbidden                                                           | `src/lib/tool-registry.ts:118-123`                                                       | 🧪 UNIT `tool-registry.spec.ts:225-238` · ✅ E2E `mcp.spec.ts:495`, `apps/server-e2e/src/server/copilot/copilot-read-catalogue.spec.ts:158` |
+| F8  | `call()` re-checks `requires` **before dispatch** — the security boundary                                                                       | `src/lib/tool-registry.ts:124-130`, `168-171`                                            | 🧪 UNIT `tool-registry.spec.ts:57-92` · ✅ E2E `mcp.spec.ts:541`, `553`                                                                     |
+| F9  | `requires` is ALL-of, not any-of                                                                                                                | `src/lib/tool-registry.ts:170`                                                           | 🧪 UNIT `tool-registry.spec.ts:94-124`                                                                                                      |
+| F10 | `call()` stamps `surface` on the handler's context (never caller-asserted)                                                                      | `src/lib/tool-registry.ts:131-136`                                                       | 🧪 UNIT `tool-registry.spec.ts:245-263` · ✅ E2E `mcp.spec.ts:458`, `copilot-read-catalogue.spec.ts:485`                                    |
+| F11 | A tool requiring nothing runs for any actor                                                                                                     | `src/lib/tool-registry.ts:170` (vacuous `every`)                                         | 🧪 UNIT `tool-registry.spec.ts:143-149`                                                                                                     |
+| F12 | `resources(context)` — flattens every provider's resource list                                                                                  | `src/lib/tool-registry.ts:140-149`                                                       | 🧪 UNIT `tool-registry.spec.ts:318-339` · ✅ E2E `mcp.spec.ts:647`                                                                          |
+| F13 | `readResource(uri, context)` — first provider that claims the URI wins                                                                          | `src/lib/tool-registry.ts:155-166`                                                       | 🧪 UNIT `tool-registry.spec.ts:297-316` · ✅ E2E `mcp.spec.ts:665`                                                                          |
+| F14 | `readResource` 404s a URI nobody claims                                                                                                         | `src/lib/tool-registry.ts:165`                                                           | 🧪 UNIT `tool-registry.spec.ts:289-295`                                                                                                     |
+| F15 | `createToolContext` — `can()` is a plain set membership over `grantedPermissions`                                                               | `src/lib/tool-context.ts:17-27`                                                          | 🧪 UNIT (used throughout `tool-registry.spec.ts:9-20`)                                                                                      |
+| F16 | `toToolError` maps 404 → `not_found`, 403 → `forbidden`, 422 → `validation_failed`, 400 → `bad_request`, 401 → `unauthorized`, 409 → `conflict` | `src/lib/tool-error.ts:16-23`, `42-64`                                                   | 🧪 UNIT `src/lib/tool-error.spec.ts:10-28`                                                                                                  |
+| F17 | `toToolError` carries a 422's per-field `issues` through verbatim                                                                               | `src/lib/tool-error.ts:56-63`                                                            | 🧪 UNIT `tool-error.spec.ts:29-46` · ✅ E2E `mcp.spec.ts:858`                                                                               |
+| F18 | `toToolError` joins an array `message` into one string                                                                                          | `src/lib/tool-error.ts:51-54`                                                            | 🧪 UNIT `tool-error.spec.ts:47-58`                                                                                                          |
+| F19 | `toToolError` reduces a non-`HttpException` to an **opaque** 500 and logs the stack                                                             | `src/lib/tool-error.ts:67-77`                                                            | 🧪 UNIT `tool-error.spec.ts:59-70`                                                                                                          |
+| F20 | `ToolsModule` is `@Global()` and yields one instance to both importers                                                                          | `src/lib/tools.module.ts:22-27`                                                          | ❌ NONE (no test asserts instance identity across both modules)                                                                             |
+| F21 | A capability plugin injects `ToolRegistry` `@Optional()` and boots without either consumer                                                      | `src/lib/tool-provider.ts:20-25` (contract); binders e.g. `activity-tool.provider.ts:30` | ❌ NONE                                                                                                                                     |
+| F22 | **Argument validation against `inputSchema`**                                                                                                   | _nowhere in this package_                                                                | ❌ NONE → 🐞 BUG-tools-server-01                                                                                                            |
+| F23 | **Resource authorization (`requires` on a resource)**                                                                                           | _does not exist_                                                                         | ❌ NONE → 🐞 BUG-tools-server-02                                                                                                            |
 
 ---
 
@@ -193,152 +193,152 @@ renders no UI. See §4A.
 
 **Preconditions:** server booted with all plugins.
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` with the **full** token | `result.tools` contains `content_create` (content), `media_assets_search` (media) and `i18n_locales_list` (i18n) — three different plugins in one catalogue |
-| 2 | Stop the server, comment out `MediaServerPlugin` in `apps/server/src/plugins.ts`, restart | Boot succeeds. `tools/list` no longer contains any `media_*` name, and nothing 500s |
-| 3 | Restore `plugins.ts` and restart | The three `media_*` tools are back |
+| Step | Action                                                                                    | Expected result                                                                                                                                             |
+| ---- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` with the **full** token            | `result.tools` contains `content_create` (content), `media_assets_search` (media) and `i18n_locales_list` (i18n) — three different plugins in one catalogue |
+| 2    | Stop the server, comment out `MediaServerPlugin` in `apps/server/src/plugins.ts`, restart | Boot succeeds. `tools/list` no longer contains any `media_*` name, and nothing 500s                                                                         |
+| 3    | Restore `plugins.ts` and restart                                                          | The three `media_*` tools are back                                                                                                                          |
 
 ### F2 — `all()` returns registration order
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` with the full token | The `content_*` tools appear before `media_*`, which appear before `i18n_locales_list` — matching the plugin order in `apps/server/src/plugins.ts:54-170` |
+| Step | Action                                                                     | Expected result                                                                                                                                           |
+| ---- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` with the full token | The `content_*` tools appear before `media_*`, which appear before `i18n_locales_list` — matching the plugin order in `apps/server/src/plugins.ts:54-170` |
 
 ### F3 — a duplicate tool name is a loud failure
 
 **Preconditions:** a scratch branch; you will edit source and revert.
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | In `packages/activity/server/src/lib/copilot/activity-tool.provider.ts:54`, rename `activity_recent` to `media_assets_search` | — |
-| 2 | Restart the server | **Boot succeeds** — nothing validates names at boot |
-| 3 | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'` | **500**, not a tool list. The log shows `Duplicate tool name "media_assets_search"` |
-| 4 | Send any copilot message from the panel | The run fails with a generic error frame. Every tool call on **both** surfaces is now dead → 🐞 BUG-tools-server-03 |
-| 5 | `git checkout -- packages/activity` and restart | Recovered |
+| Step | Action                                                                                                                        | Expected result                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1    | In `packages/activity/server/src/lib/copilot/activity-tool.provider.ts:54`, rename `activity_recent` to `media_assets_search` | —                                                                                                                   |
+| 2    | Restart the server                                                                                                            | **Boot succeeds** — nothing validates names at boot                                                                 |
+| 3    | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`                                                                        | **500**, not a tool list. The log shows `Duplicate tool name "media_assets_search"`                                 |
+| 4    | Send any copilot message from the panel                                                                                       | The run fails with a generic error frame. Every tool call on **both** surfaces is now dead → 🐞 BUG-tools-server-03 |
+| 5    | `git checkout -- packages/activity` and restart                                                                               | Recovered                                                                                                           |
 
 ### F4 — `forSurface` narrows, and omitted means both
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `tools/list` with the **full** token | `media_assets_search`, `media_folders_list`, `media_asset_read`, `i18n_locales_list` are present |
-| 2 | Same call | **No** name starting `admin_`, and no name containing `propose`, appears |
-| 3 | Ask the copilot panel "what tools do you have?" and expand any tool step | The copilot surface shows `admin_content_search` etc. and **not** `content_list` / `content_create` |
+| Step | Action                                                                   | Expected result                                                                                     |
+| ---- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 1    | `tools/list` with the **full** token                                     | `media_assets_search`, `media_folders_list`, `media_asset_read`, `i18n_locales_list` are present    |
+| 2    | Same call                                                                | **No** name starting `admin_`, and no name containing `propose`, appears                            |
+| 3    | Ask the copilot panel "what tools do you have?" and expand any tool step | The copilot surface shows `admin_content_search` etc. and **not** `content_list` / `content_create` |
 
 ### F5 — `visibleTo` hides what the actor cannot call
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `tools/list` with the **read**-scope token | `content_create`, `content_update`, `content_publish`, `content_unpublish`, `content_delete` are **absent** |
-| 2 | Same call | `content_list`, `content_get`, `media_assets_search` are present |
-| 3 | Sign in as **viewer**, ask the copilot to "create an article" | The answer says it cannot; no `content_propose_create` step appears |
+| Step | Action                                                        | Expected result                                                                                             |
+| ---- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1    | `tools/list` with the **read**-scope token                    | `content_create`, `content_update`, `content_publish`, `content_unpublish`, `content_delete` are **absent** |
+| 2    | Same call                                                     | `content_list`, `content_get`, `media_assets_search` are present                                            |
+| 3    | Sign in as **viewer**, ask the copilot to "create an article" | The answer says it cannot; no `content_propose_create` step appears                                         |
 
 ### F6 — an unknown tool name is a 404-shaped tool error
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"content_teleport","arguments":{}}}'` | `result.isError === true`, and the text block parses to `{"status":404,"code":"not_found","message":"Unknown tool \"content_teleport\"."}` |
-| 2 | Confirm it is **not** a JSON-RPC error | `result.error` is absent; the failure rides as an `isError` result so a model can recover |
+| Step | Action                                                                                                     | Expected result                                                                                                                            |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"content_teleport","arguments":{}}}'` | `result.isError === true`, and the text block parses to `{"status":404,"code":"not_found","message":"Unknown tool \"content_teleport\"."}` |
+| 2    | Confirm it is **not** a JSON-RPC error                                                                     | `result.error` is absent; the failure rides as an `isError` result so a model can recover                                                  |
 
 ### F7 — a cross-surface name answers "unknown", never "forbidden"
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC` `tools/call` with `"name":"content_propose_update"` and the **full** token | `isError: true`, `code: "not_found"` — **not** `forbidden`. A full token holds `content:update`, so a permission-shaped answer would confirm the tool exists on the other surface |
-| 2 | `RPC` `tools/call` with `"name":"admin_content_search"` | Same: `not_found` |
+| Step | Action                                                                           | Expected result                                                                                                                                                                   |
+| ---- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `RPC` `tools/call` with `"name":"content_propose_update"` and the **full** token | `isError: true`, `code: "not_found"` — **not** `forbidden`. A full token holds `content:update`, so a permission-shaped answer would confirm the tool exists on the other surface |
+| 2    | `RPC` `tools/call` with `"name":"admin_content_search"`                          | Same: `not_found`                                                                                                                                                                 |
 
 ### F8 — `call()` is the boundary, not the list
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `tools/list` with the **read** token; note `content_delete` is absent | — |
-| 2 | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"content_delete","arguments":{"typeName":"test_article","id":"<any uuid>"}}}'` | `isError: true`, `code: "forbidden"`, message `"content_delete" requires content:delete, which this token does not hold.` |
-| 3 | Confirm nothing was deleted: `content_get` the entry with the full token | Still present |
+| Step | Action                                                                                                                                              | Expected result                                                                                                           |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `tools/list` with the **read** token; note `content_delete` is absent                                                                               | —                                                                                                                         |
+| 2    | `RPC '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"content_delete","arguments":{"typeName":"test_article","id":"<any uuid>"}}}'` | `isError: true`, `code: "forbidden"`, message `"content_delete" requires content:delete, which this token does not hold.` |
+| 3    | Confirm nothing was deleted: `content_get` the entry with the full token                                                                            | Still present                                                                                                             |
 
 ### F9 — every declared permission is required
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Mint a token whose scope yields `content:read` but not `media:read` (see `scopePermissions` in identity) | — |
-| 2 | `tools/call` `content_media` (requires both) | `forbidden`, naming **both** keys in the message |
+| Step | Action                                                                                                   | Expected result                                  |
+| ---- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1    | Mint a token whose scope yields `content:read` but not `media:read` (see `scopePermissions` in identity) | —                                                |
+| 2    | `tools/call` `content_media` (requires both)                                                             | `forbidden`, naming **both** keys in the message |
 
 ### F10 — the surface is stamped by the registry
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC` `tools/call` `media_assets_search` with `{"pageSize":1}` | Each item's `downloadPath` starts `/api/v1/media/assets/` — the bearer-fetchable route |
-| 2 | Ask the copilot "find me an image", expand the `media_assets_search` step | The same field reads `/api/media/assets/…` — the session-gated route |
-| 3 | Try to force it: add `"surface":"mcp"` to the copilot run body | **400** from the strict `ValidationPipe` — `surface` is not on `CreateRunDto`, and nothing in the request can reach `ToolContext.surface` |
+| Step | Action                                                                    | Expected result                                                                                                                           |
+| ---- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `RPC` `tools/call` `media_assets_search` with `{"pageSize":1}`            | Each item's `downloadPath` starts `/api/v1/media/assets/` — the bearer-fetchable route                                                    |
+| 2    | Ask the copilot "find me an image", expand the `media_assets_search` step | The same field reads `/api/media/assets/…` — the session-gated route                                                                      |
+| 3    | Try to force it: add `"surface":"mcp"` to the copilot run body            | **400** from the strict `ValidationPipe` — `surface` is not on `CreateRunDto`, and nothing in the request can reach `ToolContext.surface` |
 
 ### F11 — a tool requiring nothing
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | No tool in the shipped catalogue has `requires: []`. Add one temporarily in any provider with `requires: []` and restart | `tools/list` shows it to the **read** token, and `tools/call` runs it |
-| 2 | Revert | — |
+| Step | Action                                                                                                                   | Expected result                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| 1    | No tool in the shipped catalogue has `requires: []`. Add one temporarily in any provider with `requires: []` and restart | `tools/list` shows it to the **read** token, and `tools/call` runs it |
+| 2    | Revert                                                                                                                   | —                                                                     |
 
 ### F12 — `resources/list` flattens across providers
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC '{"jsonrpc":"2.0","id":1,"method":"resources/list"}'` | One `ortha://content-type/<slug>` entry per granted type, and nothing for an ungranted one |
+| Step | Action                                                     | Expected result                                                                            |
+| ---- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1    | `RPC '{"jsonrpc":"2.0","id":1,"method":"resources/list"}'` | One `ortha://content-type/<slug>` entry per granted type, and nothing for an ungranted one |
 
 ### F13 — `resources/read` first-claim-wins
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `RPC '{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"ortha://content-type/test_article"}}'` | `result.contents[0].mimeType === 'application/json'` and `.text` parses to the type's field schema |
+| Step | Action                                                                                                          | Expected result                                                                                    |
+| ---- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1    | `RPC '{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"ortha://content-type/test_article"}}'` | `result.contents[0].mimeType === 'application/json'` and `.text` parses to the type's field schema |
 
 ### F14 — `resources/read` on an unclaimed URI
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `…"params":{"uri":"ortha://nope"}` | A JSON-RPC **error** (not an `isError` result — `readResource` throws out of the handler and the SDK converts it), whose message is `Unknown resource "ortha://nope".` |
+| Step | Action                             | Expected result                                                                                                                                                        |
+| ---- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `…"params":{"uri":"ortha://nope"}` | A JSON-RPC **error** (not an `isError` result — `readResource` throws out of the handler and the SDK converts it), whose message is `Unknown resource "ortha://nope".` |
 
 ### F15 — `can()` is set membership and nothing else
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `npx nx test @orthacms/tools-server` | The `contextWith(...)` helper (`tool-registry.spec.ts:9-20`) builds a context from a bare `Set` and every authorization assertion passes off it — proving no re-derivation from `actor.id` |
+| Step | Action                               | Expected result                                                                                                                                                                            |
+| ---- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | `npx nx test @orthacms/tools-server` | The `contextWith(...)` helper (`tool-registry.spec.ts:9-20`) builds a context from a bare `Set` and every authorization assertion passes off it — proving no re-derivation from `actor.id` |
 
 ### F16–F19 — `toToolError`
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | `tools/call` `content_get` with a `typeName` the workspace was not granted | `{"status":404,"code":"not_found",…}` — identical to an unknown type (`mcp.spec.ts:633`) |
-| 2 | `tools/call` `content_create` with a `title` over the field's max length | `{"status":422,"code":"validation_failed","message":…,"issues":[{…}]}` — the `issues` array is present and per-field |
-| 3 | `tools/call` `content_create` with two invalid DTO fields | `message` is the two messages joined with `; ` |
-| 4 | Stop Postgres (`docker compose stop`) and `tools/call` `content_list` | `{"status":500,"code":"internal_error","message":"The tool failed unexpectedly. See the server logs."}`. The connection string appears **only** in the server log, never in the response |
+| Step | Action                                                                     | Expected result                                                                                                                                                                          |
+| ---- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `tools/call` `content_get` with a `typeName` the workspace was not granted | `{"status":404,"code":"not_found",…}` — identical to an unknown type (`mcp.spec.ts:633`)                                                                                                 |
+| 2    | `tools/call` `content_create` with a `title` over the field's max length   | `{"status":422,"code":"validation_failed","message":…,"issues":[{…}]}` — the `issues` array is present and per-field                                                                     |
+| 3    | `tools/call` `content_create` with two invalid DTO fields                  | `message` is the two messages joined with `; `                                                                                                                                           |
+| 4    | Stop Postgres (`docker compose stop`) and `tools/call` `content_list`      | `{"status":500,"code":"internal_error","message":"The tool failed unexpectedly. See the server logs."}`. The connection string appears **only** in the server log, never in the response |
 
 ### F20 — one registry, two importers
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Boot with `MCP_ENABLED=true` and `COPILOT_ENABLED=true` | `tools/list` over MCP and the copilot's offered set are both non-empty, and `media_assets_search` appears in both |
-| 2 | Boot with `MCP_ENABLED=false`, `COPILOT_ENABLED=true` | The copilot still has tools. `POST /api/v1/mcp` 404s |
-| 3 | Boot with `MCP_ENABLED=true`, `COPILOT_ENABLED=false` | `tools/list` still works. The copilot's own routes are gone — `POST /api/copilot/runs` 404s rather than streaming an error frame — which is the point: the registry is imported, not owned by either consumer |
+| Step | Action                                                  | Expected result                                                                                                                                                                                               |
+| ---- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Boot with `MCP_ENABLED=true` and `COPILOT_ENABLED=true` | `tools/list` over MCP and the copilot's offered set are both non-empty, and `media_assets_search` appears in both                                                                                             |
+| 2    | Boot with `MCP_ENABLED=false`, `COPILOT_ENABLED=true`   | The copilot still has tools. `POST /api/v1/mcp` 404s                                                                                                                                                          |
+| 3    | Boot with `MCP_ENABLED=true`, `COPILOT_ENABLED=false`   | `tools/list` still works. The copilot's own routes are gone — `POST /api/copilot/runs` 404s rather than streaming an error frame — which is the point: the registry is imported, not owned by either consumer |
 
 ### F21 — a capability plugin boots with neither consumer
 
-| Step | Action | Expected result |
-| --- | --- | --- |
-| 1 | Remove **both** `CopilotPlugin(...)` and `McpPlugin(...)` from `apps/server/src/plugins.ts`, restart | Boot succeeds. `ToolsModule` is never imported, so `ToolRegistry` is unresolvable, and every provider's `@Optional()` injection yields `undefined` — their `onModuleInit` registers nothing |
-| 2 | Hit an ordinary content route, e.g. `GET /api/content/test_article` | Works normally — the tools are inert, the plugin is not |
+| Step | Action                                                                                               | Expected result                                                                                                                                                                             |
+| ---- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Remove **both** `CopilotPlugin(...)` and `McpPlugin(...)` from `apps/server/src/plugins.ts`, restart | Boot succeeds. `ToolsModule` is never imported, so `ToolRegistry` is unresolvable, and every provider's `@Optional()` injection yields `undefined` — their `onModuleInit` registers nothing |
+| 2    | Hit an ordinary content route, e.g. `GET /api/content/test_article`                                  | Works normally — the tools are inert, the plugin is not                                                                                                                                     |
 
 ### F22 — argument validation (the gap)
 
-| Step | Action | Expected result / **Observed** |
-| --- | --- | --- |
-| 1 | `RPC` `tools/call` `media_assets_search` with `{"pageSize":"lots","nope":1,"kind":"../etc/passwd"}` | **Expected** (from `inputSchema`: `additionalProperties: false`, `pageSize` integer 1..max, `kind` enum): a `validation_failed` tool error naming the three problems. **Observed:** the handler runs — `nope` is ignored, `pageSize` falls through `Math.min(Math.max("lots" ?? 10, 1), MAX)` and `kind` reaches the query. → 🐞 BUG-tools-server-01 |
-| 2 | Ask the copilot the same thing (a hallucinated argument) | The copilot **does** refuse: `copilot-chat.spec.ts:445` asserts `Invalid arguments: …`, because `RunEngine` calls `validateToolInput` first (`run-engine.service.ts:700-703`) |
+| Step | Action                                                                                              | Expected result / **Observed**                                                                                                                                                                                                                                                                                                                       |
+| ---- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `RPC` `tools/call` `media_assets_search` with `{"pageSize":"lots","nope":1,"kind":"../etc/passwd"}` | **Expected** (from `inputSchema`: `additionalProperties: false`, `pageSize` integer 1..max, `kind` enum): a `validation_failed` tool error naming the three problems. **Observed:** the handler runs — `nope` is ignored, `pageSize` falls through `Math.min(Math.max("lots" ?? 10, 1), MAX)` and `kind` reaches the query. → 🐞 BUG-tools-server-01 |
+| 2    | Ask the copilot the same thing (a hallucinated argument)                                            | The copilot **does** refuse: `copilot-chat.spec.ts:445` asserts `Invalid arguments: …`, because `RunEngine` calls `validateToolInput` first (`run-engine.service.ts:700-703`)                                                                                                                                                                        |
 
 ### F23 — resource authorization (the gap)
 
-| Step | Action | Expected result / **Observed** |
-| --- | --- | --- |
-| 1 | Read `src/lib/tool.ts:198-207` | `ResourceDefinition` has **no** `requires` field |
-| 2 | Read `src/lib/tool-registry.ts:140-166` | Neither `resources()` nor `readResource()` calls `permits()` |
-| 3 | `RPC` `resources/list` and `resources/read` with the **read**-scope token | Works — correctly, because `content/server`'s provider scopes by workspace grants itself. Nothing in this package required it to. → 🐞 BUG-tools-server-02 |
+| Step | Action                                                                    | Expected result / **Observed**                                                                                                                             |
+| ---- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Read `src/lib/tool.ts:198-207`                                            | `ResourceDefinition` has **no** `requires` field                                                                                                           |
+| 2    | Read `src/lib/tool-registry.ts:140-166`                                   | Neither `resources()` nor `readResource()` calls `permits()`                                                                                               |
+| 3    | `RPC` `resources/list` and `resources/read` with the **read**-scope token | Works — correctly, because `content/server`'s provider scopes by workspace grants itself. Nothing in this package required it to. → 🐞 BUG-tools-server-02 |
 
 ---
 
@@ -405,7 +405,7 @@ renders no UI. See §4A.
   known to agree.
 
 - **EC-11 — 200 registered tools.** `❌ NONE`
-  `all()` is O(n) and rebuilt on *every* `forSurface`, `visibleTo` and `call`
+  `all()` is O(n) and rebuilt on _every_ `forSurface`, `visibleTo` and `call`
   (`tool-registry.ts:77`, `93`, `118`). At the current 29 that is free; it is a
   per-call allocation of the whole catalogue and a per-call duplicate scan.
   Category: perf. Nothing measures it.
@@ -436,20 +436,20 @@ renders no UI. See §4A.
 
 Because this unit has no route, the matrix is over **actors**, not roles.
 
-| Actor | `visibleTo` | `call` a permitted tool | `call` an unpermitted tool | `call` an unknown name | `call` a cross-surface name |
-| --- | --- | --- | --- | --- | --- |
-| `read`-scope token (MCP) | 7 read `content_*` + 4 shared | 200 result | 403 `forbidden` | 404 `not_found` | 404 `not_found` |
-| `full`-scope token (MCP) | 12 `content_*` + 4 shared | 200 result | n/a | 404 | 404 |
-| **admin** user (copilot) | 13 copilot + 4 shared | runs | n/a | 404 | 404 |
-| **contributor** user (copilot) | as admin minus `activity_recent` (`activity:read`) | runs | 403 on `activity_recent` | 404 | 404 |
-| **viewer** user (copilot) | reads only — no `*_propose_*` | runs | 403 on every propose tool | 404 | 404 |
-| Unauthenticated | never reaches here — the consumer's edge rejects first | — | — | — | — |
-| Member of another workspace | reaches here with a valid context for **their** workspace; every handler scopes on `ctx.workspaceId` | — | — | — | — |
+| Actor                          | `visibleTo`                                                                                          | `call` a permitted tool | `call` an unpermitted tool | `call` an unknown name | `call` a cross-surface name |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- | ----------------------- | -------------------------- | ---------------------- | --------------------------- |
+| `read`-scope token (MCP)       | 7 read `content_*` + 4 shared                                                                        | 200 result              | 403 `forbidden`            | 404 `not_found`        | 404 `not_found`             |
+| `full`-scope token (MCP)       | 12 `content_*` + 4 shared                                                                            | 200 result              | n/a                        | 404                    | 404                         |
+| **admin** user (copilot)       | 13 copilot + 4 shared                                                                                | runs                    | n/a                        | 404                    | 404                         |
+| **contributor** user (copilot) | as admin minus `activity_recent` (`activity:read`)                                                   | runs                    | 403 on `activity_recent`   | 404                    | 404                         |
+| **viewer** user (copilot)      | reads only — no `*_propose_*`                                                                        | runs                    | 403 on every propose tool  | 404                    | 404                         |
+| Unauthenticated                | never reaches here — the consumer's edge rejects first                                               | —                       | —                          | —                      | —                           |
+| Member of another workspace    | reaches here with a valid context for **their** workspace; every handler scopes on `ctx.workspaceId` | —                       | —                          | —                      | —                           |
 
 - **EC-16 — 403 vs 404, and why both exist.** `🧪 UNIT` + `✅ E2E`
-  ADR-0007 §6 settles it: the *tool list* is derived from the caller's own role
+  ADR-0007 §6 settles it: the _tool list_ is derived from the caller's own role
   and reveals nothing, so a refusal names the missing permission
-  (`tool-registry.ts:98-107`). *Data* still 404s uniformly —
+  (`tool-registry.ts:98-107`). _Data_ still 404s uniformly —
   `mcp.spec.ts:633` asserts an ungranted content type answers exactly like an
   unknown one. The distinction holds in code.
 
@@ -457,7 +457,7 @@ Because this unit has no route, the matrix is over **actors**, not roles.
   `"content_delete" requires content:delete, which this token does not hold.`
   is handed to a third-party model. Deliberate per ADR-0007 §6; recorded as
   🐞 BUG-tools-server-04 because "the tool set is not secret" is an argument
-  about *names*, and this leaks the *permission model* too.
+  about _names_, and this leaks the _permission model_ too.
 
 ### Tenant isolation
 
@@ -501,7 +501,7 @@ Because this unit has no route, the matrix is over **actors**, not roles.
 - **EC-24 — A tool removed while a copilot run holds it in its profile.**
   `✅ E2E` (analogue) `copilot-chat.spec.ts:634` covers the permission version
   ("refuses a withheld tool at execution, not only at offer time"). The
-  *catalogue* version (tool disappears) is uncovered — `call()` would 404 it,
+  _catalogue_ version (tool disappears) is uncovered — `call()` would 404 it,
   which is the right answer.
 
 ### Failure & partiality
@@ -522,26 +522,26 @@ Because this unit has no route, the matrix is over **actors**, not roles.
   `undefined` and `error.message` is used — which for `new NotFoundException('x')`
   is `'x'`. Correct, untested.
 
-- **EC-28 — A handler that throws a bare `Error` from a *shared* tool.**
+- **EC-28 — A handler that throws a bare `Error` from a _shared_ tool.**
   `✅ COVERED` (was `❌ NONE`, and the clearance below was wrong — ORT-121).
   The BUGBOT rule (`.cursor/BUGBOT.md:329-332`). The original check looked only
   at the tool files: `media-tool.provider.ts:292` throws `BadRequestException`
   ✓; `i18n-tool.provider.ts:141,152` throw bare `Error` but sit inside
   `i18n_translations_get`, which is `surfaces: ['copilot']` (`:128`) — so the
-  rule holds *there*. **That is one call too shallow.** `media_assets_search`
+  rule holds _there_. **That is one call too shallow.** `media_assets_search`
   delegates to `ListAssetsQuery`, whose `assertValidFilters` raises the
   framework-free `InvalidAssetFilterError`, and nothing converted it: over MCP
   a `folderId` that is not a uuid came back as an opaque 500. `media_asset_read`
   had the same shape via `locate`'s `uuid` column.
 
-  Both now funnel through the media plugin's shared `toHttp` mapper, and it is
-  pinned in two places: `media-tool.provider.spec.ts` on the boundary itself,
-  and `apps/server-e2e/src/server/mcp/mcp.spec.ts` (“reports a non-uuid
-  folderId/assetId as bad_request”) end to end.
+    Both now funnel through the media plugin's shared `toHttp` mapper, and it is
+    pinned in two places: `media-tool.provider.spec.ts` on the boundary itself,
+    and `apps/server-e2e/src/server/mcp/mcp.spec.ts` (“reports a non-uuid
+    folderId/assetId as bad_request”) end to end.
 
-  **The lesson for the next pass:** a shared tool's error contract is not
-  readable from the tool file. It is a property of every layer the handler can
-  reach.
+    **The lesson for the next pass:** a shared tool's error contract is not
+    readable from the tool file. It is a property of every layer the handler can
+    reach.
 
 ### Idempotency & replay
 
@@ -565,7 +565,7 @@ Because this unit has no route, the matrix is over **actors**, not roles.
 
 - **EC-32 — `surfaces` copy-pasted from the neighbouring tool.** `⚠️ PARTIAL`
   BUGBOT's "more common failure" (`.cursor/BUGBOT.md:320-325`). The e2e suites
-  pin *lists* (`mcp.spec.ts:379`, `copilot-read-catalogue.spec.ts:138`) rather
+  pin _lists_ (`mcp.spec.ts:379`, `copilot-read-catalogue.spec.ts:138`) rather
   than individual tools, so a **newly added** narrowed tool is caught only if
   someone updates the assertion. Enumerated the whole catalogue in §1 and found
   no miscategorisation as of 2026-08-11.
@@ -589,7 +589,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
 - **♿ A11Y-tools-server-01 — Tool failure messages are human-readable prose,
   not opaque codes.** WCAG **3.3.1 Error Identification (A)** · 508 **E205.4** ·
   Verdict: **Supports**
-  `src/lib/tool-error.ts:16-23` maps a status to a short machine `code` *and*
+  `src/lib/tool-error.ts:16-23` maps a status to a short machine `code` _and_
   carries a `message` string; `:56-63` preserves a 422's per-field `issues`
   verbatim. A client rendering a failed tool step therefore has a sentence to
   show ("title must be at most 200 characters") rather than `422`. Both
@@ -613,7 +613,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   announcement.** WCAG **4.1.3 Status Messages (AA)** · 508 **502.3** ·
   Verdict: **Not Applicable (this unit) / see `copilot-admin`**
   `ToolOutput` is `unknown` and `ToolDefinition` carries `title` (a human
-  string) and `description` (written for a model). A client *can* build an
+  string) and `description` (written for a model). A client _can_ build an
   announcement from `title` — and `copilot/admin` does, via its own
   `ToolStep/labels.ts` keyed by tool name rather than off `title`. That is a
   missed reuse rather than a defect: a tool added by a plugin gets no phrase and
@@ -630,7 +630,7 @@ AA, so verdicts below cite WCAG 2.1 SC numbers alongside the 508 provision.
   `readOnly`, `effect`, `destructive`, `surfaces`, and nothing about the
   conformance of what it writes. `media_propose_alt_text` exists
   (`packages/media/server/src/lib/copilot/alt-text-proposal.provider.ts:48`), so
-  alt text is *reachable*; nothing *prompts* for it, and nothing prevents
+  alt text is _reachable_; nothing _prompts_ for it, and nothing prevents
   `content_propose_create` writing a body with images and no alt attributes.
   Remediation: this is a `copilot/server` + content-tool concern (see
   ♿ A11Y-copilot-server-02 and ♿ A11Y-copilot-admin-10); the registry's part
@@ -656,55 +656,55 @@ indirectly through both consumers' suites.
 
 ### Direct — unit tests inside the package
 
-| Feature | Spec | Asserts | Verdict |
-| --- | --- | --- | --- |
-| F8 authorization | `src/lib/tool-registry.spec.ts:57-74` | `ForbiddenException` on a missing permission **and** that the handler never ran (`ran.value === false`) | ✅ E2E-equivalent — the "did not run" half is the part that matters |
-| F8 list-vs-call | `tool-registry.spec.ts:76-92` | `visibleTo` hides it *and* `call` still refuses it by name | ✅ |
-| F9 all-of | `tool-registry.spec.ts:94-124` | Both the refusal and the success once the second key is held | ✅ |
-| F11 no-requires | `tool-registry.spec.ts:143-149` | Runs for an actor with nothing | ✅ |
-| F5 visibleTo | `tool-registry.spec.ts:153-167` | A read actor sees exactly `['content_list']` of three | ⚠️ PARTIAL — one surface only, no `effect` interaction |
-| F6 unknown name | `tool-registry.spec.ts:171-177` | `NotFoundException`, distinct from the refusal | ✅ |
-| F4 surfaces | `tool-registry.spec.ts:195-223` | Omitted → both; narrowed → withheld from the other | ✅ |
-| F7 cross-surface dispatch | `tool-registry.spec.ts:225-238` | `NotFoundException` **and** the handler never ran | ✅ |
-| F10 surface stamping | `tool-registry.spec.ts:245-263` | `context.surface === 'mcp'`, and `workspaceId` / `actor.id` pass through untouched | ✅ |
-| F2 order | `tool-registry.spec.ts:267-275` | `['a','b','c']` across two providers | ✅ |
-| F3 duplicate | `tool-registry.spec.ts:280-285` | `all()` throws `/Duplicate tool name/` | ⚠️ PARTIAL — asserts the throw, **not** that it therefore breaks `call`/`visibleTo` too |
-| F14 resource 404 | `tool-registry.spec.ts:289-295` | `NotFoundException` | ✅ |
-| F13 first-claim | `tool-registry.spec.ts:297-316` | Second provider's contents returned; first returned `undefined` | ✅ |
-| F12 flatten | `tool-registry.spec.ts:318-339` | `[one, two]` in registration order | ✅ |
-| F16 404 mapping | `src/lib/tool-error.spec.ts:10-19` | `{status:404, code:'not_found', message}` exactly | ✅ |
-| F16 403 mapping | `tool-error.spec.ts:20-28` | `toMatchObject({status:403, code:'forbidden'})` | ✅ |
-| F17 issues | `tool-error.spec.ts:29-46` | `issues` array preserved by reference-equality | ✅ |
-| F18 array message | `tool-error.spec.ts:47-58` | joined with `'; '` | ✅ |
-| F19 opaque 500 | `tool-error.spec.ts:59-70` | Exact opaque shape **and** `JSON.stringify(error)` does not contain `ECONNREFUSED` | ✅ — the negative assertion is what makes this test worth having |
+| Feature                   | Spec                                  | Asserts                                                                                                 | Verdict                                                                                 |
+| ------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| F8 authorization          | `src/lib/tool-registry.spec.ts:57-74` | `ForbiddenException` on a missing permission **and** that the handler never ran (`ran.value === false`) | ✅ E2E-equivalent — the "did not run" half is the part that matters                     |
+| F8 list-vs-call           | `tool-registry.spec.ts:76-92`         | `visibleTo` hides it _and_ `call` still refuses it by name                                              | ✅                                                                                      |
+| F9 all-of                 | `tool-registry.spec.ts:94-124`        | Both the refusal and the success once the second key is held                                            | ✅                                                                                      |
+| F11 no-requires           | `tool-registry.spec.ts:143-149`       | Runs for an actor with nothing                                                                          | ✅                                                                                      |
+| F5 visibleTo              | `tool-registry.spec.ts:153-167`       | A read actor sees exactly `['content_list']` of three                                                   | ⚠️ PARTIAL — one surface only, no `effect` interaction                                  |
+| F6 unknown name           | `tool-registry.spec.ts:171-177`       | `NotFoundException`, distinct from the refusal                                                          | ✅                                                                                      |
+| F4 surfaces               | `tool-registry.spec.ts:195-223`       | Omitted → both; narrowed → withheld from the other                                                      | ✅                                                                                      |
+| F7 cross-surface dispatch | `tool-registry.spec.ts:225-238`       | `NotFoundException` **and** the handler never ran                                                       | ✅                                                                                      |
+| F10 surface stamping      | `tool-registry.spec.ts:245-263`       | `context.surface === 'mcp'`, and `workspaceId` / `actor.id` pass through untouched                      | ✅                                                                                      |
+| F2 order                  | `tool-registry.spec.ts:267-275`       | `['a','b','c']` across two providers                                                                    | ✅                                                                                      |
+| F3 duplicate              | `tool-registry.spec.ts:280-285`       | `all()` throws `/Duplicate tool name/`                                                                  | ⚠️ PARTIAL — asserts the throw, **not** that it therefore breaks `call`/`visibleTo` too |
+| F14 resource 404          | `tool-registry.spec.ts:289-295`       | `NotFoundException`                                                                                     | ✅                                                                                      |
+| F13 first-claim           | `tool-registry.spec.ts:297-316`       | Second provider's contents returned; first returned `undefined`                                         | ✅                                                                                      |
+| F12 flatten               | `tool-registry.spec.ts:318-339`       | `[one, two]` in registration order                                                                      | ✅                                                                                      |
+| F16 404 mapping           | `src/lib/tool-error.spec.ts:10-19`    | `{status:404, code:'not_found', message}` exactly                                                       | ✅                                                                                      |
+| F16 403 mapping           | `tool-error.spec.ts:20-28`            | `toMatchObject({status:403, code:'forbidden'})`                                                         | ✅                                                                                      |
+| F17 issues                | `tool-error.spec.ts:29-46`            | `issues` array preserved by reference-equality                                                          | ✅                                                                                      |
+| F18 array message         | `tool-error.spec.ts:47-58`            | joined with `'; '`                                                                                      | ✅                                                                                      |
+| F19 opaque 500            | `tool-error.spec.ts:59-70`            | Exact opaque shape **and** `JSON.stringify(error)` does not contain `ECONNREFUSED`                      | ✅ — the negative assertion is what makes this test worth having                        |
 
 ### Indirect — through the MCP surface
 
-| Feature | Spec | Asserts | Verdict |
-| --- | --- | --- | --- |
-| F8 | `apps/server-e2e/src/server/mcp/mcp.spec.ts:541` | A read token invoking a write tool by name is refused | ✅ |
-| F8 (exhaustive) | `mcp.spec.ts:553` | **Each** write tool refused to a read token, in a loop | ✅ — the strongest authorization assertion in the repo |
-| F4/F7 | `mcp.spec.ts:379` | No copilot-only tool is listed, at any scope | ✅ |
-| F7 | `mcp.spec.ts:495`, `:510` | A copilot-only tool, and `media_propose_file` specifically, refused by name to a **full** token | ✅ — the second is the exact ADR-0007 risk |
-| F4 (shared) | `mcp.spec.ts:422`, `:440` | The four shared tools are listed to, and runnable by, a read-scope token | ✅ |
-| F10 | `mcp.spec.ts:458` | MCP gets the `/api/v1/…` download path | ✅ |
-| F6 | `mcp.spec.ts:588` | Unknown tool → `not_found` | ✅ |
-| F12/F13 | `mcp.spec.ts:647`, `:665` | Granted types as resources; a type resource reads back | ⚠️ PARTIAL — nothing asserts an **ungranted** type is absent from `resources/list`, which is the F23 gap |
-| F22 | `mcp.spec.ts:736` | "rejects an unknown argument rather than ignoring it" | ⚠️ PARTIAL — this is `content/server`'s own DTO validation, **not** the registry's. It gives false confidence that the surface validates |
-| F17 | `mcp.spec.ts:858` | Publish-time validation reported with per-field issues | ✅ |
-| — | `mcp.spec.ts:523` | Every tool has an object input schema | ✅ — shape only, never enforced |
+| Feature         | Spec                                             | Asserts                                                                                         | Verdict                                                                                                                                  |
+| --------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| F8              | `apps/server-e2e/src/server/mcp/mcp.spec.ts:541` | A read token invoking a write tool by name is refused                                           | ✅                                                                                                                                       |
+| F8 (exhaustive) | `mcp.spec.ts:553`                                | **Each** write tool refused to a read token, in a loop                                          | ✅ — the strongest authorization assertion in the repo                                                                                   |
+| F4/F7           | `mcp.spec.ts:379`                                | No copilot-only tool is listed, at any scope                                                    | ✅                                                                                                                                       |
+| F7              | `mcp.spec.ts:495`, `:510`                        | A copilot-only tool, and `media_propose_file` specifically, refused by name to a **full** token | ✅ — the second is the exact ADR-0007 risk                                                                                               |
+| F4 (shared)     | `mcp.spec.ts:422`, `:440`                        | The four shared tools are listed to, and runnable by, a read-scope token                        | ✅                                                                                                                                       |
+| F10             | `mcp.spec.ts:458`                                | MCP gets the `/api/v1/…` download path                                                          | ✅                                                                                                                                       |
+| F6              | `mcp.spec.ts:588`                                | Unknown tool → `not_found`                                                                      | ✅                                                                                                                                       |
+| F12/F13         | `mcp.spec.ts:647`, `:665`                        | Granted types as resources; a type resource reads back                                          | ⚠️ PARTIAL — nothing asserts an **ungranted** type is absent from `resources/list`, which is the F23 gap                                 |
+| F22             | `mcp.spec.ts:736`                                | "rejects an unknown argument rather than ignoring it"                                           | ⚠️ PARTIAL — this is `content/server`'s own DTO validation, **not** the registry's. It gives false confidence that the surface validates |
+| F17             | `mcp.spec.ts:858`                                | Publish-time validation reported with per-field issues                                          | ✅                                                                                                                                       |
+| —               | `mcp.spec.ts:523`                                | Every tool has an object input schema                                                           | ✅ — shape only, never enforced                                                                                                          |
 
 ### Indirect — through the copilot surface
 
-| Feature | Spec | Asserts | Verdict |
-| --- | --- | --- | --- |
-| F5 | `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:579` | A viewer is offered no write tools | ✅ — ADR-0005's mandatory negative case |
-| F8 | `copilot-chat.spec.ts:634` | A withheld tool is refused at **execution**, not only at offer | ✅ |
-| F4/F7 | `copilot-read-catalogue.spec.ts:138`, `:158` | No MCP-only tool offered, and one named anyway is refused | ✅ |
-| F5 | `copilot-read-catalogue.spec.ts:173`, `:197` | A contributor loses `activity_recent` (`activity:read`); a viewer keeps the rest | ✅ — the per-permission slice |
-| F10 | `copilot-read-catalogue.spec.ts:485` | The copilot gets the session-gated download path | ✅ |
-| F22 | `copilot-chat.spec.ts:445` | Arguments not matching the schema are rejected | ✅ **on this surface only** — see BUG-tools-server-01 |
-| F16/F19 | `copilot-chat.spec.ts:411` | A throwing tool becomes a tool error and the run continues | ✅ |
+| Feature | Spec                                                          | Asserts                                                                          | Verdict                                               |
+| ------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| F5      | `apps/server-e2e/src/server/copilot/copilot-chat.spec.ts:579` | A viewer is offered no write tools                                               | ✅ — ADR-0005's mandatory negative case               |
+| F8      | `copilot-chat.spec.ts:634`                                    | A withheld tool is refused at **execution**, not only at offer                   | ✅                                                    |
+| F4/F7   | `copilot-read-catalogue.spec.ts:138`, `:158`                  | No MCP-only tool offered, and one named anyway is refused                        | ✅                                                    |
+| F5      | `copilot-read-catalogue.spec.ts:173`, `:197`                  | A contributor loses `activity_recent` (`activity:read`); a viewer keeps the rest | ✅ — the per-permission slice                         |
+| F10     | `copilot-read-catalogue.spec.ts:485`                          | The copilot gets the session-gated download path                                 | ✅                                                    |
+| F22     | `copilot-chat.spec.ts:445`                                    | Arguments not matching the schema are rejected                                   | ✅ **on this surface only** — see BUG-tools-server-01 |
+| F16/F19 | `copilot-chat.spec.ts:411`                                    | A throwing tool becomes a tool error and the run continues                       | ✅                                                    |
 
 **Coverage tally: 23 features · 15 ✅ · 4 ⚠️ · 4 ❌**
 
@@ -749,17 +749,18 @@ through the HTTP DTO" (`packages/mcp/server/AGENTS.md`) — is advice a tool can
 silently skip, and three of the four do. The handler comment at
 `media-tool.provider.ts:155-157` even says "Clamped in `run` as well as declared
 in the schema: the validator is defence in depth, not the boundary" — on MCP
-there is no validator at all, so the clamp *is* the boundary.
+there is no validator at all, so the clamp _is_ the boundary.
 
 **Repro:**
+
 1. `MCP_ENABLED=true npm run dev`, mint a `read`-scope token over a workspace.
 2. `curl -s -X POST localhost:3000/api/v1/mcp -H "Authorization: Bearer $T" -H "X-Workspace-Id: $W" -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"media_assets_search","arguments":{"pageSize":"lots","sort":"; DROP","nope":true}}}'`
-→ **Observed:** a 200 result. `nope` is silently ignored despite
-`additionalProperties: false`; `sort` reaches `this.assets.execute` un-enumerated;
-`pageSize` goes through `Math.min(Math.max("lots" ?? 10, 1), MAX)`, which is
-`NaN`-propagating arithmetic on a string.
-/ **Expected:** a `validation_failed` tool error naming all three, exactly as
-the copilot surface produces (`copilot-chat.spec.ts:445`).
+   → **Observed:** a 200 result. `nope` is silently ignored despite
+   `additionalProperties: false`; `sort` reaches `this.assets.execute` un-enumerated;
+   `pageSize` goes through `Math.min(Math.max("lots" ?? 10, 1), MAX)`, which is
+   `NaN`-propagating arithmetic on a string.
+   / **Expected:** a `validation_failed` tool error naming all three, exactly as
+   the copilot surface produces (`copilot-chat.spec.ts:445`).
 
 **Blast radius:** any MCP client (a third-party agent, a hallucinating model)
 reaching the four shared tools. Not a privilege escalation — `requires` and
@@ -807,7 +808,7 @@ Neither method calls `this.permits(...)`. `ResourceDefinition`
 "`ToolRegistry.call` remains the single place a tool call is authorized"
 (ADR-0007 §1, restated at `packages/tools/server/AGENTS.md` "The authorization
 invariant" and at `tool-registry.ts:27-31`). Resources are a second data-egress
-path over the same registry that is *outside* that invariant. Today it is safe
+path over the same registry that is _outside_ that invariant. Today it is safe
 only because `content/server`'s provider scopes to workspace grants itself —
 exactly the "a handler must not check its own gate, so a new tool cannot forget
 to" property (`tool.ts:139-145`) that resources do not get. The
@@ -815,18 +816,19 @@ to" property (`tool.ts:139-145`) that resources do not get. The
 whichever consumer asks, with no way for a provider to say "MCP only".
 
 **Repro:**
+
 1. Read `tool.ts:197-207` — there is no `requires`.
 2. Read `tool-registry.ts:140-166` — there is no `permits` call.
 3. Add a provider with `resources: async () => [{ uri: 'ortha://secret', name: 'x', description: 'x', mimeType: 'application/json' }]` and a matching `readResource`.
 4. `resources/list` with a **read**-scope token.
-→ **Observed:** it is listed and readable, whatever the actor holds.
-/ **Expected:** the same `requires`-before-dispatch gate tools get.
+   → **Observed:** it is listed and readable, whatever the actor holds.
+   / **Expected:** the same `requires`-before-dispatch gate tools get.
 
 **Blast radius:** one provider today (`content/server`), correctly scoped — verified:
 `content-tools.provider.ts:430-441` prunes `resources()` to `grantedSummaries`, and
 `readResource` (`:445-462`) runs the same `resolveGrantedType` gate as the tools, so
 an ungranted type is a 404 there too. **No live exposure.** The defect is that the
-guard rail lives in the provider rather than in the registry, so the *next* provider
+guard rail lives in the provider rather than in the registry, so the _next_ provider
 must remember it.
 
 **Correction to an earlier claim in this artifact:** it previously said the MCP
@@ -834,7 +836,7 @@ suite's resource cases assert only the happy path. That is **wrong** —
 `apps/server-e2e/src/server/mcp/mcp.spec.ts:660-662` explicitly asserts
 `resources.map(e => e.uri)` does **not** contain `ortha://content-type/test_page`,
 i.e. the ungranted type is absent from `resources/list`. A regression in the
-provider's own scoping *would* be caught. What is genuinely untested is a resource
+provider's own scoping _would_ be caught. What is genuinely untested is a resource
 whose exposure depends on a **permission** rather than a grant, because no such
 resource exists to test.
 
@@ -869,7 +871,7 @@ all(): readonly ToolDefinition[] {
 `forSurface` → `all()`. So the duplicate check runs on **every list and every
 dispatch**, and throws a plain `Error`.
 
-**Why it is wrong:** failing loudly is right; failing at the wrong *time* is
+**Why it is wrong:** failing loudly is right; failing at the wrong _time_ is
 not. Two plugins claiming one name is a deploy-time wiring bug, and the
 codebase's own convention is eager validation at construction —
 `CopilotPlugin`'s `assertOptions`
@@ -915,25 +917,27 @@ unreachable in production.
 throw new ForbiddenException(
     `"${name}" requires ${tool.requires.join(', ')}, which this ${
         context.actor.kind === 'token' ? 'token' : 'user'
-    } does not hold.`);
+    } does not hold.`
+);
 ```
 
-**Why it is wrong:** ADR-0007 §6 argues that naming a *withheld tool* reveals
+**Why it is wrong:** ADR-0007 §6 argues that naming a _withheld tool_ reveals
 nothing, "because the list is derived from the caller's own role, which they can
 read off their own profile". That argument covers the **name**. It does not
 cover the **permission keys**, which this message also emits: a `read`-scope
 token learns `content:delete` and `content:publish` exist as distinct keys, and
-that `content_media` needs `content:read` *and* `media:read` together. On MCP
+that `content_media` needs `content:read` _and_ `media:read` together. On MCP
 this string is handed to a third-party model, and it is also the actor kind
 disclosure (`token` vs `user`) telling a caller which authentication path it
 took. `tool-error.ts` passes an `HttpException`'s message through verbatim
 (`:50-55`), so it reaches the wire unmodified.
 
 **Repro:**
+
 1. Mint a `read`-scope token.
 2. `tools/call` `content_media` (requires `content:read` + `media:read`).
-→ **Observed:** `"content_media" requires content:read, media:read, which this token does not hold.`
-/ **Expected (arguably):** `"content_media" is not available to this token.`
+   → **Observed:** `"content_media" requires content:read, media:read, which this token does not hold.`
+   / **Expected (arguably):** `"content_media" is not available to this token.`
 
 **Blast radius:** an attacker with a low-scope token maps the permission model
 without guessing. Low: the permission catalogue is not a secret, `PERMISSIONS`
@@ -964,7 +968,7 @@ register(provider: ToolProvider): void { this.providers.push(provider); }
 provider **instance**, but a plugin whose module is instantiated twice — a
 dynamic module registered in two places, a test that builds two testing modules
 against one global registry, or the `ProposalApplierRegistry` pattern where the
-same class is both `@Optional()`-injected *and* listed in `providers` — hands
+same class is both `@Optional()`-injected _and_ listed in `providers` — hands
 the same instance in twice. Every one of its tools then collides with itself and
 BUG-tools-server-03 fires. The sibling registry in the same codebase gets this
 right: `ProposalApplierRegistry.register` refuses a duplicate `kind` with a
@@ -972,10 +976,11 @@ loud log and keeps the first
 (`packages/copilot/server/src/lib/chat/application/proposal-applier.registry.ts:43-55`).
 
 **Repro:**
+
 1. In any capability plugin, call `this.toolRegistry?.register(this)` twice in `onModuleInit`.
 2. Restart, then `tools/list`.
-→ **Observed:** 500 `Duplicate tool name`. / **Expected:** the second
-registration is a no-op, or throws *at registration* naming the provider.
+   → **Observed:** 500 `Duplicate tool name`. / **Expected:** the second
+   registration is a no-op, or throws _at registration_ naming the provider.
 
 **Blast radius:** a self-inflicted deploy failure, discovered at first request.
 Low because no shipped plugin does it.
@@ -1027,17 +1032,17 @@ Things I specifically went looking for and did **not** find a defect in:
 Prose only. Harness key: **unit** = `npx nx test @orthacms/tools-server`;
 **server-e2e** = `apps/server-e2e` testcontainer + supertest.
 
-| Priority | Harness | Proposed spec | Asserts | Closes |
-| --- | --- | --- | --- | --- |
-| 1 | unit | `tool-registry.spec.ts` — new `describe('input validation')` | A tool declaring `additionalProperties: false` + an `enum` + numeric bounds is called with an extra key, a bad enum value and an out-of-range number; `call` rejects with a 400-shaped error and the handler never runs (`ran.value === false`) | 🐞 BUG-tools-server-01, F22 ❌ |
-| 2 | server-e2e | `mcp.spec.ts` — extend `describe('authorization')` | `tools/call media_assets_search` with `{"nope":1,"pageSize":"lots","kind":"nonsense"}` over a read token returns `isError` with `code: 'validation_failed'`, and the asset list is not returned | 🐞 BUG-tools-server-01 |
-| 3 | unit | `tool-registry.spec.ts` — new `describe('resources')` case | A resource declaring `requires: ['content:update']` is absent from `resources(context)` for a `content:read` actor and `readResource` refuses it | 🐞 BUG-tools-server-02, F23 ❌ |
-| 4 | server-e2e | `mcp.spec.ts` — extend `describe('discovery')` | `resources/list` for a workspace granted only `test_article` contains no URI for an ungranted type, and `resources/read` on that URI 404s exactly like an unknown one | 🐞 BUG-tools-server-02 (the provider-side half), F12 ⚠️ |
-| 5 | unit | `tool-registry.spec.ts` — extend `describe('all')` | After a duplicate is registered, `visibleTo` and `call` **also** throw — pinning the blast radius the current test does not describe. Then, once fixed, that `register()` throws instead | 🐞 BUG-tools-server-03, F3 ⚠️ |
-| 6 | unit | `tool-registry.spec.ts` — new case | Registering the same provider instance twice leaves `all()` working and returns each tool once | 🐞 BUG-tools-server-05, EC-21 |
-| 7 | server-e2e | new `apps/server-e2e/src/server/tools/one-registry.spec.ts` | With both `McpPlugin` and `CopilotPlugin` registered, `app.get(ToolRegistry)` resolves the same instance the MCP controller and the `RunEngine` hold, and `all()` returns one copy of `media_assets_search` | F20 ❌ |
-| 8 | server-e2e | same file | With **neither** consumer registered, boot succeeds and a content route still serves — proving the `@Optional()` contract | F21 ❌ |
-| 9 | unit | `tool-registry.spec.ts` — new case | `surfaces: []` is offered to neither surface and `call` 404s it on both, so the dead-tool spelling is a known quantity rather than a surprise | EC-09 |
-| 10 | unit | `tool-error.spec.ts` — new cases | An `HttpException` whose `getResponse()` is a bare string; a thrown string; a thrown `null`. Each maps without crashing and none leaks | EC-26, EC-27 |
-| 11 | server-e2e | `mcp.spec.ts` + `copilot-read-catalogue.spec.ts` — a shared **table-driven** case | Both suites assert the *same* list constant of shared tool names, so adding a tool that omits `surfaces` fails one suite until it is added to the list deliberately | EC-32, the BUGBOT "cross-surface e2e not updated" pattern |
-| 12 | unit | `tool-registry.spec.ts` — perf-shaped case | `all()` over 200 tools is called once per `call`, not once per tool; a regression that made it quadratic would be visible | EC-11 |
+| Priority | Harness    | Proposed spec                                                                     | Asserts                                                                                                                                                                                                                                         | Closes                                                    |
+| -------- | ---------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1        | unit       | `tool-registry.spec.ts` — new `describe('input validation')`                      | A tool declaring `additionalProperties: false` + an `enum` + numeric bounds is called with an extra key, a bad enum value and an out-of-range number; `call` rejects with a 400-shaped error and the handler never runs (`ran.value === false`) | 🐞 BUG-tools-server-01, F22 ❌                            |
+| 2        | server-e2e | `mcp.spec.ts` — extend `describe('authorization')`                                | `tools/call media_assets_search` with `{"nope":1,"pageSize":"lots","kind":"nonsense"}` over a read token returns `isError` with `code: 'validation_failed'`, and the asset list is not returned                                                 | 🐞 BUG-tools-server-01                                    |
+| 3        | unit       | `tool-registry.spec.ts` — new `describe('resources')` case                        | A resource declaring `requires: ['content:update']` is absent from `resources(context)` for a `content:read` actor and `readResource` refuses it                                                                                                | 🐞 BUG-tools-server-02, F23 ❌                            |
+| 4        | server-e2e | `mcp.spec.ts` — extend `describe('discovery')`                                    | `resources/list` for a workspace granted only `test_article` contains no URI for an ungranted type, and `resources/read` on that URI 404s exactly like an unknown one                                                                           | 🐞 BUG-tools-server-02 (the provider-side half), F12 ⚠️   |
+| 5        | unit       | `tool-registry.spec.ts` — extend `describe('all')`                                | After a duplicate is registered, `visibleTo` and `call` **also** throw — pinning the blast radius the current test does not describe. Then, once fixed, that `register()` throws instead                                                        | 🐞 BUG-tools-server-03, F3 ⚠️                             |
+| 6        | unit       | `tool-registry.spec.ts` — new case                                                | Registering the same provider instance twice leaves `all()` working and returns each tool once                                                                                                                                                  | 🐞 BUG-tools-server-05, EC-21                             |
+| 7        | server-e2e | new `apps/server-e2e/src/server/tools/one-registry.spec.ts`                       | With both `McpPlugin` and `CopilotPlugin` registered, `app.get(ToolRegistry)` resolves the same instance the MCP controller and the `RunEngine` hold, and `all()` returns one copy of `media_assets_search`                                     | F20 ❌                                                    |
+| 8        | server-e2e | same file                                                                         | With **neither** consumer registered, boot succeeds and a content route still serves — proving the `@Optional()` contract                                                                                                                       | F21 ❌                                                    |
+| 9        | unit       | `tool-registry.spec.ts` — new case                                                | `surfaces: []` is offered to neither surface and `call` 404s it on both, so the dead-tool spelling is a known quantity rather than a surprise                                                                                                   | EC-09                                                     |
+| 10       | unit       | `tool-error.spec.ts` — new cases                                                  | An `HttpException` whose `getResponse()` is a bare string; a thrown string; a thrown `null`. Each maps without crashing and none leaks                                                                                                          | EC-26, EC-27                                              |
+| 11       | server-e2e | `mcp.spec.ts` + `copilot-read-catalogue.spec.ts` — a shared **table-driven** case | Both suites assert the _same_ list constant of shared tool names, so adding a tool that omits `surfaces` fails one suite until it is added to the list deliberately                                                                             | EC-32, the BUGBOT "cross-surface e2e not updated" pattern |
+| 12       | unit       | `tool-registry.spec.ts` — perf-shaped case                                        | `all()` over 200 tools is called once per `call`, not once per tool; a regression that made it quadratic would be visible                                                                                                                       | EC-11                                                     |

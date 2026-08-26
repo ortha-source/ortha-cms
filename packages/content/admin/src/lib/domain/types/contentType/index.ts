@@ -198,6 +198,16 @@ export type RevisionSnapshot = {
     values: Record<string, unknown>;
     /** Ordered target-id list per join-backed relation field. */
     relations: Record<string, string[]>;
+    /**
+     * State a **plugin** captured alongside the entry, keyed by its extension key
+     * (`access` — who could read the entry at the time). Opaque: content stores,
+     * compares and hands it to `REVISION_EXTRA_SLOT` to render, and never reads
+     * inside it. Mirrors the server's `RevisionSnapshot.extra`.
+     *
+     * Absent on every version captured before the plugin was installed, which
+     * reads as "this version knows nothing about it" — never as "it had none".
+     */
+    extra?: Record<string, unknown>;
 };
 
 /** One revision with its full snapshot body (`GET …/:id/revisions/:number`). */

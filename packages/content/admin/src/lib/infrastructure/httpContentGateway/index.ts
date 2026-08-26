@@ -209,9 +209,17 @@ export const httpContentGateway: ContentGateway = {
 
     async saveEntry(
         name: string,
-        { id, values, relations, extra }: SaveEntryInput
+        { id, values, relations, extra, extensions }: SaveEntryInput
     ): Promise<EntryRecord> {
-        const body = { values, ...(relations ? { relations } : {}) };
+        const body = {
+            values,
+            ...(relations ? { relations } : {}),
+            // Plugin-owned state, on both verbs — an edit changes who may read a
+            // record as readily as a create sets it.
+            ...(extensions && Object.keys(extensions).length
+                ? { extensions }
+                : {})
+        };
         try {
             // Extra (slot-contributed) keys apply to create only — an update
             // never re-homes envelope params like the locale.

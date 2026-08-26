@@ -78,6 +78,14 @@ export const ENTRY_TAB = {
     General: 'general',
     Relations: 'relations',
     Media: 'media',
+    /**
+     * Who may **read** the entry once it is published — contributed by
+     * `@orthacms/segments-admin`. A slug the router knows, declared here rather
+     * than by the contributor, because the set is closed: `ENTRY_TAB_SLOT` drops
+     * an item naming a slug this list does not carry, since the route table
+     * would match the segment while `entryTabFromPath` could not resolve it.
+     */
+    Access: 'access',
     History: 'history'
 } as const;
 
