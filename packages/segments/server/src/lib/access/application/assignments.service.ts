@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
-import { ContentTypeRegistry } from '@orthacms/content-server';
+import {
+    InjectContentRegistry,
+    type ContentTypeRegistry
+} from '@orthacms/content-server';
 import { accessRules } from '../infrastructure/schema/access-rules';
 import {
     accessAssignments,
@@ -67,6 +70,7 @@ export interface GrantView {
 export class AssignmentsService {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry,
         private readonly reprojection: ReprojectionService
     ) {}
