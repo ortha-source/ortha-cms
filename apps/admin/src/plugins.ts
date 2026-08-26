@@ -13,6 +13,7 @@ import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
+import { SegmentsPlugin } from '@orthacms/segments-admin';
 
 /**
  * Builds the admin's plugin list — the app's whole composition, mirroring
@@ -81,6 +82,10 @@ export function buildPlugins(): AdminPlugin[] {
         // workspace-interior features: the panel mounts into the workspace
         // shell's sidebar footer.
         CopilotPlugin(),
+        // Reader entitlements. It fills the Content Library's entry-header and
+        // entry-tab slots, so like the other library fillers it reads after
+        // ContentPlugin(); its own directory page is independent of that order.
+        SegmentsPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
         // Global token-management page in the main sidebar (no workspace

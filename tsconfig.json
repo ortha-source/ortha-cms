@@ -179,6 +179,15 @@
         },
         {
             "path": "./packages/alarms/admin"
+        },
+        {
+            "path": "./packages/segments/domain"
+        },
+        {
+            "path": "./packages/segments/server"
+        },
+        {
+            "path": "./packages/segments/admin"
         }
     ]
 }

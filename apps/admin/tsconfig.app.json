@@ -37,9 +37,6 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../packages/alarms/admin/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/wysiwyg/admin/tsconfig.lib.json"
         },
         {
@@ -53,6 +50,9 @@
         },
         {
             "path": "../../packages/shell/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/segments/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/media/admin/tsconfig.lib.json"
@@ -77,6 +77,9 @@
         },
         {
             "path": "../../packages/api-tokens/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/alarms/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/activity/admin/tsconfig.lib.json"

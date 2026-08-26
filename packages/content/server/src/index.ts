@@ -76,6 +76,18 @@ export {
     type RelationLocaleSync
 } from './lib/extension/relation-locale-sync';
 
+// The read-scope port. Separate from CONTENT_ENTRY_EXTENSION on purpose — that
+// one is single-binding and i18n holds it; see the file header for why a
+// composite was the wrong shape here.
+export {
+    ContentReadScopeRegistry,
+    contentReadScopeRegistrar
+} from './lib/extension/read-scope';
+export type {
+    ContentReadScope,
+    ContentReadScopeContext
+} from './lib/extension/read-scope';
+
 export {
     MEDIA_ASSET_RESOLVER,
     InjectMediaAssetResolver

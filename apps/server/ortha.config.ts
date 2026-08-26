@@ -22,6 +22,7 @@ import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 import type { I18nPluginConfig } from '@orthacms/i18n-server';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
+import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
@@ -183,6 +184,8 @@ export interface OrthaConfig {
         mcp: McpPluginConfig;
         /** Transfer plugin settings — per-type identity fields + transfer ceilings. */
         transfer: TransferPluginConfig;
+        /** Segments plugin settings — where a reader's tags come from. */
+        segments: SegmentsPluginConfig;
     };
 }
 
@@ -487,10 +490,7 @@ const config: OrthaConfig = {
                 ...(process.env['SSO_PROVISION_DOMAINS']
                     ? {
                           provisioning: {
-                              domains: readList(
-                                  'SSO_PROVISION_DOMAINS',
-                                  ''
-                              ),
+                              domains: readList('SSO_PROVISION_DOMAINS', ''),
                               defaultRole:
                                   process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
                           }
@@ -679,6 +679,22 @@ const config: OrthaConfig = {
             // lowering them costs nothing and raising them should be
             // deliberate.
             limits: {}
+        },
+        segments: {
+            // Where a reader's tags come from — the one line this feature needs
+            // per install. A resolver receives the request, so a JWT claim, a
+            // header the CDN sets, or a lookup against a billing system are all
+            // equally reachable:
+            //
+            //   resolver: {
+            //       resolve: async (request) => readTagsFrom(request)
+            //   }
+            //
+            // Left out — as it is here — every reader is anonymous, so
+            // unrestricted content serves and restricted content does not.
+            // That is a working configuration, and it fails in the safe
+            // direction: an audience nobody can be resolved into cannot
+            // accidentally be admitted.
         },
         media: {
             // Settings for the storage backend `plugins.ts` constructs. There

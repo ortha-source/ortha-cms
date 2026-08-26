@@ -10,6 +10,7 @@ import { ListContentSchemaController } from './content-types/controllers/list-co
 import { GetContentSchemaController } from './content-types/controllers/get-content-schema.controller';
 import { GetFilterFieldsController } from './content-types/controllers/get-filter-fields.controller';
 import { WorkspaceGrantsQuery } from './content-types/queries/workspace-grants.query';
+import { ContentReadScopeRegistry } from './extension/read-scope';
 import { ContentGrantGuard } from './entries/http/guards/content-grant.guard';
 import { ListEntriesController } from './entries/http/controllers/list-entries.controller';
 import { BulkEntriesController } from './entries/http/controllers/bulk-entries.controller';
@@ -157,6 +158,11 @@ export class ContentModule {
                 },
                 EntryValidationService,
                 WorkspaceGrantsQuery,
+                // Holds the read scopes a downstream plugin registers. Provided
+                // (and exported) unconditionally: an empty registry is what an
+                // installation with no scoping plugin has, and it costs a
+                // length check per read.
+                ContentReadScopeRegistry,
                 // Every registry-driven `content/:typeName` route is guarded by
                 // it, so it is resolved from this module's context.
                 ContentGrantGuard,
@@ -254,6 +260,7 @@ export class ContentModule {
                 // workspace's grants — and there must be exactly one
                 // implementation of that check, not one per binder.
                 WorkspaceGrantsQuery,
+                ContentReadScopeRegistry,
                 PublicEntriesQuery,
                 PublicEntryWritesService,
                 ApiTokenGuard,

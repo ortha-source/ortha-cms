@@ -1,0 +1,35 @@
+{
+    "name": "@orthacms/segments-server",
+    "version": "0.4.2",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "src",
+        "migrations"
+    ],
+    "dependencies": {
+        "@nestjs/common": "^11.0.0",
+        "@nestjs/swagger": "^11.4.6",
+        "@orthacms/bootstrap-server": "*",
+        "@orthacms/content-server": "*",
+        "@orthacms/database": "*",
+        "@orthacms/identity-server": "*",
+        "@orthacms/segments-domain": "*",
+        "@orthacms/workspaces-server": "*",
+        "class-validator": "^0.15.1",
+        "drizzle-orm": "^0.45.0",
+        "express": "^5.0.0"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.21",
+        "drizzle-kit": "^0.31.0"
+    }
+}

@@ -33,7 +33,9 @@ export const PERMISSIONS = {
     COPILOT_SKILLS_MANAGE: 'copilot:skills:manage',
     ALARMS_READ: 'alarms:read',
     ALARMS_MANAGE: 'alarms:manage',
-    VIEWS_SHARE: 'views:share'
+    VIEWS_SHARE: 'views:share',
+    SEGMENTS_READ: 'segments:read',
+    SEGMENTS_MANAGE: 'segments:manage'
 } as const;
 
 /**
@@ -97,6 +99,14 @@ export interface SystemRole {
  * Contributors hold it; viewers do not, and are not blocked from anything by
  * its absence.
  *
+ * The two `segments:*` keys gate **reader entitlements** — who may read a
+ * published entry. `segments:read` is granted to contributor and viewer: an
+ * editor who cannot see that an entry is restricted will publish one believing
+ * it is public, and the state is already shown in the entry editor.
+ * `segments:manage` is **admin-only**: renaming a segment's tags changes who
+ * every entry naming it is visible to, which is a configuration decision rather
+ * than an editorial one.
+ *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
  * instructions are prompt text that runs for every member of the workspace, so
@@ -126,7 +136,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             // editorial policy, not an edit.
             PERMISSIONS.ALARMS_READ,
             PERMISSIONS.COPILOT_USE,
-            PERMISSIONS.VIEWS_SHARE
+            PERMISSIONS.VIEWS_SHARE,
+            PERMISSIONS.SEGMENTS_READ
         ]
     },
     {
@@ -138,7 +149,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_READ,
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.ALARMS_READ,
-            PERMISSIONS.COPILOT_USE
+            PERMISSIONS.COPILOT_USE,
+            PERMISSIONS.SEGMENTS_READ
         ]
     }
 ] as const;

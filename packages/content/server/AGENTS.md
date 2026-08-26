@@ -302,6 +302,47 @@ a clean **409**. A boot check (`EntryExtensionBootCheck`) fails start-up if an
 `i18n: true` type has no extension bound. Only one binding is supported (a
 second consumer would need a composite).
 
+### The read-scope port (`CONTENT_READ_SCOPE`)
+
+`src/lib/extension/read-scope.ts` declares a second DI port, for narrowing what
+the **public** content API returns. `PublicEntriesQuery` and
+`PublicExpansionQuery` inject it `@Optional()` and AND every returned fragment
+onto the visibility predicate they already state, so a scope can only ever
+subtract rows — there is no return value that widens a read.
+`@orthacms/segments-server` is the first implementation (reader entitlements,
+over the `@orthacms/segments-domain` kernel); with nothing registered — the
+state of an installation that has not enabled it — the port costs a length
+check.
+
+Three things distinguish it from `CONTENT_ENTRY_EXTENSION`:
+
+- **A registry, not a DI token.** Nest has **no multi-provider**: two dynamic
+  modules binding one token do not merge, the second silently replaces the
+  first, and for a visibility rule that means content quietly becoming visible.
+  So a plugin registers at bootstrap with
+  `contentReadScopeRegistrar('<label>', <ScopeClass>)` — the same shape
+  `copilotToolsRegistrar` uses, for the same reason. `CONTENT_ENTRY_EXTENSION`
+  stays a single binding held by i18n: a composite over it would fuse "narrow a
+  read" and "extend a write" into one provider where a fault in either silently
+  drops the other's clause.
+- **Synchronous.** The predicate is assembled inside the query builder, and
+  making that path async would ripple through every public read for one
+  provider's benefit. An implementation needing I/O — resolving who the caller
+  is — must do it earlier in the request and read the result from its own
+  request-scoped state.
+- **Public reads only.** The fragments are not applied to the admin's entries
+  list. An admin caller is a member of the workspace looking at their own CMS,
+  while a reader entitlement is about who may consume published content; scoping
+  the editor's list by it would hide from an author the rows they are
+  responsible for. The same split content grants already make.
+
+It is applied in `liveWhere` rather than `readableWhere`, which is what makes it
+unmissable: the list, the single-entry read and the translation lookup that
+deliberately steps around the locale scope all pass through the former.
+`PublicExpansionQuery` asks separately, **per hop**, about the _target_ type — a
+reader allowed to see an entry is not thereby allowed to see everything it
+points at.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with
