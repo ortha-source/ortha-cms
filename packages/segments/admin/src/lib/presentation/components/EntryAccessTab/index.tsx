@@ -193,51 +193,51 @@ export function EntryAccessTab({
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h3 className="flex items-center gap-2 text-sm font-semibold">
-                        {intl.formatMessage(messages.heading)}
-                        <Badge
-                            variant={isOpen(draft) ? 'secondary' : 'warning'}
-                        >
-                            {isOpen(draft) ? (
-                                <Globe className="size-3" aria-hidden />
-                            ) : (
-                                <Lock className="size-3" aria-hidden />
-                            )}
-                            {intl.formatMessage(
-                                isOpen(draft)
-                                    ? messages.open
-                                    : messages.restricted
-                            )}
-                        </Badge>
-                        {dirty ? <ChangedBadge /> : null}
-                    </h3>
-                    <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-                        {intl.formatMessage(messages.body)}
-                    </p>
+            <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                    {intl.formatMessage(messages.heading)}
+                    <Badge variant={isOpen(draft) ? 'secondary' : 'warning'}>
+                        {isOpen(draft) ? (
+                            <Globe className="size-3" aria-hidden />
+                        ) : (
+                            <Lock className="size-3" aria-hidden />
+                        )}
+                        {intl.formatMessage(
+                            isOpen(draft) ? messages.open : messages.restricted
+                        )}
+                    </Badge>
+                    {dirty ? <ChangedBadge /> : null}
+                </h3>
+                <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                    {intl.formatMessage(messages.body)}
+                </p>
+            </div>
+
+            {/* Search left, the directory link right, on one row — the link is
+                the way *out* of this screen, so it belongs at the far edge
+                rather than beside the heading, where it competed with the
+                restricted/open badge for the eye. */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="relative w-56">
+                    <Search
+                        className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                    />
+                    <Input
+                        className="pl-8"
+                        type="search"
+                        value={query}
+                        aria-label={intl.formatMessage(messages.search)}
+                        placeholder={intl.formatMessage(messages.search)}
+                        onChange={(event) => setQuery(event.target.value)}
+                    />
                 </div>
-                <Button variant="ghost" size="sm" asChild>
+                <Button variant="outline" size="sm" asChild>
                     <Link to="/segments">
                         <ShieldCheck aria-hidden />
                         {intl.formatMessage(messages.manage)}
                     </Link>
                 </Button>
-            </div>
-
-            <div className="relative w-56">
-                <Search
-                    className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden
-                />
-                <Input
-                    className="pl-8"
-                    type="search"
-                    value={query}
-                    aria-label={intl.formatMessage(messages.search)}
-                    placeholder={intl.formatMessage(messages.search)}
-                    onChange={(event) => setQuery(event.target.value)}
-                />
             </div>
 
             {locked ? null : (

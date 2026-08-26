@@ -405,6 +405,40 @@ its own: only the extension knows what its own state is worth.
 The **public API's** `PublicSaveEntryDto` deliberately has no `extensions` key,
 so a bearer token cannot reach this path at all.
 
+### The virtual filter-field registry (`ENTRY_FILTER_PROVIDER`)
+
+`CONTENT_ENTRY_EXTENSION.filterExtension` already declares virtual filter fields
+(i18n's `hasLocale` / `missingLocale` / `localeCount`), but that port is a
+**single binding** and i18n holds it — so a second plugin binding the token would
+silently replace the first, which for a filter surface means fields quietly
+vanishing from the picker and saved filters starting to 400.
+
+`src/lib/extension/entry-filter-provider.ts` is the registry a second
+contributor uses instead (`entryFilterProviderRegistrar('<label>', <Class>)`),
+the same shape and the same reason as `contentReadScopeRegistrar`.
+`EntryFilterProviderRegistry.compose(type, bound)` folds the bound extension and
+every registered provider into the one `EntryFilterExtension` the query path
+already understands, so `EntriesService.listWhere` and `EntryMatchQuery` changed
+by one call each and nothing downstream moved.
+`@orthacms/segments-server` fills it with **who can read this** — `audienceAllowed`,
+`audienceDenied`, `accessRestricted`.
+
+Three rules a contribution owes:
+
+- **Every emitted subquery MUST scope to the workspace it is handed.** A virtual
+  field is a subquery over a table this package knows nothing about; one that
+  forgets the workspace turns a filter into a cross-tenant read.
+- **Only declare fields you can answer, with only the operators you support.**
+  The declared `fields` become the SQL whitelist, so an operator the resolver
+  refuses reaches the user as "couldn't load this collection" over a rule the
+  picker itself proposed — narrow the admin's `FilterField.operators` to match.
+- **A filter narrows a list; it is not a visibility rule.** Reachability is
+  `CONTENT_READ_SCOPE`'s job and is applied separately.
+
+`compose` routes each rule to **whoever declared its field**, and keeps the
+first declarer of a duplicated name. Letting the last writer win would make what
+a saved filter _means_ depend on plugin registration order.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with

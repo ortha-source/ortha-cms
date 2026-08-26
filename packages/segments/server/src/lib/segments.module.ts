@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
     contentReadScopeRegistrar,
+    entryFilterProviderRegistrar,
     entryWriteExtensionRegistrar
 } from '@orthacms/content-server';
 import { SEGMENTS_CONFIG } from './segments.tokens';
@@ -17,6 +18,7 @@ import { ReaderStore } from './application/reader.store';
 import { PrincipalStore } from './application/principal.store';
 import { SegmentReadScope } from './infrastructure/segment-read-scope';
 import { EntryAccessWriteExtension } from './infrastructure/entry-access-write-extension';
+import { AccessFilterProvider } from './infrastructure/access-filter.provider';
 import { ReaderMiddleware } from './http/reader.middleware';
 import { PrincipalMiddleware } from './http/principal.middleware';
 import { SegmentsController } from './http/segments.controller';
@@ -63,6 +65,13 @@ export class SegmentsModule implements NestModule {
                     'segments',
                     EntryAccessWriteExtension
                 ),
+                AccessFilterProvider,
+                // The third registration, and the same reason as the other two:
+                // `CONTENT_ENTRY_EXTENSION` is a single binding held by i18n, so
+                // virtual filter fields go through content's registry. These are
+                // the records list's "can be seen by" / "cannot be seen by" /
+                // "restricted" — the editor's questions, not a visibility rule.
+                entryFilterProviderRegistrar('segments', AccessFilterProvider),
                 ReaderMiddleware,
                 PrincipalMiddleware
             ],

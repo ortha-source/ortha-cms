@@ -100,6 +100,14 @@ export type {
     EntryWriteExtensionInput,
     EntryWriteExtensionTarget
 } from './lib/extension/entry-write-extension';
+
+// The virtual filter-field registry — how a plugin other than the single bound
+// `CONTENT_ENTRY_EXTENSION` adds fields to a type's `?filter=` surface.
+export {
+    EntryFilterProviderRegistry,
+    entryFilterProviderRegistrar
+} from './lib/extension/entry-filter-provider';
+export type { EntryFilterProvider } from './lib/extension/entry-filter-provider';
 // The transaction handle an extension is handed. Exported because an
 // implementation lives in another package and has to name the type of the
 // executor it must write on — the one rule of the port.

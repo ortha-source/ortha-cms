@@ -6,6 +6,7 @@ import {
     ENTRY_PRESAVE_SLOT,
     ENTRY_TAB,
     ENTRY_TAB_SLOT,
+    RECORDS_FILTER_FIELDS_SLOT,
     REVISION_EXTRA_SLOT
 } from '@orthacms/content-admin';
 import { Spinner } from '@orthacms/design-system';
@@ -16,6 +17,7 @@ import {
     ENTRY_ACCESS_PRESAVE_ID,
     useEntryAccessPresave
 } from '../../application/useEntryAccessPresave';
+import { useAccessFilterFields } from '../../application/useAccessFilterFields';
 import { EntryAccessChip } from '../components/EntryAccessChip';
 import { EntryAccessTab } from '../components/EntryAccessTab';
 import { RevisionAccessValue } from '../components/RevisionAccessValue';
@@ -164,6 +166,23 @@ export function SegmentsPlugin(): SegmentsAdminPlugin {
                             defaultMessage: 'Who can read this'
                         },
                         Component: RevisionAccessValue
+                    }
+                ]
+            },
+            {
+                // Filtering the records list by who can read a record. It joins
+                // the list's own query builder rather than getting a screen of
+                // its own, so an access question is one rule among the rest —
+                // saveable as a view, replayable as an alarm rule.
+                slot: RECORDS_FILTER_FIELDS_SLOT,
+                items: [
+                    {
+                        id: 'segments.records.filterFields',
+                        // The signature hands over the schema; these fields
+                        // apply to every type, so it is unused. The workspace
+                        // the hook needs comes from context — this renders
+                        // inside the workspace shell.
+                        useFields: () => useAccessFilterFields()
                     }
                 ]
             }

@@ -17,6 +17,7 @@ import {
     type ContentEntryExtension,
     type EntryFilterExtension
 } from '../../../extension/entry-extension';
+import { EntryFilterProviderRegistry } from '../../../extension/entry-filter-provider';
 import type { AnyContentType } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE } from '../../../types/fields';
 import {
@@ -73,6 +74,10 @@ export class EntriesService {
     constructor(
         @InjectDatabase() private readonly db: Database,
         private readonly relationLinks: RelationLinkService,
+        // Virtual filter fields contributed by plugins other than the single
+        // bound extension — segments' audience fields today. A registry rather
+        // than a token, for the reason its own file documents.
+        private readonly filterProviders: EntryFilterProviderRegistry,
         // The entries extension port (e.g. the i18n plugin's locale scoping) —
         // absent unless a downstream plugin binds it, hence optional.
         @Optional()
@@ -156,7 +161,14 @@ export class EntriesService {
         // into the schema, resolved to its own SQL) and an extra scope
         // predicate (e.g. the active locale). Both are no-ops for types the
         // extension doesn't apply to.
-        const filterExtension = this.extension?.filterExtension(type);
+        // The bound extension (i18n) plus every registered provider (segments'
+        // audience fields), folded into one contribution — see
+        // `EntryFilterProviderRegistry`, which exists because that port is a
+        // single binding and a second plugin would otherwise replace it.
+        const filterExtension = this.filterProviders.compose(
+            type,
+            this.extension?.filterExtension(type)
+        );
         // Building the surface walks the type's whole relation graph to the
         // hop budget, so only pay for it when there is actually a filter to
         // translate — an unfiltered list (the common case) skips it entirely.

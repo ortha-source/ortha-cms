@@ -19,6 +19,7 @@
         "@orthacms/content-admin": "*",
         "@orthacms/design-system": "*",
         "@orthacms/identity-admin": "*",
+        "@orthacms/query-builder-admin": "*",
         "@orthacms/segments-domain": "*",
         "@orthacms/shell-admin": "*",
         "@orthacms/utils-admin": "*",

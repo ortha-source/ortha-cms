@@ -14,13 +14,32 @@
     "include": ["src/**/*.ts", "src/**/*.tsx"],
     "exclude": ["dist", "**/*.spec.ts", "**/*.spec.tsx"],
     "references": [
-        { "path": "../../utils/admin/tsconfig.lib.json" },
-        { "path": "../domain/tsconfig.lib.json" },
-        { "path": "../../identity/admin/tsconfig.lib.json" },
-        { "path": "../../design-system/tsconfig.lib.json" },
-        { "path": "../../shell/admin/tsconfig.lib.json" },
-        { "path": "../../workspaces/admin/tsconfig.lib.json" },
-        { "path": "../../content/admin/tsconfig.lib.json" },
-        { "path": "../../bootstrap/admin/tsconfig.lib.json" }
+        {
+            "path": "../../workspaces/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../utils/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../shell/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../domain/tsconfig.lib.json"
+        },
+        {
+            "path": "../../query-builder/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/tsconfig.lib.json"
+        },
+        {
+            "path": "../../content/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bootstrap/admin/tsconfig.lib.json"
+        }
     ]
 }

@@ -14,6 +14,7 @@ src/lib/
     entry-access.service.ts     one entry's two lists — the whole write path
   infrastructure/
     segment-read-scope.ts       the CONTENT_READ_SCOPE implementation
+    access-filter.provider.ts   the records list's three access filter fields
     entry-access-write-extension.ts  the EntryWriteExtension — access, written
                                      inside the entry's save and versioned with it
   http/
@@ -156,6 +157,27 @@ those would print a uuid, or claim an audience was deleted when it is merely on
 page three. Unknown ids are skipped rather than refused: a segment a revision
 captured really can have been deleted since, and that is a state the caller
 renders. It is declared **before** `:id` so the literal segment wins the match.
+
+**Filtering the records list by access is three virtual fields, not a relation.**
+`audienceAllowed` / `audienceDenied` (enums of the workspace's audiences) and
+`accessRestricted` (a boolean), contributed through content's filter-field
+registry so they join the list's own query builder — saveable as a view,
+replayable as an alarm rule.
+
+Not a relation, though the query builder has a picker for those: a relation there
+means a **content type**, and the picker would fetch `/content/<target>` while
+the surface walked the target's own fields. An audience is a row in this plugin's
+table with no content model behind it, so modelling it as one would advertise a
+traversal (`audience.tags eq …`) nothing can answer.
+
+`in` is **any of** (array overlap); "both" is an `and` of two `eq` rules, which
+the builder composes. Negation is deliberately absent: `audienceAllowed ne
+"acme"` negates _inside_ the EXISTS — "has some allowed audience other than
+Acme" — which an entry that also allows Acme satisfies. That reads as "not
+visible to Acme" and is not it.
+
+And it is a **list filter, not a visibility rule**: who may actually read an
+entry is `SegmentReadScope` on the public API, unaffected by anything here.
 
 **Two empty lists delete the row.** Storing them would work and would leave
 every entry anyone ever opened paying for a row on the read path.

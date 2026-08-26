@@ -23,6 +23,7 @@
         "@orthacms/database": "*",
         "@orthacms/identity-server": "*",
         "@orthacms/segments-domain": "*",
+        "@orthacms/utils-server": "*",
         "@orthacms/workspaces-server": "*",
         "class-validator": "^0.15.1",
         "drizzle-orm": "^0.45.0",

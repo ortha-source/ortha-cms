@@ -131,6 +131,10 @@ to rewrite the article and not to publish it to a new audience.
 inert server-side, so a badge claiming anything about access would be a claim
 about a system that is not running.
 
+**The Access tab's search sits left and the Segments link right, on one row.**
+The link is the way _out_ of this screen, so it belongs at the far edge rather
+than beside the heading, where it competed with the restricted/open badge.
+
 **Creating and editing are pages, not a dialog.** It was a dialog while an
 audience was three short fields; it now also decides which workspaces may use
 it, which is a list that grows with the installation. A modal that scrolls is a
