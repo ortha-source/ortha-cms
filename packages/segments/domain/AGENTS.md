@@ -21,6 +21,7 @@ have different subjects, different lifecycles and different blast radius.
 | `inheritance.ts`           | The level chain collapsed into one resolved rule.         |
 | `segment-resolver.port.ts` | Where a reader's tags come from.                          |
 | `limits.ts`                | The ceilings — groups per rule, types per installation.   |
+| `adopt-relation-sets.ts`   | The included/excluded relation scheme → a rule.           |
 
 ## The rules that matter here
 
@@ -73,6 +74,15 @@ one entry may shrug off.
 an empty tag set rather than throwing or guessing. An empty set still reads
 everything unrestricted, so an outage degrades to "public content only" instead
 of to an outage of its own.
+
+**Adoption is a mapping, not a script.** The scheme most CMSes arrive from — an
+`included` and an `excluded` relation list on the entry — lives in the adopting
+app's own fields, so a migration script here would invent the format it claims
+to read. `ruleFromRelationSets` and `groupByRelationSets` are the part that is
+shared and easy to get wrong; [`docs/segments-adoption.md`](../../../docs/segments-adoption.md)
+is the loop around them. The trap they exist for: `included: []` means
+**everyone** in that scheme and an `only` naming nobody means **nobody**, and a
+literal translation blacks out a library on migration day.
 
 ## Commands
 

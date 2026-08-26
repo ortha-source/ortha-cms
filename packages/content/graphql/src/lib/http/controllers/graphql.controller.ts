@@ -7,6 +7,7 @@ import {
     HttpCode,
     HttpStatus,
     Logger,
+    Optional,
     Post,
     UseGuards
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
     ApiTokenGuard,
     ApiTokenWorkspaceGuard,
     CurrentApiToken,
+    EntryAccessSourceRegistry,
     InjectContentRegistry,
     PublicEntriesQuery,
     PublicEntryWritesService,
@@ -37,6 +39,7 @@ import { printSchema, type ExecutionResult } from 'graphql';
 import { InjectGraphqlConfig } from '../../content-graphql.tokens';
 import { executeOperation } from '../../execution/execute-operation';
 import { EntryLoader } from '../../resolvers/entry-loader';
+import { AccessLoader } from '../../resolvers/access-loader';
 import type { GraphqlContext } from '../../resolvers/context';
 import { SchemaCache } from '../../schema/schema-cache';
 import type { ResolvedContentGraphqlConfig } from '../../types/config';
@@ -97,7 +100,13 @@ export class GraphqlController {
         private readonly grants: WorkspaceGrantsQuery,
         private readonly entries: PublicEntriesQuery,
         private readonly writes: PublicEntryWritesService,
-        private readonly accessPolicy: AccessPolicy
+        private readonly accessPolicy: AccessPolicy,
+        // Optional so this package keeps working against a `ContentModule` that
+        // predates the port — the field then answers "unrestricted" for every
+        // entry, which is exactly what a deployment with no scoping plugin
+        // means.
+        @Optional()
+        private readonly accessSources?: EntryAccessSourceRegistry
     ) {
         this.schemas = new SchemaCache(registry, config.schemaCacheTtlMs);
     }
@@ -175,6 +184,9 @@ export class GraphqlController {
             entries: this.entries,
             writes: this.writes,
             loader: new EntryLoader(this.entries, workspaceId),
+            // Fresh per request, like the entry loader and for the same reason:
+            // it batches within one execution and must never outlive it.
+            access: new AccessLoader(this.accessSources, workspaceId),
             limits: this.config.limits,
             can,
             assert: (permission) => {

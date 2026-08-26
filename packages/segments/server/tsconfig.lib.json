@@ -30,6 +30,9 @@
             "path": "../../content/server/tsconfig.lib.json"
         },
         {
+            "path": "../../tools/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../bootstrap/server/tsconfig.lib.json"
         }
     ]

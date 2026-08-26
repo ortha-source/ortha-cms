@@ -212,6 +212,41 @@ export function relationDeltaInputFor(): GraphQLInputObjectType {
 }
 
 /**
+ * What the `access` envelope field reports.
+ *
+ * Deliberately thin, and the reason is worth stating where the type is: a
+ * reader who was **refused** an entry receives no entry at all — the entitlement
+ * rule narrows the read itself — so this can never describe a refusal. It
+ * describes the entry the caller *did* get, and it exists for one purpose:
+ * **telling a cache that the response is reader-specific.**
+ *
+ * A CDN, a shared HTTP cache or a client store that keeps one reader's copy and
+ * serves it to the next turns a working entitlement into a data leak, and
+ * nothing else in the payload distinguishes a reader-scoped entry from an open
+ * one. Who else may read it is a question for the admin API, where the caller
+ * is a member of the workspace rather than a consumer of its content.
+ */
+export const EntryAccessType = new GraphQLObjectType({
+    name: 'EntryAccess',
+    description:
+        'Whether this entry was reader-scoped. A refused reader receives no entry at all, so this never describes a refusal — it tells a cache that the response depends on who asked.',
+    fields: {
+        restricted: {
+            type: new GraphQLNonNull(GraphQLBoolean),
+            description:
+                'True when an entitlement rule narrowed who may read this entry. **Do not store a `true` response in a shared cache** without varying on whatever identifies the reader.'
+        },
+        dimensions: {
+            type: new GraphQLNonNull(
+                new GraphQLList(new GraphQLNonNull(GraphQLString))
+            ),
+            description:
+                'The axes that took part, as tag namespaces (`org`, `plan`) — what to vary a cache key on. Never the segments themselves, which would tell you who *else* may read the entry. Empty when nothing restricts it.'
+        }
+    }
+});
+
+/**
  * Names the shared schema owns. Claimed before any content type, so a content
  * type that would produce one of them fails the build loudly instead of
  * silently shadowing a shared type.
@@ -223,6 +258,7 @@ export const RESERVED_TYPE_NAMES: readonly string[] = [
     'MediaAsset',
     'ContentTypeInfo',
     'ContentTypeKind',
+    'EntryAccess',
     'EntryStatus',
     'EntryVisibility',
     'RelationRefBy',

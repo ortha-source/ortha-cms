@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import {
     contentEntryWriteHookRegistrar,
-    contentReadScopeRegistrar
+    contentReadScopeRegistrar,
+    entryAccessSourceRegistrar
 } from '@orthacms/content-server';
 import { SEGMENTS_CONFIG } from './segments.tokens';
 import type { SegmentsPluginConfig } from './types/segments-config';
@@ -24,6 +25,8 @@ import { AccessRulesService } from './access/application/access-rules.service';
 import { AssignmentsService } from './access/application/assignments.service';
 import { ExplainService } from './access/application/explain.service';
 import { EntryProjectionHook } from './access/infrastructure/write-hook/entry-projection.hook';
+import { SegmentEntryAccessSource } from './access/infrastructure/entry-access/segment-access-source';
+import { AccessToolProvider } from './access/infrastructure/tools/access-tool.provider';
 import { SegmentTypesController } from './access/http/controllers/segment-types.controller';
 import { SegmentsController } from './access/http/controllers/segments.controller';
 import { AccessRulesController } from './access/http/controllers/access-rules.controller';
@@ -77,6 +80,8 @@ export class SegmentsModule implements NestModule {
                 ExplainService,
                 SegmentReadScope,
                 EntryProjectionHook,
+                SegmentEntryAccessSource,
+                AccessToolProvider,
                 // The projection runs in the entry's own write transaction, so
                 // an entry is never live without the rule that governs it. The
                 // read scope's sibling, registered the same way.
@@ -88,6 +93,15 @@ export class SegmentsModule implements NestModule {
                 // The same shape `copilotToolsRegistrar` uses, for the same
                 // reason.
                 contentReadScopeRegistrar('segments', SegmentReadScope),
+                // The read scope's opposite number: it labels the rows a reader
+                // *got*, so a protocol adapter can tell a shared cache that the
+                // response is reader-specific. Registered the same way, and for
+                // a sharper version of the same reason — a description silently
+                // replaced by a second plugin's is an entry reported as open.
+                entryAccessSourceRegistrar(
+                    'segments',
+                    SegmentEntryAccessSource
+                ),
                 CallerSegmentsMiddleware
             ],
             exports: [
@@ -97,7 +111,8 @@ export class SegmentsModule implements NestModule {
                 ProjectionService,
                 AccessResolutionService,
                 ReprojectionService,
-                ExplainService
+                ExplainService,
+                SegmentEntryAccessSource
             ]
         };
     }

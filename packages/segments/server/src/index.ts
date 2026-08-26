@@ -56,3 +56,10 @@ export { buildAccessPredicate } from './lib/access/infrastructure/predicate/acce
 // The schema, re-exported so a consumer (and the host's drizzle-kit entry) can
 // reach the tables this plugin owns.
 export * from './lib/access/infrastructure/schema';
+
+// The entry-access source content's GraphQL adapter reads to label a served
+// page — exported so a deployment assembling its own protocol can register the
+// same one rather than re-deriving the fact from the rules.
+export { SegmentEntryAccessSource } from './lib/access/infrastructure/entry-access/segment-access-source';
+// The agent tools, for a host that binds the registry itself.
+export { AccessToolProvider } from './lib/access/infrastructure/tools/access-tool.provider';

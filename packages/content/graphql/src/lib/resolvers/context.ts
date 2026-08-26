@@ -9,6 +9,7 @@ import type {
 import type { PermissionKey } from '@orthacms/identity-server';
 import type { ContentGraphqlLimits } from '../types/config';
 import type { EntryLoader } from './entry-loader';
+import type { AccessLoader } from './access-loader';
 
 /**
  * Everything a resolver needs, assembled once per request by the controller.
@@ -42,6 +43,12 @@ export interface GraphqlContext {
     writes: PublicEntryWritesService;
     /** Batches the per-level entry loads a nested query provokes. */
     loader: EntryLoader;
+    /**
+     * Batches the `access` labels the envelope field asks for. Present even on
+     * an installation with nothing registered, where it answers "unrestricted"
+     * without dispatching.
+     */
+    access: AccessLoader;
     /** The operation's cost budget, for resolvers that clamp a page size. */
     limits: ContentGraphqlLimits;
     /**

@@ -50,6 +50,7 @@ import { namesFor } from './naming';
 import { GraphQLDateTime, GraphQLJSON } from './scalars';
 import {
     ContentTypeInfoType,
+    EntryAccessType,
     MediaAssetType,
     RESERVED_TYPE_NAMES,
     relationDeltaInputFor
@@ -239,6 +240,7 @@ function envelopeCollision(typeName: string, fieldName: string): string {
 /** Envelope field names an entry object always carries. */
 const ENVELOPE_FIELDS = [
     'id',
+    'access',
     'createdAt',
     'updatedAt',
     'status',
@@ -267,6 +269,19 @@ function entryFields(
         updatedAt: {
             type: new GraphQLNonNull(GraphQLDateTime),
             description: 'When the entry was last written.'
+        },
+        // On every entry type of every schema, unconditionally — unlike
+        // `status`, which follows a registry flag. Whether anything narrows
+        // reads is a property of the *deployment*, not of the content model,
+        // and a consumer writing a cache layer has to be able to rely on the
+        // field being there to check. With nothing registered it resolves to
+        // `restricted: false` without a query.
+        access: {
+            type: new GraphQLNonNull(EntryAccessType),
+            description:
+                'Whether this entry was reader-scoped, and on which axes. Consult it before storing the response in any shared cache.',
+            resolve: (entry: PublicEntry, _args, context: GraphqlContext) =>
+                context.access.load(String(entry.id))
         }
     };
     if (type.publishable) {

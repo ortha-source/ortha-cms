@@ -64,3 +64,18 @@ export {
 export type { SegmentResolver } from './lib/segment-resolver.port';
 
 export { MAX_CONDITION_GROUPS, MAX_SEGMENT_TYPES } from './lib/limits';
+
+// Adoption: the mapping from the relation-pair scheme almost every CMS starts
+// with (an "included" and an "excluded" list on the entry) onto a rule. Shipped
+// as a tested function rather than a script, because the old scheme lives in the
+// adopting app's own fields — see `docs/segments-adoption.md`.
+export {
+    groupByRelationSets,
+    relationSetsFit,
+    ruleFromRelationSets
+} from './lib/adopt-relation-sets';
+export type {
+    RelationSetGroup,
+    RelationSetGrouping,
+    RelationSets
+} from './lib/adopt-relation-sets';

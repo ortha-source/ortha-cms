@@ -67,6 +67,18 @@ export type {
     ContentReadScopeContext
 } from './lib/extension/read-scope';
 
+// The read scope's opposite number: it describes the rows a reader *got*, so a
+// protocol adapter can tell a shared cache not to store a reader-specific one.
+export {
+    EntryAccessSourceRegistry,
+    entryAccessSourceRegistrar
+} from './lib/extension/entry-access-source';
+export type {
+    EntryAccessDescription,
+    EntryAccessQuery,
+    EntryAccessSource
+} from './lib/extension/entry-access-source';
+
 // The entry write hook — the read scope's sibling, for derived state that must
 // commit in the entry's own transaction.
 export {

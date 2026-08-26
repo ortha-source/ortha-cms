@@ -42,6 +42,11 @@ entry write hook — and the management API under `/api/access`.
 | `/access/grants`                          | workspace    | `access:read` / `access:manage` |
 | `/access/explain`                         | workspace    | `access:read`                   |
 
+Plus two contributions with no route of their own: the `access` field on the
+public GraphQL entry (through content's `EntryAccessSourceRegistry`) and the
+`access_explain` / `access_segment_types` agent tools (through the shared
+`ToolRegistry`).
+
 `access:read` is held by contributor and viewer — an editor who cannot see that
 an article is restricted will publish one believing it is public. `access:manage`
 is admin-only: a rule change changes what every reader of the site sees.
@@ -119,10 +124,32 @@ collection to pretend otherwise buys nothing.
 every segment but one — the complement, which is what the projection invariant
 forbids. Exclusions live on the content side, in a rule.
 
+**The GraphQL `access` field describes, it does not decide.** `entry_access`
+rows exist exactly when a rule restricts an entry, so the source reads the fact
+the read already acted on rather than re-evaluating the rule — a second
+evaluation could disagree with the one that admitted the entry. It reports the
+**axes**, never the segments: which segments are admitted would tell a consumer
+of published content who _else_ may read it.
+
+**The tools are reads, and that is a limit rather than a first instalment.**
+Writing a rule from a chat turn changes what every reader of the site can see,
+from an actor whose intent was expressed in prose and whose mistake surfaces as
+missing content nobody reports for a week. `access:manage` stays something a
+person does in the admin, where the change is reviewable before it lands.
+
+**And they are `surfaces: ['copilot']` for a factual reason, not a preference.**
+Both require `access:read`, and no API-token scope grants it — `scopePermissions`
+gives `read` and `full` their content and media permissions and nothing else. On
+MCP they would be filtered out of every `tools/list` and callable by nobody.
+Widening a scope to reach them is the wrong fix: `access:read` is what the six
+`/api/access` routes check, so that scope would open the whole management API to
+a bearer token, and even its reads describe the tenant's business — its plan
+tiers, how many organisations it has. An external agent that should ask this
+needs a scope of its own.
+
 ## What is not here yet
 
-- **The admin UI**, the `access` field on the GraphQL entry, the `access_explain`
-  tool, and the impact preview.
+- **The impact preview**, and the collection-level assignment surface.
 - **Deletes are not hooked.** A hard-deleted entry leaves its projection rows
   behind. Nothing joins to an id that no longer exists, so the cost is disk
   rather than correctness; they are reclaimed by the next re-projection of that

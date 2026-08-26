@@ -154,6 +154,30 @@ resolver asserted. Two known costs, both deliberate:
   list is one query per row. It is a targeted request, the complexity budget
   bounds it, and the SDL says so on the argument.
 
+### 5. Every entry carries `access`, and it is a cache instruction
+
+`EntryAccess { restricted, dimensions }` sits on every entry type of every
+schema — unconditionally, unlike `status`, which follows a registry flag.
+Whether anything narrows reads is a property of the **deployment**, not of the
+content model, and a consumer writing a cache layer has to be able to rely on
+the field being there to check.
+
+It can never describe a **refusal**: a reader denied an entry receives no entry
+at all, because the entitlement rule narrows the read itself
+(`CONTENT_READ_SCOPE`). It describes the entry the caller *did* get, for one
+purpose — telling a CDN, a shared HTTP cache or a client store that the response
+depends on who asked. Nothing else in the payload distinguishes a reader-scoped
+entry from an open one, and a cache that keeps one reader's copy and serves it
+to the next turns a working entitlement into a data leak.
+
+`dimensions` are tag namespaces (`org`, `plan`), never segments: what to vary a
+cache key on, not who else may read the entry. The values come from
+content-server's `EntryAccessSourceRegistry`, batched per execution by
+`resolvers/access-loader.ts` on the same `nextTick` schedule `EntryLoader` uses.
+With **no source registered** it never dispatches — the field resolves to
+`restricted: false` synchronously, which is what the cost of an always-present
+field has to be for a deployment that will always answer it the same way.
+
 ## Shape differences from REST, and why
 
 | REST                                                                 | GraphQL                                 | Why                                                                 |
