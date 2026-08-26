@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import { Lock } from 'lucide-react';
+import { Lock, PowerOff } from 'lucide-react';
 import {
     Container,
     Empty,
@@ -10,6 +10,7 @@ import {
 } from '@orthacms/design-system';
 import { useHasPermission } from '@orthacms/identity-admin';
 import { useCurrentWorkspace } from '@orthacms/workspaces-admin';
+import { useCopilotAvailable } from '../../application/useCopilotModels';
 import { useRouteContext } from '../../application/useRouteContext';
 import { COPILOT_USE, agentsPath } from '../../domain/agentsRoute';
 import { AgentsRail } from './AgentsRail';
@@ -29,6 +30,15 @@ const messages = defineMessages({
     forbiddenBody: {
         id: 'copilot.agents.forbiddenBody',
         defaultMessage: 'You don’t have permission to use Ortha AI here.'
+    },
+    offTitle: {
+        id: 'copilot.agents.offTitle',
+        defaultMessage: 'Ortha AI is turned off'
+    },
+    offBody: {
+        id: 'copilot.agents.offBody',
+        defaultMessage:
+            'This deployment doesn’t run Ortha AI. An administrator can turn it on.'
     }
 });
 
@@ -65,6 +75,11 @@ export function AgentsPage() {
     useDocumentTitle(intl.formatMessage(messages.heading));
     const workspace = useCurrentWorkspace();
     const canUse = useHasPermission(COPILOT_USE);
+    // Reached only by a bookmark or a typed URL once the operator has turned
+    // the copilot off — the switcher and the launcher that lead here are both
+    // gone by then. Worth a branch anyway: the alternative is a page whose
+    // every query 404s, which reads as broken rather than as switched off.
+    const deploymentRunsCopilot = useCopilotAvailable({ enabled: canUse });
     const routeContext = useRouteContext();
 
     // The page's `<h1>`, visually hidden. This route renders no
@@ -78,20 +93,32 @@ export function AgentsPage() {
         <h1 className="sr-only">{intl.formatMessage(messages.heading)}</h1>
     );
 
-    if (!canUse) {
+    if (!canUse || !deploymentRunsCopilot) {
+        // Two reasons, one shape. They are told apart deliberately rather than
+        // collapsed into "no access": "you may not" and "nobody may here" send
+        // the user to different people.
+        const denied = !canUse;
         return (
             <Container className="py-8">
                 {heading}
                 <Empty className="border" role="alert">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
-                            <Lock />
+                            {denied ? <Lock /> : <PowerOff />}
                         </EmptyMedia>
                         <EmptyTitle>
-                            {intl.formatMessage(messages.forbiddenTitle)}
+                            {intl.formatMessage(
+                                denied
+                                    ? messages.forbiddenTitle
+                                    : messages.offTitle
+                            )}
                         </EmptyTitle>
                         <EmptyDescription>
-                            {intl.formatMessage(messages.forbiddenBody)}
+                            {intl.formatMessage(
+                                denied
+                                    ? messages.forbiddenBody
+                                    : messages.offBody
+                            )}
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>

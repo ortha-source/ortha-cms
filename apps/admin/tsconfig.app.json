@@ -37,7 +37,7 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../packages/transfer/admin/tsconfig.lib.json"
+            "path": "../../packages/alarms/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/wysiwyg/admin/tsconfig.lib.json"
@@ -47,6 +47,9 @@
         },
         {
             "path": "../../packages/users/admin/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/transfer/admin/tsconfig.lib.json"
         },
         {
             "path": "../../packages/shell/admin/tsconfig.lib.json"

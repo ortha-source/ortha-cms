@@ -28,6 +28,10 @@ export interface CopilotPluginOptions {
      * misspelled, could point at a provider nobody registered, and had to be
      * kept in step with this list on every change. A deployment that should
      * not reach a backend does not register it.
+     *
+     * **May be empty only while `config.enabled` is false.** A copilot that is
+     * on and has nothing to call is a misconfiguration, and fails at
+     * construction rather than on the first message.
      */
     providers: readonly ProviderRegistration[];
     /** Optional custom handler picking a provider per run (plain code). */
@@ -49,20 +53,29 @@ export interface CopilotPluginOptions {
 
 /**
  * Validate the wiring **eagerly** (like `ContentPlugin`'s registry and
- * `I18nServerPlugin`'s locales): an empty provider list, or a provider
- * declaring no models, is a misconfiguration that should fail at construction —
- * before boot — rather than on the first chat message, where it is most
- * expensive to diagnose.
+ * `I18nServerPlugin`'s locales): a provider declaring no models, or an enabled
+ * copilot with no provider at all, is a misconfiguration that should fail at
+ * construction — before boot — rather than on the first chat message, where it
+ * is most expensive to diagnose.
+ *
+ * **The empty list is only a misconfiguration when the copilot is on.** A
+ * deployment that has not set `enabled` mounts no controllers and can serve no
+ * run, so it needs no backend — and that is the ordinary state of a fresh
+ * checkout, which configures no keys. There is no scripted offline adapter to
+ * fall back on: the fake provider is a private test fixture, so a host with no
+ * keys registers nothing rather than registering something that answers every
+ * question with a canned sentence.
  *
  * Name uniqueness is enforced by `buildModelRegistry`, which the module builds
  * from the same list.
  */
 function assertOptions(options: CopilotPluginOptions): void {
     const names = options.providers.map((entry) => entry.name);
-    if (names.length === 0) {
+    if (names.length === 0 && options.config.enabled) {
         throw new Error(
-            'CopilotPlugin requires at least one model provider. Register one at the composition root, ' +
-                "e.g. `providers: [{ name: 'fake', provider: createFakeProvider() }]`."
+            'CopilotPlugin is enabled but has no model provider. Configure a backend and register it at ' +
+                "the composition root, e.g. `providers: [{ name: 'claude', provider: createAnthropicProvider(…) }]` " +
+                '— or leave the copilot off.'
         );
     }
     for (const entry of options.providers) {
@@ -111,13 +124,16 @@ function assertOptions(options: CopilotPluginOptions): void {
  * engine, the capability profile, and the transcript tables this plugin now
  * owns and migrates.
  *
+ * Each entry is a backend this deployment actually configured. An enabled
+ * copilot needs at least one; a disabled one needs none, and a checkout with no
+ * keys registers none.
+ *
  * @example
  * ```typescript
  * CopilotPlugin({
  *     providers: [
  *         { name: 'claude', provider: createAnthropicProvider(providers.claude) },
- *         { name: 'ollama', provider: createOpenAiProvider(providers.ollama) },
- *         { name: 'fake', provider: createFakeProvider() }
+ *         { name: 'ollama', provider: createOpenAiProvider(providers.ollama) }
  *     ],
  *     config: config.plugins.copilot
  * });

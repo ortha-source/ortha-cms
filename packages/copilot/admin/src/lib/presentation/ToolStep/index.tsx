@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import { ChevronRight, CircleAlert, CircleCheck } from 'lucide-react';
 import {
@@ -7,6 +8,7 @@ import {
     Spinner
 } from '@orthacms/design-system';
 import type { ChatToolStep } from '../../domain/types/chat';
+import { toolResultRendererFor } from '../slots/copilotSlots';
 import { humanizeToolName, toolPhrase, toolSubject } from './labels';
 
 const messages = defineMessages({
@@ -56,6 +58,10 @@ const messages = defineMessages({
     duration: {
         id: 'copilot.step.duration',
         defaultMessage: '{ms}ms'
+    },
+    result: {
+        id: 'copilot.step.result',
+        defaultMessage: 'Result'
     }
 });
 
@@ -91,6 +97,16 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
     // What the call is *about*, from its own arguments. Untrusted text — see
     // `toolSubject` — and rendered as a text node, never as markup.
     const subject = toolSubject(step.input);
+    // A plugin's own rendering of this tool's result, if one is registered.
+    // Resolved with a plain lookup, not a hook — see `toolResultRendererFor`.
+    // Only for a call that finished and returned something: a failure is
+    // already stated by the status, and a renderer should never have to
+    // second-guess whether it is looking at a result or an error.
+    const renderer =
+        step.status === 'ok' && step.output !== undefined
+            ? toolResultRendererFor(step.name)
+            : undefined;
+    const Result = renderer?.Component;
 
     return (
         <Collapsible className="border-border/60 bg-muted/40 rounded-md border">
@@ -163,6 +179,22 @@ export function ToolStep({ step }: { step: ChatToolStep }) {
                     label={intl.formatMessage(messages.input)}
                     value={step.input}
                 />
+                {/* The owning plugin's rendering, **above** the raw payload
+                    and never in place of it. A result that is itself the
+                    answer — a list of flagged records — deserves better than a
+                    JSON array, but "no invisible actions" means the exact
+                    output stays one scroll below it rather than being
+                    swapped out. */}
+                {Result ? (
+                    <Payload label={intl.formatMessage(messages.result)}>
+                        <Result
+                            name={step.name}
+                            input={step.input}
+                            output={step.output}
+                        />
+                    </Payload>
+                ) : null}
+
                 {step.status === 'error' ? (
                     <Payload
                         label={intl.formatMessage(messages.failed)}
@@ -222,15 +254,32 @@ function StatusIcon({ status }: { status: ChatToolStep['status'] }) {
  * result is content the workspace authored, and the expanded step is the one
  * place a user reads it raw.
  */
-function Payload({ label, value }: { label: string; value: unknown }) {
+/**
+ * A labelled block in the expanded panel.
+ *
+ * Renders `children` when given them and the pretty-printed `value` otherwise,
+ * so a plugin's rich result and the raw payloads it sits above share one label
+ * treatment rather than a copied class string that drifts.
+ */
+function Payload({
+    label,
+    value,
+    children
+}: {
+    label: string;
+    value?: unknown;
+    children?: ReactNode;
+}) {
     return (
         <div>
             <div className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
                 {label}
             </div>
-            <pre className="bg-background max-h-56 overflow-auto rounded border p-2 text-[11px] leading-relaxed">
-                {stringify(value)}
-            </pre>
+            {children ?? (
+                <pre className="bg-background max-h-56 overflow-auto rounded border p-2 text-[11px] leading-relaxed">
+                    {stringify(value)}
+                </pre>
+            )}
         </div>
     );
 }

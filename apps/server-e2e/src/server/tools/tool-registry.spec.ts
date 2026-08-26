@@ -12,7 +12,11 @@ import {
     seedWorkspace,
     type SeededWorkspace
 } from '../../support/seed';
-import { copilotCalls, resetCopilot, scriptCopilot } from '../../support/copilot';
+import {
+    copilotCalls,
+    resetCopilot,
+    scriptCopilot
+} from '../../support/copilot';
 import { parseSse } from '../../support/sse';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
@@ -218,6 +222,28 @@ describe('Tool registry (one registry, two surfaces)', () => {
                     'i18n_locales_list'
                 ])
             );
+        });
+
+        // What "unmounted" now means. The switch used to be read in one place —
+        // `RunEngine.run` — so a disabled deployment still served the model
+        // catalogue, the conversation and skill routes and both admin surfaces,
+        // and refused only at the moment somebody pressed send. `MCP_ENABLED`
+        // has always taken its route away; this one now does too.
+        it('serves no copilot route at all', async () => {
+            const agent = await signInAdmin(harness, workspace);
+
+            await agent
+                .get('/api/copilot/models')
+                .set('X-Workspace-Id', workspace.id)
+                .expect(404);
+            await agent
+                .get('/api/copilot/conversations')
+                .set('X-Workspace-Id', workspace.id)
+                .expect(404);
+            await agent
+                .get('/api/copilot/skills')
+                .set('X-Workspace-Id', workspace.id)
+                .expect(404);
         });
     });
 });

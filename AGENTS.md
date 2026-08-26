@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`sso.md`](docs/design/sso.md))
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), which documents shipped behaviour rather than a proposal
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
@@ -50,8 +50,11 @@
   full-page **Agents view** at `/workspaces/:id/agents` (thread rail + one
   conversation, with a CMS ⇄ Agents switch in the workspace sidebar) — sharing
   one transcript, composer and change card;
-  `provider-anthropic` / `provider-openai` / `provider-fake` are the three
-  shipped adapters, constructed at the composition root. Only
+  `provider-anthropic` / `provider-openai` are the two shipped adapters,
+  constructed at the composition root; `provider-fake` is a **private test
+  fixture** — scripted and deterministic, published nowhere, registered by
+  `server-e2e` and never by a host, so a deployment that configured no backend
+  has no copilot rather than one answering from a canned script. Only
   `provider-anthropic` may import a vendor SDK
   ([ADR-0004](docs/adr/0004-model-agnostic-copilot-provider.md)). Its tools live
   in the shared registry, marked `surfaces: ['copilot']`
@@ -92,6 +95,17 @@
   from RBAC and from `workspace_content`, which answer who may _touch_ content.
   Enforced through content-server's `CONTENT_READ_SCOPE` port, so one predicate
   covers REST, GraphQL, MCP and the copilot's reads at once.
+- `packages/alarms/*` — content **alarms**: workspace-defined rules that flag
+  content problems without ever blocking a write
+  ([ADR-0015](docs/adr/0015-alarms-are-non-blocking.md)). `server` owns the two
+  tables (`alarm_rules`, `alarm_findings`), the outbox subscriber, the evaluator
+  and the periodic sweep; `admin` is the alarms page, the rule editor, and three
+  contributions into the Content Library's slots — the entry rail's checks
+  block, an optional records column, and **"Save as rule"** in the records
+  toolbar, which is how rules are actually made. A rule is not a new query
+  language: it stores the **records-list filter tree verbatim** and is evaluated
+  through content's own `EntryMatchQuery`, so it can only ever mean what the
+  list means by the same filter. Severity orders and colours; it never gates.
 - `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token

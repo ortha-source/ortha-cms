@@ -43,7 +43,10 @@ export {
     type WireOp
 } from './lib/utils/wireOp';
 export { treeToJsonFilter, treeToJsonNode } from './lib/utils/treeToJsonFilter';
-export type { JsonFilterNode } from './lib/utils/treeToJsonFilter';
+export type {
+    JsonFilterNode,
+    TreeToJsonOptions
+} from './lib/utils/treeToJsonFilter';
 export { jsonFilterToTree } from './lib/utils/jsonFilterToTree';
 export {
     RULE_VALIDATION,

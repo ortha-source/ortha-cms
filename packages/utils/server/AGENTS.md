@@ -68,8 +68,21 @@ Key concepts:
   against whatever table the translator is querying; it is a no-op on an
   unaliased chain. Never rebind a target-side `fk` (`one-to-many`).
 - **Operators** — `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `like`,
-  `ilike`, `nilike`, `null` — each mapped to a parameterized Drizzle helper.
-  Values are never string-interpolated into SQL.
+  `ilike`, `nilike`, `null`, `within_last` — each mapped to a parameterized
+  Drizzle helper. Values are never string-interpolated into SQL.
+- **`within_last` is date-only and resolved by Postgres, not by the caller.** It
+  takes `{ n, unit }` (`minutes` / `hours` / `days`) and emits
+  `col >= now() - make_interval(...)`, so the window is measured at **query
+  time**. The distinction is invisible in a URL and decisive in a stored filter:
+  the admin's query builder still freezes its own `within_last` into a concrete
+  `gte` cutoff when serialising into a link (a shared deep link should keep
+  showing the same rows), and passes `relativeDates` to keep the relative
+  spelling when the filter is going to be **stored and replayed** — an alarm
+  rule reading "not updated in 90 days" would otherwise mean "not updated since
+  the day it was written", for ever. `n` is bounded because
+  `now() - make_interval(days => 1e9)` is a Postgres `22008` the caller sees as
+  a 500. The unit is never interpolated into SQL — the translator switches over
+  the three, so there is no path by which a wire value could reach `sql.raw`.
 - **An operator is checked against the field's type, not just against the
   vocabulary** (`operator-support.ts`). A leaf has three axes — field, operator,
   value — and the whitelist used to cover two: `ilike` on a `date`/`number`/

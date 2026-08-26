@@ -140,23 +140,15 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   *in sequence* in one file are fine; two apps *open at once* are not, because
   the `@orthacms/database` handle is a module singleton.
 
-## Test catalog
+## No CI runs this suite
 
-[`TESTS.md`](./TESTS.md) is a **generated** browsable index of every
-`describe`/`it` case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`)
-— it never runs Jest, so it needs no Docker. **Don't edit it by hand.** After
-adding, renaming, or removing a test, run `npx nx catalog server-e2e` and commit
-the result. `npx nx catalog:check server-e2e` fails if it has drifted.
-
-**No CI pipeline runs this suite, or the drift check, today** — the only
-workflow is `.github/workflows/release.yml` (`npm ci`, `typecheck`,
-`nx release`). Until that changes, a local `npx nx e2e server-e2e` is the only
-gate on a merge, which is why the harness defends itself against the two failure
-modes above rather than trusting the runner.
+**No CI pipeline runs these tests today** — the only workflow is
+`.github/workflows/release.yml` (`npm ci`, `typecheck`, `nx release`). Until
+that changes, a local `npx nx e2e server-e2e` is the only gate on a merge, which
+is why the harness defends itself against the two failure modes above rather
+than trusting the runner.
 
 ## Commands
 
 - `npx nx e2e server-e2e` — run the suites (needs Docker running).
 - `npx nx lint server-e2e` / `npx nx typecheck server-e2e`.
-- `npx nx catalog server-e2e` — regenerate `TESTS.md` from the specs.
-- `npx nx catalog:check server-e2e` — fail if `TESTS.md` is stale.

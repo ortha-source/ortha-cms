@@ -125,8 +125,10 @@ describe('resolvePackages', () => {
     /**
      * The copilot ships with every app. Its server half arrives anyway — five
      * core plugins depend on `copilot-server` to contribute their tools — so
-     * leaving it undeclared bought nothing but a missing chat panel, and the
-     * `fake` adapter needs no key and no network.
+     * leaving it undeclared bought nothing but a missing chat panel. Its
+     * **backends** do not: each is an opt-in below, and there is no scripted
+     * stand-in among them, so an app that picks none installs the plugin and
+     * registers nothing.
      */
     it('installs the copilot with nothing enabled', () => {
         const packages = resolvePackages(selectionOf());
@@ -134,10 +136,10 @@ describe('resolvePackages', () => {
         expect(packages).toEqual(
             expect.arrayContaining([
                 '@orthacms/copilot-server',
-                '@orthacms/copilot-admin',
-                '@orthacms/copilot-provider-fake'
+                '@orthacms/copilot-admin'
             ])
         );
+        expect(packages).not.toContain('@orthacms/copilot-provider-fake');
     });
 
     it('adds a model backend only when its provider is chosen', () => {

@@ -175,6 +175,12 @@
             "path": "./packages/transfer/admin"
         },
         {
+            "path": "./packages/alarms/server"
+        },
+        {
+            "path": "./packages/alarms/admin"
+        },
+        {
             "path": "./packages/segments/domain"
         }
     ]

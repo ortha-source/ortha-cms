@@ -259,8 +259,10 @@ describe('copilot provider registration', () => {
     };
 
     it('registers neither hosted backend in a clone with no keys', () => {
-        // Which leaves `fake` — added unconditionally in plugins.ts — as the
-        // whole catalogue, and therefore as what a run gets.
+        // Which leaves the catalogue empty: `plugins.ts` adds no scripted
+        // fallback, so a keyless clone has no copilot at all. `COPILOT_ENABLED`
+        // is off by default, so that boots; enabling it without configuring a
+        // backend fails at construction instead.
         expect(loadConfig(unset).plugins.copilot.providers).toEqual({});
     });
 

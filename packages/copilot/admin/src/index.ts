@@ -71,6 +71,18 @@ export type {
 // chat state is: a future inline surface (the entry editor's "suggest alt
 // text") renders the same card rather than inventing a second way to tell
 // someone their content changed.
+// The tool-result slot: a plugin that owns a tool owns how its result reads.
+// Every call still expands to its exact input and output — a contribution
+// renders beside that payload, never instead of it.
+export {
+    COPILOT_TOOL_RESULT_SLOT,
+    toolResultRendererFor
+} from './lib/presentation/slots/copilotSlots';
+export type {
+    CopilotToolResultItem,
+    CopilotToolResultContext
+} from './lib/presentation/slots/copilotSlots';
+
 export { ProposalCard } from './lib/presentation/ProposalCard';
 // Where the user is, derived from the URL. Exported so a future inline surface
 // (the ⌘K palette, an entry-editor widget) reports the same context rather than

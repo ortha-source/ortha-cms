@@ -2,11 +2,13 @@ import {
     COMBINATOR,
     isRule,
     OP,
+    WITHIN_UNIT,
     type Combinator,
     type FilterGroup,
     type FilterRule,
     type OpId,
-    type RuleValue
+    type RuleValue,
+    type WithinUnit
 } from '../types/filter-tree.type';
 import { newId } from './newId';
 import { WIRE_TO_UI, type WireOp } from './wireOp';
@@ -117,6 +119,19 @@ function wireOpToUiOp(wireOp: string): OpId | null {
 
 function valueFor(op: OpId, raw: unknown): RuleValue {
     if (op === OP.IsEmpty || op === OP.IsNotEmpty) return null;
+    if (op === OP.WithinLast) {
+        // The relative spelling round-trips exactly; a malformed one falls back
+        // to the editor's own default rather than producing a rule whose value
+        // the controls cannot render.
+        const v = (raw ?? {}) as { n?: unknown; unit?: unknown };
+        const n = Number(v.n);
+        return {
+            n: Number.isFinite(n) && n > 0 ? n : 1,
+            unit: WITHIN_UNITS.has(String(v.unit))
+                ? (v.unit as WithinUnit)
+                : WITHIN_UNIT.Days
+        };
+    }
     if (op === OP.IsOneOf || op === OP.NotOneOf) {
         return Array.isArray(raw) ? (raw as string[]) : [];
     }
@@ -129,6 +144,9 @@ function valueFor(op: OpId, raw: unknown): RuleValue {
     }
     return typeof raw === 'string' ? raw : String(raw ?? '');
 }
+
+/** The units a `within_last` rule may carry, for membership checks. */
+const WITHIN_UNITS = new Set<string>(Object.values(WITHIN_UNIT));
 
 /** Inverse of `escapeLike`: `\%` → `%`, `\_` → `_`, `\\` → `\`. */
 function unescapeLike(s: string): string {

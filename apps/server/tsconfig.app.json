@@ -22,6 +22,9 @@
     ],
     "references": [
         {
+            "path": "../../packages/alarms/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/workspaces/server/tsconfig.lib.json"
         },
         {
@@ -32,9 +35,6 @@
         },
         {
             "path": "../../packages/database/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/copilot/provider-fake/tsconfig.lib.json"
         },
         {
             "path": "../../packages/content/server/tsconfig.lib.json"
