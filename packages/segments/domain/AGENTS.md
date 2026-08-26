@@ -46,6 +46,14 @@ nothing on either screen to say so. An empty `workspaceIds` means every
 workspace, the same reading as an empty allow list and the state every segment
 starts in.
 
+**`sameAccess` is order-insensitive, and three surfaces depend on that.** The
+lists are **sets** everywhere they matter — `canRead` asks about membership, the
+stored arrays come back in insertion order, and a caller resending the same
+audiences in a different order is asking for no change at all. The editor's
+staging clears itself on it, the entry-write extension skips a write (and
+therefore a permission check) on it, and the same extension decides from it
+whether a record's whole locale group is already in step.
+
 **Nothing outside `segment.ts` compares a raw tag.** Rules point at segment ids;
 a tag is matched once, when a reader arrives. That indirection is what makes an
 identifier renamed upstream one row edited here rather than a migration.

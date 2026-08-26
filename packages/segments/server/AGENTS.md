@@ -116,6 +116,38 @@ tidiness:
 `ACCESS_EXTENSION_KEY` is stable forever for the same reason — every version
 already captured names it, and a restore that finds no bag leaves access alone.
 
+**Access is not a translated field — it is written to the whole locale group.**
+"Who may read this" is a fact about the record, not about the German wording of
+it, so it travels the way a non-localized field does: set on one locale, set on
+all of them. Left per-row it was a hole you could not see from any screen — an
+editor restricted the English article and published the German one to everyone.
+
+Three parts, and each covers a path the others do not:
+
+- `EntryAccessService.setForGroup` is what every write path calls; the per-entry
+  `set` is its building block rather than an alternative to it. The group is
+  resolved by `localeGroupIds`, which reads **content's own** `locale_group_id`
+  column rather than going through `@orthacms/i18n-server` — an entitlement rule
+  must not depend on a plugin the deployment may not have, and the honest
+  fallback (the entry is alone) is what a non-localized type already gets. It
+  includes **soft-deleted** siblings, exactly as i18n's own propagation does: a
+  locale in the trash comes back on restore, and it has to come back with the
+  group's access.
+- The skip-if-unchanged check asks `groupHas`, not `get`. A save matching the
+  English row but not the German one still has work to do; asking about one row
+  would leave the group half-restricted.
+- **`inherit`** — content's create-only extension hook — is what covers "create a
+  translation", which sends no `extensions` bag at all, so `apply` never runs.
+  Without it the new row was born public beside a restricted sibling. It needs no
+  `segments:manage`: nothing is being decided, the row is joining a record that
+  already carries those audiences, and the alternative to inheriting is
+  publishing it to everyone — which is what the permission exists to prevent.
+
+The workspace-scope check is relaxed across the group for the same reason it is
+relaxed for ids an entry already holds: a segment narrowed away from the
+workspace after the fact is still held by the row the editor is looking at, and
+refusing it on a sibling that had not caught up would fail the whole save.
+
 **The permission is checked in the extension, because no route checks it.** The
 save this write rides asked for `content:create` / `content:update`; deciding who
 may _read_ the record is `segments:manage`, a different authority, and without

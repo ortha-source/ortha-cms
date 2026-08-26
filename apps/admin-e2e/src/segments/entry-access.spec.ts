@@ -255,6 +255,41 @@ test.describe('Entry editor — Access tab', () => {
         await expect(segmentsPage.bulkAction('Can see')).toHaveCount(0);
     });
 
+    test('says a decision covers every language, on a localized type', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // The server writes access to the record's whole locale group, because
+        // who may read a record is a fact about the record rather than about its
+        // German wording. That is the one thing on this tab that is not about
+        // the row in front of the editor, so leaving it to be discovered would
+        // be leaving it to be discovered by a reader.
+        await mockContentSchemaDetail(page, {
+            details: {
+                ...RELATIONS_DETAIL_SEED,
+                article: { ...RELATIONS_DETAIL_SEED['article'], i18n: true }
+            }
+        });
+        await openAccessTab(contentLibraryPage);
+
+        await expect(
+            page.getByText(/applies to every language of the record/)
+        ).toBeVisible();
+    });
+
+    test('does not say it on a type with no languages', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // A sentence about translations on a type that has none is noise about a
+        // feature this workspace is not running.
+        await openAccessTab(contentLibraryPage);
+
+        await expect(
+            page.getByText(/applies to every language of the record/)
+        ).toHaveCount(0);
+    });
+
     test('has no axe violations', async ({
         contentLibraryPage,
         segmentsPage,

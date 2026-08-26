@@ -67,3 +67,23 @@ export function canRead(
 export function isOpen(access: EntryAccess): boolean {
     return access.allow.length === 0 && access.deny.length === 0;
 }
+
+/**
+ * Whether two sets of lists say the same thing.
+ *
+ * Order-insensitive, because the lists are **sets** everywhere they matter —
+ * `canRead` asks about membership, the stored arrays come back in insertion
+ * order, and a caller that resent the same audiences in a different order is
+ * asking for no change at all.
+ *
+ * Three callers depend on that reading: the editor's staging clears itself when
+ * a toggle returns to what is stored, the entry-write extension skips a write —
+ * and therefore a permission check — that would change nothing, and the same
+ * extension decides from it whether a locale group is already in step.
+ */
+export function sameAccess(a: EntryAccess, b: EntryAccess): boolean {
+    const equal = (left: readonly string[], right: readonly string[]) =>
+        left.length === right.length &&
+        [...left].sort().join() === [...right].sort().join();
+    return equal(a.allow, b.allow) && equal(a.deny, b.deny);
+}

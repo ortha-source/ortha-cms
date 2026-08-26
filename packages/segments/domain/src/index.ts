@@ -14,7 +14,13 @@
 export { isOfferedIn, segmentIdsForTags } from './lib/segment';
 export type { Segment } from './lib/segment';
 
-export { ACCESS_MODE, OPEN_ACCESS, canRead, isOpen } from './lib/entry-access';
+export {
+    ACCESS_MODE,
+    OPEN_ACCESS,
+    canRead,
+    isOpen,
+    sameAccess
+} from './lib/entry-access';
 export type { AccessMode, EntryAccess } from './lib/entry-access';
 
 // The field rules, read by both the admin's dialog and the server's DTO — two

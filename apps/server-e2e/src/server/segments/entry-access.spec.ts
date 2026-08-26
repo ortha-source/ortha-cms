@@ -268,6 +268,193 @@ describe('Entry access via the entry save', () => {
         });
     });
 
+    describe('locale groups', () => {
+        /** The sibling of `source` in `locale`, sharing its translation group. */
+        async function translate(
+            agent: request.Agent,
+            source: { id: string; localeGroupId?: string },
+            locale: string
+        ): Promise<string> {
+            const response = await agent
+                .post('/api/content/test_article')
+                .send({
+                    values: { ...VALUES, text: `An article (${locale})` },
+                    locale,
+                    localeGroupId: source.localeGroupId
+                })
+                .expect(201);
+            return response.body.id as string;
+        }
+
+        it('applies a decision to every language of the record', async () => {
+            // Access is not a translated field: "who may read this" is a fact
+            // about the record, not about its German wording. Left per-row, an
+            // editor who restricted the English article published the German one
+            // to everyone without ever seeing a screen that said so.
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            await agent
+                .patch(`/api/content/test_article/${en.body.id}`)
+                .send({
+                    values: VALUES,
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(200);
+
+            await expect(readAccess(agent, de)).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('reaches a translation created after the decision', async () => {
+            // The other order, and the one an editor is likelier to hit: restrict
+            // the article, then translate it. i18n copies the row's shared
+            // fields; the access row is ours, so the create's own extension pass
+            // is what has to carry it — which it does, because the group is
+            // resolved from the new row's `localeGroupId`.
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({
+                    values: VALUES,
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(201);
+
+            const de = await translate(agent, en.body, 'de');
+
+            await expect(readAccess(agent, de)).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('opens every language back up together', async () => {
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({
+                    values: VALUES,
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            await agent
+                .patch(`/api/content/test_article/${de}`)
+                .send({
+                    values: { ...VALUES, text: 'An article (de)' },
+                    extensions: { access: { allow: [], deny: [] } }
+                })
+                .expect(200);
+
+            // Both rows, because a half-opened group is a record that is public
+            // in one language and not in another.
+            await expect(readAccess(agent, en.body.id)).resolves.toEqual({
+                allow: [],
+                deny: []
+            });
+            await expect(readAccess(agent, de)).resolves.toEqual({
+                allow: [],
+                deny: []
+            });
+        });
+
+        it('writes from whichever language the editor was looking at', async () => {
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            await agent
+                .patch(`/api/content/test_article/${de}`)
+                .send({
+                    values: { ...VALUES, text: 'An article (de)' },
+                    extensions: { access: { allow: [globex], deny: [] } }
+                })
+                .expect(200);
+
+            await expect(readAccess(agent, en.body.id)).resolves.toEqual({
+                allow: [globex],
+                deny: []
+            });
+        });
+
+        it('spreads the PUT route’s write too, not only the save’s', async () => {
+            // The route stays for an API client that is not saving an entry. It
+            // gets neither the atomicity nor the version — but it must not get a
+            // different answer about who may read the record.
+            const agent = await login(ADMIN);
+            const en = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+            const de = await translate(agent, en.body, 'de');
+
+            await agent
+                .put(`/api/segments/entries/${en.body.id}`)
+                .send({
+                    typeSlug: 'test_article',
+                    allow: [acme],
+                    deny: []
+                })
+                .expect(200);
+
+            await expect(readAccess(agent, de)).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('refuses a content type nothing serves', async () => {
+            // The slug names the table the group is walked over, so an unknown
+            // one is a 400 rather than a row written under a type no read path
+            // will ever match.
+            const agent = await login(ADMIN);
+            const created = await agent
+                .post('/api/content/test_article')
+                .send({ values: VALUES })
+                .expect(201);
+
+            await agent
+                .put(`/api/segments/entries/${created.body.id}`)
+                .send({ typeSlug: 'not_a_type', allow: [acme], deny: [] })
+                .expect(400);
+        });
+
+        it('leaves an unlocalized type writing exactly one row', async () => {
+            // The group of a type with no locales is the entry, so nothing about
+            // this path changes for the installations that have no i18n plugin
+            // at all.
+            const agent = await login(ADMIN);
+            const created = await agent
+                .post('/api/content/test_page')
+                .send({ values: { title: 'A page' } })
+                .expect(201);
+
+            await agent
+                .patch(`/api/content/test_page/${created.body.id}`)
+                .send({
+                    values: { title: 'A page' },
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(200);
+
+            await expect(readAccess(agent, created.body.id)).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+    });
+
     describe('revisions', () => {
         it('captures the access the save applied, not the one it replaced', async () => {
             // The property a separate later request could never have: a

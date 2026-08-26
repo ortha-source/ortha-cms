@@ -296,5 +296,15 @@ export const segmentsKeys = {
      * have. Absent while creating, where there is no row to have a version.
      */
     entry: (workspaceId: string, entryId: string, version?: string) =>
-        ['segments', 'entry', workspaceId, entryId, version ?? ''] as const
+        ['segments', 'entry', workspaceId, entryId, version ?? ''] as const,
+    /**
+     * Every cached entry's lists.
+     *
+     * A save writes access to the record's whole **locale group**, and a
+     * sibling's `updatedAt` does not move when only its access did — so its key
+     * is unchanged and its cached answer is now a lie. Switching locale would
+     * show the audiences that locale used to have. Invalidating the prefix is
+     * what covers the rows this session never named.
+     */
+    entries: ['segments', 'entry'] as const
 };

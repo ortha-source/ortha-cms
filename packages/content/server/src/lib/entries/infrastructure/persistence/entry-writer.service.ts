@@ -560,6 +560,18 @@ export class EntryWriterService {
                         },
                         extensions
                     );
+                    // …and, for a row joining an existing locale group, whatever
+                    // that group already holds. `applyAll` runs only for keys
+                    // the caller sent, and "create a translation" sends none —
+                    // so without this a translation of a restricted article was
+                    // a public copy of it. After `applyAll`, so an extension the
+                    // caller just told what to store is not overwritten.
+                    await this.writeExtensions.inheritAll({
+                        executor: tx,
+                        type,
+                        entryId: id,
+                        workspaceId
+                    });
                     // Snapshot the just-created document as its first revision,
                     // inside this same transaction.
                     await this.appendRevision(

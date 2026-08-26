@@ -3,13 +3,21 @@ import type {
     EntryWriteExtensionInput,
     EntryWriteExtensionTarget
 } from '@orthacms/content-server';
-import type { EntryAccess } from '@orthacms/segments-domain';
+import { sameAccess, type EntryAccess } from '@orthacms/segments-domain';
 import { EntryAccessWriteExtension } from './entry-access-write-extension';
 
 /** The type only ever supplies its `name` here. */
 const TYPE = { name: 'article' } as EntryWriteExtensionTarget['type'];
 
-/** A stand-in access service over one in-memory row. */
+/**
+ * A stand-in access service over one in-memory row.
+ *
+ * `groupHas` / `setForGroup` rather than `get` / `set`, because the extension
+ * asks about the entry's whole **locale group** — a save that matches the
+ * English article but not the German one still has work to do. The group's
+ * membership is the service's business and is exercised end-to-end; what this
+ * spec is about is the permission gate around the write.
+ */
 function accessService(stored: EntryAccess = { allow: [], deny: [] }) {
     return {
         current: stored,
@@ -17,7 +25,15 @@ function accessService(stored: EntryAccess = { allow: [], deny: [] }) {
         async get() {
             return this.current;
         },
-        async set(input: { allow: string[]; deny: string[] }) {
+        async groupHas(
+            _workspaceId: string,
+            _type: unknown,
+            _entryId: string,
+            wanted: EntryAccess
+        ) {
+            return sameAccess(this.current, wanted);
+        },
+        async setForGroup(input: { allow: string[]; deny: string[] }) {
             this.writes += 1;
             this.current = { allow: input.allow, deny: input.deny };
             return this.current;

@@ -1,12 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
+import type { AnyContentType } from '@orthacms/content-server';
 import {
     isOfferedIn,
     isOpen,
+    sameAccess,
     type EntryAccess
 } from '@orthacms/segments-domain';
 import { entryAccess } from '../schema/entry-access';
+import { localeGroupIds } from '../infrastructure/locale-group.query';
 import { SegmentCatalogService } from './segment-catalog.service';
 
 /** One entry's two lists, as the editor reads and writes them. */
@@ -114,6 +117,15 @@ export class EntryAccessService {
          * one — and the version taken moments later reads back what committed.
          */
         executor?: AccessExecutor;
+        /**
+         * Ids some **other** row of this entry's locale group already holds.
+         *
+         * Merged into the exemption below, because the group is written as one:
+         * a segment narrowed away from the workspace after the fact is still
+         * held by the entry the editor is looking at, and refusing it on a
+         * sibling that had not caught up yet would fail the whole save.
+         */
+        heldInGroup?: readonly string[];
     }): Promise<EntryAccessView> {
         const executor = input.executor ?? this.db;
         // What the entry already names, on either side. Ids it already holds
@@ -123,7 +135,11 @@ export class EntryAccessService {
             input.entryId,
             executor
         );
-        const held = new Set([...current.allow, ...current.deny]);
+        const held = new Set([
+            ...current.allow,
+            ...current.deny,
+            ...(input.heldInGroup ?? [])
+        ]);
         const allow = this.validate(input.allow, input.workspaceId, held);
         const deny = this.validate(input.deny, input.workspaceId, held);
 
@@ -154,6 +170,131 @@ export class EntryAccessService {
                 }
             });
         return { allow, deny };
+    }
+
+    /**
+     * Replace the lists of every row in an entry's **locale group**.
+     *
+     * This is the method every write path uses, and the per-entry {@link set} is
+     * its building block rather than an alternative to it. Access is not a
+     * translated field: "who may read this" is a fact about the record, not
+     * about the German wording of it, so it travels like a non-localized field —
+     * set on one locale, set on all of them. Left per-row, an editor who
+     * restricted the English article published the German one to everyone
+     * without ever seeing a screen that said so.
+     *
+     * On a type with no locales the group is the entry, and this is `set`.
+     *
+     * Returns the **named** entry's view: the caller asked about that row, and
+     * every row now says the same thing anyway.
+     */
+    async setForGroup(input: {
+        workspaceId: string;
+        type: AnyContentType;
+        entryId: string;
+        allow: readonly string[];
+        deny: readonly string[];
+        executor?: AccessExecutor;
+    }): Promise<EntryAccessView> {
+        const executor = input.executor ?? this.db;
+        const ids = await localeGroupIds(
+            executor,
+            input.type,
+            input.entryId,
+            input.workspaceId
+        );
+        // The group's whole vocabulary, so a segment one locale still holds
+        // exempts every locale from the workspace-scope check — see `validate`.
+        const held = await this.heldInGroup(input.workspaceId, ids, executor);
+
+        let view: EntryAccessView = { allow: [], deny: [] };
+        for (const entryId of ids) {
+            // Sequential, not `Promise.all`: on the entry-write path this is the
+            // save's own transaction, and a pg transaction serves one query at a
+            // time — concurrent ones interleave onto the same connection and
+            // fail.
+            const written = await this.set({
+                workspaceId: input.workspaceId,
+                typeSlug: input.type.name,
+                entryId,
+                allow: input.allow,
+                deny: input.deny,
+                executor,
+                heldInGroup: held
+            });
+            if (entryId === input.entryId) view = written;
+        }
+        return view;
+    }
+
+    /**
+     * Give a just-created row whatever the rest of its locale group holds.
+     *
+     * A no-op unless the row is joining a group that is already restricted, and
+     * a no-op on a type with no locales — so nothing about an ordinary create
+     * changes. It writes the group's lists **verbatim**, without the
+     * workspace-scope check `set` applies, because nothing is being decided: the
+     * audiences were chosen when they were chosen, and this row is joining a
+     * record that already carries them.
+     */
+    async inheritFromGroup(
+        workspaceId: string,
+        type: AnyContentType,
+        entryId: string,
+        executor: AccessExecutor = this.db
+    ): Promise<void> {
+        if (!type.i18n) return;
+        const own = await this.get(workspaceId, entryId, executor);
+        // Already answered — by the same save's `apply`, most likely, and that
+        // answer is the caller's rather than the group's.
+        if (!isOpen(own)) return;
+
+        const ids = await localeGroupIds(executor, type, entryId, workspaceId);
+        for (const id of ids) {
+            if (id === entryId) continue;
+            const sibling = await this.get(workspaceId, id, executor);
+            if (isOpen(sibling)) continue;
+            await executor.insert(entryAccess).values({
+                entryId,
+                workspaceId,
+                typeSlug: type.name,
+                allow: sibling.allow,
+                deny: sibling.deny
+            });
+            return;
+        }
+    }
+
+    /** Whether every row of a group already says exactly this. */
+    async groupHas(
+        workspaceId: string,
+        type: AnyContentType,
+        entryId: string,
+        wanted: EntryAccess,
+        executor: AccessExecutor = this.db
+    ): Promise<boolean> {
+        const ids = await localeGroupIds(executor, type, entryId, workspaceId);
+        for (const id of ids) {
+            const current = await this.get(workspaceId, id, executor);
+            if (!sameAccess(current, wanted)) return false;
+        }
+        return true;
+    }
+
+    /** Every segment id any row of the group currently names, on either side. */
+    private async heldInGroup(
+        workspaceId: string,
+        entryIds: readonly string[],
+        executor: AccessExecutor
+    ): Promise<string[]> {
+        const held = new Set<string>();
+        for (const entryId of entryIds) {
+            const current = await this.get(workspaceId, entryId, executor);
+            for (const id of [...current.allow, ...current.deny]) {
+                held.add(id);
+            }
+        }
+        return [...held];
     }
 
     /**

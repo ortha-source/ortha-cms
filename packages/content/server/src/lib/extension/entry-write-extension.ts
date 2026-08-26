@@ -126,6 +126,23 @@ export interface EntryWriteExtension {
      * which is what an unconfigured installation should produce).
      */
     capture(target: EntryWriteExtensionTarget): Promise<unknown>;
+
+    /**
+     * A row has just been **inserted** — a chance to give it whatever the rest
+     * of its locale group already has.
+     *
+     * Optional, and called on every create **after** {@link apply}, so an
+     * extension that has just been told what to store is not asked to inherit
+     * over it. It exists because `apply` runs only for keys the caller sent, and
+     * "create a translation" sends none: without this, translating a restricted
+     * article produced a public German copy of it, which is the failure mode a
+     * reader notices and an editor never does.
+     *
+     * The equivalent for content's own columns is `CONTENT_ENTRY_EXTENSION`'s
+     * create-only relation inheritance; this is the same posture for state a
+     * different plugin owns.
+     */
+    inherit?(target: EntryWriteExtensionTarget): Promise<void>;
 }
 
 /** Every registered extension, in registration order. */
@@ -162,6 +179,19 @@ export class EntryWriteExtensionRegistry {
         for (const extension of this.extensions) {
             if (!(extension.key in inputs)) continue;
             await extension.apply({ ...target, value: inputs[extension.key] });
+        }
+    }
+
+    /**
+     * Let every extension that wants to give a **just-inserted** row what its
+     * locale group already holds.
+     *
+     * Runs after {@link applyAll} on a create, and only there: an extension the
+     * caller just told what to store must not then inherit over it.
+     */
+    async inheritAll(target: EntryWriteExtensionTarget): Promise<void> {
+        for (const extension of this.extensions) {
+            await extension.inherit?.(target);
         }
     }
 

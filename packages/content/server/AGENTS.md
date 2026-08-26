@@ -384,6 +384,16 @@ Four decisions worth knowing:
   clear. But a _version_ that recorded state only when it changed would restore
   as a version that had none — including the locale siblings an extension
   rewrote, which get their own revisions.
+- **`inherit` is the create-only third call, and it exists because of that
+  asymmetry.** On a create, `inheritAll` runs right after `applyAll` and lets an
+  extension give a just-inserted row whatever the rest of its **locale group**
+  already holds. "Create a translation" sends no `extensions` bag at all, so
+  `apply` never runs — and segments' state is not a column, so nothing in
+  `CONTENT_ENTRY_EXTENSION`'s own sibling sync reaches it. Without this hook,
+  translating a restricted article produced a public German copy of it: the
+  failure mode a reader notices and an editor never does. It is optional, runs
+  after `apply` so a caller who just said what to store is not overwritten, and
+  is the same create-only posture as i18n's relation inheritance.
 - **An unknown key is ignored, not refused.** The bag comes from a client that
   may be talking to a deployment without that plugin; a 400 would make one
   request work on one install and fail on another. What the version then records

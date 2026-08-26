@@ -99,6 +99,20 @@ invisible to the version, which is the whole thing this design set out to fix.
 The `PUT /segments/entries/:entryId` route still exists for an API client that is
 not saving an entry; the admin is not that client.
 
+**Access covers every language of a record, and the tab says so.** The server
+writes an entry's audiences to its whole locale group, because who may read a
+record is a fact about the record rather than about its German wording. On a
+localized type the tab carries one extra line saying that — it is the only thing
+on this screen that is not about the row in front of the editor, so leaving it to
+be discovered would be leaving it to be discovered by a reader.
+
+`settle` therefore **seeds the saved row and invalidates every other cached
+entry** (`segmentsKeys.entries`). A sibling's `updatedAt` does not move when only
+its access did, so its key is unchanged and its cached answer is now wrong —
+switching locale would show the audiences that locale used to have. The seeded
+row is excluded from the invalidation so the control the editor is still looking
+at is not put back in flight.
+
 **The entry cache key carries the row's `updatedAt`.** Access now moves on paths
 this plugin has no hook into — a **restore** above all, which puts back a
 version's audiences through content's own use-case. Keying on the row's version

@@ -49,6 +49,11 @@ const messages = defineMessages({
         id: 'segments.entryTab.pending',
         defaultMessage: 'Applied when you save the entry.'
     },
+    everyLocale: {
+        id: 'segments.entryTab.everyLocale',
+        defaultMessage:
+            'This applies to every language of the record, like a shared field — not to this translation alone.'
+    },
     readOnly: {
         id: 'segments.entryTab.readOnly',
         defaultMessage:
@@ -105,6 +110,7 @@ const DEFAULT_PAGE_SIZE = 10;
  */
 export function EntryAccessTab({
     workspaceId,
+    schema,
     entry,
     readOnly,
     presave
@@ -215,6 +221,17 @@ export function EntryAccessTab({
                 <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                     {intl.formatMessage(messages.body)}
                 </p>
+                {/* Said on screen, because it is the one thing here that is not
+                    about the record in front of the editor. Who may read a
+                    record is a fact about the record, not about its German
+                    wording — so this travels like a shared field, and an editor
+                    restricting the English article is restricting every
+                    language of it. */}
+                {schema.i18n ? (
+                    <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.everyLocale)}
+                    </p>
+                ) : null}
             </div>
 
             {/* Search left, the directory link right, on one row — the link is

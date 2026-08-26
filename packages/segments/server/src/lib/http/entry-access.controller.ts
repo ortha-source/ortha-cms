@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Get,
@@ -14,6 +15,10 @@ import {
     PermissionsGuard,
     RequirePermissions
 } from '@orthacms/identity-server';
+import {
+    InjectContentRegistry,
+    type ContentTypeRegistry
+} from '@orthacms/content-server';
 import { CurrentWorkspace, WorkspaceGuard } from '@orthacms/workspaces-server';
 import {
     EntryAccessService,
@@ -37,7 +42,14 @@ import { SetEntryAccessDto } from './segments.dto';
 @Controller('segments/entries')
 @UseGuards(PermissionsGuard, WorkspaceGuard)
 export class EntryAccessController {
-    constructor(private readonly access: EntryAccessService) {}
+    constructor(
+        private readonly access: EntryAccessService,
+        // The token, not the class: content provides the registry as a
+        // `useValue` under `CONTENT_REGISTRY`, so a class-typed parameter would
+        // resolve to nothing.
+        @InjectContentRegistry()
+        private readonly types: ContentTypeRegistry
+    ) {}
 
     /** One entry's lists. An entry nobody restricted reads as two empty ones. */
     @Get(':entryId')
@@ -54,24 +66,34 @@ export class EntryAccessController {
         return this.access.get(workspaceId, entryId);
     }
 
-    /** Replace one entry's lists. */
+    /** Replace one entry's lists — and, on a localized type, its siblings'. */
     @Put(':entryId')
     @UseGuards(OriginGuard)
     @RequirePermissions(PERMISSIONS.SEGMENTS_MANAGE)
     @ApiOperation({
         summary: 'Set an entry’s access',
         description:
-            'Replaces both lists. Sending two empty ones opens the entry to everyone and removes its row. The change is live when this answers — there is nothing to re-derive.'
+            'Replaces both lists, on every locale of the record. Sending two empty ones opens it to everyone and removes its rows. The change is live when this answers — there is nothing to re-derive.'
     })
     set(
         @CurrentWorkspace() workspaceId: string,
         @Param('entryId', ParseUUIDPipe) entryId: string,
         @Body() body: SetEntryAccessDto
     ): Promise<EntryAccessView> {
-        return this.access.set({
+        // Resolved from the registry rather than taken as a slug, because the
+        // fan-out over the locale group needs the type's **table** — and because
+        // an unknown slug is then a 400 here instead of a row written under a
+        // type nothing serves.
+        const type = this.types.get(body.typeSlug);
+        if (!type) {
+            throw new BadRequestException(
+                `Unknown content type "${body.typeSlug}".`
+            );
+        }
+        return this.access.setForGroup({
             workspaceId,
+            type,
             entryId,
-            typeSlug: body.typeSlug,
             allow: body.allow,
             deny: body.deny
         });

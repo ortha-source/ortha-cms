@@ -56,14 +56,6 @@ function parse(value: unknown): AccessPayload {
     return { allow: list('allow'), deny: list('deny') };
 }
 
-/** Whether two sets of lists say the same thing, order ignored. */
-function same(a: EntryAccess, b: EntryAccess): boolean {
-    const equal = (left: readonly string[], right: readonly string[]) =>
-        left.length === right.length &&
-        [...left].sort().join() === [...right].sort().join();
-    return equal(a.allow, b.allow) && equal(a.deny, b.deny);
-}
-
 /**
  * Who may read an entry, written and versioned **with** the entry.
  *
@@ -124,6 +116,10 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
      * Called only when the request named this key, so a save that says nothing
      * about who may read the entry leaves that alone — which is what an editor
      * who never opened the Access tab must get.
+     *
+     * Written to the entry's whole **locale group**. Access is not a translated
+     * field, so it travels like a non-localized one: set on the English article,
+     * set on the German one. See `EntryAccessService.setForGroup`.
      */
     async apply({
         executor,
@@ -140,16 +136,23 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
         // restore that genuinely *would* change them is refused, which is the
         // right answer rather than a special case: it is a change to who can
         // read the entry, whatever button started it.
-        const current = await this.access.get(
+        //
+        // Asked of the whole **locale group**, not of this row: a save that
+        // matches the English article but not the German one still has work to
+        // do, and skipping it would leave the group half-restricted with nothing
+        // on any screen to say so.
+        const settled = await this.access.groupHas(
             workspaceId,
+            type,
             entryId,
+            payload,
             executor as unknown as Database
         );
-        if (same(current, payload)) return;
+        if (settled) return;
         await this.assertMayManage();
-        await this.access.set({
+        await this.access.setForGroup({
             workspaceId,
-            typeSlug: type.name,
+            type,
             entryId,
             allow: payload.allow,
             deny: payload.deny,
@@ -158,6 +161,35 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
             // port exists for.
             executor: executor as unknown as Database
         });
+    }
+
+    /**
+     * Give a just-created row whatever the rest of its locale group holds.
+     *
+     * The case is "create a translation", which sends no `extensions` bag at all
+     * — so `apply` never runs and the new German row was born public while the
+     * English one it was translated from stayed restricted. A reader notices
+     * that; the editor never does.
+     *
+     * **No permission check, deliberately.** Nothing is being decided here: the
+     * group's audiences were decided when they were set, and this row is joining
+     * a record that already has them. Requiring `segments:manage` would mean a
+     * contributor could not translate a restricted article at all — and the
+     * alternative to inheriting is publishing it to everyone, which is the
+     * outcome the permission exists to prevent.
+     */
+    async inherit({
+        executor,
+        type,
+        entryId,
+        workspaceId
+    }: EntryWriteExtensionTarget): Promise<void> {
+        await this.access.inheritFromGroup(
+            workspaceId,
+            type,
+            entryId,
+            executor as unknown as Database
+        );
     }
 
     /**
