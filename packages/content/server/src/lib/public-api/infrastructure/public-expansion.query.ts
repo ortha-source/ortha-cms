@@ -186,9 +186,11 @@ export class PublicExpansionQuery {
      * One capped page of links per requested relation field, for every row on
      * the page, keyed by entry id.
      *
-     * `publishedOnly` is the public difference: a draft target is neither shown
-     * nor counted, so `total` is the number of links a caller can actually
-     * reach.
+     * `publishedOnly` is the public difference: a draft target — or one a bound
+     * read scope hides from this reader — is neither shown **nor counted**, so
+     * `total` is the number of links this caller can actually reach. Counting
+     * them would leak the cardinality of what is hidden: "5 links, 2 visible"
+     * says three restricted records exist here.
      */
     async relationsForRows(
         type: AnyContentType,
@@ -223,9 +225,13 @@ export class PublicExpansionQuery {
             for (const [field, value] of Object.entries(byField)) {
                 const linked = entriesById.get(field);
                 view[field] = {
-                    // Preserve the preview's link order, and drop any id the
-                    // hydration didn't return (it named a target the caller
-                    // can't see — already excluded from `total` upstream).
+                    // Preserve the preview's link order. Nothing should drop
+                    // here any more — `previewForEntries` applies the same
+                    // visibility (published-only **and** the bound read scopes)
+                    // inside its window, so an unreachable target is already
+                    // out of both `items` and `total`. The filter stays as a
+                    // belt: a hydration miss must never leave a hole in the
+                    // array, and it is cheap to keep honest.
                     items: value.items
                         .map((ref) => linked?.get(ref.id))
                         .filter((entry): entry is PublicEntry => !!entry),

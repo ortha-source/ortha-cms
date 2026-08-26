@@ -55,6 +55,17 @@ cover is an _anonymous reader_ — unrestricted content still serves, restricted
 content does not — because treating an unknown caller as unconstrained would
 turn every gap in coverage into an open door.
 
+**Relations are covered, on all three protocols, by the same predicate.** A
+reader who may see an article is not thereby allowed to see everything it links
+to, so the scope is asked about the **target** type on every hop —
+`RelationLinkService.targetVisibleWhere`, which the REST expansion, the
+`/relations/:field` route, the MCP `content_relations` tool and GraphQL's nested
+resolvers all reach. It sits inside the window and the `count(*) over`, so a
+restricted target is missing from `items` **and** absent from `total`: counting
+it would leak the cardinality of what is hidden ("5 links, 2 visible" says three
+restricted records exist here). Admin reads pass no visibility and are untouched
+— an editor must see the records their entry links to in order to manage them.
+
 **The predicate is `canRead` in SQL, line for line.**
 
 ```sql

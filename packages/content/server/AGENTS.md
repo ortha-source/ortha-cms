@@ -339,9 +339,20 @@ Three things distinguish it from `CONTENT_ENTRY_EXTENSION`:
 It is applied in `liveWhere` rather than `readableWhere`, which is what makes it
 unmissable: the list, the single-entry read and the translation lookup that
 deliberately steps around the locale scope all pass through the former.
-`PublicExpansionQuery` asks separately, **per hop**, about the _target_ type — a
-reader allowed to see an entry is not thereby allowed to see everything it
-points at.
+**Every hop asks separately, about the _target_ type** — a reader allowed to see
+an entry is not thereby allowed to see everything it points at, so a scope keyed
+to the requested type would leave every relation target unguarded. Two places
+apply it, and both have to: `PublicExpansionQuery` when it hydrates linked
+entries, and `RelationLinkService.targetVisibleWhere` — the one predicate every
+relation read shares — which is what keeps `total` honest.
+
+That second one is the subtle half. While the scope was applied only at
+hydration, `items` was correct and `total` was not: a reader denied three of five
+linked records saw two items under a `total` of five, and could infer that three
+restricted records existed there. Paging for them returned nothing. The scope now
+rides `RelationTargetVisibility` alongside `publishedOnly` — one flag, because
+they answer one question and are needed at exactly the same call sites — so the
+restriction goes _inside_ the window and the count.
 
 ### The entry-write extension port (`ENTRY_WRITE_EXTENSION`)
 
@@ -1147,12 +1158,18 @@ these are per field _per entry_, so a large page multiplies: `pageSize` × field
 page, one `refsFor` per single relation, a windowed pass + titles per join-backed
 one, and **one** media resolve). Notes:
 
-- **Published-only targets.** `RelationLinkService` gained an optional
-  `RelationTargetVisibility` (`{ publishedOnly }`) that the public reads pass and
-  the admin never does. A draft target is neither shown **nor counted** — the
-  restriction goes _inside_ the window (`count(*) over`), so `total` can't
-  advertise links a caller cannot reach. Confirmed live: the same entry reads
-  `total: 2` for the admin and `total: 1` publicly.
+- **Unreachable targets are neither shown nor counted.** `RelationLinkService`
+  takes an optional `RelationTargetVisibility` (`{ publishedOnly }`) that the
+  public reads pass and the admin never does. It turns on two restrictions —
+  published-only **and** the bound `CONTENT_READ_SCOPE` providers, asked about
+  the _target_ type — and both go _inside_ the window (`count(*) over`) and
+  inside the sub-select the join reads restrict by, so `total` cannot advertise
+  links a caller cannot reach. Confirmed live for the draft half: the same entry
+  reads `total: 2` for the admin and `total: 1` publicly.
+  The two ride one flag deliberately: they answer one question ("may this caller
+  reach this target?") and are needed at exactly the same call sites. A second
+  flag would be a second thing to remember on a path where forgetting it leaks
+  the cardinality of what is hidden.
 - **Grant-pruned.** Expanding into a type the workspace wasn't granted is a
   **400**, on the query params and on `/relations/:field` alike — matching how
   `?filter=` treats a traversal into one.

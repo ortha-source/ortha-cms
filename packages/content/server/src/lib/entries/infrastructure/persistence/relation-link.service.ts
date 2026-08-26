@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    Optional,
     UnprocessableEntityException
 } from '@nestjs/common';
 import {
@@ -14,7 +15,8 @@ import {
     max,
     notInArray,
     sql,
-    type AnyColumn
+    type AnyColumn,
+    type SQL
 } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { InjectDatabase, type Database } from '@orthacms/database';
@@ -24,6 +26,7 @@ import {
     type EntryStatus
 } from '../../../types/content-type';
 import { CONTENT_FIELD_TYPE, type AnyFieldSpec } from '../../../types/fields';
+import { ContentReadScopeRegistry } from '../../../extension/read-scope';
 import type {
     RelationDelta,
     RelationFieldView,
@@ -96,7 +99,16 @@ export const RELATION_PAGE_SIZE = 20;
  * links to drafts and needs to see them.
  */
 export interface RelationTargetVisibility {
-    /** Restrict targets to entries that are currently published. */
+    /**
+     * Restrict targets to entries that are currently published.
+     *
+     * It also turns on the bound **read scopes** — segments' reader
+     * entitlements — against the target type. The two ride one flag because
+     * they answer one question ("may this caller reach this target?") and are
+     * needed at exactly the same call sites: every public read passes it, and
+     * no admin read does. A second flag would be a second thing to remember on
+     * a path where forgetting it means counting links a reader cannot follow.
+     */
     publishedOnly?: boolean;
 }
 
@@ -174,7 +186,15 @@ interface InversePlan {
  */
 @Injectable()
 export class RelationLinkService {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(
+        @InjectDatabase() private readonly db: Database,
+        // The bound read scopes (`@orthacms/segments-server`'s reader
+        // entitlements), consulted about a relation's **target** type on the
+        // public reads only. Optional so this service still resolves in a
+        // context that binds no scope — an empty registry costs a length check.
+        @Optional()
+        private readonly readScopes?: ContentReadScopeRegistry
+    ) {}
 
     // ---- reads -------------------------------------------------------------
 
@@ -1049,9 +1069,16 @@ export class RelationLinkService {
     /**
      * The visibility predicate applied to a relation's target rows: the
      * workspace scope, the soft-delete guard, and — only when the caller asks
-     * for it — the published-only restriction. One definition, so the row read
-     * (`refsFor`) and the windowed link reads that must *count* correctly can't
-     * disagree on what a visible target is.
+     * for it — the published-only restriction plus the bound read scopes.
+     *
+     * **One definition**, and that is the load-bearing part. Every path that
+     * reads a target goes through it: the row read (`refsFor`), the windowed
+     * link reads whose `count(*) over` must not over-report, and the sub-select
+     * the join-table reads restrict their window by. So `items` and `total`
+     * cannot disagree about what a visible target is — which is exactly what
+     * they did while the read scopes were applied only when *hydrating* the
+     * items: a reader denied three of five linked records saw two items under a
+     * `total` of five, and could infer three restricted records existed.
      */
     private targetVisibleWhere(
         target: AnyContentType,
@@ -1064,8 +1091,32 @@ export class RelationLinkService {
             cols['deletedAt'] ? isNull(cols['deletedAt']) : undefined,
             visibility?.publishedOnly && target.publishable
                 ? eq(cols['status'], ENTRY_STATUS.Published)
-                : undefined
+                : undefined,
+            ...this.readScopeWhere(target, workspaceId, visibility)
         );
+    }
+
+    /**
+     * The bound read scopes' fragments for a relation's **target** type, on a
+     * public read.
+     *
+     * Asked about the target rather than the type the request named: a reader
+     * allowed to see an article is not thereby allowed to see everything it
+     * points at, and a scope keyed to the source would leave every target
+     * unguarded.
+     *
+     * Gated on `publishedOnly`, which is the flag that marks a public read. The
+     * admin's calls pass no visibility and are untouched — an editor must see
+     * the records their entry links to in order to manage them, including ones
+     * no reader may fetch.
+     */
+    private readScopeWhere(
+        target: AnyContentType,
+        workspaceId: string,
+        visibility?: RelationTargetVisibility
+    ): (SQL | undefined)[] {
+        if (!visibility?.publishedOnly) return [];
+        return this.readScopes?.fragments({ type: target, workspaceId }) ?? [];
     }
 
     /**
@@ -1079,6 +1130,8 @@ export class RelationLinkService {
         workspaceId: string,
         visibility?: RelationTargetVisibility
     ) {
+        // `publishedOnly` is the public-read marker, so it also gates the read
+        // scopes (see {@link targetVisibleWhere}) — one check covers both.
         if (!visibility?.publishedOnly) return undefined;
         const cols = target.table as unknown as SelectableColumns;
         return this.db
