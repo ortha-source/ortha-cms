@@ -18,6 +18,12 @@
             "path": "../domain/tsconfig.lib.json"
         },
         {
+            "path": "../../workspaces/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../identity/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../database/tsconfig.lib.json"
         },
         {

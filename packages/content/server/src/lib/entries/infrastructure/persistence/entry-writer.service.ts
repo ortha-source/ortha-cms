@@ -33,6 +33,7 @@ import {
     violatedConstraint
 } from '@orthacms/utils-server';
 import { mediaValueIds } from '@orthacms/content-domain';
+import { ContentEntryWriteHookRegistry } from '../../../extension/entry-write-hook';
 import {
     CONTENT_ENTRY_EXTENSION,
     type ContentEntryExtension
@@ -137,7 +138,13 @@ export class EntryWriterService {
         // and store only (no existence/restriction check).
         @Optional()
         @InjectMediaAssetResolver()
-        private readonly mediaResolver?: MediaAssetResolver
+        private readonly mediaResolver?: MediaAssetResolver,
+        // Registered entry write hooks — derived state a downstream plugin keeps
+        // beside the entry, written in this write's own transaction. Always
+        // provided by this plugin's own module; optional so a unit test can
+        // construct the writer without one.
+        @Optional()
+        private readonly writeHooks?: ContentEntryWriteHookRegistry
     ) {}
 
     /**
@@ -539,6 +546,16 @@ export class EntryWriterService {
                         workspaceId,
                         actorId ?? null
                     );
+                    // Derived state a downstream plugin keeps beside the entry
+                    // (segmentation's access projection) — same transaction, so
+                    // an entry is never live without the rule that governs it.
+                    await this.writeHooks?.run({
+                        tx,
+                        type,
+                        entryId: id,
+                        workspaceId,
+                        created: true
+                    });
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
                     // of the outbox.
@@ -823,6 +840,13 @@ export class EntryWriterService {
                 workspaceId,
                 actorId ?? null
             );
+            await this.writeHooks?.run({
+                tx,
+                type,
+                entryId: id,
+                workspaceId,
+                created: false
+            });
             // A save that changed no field value raises nothing: it is a round
             // trip, not an editorial change, and the log is read by people.
             const fields = this.changedFields(type, before, updated as Row);

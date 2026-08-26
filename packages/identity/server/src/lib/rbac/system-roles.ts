@@ -30,7 +30,10 @@ export const PERMISSIONS = {
     TOKENS_CREATE: 'tokens:create',
     TOKENS_DELETE: 'tokens:delete',
     COPILOT_USE: 'copilot:use',
-    COPILOT_SKILLS_MANAGE: 'copilot:skills:manage'
+    COPILOT_SKILLS_MANAGE: 'copilot:skills:manage',
+    ACCESS_READ: 'access:read',
+    ACCESS_MANAGE: 'access:manage',
+    ACCESS_SIMULATE: 'access:simulate'
 } as const;
 
 /**
@@ -87,6 +90,20 @@ export interface SystemRole {
  * `content:update` for each write it performs, so importing can never do more
  * than the caller could have done by hand.
  *
+ * The three `access:*` keys gate **segmentation** — who may read published
+ * content. `access:read` is granted to contributor and viewer: an editor who
+ * cannot see that an article is restricted will publish one believing it is
+ * public, and the state is already visible in the entry header. `access:manage`
+ * is **admin-only**: changing a rule changes what every reader of the site can
+ * see, which is a configuration decision rather than an editorial one, and its
+ * blast radius is the whole library rather than one record.
+ *
+ * `access:simulate` — reading the site as a chosen reader — is granted to
+ * contributor as well. It reads nothing a contributor could not already read
+ * through the admin (their own content list is not scoped by segmentation at
+ * all), and it is the only way to check a rule before publishing behind it.
+ * Viewer does not get it: a viewer has no rule to check.
+ *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's
  * instructions are prompt text that runs for every member of the workspace, so
@@ -110,7 +127,9 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
             PERMISSIONS.MEDIA_UPDATE,
-            PERMISSIONS.COPILOT_USE
+            PERMISSIONS.COPILOT_USE,
+            PERMISSIONS.ACCESS_READ,
+            PERMISSIONS.ACCESS_SIMULATE
         ]
     },
     {
@@ -121,7 +140,8 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.USERS_READ,
             PERMISSIONS.CONTENT_READ,
             PERMISSIONS.MEDIA_READ,
-            PERMISSIONS.COPILOT_USE
+            PERMISSIONS.COPILOT_USE,
+            PERMISSIONS.ACCESS_READ
         ]
     }
 ] as const;

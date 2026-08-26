@@ -4,7 +4,10 @@ import {
     type MiddlewareConsumer,
     type NestModule
 } from '@nestjs/common';
-import { contentReadScopeRegistrar } from '@orthacms/content-server';
+import {
+    contentEntryWriteHookRegistrar,
+    contentReadScopeRegistrar
+} from '@orthacms/content-server';
 import { SEGMENTS_CONFIG } from './segments.tokens';
 import type { SegmentsPluginConfig } from './types/segments-config';
 import { CallerSegmentsStore } from './access/application/caller-segments.store';
@@ -13,6 +16,22 @@ import { DeclaredTypesReconciler } from './access/application/declared-types.rec
 import { ProjectionService } from './access/application/projection.service';
 import { SegmentReadScope } from './access/infrastructure/read-scope/segment-read-scope';
 import { CallerSegmentsMiddleware } from './access/http/middleware/caller-segments.middleware';
+import { AccessResolutionService } from './access/application/access-resolution.service';
+import { ReprojectionService } from './access/application/reprojection.service';
+import { SegmentTypesService } from './access/application/segment-types.service';
+import { SegmentsService } from './access/application/segments.service';
+import { AccessRulesService } from './access/application/access-rules.service';
+import { AssignmentsService } from './access/application/assignments.service';
+import { ExplainService } from './access/application/explain.service';
+import { EntryProjectionHook } from './access/infrastructure/write-hook/entry-projection.hook';
+import { SegmentTypesController } from './access/http/controllers/segment-types.controller';
+import { SegmentsController } from './access/http/controllers/segments.controller';
+import { AccessRulesController } from './access/http/controllers/access-rules.controller';
+import {
+    AssignmentsController,
+    GrantsController
+} from './access/http/controllers/assignments.controller';
+import { ExplainController } from './access/http/controllers/explain.controller';
 
 /**
  * NestJS module for the segmentation plugin — reader entitlements, layered per
@@ -35,13 +54,33 @@ export class SegmentsModule implements NestModule {
         return {
             module: SegmentsModule,
             global: true,
+            controllers: [
+                SegmentTypesController,
+                SegmentsController,
+                AccessRulesController,
+                AssignmentsController,
+                GrantsController,
+                ExplainController
+            ],
             providers: [
                 { provide: SEGMENTS_CONFIG, useValue: config },
                 CallerSegmentsStore,
                 SegmentCatalogService,
                 DeclaredTypesReconciler,
                 ProjectionService,
+                AccessResolutionService,
+                ReprojectionService,
+                SegmentTypesService,
+                SegmentsService,
+                AccessRulesService,
+                AssignmentsService,
+                ExplainService,
                 SegmentReadScope,
+                EntryProjectionHook,
+                // The projection runs in the entry's own write transaction, so
+                // an entry is never live without the rule that governs it. The
+                // read scope's sibling, registered the same way.
+                contentEntryWriteHookRegistrar('segments', EntryProjectionHook),
                 // A runtime registration rather than a DI binding: Nest has no
                 // multi-provider, so two plugins binding one token would leave
                 // the second silently replacing the first — and for a
@@ -55,7 +94,10 @@ export class SegmentsModule implements NestModule {
                 SEGMENTS_CONFIG,
                 CallerSegmentsStore,
                 SegmentCatalogService,
-                ProjectionService
+                ProjectionService,
+                AccessResolutionService,
+                ReprojectionService,
+                ExplainService
             ]
         };
     }

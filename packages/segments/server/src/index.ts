@@ -23,6 +23,26 @@ export {
 export type { CallerSegments } from './lib/access/application/caller-segments.store';
 export { MASK_SEGMENT_KEY } from './lib/access/application/declared-types.reconciler';
 
+// The management surface's services, exported for the admin's own server-side
+// callers and for tests. The controllers are internal.
+export { AccessResolutionService } from './lib/access/application/access-resolution.service';
+export type { ResolvedEntryAccess } from './lib/access/application/access-resolution.service';
+export { ReprojectionService } from './lib/access/application/reprojection.service';
+export type { ReprojectionResult } from './lib/access/application/reprojection.service';
+export { ExplainService } from './lib/access/application/explain.service';
+export type {
+    ExplainResult,
+    ExplainStep
+} from './lib/access/application/explain.service';
+export type { SegmentTypeView } from './lib/access/application/segment-types.service';
+export type { SegmentView } from './lib/access/application/segments.service';
+export type { AccessRuleView } from './lib/access/application/access-rules.service';
+export type {
+    AccessTarget,
+    AssignmentView,
+    GrantView
+} from './lib/access/application/assignments.service';
+
 // The predicate halves are exported for tests and for the impact preview, which
 // has to reason about what a read would match without issuing one.
 export { planAccessPredicate } from './lib/access/infrastructure/predicate/access-plan';

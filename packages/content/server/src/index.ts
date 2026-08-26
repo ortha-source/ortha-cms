@@ -67,6 +67,18 @@ export type {
     ContentReadScopeContext
 } from './lib/extension/read-scope';
 
+// The entry write hook — the read scope's sibling, for derived state that must
+// commit in the entry's own transaction.
+export {
+    ContentEntryWriteHookRegistry,
+    contentEntryWriteHookRegistrar
+} from './lib/extension/entry-write-hook';
+export type {
+    ContentEntryWriteHook,
+    ContentEntryWriteContext,
+    EntryWriteExecutor
+} from './lib/extension/entry-write-hook';
+
 export {
     MEDIA_ASSET_RESOLVER,
     InjectMediaAssetResolver

@@ -343,6 +343,33 @@ deliberately steps around the locale scope all pass through the former.
 reader allowed to see an entry is not thereby allowed to see everything it
 points at.
 
+### The entry write hook (`CONTENT_ENTRY_WRITE_HOOK`)
+
+`src/lib/extension/entry-write-hook.ts` is the read scope's sibling, for state a
+downstream plugin derives from an entry and must keep in step with it.
+`EntryWriterService` runs the registered hooks inside the write's own
+transaction, after the row and its relations, on create and update alike; a
+throw rolls the write back. `@orthacms/segments-server` uses it to write an
+entry's access projection — the gap between "the entry is live" and "the row
+that hides it exists" is a gap in which restricted content is public, and a
+post-commit subscriber leaves that gap open by construction.
+
+Registered the same way as a read scope
+(`contentEntryWriteHookRegistrar('<label>', <HookClass>)`), for the same reason:
+Nest has no multi-provider.
+
+Not `CONTENT_ENTRY_EXTENSION.afterUpdate`, which does exactly this job — that
+port is single-binding, i18n holds it, and its implementation _returns the
+sibling rows it rewrote_ so the writer can snapshot a revision for each. A
+composite would have to merge that return value with an implementation that has
+no opinion about it, and a mistake there writes the wrong revision history. This
+port returns nothing and cannot participate in that decision.
+
+**Deletes are deliberately not hooked.** A hard-deleted entry's derived rows are
+unreachable — nothing joins to an id that no longer exists — so the cost of
+leaving them is disk rather than correctness, and paying for a hook on every
+delete to reclaim it is the wrong trade.
+
 ### The copilot tools (`src/lib/copilot/`)
 
 This package **binds** the copilot's tool port, the same inversion again with

@@ -30,10 +30,21 @@ src/lib/
 
 ## What it owns
 
-Six tables, its own migrations, and one seam into content's read path. It owns
-**no HTTP routes yet** — managing types, segments, rules and assignments is the
-next package in the stack, and until then the engine is driven through
-`ProjectionService` and the catalogue directly.
+Six tables, its own migrations, two seams into content — the read scope and the
+entry write hook — and the management API under `/api/access`.
+
+| Route                                     | Scope        | Permission                      |
+| ----------------------------------------- | ------------ | ------------------------------- |
+| `/access/segment-types`                   | installation | `access:read` / `access:manage` |
+| `/access/segment-types/:typeKey/segments` | installation | `access:read` / `access:manage` |
+| `/access/rules`                           | workspace    | `access:read` / `access:manage` |
+| `/access/assignments`                     | workspace    | `access:read` / `access:manage` |
+| `/access/grants`                          | workspace    | `access:read` / `access:manage` |
+| `/access/explain`                         | workspace    | `access:read`                   |
+
+`access:read` is held by contributor and viewer — an editor who cannot see that
+an article is restricted will publish one believing it is public. `access:manage`
+is admin-only: a rule change changes what every reader of the site sees.
 
 ## The decisions that are easy to get wrong
 
@@ -90,15 +101,35 @@ silently never running.
 entitlement source produces the anonymous reader, not a 500: taking a site down
 over content most of its readers can see anyway is the wrong trade.
 
+**Projection happens in the entry's own transaction.** The read predicate matches
+against `entry_access`, so the gap between "the entry is live" and "the row that
+hides it exists" is a gap in which restricted content is public. A post-commit
+projector — an outbox subscriber, a job — leaves that gap open by construction,
+so the hook runs inside the write and a failure rolls the entry back with it.
+
+**Every management write re-projects.** A rule, an assignment or a grant changes
+and the entries it governs did not move, so nothing else would re-derive them.
+Skip the re-projection and the rule and the projection disagree indefinitely —
+the projection being what readers actually get. The walk is batched by ascending
+id and deliberately not one transaction: access is being _changed_, so there is
+no instant at which the answer is not in flux, and holding locks over a whole
+collection to pretend otherwise buys nothing.
+
+**A grant carries no mode.** "Everyone except one" from the segment side would be
+every segment but one — the complement, which is what the projection invariant
+forbids. Exclusions live on the content side, in a rule.
+
 ## What is not here yet
 
-- **Projection on write.** Nothing hooks entry creates and updates, so rows are
-  written only by an explicit `ProjectionService` call. Doing it in the entry's
-  own transaction needs a second content port (`afterUpdate` is single-binding
-  and i18n holds it), and that lands with the management API — the hook is only
-  meaningful once a rule can be assigned.
-- **HTTP routes**, the admin UI, the `access` field on the GraphQL entry, and the
-  `access_explain` tool.
+- **The admin UI**, the `access` field on the GraphQL entry, the `access_explain`
+  tool, and the impact preview.
+- **Deletes are not hooked.** A hard-deleted entry leaves its projection rows
+  behind. Nothing joins to an id that no longer exists, so the cost is disk
+  rather than correctness; they are reclaimed by the next re-projection of that
+  type.
+- **Sources other than `manual`.** A type declaring a `contentType` or
+  `external` source is accepted and its segments are still maintained by hand —
+  the sync that would mirror them lands with the admin's picker.
 - **A write benchmark.** Eight slots means sixteen GIN indexes. They should be
   nearly free while unused — `array_ops` produces no entries for an empty array
   — but that is a reasoning, not a measurement, and the slot count is the number
