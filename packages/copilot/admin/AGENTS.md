@@ -56,7 +56,7 @@ application/
   groupConversations.ts    # pure: the rail's date buckets + its filter (tested)
   useAgentThread.ts        # binds the URL to one chat; the page's whole state
   useDecideToolPermission.ts # answer a parked run (mutation)
-  useCopilotModels.ts      # the model catalogue + choice-key helpers
+  useCopilotModels.ts      # the model catalogue, choice-key helpers, is-it-on
   readRouteContext.ts      # pure URL → surface context
   useRouteContext.ts       # the hook over it
   sessions.ts              # pure reducer over the set of open chats (tested)
@@ -79,6 +79,7 @@ presentation/
   PanelResizeHandles/      # the eight grab strips
   MessageList/             # the transcript
   ToolStep/                # one call, as a sentence; `labels.ts` holds both tenses
+  slots/copilotSlots/      # COPILOT_TOOL_RESULT_SLOT — a plugin renders its own result
   Composer/  ModelPicker/  ConversationPicker/
   AttachmentChip/          # one attached file — staged in the composer, sent in the transcript
   SkillPicker/             # the composer's skills popover
@@ -538,6 +539,37 @@ sentences, and a run that made six calls should read back as six of them.
   The block the _model_ gets stays a normal result whose text says NOT applied,
   because that is a receipt to report rather than an error to recover from.
 
+### A plugin can render its own tool's result
+
+`COPILOT_TOOL_RESULT_SLOT` (`presentation/slots/copilotSlots`) takes a
+contribution of `{ id, toolName, Component }` and `ToolStep` renders it inside
+the expanded panel, **above** the raw payload it would have shown anyway.
+`@orthacms/alarms-admin` is the first user: `admin_alarms_findings` comes back as
+a list of flagged records, and a list of records is something a person clicks,
+not something they read as JSON.
+
+Four rules, and the specs pin all of them:
+
+- **The renderer is resolved only for a step that succeeded and produced
+  output.** A running step has nothing to render and a failed one has an error
+  the step line already states; handing either to a plugin's component means
+  every such component has to re-derive those states for itself.
+- **The raw payload stays.** A rich rendering is a convenience over the
+  transcript's own receipt, never a replacement for it — someone checking what
+  the model actually saw must still be able to.
+- **Matching is on the exact tool name.** No prefix, no namespace-stripping: an
+  MCP connector's `mcp.acme.admin_alarms_findings` is a third party's tool that
+  happens to share a suffix, and rendering it with this workspace's component
+  would be a claim about data nobody here produced.
+- **A component that cannot read its payload returns `null`.** A transcript is
+  replayed from stored history, so a result written by an older build of the
+  tool reaches today's renderer; falling through to the payload costs the reader
+  nothing, and a throw inside a transcript costs them the conversation.
+
+`toolResultRendererFor` is a plain function over `getItems()`, not a hook —
+`ToolStep` calls it inside a render for one name and the slot's contents are
+fixed at plugin-registration time, so there is nothing to subscribe to.
+
 ## Changes the copilot makes
 
 A `propose` tool's change arrives as its **own** run event, after the tool
@@ -973,6 +1005,31 @@ doc's §11; what follows is only what is true of _this_ package.
   everyone in the picker; authoring is admin-only, so a contributor gets no link
   rather than a page that greets them with "no access".
 
+## When the deployment has the copilot off
+
+`COPILOT_ENABLED=false` unregisters every copilot controller on the server, so
+there is nothing here to talk to. The surfaces stand down rather than fail:
+`useCopilotAvailable` — the launcher, the `ViewSwitcher`, the Agents page and
+the Skills page all read it — reports off, so neither entry point renders and
+the two pages, reachable only by a bookmark once the entry points are gone,
+draw a "turned off" empty state instead of a screen whose every query 404s.
+
+- **The probe is the model catalogue, not a capability endpoint.** A deployment
+  that cannot serve `GET /copilot/models` cannot serve a run either, which is
+  the question all four surfaces are asking — and a second endpoint would be a
+  second thing to keep in step with the switch.
+- **Only an explicit `404` counts as off** (`copilotIsOff`, pure and
+  unit-tested). Still loading, a network blip, a `5xx` and a `403` all leave the
+  surfaces up: the server refuses regardless, so being wrong this way costs a
+  control that answers "not found", while being wrong the other way would make a
+  transient failure look like a feature the operator removed.
+- **It is only probed for a user who could use it anyway** (`enabled: canUse` /
+  `canManage`), so it costs one cached request per session and only for the
+  people it can be true for.
+- **"Turned off" and "no access" are told apart**, not collapsed into one empty
+  state. "Nobody may here" and "you may not" send the reader to different
+  people.
+
 ## Conventions
 
 Follow the `admin-plugin` skill and
@@ -985,7 +1042,7 @@ co-located `defineMessages`.
 ## Testing
 
 `chatReducer`, the model-choice key helpers, `panelFrame`, `sessions`,
-`groupConversations`, `agentsRoute`, `ToolStep/labels` and
+`groupConversations`, `agentsRoute`, `ToolStep/labels`, `copilotSlots` and
 `MessageList/activity` are unit-tested (`nx test`) — this is the
 first admin package with a jest config, `testEnvironment: 'node'` because the
 tested code is pure. Anything that has to

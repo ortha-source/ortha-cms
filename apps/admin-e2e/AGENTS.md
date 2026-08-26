@@ -79,19 +79,12 @@ states.
   `muted-foreground` token was darkened to clear AA (`apps/admin/src/styles.css`)
   and the rule stays on to guard against regressions.
 
-## Test catalog
-
-[`TESTS.md`](./TESTS.md) is a **generated** index of every `test.describe`/`test`
-case, built by parsing the spec AST (`tools/generate-test-catalog.mjs`) — it
-never runs Playwright, so it needs no browser. **Don't edit it by hand.** After
-adding, renaming, or removing a test, run `npx nx catalog admin-e2e` and commit
-the result; `npx nx catalog:check admin-e2e` fails if it has drifted, and the
-`admin-e2e-test-catalog` pre-commit hook regenerates and re-stages it for you.
+## No CI runs this suite
 
 **Nothing in CI runs any of this** — `.github/workflows/` holds `release.yml`
-alone, with no `e2e`, `lint`, `typecheck` or `catalog:check`. That hook and
-whatever you run locally are the entire gate for this suite. Run the full thing
-before merging and never merge red.
+alone, with no `e2e`, `lint` or `typecheck`. Whatever you run locally is the
+entire gate for this suite. Run the full thing before merging and never merge
+red.
 
 ## Conventions
 
@@ -105,8 +98,26 @@ before merging and never merge red.
 - **Network is the seed.** All backend state comes from `support/api/*` mocks.
 - **Role/label locators** over CSS (`getByRole`, `getByLabel`) — resilient and
   a11y-aligned.
+- **A new surface needs its permissions in `ALL_PERMISSIONS`
+  (`support/api/auth.ts`) before it needs a spec.** The signed-in admin every
+  suite shares is that list, and a permission-gated plugin whose key is missing
+  renders for _nobody_ — so the surface is invisible to every spec while the
+  suite still reports green. It has happened four times now (`tokens:*`,
+  `content:export`/`import`, `copilot:use`, `alarms:*`), and each time the gap
+  was found by a person using the product rather than by the suite. Add the keys
+  in the same change that adds the plugin.
 
 ## Gotchas
+
+- **`page.route` matches in reverse registration order — the _last_ one
+  registered wins.** So register the general pattern first and the specific one
+  last, or the wildcard swallows the specific route: `**/api/alarms/rules/*`
+  registered after `…/rules/preview` answers the preview POST with an unrelated
+  body, and the page renders `NaN` off it rather than failing.
+- **A `*` segment does not cross `/`.** `**/api/alarms/findings*` never matches
+  `…/findings/:rule/:entry/mute`, so that request falls through to the dev
+  server's proxy and fails silently — the assertion then reads as "the UI did
+  not send it".
 
 - **`role="alert"` is shared.** Both the credential-error banner _and_ each
   field error render `role="alert"` (design-system `FieldError`). `LoginPage`
@@ -188,5 +199,3 @@ admin-e2e && npx nx lint admin-e2e` plus a full run is the entire gate.
 - `npx nx e2e admin-e2e` — run the suites (starts the dev server automatically).
 - `npx nx e2e admin-e2e -- --project=chromium` — single browser, faster locally.
 - `npx nx lint admin-e2e` / `npx nx typecheck admin-e2e`.
-- `npx nx catalog admin-e2e` — regenerate `TESTS.md` from the specs.
-- `npx nx catalog:check admin-e2e` — fail if `TESTS.md` is stale.

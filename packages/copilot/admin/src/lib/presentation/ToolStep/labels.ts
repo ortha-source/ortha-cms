@@ -84,6 +84,14 @@ const phrases = defineMessages({
         id: 'copilot.step.media_assets_search.done',
         defaultMessage: 'Searched media'
     },
+    'admin_alarms_findings.running': {
+        id: 'copilot.step.admin_alarms_findings.running',
+        defaultMessage: 'Checking content alarms…'
+    },
+    'admin_alarms_findings.done': {
+        id: 'copilot.step.admin_alarms_findings.done',
+        defaultMessage: 'Checked content alarms'
+    },
     'activity_recent.running': {
         id: 'copilot.step.activity_recent.running',
         defaultMessage: 'Reading recent activity…'

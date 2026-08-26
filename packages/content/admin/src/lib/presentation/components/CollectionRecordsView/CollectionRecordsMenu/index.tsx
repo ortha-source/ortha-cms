@@ -1,11 +1,13 @@
 import { Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Trash2 } from 'lucide-react';
 import {
     Button,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '@orthacms/design-system';
 import {
@@ -18,16 +20,25 @@ const messages = defineMessages({
     trigger: {
         id: 'content.records.menu.trigger',
         defaultMessage: 'More actions'
+    },
+    trash: {
+        id: 'content.records.menu.trash',
+        defaultMessage: 'Trash'
     }
 });
 
 /**
- * The collection's **⋯ menu**, last in the records toolbar's actions row.
+ * The collection's **⋯ menu**, last in the header's action cluster beside
+ * **Add record** — the whole-collection things that are not worth a button of
+ * their own.
  *
- * Everything it holds comes from `RECORDS_MENU_SLOT`; this package contributes
- * nothing itself. That is why the trigger is conditional: with no contributor
- * registered there is no menu, and rendering an empty ⋯ button would be a
- * control that opens onto nothing.
+ * Nearly everything it holds comes from `RECORDS_MENU_SLOT`. The one item this
+ * package contributes is **Trash**, and it is here rather than in the header
+ * for two reasons: it is a destination, not an action, so it read oddly among
+ * buttons that do something; and the menu spent its life holding exactly one
+ * contributed item (transfer's Import), which made the ⋯ a button that hid a
+ * button. The trigger stays conditional either way — with nothing to show,
+ * rendering it would be a control that opens onto nothing.
  *
  * It owns the contributions' hooks **and** their overlays, for the same reason
  * `EntryMenu` does — a dialog cannot live inside `DropdownMenuContent`, which
@@ -37,11 +48,18 @@ const messages = defineMessages({
 export function CollectionRecordsMenu({
     schema,
     workspaceId,
-    trashed
+    trashed,
+    trashHref
 }: {
     schema: ContentTypeDetail;
     workspaceId: string;
     trashed: boolean;
+    /**
+     * Where **Trash** links. Omitted — and the item left out — when the
+     * collection does not soft-delete or the caller may not delete, which is
+     * the same pair of conditions that used to gate the header button.
+     */
+    trashHref?: string;
 }) {
     const intl = useIntl();
 
@@ -72,7 +90,7 @@ export function CollectionRecordsMenu({
 
     // The overlays alone, as an array rather than a lone-child fragment: an
     // open dialog has to survive its item ceasing to apply.
-    if (entries.length === 0) return overlays;
+    if (entries.length === 0 && !trashHref) return overlays;
 
     return (
         <>
@@ -109,6 +127,21 @@ export function CollectionRecordsMenu({
                             </DropdownMenuItem>
                         );
                     })}
+                    {/* Last, under a rule: the contributed items act on this
+                        collection where Trash leaves it for another page. */}
+                    {trashHref ? (
+                        <>
+                            {entries.length > 0 ? (
+                                <DropdownMenuSeparator />
+                            ) : null}
+                            <DropdownMenuItem asChild>
+                                <Link to={trashHref}>
+                                    <Trash2 aria-hidden />
+                                    {intl.formatMessage(messages.trash)}
+                                </Link>
+                            </DropdownMenuItem>
+                        </>
+                    ) : null}
                 </DropdownMenuContent>
             </DropdownMenu>
             {overlays}

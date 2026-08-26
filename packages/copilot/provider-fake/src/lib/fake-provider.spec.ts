@@ -23,7 +23,7 @@ async function drain(
  * assertion flaky too.
  */
 describe('createFakeProvider', () => {
-    it('streams the canned reply in dev mode, repeatedly', async () => {
+    it('streams the canned reply when unscripted, repeatedly', async () => {
         const provider = createFakeProvider();
 
         const first = await drain(provider.stream(request));

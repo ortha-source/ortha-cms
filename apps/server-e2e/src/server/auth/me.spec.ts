@@ -159,6 +159,10 @@ describe('GET /api/auth/me', () => {
                     'users:read',
                     'content:read',
                     'media:read',
+                    // Findings are rendered inline in the entry editor, so the
+                    // read grant goes to every role. Writing rules — and
+                    // muting a finding — is `alarms:manage`, admin only.
+                    'alarms:read',
                     'copilot:use'
                 ].sort()
             );

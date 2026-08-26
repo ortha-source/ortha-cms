@@ -26,7 +26,21 @@ export const FilterOperator = {
     Like: 'like',
     Ilike: 'ilike',
     Nilike: 'nilike',
-    Null: 'null'
+    Null: 'null',
+    /**
+     * `column >= now() - <n> <unit>` — a window measured from **query time**,
+     * not from the moment the filter was written.
+     *
+     * The distinction is invisible in a URL and decisive in a stored one. The
+     * admin's query builder resolves its own `within_last` into a concrete
+     * `gte` cutoff when it serialises a filter into a link, deliberately: a
+     * shared deep link should keep showing the same rows. A filter that is
+     * *stored and replayed* — an alarm rule — must mean the opposite, or
+     * "not updated in 90 days" silently becomes "not updated since the day the
+     * rule was written". So the operator survives to the server, and the caller
+     * chooses which meaning it wants.
+     */
+    WithinLast: 'within_last'
 } as const;
 
 /** Standard REST operator names. Translator maps each to a Drizzle helper. */
@@ -205,6 +219,25 @@ export interface FilterSchema {
      * elements inside one rule's value list).
      */
     maxInListLength?: number;
+}
+
+/** Time units a {@link FilterOperator.WithinLast} window may be measured in. */
+export const WithinLastUnit = {
+    Minutes: 'minutes',
+    Hours: 'hours',
+    Days: 'days'
+} as const;
+
+/** One of the {@link WithinLastUnit} values. */
+export type WithinLastUnit =
+    (typeof WithinLastUnit)[keyof typeof WithinLastUnit];
+
+/** The coerced value of a `within_last` leaf. */
+export interface WithinLastValue {
+    /** How many units back the window reaches. A positive integer. */
+    n: number;
+    /** The unit `n` is counted in. */
+    unit: WithinLastUnit;
 }
 
 /** Parser output, one node per URL filter entry. */

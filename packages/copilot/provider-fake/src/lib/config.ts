@@ -34,10 +34,10 @@ export interface FakeTurn {
 /** Options for `createFakeProvider`. */
 export interface FakeProviderConfig {
     /**
-     * Turns to play back, one per model call, in order. **Omit for dev mode**:
-     * every call then returns the same canned reply, so a contributor can run
-     * the admin without a key. Supplied, the script is a test fixture and
-     * running past its end throws rather than inventing an answer.
+     * Turns to play back, one per model call, in order. **Omit to leave the
+     * provider unscripted**: every call then returns the same canned reply,
+     * which is what a harness constructs before a test scripts anything.
+     * Supplied, running past its end throws rather than inventing an answer.
      */
     script?: readonly FakeTurn[];
     /** Overrides the reported capabilities — e.g. to exercise degraded mode. */
@@ -64,10 +64,10 @@ export interface FakeProvider extends ModelProvider {
     reset(): void;
 }
 
-/** The canned dev-mode reply used when no script is supplied. */
-export const DEV_MODE_REPLY =
+/** The canned reply used when no script is supplied. */
+export const UNSCRIPTED_REPLY =
     'The fake copilot provider is active, so no model was called. ' +
-    'Register a real provider in `plugins.ts` — or pick one in the model picker — to get a real answer.';
+    'Script a turn with `createFakeProvider({ script })` to control what it says.';
 
 export const DEFAULT_CAPABILITIES: ModelCapabilities = {
     model: 'fake',

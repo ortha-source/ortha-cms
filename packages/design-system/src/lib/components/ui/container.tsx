@@ -63,7 +63,12 @@ const ContainerHeader = React.forwardRef<HTMLDivElement, ContainerHeaderProps>(
                 ) : null}
             </div>
             {actions ? (
-                <div className="flex shrink-0 items-center gap-2">
+                // Wraps rather than refusing to shrink: a header whose actions
+                // row has grown past two buttons (the records table's, which
+                // also carries the saved-view switcher) used to push itself
+                // off the right edge on a narrow viewport instead of taking a
+                // second line.
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     {actions}
                 </div>
             ) : null}

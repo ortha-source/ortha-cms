@@ -2,6 +2,7 @@ import {
     eq,
     gt,
     gte,
+    sql,
     ilike,
     inArray,
     isNotNull,
@@ -17,7 +18,8 @@ import {
     type SQL
 } from 'drizzle-orm';
 import { FilterSchemaException } from './filter-exceptions';
-import { FilterOperator } from './types';
+import { FilterOperator, WithinLastUnit } from './types';
+import type { WithinLastValue } from './types';
 
 /**
  * A negative predicate that also matches NULL.
@@ -74,6 +76,8 @@ export function scalar(
             return negative(col, notIlike(col, String(value)));
         case FilterOperator.Null:
             return value === true ? isNull(col) : isNotNull(col);
+        case FilterOperator.WithinLast:
+            return withinLast(col, value as WithinLastValue);
         default:
             // The parser validates `op` against the vocabulary, so this is
             // unreachable — but falling out of the switch returned `undefined`,
@@ -84,5 +88,30 @@ export function scalar(
             throw new FilterSchemaException(
                 `no translation for operator "${String(op)}"`
             );
+    }
+}
+
+/**
+ * `column >= now() - <n> <unit>`.
+ *
+ * The cutoff is computed by **Postgres, at query time** — which is the whole
+ * point of the operator surviving to the server. A cutoff computed here in
+ * JavaScript would be identical for one request and wrong for a stored filter
+ * replayed a month later.
+ *
+ * A `switch` over the three units rather than interpolating the unit into the
+ * SQL: `make_interval`'s argument names cannot be parameterised, so building
+ * the fragment from a variable would mean `sql.raw` on a value that came off
+ * the wire. The parser already restricts the unit to these three, and this way
+ * there is no path by which that could stop being true.
+ */
+function withinLast(col: AnyColumn, window: WithinLastValue): SQL {
+    switch (window.unit) {
+        case WithinLastUnit.Minutes:
+            return gte(col, sql`now() - make_interval(mins => ${window.n})`);
+        case WithinLastUnit.Hours:
+            return gte(col, sql`now() - make_interval(hours => ${window.n})`);
+        default:
+            return gte(col, sql`now() - make_interval(days => ${window.n})`);
     }
 }

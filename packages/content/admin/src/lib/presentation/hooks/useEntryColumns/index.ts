@@ -11,6 +11,12 @@ export type EntryColumns = {
     toggle: (id: string) => void;
     /** Move the `active` column to the `over` column's position. */
     reorder: (activeId: string, overId: string) => void;
+    /**
+     * Replace the whole selection — how an applied saved view seeds its pinned
+     * columns. Pass `null` to fall back to the type's defaults (a view that
+     * pins nothing, or whose every pinned column is gone).
+     */
+    replace: (columns: string[] | null) => void;
 };
 
 /**
@@ -28,8 +34,9 @@ function seed(available: readonly string[], defaults: string[]): string[] {
 /**
  * Per-type **ordered** visible-table-columns, held in component state only — the
  * choice is **not persisted**, so it lasts for the session and resets on reload.
- * Seeded from `defaultColumns` (filtered to `availableColumns`) and re-seeded
- * when the open type changes (columns are per-type).
+ * Seeded from `defaultColumns` (filtered to `availableColumns`), re-seeded when
+ * the open type changes (columns are per-type), and replaceable outright so an
+ * applied saved view can pin its own selection.
  */
 export function useEntryColumns(
     typeName: string,
@@ -75,5 +82,23 @@ export function useEntryColumns(
         });
     }, []);
 
-    return { visible, isVisible, toggle, reorder };
+    // Applying a saved view replaces the selection wholesale; `null` means the
+    // view pinned nothing usable, so fall back to the type's defaults.
+    //
+    // The caller drives this from an effect keyed on the applied view, **after**
+    // the type re-seed above has run. Doing it the other way — seeding the view
+    // during render — would fight that re-seed on the one commit where both the
+    // type and the view change (a deep link into another collection's view).
+    const replace = useCallback(
+        (columns: string[] | null) => {
+            setVisible(columns ?? seed(availableColumns, defaultColumns));
+        },
+        // `seed` is pure and the caller rebuilds these arrays per render from a
+        // `useMemo`; depending on the serialized ids keeps the callback stable
+        // across renders that changed nothing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [availableColumns.join(','), defaultColumns.join(',')]
+    );
+
+    return { visible, isVisible, toggle, reorder, replace };
 }

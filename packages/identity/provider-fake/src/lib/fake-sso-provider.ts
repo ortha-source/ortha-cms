@@ -40,10 +40,11 @@ export interface FakeSsoProvider extends SsoProvider {
 /**
  * A deterministic identity provider: no network, no tenant, no clock skew.
  *
- * **Shipped, not test scaffolding** — the same standing `copilot-provider-fake`
- * has (ADR-0004 §3, and ADR-0013 by the same argument). It is how `server-e2e`
- * drives the entire redirect handshake in CI, and how a contributor exercises
- * the sign-in page with no identity provider to hand.
+ * **Shipped, not test scaffolding** (ADR-0013). It is how `server-e2e` drives
+ * the entire redirect handshake in CI, and how a contributor exercises the
+ * sign-in page with no identity provider to hand. Unlike the copilot's scripted
+ * adapter — a private test fixture since ADR-0004 §3 was amended — no host
+ * registers this one, so shipping it costs a deployment nothing.
  *
  * It is a *real* verifier rather than a stub that always says yes. `authorize`
  * signs the response it scripts; `complete` re-derives that signature, checks

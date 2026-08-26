@@ -1,4 +1,6 @@
+import { HTTP_STATUS } from '@orthacms/utils-admin';
 import {
+    copilotIsOff,
     DEFAULT_MODEL_CHOICE,
     modelChoiceKey,
     parseModelChoiceKey,
@@ -72,5 +74,40 @@ describe('the stored model choice', () => {
         // resolver is the only safe reading; half a choice is not a backend.
         expect(readStoredModelChoice('anthropic')).toBeNull();
         expect(readStoredModelChoice(':claude-opus-5')).toBeNull();
+    });
+});
+
+/**
+ * Whether the deployment runs the copilot at all, read off the catalogue's own
+ * failure. The switch is the operator's `COPILOT_ENABLED`, and it is answered
+ * by the routes: with it off `CopilotModule.forRoot` registers no controller,
+ * so `GET /copilot/models` 404s along with everything else under
+ * `/api/copilot`.
+ */
+describe('copilotIsOff', () => {
+    /** An axios-shaped rejection, as the query hands it over. */
+    const failure = (status: number) => ({
+        isAxiosError: true,
+        response: { status },
+        message: `Request failed with status ${status}`
+    });
+
+    it('is not off while the catalogue is loading or has answered', () => {
+        expect(copilotIsOff(null)).toBe(false);
+        expect(copilotIsOff(undefined)).toBe(false);
+    });
+
+    it('is off on a 404 — the routes are not registered', () => {
+        expect(copilotIsOff(failure(HTTP_STATUS.NOT_FOUND))).toBe(true);
+    });
+
+    // The direction that matters: a deployment whose copilot is on must not
+    // have its surfaces taken away by a blip or a permission answer. Every one
+    // of these leaves the launcher, the switcher and the page up, and the
+    // server still refuses whatever it was going to refuse.
+    it('is not off for any other failure', () => {
+        expect(copilotIsOff(failure(HTTP_STATUS.FORBIDDEN))).toBe(false);
+        expect(copilotIsOff(failure(500))).toBe(false);
+        expect(copilotIsOff(new TypeError('Failed to fetch'))).toBe(false);
     });
 });

@@ -11,6 +11,7 @@ import { MembersPage } from './pages/MembersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { ContentLibraryPage } from './pages/ContentLibraryPage';
+import { SavedViewsPage } from './pages/SavedViewsPage';
 import { RelationsEditorPage } from './pages/RelationsEditorPage';
 import { MediaLibraryPage } from './pages/MediaLibraryPage';
 import { MediaFieldPage } from './pages/MediaFieldPage';
@@ -19,6 +20,7 @@ import { AgentsPage } from './pages/AgentsPage';
 import { CopilotDockPage } from './pages/CopilotDockPage';
 import { CopilotSkillsPage } from './pages/CopilotSkillsPage';
 import { InsightsPage } from './pages/InsightsPage';
+import { AlarmsPage } from './pages/AlarmsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
 import { HostPage } from './pages/HostPage';
 
@@ -99,6 +101,7 @@ interface Fixtures {
     userDetailPage: UserDetailPage;
     activityLogPage: ActivityLogPage;
     contentLibraryPage: ContentLibraryPage;
+    savedViewsPage: SavedViewsPage;
     relationsEditorPage: RelationsEditorPage;
     mediaLibraryPage: MediaLibraryPage;
     mediaFieldPage: MediaFieldPage;
@@ -107,6 +110,7 @@ interface Fixtures {
     copilotDockPage: CopilotDockPage;
     copilotSkillsPage: CopilotSkillsPage;
     insightsPage: InsightsPage;
+    alarmsPage: AlarmsPage;
     apiTokensPage: ApiTokensPage;
     hostPage: HostPage;
     /**
@@ -155,6 +159,9 @@ export const test = base.extend<Fixtures>({
     contentLibraryPage: async ({ page }, use) => {
         await use(new ContentLibraryPage(page));
     },
+    savedViewsPage: async ({ page }, use) => {
+        await use(new SavedViewsPage(page));
+    },
     relationsEditorPage: async ({ page }, use) => {
         await use(new RelationsEditorPage(page));
     },
@@ -178,6 +185,9 @@ export const test = base.extend<Fixtures>({
     },
     insightsPage: async ({ page }, use) => {
         await use(new InsightsPage(page));
+    },
+    alarmsPage: async ({ page }, use) => {
+        await use(new AlarmsPage(page));
     },
     apiTokensPage: async ({ page }, use) => {
         await use(new ApiTokensPage(page));
