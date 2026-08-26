@@ -47,7 +47,14 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
   stays enabled throughout (clearing the applied filter needs no definitions).
 - `QueryBuilderSummary` — the collapsed resting summary: one removable chip
   per applied condition ("Author · Email contains @lilly ×") plus "Clear
-  all"; removing a chip re-commits the narrowed tree at once.
+  all"; removing a chip re-commits the narrowed tree at once. An **enum** rule's
+  value is rendered through the field's declared members, because the wire value
+  can be an opaque id and the chip is the only reading of a rule once the panel
+  has collapsed — a plugin's virtual field makes that unmissable
+  (`@orthacms/segments-admin` filters by a segment's uuid, so an unresolved chip
+  read "Can be seen by is one of d19a552b-…"). An unknown member falls back to
+  the raw value: a saved view can outlive the option it names, and a chip showing
+  nothing would read as a filter that is not applied.
 - `FilterField`, `FieldType`, `FilterEnumValue` — schema types the
   consumer declares (a static mirror of the BE `FilterSchema`). A
   `FilterField.id` may be a **dotted relation path** (`author.name`); its
@@ -64,6 +71,13 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
       thing, which the search breadcrumb would then have to read both of.
     - A flat field with no `group` stays a root scalar, which is every field the
       server derives from the type itself.
+    - **`operators` decides the order, and therefore the default.** Picking a
+      field resets its rule to `opsForField(field)[0]`, and `opsForField`
+      narrows the field's declared list by what the type admits — not the other
+      way round, which would ignore the order the field author wrote.
+      `OPS_FOR_TYPE` orders for the general case (`equals` first, what a scalar
+      column is usually asked); a field that declares its own list knows better,
+      as segments' audience fields do in leading with `is one of`.
 - `RelationValueEditor`, `RelationValueEditorProps` — the record-picker
   editor a consumer injects via `QueryBuilder`/`QueryBuilderDrawer`'s
   `renderRelationValue` (this package holds no data layer). It must be

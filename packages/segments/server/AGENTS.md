@@ -81,6 +81,17 @@ The kernel's spec says the three rules are right; `segment-read-scope.spec.ts`
 says the database agrees. `COALESCE(…, true)` is the load-bearing half — without
 it the whole library goes dark the moment the plugin is installed.
 
+**Every `&&` binds its ids through `uuidArray`, never inline.** Drizzle expands a
+JS array in a `sql` template into one placeholder **per element** — which is what
+makes an `in (…)` list work, and what makes `` sql`${ids}::uuid[]` `` a different
+broken query for every length: `()::uuid[]` for the anonymous reader (a syntax
+error), `($1)::uuid[]` with a scalar bound for one id (`malformed array literal`),
+a row constructor for two. Both the read scope and the access filter shipped that
+way and 500ed on every restricted read, because the unit specs assert the emitted
+SQL's **shape** — which is right in all three cases. `uuidArray` binds the list as
+one `sql.param`; its spec counts parameters rather than reading SQL, and the
+server-e2e suites execute it.
+
 **A write is one upsert, and there is nothing else to re-derive.** The row an
 editor saves is the row a reader is matched against, so a write that returns 200
 means the change is live. That property is the entire return on the simple
@@ -215,7 +226,16 @@ entitlement source produces the anonymous reader, not a 500.
   today. A default would be inheritance, which is the thing this design dropped
   on purpose; if it comes back it should come back as one explicit rule, not as
   a chain.
-- **server-e2e coverage** for the two controllers.
+
+## e2e
+
+`apps/server-e2e/src/server/segments/` holds four suites — the directory, the
+entry-save write path (permissions, atomicity, revisions, restore), the public
+read scope including relations, and the three filter fields. The harness bits are
+in `src/support/segments.ts`: a **header** resolver (`x-reader-tags`), which is
+the production seam rather than a test hook beside one, and
+`reloadSegmentCatalogue`, which every suite must call after `resetDb` — the
+catalogue is in-memory and the TRUNCATE goes behind its back.
 
 ## Commands
 

@@ -165,6 +165,21 @@ export abstract class BasePage {
         }
     }
 
+    /**
+     * One chip of the applied-filter summary — the resting read-out of one
+     * condition, rendered only while the panel is collapsed; removing it
+     * re-commits the narrowed tree at once.
+     *
+     * Matched on its `title`, which carries the whole condition ("Author · Name
+     * contains Ada"). The visible text is split across spans, and the same
+     * field label also appears on the rule row's trigger and in the builder's
+     * status line — so a `getByText` for it is a strict-mode violation rather
+     * than a locator.
+     */
+    filterChip(condition: string | RegExp): Locator {
+        return this.page.getByTitle(condition);
+    }
+
     /** The inline validation error rendered under an invalid rule. */
     ruleError(): Locator {
         return this.filterSurface().getByTestId('qb-rule-error');

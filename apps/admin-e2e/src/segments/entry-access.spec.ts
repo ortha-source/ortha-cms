@@ -10,6 +10,9 @@ import {
     mockContentSchemaDetail,
     mockContentEntries,
     mockContentEntryWrites,
+    mockContentEntryRead,
+    mockEntryRelations,
+    mockRelationFieldLinks,
     spyEntrySave,
     type EntrySaveSpy
 } from '../support/api/content';
@@ -42,6 +45,31 @@ test.describe('Entry editor — Access tab', () => {
             entries: RELATIONS_ENTRIES_SEED
         });
         await mockContentEntryWrites(page, { details: RELATIONS_DETAIL_SEED });
+        // Both relation reads, and both are required rather than tidiness. The
+        // article seed carries relation fields, so the editor mounts a
+        // `RelationFieldLive` for each; unmocked, the per-field links read falls
+        // through to the dev proxy and its page arrives without `items`, which
+        // `useRelationFieldLinks`'s `getNextPageParam` reduces over. The editor
+        // then dies inside the error boundary, and every assertion in this file
+        // reads as "the Access tab staged nothing" instead of "the page is
+        // gone". `mockEntryRelations` stops at `/relations`, so it never matches
+        // the deeper path.
+        await mockEntryRelations(page);
+        await mockRelationFieldLinks(page);
+        // The record itself, rather than the values the write mock fabricates
+        // from the schema. Those fill a relation field with a readable string,
+        // which the editor validates as "Must be a valid entry id" and refuses
+        // to save — so every assertion about what the save *body* carried would
+        // fail on a form that was never submitted.
+        await mockContentEntryRead(page, {
+            records: {
+                [`article/${ENTRY}`]: {
+                    text: 'Getting started',
+                    author: null,
+                    seo: null
+                }
+            }
+        });
         segments = await mockSegmentsApi(page);
         saves = await spyEntrySave(page);
     });

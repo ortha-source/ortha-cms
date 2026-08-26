@@ -194,7 +194,11 @@ export function EntryAccessTab({
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                {/* `<h2>`, not `<h3>` — the same call `FieldGroup` and
+                    `RelationFieldSection` make. This is a top-level section of
+                    the entry editor, whose header is the page's `<h1>`, so an
+                    `<h3>` jumped a level and axe's `heading-order` said so. */}
+                <h2 className="flex items-center gap-2 text-sm font-semibold">
                     {intl.formatMessage(messages.heading)}
                     <Badge variant={isOpen(draft) ? 'secondary' : 'warning'}>
                         {isOpen(draft) ? (
@@ -207,7 +211,7 @@ export function EntryAccessTab({
                         )}
                     </Badge>
                     {dirty ? <ChangedBadge /> : null}
-                </h3>
+                </h2>
                 <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                     {intl.formatMessage(messages.body)}
                 </p>

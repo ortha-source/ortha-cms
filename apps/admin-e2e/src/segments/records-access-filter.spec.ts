@@ -112,9 +112,11 @@ test.describe('Records list — filtering by audience', () => {
         await contentLibraryPage.applyFilters();
         await contentLibraryPage.closeFilters();
 
-        await expect(page.getByText(/Can be seen by/)).toContainText(
-            'Acme Corp'
-        );
+        await expect(
+            // The whole condition, because the rule row's own field trigger
+            // carries the field label as its title too.
+            contentLibraryPage.filterChip(/Can be seen by is one of/)
+        ).toContainText('Acme Corp');
         await expect(page.getByText('seg-acme')).toHaveCount(0);
     });
 
@@ -167,7 +169,7 @@ test.describe('Records list — filtering by audience', () => {
             page.getByRole('option', { name: 'is one of', exact: true })
         ).toBeVisible();
         await expect(
-            page.getByRole('option', { name: 'is', exact: true })
+            page.getByRole('option', { name: 'equals', exact: true })
         ).toBeVisible();
         await expect(
             page.getByRole('option', { name: 'is not', exact: true })

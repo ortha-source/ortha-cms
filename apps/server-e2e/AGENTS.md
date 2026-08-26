@@ -54,6 +54,16 @@ running Docker daemon for testcontainers).
    `setUserStatus` for the out-of-band suspension the API never performs (its
    disable endpoint revokes sessions in the same transaction).
 
+### Seeing why a request 500ed
+
+`createTestApp` boots with `logger: false` — 70 suites each printing Nest's
+start-up banner would bury the report. **`E2E_LOG=1` puts the real logger back**,
+and it is the only way to see the _cause_ of a 500: the `ExceptionsHandler` line
+carries the failing query and the driver's own message, while a suite can only
+ever report the status code. A hand-written SQL fragment that binds its
+parameters wrongly is exactly that shape — invisible in the assertion, one line
+long in the log.
+
 ### Running without Docker
 
 Set **`E2E_DATABASE_URL`** to point the run at an already-running Postgres and

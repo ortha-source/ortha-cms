@@ -66,6 +66,7 @@ const messages = defineMessages({
         defaultMessage: 'Offered in'
     },
     colUsage: { id: 'segments.page.colUsage', defaultMessage: 'Used by' },
+    colActions: { id: 'segments.page.colActions', defaultMessage: 'Actions' },
     everywhere: {
         id: 'segments.page.everywhere',
         defaultMessage: 'Every workspace'
@@ -344,7 +345,19 @@ export function SegmentsPage() {
                                                         messages.colUsage
                                                     )}
                                                 </TableHead>
-                                                <TableHead className="w-12" />
+                                                {/* Named, not empty. A header
+                                                    cell with no text is a
+                                                    column a screen reader
+                                                    announces as nothing at all
+                                                    while reading every row's
+                                                    menu under it. */}
+                                                <TableHead className="w-12">
+                                                    <span className="sr-only">
+                                                        {intl.formatMessage(
+                                                            messages.colActions
+                                                        )}
+                                                    </span>
+                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>

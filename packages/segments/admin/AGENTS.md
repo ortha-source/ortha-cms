@@ -175,12 +175,36 @@ slug outside `ENTRY_TAB_SLUGS`, because the route table would match the segment
 while `entryTabFromPath` could not resolve it. `access` is declared in
 `content/admin`'s `ENTRY_TAB` for that reason.
 
+**The two audience filter fields open on `is one of`, not `is`.** A field's
+declared `operators` list decides the picker's order and therefore its default
+(`opsForField` narrows the declaration by the type rather than the other way
+round). The question these fields answer is _which audiences_, and the
+multi-select answers the one-audience case too — a single tick is the same `in`
+the server reads as an overlap. Led by `is`, naming a second audience meant first
+noticing there was a second operator.
+
 ## What is not here yet
 
 - **A records column** showing which entries in a collection are restricted.
 - **A bulk action** setting the same audiences on a selection.
-- **An admin-e2e suite** — the flows worth pinning are the chip's two states and
-  the tab's set-and-save.
+
+## e2e
+
+`apps/admin-e2e/src/segments/` holds three suites — the directory and its editor
+pages, the entry editor's Access tab (staging, the tab-switch survival, and what
+reaches the save **body**), and the records filter. Two harness notes:
+
+- `SEGMENT_SEED` / `mockSegmentsApi` (`support/api/segments.ts`) **genuinely
+  page** the list and carry every matched id in `ids`, because the pager and the
+  "set every audience" control are the two things this feature got wrong most
+  easily, and a mock that answered the whole seed to every request makes both
+  look fine when broken.
+- The Access-tab suite mocks **both** relation reads and the record itself. The
+  per-field links read is what the editor's `RelationFieldLive` calls; unmocked
+  it kills the editor inside the error boundary, and the schema-fabricated record
+  fills a relation with a readable string the form refuses as "Must be a valid
+  entry id" — either one turns "the save body carried the audiences" into "the
+  save never happened".
 
 ## Commands
 

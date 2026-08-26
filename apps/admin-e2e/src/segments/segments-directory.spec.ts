@@ -99,10 +99,10 @@ test.describe('The audience directory', () => {
         // The consequence is spelled out per case: this one is named by three
         // entries, so deleting it changes what readers see.
         await expect(
-            page.getByRole('alertdialog').getByText(/removed from every entry/)
+            page.getByRole('dialog').getByText(/removed from every entry/)
         ).toBeVisible();
         await page
-            .getByRole('alertdialog')
+            .getByRole('dialog')
             .getByRole('button', { name: 'Delete' })
             .click();
 

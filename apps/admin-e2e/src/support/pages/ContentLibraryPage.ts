@@ -122,15 +122,6 @@ export class ContentLibraryPage extends BasePage {
     }
 
     /**
-     * One chip in the collapsed filter summary, matched on its readable text
-     * ("Author · Name contains Ada"). The chip is the resting read-out of an
-     * applied condition; removing it re-commits the narrowed tree at once.
-     */
-    filterChip(text: string | RegExp): Locator {
-        return this.page.getByTitle(text);
-    }
-
-    /**
      * Remove one applied condition from the summary. `label` is the chip's
      * "<path> <operator>" text — the remove button's accessible name is
      * "Remove condition <path> <operator>".
