@@ -54,6 +54,23 @@ src/lib/
 [`@orthacms/tools-server`](../../tools/server/AGENTS.md) and are imported from
 there — this package defines none of them.
 
+## Who contributes tools
+
+`content/server` contributes the CRUD set, `i18n/server` the locale tools,
+`media/server` the asset ones — and `segments/server` contributes three over
+**reader entitlements**: `segments_list`, `content_access_get` and
+`content_access_set`. That last one is `surfaces: ['mcp']`, because the copilot's
+counterpart proposes rather than writes; the two reads are offered on both. A
+token reaches them through the scope mapping, which carries `segments:read` on
+both scopes and `segments:manage` on `full` — an agent that cannot ask whether an
+entry is restricted reports a partial list as the whole one, since the read scope
+subtracts restricted entries from `total` as well as from `items`.
+
+Nothing here reaches the audience **directory**: creating, renaming or deleting a
+segment changes visibility across every entry naming it, and that stays on a
+session-authenticated screen. See
+[`packages/segments/server/AGENTS.md`](../../segments/server/AGENTS.md).
+
 ## Two consumers, one registry
 
 `ToolDefinition` and `ToolContext` mention no HTTP, no JSON-RPC, and no MCP.

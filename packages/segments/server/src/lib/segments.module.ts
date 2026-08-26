@@ -21,8 +21,13 @@ import { EntryAccessWriteExtension } from './infrastructure/entry-access-write-e
 import { AccessFilterProvider } from './infrastructure/access-filter.provider';
 import { ReaderMiddleware } from './http/reader.middleware';
 import { PrincipalMiddleware } from './http/principal.middleware';
+import { copilotAppliersRegistrar } from '@orthacms/copilot-server';
 import { SegmentsController } from './http/segments.controller';
 import { EntryAccessController } from './http/entry-access.controller';
+import { PublicEntryAccessController } from './http/public-entry-access.controller';
+import { SegmentsToolProvider } from './tools/segments-tool.provider';
+import { EntryAccessProposalProvider } from './copilot/entry-access-proposal.provider';
+import { EntryAccessProposalApplier } from './copilot/entry-access-proposal.applier';
 
 /**
  * The segmentation plugin's module — two tables, two controllers, one
@@ -41,7 +46,14 @@ export class SegmentsModule implements NestModule {
         return {
             module: SegmentsModule,
             global: true,
-            controllers: [SegmentsController, EntryAccessController],
+            controllers: [
+                SegmentsController,
+                EntryAccessController,
+                // The same decision over a bearer token, at the public API's own
+                // `/v1/content/:typeName/:id/access`. The admin route above
+                // stays session-guarded; this one is scope-guarded.
+                PublicEntryAccessController
+            ],
             providers: [
                 { provide: SEGMENTS_CONFIG, useValue: config },
                 SegmentCatalogService,
@@ -72,6 +84,18 @@ export class SegmentsModule implements NestModule {
                 // the records list's "can be seen by" / "cannot be seen by" /
                 // "restricted" — the editor's questions, not a visibility rule.
                 entryFilterProviderRegistrar('segments', AccessFilterProvider),
+                // The agent-facing catalogue: two reads on both surfaces, one
+                // MCP write, and — because a copilot write acts for a person —
+                // one propose tool with the applier for the kind it produces.
+                // Every one of them no-ops when neither consumer is installed:
+                // the registries are injected optionally.
+                SegmentsToolProvider,
+                EntryAccessProposalProvider,
+                EntryAccessProposalApplier,
+                copilotAppliersRegistrar(
+                    'segments',
+                    EntryAccessProposalApplier
+                ),
                 ReaderMiddleware,
                 PrincipalMiddleware
             ],

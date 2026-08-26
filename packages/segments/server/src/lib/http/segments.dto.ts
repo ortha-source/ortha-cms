@@ -201,3 +201,35 @@ export class SetEntryAccessDto {
     @IsUUID('4', { each: true })
     deny!: string[];
 }
+
+/**
+ * Replace one entry's two lists over the **public** API.
+ *
+ * The type is in the path there (`/v1/content/:typeName/:id/access`), which is
+ * the shape every other public content route already has — so this is
+ * {@link SetEntryAccessDto} without the `typeSlug` the body would otherwise be
+ * repeating back at the URL.
+ */
+export class PublicEntryAccessDto {
+    @ApiProperty({
+        type: [String],
+        maxItems: IDS_MAX,
+        description:
+            'Segments that may read the entry. **An empty list means everyone**, not nobody.'
+    })
+    @IsArray()
+    @ArrayMaxSize(IDS_MAX)
+    @IsUUID('4', { each: true })
+    allow!: string[];
+
+    @ApiProperty({
+        type: [String],
+        maxItems: IDS_MAX,
+        description:
+            'Segments that may not, whatever `allow` says. A deny always wins.'
+    })
+    @IsArray()
+    @ArrayMaxSize(IDS_MAX)
+    @IsUUID('4', { each: true })
+    deny!: string[];
+}

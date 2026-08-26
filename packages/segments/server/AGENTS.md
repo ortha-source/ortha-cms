@@ -1,7 +1,8 @@
 # `@orthacms/segments-server`
 
 The **segmentation plugin** — reader entitlements enforced on the public content
-API. Two tables, two controllers, one predicate.
+API. Two tables, one predicate, and four ways in: the admin's screens, the entry
+save's `extensions` bag, a bearer token, and an agent's tool catalogue.
 
 ```
 src/lib/
@@ -12,6 +13,11 @@ src/lib/
     reader.store.ts             who is reading, for one request
     segments.service.ts         the directory CRUD
     entry-access.service.ts     one entry's two lists — the whole write path
+  tools/
+    segments-tool.provider.ts   the MCP/copilot tools — list, read, and (MCP) set
+  copilot/
+    entry-access-proposal.provider.ts  the copilot's propose tool
+    entry-access-proposal.applier.ts   …and what carries an accepted one out
   infrastructure/
     segment-read-scope.ts       the CONTENT_READ_SCOPE implementation
     access-filter.provider.ts   the records list's three access filter fields
@@ -21,16 +27,18 @@ src/lib/
     reader.middleware.ts        resolves the reader once per request
     segments.controller.ts      /api/segments
     entry-access.controller.ts  /api/segments/entries/:id
+    public-entry-access.controller.ts  /api/v1/content/:type/:id/access
 ```
 
 ## What it owns
 
-| Route                        | Scope        | Permission                          |
-| ---------------------------- | ------------ | ----------------------------------- |
-| `/segments`                  | installation | `segments:read` / `segments:manage` |
-| `/segments/lookup`           | installation | `segments:read`                     |
-| `/segments/:id`              | installation | `segments:read`                     |
-| `/segments/entries/:entryId` | workspace    | `segments:read` / `segments:manage` |
+| Route                              | Scope        | Permission                          |
+| ---------------------------------- | ------------ | ----------------------------------- |
+| `/segments`                        | installation | `segments:read` / `segments:manage` |
+| `/segments/lookup`                 | installation | `segments:read`                     |
+| `/segments/:id`                    | installation | `segments:read`                     |
+| `/segments/entries/:entryId`       | workspace    | `segments:read` / `segments:manage` |
+| `/v1/content/:typeName/:id/access` | token bucket | `segments:read` / `segments:manage` |
 
 …plus the `access` key of every entry save's `extensions` bag, which is how the
 admin actually writes (see below). It carries no permission of its own: the save
@@ -257,6 +265,52 @@ no typecheck catches and that would leave the plugin silently never running.
 
 **The resolver fails closed and never rejects the request.** An unreachable
 entitlement source produces the anonymous reader, not a 500.
+
+## The agent surfaces — MCP, the copilot, and a bearer token
+
+Four ways in besides the admin's own screens, and the differences between them
+are all about **who is acting**.
+
+| Surface     | What it gets                                                    |
+| ----------- | --------------------------------------------------------------- |
+| MCP         | `segments_list`, `content_access_get`, `content_access_set`     |
+| Copilot     | `segments_list`, `content_access_get`, `content_propose_access` |
+| Public REST | `GET` / `PUT /api/v1/content/:typeName/:id/access`              |
+
+**The reads are on both surfaces; the writes are not the same tool.** A bearer
+token is its own authority — the registry has already checked `segments:manage`
+against its scope, so `content_access_set` writes and returns. A copilot run acts
+for a **person**, so its counterpart is `effect: 'propose'`
+([ADR-0009](../../../docs/adr/0009-copilot-applies-directly.md)): the change is
+drafted, shown on a card that names the audiences rather than their ids, and
+carried out by `EntryAccessProposalApplier` under that person's own permissions.
+The applier goes through `setForGroup`, so an accepted proposal cannot mean
+anything the entry save and the `PUT` route do not.
+
+**An agent that cannot ask about access is worse than one that cannot see the
+entry.** Both scopes therefore carry `segments:read`: the read scope already
+filters restricted entries out of `items` **and** `total`, so a client with no
+way to ask reports a partial list as the whole one. That is why the read tools
+have no scope gate beyond `read`.
+
+**Entry access is exposed to tokens; the vocabulary is not.** `full` carries
+`segments:manage` because setting who may read a record is an entry-level
+editorial decision of the same weight as publishing or deleting it — both of
+which `full` already grants. There is deliberately **no tool and no public route
+over the directory**: renaming one audience's tags changes who every entry naming
+it is visible to, installation-wide, and deleting one rewrites both lists on
+every entry that held it. Those stay on a session-authenticated screen where a
+person reads the consequence the dialog spells out, and a future tool over them
+is a decision somebody has to make on purpose rather than one this scope mapping
+already made.
+
+**The agent-facing reads answer from `entry_access`, not through the public entry
+read.** That read is reader-scoped, so an agent that had just restricted an entry
+could not read back what it had done — the restriction it wrote being the thing
+hiding the answer. Asking who may read a record is not reading the record, and
+the workspace scope is what keeps it from being an enumeration oracle: an id from
+another workspace answers as an unrestricted entry, exactly as an unknown one
+does.
 
 ## What is not here yet
 
