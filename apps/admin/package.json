@@ -12,6 +12,7 @@
         "@orthacms/identity-admin": "*",
         "@orthacms/insights-admin": "*",
         "@orthacms/media-admin": "*",
+        "@orthacms/segments-admin": "*",
         "@orthacms/shell-admin": "*",
         "@orthacms/transfer-admin": "*",
         "@orthacms/users-admin": "*",

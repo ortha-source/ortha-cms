@@ -38,6 +38,7 @@ const EXPECTED_PLUGINS = [
     'media',
     'transfer',
     'copilot',
+    'segments',
     'users',
     'activity',
     'api-tokens'

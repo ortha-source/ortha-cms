@@ -102,6 +102,7 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/media-admin',
     '@orthacms/media-server',
     '@orthacms/query-builder-admin',
+    '@orthacms/segments-admin',
     '@orthacms/segments-domain',
     '@orthacms/segments-server',
     '@orthacms/shell-admin',
