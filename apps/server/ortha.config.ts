@@ -5,6 +5,13 @@
  * downstream (`createServer`, plugins) receives typed config — nothing
  * else should reach for environment variables directly. Deploy-specific
  * values come from the environment; stable tuning lives here as literals.
+ *
+ * **Shape:** one builder per plugin, then a flat `config` literal that calls
+ * them. The literal is the table of contents — a reader who wants to know what
+ * this deployment runs reads the bottom twenty lines; a reader who wants to
+ * know how one setting is derived opens one builder. Conditionals live inside
+ * the builders and are expressed as values (`when`, `defined`), never as
+ * `...(x ? { key } : {})` spreads in the middle of the object.
  */
 
 import type {
@@ -161,7 +168,7 @@ export interface OrthaConfig {
     trustProxy?: TrustProxySetting;
     /**
      * Cap on a JSON / urlencoded request body, sourced from
-     * `MAX_REQUEST_BODY`. Defaults to 1 MB — see the note on the literal below.
+     * `MAX_REQUEST_BODY`. Defaults to 1 MB — see `bodyLimit()`.
      */
     bodyLimit?: string | number;
     /** Database connection settings. */
@@ -189,6 +196,14 @@ export interface OrthaConfig {
     };
 }
 
+// ---------------------------------------------------------------------------
+// Reading the environment
+//
+// Every reader below returns a *value* — the setting, or `undefined` for "this
+// deployment did not configure it". Nothing returns a fragment of an object, so
+// nothing has to be spread conditionally at the call site.
+// ---------------------------------------------------------------------------
+
 /**
  * Reads a deploy value the server cannot run without, failing at load rather
  * than several seconds into boot.
@@ -202,7 +217,7 @@ export interface OrthaConfig {
  * names the variable that was never set.
  */
 function requireEnv(name: string): string {
-    const raw = process.env[name]?.trim();
+    const raw = readEnv(name);
     if (!raw) {
         throw new Error(
             `Missing required environment variable ${name}. ` +
@@ -211,6 +226,17 @@ function requireEnv(name: string): string {
         );
     }
     return raw;
+}
+
+/**
+ * A trimmed environment value, `undefined` when unset **or empty**.
+ *
+ * The empty case matters: `.env.example` ships several keys with no value, so
+ * `KEY=` has to read the same as "not configured" — otherwise a fresh clone
+ * boots with an empty API key rather than without a provider.
+ */
+function readEnv(name: string): string | undefined {
+    return process.env[name]?.trim() || undefined;
 }
 
 /**
@@ -231,13 +257,12 @@ function requireEnv(name: string): string {
  * no value, and a fresh clone must boot from it unchanged.
  */
 function readPositiveInt(name: string, fallback: number): number {
-    const value = readOptionalPositiveInt(name);
-    return value ?? fallback;
+    return readOptionalPositiveInt(name) ?? fallback;
 }
 
 /** As {@link readPositiveInt}, but `undefined` when unset — no default to fall back to. */
 function readOptionalPositiveInt(name: string): number | undefined {
-    const raw = process.env[name]?.trim();
+    const raw = readEnv(name);
     if (!raw) {
         return undefined;
     }
@@ -261,28 +286,53 @@ function readList(name: string, fallback: string): string[] {
 }
 
 /**
- * The copilot backends this deployment can actually reach.
- *
- * Read out here because they gate whether a provider is registered at all
- * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
- * against a named value than against a nested `process.env` lookup.
+ * As {@link readList}, but `undefined` when the variable is unset, so the
+ * consumer's own default list survives rather than being replaced by an empty
+ * one.
  */
-/**
- * The identity provider this deployment can reach, if any.
- *
- * Both values are read out here because both gate whether the provider is
- * configured at all: an issuer with no client id (or the reverse) becomes a
- * button on the sign-in page that can only fail.
- */
-const ssoOidcIssuer = process.env['SSO_OIDC_ISSUER']?.trim();
-const ssoOidcClientId = process.env['SSO_OIDC_CLIENT_ID']?.trim();
-const ssoGithubClientId = process.env['SSO_GITHUB_CLIENT_ID']?.trim();
-const ssoGithubClientSecret = process.env['SSO_GITHUB_CLIENT_SECRET']?.trim();
-const ssoSamlEntryPoint = process.env['SSO_SAML_ENTRY_POINT']?.trim();
-const ssoSamlCert = process.env['SSO_SAML_IDP_CERT']?.trim();
+function readOptionalList(name: string): string[] | undefined {
+    return when(readEnv(name), () => readList(name, ''));
+}
 
-const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
-const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
+/**
+ * A boolean setting: what the deployment said, or `fallback` when it said
+ * nothing. Anything other than `true` reads as false, so a typo turns a switch
+ * off rather than on.
+ */
+function readFlag(name: string, fallback: boolean): boolean {
+    const raw = readEnv(name);
+    return raw === undefined ? fallback : raw === 'true';
+}
+
+/**
+ * The value when the setting was configured, `undefined` when it was not.
+ *
+ * The counterpart to {@link defined}: together they replace
+ * `...(x ? { key: … } : {})`. `build` is a thunk so the body — often several
+ * further reads — runs only when it applies.
+ */
+function when<T>(configured: unknown, build: () => T): T | undefined {
+    return configured ? build() : undefined;
+}
+
+/**
+ * The same object with every `undefined`-valued key removed.
+ *
+ * Plugins merge their defaults as `{ ...DEFAULTS, ...config }`, so an explicit
+ * `{ maxSteps: undefined }` does not leave `DEFAULT_RUN_LIMITS.maxSteps` in
+ * place — it erases it. That, and not the type checker, is what the conditional
+ * spreads were guarding against; this says it once, at the end of a builder,
+ * instead of once per key in the middle of one.
+ */
+function defined<T extends object>(value: T): T {
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+        if (item !== undefined) {
+            result[key] = item;
+        }
+    }
+    return result as T;
+}
 
 /** The deployment modes this app recognises. */
 const NODE_ENVS = ['development', 'test', 'production'] as const;
@@ -303,7 +353,7 @@ const NODE_ENVS = ['development', 'test', 'production'] as const;
  * a silent downgrade into a refusal to start.
  */
 function readNodeEnv(): (typeof NODE_ENVS)[number] | undefined {
-    const raw = process.env['NODE_ENV']?.trim();
+    const raw = readEnv('NODE_ENV');
     if (!raw) {
         return undefined;
     }
@@ -331,9 +381,13 @@ const isProduction = readNodeEnv() === 'production';
  * trusts none), or any other non-empty string, passed to Express verbatim as a
  * subnet/preset list (`'loopback'`, `'10.0.0.0/8'`). Unset yields `undefined`,
  * leaving Express's default of ignoring forwarded headers entirely.
+ *
+ * Unset by default: a directly-exposed server must not believe a
+ * client-supplied `X-Forwarded-For`. Deployments behind a load balancer set
+ * `TRUST_PROXY` to their hop count.
  */
-function readTrustProxy(): TrustProxySetting | undefined {
-    const raw = process.env['TRUST_PROXY']?.trim();
+function trustProxy(): TrustProxySetting | undefined {
+    const raw = readEnv('TRUST_PROXY');
     if (!raw) {
         return undefined;
     }
@@ -348,6 +402,20 @@ function readTrustProxy(): TrustProxySetting | undefined {
 }
 
 /**
+ * The largest JSON / urlencoded body a route will accept.
+ *
+ * Stable tuning, hence a literal, with an env override for a deployment whose
+ * entries are larger. 1 MB rather than express's inherited 100 kB default: that
+ * ceiling sat below a long-form article with embedded rich text, and it was
+ * refused with a bare `413` from the parser — before any controller, guard or
+ * protocol layer could shape the answer. Uploads are unrelated and much larger;
+ * they are multipart, capped by `plugins.media.maxUploadBytes`.
+ */
+function bodyLimit(): string | number {
+    return readEnv('MAX_REQUEST_BODY') ?? '1mb';
+}
+
+/**
  * The admin dev origin this checkout's stack serves from — `ADMIN_PORT` is the
  * per-worktree Vite port (`docs/parallel-stacks.md`), 4200 when unset.
  */
@@ -355,56 +423,17 @@ function defaultAdminOrigin(): string {
     return `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`;
 }
 
-/**
- * The copilot's run ceilings, each `undefined` to leave the plugin's own
- * default in place.
- *
- * Read out here because the keys are *conditionally spread* below: a
- * `DEFAULT_RUN_LIMITS` entry has to survive an unset variable, and spreading
- * `{ maxSteps: undefined }` would overwrite it with nothing. Zero is rejected
- * rather than silently ignored — `maxSteps: 0` skips the run loop entirely,
- * yielding a thread that shows a question and then silence, which is why
- * `CopilotPlugin` refuses it at construction too.
- *
- * All three are exposed, not just `maxSteps`. They are checked in the same
- * loop, so an operator who raises one alone moves the wall rather than lifting
- * it: a run given more steps but the same wall clock stops on `timeout`
- * instead, which reads to the user as the same truncated answer.
- */
-const maxSteps = readOptionalPositiveInt('COPILOT_MAX_STEPS');
-const wallClockMs = readOptionalPositiveInt('COPILOT_WALL_CLOCK_MS');
-const maxTotalTokens = readOptionalPositiveInt('COPILOT_MAX_TOTAL_TOKENS');
-const runLimits = {
-    ...(maxSteps !== undefined ? { maxSteps } : {}),
-    ...(wallClockMs !== undefined ? { wallClockMs } : {}),
-    ...(maxTotalTokens !== undefined ? { maxTotalTokens } : {})
-};
+// ---------------------------------------------------------------------------
+// One builder per section
+// ---------------------------------------------------------------------------
 
-const config: OrthaConfig = {
-    port: readPositiveInt('PORT', 3000),
-    globalPrefix: 'api',
-    // Unset by default: a directly-exposed server must not believe a
-    // client-supplied `X-Forwarded-For`. Deployments behind a load balancer set
-    // `TRUST_PROXY` to their hop count.
-    trustProxy: readTrustProxy(),
-    // The largest JSON body a route will accept. Stable tuning, hence a
-    // literal, with an env override for a deployment whose entries are larger.
-    // 1 MB rather than express's inherited 100 kB default: that ceiling sat
-    // below a long-form article with embedded rich text, and it was refused
-    // with a bare `413` from the parser — before any controller, guard or
-    // protocol layer could shape the answer. Uploads are unrelated and much
-    // larger; they are multipart, capped by `plugins.media.maxUploadBytes`.
-    bodyLimit: process.env['MAX_REQUEST_BODY'] || '1mb',
-    database: {
-        url: requireEnv('DATABASE_URL')
-    },
-    docs: {
+/** OpenAPI document + Scalar API reference settings. */
+function docsConfig(): ApiDocsOptions {
+    return {
         // On outside production, where the reference is a development tool.
         // `API_DOCS` overrides either way — set it to `true` to publish the
         // reference from a deployed instance.
-        enabled: process.env['API_DOCS']
-            ? process.env['API_DOCS'] === 'true'
-            : !isProduction,
+        enabled: readFlag('API_DOCS', !isProduction),
         title: 'Ortha CMS API',
         version: '1.0.0',
         description: [
@@ -418,427 +447,425 @@ const config: OrthaConfig = {
             'require an `X-Workspace-Id` header naming a workspace the caller',
             'is a member of.'
         ].join('\n')
+    };
+}
+
+/** Identity — sessions, tokens, the SSO handshake, and the SSO providers. */
+function identityConfig(): OrthaIdentityConfig {
+    return {
+        // Origins allowed to call state-changing endpoints (login-CSRF
+        // defense). Comma-separated; defaults to the dev admin origin —
+        // which follows `ADMIN_PORT`, so a parallel worktree stack on
+        // :4201 is not rejected by a default pinned to :4200.
+        allowedOrigins: readList('ALLOWED_ORIGINS', defaultAdminOrigin()),
+        session: {
+            ttlSeconds: readPositiveInt(
+                'SESSION_TTL_SECONDS',
+                60 * 60 * 24 * 7
+            ),
+            cookieSecure: isProduction,
+            cookieSameSite: 'lax'
+        },
+        token: {
+            inviteTtlSeconds: readPositiveInt(
+                'INVITE_TTL_SECONDS',
+                60 * 60 * 24 * 7
+            ),
+            resetTtlSeconds: readPositiveInt('RESET_TTL_SECONDS', 60 * 60)
+        },
+        // Login rate limit. Defaults preserve the historical 10 req / 60s.
+        rateLimit: {
+            ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
+            limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
+        },
+        rootAdmin: {
+            email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
+            password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
+            name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
+        },
+        sso: ssoConfig(),
+        ssoProviders: defined({
+            oidc: oidcProvider(),
+            github: githubProvider(),
+            saml: samlProvider()
+        })
+    };
+}
+
+/**
+ * The deployment shape of the single-sign-on handshake.
+ *
+ * The *providers* are not here — they are constructed adapters and are
+ * registered in `plugins.ts`, the same split the copilot makes between
+ * connection settings and built backends.
+ */
+function ssoConfig(): NonNullable<IdentityPluginConfig['sso']> {
+    return defined({
+        // The origin browsers reach this API on. It builds the `redirect_uri`
+        // registered with each identity provider, and it is configured rather
+        // than read from the request's `Host` header — which a client controls,
+        // and could therefore point at an origin of its choosing. Unset, it
+        // falls back to the first `allowedOrigins` entry, which is right
+        // whenever the admin and the API share an origin: the deployed shape,
+        // and the dev one where Vite proxies `/api`.
+        publicBaseUrl: readEnv('SSO_PUBLIC_BASE_URL'),
+        // How long one sign-in attempt stays live. Ten minutes by default: a
+        // consent screen plus a second factor, and no longer — an attempt left
+        // open in a forgotten tab should not be a credential sitting around for
+        // the afternoon.
+        requestTtlSeconds: readPositiveInt('SSO_REQUEST_TTL_SECONDS', 600),
+        // Just-in-time provisioning, off unless a domain list is set. The list
+        // is what makes this safe: an identity provider answers for everyone it
+        // knows, and a public one knows everyone, so provisioning without one
+        // means anybody with an account there can sign in here — and nothing
+        // breaks to say so, the user list simply grows.
+        provisioning: when(readEnv('SSO_PROVISION_DOMAINS'), () => ({
+            domains: readList('SSO_PROVISION_DOMAINS', ''),
+            defaultRole: process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
+        })),
+        // Passwords stay on unless a deployment turns them off. The root
+        // administrator keeps one regardless — see the note on
+        // `IdentitySsoConfig.allowPasswordLogin`; without that exemption a
+        // mis-scoped provider locks an operator out of their own CMS with no
+        // way back short of a database client.
+        allowPasswordLogin: process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false',
+        // Shorter than the ordinary session lifetime for a provider with no
+        // back-channel logout: without one, a session's own expiry is the only
+        // thing that eventually ends access after somebody is offboarded.
+        sessionTtlSeconds: readOptionalPositiveInt('SSO_SESSION_TTL_SECONDS')
+    });
+}
+
+/**
+ * The OIDC provider, or nothing when this deployment configured none.
+ *
+ * Both values gate it because both are needed: an issuer with no client id (or
+ * the reverse) becomes a button on the sign-in page that can only fail.
+ */
+function oidcProvider(): (OidcProviderConfig & { name: string }) | undefined {
+    const issuer = readEnv('SSO_OIDC_ISSUER');
+    const clientId = readEnv('SSO_OIDC_CLIENT_ID');
+    return when(issuer && clientId, () =>
+        defined({
+            // What the route and every link row call this provider. Stable by
+            // necessity: renaming it orphans the links that name it.
+            name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+            issuer: issuer as string,
+            clientId: clientId as string,
+            clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),
+            label: readEnv('SSO_OIDC_LABEL'),
+            scopes: readOptionalList('SSO_OIDC_SCOPES'),
+            // Only when an operator says so. The claim is the sole gate on a
+            // first sign-in claiming an existing account, so a provider that
+            // omits it — Entra ID, notably — links nobody until someone asserts
+            // that this directory owns the addresses it reports.
+            emailVerifiedWhenAbsent: readFlag(
+                'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT',
+                false
+            )
+        })
+    );
+}
+
+/** GitHub / GitHub Enterprise, present when both credentials are set. */
+function githubProvider():
+    | (GithubProviderConfig & { name: string })
+    | undefined {
+    const clientId = readEnv('SSO_GITHUB_CLIENT_ID');
+    const clientSecret = readEnv('SSO_GITHUB_CLIENT_SECRET');
+    return when(clientId && clientSecret, () =>
+        defined({
+            name: process.env['SSO_GITHUB_NAME'] ?? 'github',
+            clientId: clientId as string,
+            clientSecret: clientSecret as string,
+            label: readEnv('SSO_GITHUB_LABEL'),
+            enterpriseBaseUrl: readEnv('SSO_GITHUB_ENTERPRISE_URL'),
+            organization: readEnv('SSO_GITHUB_ORG')
+        })
+    );
+}
+
+/**
+ * A SAML 2.0 identity provider, present when the entry point and the signing
+ * certificate are both set — SAML has no discovery document, so the certificate
+ * is the whole of the trust relationship and there is nothing to fall back to.
+ */
+function samlProvider(): (SamlProviderConfig & { name: string }) | undefined {
+    const entryPoint = readEnv('SSO_SAML_ENTRY_POINT');
+    const idpCert = readEnv('SSO_SAML_IDP_CERT');
+    return when(entryPoint && idpCert, () =>
+        defined({
+            name: process.env['SSO_SAML_NAME'] ?? 'saml',
+            entryPoint: entryPoint as string,
+            idpCert: idpCert as string,
+            // The entity id the identity provider has registered for this
+            // application. Defaults to the CMS's own origin, which is what most
+            // administrators enter when nobody tells them otherwise.
+            issuer:
+                process.env['SSO_SAML_ISSUER'] ??
+                process.env['SSO_PUBLIC_BASE_URL'] ??
+                '',
+            label: readEnv('SSO_SAML_LABEL'),
+            subjectAttribute: readEnv('SSO_SAML_SUBJECT_ATTRIBUTE'),
+            emailAttribute: readEnv('SSO_SAML_EMAIL_ATTRIBUTE'),
+            groupsAttribute: readEnv('SSO_SAML_GROUPS_ATTRIBUTE'),
+            // SAML carries no verification claim at all, so this is always an
+            // operator's assertion that their directory owns the addresses it
+            // reports.
+            emailVerified: readFlag('SSO_SAML_EMAIL_VERIFIED', false)
+        })
+    );
+}
+
+/** The content locales, and what to do about rows left in a removed one. */
+function i18nConfig(): I18nPluginConfig {
+    return {
+        // Content locales — stable product configuration, so literals (like the
+        // rest of the non-secret tuning here). The slugs are stored on entry
+        // rows; the migration backfill assumes 'en' is the default.
+        locales: [
+            { slug: 'en', name: 'English', isDefault: true },
+            { slug: 'de', name: 'Deutsch' },
+            { slug: 'fr', name: 'Français' }
+        ],
+        // What to do at boot when entry rows exist in a locale no longer listed
+        // above. Removing a locale does not remove its rows, and from that
+        // moment they are invisible to every read path — intact and
+        // unreachable, which is the worst shape for a silent failure. Failing
+        // the boot puts the choice (migrate the rows, or restore the locale) in
+        // front of whoever edited this array. `warn` for a deployment knowingly
+        // mid-migration.
+        orphanedLocales: 'fail'
+    };
+}
+
+/** The storage backend `plugins.ts` constructs, plus the upload ceilings. */
+function mediaConfig(): OrthaMediaConfig {
+    return {
+        // Settings for the storage backend `plugins.ts` constructs. There is no
+        // variable naming which backend runs: that is decided by the factory the
+        // composition root imports, so a value here can never point at an
+        // adapter nobody wired.
+        storage: {
+            // Blobs live under a git-ignored project dir by default; point
+            // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
+            rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
+        },
+        // Off unless asked for, and only meaningful on a backend that can sign
+        // a URL — the plugin refuses the combination at boot rather than
+        // proxying while the operator believes otherwise. The default
+        // local-filesystem provider cannot, so setting this here without
+        // switching the provider in `plugins.ts` is a boot error naming both,
+        // which is the intended way to find out.
+        directServe:
+            readEnv('MEDIA_DIRECT_SERVE') === 'signed-url'
+                ? 'signed-url'
+                : 'off',
+        directServeTtlSeconds: readPositiveInt(
+            'MEDIA_DIRECT_SERVE_TTL_SECONDS',
+            300
+        ),
+        // Upload cap — 50 MB by default.
+        maxUploadBytes: readPositiveInt('MEDIA_MAX_UPLOAD_BYTES', 52_428_800)
+    };
+}
+
+/** The copilot kill switch, its run ceilings, and the backends it can reach. */
+function copilotConfig(): OrthaCopilotConfig {
+    return defined({
+        // Off by default (ADR-0005 §10). Enabling a hosted provider sends
+        // workspace content to a third party, so an operator opts in.
+        enabled: readFlag('COPILOT_ENABLED', false),
+        maxOutputTokens: readPositiveInt('COPILOT_MAX_OUTPUT_TOKENS', 8_192),
+        limits: copilotLimits(),
+        providers: copilotProviders()
+    });
+}
+
+/**
+ * The copilot's run ceilings, or nothing at all when the deployment set none.
+ *
+ * Each key is dropped rather than passed as `undefined`, because the engine
+ * merges `{ ...DEFAULT_RUN_LIMITS, ...config.limits }` — an explicit `undefined`
+ * erases the default instead of leaving it. The whole object goes away when
+ * nothing is set, so an untouched `.env` leaves the plugin's defaults visible
+ * rather than pinning them here.
+ *
+ * All three are exposed, not just `maxSteps`. They are checked in the same
+ * loop, so an operator who raises one alone moves the wall rather than lifting
+ * it: a run given more steps but the same wall clock stops on `timeout`
+ * instead, which reads to the user as the same truncated answer. Zero is
+ * rejected rather than silently ignored — `maxSteps: 0` skips the run loop
+ * entirely, yielding a thread that shows a question and then silence, which is
+ * why `CopilotPlugin` refuses it at construction too.
+ *
+ * Raising these costs tokens rather than safety — every step is still
+ * authorized and audited, and a `propose` tool still writes its row before it
+ * writes anything else.
+ */
+function copilotLimits(): CopilotPluginConfig['limits'] | undefined {
+    const limits = defined({
+        maxSteps: readOptionalPositiveInt('COPILOT_MAX_STEPS'),
+        wallClockMs: readOptionalPositiveInt('COPILOT_WALL_CLOCK_MS'),
+        maxTotalTokens: readOptionalPositiveInt('COPILOT_MAX_TOTAL_TOKENS')
+    });
+    return when(Object.keys(limits).length > 0, () => limits);
+}
+
+/**
+ * The model backends this deployment can actually reach, in preference order.
+ *
+ * Each is here only if it was configured. Registering one that cannot answer
+ * used to be harmless because `COPILOT_PROVIDER` decided who served a run; now
+ * the first registered provider does, so a keyless `claude` sitting at the top
+ * of the list would be the default and would fail on the first message. Absent
+ * instead, it is not in the catalogue, not in the picker, and not a default
+ * anybody has to override.
+ */
+function copilotProviders(): OrthaCopilotConfig['providers'] {
+    const anthropicApiKey = readEnv('ANTHROPIC_API_KEY');
+    const openAiBaseUrl = readEnv('COPILOT_OPENAI_BASE_URL');
+    return defined({
+        claude: when(anthropicApiKey, () =>
+            defined({
+                apiKey: anthropicApiKey as string,
+                // Stable product configuration, so literals like the i18n
+                // locales. First is the default; the rest are what a user can
+                // switch to mid-conversation. Comma-separated env override for
+                // pinning a different set without a redeploy.
+                models: readList(
+                    'COPILOT_ANTHROPIC_MODELS',
+                    'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
+                ),
+                baseUrl: readEnv('ANTHROPIC_BASE_URL')
+            })
+        ),
+        ollama: when(openAiBaseUrl, () => ({
+            // A local Ollama is http://localhost:11434/v1 — point it at vLLM,
+            // LiteLLM, Azure or OpenAI instead. No default: an unset variable
+            // means "this deployment has no such backend", not "assume one is
+            // running on this laptop".
+            baseUrl: openAiBaseUrl as string,
+            models: readList('COPILOT_OPENAI_MODELS', 'llama3.1'),
+            apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? ''
+        }))
+    });
+}
+
+/** The public GraphQL endpoint's cost budget. */
+function contentGraphqlConfig(): ContentGraphqlPluginConfig {
+    return {
+        // The cost budget one GraphQL operation may spend. REST bounded a
+        // request structurally — one route, one page — and a GraphQL document
+        // does not, so these are the replacement bound. Stable tuning, hence
+        // literals, with env overrides for an operator who needs to loosen or
+        // tighten them without a redeploy.
+        limits: {
+            maxDepth: readPositiveInt('GRAPHQL_MAX_DEPTH', 8),
+            maxComplexity: readPositiveInt('GRAPHQL_MAX_COMPLEXITY', 1000),
+            maxFields: readPositiveInt('GRAPHQL_MAX_FIELDS', 500),
+            maxQueryLength: readPositiveInt('GRAPHQL_MAX_QUERY_LENGTH', 16_384)
+        },
+        // How long a built schema is reused before it is derived again from the
+        // workspace's content grants. Freshness only — every read is authorized
+        // against the live grants regardless.
+        schemaCacheTtlMs: readPositiveInt('GRAPHQL_SCHEMA_CACHE_TTL_MS', 60_000)
+    };
+}
+
+/** The MCP front door — kill switch, identity, and the two result ceilings. */
+function mcpConfig(): McpPluginConfig {
+    return {
+        // Off by default, like the copilot's kill switch and for the same
+        // reason: enabling it lets any holder of a `full`-scope API token drive
+        // content CRUD from an external agent. That is a decision an operator
+        // makes deliberately, not one they inherit from an upgrade. Tokens,
+        // scopes, and workspace buckets are unchanged — this only controls
+        // whether the MCP front door is mounted.
+        enabled: readFlag('MCP_ENABLED', false),
+        // Stable product configuration, so literals: this is the identity MCP
+        // clients display in their connector lists.
+        name: 'ortha-cms',
+        version: '1.0.0',
+        // A request/response transport owes its caller an answer. The registry
+        // has no deadline of its own, so without this the only bound on a
+        // `tools/call` is the query underneath it — and a blocked pool turns one
+        // call into a socket held until the client gives up. 30s is generous for
+        // every shipped tool and far short of the load balancer idle timeouts
+        // these deployments sit behind.
+        callTimeoutMs: readPositiveInt('MCP_CALL_TIMEOUT_MS', 30_000),
+        // Deliberately generous: nothing in the catalogue returns this much
+        // today, so the ceiling exists to keep a pathological result from being
+        // serialised three times over rather than to shape normal use. A result
+        // this large does not fit a model's context either.
+        maxResultBytes: readPositiveInt('MCP_MAX_RESULT_BYTES', 4_194_304)
+    };
+}
+
+/** Export/import — the per-type identity fields and the transfer ceilings. */
+function transferConfig(): TransferPluginConfig {
+    return {
+        // Which field identifies a record of each type, per content type.
+        //
+        // This is the setting that decides whether importing the same file
+        // twice updates the records or duplicates them. Left out, a type falls
+        // back to a derived guess — a field *named* like an identifier (`slug`,
+        // `sku`, `email`), then the first required text field — which is usually
+        // right and is reported in every export's manifest, but is still a
+        // guess. Name the fields for any type where being wrong would be
+        // expensive:
+        //
+        //   identity: { product: ['sku'], author: ['email'] }
+        //
+        // The shipped template registers no content types, so there is nothing
+        // to key here yet.
+        identity: {},
+        // Ceilings on one transfer. The defaults (see
+        // `DEFAULT_TRANSFER_LIMITS`) sit comfortably above real editorial work
+        // and far below "the whole library"; the import-side archive limits are
+        // a safety boundary rather than a capacity setting, so lowering them
+        // costs nothing and raising them should be deliberate.
+        limits: {}
+    };
+}
+
+/** Reader entitlements — where a reader's tags come from. */
+function segmentsConfig(): SegmentsPluginConfig {
+    return {
+        // Where a reader's tags come from — the one line this feature needs per
+        // install. A resolver receives the request, so a JWT claim, a header the
+        // CDN sets, or a lookup against a billing system are all equally
+        // reachable:
+        //
+        //   resolver: {
+        //       resolve: async (request) => readTagsFrom(request)
+        //   }
+        //
+        // Left out — as it is here — every reader is anonymous, so unrestricted
+        // content serves and restricted content does not. That is a working
+        // configuration, and it fails in the safe direction: an audience nobody
+        // can be resolved into cannot accidentally be admitted.
+    };
+}
+
+const config: OrthaConfig = {
+    port: readPositiveInt('PORT', 3000),
+    globalPrefix: 'api',
+    trustProxy: trustProxy(),
+    bodyLimit: bodyLimit(),
+    database: {
+        url: requireEnv('DATABASE_URL')
     },
+    docs: docsConfig(),
     plugins: {
-        identity: {
-            // Origins allowed to call state-changing endpoints (login-CSRF
-            // defense). Comma-separated; defaults to the dev admin origin —
-            // which follows `ADMIN_PORT`, so a parallel worktree stack on
-            // :4201 is not rejected by a default pinned to :4200.
-            allowedOrigins: (
-                process.env['ALLOWED_ORIGINS'] ?? defaultAdminOrigin()
-            )
-                .split(',')
-                .map((origin) => origin.trim())
-                .filter(Boolean),
-            session: {
-                ttlSeconds: readPositiveInt(
-                    'SESSION_TTL_SECONDS',
-                    60 * 60 * 24 * 7
-                ),
-                cookieSecure: isProduction,
-                cookieSameSite: 'lax'
-            },
-            token: {
-                inviteTtlSeconds: readPositiveInt(
-                    'INVITE_TTL_SECONDS',
-                    60 * 60 * 24 * 7
-                ),
-                resetTtlSeconds: readPositiveInt('RESET_TTL_SECONDS', 60 * 60)
-            },
-            // Login rate limit. Defaults preserve the historical 10 req / 60s.
-            rateLimit: {
-                ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
-                limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
-            },
-            rootAdmin: {
-                email: process.env['ORTHA_ROOT_ADMIN_EMAIL'] ?? '',
-                password: process.env['ORTHA_ROOT_ADMIN_PASSWORD'] ?? '',
-                name: process.env['ORTHA_ROOT_ADMIN_NAME'] ?? ''
-            },
-            // Single sign-on. The *providers* are not here — they are
-            // constructed adapters and are registered in `plugins.ts`, the same
-            // split the copilot makes between connection settings and built
-            // backends. What lives here is the deployment shape of the
-            // handshake.
-            sso: {
-                // The origin browsers reach this API on. It builds the
-                // `redirect_uri` registered with each identity provider, and it
-                // is configured rather than read from the request's `Host`
-                // header — which a client controls, and could therefore point
-                // at an origin of its choosing. Unset, it falls back to the
-                // first `allowedOrigins` entry, which is right whenever the
-                // admin and the API share an origin: the deployed shape, and
-                // the dev one where Vite proxies `/api`.
-                ...(process.env['SSO_PUBLIC_BASE_URL']
-                    ? { publicBaseUrl: process.env['SSO_PUBLIC_BASE_URL'] }
-                    : {}),
-                // How long one sign-in attempt stays live. Ten minutes by
-                // default: a consent screen plus a second factor, and no
-                // longer — an attempt left open in a forgotten tab should not
-                // be a credential sitting around for the afternoon.
-                requestTtlSeconds: readPositiveInt(
-                    'SSO_REQUEST_TTL_SECONDS',
-                    600
-                ),
-                // Just-in-time provisioning, off unless a domain list is set.
-                // The list is what makes this safe: an identity provider
-                // answers for everyone it knows, and a public one knows
-                // everyone, so provisioning without one means anybody with an
-                // account there can sign in here — and nothing breaks to say
-                // so, the user list simply grows.
-                ...(process.env['SSO_PROVISION_DOMAINS']
-                    ? {
-                          provisioning: {
-                              domains: readList('SSO_PROVISION_DOMAINS', ''),
-                              defaultRole:
-                                  process.env['SSO_PROVISION_ROLE'] ?? 'viewer'
-                          }
-                      }
-                    : {}),
-                // Passwords stay on unless a deployment turns them off. The
-                // root administrator keeps one regardless — see the note on
-                // `IdentitySsoConfig.allowPasswordLogin`; without that
-                // exemption a mis-scoped provider locks an operator out of
-                // their own CMS with no way back short of a database client.
-                allowPasswordLogin:
-                    process.env['SSO_ALLOW_PASSWORD_LOGIN'] !== 'false',
-                // Shorter than the ordinary session lifetime for a provider
-                // with no back-channel logout: without one, a session's own
-                // expiry is the only thing that eventually ends access after
-                // somebody is offboarded.
-                ...(process.env['SSO_SESSION_TTL_SECONDS']
-                    ? {
-                          sessionTtlSeconds: readPositiveInt(
-                              'SSO_SESSION_TTL_SECONDS',
-                              600
-                          )
-                      }
-                    : {})
-            },
-            ssoProviders: {
-                ...(ssoOidcIssuer && ssoOidcClientId
-                    ? {
-                          oidc: {
-                              // What the route and every link row call this
-                              // provider. Stable by necessity: renaming it
-                              // orphans the links that name it.
-                              name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
-                              issuer: ssoOidcIssuer,
-                              clientId: ssoOidcClientId,
-                              ...(process.env['SSO_OIDC_CLIENT_SECRET']
-                                  ? {
-                                        clientSecret:
-                                            process.env[
-                                                'SSO_OIDC_CLIENT_SECRET'
-                                            ]
-                                    }
-                                  : {}),
-                              ...(process.env['SSO_OIDC_LABEL']
-                                  ? { label: process.env['SSO_OIDC_LABEL'] }
-                                  : {}),
-                              ...(process.env['SSO_OIDC_SCOPES']
-                                  ? {
-                                        scopes: readList(
-                                            'SSO_OIDC_SCOPES',
-                                            'openid,profile,email'
-                                        )
-                                    }
-                                  : {}),
-                              // Only when an operator says so. The claim is the
-                              // sole gate on a first sign-in claiming an
-                              // existing account, so a provider that omits it
-                              // — Entra ID, notably — links nobody until
-                              // someone asserts that this directory owns the
-                              // addresses it reports.
-                              emailVerifiedWhenAbsent:
-                                  process.env[
-                                      'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT'
-                                  ] === 'true'
-                          }
-                      }
-                    : {}),
-                ...(ssoGithubClientId && ssoGithubClientSecret
-                    ? {
-                          github: {
-                              name: process.env['SSO_GITHUB_NAME'] ?? 'github',
-                              clientId: ssoGithubClientId,
-                              clientSecret: ssoGithubClientSecret,
-                              ...(process.env['SSO_GITHUB_LABEL']
-                                  ? { label: process.env['SSO_GITHUB_LABEL'] }
-                                  : {}),
-                              ...(process.env['SSO_GITHUB_ENTERPRISE_URL']
-                                  ? {
-                                        enterpriseBaseUrl:
-                                            process.env[
-                                                'SSO_GITHUB_ENTERPRISE_URL'
-                                            ]
-                                    }
-                                  : {}),
-                              ...(process.env['SSO_GITHUB_ORG']
-                                  ? {
-                                        organization:
-                                            process.env['SSO_GITHUB_ORG']
-                                    }
-                                  : {})
-                          }
-                      }
-                    : {}),
-                ...(ssoSamlEntryPoint && ssoSamlCert
-                    ? {
-                          saml: {
-                              name: process.env['SSO_SAML_NAME'] ?? 'saml',
-                              entryPoint: ssoSamlEntryPoint,
-                              idpCert: ssoSamlCert,
-                              // The entity id the identity provider has
-                              // registered for this application. Defaults to
-                              // the CMS's own origin, which is what most
-                              // administrators enter when nobody tells them
-                              // otherwise.
-                              issuer:
-                                  process.env['SSO_SAML_ISSUER'] ??
-                                  process.env['SSO_PUBLIC_BASE_URL'] ??
-                                  '',
-                              ...(process.env['SSO_SAML_LABEL']
-                                  ? { label: process.env['SSO_SAML_LABEL'] }
-                                  : {}),
-                              ...(process.env['SSO_SAML_SUBJECT_ATTRIBUTE']
-                                  ? {
-                                        subjectAttribute:
-                                            process.env[
-                                                'SSO_SAML_SUBJECT_ATTRIBUTE'
-                                            ]
-                                    }
-                                  : {}),
-                              ...(process.env['SSO_SAML_EMAIL_ATTRIBUTE']
-                                  ? {
-                                        emailAttribute:
-                                            process.env[
-                                                'SSO_SAML_EMAIL_ATTRIBUTE'
-                                            ]
-                                    }
-                                  : {}),
-                              ...(process.env['SSO_SAML_GROUPS_ATTRIBUTE']
-                                  ? {
-                                        groupsAttribute:
-                                            process.env[
-                                                'SSO_SAML_GROUPS_ATTRIBUTE'
-                                            ]
-                                    }
-                                  : {}),
-                              // SAML carries no verification claim at all, so
-                              // this is always an operator's assertion that
-                              // their directory owns the addresses it reports.
-                              emailVerified:
-                                  process.env['SSO_SAML_EMAIL_VERIFIED'] ===
-                                  'true'
-                          }
-                      }
-                    : {})
-            }
-        },
-        i18n: {
-            // Content locales — stable product configuration, so literals
-            // (like the rest of the non-secret tuning here). The slugs are
-            // stored on entry rows; the migration backfill assumes 'en' is
-            // the default.
-            locales: [
-                { slug: 'en', name: 'English', isDefault: true },
-                { slug: 'de', name: 'Deutsch' },
-                { slug: 'fr', name: 'Français' }
-            ],
-            // What to do at boot when entry rows exist in a locale no longer
-            // listed above. Removing a locale does not remove its rows, and
-            // from that moment they are invisible to every read path — intact
-            // and unreachable, which is the worst shape for a silent failure.
-            // Failing the boot puts the choice (migrate the rows, or restore
-            // the locale) in front of whoever edited this array. `warn` for a
-            // deployment knowingly mid-migration.
-            orphanedLocales: 'fail'
-        },
-        transfer: {
-            // Which field identifies a record of each type, per content type.
-            //
-            // This is the setting that decides whether importing the same file
-            // twice updates the records or duplicates them. Left out, a type
-            // falls back to a derived guess — a field *named* like an
-            // identifier (`slug`, `sku`, `email`), then the first required text
-            // field — which is usually right and is reported in every export's
-            // manifest, but is still a guess. Name the fields for any type
-            // where being wrong would be expensive:
-            //
-            //   identity: { product: ['sku'], author: ['email'] }
-            //
-            // The shipped template registers no content types, so there is
-            // nothing to key here yet.
-            identity: {},
-            // Ceilings on one transfer. The defaults (see
-            // `DEFAULT_TRANSFER_LIMITS`) sit comfortably above real editorial
-            // work and far below "the whole library"; the import-side archive
-            // limits are a safety boundary rather than a capacity setting, so
-            // lowering them costs nothing and raising them should be
-            // deliberate.
-            limits: {}
-        },
-        segments: {
-            // Where a reader's tags come from — the one line this feature needs
-            // per install. A resolver receives the request, so a JWT claim, a
-            // header the CDN sets, or a lookup against a billing system are all
-            // equally reachable:
-            //
-            //   resolver: {
-            //       resolve: async (request) => readTagsFrom(request)
-            //   }
-            //
-            // Left out — as it is here — every reader is anonymous, so
-            // unrestricted content serves and restricted content does not.
-            // That is a working configuration, and it fails in the safe
-            // direction: an audience nobody can be resolved into cannot
-            // accidentally be admitted.
-        },
-        media: {
-            // Settings for the storage backend `plugins.ts` constructs. There
-            // is no variable naming which backend runs: that is decided by the
-            // factory the composition root imports, so a value here can never
-            // point at an adapter nobody wired.
-            storage: {
-                // Blobs live under a git-ignored project dir by default; point
-                // MEDIA_LOCAL_ROOT at a persistent volume for real deployments.
-                rootDir: process.env['MEDIA_LOCAL_ROOT'] ?? './.storage/media'
-            },
-            // Off unless asked for, and only meaningful on a backend that can
-            // sign a URL — the plugin refuses the combination at boot rather
-            // than proxying while the operator believes otherwise. The default
-            // local-filesystem provider cannot, so setting this here without
-            // switching the provider in `plugins.ts` is a boot error naming
-            // both, which is the intended way to find out.
-            directServe:
-                process.env['MEDIA_DIRECT_SERVE'] === 'signed-url'
-                    ? 'signed-url'
-                    : 'off',
-            directServeTtlSeconds: readPositiveInt(
-                'MEDIA_DIRECT_SERVE_TTL_SECONDS',
-                300
-            ),
-            // Upload cap — 50 MB by default.
-            maxUploadBytes: readPositiveInt(
-                'MEDIA_MAX_UPLOAD_BYTES',
-                52_428_800
-            )
-        },
-        contentGraphql: {
-            // The cost budget one GraphQL operation may spend. REST bounded a
-            // request structurally — one route, one page — and a GraphQL
-            // document does not, so these are the replacement bound. Stable
-            // tuning, hence literals, with env overrides for an operator who
-            // needs to loosen or tighten them without a redeploy.
-            limits: {
-                maxDepth: readPositiveInt('GRAPHQL_MAX_DEPTH', 8),
-                maxComplexity: readPositiveInt('GRAPHQL_MAX_COMPLEXITY', 1000),
-                maxFields: readPositiveInt('GRAPHQL_MAX_FIELDS', 500),
-                maxQueryLength: readPositiveInt(
-                    'GRAPHQL_MAX_QUERY_LENGTH',
-                    16_384
-                )
-            },
-            // How long a built schema is reused before it is derived again from
-            // the workspace's content grants. Freshness only — every read is
-            // authorized against the live grants regardless.
-            schemaCacheTtlMs: readPositiveInt(
-                'GRAPHQL_SCHEMA_CACHE_TTL_MS',
-                60_000
-            )
-        },
-        copilot: {
-            // Off by default (ADR-0005 §10). Enabling a hosted provider sends
-            // workspace content to a third party, so an operator opts in.
-            enabled: process.env['COPILOT_ENABLED'] === 'true',
-            maxOutputTokens: readPositiveInt(
-                'COPILOT_MAX_OUTPUT_TOKENS',
-                8_192
-            ),
-            // Run ceilings, each keeping `DEFAULT_RUN_LIMITS` when unset. The
-            // whole object is spread away when nothing is set, so an untouched
-            // `.env` leaves the plugin's defaults visible rather than pinning
-            // them here. Raising these costs tokens rather than safety — every
-            // step is still authorized and audited, and a `propose` tool still
-            // writes its row before it writes anything else.
-            ...(Object.keys(runLimits).length > 0 ? { limits: runLimits } : {}),
-            // Each backend is here only if it was configured. Registering
-            // one that cannot answer used to be harmless because
-            // `COPILOT_PROVIDER` decided who served a run; now the first
-            // registered provider does, so a keyless `claude` sitting at the
-            // top of the list would be the default and would fail on the first
-            // message. Absent instead, it is not in the catalogue, not in the
-            // picker, and not a default anybody has to override.
-            providers: {
-                ...(anthropicApiKey
-                    ? {
-                          claude: {
-                              apiKey: anthropicApiKey,
-                              // Stable product configuration, so literals like
-                              // the i18n locales. First is the default; the
-                              // rest are what a user can switch to
-                              // mid-conversation. Comma-separated env override
-                              // for pinning a different set without a redeploy.
-                              models: readList(
-                                  'COPILOT_ANTHROPIC_MODELS',
-                                  'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
-                              ),
-                              ...(process.env['ANTHROPIC_BASE_URL']
-                                  ? {
-                                        baseUrl:
-                                            process.env['ANTHROPIC_BASE_URL']
-                                    }
-                                  : {})
-                          }
-                      }
-                    : {}),
-                ...(openAiBaseUrl
-                    ? {
-                          ollama: {
-                              // A local Ollama is http://localhost:11434/v1 —
-                              // point it at vLLM, LiteLLM, Azure or OpenAI
-                              // instead. No default: an unset variable means
-                              // "this deployment has no such backend", not
-                              // "assume one is running on this laptop".
-                              baseUrl: openAiBaseUrl,
-                              models: readList(
-                                  'COPILOT_OPENAI_MODELS',
-                                  'llama3.1'
-                              ),
-                              apiKey:
-                                  process.env['COPILOT_OPENAI_API_KEY'] ?? ''
-                          }
-                      }
-                    : {})
-            }
-        },
-        mcp: {
-            // Off by default, like the copilot's kill switch and for the same
-            // reason: enabling it lets any holder of a `full`-scope API token
-            // drive content CRUD from an external agent. That is a decision an
-            // operator makes deliberately, not one they inherit from an
-            // upgrade. Tokens, scopes, and workspace buckets are unchanged —
-            // this only controls whether the MCP front door is mounted.
-            enabled: process.env['MCP_ENABLED'] === 'true',
-            // Stable product configuration, so literals: this is the identity
-            // MCP clients display in their connector lists.
-            name: 'ortha-cms',
-            version: '1.0.0',
-            // A request/response transport owes its caller an answer. The
-            // registry has no deadline of its own, so without this the only
-            // bound on a `tools/call` is the query underneath it — and a
-            // blocked pool turns one call into a socket held until the client
-            // gives up. 30s is generous for every shipped tool and far short of
-            // the load balancer idle timeouts these deployments sit behind.
-            callTimeoutMs: readPositiveInt('MCP_CALL_TIMEOUT_MS', 30_000),
-            // Deliberately generous: nothing in the catalogue returns this much
-            // today, so the ceiling exists to keep a pathological result from
-            // being serialised three times over rather than to shape normal
-            // use. A result this large does not fit a model's context either.
-            maxResultBytes: readPositiveInt('MCP_MAX_RESULT_BYTES', 4_194_304)
-        }
+        identity: identityConfig(),
+        i18n: i18nConfig(),
+        transfer: transferConfig(),
+        segments: segmentsConfig(),
+        media: mediaConfig(),
+        contentGraphql: contentGraphqlConfig(),
+        copilot: copilotConfig(),
+        mcp: mcpConfig()
     }
 };
 
