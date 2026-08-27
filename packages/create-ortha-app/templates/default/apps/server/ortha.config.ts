@@ -8,15 +8,41 @@
  *
  * **Shape:** one builder function per plugin, then a flat `config` literal that
  * calls them. The literal is the table of contents; a builder is where one
- * plugin's settings are derived. Anything conditional is a *value* — `when(…)`
- * for a whole block, `defined(…)` to drop the keys that were never set — so the
- * config object itself stays free of `...(x ? { … } : {})` spreads.
+ * plugin's settings are derived. Anything conditional is a *value* — a builder
+ * returns `undefined` for a backend this deployment did not configure, and
+ * `defined(…)` drops the keys that were never set — so the config object itself
+ * stays free of `...(x ? { … } : {})` spreads.
+ *
+ * *How* a value is parsed comes from `@orthacms/utils-server`: each reader
+ * refuses a value it cannot honour instead of guessing, which is what stops a
+ * misconfigured deployment from looking configured. Add your own settings by
+ * calling them here — this file names the variables and their defaults.
  */
 import { join } from 'node:path';
 import type {
     ApiDocsOptions,
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
+// The readers that turn `process.env` into typed values, and `defined`, which
+// turns an unset one into an absent key rather than an explicit `undefined`
+// (which would erase a plugin's own default instead of leaving it). Shared
+// rather than hand-rolled here: each reader refuses a value it cannot honour
+// instead of guessing, and the guessing is what makes a misconfigured
+// deployment look configured. See `@orthacms/utils-server`.
+//
+// Every name here is used in every generated app, whatever the wizard was asked
+// for. An import that only a switched-off feature needed would be left
+// dangling: `ortha:if` drops the block that used it, not the import.
+import {
+    defined,
+    isProduction,
+    readEnv,
+    readFlag,
+    readList,
+    readPositiveInt,
+    readTrustProxy,
+    requireEnv
+} from '@orthacms/utils-server';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 // ortha:if sso-oidc
 import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
@@ -144,151 +170,6 @@ export interface OrthaConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Reading the environment
-//
-// Every reader returns a *value* — the setting, or `undefined` for "this
-// deployment did not configure it". Nothing returns a fragment of an object, so
-// nothing has to be spread conditionally at the call site.
-// ---------------------------------------------------------------------------
-
-/**
- * A trimmed environment value, `undefined` when unset **or empty**.
- *
- * The empty case matters: `.env.example` ships keys with no value, so `KEY=`
- * has to read the same as "not configured" — otherwise the app starts with an
- * empty API key instead of without a provider.
- */
-function readEnv(name: string): string | undefined {
-    return process.env[name]?.trim() || undefined;
-}
-
-/**
- * Reads a value the app cannot run without, failing at load rather than
- * several seconds into boot.
- *
- * Allowed to default to `''`, a missing `DATABASE_URL` reaches `pg` as "use
- * the libpq defaults" — so the first query fails with whatever the local
- * environment happens to produce, and nothing in the message names the
- * variable nobody set.
- */
-function requireEnv(name: string): string {
-    const raw = readEnv(name);
-    if (!raw) {
-        throw new Error(
-            `Missing required environment variable ${name}. ` +
-                'Set it in your .env before starting the app.'
-        );
-    }
-    return raw;
-}
-
-/**
- * A numeric setting: the default when unset, the value when it is a plain
- * positive integer, and an error otherwise.
- *
- * Deliberately not `Number(process.env[x]) || fallback`, which is wrong in
- * three directions and silent in all of them: `0` is falsy so it becomes the
- * default, a negative is truthy so it is accepted (a negative session TTL
- * issues every session already expired), and `1e9` parses.
- */
-function readPositiveInt(name: string, fallback: number): number {
-    const raw = readEnv(name);
-    if (!raw) return fallback;
-
-    if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
-        throw new Error(
-            `Environment variable ${name} must be a positive whole number ` +
-                `(got "${raw}").`
-        );
-    }
-    return Number(raw);
-}
-
-/** A comma-separated list setting, trimmed and emptied of blanks. */
-function readList(name: string, fallback: string): string[] {
-    return (process.env[name] ?? fallback)
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-}
-
-/**
- * A boolean setting: what the deployment said, or `fallback` when it said
- * nothing. Anything other than `true` reads as false, so a typo turns a switch
- * off rather than on.
- */
-function readFlag(name: string, fallback: boolean): boolean {
-    const raw = readEnv(name);
-    return raw === undefined ? fallback : raw === 'true';
-}
-
-/**
- * The value when the setting was configured, `undefined` when it was not.
- *
- * The counterpart to {@link defined}: together they replace
- * `...(x ? { key: … } : {})`. `build` is a thunk, so the body — often several
- * further reads — runs only when it applies.
- */
-function when<T>(configured: unknown, build: () => T): T | undefined {
-    return configured ? build() : undefined;
-}
-
-/**
- * The same object with every `undefined`-valued key removed.
- *
- * Plugins merge their defaults as `{ ...DEFAULTS, ...config }`, so an explicit
- * `{ key: undefined }` does not leave the default in place — it erases it.
- * Dropping the key is what "the deployment did not set this" has to mean.
- */
-function defined<T extends object>(value: T): T {
-    const result: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-        if (item !== undefined) {
-            result[key] = item;
-        }
-    }
-    return result as T;
-}
-
-/**
- * Express's `trust proxy` setting: a hop count (the recommended form, and the
- * only one a client cannot forge past), a boolean, or a subnet/preset string
- * passed through verbatim. Unset leaves forwarded headers ignored.
- */
-function trustProxy(): TrustProxySetting | undefined {
-    const raw = readEnv('TRUST_PROXY');
-    if (!raw) return undefined;
-
-    const hops = Number(raw);
-    if (Number.isInteger(hops) && hops >= 0) return hops;
-    if (raw === 'true' || raw === 'false') return raw === 'true';
-
-    return raw;
-}
-
-/**
- * True only in a deployment that said so, spelling checked.
- *
- * This one comparison gates two protections at once — whether the API
- * reference is published, and whether the session cookie carries `Secure` — so
- * a typo silently turns both off and is indistinguishable from correct
- * configuration until you read a `Set-Cookie` header.
- */
-const NODE_ENVS = ['development', 'test', 'production'] as const;
-const nodeEnv = readEnv('NODE_ENV');
-
-if (nodeEnv && !(NODE_ENVS as readonly string[]).includes(nodeEnv)) {
-    throw new Error(
-        `NODE_ENV is "${nodeEnv}", which this app does not recognise — expected ` +
-            `one of ${NODE_ENVS.join(', ')}, or nothing at all for local ` +
-            'development. Anything else reads as "not production", which ' +
-            'publishes the API reference and drops `Secure` from the session cookie.'
-    );
-}
-
-const isProduction = nodeEnv === 'production';
-
-// ---------------------------------------------------------------------------
 // One builder per section
 // ---------------------------------------------------------------------------
 
@@ -297,7 +178,7 @@ function docsConfig(): ApiDocsOptions {
     return {
         // On outside production, where the reference is a development tool.
         // `API_DOCS=true` publishes it from a deployed instance.
-        enabled: readFlag('API_DOCS', !isProduction),
+        enabled: readFlag('API_DOCS', !isProduction()),
         title: '__APP_TITLE__ API',
         version: '1.0.0'
     };
@@ -316,7 +197,7 @@ function identityConfig(): AppIdentityConfig {
         ),
         session: {
             ttlSeconds: readPositiveInt('SESSION_TTL_SECONDS', 60 * 60 * 24 * 7),
-            cookieSecure: isProduction,
+            cookieSecure: isProduction(),
             cookieSameSite: 'lax' as const
         },
         token: {
@@ -370,23 +251,24 @@ function ssoConfig(): NonNullable<IdentityPluginConfig['sso']> {
 function oidcProvider(): (OidcProviderConfig & { name: string }) | undefined {
     const issuer = readEnv('SSO_OIDC_ISSUER');
     const clientId = readEnv('SSO_OIDC_CLIENT_ID');
-    return when(issuer && clientId, () =>
-        defined({
-            name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
-            issuer: issuer as string,
-            clientId: clientId as string,
-            clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),
-            label: readEnv('SSO_OIDC_LABEL'),
-            // The only gate on a first sign-in claiming an existing account. A
-            // provider that omits the claim — Entra ID, notably — links nobody
-            // until an operator asserts that this directory owns the addresses
-            // it reports.
-            emailVerifiedWhenAbsent: readFlag(
-                'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT',
-                false
-            )
-        })
-    );
+    if (!issuer || !clientId) {
+        return undefined;
+    }
+    return defined({
+        name: process.env['SSO_OIDC_NAME'] ?? 'oidc',
+        issuer,
+        clientId,
+        clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),
+        label: readEnv('SSO_OIDC_LABEL'),
+        // The only gate on a first sign-in claiming an existing account. A
+        // provider that omits the claim — Entra ID, notably — links nobody
+        // until an operator asserts that this directory owns the addresses it
+        // reports.
+        emailVerifiedWhenAbsent: readFlag(
+            'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT',
+            false
+        )
+    });
 }
 // ortha:end
 
@@ -486,10 +368,10 @@ function mediaStorage(): S3StorageConfig {
         // Absent means "use the SDK's own provider chain" — an instance role,
         // IRSA, a shared config file. Passing blanks instead would shadow all
         // of that with credentials that cannot sign.
-        credentials: when(accessKeyId && secretAccessKey, () => ({
-            accessKeyId: accessKeyId as string,
-            secretAccessKey: secretAccessKey as string
-        }))
+        credentials:
+            accessKeyId && secretAccessKey
+                ? { accessKeyId, secretAccessKey }
+                : undefined
     });
 }
 // ortha:end
@@ -511,7 +393,6 @@ function copilotConfig(): AppCopilotConfig {
         })
     };
 }
-
 // ortha:if copilot-anthropic
 /**
  * Native Claude, or nothing.
@@ -522,10 +403,13 @@ function copilotConfig(): AppCopilotConfig {
  */
 function anthropicProvider(): AnthropicProviderConfig | undefined {
     const apiKey = readEnv('ANTHROPIC_API_KEY');
-    return when(apiKey, () => ({
-        apiKey: apiKey as string,
+    if (!apiKey) {
+        return undefined;
+    }
+    return {
+        apiKey,
         models: readList('COPILOT_ANTHROPIC_MODELS', 'claude-sonnet-5')
-    }));
+    };
 }
 // ortha:end
 // ortha:if copilot-openai
@@ -536,11 +420,14 @@ function anthropicProvider(): AnthropicProviderConfig | undefined {
  */
 function openAiProvider(): OpenAiProviderConfig | undefined {
     const baseUrl = readEnv('COPILOT_OPENAI_BASE_URL');
-    return when(baseUrl, () => ({
-        baseUrl: baseUrl as string,
+    if (!baseUrl) {
+        return undefined;
+    }
+    return {
+        baseUrl,
         apiKey: process.env['COPILOT_OPENAI_API_KEY'] ?? '',
         models: readList('COPILOT_OPENAI_MODELS', 'llama3.1')
-    }));
+    };
 }
 // ortha:end
 
@@ -570,7 +457,7 @@ function mcpConfig(): McpPluginConfig {
 const config: OrthaConfig = {
     port: readPositiveInt('PORT', 3000),
     globalPrefix: 'api',
-    trustProxy: trustProxy(),
+    trustProxy: readTrustProxy(),
     bodyLimit: readEnv('MAX_REQUEST_BODY') ?? '1mb',
     // The built admin bundle, served by this same process so the API and the
     // UI share one origin — which is what identity's httpOnly, SameSite=lax
@@ -580,7 +467,10 @@ const config: OrthaConfig = {
     // must mean the same thing whether it is read from `dist/` or from source.
     staticDir: join(process.cwd(), 'dist/admin'),
     database: {
-        url: requireEnv('DATABASE_URL')
+        url: requireEnv(
+            'DATABASE_URL',
+            'Set it in your .env before starting the app.'
+        )
     },
     docs: docsConfig(),
     plugins: {

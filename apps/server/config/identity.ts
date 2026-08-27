@@ -6,7 +6,6 @@ import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 
 import {
     defined,
-    isProduction,
     readEnv,
     readFlag,
     readList,
@@ -14,7 +13,9 @@ import {
     readOptionalPositiveInt,
     readPositiveInt,
     when
-} from './env';
+} from '@orthacms/utils-server';
+
+import { isProduction } from './env';
 
 /**
  * Identity settings, plus the connection settings for the identity providers

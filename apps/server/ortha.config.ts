@@ -19,6 +19,12 @@
  * (`LAYOUT.compiledConfig`), `@orthacms/nx` infers the migration targets onto
  * the project that has an `ortha.config.ts`, and the types below are imported
  * from here by `src/plugins.ts` and by `apps/server-e2e`.
+ *
+ * *How* a value is parsed is not decided in this folder at all: the readers
+ * come from `@orthacms/utils-server`, shared with the scaffolder's template so
+ * a generated app validates its environment exactly as this one does. `config/`
+ * names the variables and their defaults; the readers decide what a value has
+ * to look like to be honoured, and refuse it otherwise.
  */
 
 import type {
@@ -30,8 +36,8 @@ import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
+import { readPositiveInt, requireEnv } from '@orthacms/utils-server';
 
-import { requireEnv, readPositiveInt } from './config/env';
 import { bodyLimit, trustProxy } from './config/server';
 import { docsConfig } from './config/docs';
 import { identityConfig, type OrthaIdentityConfig } from './config/identity';
@@ -105,7 +111,11 @@ const config: OrthaConfig = {
     trustProxy: trustProxy(),
     bodyLimit: bodyLimit(),
     database: {
-        url: requireEnv('DATABASE_URL')
+        url: requireEnv(
+            'DATABASE_URL',
+            'Copy `.env.example` to `.env` and set it (see `README.md`); ' +
+                'the server has no usable default for this value.'
+        )
     },
     docs: docsConfig(),
     plugins: {

@@ -24,14 +24,16 @@ point: it holds almost no logic. It assembles the product by handing a list of
   `@orthacms/cli` looks for exactly `dist/server/ortha.config.js`, `@orthacms/nx`
   infers the migration targets onto the project that has an `ortha.config.ts`,
   and `src/plugins.ts` and `apps/server-e2e` import its types.
-- `config/` — the single place that reads `process.env`, and `config/env.ts` the
-  only file in it that touches `process.env` directly: every builder asks for a
-  setting through one of its readers, so "what does an empty value mean", "what
-  counts as a number" and "what happens when it is missing" are answered once.
+- `config/` — the single place that reads `process.env`. **How** a value is
+  parsed is not decided here: the readers (`readEnv`, `requireEnv`,
+  `readPositiveInt`, `readList`, `readFlag`, `readTrustProxy`, `readNodeEnv`)
+  live in `@orthacms/utils-server`, shared with the scaffolder's template so a
+  generated app validates its environment the same way. These modules name the
+  variables and the defaults.
   Nothing conditional is spread into a config object — `when(…)` yields a block
   or `undefined`, `defined(…)` drops the keys that were never set, because
   plugins merge as `{ ...DEFAULTS, ...config }` and an explicit `undefined`
-  erases a default instead of leaving it.
+  erases a default instead of leaving it. Both are shared too.
   Values are **validated at import**: a missing `DATABASE_URL`, a numeric
   setting that is not a plain positive integer, or a `NODE_ENV` that is not one
   of `development` / `test` / `production` refuses to load rather than booting a

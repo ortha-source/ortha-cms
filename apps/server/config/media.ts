@@ -2,7 +2,7 @@
 import type { MediaPluginConfig } from '@orthacms/media-server';
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
 
-import { readEnv, readPositiveInt } from './env';
+import { readEnv, readPositiveInt } from '@orthacms/utils-server';
 
 /**
  * Media settings, plus the connection settings for the one storage backend this

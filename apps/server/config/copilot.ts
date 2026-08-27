@@ -11,7 +11,7 @@ import {
     readOptionalPositiveInt,
     readPositiveInt,
     when
-} from './env';
+} from '@orthacms/utils-server';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this

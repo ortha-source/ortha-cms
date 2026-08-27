@@ -1,7 +1,9 @@
 /** The OpenAPI document and the Scalar API reference it is served as. */
 import type { ApiDocsOptions } from '@orthacms/bootstrap-server';
 
-import { isProduction, readFlag } from './env';
+import { readFlag } from '@orthacms/utils-server';
+
+import { isProduction } from './env';
 
 /** OpenAPI document + Scalar API reference settings. */
 export function docsConfig(): ApiDocsOptions {

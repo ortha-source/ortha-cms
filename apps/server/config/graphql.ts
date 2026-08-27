@@ -1,7 +1,7 @@
 /** The public GraphQL endpoint's cost budget. */
 import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 
-import { readPositiveInt } from './env';
+import { readPositiveInt } from '@orthacms/utils-server';
 
 /** The public GraphQL endpoint's cost budget. */
 export function contentGraphqlConfig(): ContentGraphqlPluginConfig {
