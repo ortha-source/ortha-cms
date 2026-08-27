@@ -5,6 +5,12 @@
  * downstream (`createServer`, plugins) receives typed config — nothing
  * else should reach for environment variables directly. Deploy-specific
  * values come from the environment; stable tuning lives here as literals.
+ *
+ * *How* a value is read is not decided here: the readers come from
+ * `@orthacms/utils-server`, shared with the scaffolder's template so a
+ * generated app validates its environment exactly as this one does. Each
+ * refuses a value it cannot honour rather than guessing, so this file is left
+ * naming the variables and their defaults.
  */
 
 import type {
@@ -25,6 +31,14 @@ import type { TransferPluginConfig } from '@orthacms/transfer-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
 import type { MediaPluginConfig } from '@orthacms/media-server';
 import type { LocalStorageConfig } from '@orthacms/media-provider-local';
+import {
+    readList,
+    readNodeEnv,
+    readOptionalPositiveInt,
+    readPositiveInt,
+    readTrustProxy,
+    requireEnv
+} from '@orthacms/utils-server';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this
@@ -190,89 +204,11 @@ export interface OrthaConfig {
 }
 
 /**
- * Reads a deploy value the server cannot run without, failing at load rather
- * than several seconds into boot.
+ * The identity providers this deployment can reach, if any.
  *
- * Left to default to `''`, a missing `DATABASE_URL` reaches `pg` as "use the
- * libpq defaults", and the first thing that touches the database — identity's
- * role seeder, during `onApplicationBootstrap` — fails with whatever the local
- * libpq environment happens to produce (measured: `SASL:
- * SCRAM-SERVER-FIRST-MESSAGE: client password must be a string`). The server
- * does fail closed, which is the important half, but nothing in that message
- * names the variable that was never set.
- */
-function requireEnv(name: string): string {
-    const raw = process.env[name]?.trim();
-    if (!raw) {
-        throw new Error(
-            `Missing required environment variable ${name}. ` +
-                'Copy `.env.example` to `.env` and set it (see `README.md`); ' +
-                'the server has no usable default for this value.'
-        );
-    }
-    return raw;
-}
-
-/**
- * Reads a numeric setting: the default when unset or empty, the value when it is
- * a plain positive decimal integer, and an error otherwise.
- *
- * This replaces `Number(process.env[x]) || default`, which was wrong in three
- * directions at once and silent in all of them. `0` is falsy, so it became the
- * default — `LOGIN_RATE_LIMIT=0` ("block every login") quietly meant 10. A
- * negative is truthy, so it was accepted — `SESSION_TTL_SECONDS=-1` issued every
- * session already expired, login answering `201` and the very next request
- * `401`. And exponent notation parsed, so `GRAPHQL_MAX_DEPTH=1e9` removed the
- * cost budget that ADR-0008 calls GraphQL's replacement for REST's structural
- * bound. Refusing to boot names the variable; the alternative was a deployment
- * that looked configured and was not.
- *
- * Empty is deliberately *not* an error: `.env.example` ships several keys with
- * no value, and a fresh clone must boot from it unchanged.
- */
-function readPositiveInt(name: string, fallback: number): number {
-    const value = readOptionalPositiveInt(name);
-    return value ?? fallback;
-}
-
-/** As {@link readPositiveInt}, but `undefined` when unset — no default to fall back to. */
-function readOptionalPositiveInt(name: string): number | undefined {
-    const raw = process.env[name]?.trim();
-    if (!raw) {
-        return undefined;
-    }
-    // Plain decimal digits only. `Number` would also take `1e9`, `0x20` and
-    // `Infinity`, none of which anyone means to write in a `.env`.
-    if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
-        throw new Error(
-            `Environment variable ${name} must be a positive whole number ` +
-                `(got "${raw}").`
-        );
-    }
-    return Number(raw);
-}
-
-/** A comma-separated list setting, trimmed and emptied of blanks. */
-function readList(name: string, fallback: string): string[] {
-    return (process.env[name] ?? fallback)
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-}
-
-/**
- * The copilot backends this deployment can actually reach.
- *
- * Read out here because they gate whether a provider is registered at all
- * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
- * against a named value than against a nested `process.env` lookup.
- */
-/**
- * The identity provider this deployment can reach, if any.
- *
- * Both values are read out here because both gate whether the provider is
- * configured at all: an issuer with no client id (or the reverse) becomes a
- * button on the sign-in page that can only fail.
+ * Both halves of each pair are read out here because both gate whether the
+ * provider is configured at all: an issuer with no client id (or the reverse)
+ * becomes a button on the sign-in page that can only fail.
  */
 const ssoOidcIssuer = process.env['SSO_OIDC_ISSUER']?.trim();
 const ssoOidcClientId = process.env['SSO_OIDC_CLIENT_ID']?.trim();
@@ -281,71 +217,18 @@ const ssoGithubClientSecret = process.env['SSO_GITHUB_CLIENT_SECRET']?.trim();
 const ssoSamlEntryPoint = process.env['SSO_SAML_ENTRY_POINT']?.trim();
 const ssoSamlCert = process.env['SSO_SAML_IDP_CERT']?.trim();
 
+/**
+ * The copilot backends this deployment can actually reach.
+ *
+ * Read out here because they gate whether a provider is registered at all
+ * (see `OrthaCopilotConfig.providers`), and a conditional spread reads better
+ * against a named value than against a nested `process.env` lookup.
+ */
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 const openAiBaseUrl = process.env['COPILOT_OPENAI_BASE_URL']?.trim();
 
-/** The deployment modes this app recognises. */
-const NODE_ENVS = ['development', 'test', 'production'] as const;
-
-/**
- * Reads `NODE_ENV`, rejecting a value that is neither recognised nor empty.
- *
- * `NODE_ENV !== 'production'` is the switch behind **two** protections at once —
- * whether the API reference and GraphiQL are published, and whether the session
- * cookie carries `Secure` — so any value that is not exactly `production` turns
- * both off. Unset is a legitimate, and the common, local state; a *typo* is not,
- * and it is indistinguishable from correct configuration until you read a
- * `Set-Cookie` header. Measured on this app: `NODE_ENV=produciton` serves
- * `/reference/json` to an unauthenticated caller and drops `Secure` from the
- * session cookie, exactly as if nothing had been set (ORT-137).
- *
- * Rejecting the typo costs a deployment that spells it right nothing, and turns
- * a silent downgrade into a refusal to start.
- */
-function readNodeEnv(): (typeof NODE_ENVS)[number] | undefined {
-    const raw = process.env['NODE_ENV']?.trim();
-    if (!raw) {
-        return undefined;
-    }
-    if (!(NODE_ENVS as readonly string[]).includes(raw)) {
-        throw new Error(
-            `NODE_ENV is "${raw}", which this app does not recognise — expected ` +
-                `one of ${NODE_ENVS.join(', ')}, or nothing at all for local ` +
-                'development. Anything else reads as "not production", which ' +
-                'publishes the API reference and drops `Secure` from the session ' +
-                'cookie.'
-        );
-    }
-    return raw as (typeof NODE_ENVS)[number];
-}
-
 /** True only in a deployment that said so, with the spelling checked. */
 const isProduction = readNodeEnv() === 'production';
-
-/**
- * Reads `TRUST_PROXY` into Express's `trust proxy` setting.
- *
- * Three accepted shapes, in the order they are checked: a hop count (`'1'` —
- * the recommended form, and the only one a client cannot forge past), a
- * boolean (`'true'` trusts the entire `X-Forwarded-For` chain, `'false'`
- * trusts none), or any other non-empty string, passed to Express verbatim as a
- * subnet/preset list (`'loopback'`, `'10.0.0.0/8'`). Unset yields `undefined`,
- * leaving Express's default of ignoring forwarded headers entirely.
- */
-function readTrustProxy(): TrustProxySetting | undefined {
-    const raw = process.env['TRUST_PROXY']?.trim();
-    if (!raw) {
-        return undefined;
-    }
-    const hops = Number(raw);
-    if (Number.isInteger(hops) && hops >= 0) {
-        return hops;
-    }
-    if (raw === 'true' || raw === 'false') {
-        return raw === 'true';
-    }
-    return raw;
-}
 
 /**
  * The admin dev origin this checkout's stack serves from — `ADMIN_PORT` is the
@@ -396,7 +279,11 @@ const config: OrthaConfig = {
     // larger; they are multipart, capped by `plugins.media.maxUploadBytes`.
     bodyLimit: process.env['MAX_REQUEST_BODY'] || '1mb',
     database: {
-        url: requireEnv('DATABASE_URL')
+        url: requireEnv(
+            'DATABASE_URL',
+            'Copy `.env.example` to `.env` and set it (see `README.md`); ' +
+                'the server has no usable default for this value.'
+        )
     },
     docs: {
         // On outside production, where the reference is a development tool.
@@ -425,12 +312,7 @@ const config: OrthaConfig = {
             // defense). Comma-separated; defaults to the dev admin origin —
             // which follows `ADMIN_PORT`, so a parallel worktree stack on
             // :4201 is not rejected by a default pinned to :4200.
-            allowedOrigins: (
-                process.env['ALLOWED_ORIGINS'] ?? defaultAdminOrigin()
-            )
-                .split(',')
-                .map((origin) => origin.trim())
-                .filter(Boolean),
+            allowedOrigins: readList('ALLOWED_ORIGINS', defaultAdminOrigin()),
             session: {
                 ttlSeconds: readPositiveInt(
                     'SESSION_TTL_SECONDS',

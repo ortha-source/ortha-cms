@@ -43,6 +43,9 @@
             "path": "../../packages/activity/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/utils/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/media/provider-local/tsconfig.lib.json"
         },
         {

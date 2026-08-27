@@ -22,9 +22,13 @@ point: it holds almost no logic. It assembles the product by handing a list of
   `process.env`. Values are **validated at import**: a missing `DATABASE_URL`, a
   numeric setting that is not a plain positive integer, or a `NODE_ENV` that is
   not one of `development` / `test` / `production` refuses to load rather than
-  booting a deployment that looks configured (`src/ortha.config.spec.ts`). This
-  project is also the migration host: the inferred `db:migrate` target applies
-  every plugin's pending migrations.
+  booting a deployment that looks configured (`src/ortha.config.spec.ts`). The
+  readers themselves (`requireEnv`, `readPositiveInt`, `readList`,
+  `readTrustProxy`, `readNodeEnv`) live in `@orthacms/utils-server`, shared with
+  the scaffolder's template so a generated app validates its environment the
+  same way — this file names the variables and the defaults, not how a value is
+  parsed. This project is also the migration host: the inferred `db:migrate`
+  target applies every plugin's pending migrations.
 - `src/content/` — the host's **code-defined content types** (see below).
 
 ## Content types (`src/content/`)

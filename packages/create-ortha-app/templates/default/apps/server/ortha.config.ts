@@ -5,12 +5,28 @@
  * host, every plugin — receives typed values, so "where does this setting come
  * from" has exactly one answer. Deploy-specific values come from the
  * environment; stable product tuning lives here as literals.
+ *
+ * *How* a value is read comes from `@orthacms/utils-server`: each reader
+ * refuses a value it cannot honour instead of guessing, which is what stops a
+ * misconfigured deployment from looking configured. Add your own settings by
+ * calling them here — this file names the variables and their defaults.
  */
 import { join } from 'node:path';
 import type {
     ApiDocsOptions,
     TrustProxySetting
 } from '@orthacms/bootstrap-server';
+// The readers that turn `process.env` into typed values. Shared rather than
+// hand-rolled here: each one refuses a value it cannot honour instead of
+// guessing, and the guessing is what makes a misconfigured deployment look
+// configured. See `@orthacms/utils-server`.
+import {
+    readList,
+    readNodeEnv,
+    readPositiveInt,
+    readTrustProxy,
+    requireEnv
+} from '@orthacms/utils-server';
 import type { IdentityPluginConfig } from '@orthacms/identity-server';
 // ortha:if sso-oidc
 import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
@@ -135,92 +151,16 @@ export interface OrthaConfig {
 }
 
 /**
- * Reads a value the app cannot run without, failing at load rather than
- * several seconds into boot.
- *
- * Allowed to default to `''`, a missing `DATABASE_URL` reaches `pg` as "use
- * the libpq defaults" — so the first query fails with whatever the local
- * environment happens to produce, and nothing in the message names the
- * variable nobody set.
- */
-function requireEnv(name: string): string {
-    const raw = process.env[name]?.trim();
-    if (!raw) {
-        throw new Error(
-            `Missing required environment variable ${name}. ` +
-                'Set it in your .env before starting the app.'
-        );
-    }
-    return raw;
-}
-
-/**
- * A numeric setting: the default when unset, the value when it is a plain
- * positive integer, and an error otherwise.
- *
- * Deliberately not `Number(process.env[x]) || fallback`, which is wrong in
- * three directions and silent in all of them: `0` is falsy so it becomes the
- * default, a negative is truthy so it is accepted (a negative session TTL
- * issues every session already expired), and `1e9` parses.
- */
-function readPositiveInt(name: string, fallback: number): number {
-    const raw = process.env[name]?.trim();
-    if (!raw) return fallback;
-
-    if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
-        throw new Error(
-            `Environment variable ${name} must be a positive whole number ` +
-                `(got "${raw}").`
-        );
-    }
-    return Number(raw);
-}
-
-/**
- * Express's `trust proxy` setting: a hop count (the recommended form, and the
- * only one a client cannot forge past), a boolean, or a subnet/preset string
- * passed through verbatim. Unset leaves forwarded headers ignored.
- */
-function readTrustProxy(): TrustProxySetting | undefined {
-    const raw = process.env['TRUST_PROXY']?.trim();
-    if (!raw) return undefined;
-
-    const hops = Number(raw);
-    if (Number.isInteger(hops) && hops >= 0) return hops;
-    if (raw === 'true' || raw === 'false') return raw === 'true';
-
-    return raw;
-}
-
-/**
- * True only in a deployment that said so, spelling checked.
+ * True only in a deployment that said so, spelling checked by `readNodeEnv`.
  *
  * This one comparison gates two protections at once — whether the API
  * reference is published, and whether the session cookie carries `Secure` — so
  * a typo silently turns both off and is indistinguishable from correct
- * configuration until you read a `Set-Cookie` header.
+ * configuration until you read a `Set-Cookie` header. That is why the reader
+ * refuses an unrecognised value rather than reading it as "not production".
  */
-const NODE_ENVS = ['development', 'test', 'production'] as const;
-const nodeEnv = process.env['NODE_ENV']?.trim();
+const isProduction = readNodeEnv() === 'production';
 
-if (nodeEnv && !(NODE_ENVS as readonly string[]).includes(nodeEnv)) {
-    throw new Error(
-        `NODE_ENV is "${nodeEnv}", which this app does not recognise — expected ` +
-            `one of ${NODE_ENVS.join(', ')}, or nothing at all for local ` +
-            'development. Anything else reads as "not production", which ' +
-            'publishes the API reference and drops `Secure` from the session cookie.'
-    );
-}
-
-const isProduction = nodeEnv === 'production';
-
-/** A comma-separated list setting, trimmed and emptied of blanks. */
-function readList(name: string, fallback: string): string[] {
-    return (process.env[name] ?? fallback)
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-}
 // ortha:if copilot-anthropic
 const anthropicApiKey = process.env['ANTHROPIC_API_KEY']?.trim();
 // ortha:end
@@ -241,7 +181,10 @@ const config: OrthaConfig = {
     // must mean the same thing whether it is read from `dist/` or from source.
     staticDir: join(process.cwd(), 'dist/admin'),
     database: {
-        url: requireEnv('DATABASE_URL')
+        url: requireEnv(
+            'DATABASE_URL',
+            'Set it in your .env before starting the app.'
+        )
     },
     docs: {
         // On outside production, where the reference is a development tool.
@@ -258,13 +201,10 @@ const config: OrthaConfig = {
             // defence). In development that is the Vite dev server; in
             // production the app is same-origin, so this list is what a
             // separately-hosted admin would need adding to.
-            allowedOrigins: (
-                process.env['ALLOWED_ORIGINS'] ??
+            allowedOrigins: readList(
+                'ALLOWED_ORIGINS',
                 `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`
-            )
-                .split(',')
-                .map((origin) => origin.trim())
-                .filter(Boolean),
+            ),
             session: {
                 ttlSeconds: readPositiveInt(
                     'SESSION_TTL_SECONDS',
