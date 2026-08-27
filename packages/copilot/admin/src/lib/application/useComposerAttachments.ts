@@ -198,10 +198,10 @@ export function useComposerAttachments(): ComposerAttachments {
 
     const remove = useCallback(
         (id: string) => {
-            // The uploaded asset is deliberately left in the library. Removing
-            // a chip means "don't send this with my message", not "delete my
-            // file" — and a delete here would need `media:delete`, which a
-            // contributor who may upload does not hold.
+            // The uploaded asset is deliberately left in the library.
+            // Removing a chip means "don't send this with my message", not
+            // "delete my file" — the library is where a deletion is meant to
+            // be made, deliberately and with the rest of the folder in view.
             write((current) => current.filter((item) => item.id !== id));
             setError(null);
         },

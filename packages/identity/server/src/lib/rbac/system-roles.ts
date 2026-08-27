@@ -92,6 +92,16 @@ export interface SystemRole {
  * `content:update` for each write it performs, so importing can never do more
  * than the caller could have done by hand.
  *
+ * `content:delete` and `media:delete` are granted to contributor: removing the
+ * draft that should never have existed, or the wrong upload, is the same
+ * editorial act as writing it, and a role that can publish to the world but
+ * cannot retract is the more dangerous of the two. Both are audited
+ * (`content.entry.deleted` / `media.asset.deleted`), and a paranoid content
+ * type deletes to a tombstone that restore undoes — but a non-paranoid entry
+ * and an asset's bytes are gone, so this is a real grant, not a reversible one.
+ * An operator who wants deletion held back mints a custom role without the two
+ * keys; the routes gate on the permission, never on the role.
+ *
  * `views:share` gates only **sharing** a saved list view with the workspace,
  * not saving one. Every role can save private views — that is a personal
  * bookmark over content they can already read — but a shared view becomes a
@@ -125,11 +135,13 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
             PERMISSIONS.CONTENT_CREATE,
             PERMISSIONS.CONTENT_UPDATE,
             PERMISSIONS.CONTENT_PUBLISH,
+            PERMISSIONS.CONTENT_DELETE,
             PERMISSIONS.CONTENT_EXPORT,
             PERMISSIONS.CONTENT_IMPORT,
             PERMISSIONS.MEDIA_READ,
             PERMISSIONS.MEDIA_CREATE,
             PERMISSIONS.MEDIA_UPDATE,
+            PERMISSIONS.MEDIA_DELETE,
             // Findings are shown inline in the entry editor, so the role
             // that edits entries has to be able to read them. Writing the
             // rules is `alarms:manage` and stays with admin: a rule is

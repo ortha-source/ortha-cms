@@ -27,7 +27,7 @@ const VALID = { text: 'Hello world', select: 'article' } as const;
  * and the bulk routes). Covers the create→read→update→publish→delete→restore→
  * purge lifecycle, the 422 validation shape, the publish-on-non-publishable 400,
  * the `/bulk/...` vs `:id` routing order, the trash list, and the permission
- * matrix (viewer read-only, contributor can't delete).
+ * matrix (viewer read-only, contributor writes and deletes).
  */
 describe('Content entry writes (/api/content/:type)', () => {
     let harness: TestApp;
@@ -972,7 +972,10 @@ describe('Content entry writes (/api/content/:type)', () => {
                 .expect(403);
         });
 
-        it('lets a contributor create but not delete', async () => {
+        it('lets a contributor create and delete — the role holds content:delete', async () => {
+            // Retracting what you published is the same editorial act as
+            // writing it, so the role that creates also removes. The gate is
+            // still the permission: a viewer is 403 on the same route above.
             const contributor = await seedActiveUser(harness.app, {
                 email: CONTRIB_EMAIL,
                 password: PASSWORD,
@@ -981,7 +984,7 @@ describe('Content entry writes (/api/content/:type)', () => {
             await seedMembership(contributor.id, workspaceId);
             const agent = await login(CONTRIB_EMAIL);
             const id = await createArticle(agent);
-            await agent.delete(`/api/content/test_article/${id}`).expect(403);
+            await agent.delete(`/api/content/test_article/${id}`).expect(204);
         });
     });
 });

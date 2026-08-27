@@ -877,7 +877,7 @@ order? } }`): inside the create/update transaction `applyDelta` unlinks the
   the body is left untouched (never wiped).
 - Reads gated `@RequirePermissions(PERMISSIONS.CONTENT_READ)`; writes on the
   matching `content:create`/`update`/`publish`/`delete` (admin holds all,
-  contributor create/update/publish, viewer read-only).
+  contributor create/update/publish/delete, viewer read-only).
 
 ## Public content API (`/api/v1`, `src/lib/public-api/`)
 

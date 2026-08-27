@@ -451,13 +451,13 @@ questions).
 | `GET /api/content/:type` | 401 ✅ | 200 ✅ | 200 ❌ | 200 ✅ |
 | `POST /api/content/:type` | 401 ✅ | 403 ✅ | 201 ✅ | 201 ✅ |
 | `PATCH /api/content/:type/:id` | 401 ✅ | 403 ❌ | 200 ❌ | 200 ✅ |
-| `DELETE /api/content/:type/:id` | 401 ✅ | 403 ✅ | **403** ✅ | 204 ✅ |
+| `DELETE /api/content/:type/:id` | 401 ✅ | 403 ✅ | 204 ✅ | 204 ✅ |
 | `POST .../publish` | 401 ❌ | 403 ❌ | 200 ❌ | 200 ✅ |
 | `POST .../revisions/:n/restore` | 401 ❌ | 403 ❌ | 200 ❌ | 200 ❌ |
 | `POST .../revisions/:n/publish` | 401 ❌ | 403 ❌ | 200 ❌ | 200 ❌ |
 | `POST .../bulk/*` | 401 ❌ | 403 ❌ | mixed ❌ | 200 ⚠️ |
 
-- **EC-19 — A contributor can create but not delete.** `✅ E2E` `content-entries-write.spec.ts:829`.
+- **EC-19 — A contributor can create and delete** (the role holds `content:delete`). `✅ E2E` `content-entries-write.spec.ts:829`.
 - **EC-20 — A viewer is refused create and delete.** `✅ E2E` `content-entries-write.spec.ts:808`.
 - **EC-21 — Every permission is a `PERMISSIONS.*` constant.** `✅` Verified: `grep -rn "RequirePermissions('" packages/content/server/src` returns no inline string.
 - **EC-22 — The revision restore/publish routes' permissions.** `❌ NONE` Restore requires `content:update` and publish `content:publish` — a defensible split, entirely untested by role.
@@ -664,7 +664,7 @@ Standards: Revised Section 508 (36 CFR Part 1194, App. A–C), incorporating WCA
 | F42 Soft delete | `content-entries-write.spec.ts:605,705` | link kept on soft delete, dropped on purge; the full soft-delete → trash → restore → purge cycle | ✅ E2E |
 | F38-F41 Publish | `content-entries-write.spec.ts:633,648,661` | publish then unpublish; 400 non-publishable; `publishedAt` kept through an edit, cleared on unpublish | ✅ E2E |
 | F43/F44 Bulk | `content-entries-write.spec.ts:756,786` | preview then publish only the valid drafts, hitting the bulk route; bulk soft delete | ⚠️ PARTIAL — no id-cap case, no empty-array case, no cross-workspace-id case |
-| F25 authz | `content-entries-write.spec.ts:801,808,829` | 401 writes; 403 viewer create+delete; contributor may create but not delete | ✅ E2E |
+| F25 authz | `content-entries-write.spec.ts:801,808,829` | 401 writes; 403 viewer create+delete; contributor may create and delete | ✅ E2E |
 | F34 Media | `content/content-media-fields.spec.ts:93-232` | store/read a single id; 422 non-existent; **422 cross-workspace**; 422 failing `accept`; order preserved across an update; derivative urls; `GET /:id/media` refs; **ids captured in the revision snapshot** | ✅ E2E |
 | F45-F51 Revisions | `content/entry-revisions.spec.ts:62-447` | revision on create keyed to the user; incrementing, newest-first; whole document incl. m2m links; ids → titled refs; restore appends; 404 unknown number; publish promotes/supersedes/reverts; bulk publish promotes; published version stays live under a newer draft; publish a specific earlier version; publish newest in place; 404 unknown version | ✅ E2E — thorough on the happy paths |
 | F46 revision numbering | — | — | ⚠️ PARTIAL — the advisory lock and unique backstop are never exercised concurrently |

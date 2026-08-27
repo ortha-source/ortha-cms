@@ -896,8 +896,8 @@ once sent and two components would be two chances for staged and sent to drift.
   flight — sending then would drop the file from the turn silently, and once the
   message is gone there is no way to tell "attached" from "still uploading".
 - **Removing a chip does not delete the asset.** It means "don't send this with
-  my message"; a delete would need `media:delete`, which a contributor who may
-  upload does not hold.
+  my message" — the file stays in the library, where the person can delete it
+  deliberately if that is what they meant.
 - **The run body carries ids only.** The server resolves the name, kind and size
   from the row, because that is the only part it can verify. The optimistic turn
   still renders the full staged refs — the chips were on screen a moment ago,
