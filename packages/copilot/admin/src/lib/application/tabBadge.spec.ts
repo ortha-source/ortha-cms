@@ -11,6 +11,10 @@ function session(overrides: Partial<CopilotSession> = {}): CopilotSession {
         unread: false,
         awaiting: false,
         presented: 'dock',
+        choice: null,
+        choicePinned: false,
+        context: null,
+        skills: [],
         ...overrides
     };
 }

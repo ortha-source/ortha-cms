@@ -1,3 +1,4 @@
+import type { MediaAccept } from '../../../types/fields';
 import { acceptsAsset, describeAccept } from './media-accept';
 
 const image = { kind: 'image', mimeType: 'image/png' };
@@ -31,7 +32,10 @@ describe('acceptsAsset', () => {
     });
 
     it('passes when it matches ANY listed kind or MIME (OR semantics)', () => {
-        const accept = { kinds: ['video'], mimeTypes: ['application/pdf'] };
+        const accept: MediaAccept = {
+            kinds: ['video'],
+            mimeTypes: ['application/pdf']
+        };
         expect(acceptsAsset(accept, pdf)).toBe(true); // matched by MIME
         expect(
             acceptsAsset(accept, { kind: 'video', mimeType: 'video/mp4' })

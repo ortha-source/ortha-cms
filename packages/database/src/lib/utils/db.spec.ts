@@ -226,7 +226,13 @@ describe('DatabaseShutdown', () => {
         // away regardless.
         initDatabase({ connectionString: URL_A });
         const pool = getPool();
-        jest.spyOn(pool, 'end').mockRejectedValueOnce(new Error('boom'));
+        // `Pool.end` is overloaded (callback form returning `void`, promise
+        // form returning `Promise<void>`), and the spy infers the first — so
+        // the rejection has to be cast to reach the overload the shutdown hook
+        // actually awaits.
+        jest.spyOn(pool, 'end').mockRejectedValueOnce(
+            new Error('boom') as never
+        );
         const logged = jest
             .spyOn(Logger.prototype, 'error')
             .mockImplementation(() => undefined);

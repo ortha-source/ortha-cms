@@ -18,7 +18,7 @@ import { MediaCopilotToolProvider } from './media-tool.provider';
  * transport makes of it.
  */
 describe('MediaCopilotToolProvider error mapping', () => {
-    const ctx = {
+    const ctx: ToolContext = {
         actor: {
             kind: 'token',
             id: 'token-1',
@@ -27,8 +27,11 @@ describe('MediaCopilotToolProvider error mapping', () => {
             userId: null
         },
         workspaceId: 'ws-1',
-        surface: 'mcp'
-    } as ToolContext;
+        surface: 'mcp',
+        // Matches the empty grant set above: these assert what a handler
+        // throws, so nothing here should widen on a permission.
+        can: () => false
+    };
 
     const build = (
         overrides: {

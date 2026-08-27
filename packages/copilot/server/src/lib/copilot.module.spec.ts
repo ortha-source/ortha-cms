@@ -9,10 +9,9 @@ import type { ProviderRegistration } from './infrastructure/model-registry';
 import type { CopilotPluginConfig } from './types/copilot-config';
 
 const provider = (models: string[]): ModelProvider => ({
-    name: 'stub',
     models: () => models,
-    capabilities: (model: string) => ({
-        model,
+    capabilities: async (model?: string) => ({
+        model: model ?? models[0],
         toolCalling: true,
         streaming: true,
         vision: false,

@@ -523,7 +523,9 @@ describe('createAnthropicProvider', () => {
 
         /** A run of `count` steps: one tool call and its result per step. */
         function loopOf(count: number): ModelRequest {
-            const messages: ModelRequest['messages'] = [
+            // Mutable while it is being built; `ModelRequest['messages']` is
+            // readonly, which is the contract the caller gets, not the builder.
+            const messages: ModelRequest['messages'][number][] = [
                 { role: 'user', content: [{ type: 'text', text: 'go' }] }
             ];
             for (let step = 0; step < count; step += 1) {

@@ -53,7 +53,7 @@ const plain = collection('plain', {
     }
 });
 
-const modeOf = (type: typeof article | typeof plain, name: string) =>
+const modeOf = (type: AnyContentType, name: string) =>
     relationLocaleSync(type, type.fields[name]);
 
 describe('relationLocaleSync', () => {

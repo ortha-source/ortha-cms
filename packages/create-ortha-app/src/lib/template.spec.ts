@@ -191,6 +191,12 @@ describe('the scaffolded app, whatever the features', () => {
      * The generated app mirrors this repo's own `apps/` folder, so someone who
      * has read the Ortha source finds the same shape in their project — and so
      * the CLI's `LAYOUT` constants have one tree to describe.
+     *
+     * The server contributes **two** projects. `ortha build` compiles
+     * `apps/server/tsconfig.json`, which excludes the specs so they are not
+     * shipped in `dist/` — which also means nothing typechecks them, and an
+     * editor opening one has no project to resolve `describe` in. The second
+     * project is what covers them.
      */
     it('lays the four apps out like the monorepo', () => {
         const root = JSON.parse(rendered('tsconfig.json')) as {
@@ -199,10 +205,30 @@ describe('the scaffolded app, whatever the features', () => {
 
         expect(root.references.map((reference) => reference.path)).toEqual([
             './apps/server',
+            './apps/server/tsconfig.spec.json',
             './apps/admin',
             './apps/server-e2e',
             './apps/admin-e2e'
         ]);
+    });
+
+    /**
+     * The build config excludes the specs, so without a project of their own
+     * they are typechecked by nothing and `describe` resolves to nothing —
+     * `Cannot find name 'describe'` in the editor of a freshly generated app.
+     */
+    it('gives the server specs a project that knows about jest', () => {
+        const spec = JSON.parse(
+            rendered('apps/server/tsconfig.spec.json')
+        ) as {
+            compilerOptions: { types: string[]; noEmit: boolean };
+            include: string[];
+        };
+
+        expect(spec.compilerOptions.types).toContain('jest');
+        expect(spec.include).toContain('src/**/*.spec.ts');
+        // `ortha build` is the only thing that emits; this one only checks.
+        expect(spec.compilerOptions.noEmit).toBe(true);
     });
 
     /**

@@ -160,7 +160,7 @@ describe('ContentTypeRegistry', () => {
             fields: {
                 name: field.text(),
                 stories: field.relationInverse({
-                    of: () => story,
+                    of: (): AnyContentType => story,
                     field: 'cats'
                 })
             }
@@ -168,7 +168,10 @@ describe('ContentTypeRegistry', () => {
         const story = collection('story', {
             fields: {
                 title: field.text({ required: true }),
-                cats: field.relation({ to: () => cat, many: true })
+                cats: field.relation({
+                    to: (): AnyContentType => cat,
+                    many: true
+                })
             }
         });
 

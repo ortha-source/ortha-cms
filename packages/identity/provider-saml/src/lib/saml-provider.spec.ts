@@ -2,7 +2,6 @@ import { SsoVerificationError } from '@orthacms/identity-domain';
 import { createSamlProvider } from './saml-provider';
 import {
     callbackWith,
-    CALLBACK,
     CORE_SECRETS,
     ENTRY_POINT,
     signedResponse,

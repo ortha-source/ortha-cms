@@ -311,9 +311,12 @@ describe('createLocalStorageProvider', () => {
         // restored against an empty volume, a hand-reclaimed blob, an
         // interrupted migration.
         it('keeps the driver error for the operator, off the caller', async () => {
-            const thrown = await provider
+            // `get` resolves a stream, so the caught value has to be cast at
+            // the binding rather than inside the handler — otherwise the type
+            // is the union of both outcomes.
+            const thrown = (await provider
                 .get(`${WORKSPACE}/${ASSET}/gone.png`)
-                .catch((error: unknown) => error as ObjectNotFoundError);
+                .catch((error: unknown) => error)) as ObjectNotFoundError;
 
             expect(thrown.cause).toMatchObject({ code: 'ENOENT' });
             // Never rendered to a caller — `to-http` answers a bare 404 — but

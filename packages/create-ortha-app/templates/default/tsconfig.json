@@ -6,6 +6,9 @@
             "path": "./apps/server"
         },
         {
+            "path": "./apps/server/tsconfig.spec.json"
+        },
+        {
             "path": "./apps/admin"
         },
         {

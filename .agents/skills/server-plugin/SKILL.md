@@ -103,7 +103,7 @@ packages/<group>/server/
   drizzle.config.ts                # only if the plugin owns schema
   migrations/                      # committed SQL (only if it owns schema)
   package.json
-  tsconfig.json / tsconfig.lib.json
+  tsconfig.json / tsconfig.lib.json / tsconfig.spec.json
   CLAUDE.md
 ```
 
@@ -526,7 +526,11 @@ plugin needs true cross-origin should a `cors` option be added to `createServer`
 
 - [ ] `packages/<group>/server` with `package.json` (`@orthacms/<group>-server`,
       source `exports`, hyphenated name).
-- [ ] `tsconfig.json` / `tsconfig.lib.json` mirroring an existing plugin.
+- [ ] `tsconfig.json` / `tsconfig.lib.json` / `tsconfig.spec.json` mirroring an
+      existing plugin. **All three**: `tsconfig.lib.json` excludes the specs, so
+      without the third project nothing typechecks them and an editor opening
+      one reports `Cannot find name 'describe'`. `tsconfig.json` must reference
+      it, or `nx typecheck` skips it too.
 - [ ] Config interface in `types/`, token module (`<plugin>.tokens.ts`).
 - [ ] `XModule.forRoot()` (`global: true`).
 - [ ] Plugin factory in `utils/<plugin>-plugin.ts` (+ `migrations` descriptor if

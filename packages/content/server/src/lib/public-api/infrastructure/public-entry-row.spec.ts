@@ -1,4 +1,5 @@
 import { collection, single } from '../../collection/define';
+import type { AnyContentType } from '../../types/content-type';
 import { field } from '../../fields';
 import { toPublicEntry } from './public-entry-row';
 
@@ -33,7 +34,10 @@ const post = collection('pub_post', {
         // Owning many-relation: links live in a join table — no column.
         tags: field.relation({ to: () => tag, many: true }),
         // Inverse: reuses the owning side's storage — no column either.
-        related: field.relationInverse({ of: () => post, field: 'author' })
+        related: field.relationInverse({
+            of: (): AnyContentType => post,
+            field: 'author'
+        })
     }
 });
 

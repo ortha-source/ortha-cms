@@ -1,4 +1,5 @@
 import { collection } from '../../collection/define';
+import type { AnyContentType } from '../../types/content-type';
 import { field } from '../../fields';
 import { EntryValidationService } from './entry-validation.service';
 
@@ -17,8 +18,11 @@ describe('EntryValidationService', () => {
             publishOn: field.date(),
             publishAt: field.datetime(),
             color: field.select({ options: ['red', 'blue'] as const }),
-            author: field.relation({ to: () => type }),
-            tags: field.relation({ to: () => type, many: true })
+            author: field.relation({ to: (): AnyContentType => type }),
+            tags: field.relation({
+                to: (): AnyContentType => type,
+                many: true
+            })
         }
     });
 

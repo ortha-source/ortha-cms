@@ -579,7 +579,12 @@ The recurring admin-side mistakes a careful review catches:
 ## New-plugin checklist
 
 - [ ] `packages/<group>/admin` with `package.json` (`@orthacms/<group>-admin`,
-      source `exports`, hyphenated name) + `tsconfig.json` / `tsconfig.lib.json`.
+      source `exports`, hyphenated name) + `tsconfig.json` /
+      `tsconfig.lib.json` / `tsconfig.spec.json`. **All three**:
+      `tsconfig.lib.json` excludes the specs, so without the third project
+      nothing typechecks them and an editor opening one reports `Cannot find
+      name 'describe'`. `tsconfig.json` must reference it, or `nx typecheck`
+      skips it too.
 - [ ] `XPlugin()` factory in `utils/<plugin>Plugin/index.tsx` returning
       `{ name, routes, slots? }`; pages lazy + `<Suspense>`.
 - [ ] Per-module `<name>/index.ts(x)` folders; no page/container split.

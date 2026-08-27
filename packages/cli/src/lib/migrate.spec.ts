@@ -144,7 +144,7 @@ describe('applyPluginMigrations', () => {
         });
 
         it('keeps the original error as the cause', async () => {
-            const error = await run().catch((e: Error) => e);
+            const error = (await run().catch((e: Error) => e)) as Error;
 
             expect((error.cause as Error).message).toBe(
                 'relation "users" does not exist'

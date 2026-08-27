@@ -185,11 +185,11 @@ describe('i18n_propose_bulk_translation', () => {
 
         // The card keys its rows on `field`, so two locales translating `text`
         // would otherwise collapse into a single row showing one of them.
-        expect(draft.changes.map((change) => change.field)).toEqual([
+        expect(draft.changes?.map((change) => change.field)).toEqual([
             'items[0].text',
             'items[1].text'
         ]);
-        expect(draft.changes.map((change) => change.label)).toEqual([
+        expect(draft.changes?.map((change) => change.label)).toEqual([
             '#1 de · TEXT',
             '#2 fr · TEXT'
         ]);

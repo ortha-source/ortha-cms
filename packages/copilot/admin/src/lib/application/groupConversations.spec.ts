@@ -12,6 +12,7 @@ function thread(
         title,
         surface: 'chat',
         archived: false,
+        modelChoice: null,
         createdAt: updatedAt,
         updatedAt
     };

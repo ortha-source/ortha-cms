@@ -1,3 +1,4 @@
+import type { CopilotRunEvent } from '@orthacms/copilot-domain';
 import { chatReducer, initialChatState, type ChatAction } from './chatReducer';
 import type {
     ChatMessage,
@@ -5,6 +6,16 @@ import type {
     ChatState,
     ChatToolStep
 } from '../domain/types/chat';
+
+/**
+ * A `ChatAction` already narrowed to a proposal frame. `ChatAction` is a union,
+ * so a helper typed as the whole union hands back something with no `.event` to
+ * spread — which is what the change-card tests need.
+ */
+type ProposalAction = {
+    type: 'event';
+    event: Extract<CopilotRunEvent, { type: 'proposal' }>;
+};
 
 /** Applies a sequence of actions, so a test reads as a run's timeline. */
 function play(...actions: ChatAction[]): ChatState {
@@ -81,6 +92,7 @@ describe('chatReducer', () => {
             event: {
                 type: 'tool-result',
                 id: 'call-1',
+                name: 'content_propose_update',
                 ok: true,
                 summary: 'Applied',
                 durationMs: 12
@@ -355,7 +367,7 @@ describe('chatReducer', () => {
         const loaded = play(submit, {
             type: 'load',
             conversationId: 'c9',
-            messages: [{ id: 'm', role: 'user', text: 'old', steps: [] }]
+            messages: [{ id: 'm', role: 'user', text: 'old', blocks: [] }]
         });
 
         expect(loaded.conversationId).toBe('c9');
@@ -375,7 +387,8 @@ describe('chatReducer', () => {
                 id: 'call-1',
                 runId: 'run-1',
                 name: 'content_propose_update',
-                input: { typeName: 'article', id: 'e1' }
+                input: { typeName: 'article', id: 'e1' },
+                expiresAt: '2026-03-15T09:00:30.000Z'
             }
         };
         const result = (ok: boolean): ChatAction => ({
@@ -471,7 +484,7 @@ describe('chatReducer', () => {
         const proposed = (
             status: 'pending' | 'accepted' = 'accepted',
             error?: string
-        ): ChatAction => ({
+        ): ProposalAction => ({
             type: 'event',
             event: {
                 type: 'proposal',
@@ -503,10 +516,7 @@ describe('chatReducer', () => {
             const state = play(submit, started, {
                 type: 'event',
                 event: {
-                    ...(proposed().event as Extract<
-                        ChatAction,
-                        { type: 'event' }
-                    >['event'] & { type: 'proposal' }),
+                    ...proposed().event,
                     entityId: 'e1'
                 }
             });
@@ -543,10 +553,7 @@ describe('chatReducer', () => {
             const second: ChatAction = {
                 type: 'event',
                 event: {
-                    ...(proposed().event as Extract<
-                        ChatAction,
-                        { type: 'event' }
-                    >['event'] & { type: 'proposal' }),
+                    ...proposed().event,
                     id: 'p2',
                     summary: 'Fix the standfirst'
                 }

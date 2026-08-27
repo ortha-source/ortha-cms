@@ -62,7 +62,7 @@ describe('toFindingToolItem', () => {
     });
 
     it('drops the opaque detail bag and the raw timestamps', () => {
-        const item = toFindingToolItem(finding(), NOW) as Record<
+        const item = toFindingToolItem(finding(), NOW) as unknown as Record<
             string,
             unknown
         >;
@@ -77,7 +77,7 @@ describe('toFindingToolItem', () => {
         // The projection is what a model reads as fact. A leftover `muted:
         // false` on every row would have it explaining a distinction the
         // product no longer makes.
-        const item = toFindingToolItem(finding(), NOW) as Record<
+        const item = toFindingToolItem(finding(), NOW) as unknown as Record<
             string,
             unknown
         >;

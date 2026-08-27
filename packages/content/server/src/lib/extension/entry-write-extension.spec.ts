@@ -67,9 +67,11 @@ describe('EntryWriteExtensionRegistry', () => {
             const registry = new EntryWriteExtensionRegistry();
             registry.register(fake('access'));
 
+            // Nothing owned the key, so nothing else was touched — an empty
+            // list, not a rejection.
             await expect(
                 registry.applyAll(TARGET, { nobody: 1 })
-            ).resolves.toBeUndefined();
+            ).resolves.toEqual([]);
         });
 
         it('does nothing when the caller sent no bag at all', async () => {
