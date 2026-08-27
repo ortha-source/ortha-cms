@@ -18,13 +18,27 @@ point: it holds almost no logic. It assembles the product by handing a list of
   order, because a plugin dropped from the array degrades **silently**: the ports
   other plugins bind are `@Optional()`, so removing e.g. `ActivityPlugin` boots
   clean and just stops writing audit rows.
-- `ortha.config.ts` — host config, and the single place that reads
-  `process.env`. Values are **validated at import**: a missing `DATABASE_URL`, a
-  numeric setting that is not a plain positive integer, or a `NODE_ENV` that is
-  not one of `development` / `test` / `production` refuses to load rather than
-  booting a deployment that looks configured (`src/ortha.config.spec.ts`). This
-  project is also the migration host: the inferred `db:migrate` target applies
-  every plugin's pending migrations.
+- `ortha.config.ts` — host config: the flat object naming what this deployment
+  runs. It **assembles** rather than derives — one builder per plugin, each in
+  its own module under `config/`. It stays the entry point because
+  `@orthacms/cli` looks for exactly `dist/server/ortha.config.js`, `@orthacms/nx`
+  infers the migration targets onto the project that has an `ortha.config.ts`,
+  and `src/plugins.ts` and `apps/server-e2e` import its types.
+- `config/` — the single place that reads `process.env`, and `config/env.ts` the
+  only file in it that touches `process.env` directly: every builder asks for a
+  setting through one of its readers, so "what does an empty value mean", "what
+  counts as a number" and "what happens when it is missing" are answered once.
+  Nothing conditional is spread into a config object — `when(…)` yields a block
+  or `undefined`, `defined(…)` drops the keys that were never set, because
+  plugins merge as `{ ...DEFAULTS, ...config }` and an explicit `undefined`
+  erases a default instead of leaving it.
+  Values are **validated at import**: a missing `DATABASE_URL`, a numeric
+  setting that is not a plain positive integer, or a `NODE_ENV` that is not one
+  of `development` / `test` / `production` refuses to load rather than booting a
+  deployment that looks configured (`src/ortha.config.spec.ts`, which exercises
+  the real module by re-importing it under a set environment). This project is
+  also the migration host: the inferred `db:migrate` target applies every
+  plugin's pending migrations.
 - `src/content/` — the host's **code-defined content types** (see below).
 
 ## Content types (`src/content/`)
