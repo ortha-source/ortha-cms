@@ -1,0 +1,1097 @@
+<title>Паспорт плагина Nx</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакет · packages/nx</p>
+    <h1 class="title">Nx
+      <small>Плагин для инструмента сборки: миграции и релиз без единой строчки ручной настройки</small>
+    </h1>
+    <p class="lede"><code>@orthacms/nx</code> — единственный пакет монорепозитория, который обслуживает не приложение, а <strong>сборочный конвейер</strong>. Он <strong>выводит</strong> (infers) таргеты на проекты по признаку наличия файла: положил <code>drizzle.config.ts</code> — получил <code>db:generate</code>; положил пакет под <code>packages/</code> — получил <code>build</code>, <code>pack</code> и публикацию в npm. Никакого пер-проектного конфигурирования нет и не должно быть.</p>
+    <ul class="facts">
+      <li><b>4</b> исполнителя</li>
+      <li><b>6</b> выводимых таргетов</li>
+      <li><b>11</b> проектов с <code>db:generate</code></li>
+      <li><b>1</b> хост-проект</li>
+      <li><b>56</b> публикуемых пакетов</li>
+      <li><b>79</b> юнит-тестов</li>
+      <li><b>3</b> переменные тюнинга публикации</li>
+      <li><b>0</b> таблиц БД в собственности</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#place">Состав и место в системе</a></li>
+    <li><a href="#targets">Каталог таргетов</a></li>
+    <li><a href="#inference">Механизм вывода таргетов</a></li>
+    <li><a href="#jiti">Чтение TypeScript из исходников</a></li>
+    <li><a href="#flows">Сценарии по шагам</a></li>
+    <li><a href="#release">Релизный процесс</a></li>
+    <li><a href="#config">Конфигурация и окружение</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы ответственности</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Этот пакет не видит ни один пользователь CMS. Его аудитория — разработчик, который добавляет плагин, и релиз-инженер, который выкатывает версию. Ценность у него ровно одна и вполне измеримая: <b>сократить количество ручных решений в двух самых опасных операциях проекта</b> — изменении схемы базы данных и публикации в реестр, откуда ничего нельзя отозвать.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Ноль настройки на проект.</b> В монорепозитории 11 проектов со своей схемой БД и 56 публикуемых пакетов. Если бы каждый описывал свои таргеты сам, эти описания разъезжались бы — по одному опечатанному пути на каждый десяток пакетов. Вместо этого таргеты <b>выводятся из наличия файла</b>: новый плагин получает и генерацию миграций, и сборку, и публикацию просто потому, что существует.</li>
+    <li><b>Одна реализация миграций на монорепозиторий и на сгенерированное приложение.</b> Исполнители БД — тонкие адаптеры над <code>@orthacms/cli</code>. Применение миграций — самая разрушительная операция в системе; иметь две её реализации, которые со временем разойдутся, дороже, чем терпеть один слой косвенности.</li>
+    <li><b>Релиз, который не разваливается на середине.</b> npm ограничивает скорость записи одного аккаунта, а lockstep-релиз просит его принять несколько десятков тарболов подряд. Штатный исполнитель Nx этого не переживает: версия уже закоммичена, отмечена тегом и запушена, а в реестре — половина набора. Здесь публикация сериализована файловой блокировкой, разнесена паузой и ретраится с экспоненциальным откатом.</li>
+    <li><b>Отказ вместо тихой беды.</b> Три места, где инструмент лучше остановится: миграция без <code>DATABASE_URL</code>, Studio на порту 0, публикация имени, которое npm отказался создавать. В каждом случае раньше был «зелёный» результат, за которым не стояло ничего полезного.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик плагина</h4>
+      <p class="small sub">Правит Drizzle-схему и запускает <code>nx run &lt;plugin&gt;:db:generate --name=…</code>. База данных для этого не нужна: генерация только сравнивает схему со снимком.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Тот, кто поднимает стенд</h4>
+      <p class="small sub">Один <code>nx run server:db:migrate</code> применяет миграции <em>всех</em> плагинов в порядке, который задал хост. Каждый плагин ведёт свою таблицу журнала.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Релиз-инженер</h4>
+      <p class="small sub">Запускает <code>npm run release</code> с чистого <code>main</code>. Внутри — сборка, стейджинг переписанного манифеста и троттлинг публикаций, которого он не настраивает.</p>
+    </div>
+  </div>
+
+  <h3>Чем этот пакет не является</h3>
+  <ul>
+    <li><b>Это не CLI.</b> Реализации <code>generate</code>, <code>migrate</code> и <code>studio</code> живут в <code>@orthacms/cli</code>. Здесь — только обёртки, которые умеют получить путь от Nx и прочитать TypeScript-конфиг из исходников.</li>
+    <li><b>Это не генератор проектов.</b> Ни одного Nx-генератора пакет не поставляет: в <code>package.json</code> объявлен только ключ <code>executors</code>. Скаффолдинг приложения — это <code>create-ortha-app</code>.</li>
+    <li><b>Это не часть продукта.</b> Пакет помечен <code>private: true</code> и исключён из релиза явным <code>!@orthacms/nx</code> в <code>nx.json</code>. Он живёт только внутри этого репозитория.</li>
+    <li><b>Это не владелец схемы.</b> Ни одной таблицы, ни одной миграции своей у него нет. Он знает <em>как</em> применить чужие миграции, но не <em>какие</em>.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p><b>Тонкие исполнители над общим ядром, и половина этого ядра вынесена из пакета.</b> <code>db:generate</code>, <code>db:migrate</code> и <code>db:studio</code> — адаптеры над <code>runDrizzleKitGenerate</code>, <code>applyPluginMigrations</code> и <code>runDrizzleKitStudio</code> из <code>@orthacms/cli</code>. Раньше эти функции лежали здесь, в <code>src/lib/drizzle/</code>, куда приложение, установленное из npm, дотянуться не могло вовсе — пакет приватный и не публикуется, а значит у сгенерированного приложения не было способа мигрировать собственную базу. Релизная логика (<code>src/lib/release/</code>) осталась здесь: её запускает только этот репозиторий.</p>
+  </div>
+</section>
+
+<section id="place">
+  <h2 class="sec"><span class="num">02</span>Состав и место в системе</h2>
+
+  <p>Пакет плоский — <code>packages/nx</code>, npm-имя <code>@orthacms/nx</code>, версия <code>0.0.1</code>, флаг <code>private: true</code>. Он зарегистрирован в корневом <code>nx.json</code> строкой <code>"@orthacms/nx"</code> в списке <code>plugins</code>, рядом с <code>@nx/js/typescript</code>, <code>@nx/eslint/plugin</code>, <code>@nx/vite/plugin</code>, <code>@nx/vitest</code>, <code>@nx/playwright/plugin</code>, <code>@nx/webpack/plugin</code> и <code>@nx/jest/plugin</code>. Как и остальные пакеты воркспейса, он потребляется <b>из исходников</b>: <code>main</code> и <code>types</code> указывают на <code>./src/index.ts</code>, и Nx загружает его как TypeScript-плагин без шага сборки.</p>
+
+  <h3>Файловая структура</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что в нём</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">src/index.ts</td><td><code>createNodesV2</code> — весь вывод таргетов и функция <code>packageTargets</code>. Здесь же длинный комментарий, объясняющий, почему <code>db:generate</code> не кэшируется</td></tr>
+      <tr><td class="mono">executors.json</td><td>Регистрация четырёх исполнителей: <code>db-generate</code>, <code>db-migrate</code>, <code>db-studio</code>, <code>release-publish</code></td></tr>
+      <tr><td class="mono">src/executors/&lt;name&gt;/executor.ts</td><td>Реализация исполнителя: разбор опций, проверки-отказы, вызов ядра</td></tr>
+      <tr><td class="mono">src/executors/&lt;name&gt;/schema.json</td><td>JSON-схема опций — то, что Nx валидирует и показывает в подсказках</td></tr>
+      <tr><td class="mono">src/lib/jiti.ts</td><td><code>createTsJiti()</code> — загрузчик TypeScript через jiti + swc в режиме legacy-декораторов</td></tr>
+      <tr><td class="mono">src/lib/release/publish.ts</td><td>Один <code>npm publish</code>, классификация ответа реестра и лестница ретраев</td></tr>
+      <tr><td class="mono">src/lib/release/throttle.ts</td><td>Файловая блокировка с heartbeat, интервал между публикациями и «предохранитель» на создание имён</td></tr>
+      <tr><td class="mono">src/lib/release/registry.ts</td><td>Проба реестра одним <code>GET</code> и извлечение токена из окружения</td></tr>
+      <tr><td class="mono">jest.config.js · .spec.swcrc</td><td>Jest + swc, как у серверных плагинов. <code>npx nx test nx</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Зависимости и кто на него смотрит</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Что импортирует</h4>
+      <ul class="small">
+        <li><code>@nx/devkit</code> — типы <code>CreateNodesV2</code>, <code>TargetConfiguration</code>, <code>ExecutorContext</code></li>
+        <li><code>@orthacms/cli</code> — три функции работы с БД</li>
+        <li><code>@orthacms/bootstrap-server</code> — тип <code>ServerPlugin</code> (только тип)</li>
+        <li><code>jiti</code> + <code>@swc/core</code> — загрузка TypeScript хоста в рантайме</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Кто зависит от него</h4>
+      <ul class="small">
+        <li><code>nx.json</code> — регистрация плагина и <code>targetDefaults.nx-release-publish</code></li>
+        <li><code>tools/release/release.mjs</code> — через <code>nx release</code></li>
+        <li><code>tools/release/pack.mjs</code> — вызывается таргетом <code>pack</code></li>
+        <li>Каждый плагин с <code>drizzle.config.ts</code> — молча, самим фактом наличия файла</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">CommonJS</span>
+    <p>Пакет компилируется в CJS: в <code>package.json</code> нет <code>"type": "module"</code>. Значит, внутри — <code>require</code>, <code>__dirname</code>, <code>__filename</code>, и никогда <code>import.meta</code>. Это не стилистика: <code>createTsJiti(__filename)</code> в обоих исполнителях БД опирается именно на CJS-переменную.</p>
+  </div>
+</section>
+
+<section id="targets">
+  <h2 class="sec"><span class="num">03</span>Каталог таргетов</h2>
+  <p>Главный раздел. Пакет выводит <b>шесть</b> таргетов и реализует <b>четыре</b> исполнителя — остальные два (<code>build</code> и <code>pack</code>) выводятся с готовым исполнителем <code>nx:run-commands</code>. Ни один из них нигде не прописан руками на проекте.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таргет</th><th>Где выводится и по какому признаку</th><th>Что делает</th><th>Кэш</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">db:generate</td>
+        <td>Любой проект, в корне которого есть <code>drizzle.config.ts</code>. Сегодня таких <b>11</b>: <code>apps/server</code>, <code>apps/server-e2e</code>, и плагины activity, alarms, content, copilot, database, identity, media, segments, workspaces</td>
+        <td>Запускает <code>drizzle-kit generate</code> в корне проекта. Сравнивает схему со снимком <code>migrations/meta/*_snapshot.json</code> и пишет новый SQL-файл</td>
+        <td><span class="pill pill-ses">нет</span></td>
+      </tr>
+      <tr>
+        <td class="mono">db:migrate</td>
+        <td>Проект, в корне которого есть <code>ortha.config.ts</code>, — то есть хост. Сегодня это <b>один</b> проект, <code>apps/server</code></td>
+        <td>Загружает конфиг хоста и его <code>buildPlugins()</code>, применяет миграции каждого плагина по очереди, каждый — под своей таблицей журнала</td>
+        <td><span class="pill pill-ses">нет</span></td>
+      </tr>
+      <tr>
+        <td class="mono">db:studio</td>
+        <td>Тот же признак — <code>ortha.config.ts</code> в корне проекта</td>
+        <td>Поднимает Drizzle Studio против живой базы хоста через эфемерный конфиг во временной директории</td>
+        <td><span class="pill pill-ses">нет</span></td>
+      </tr>
+      <tr>
+        <td class="mono">build</td>
+        <td>Пакет под <code>packages/</code>, у которого в манифесте есть <code>name</code> и рядом лежит <code>tsconfig.lib.json</code></td>
+        <td><code>tsc --build tsconfig.lib.json --pretty</code>: JS и <code>.d.ts</code> в <code>dist/</code>, попутно собираются project references</td>
+        <td><span class="pill pill-pub">да</span></td>
+      </tr>
+      <tr>
+        <td class="mono">pack</td>
+        <td>То же самое, но <b>только для непубличного</b> манифеста — то есть без <code>private: true</code></td>
+        <td><code>node tools/release/pack.mjs &lt;projectRoot&gt;</code> — стейджит публикуемый корень пакета в <code>dist/pack/&lt;projectRoot&gt;/</code></td>
+        <td><span class="pill pill-ses">нет</span></td>
+      </tr>
+      <tr>
+        <td class="mono">nx-release-publish</td>
+        <td>Тот же признак, что у <code>pack</code></td>
+        <td>Публикует в npm то, что застейджил <code>pack</code>: <code>packageRoot</code> переадресован на <code>dist/pack/&lt;projectRoot&gt;</code>, а не на корень проекта</td>
+        <td><span class="pill pill-ses">нет</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Опции и требования к окружению</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таргет / исполнитель</th><th>Опции</th><th>Что требует в окружении</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">db:generate<br><span class="sub">@orthacms/nx:db-generate</span></td>
+        <td><code>cwd</code> (обяз., проставляется выводом = корень проекта) · <code>config</code> (обяз., <code>drizzle.config.ts</code> относительно <code>cwd</code>) · <code>name</code> (необяз., имя миграции)</td>
+        <td><b>Ничего.</b> Ни базы, ни секретов: генерация только диффит схему со снимком. Нужен установленный <code>drizzle-kit</code></td>
+      </tr>
+      <tr>
+        <td class="mono">db:migrate<br><span class="sub">@orthacms/nx:db-migrate</span></td>
+        <td><code>config</code> (обяз., путь к <code>ortha.config.ts</code> от корня воркспейса) · <code>plugins</code> (обяз., путь к модулю с <code>buildPlugins(config)</code>; вывод подставляет <code>&lt;projectRoot&gt;/src/plugins.ts</code>)</td>
+        <td><code>DATABASE_URL</code> в <code>.env</code> — <b>обязательно</b>, пустая строка отвергается. Живой Postgres (<code>docker compose up -d</code>)</td>
+      </tr>
+      <tr>
+        <td class="mono">db:studio<br><span class="sub">@orthacms/nx:db-studio</span></td>
+        <td><code>config</code> (обяз.) · <code>host</code> (необяз., по умолчанию <code>127.0.0.1</code>) · <code>port</code> (необяз., по умолчанию <code>4983</code>; значение <code>0</code> отвергается)</td>
+        <td><code>DATABASE_URL</code> и живая база: Studio интроспектирует её напрямую, схема ему не нужна</td>
+      </tr>
+      <tr>
+        <td class="mono">build<br><span class="sub">nx:run-commands</span></td>
+        <td><code>command</code>, <code>cwd</code>. Плюс <code>dependsOn: ['^build']</code>, <code>inputs: ['production', '^production']</code>, <code>outputs: ['{projectRoot}/dist']</code></td>
+        <td>Ничего сверх TypeScript. Кэшируемый и детерминированный</td>
+      </tr>
+      <tr>
+        <td class="mono">pack<br><span class="sub">nx:run-commands</span></td>
+        <td><code>command</code>. <code>dependsOn: ['build']</code>, <code>outputs: ['{workspaceRoot}/dist/pack/&lt;projectRoot&gt;']</code></td>
+        <td>Ничего. Но <b>не кэшируется намеренно</b>: он читает <code>dist</code>, которого нет среди объявленных входов, и попадание в кэш восстановило бы устаревший тарбол</td>
+      </tr>
+      <tr>
+        <td class="mono">nx-release-publish<br><span class="sub">@orthacms/nx:release-publish</span></td>
+        <td><code>packageRoot</code> · <code>delay</code> (5000) · <code>retries</code> (5) · <code>retryBackoff</code> (30000) · <code>maxRetryBackoff</code> (300000) · и проброс от <code>nx release publish</code>: <code>registry</code>, <code>tag</code>, <code>otp</code>, <code>access</code>, <code>dryRun</code>, <code>firstRelease</code>, <code>nxReleaseVersionData</code></td>
+        <td>Учётные данные npm (<code>NPM_TOKEN</code> либо <code>npm login</code>). <code>dependsOn: ['pack']</code> живёт в <code>targetDefaults</code>, а не здесь</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Где сегодня физически висят таргеты</h3>
+  <p>Ни одна строчка ниже нигде не объявлена — это просто следствие того, какие файлы лежат в проектах. Столбец «schema» показывает, насколько разъезжаются пути внутри конфигов: именно поэтому единый глоб входов для кэша принципиально невозможен.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Проект</th><th>Признак</th><th>Таргеты</th><th><code>schema</code> в drizzle-конфиге</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">apps/server</td><td><code>drizzle.config.ts</code> + <code>ortha.config.ts</code></td><td><code>db:generate</code>, <code>db:migrate</code>, <code>db:studio</code></td><td class="mono">./src/content/index.ts</td></tr>
+      <tr><td class="mono">apps/server-e2e</td><td><code>drizzle.config.ts</code></td><td><code>db:generate</code></td><td class="mono">./src/support/content/index.ts</td></tr>
+      <tr><td class="mono">packages/activity/server</td><td><code>drizzle.config.ts</code></td><td><code>db:generate</code>, <code>build</code>, <code>pack</code>, публикация</td><td class="mono">./src/lib/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/alarms/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/infrastructure/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/content/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/views/infrastructure/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/copilot/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/*/infrastructure/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/database</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/identity/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/media/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/infrastructure/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/segments/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/workspaces/server</td><td><code>drizzle.config.ts</code></td><td>те же</td><td class="mono">./src/lib/workspace/infrastructure/schema/index.ts</td></tr>
+      <tr><td class="mono">packages/nx</td><td><code>package.json</code> + <code>tsconfig.lib.json</code>, <code>private</code></td><td>только <code>build</code></td><td class="no">—</td></tr>
+      <tr><td class="mono">packages/copilot/provider-fake</td><td><code>package.json</code> + <code>tsconfig.lib.json</code>, <code>private</code></td><td>только <code>build</code></td><td class="no">—</td></tr>
+      <tr><td class="mono">остальные 47 пакетов под packages/</td><td><code>package.json</code> + <code>tsconfig.lib.json</code></td><td><code>build</code>, <code>pack</code>, публикация</td><td class="no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему db:generate не кэшируется — это решение, а не недосмотр</span>
+    <p>Кэш когда-то был, с <code>inputs: ['{projectRoot}/src/lib/schema/**/*']</code> и <code>outputs: ['{projectRoot}/migrations']</code>. Обе половины были неверны, и вместе они <b>теряли работу</b>.</p>
+    <p><b>(1) Входы не могли быть правильными.</b> Расположение схемы каждый проект задаёт в <em>своём</em> <code>drizzle.config.ts</code>: у хоста это <code>./src/content/index.ts</code>, у media — <code>./src/lib/infrastructure/schema/index.ts</code>, у copilot — глоб <code>./src/lib/*/infrastructure/schema/index.ts</code>. Большинство конфигов указывает <em>наружу</em> из <code>src/lib/schema/</code>, то есть объявленный вход не матчил <b>ничего</b>: правка схемы не меняла хэш, и повторный запуск с тем же <code>--name</code> проигрывал закэшированное «No schema changes, nothing to migrate» — зелёная галка без миграции, ровно тот дрейф схемы и миграций, о котором предупреждает <code>.cursor/BUGBOT.md</code>.</p>
+    <p><b>(2) Выход — одновременно вход.</b> drizzle-kit диффит схему против <code>migrations/meta/*_snapshot.json</code>, который лежит внутри объявленной выходной директории. Значит, результат не является функцией объявленных входов, как бы их ни записали, а <em>восстановление</em> из кэша заменяет всю папку <code>migrations/</code> — стирая миграции, созданные после записи кэш-записи, вместе с журналом и снимком.</p>
+    <p>Вывод входов из каждого конфига чинит (1), но не (2), и означал бы импорт десятка TypeScript-конфигов при каждом вычислении графа. Генерация занимает около секунды, запускается руками несколько раз в неделю и не запускается в CI вовсе — кэш не покупал ничего и рисковал рабочим деревом.</p>
+  </div>
+</section>
+
+<section id="inference">
+  <h2 class="sec"><span class="num">04</span>Механизм вывода таргетов</h2>
+
+  <p>Весь вывод — это одна экспортируемая константа <code>createNodesV2</code>: пара из глоба и асинхронной функции. Nx находит все файлы, подходящие под глоб, и спрашивает функцию, какие таргеты повесить на проект, в чьём корне этот файл лежит. Это тот же механизм, которым <code>@nx/js</code> выводит <code>typecheck</code> из tsconfig.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export const createNodesV2: CreateNodesV2 = [
+    '**/{drizzle.config.ts,ortha.config.ts,package.json}',
+    async (configFiles, _, context) =&gt; { /* … */ }
+];</code></pre></div>
+
+  <p>Диспетчеризация внутри функции — по имени файла, ровно три ветки:</p>
+
+  <ol class="flow">
+    <li><b><code>package.json</code></b> → <code>packageTargets(projectRoot, file, workspaceRoot)</code>. Возвращает <code>build</code>, а для непубличного пакета ещё <code>pack</code> и <code>nx-release-publish</code>.<span class="meta">если функция вернула undefined, отдаётся пустой объект — проект просто не получает ничего</span></li>
+    <li><b><code>drizzle.config.ts</code></b> → один таргет <code>db:generate</code> с <code>cwd</code> = корень проекта и <code>config: 'drizzle.config.ts'</code>.<span class="meta">config задан относительно cwd, потому что drizzle-kit резолвит schema/out относительно рабочей директории, а не расположения конфига</span></li>
+    <li><b><code>ortha.config.ts</code></b> → два таргета, <code>db:migrate</code> и <code>db:studio</code>. Первому дополнительно передаётся <code>plugins: &lt;projectRoot&gt;/src/plugins.ts</code>.<span class="meta">путь к фабрике плагинов зашит соглашением, а не читается из конфига</span></li>
+  </ol>
+
+  <h3>Четыре предохранителя в packageTargets</h3>
+  <p>Функция возвращает <code>undefined</code> — то есть проект не получает ни одного таргета — в четырёх случаях. Каждый закрыт отдельным тестом:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Условие</th><th>Почему отказ</th></tr></thead>
+    <tbody>
+      <tr><td>Корень проекта не начинается с <code>packages/</code></td><td>Приложения (<code>apps/admin</code>, <code>apps/server</code>) собираются собственными бандлерами; корневой манифест воркспейса — не пакет</td></tr>
+      <tr><td>Манифест не парсится как JSON</td><td>Сломанный <code>package.json</code> не должен уронить вычисление всего графа — тогда перестанет работать каждая команда <code>nx</code> в репозитории</td></tr>
+      <tr><td>В манифесте нет <code>name</code></td><td>Безымянный пакет нельзя ни собрать в ссылки, ни опубликовать</td></tr>
+      <tr><td>Рядом нет <code>tsconfig.lib.json</code></td><td>Собирать нечем: команда <code>build</code> — это <code>tsc --build tsconfig.lib.json</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Пятый случай — <code>private: true</code> — не отказ, а сужение: пакет получает <code>build</code>, но не получает <code>pack</code> и публикацию. Именно так сам <code>@orthacms/nx</code> оказывается собираемым, но не публикуемым.</p>
+
+  <h3>Почему build выводится здесь, а не плагином @nx/js</h3>
+  <p><code>@nx/js/typescript</code> выводит <code>build</code> только для проекта, чей манифест указывает на <b>выход</b>. Манифесты воркспейса указывают на <code>./src/index.ts</code>, потому что пакеты потребляются из исходников (см. корневой <code>AGENTS.md</code>, «How packages resolve»). Для разработки это правильный размен и неправильный — для npm, поэтому шаг компиляции выводится здесь.</p>
+
+  <div class="note crit">
+    <span class="label">nx-release-publish объявлен дважды — и обязан быть</span>
+    <p>Nx добавляет <b>собственный неявный</b> <code>nx-release-publish</code> каждому непубличному пакету и применяет его <em>после</em> вывода. Если два определения расходятся в исполнителе, побеждает определение Nx — и уносит с собой выведенные <code>options</code>, включая <code>packageRoot</code>. Практический итог: релиз молча опубликует корень проекта, чей манифест указывает на исходники, вместо того, что застейджил <code>pack</code>. Поэтому исполнитель продублирован в <code>nx.json</code> → <code>targetDefaults</code>, а <code>dependsOn: ['pack']</code> живёт <b>только там</b> — здесь Nx его всё равно перезапишет.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Шаблоны скаффолдера скрыты от вывода</span>
+    <p><code>packages/create-ortha-app/templates</code> перечислен в корневом <code>.nxignore</code>. Внутри шаблона лежит настоящий <code>ortha.config.ts</code>, и вывод честно повесил бы на него <code>db:migrate</code> — на директорию, у которой нет имени проекта, после чего граф перестал бы строиться целиком. Файл-исключение написан не под этот плагин, а под все сразу: <code>@nx/js/typescript</code> вывел бы <code>typecheck</code> из шаблонных tsconfig ровно так же охотно.</p>
+  </div>
+</section>
+
+<section id="jiti">
+  <h2 class="sec"><span class="num">05</span>Чтение TypeScript из исходников</h2>
+
+  <p>Два исполнителя — <code>db:migrate</code> и <code>db:studio</code> — обязаны прочитать <code>ortha.config.ts</code> хоста, а первый ещё и <code>src/plugins.ts</code> с фабрикой <code>buildPlugins(config)</code>. Оба файла — TypeScript, и в этом монорепозитории они <b>не скомпилированы</b>: воркспейс резолвит всё из исходников. Отсюда <code>src/lib/jiti.ts</code>.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function createTsJiti(referenceFile: string) {
+    return createJiti(referenceFile, { transform: swcTransform });
+}</code></pre></div>
+
+  <h3>Почему именно swc, а не встроенный babel</h3>
+  <p>Загрузка конфига тянет за собой весь граф плагинов — модули NestJS и их DTO, — а он использует <b>legacy</b>-декораторы (<code>experimentalDecorators</code>). Встроенный в jiti babel игнорирует наш tsconfig и по умолчанию берёт семантику декораторов stage-3. В этой семантике декорированное поле с definite assignment (<code>email!: string</code>) получает инициализатор, и трансформация падает в <code>transform-typescript</code>. swc с <code>legacyDecorator: true</code> и <code>decoratorMetadata: true</code> совпадает с реальным TS-конфигом репозитория, поэтому тот же самый исходник, который компилирует приложение, загружается и здесь.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Параметр трансформации</th><th>Значение</th><th>Зачем</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">jsc.target</td><td><code>es2022</code></td><td>Совпадает с целью компиляции сервера</td></tr>
+      <tr><td class="mono">jsc.parser</td><td><code>typescript</code>, <code>decorators: true</code></td><td>Иначе декораторы Nest не распознаются как синтаксис</td></tr>
+      <tr><td class="mono">transform.legacyDecorator</td><td><code>true</code></td><td>Та самая точка расхождения с babel</td></tr>
+      <tr><td class="mono">transform.decoratorMetadata</td><td><code>true</code></td><td>Nest читает типы параметров из метаданных</td></tr>
+      <tr><td class="mono">module.type</td><td><code>commonjs</code></td><td>Пакет и загружаемый код — CJS</td></tr>
+      <tr><td class="mono">configFile / swcrc</td><td><code>false</code></td><td>Настройки задаются явно, а не подхватываются из дерева</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему в CLI ничего этого нет</span>
+    <p>Это проблема <b>только этого воркспейса</b>. Сгенерированное приложение имеет собственный шаг сборки, поэтому <code>@orthacms/cli</code> просто собирает первым и делает <code>require</code> готового JavaScript: <code>dist/server/ortha.config.js</code> и <code>dist/server/src/plugins.js</code> (константы <code>LAYOUT.compiledConfig</code> и <code>LAYOUT.compiledPlugins</code>). Вся проблема трансформации на стороне потребителя просто не возникает — CLI не нужен ни jiti, ни swc. Там же выбран <code>require</code>, а не <code>await import()</code>: приложение компилируется в CommonJS, и импорт CJS-модуля из ESM кладёт весь <code>module.exports</code> в <code>default</code> пространства имён, так что <code>module.default</code> оказывается <code>{ default: config }</code>, а первое же обращение падает на свойстве <code>undefined</code>.</p>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">06</span>Сценарии по шагам</h2>
+
+  <h3>6.1 Сгенерировать миграцию для плагина</h3>
+  <p class="sub small">База данных не нужна. Секреты не нужны. Результат — новый SQL-файл, который коммитится вместе с изменением схемы.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>npx nx run identity-server:db:generate --name=add_sso_identities</code></pre></div>
+  <ol class="flow">
+    <li><b>Nx нашёл таргет по файлу.</b> В <code>packages/identity/server</code> лежит <code>drizzle.config.ts</code> — значит, <code>db:generate</code> у проекта уже есть, ничего не объявляя.<span class="meta">опции вывода: cwd = packages/identity/server, config = drizzle.config.ts</span></li>
+    <li><b>Исполнитель собирает абсолютный путь.</b> <code>join(context.root, options.cwd)</code> — и передаёт его дальше как рабочую директорию.</li>
+    <li><b>Вызывается <code>runDrizzleKitGenerate(cwd, config, name)</code> из <code>@orthacms/cli</code>.</b> Он резолвит бинарь: <code>exports</code> у drizzle-kit не даёт достать <code>./bin.cjs</code> напрямую, поэтому резолвится главный вход пакета и берётся соседний файл.</li>
+    <li><b>drizzle-kit запускается со <code>stdio: 'inherit'</code>.</b> Его вывод идёт прямо в терминал: работа выполняется в <code>cwd</code> плагина, потому что <code>schema</code> и <code>out</code> резолвятся относительно рабочей директории, а не расположения конфига.</li>
+    <li><b>Схема сравнивается со снимком.</b> <code>migrations/meta/*_snapshot.json</code> — эталон; соединения с базой не открывается вовсе.</li>
+    <li><b>При падении сообщение переписывается.</b> <code>execFileSync</code> бросает ошибку, чей текст — весь argv (путь к node, путь к бинарю, все флаги), и Nx печатает это многокадровым стеком. Вместо этого бросается короткое «drizzle-kit generate failed in &lt;cwd&gt; (exit N) — его вывод выше», с указанием проверить пути <code>schema</code> и то, что схема компилируется.<span class="meta">оригинальная ошибка сохраняется в cause</span></li>
+    <li><b>Коммитится эмитированный SQL.</b> Файл миграции и обновлённые journal/snapshot — часть того же изменения, что и правка схемы.</li>
+  </ol>
+
+  <h3>6.2 Применить миграции всех плагинов</h3>
+  <p class="sub small">Единственная команда, которую запускают на стенде и на проде. Порядок плагинов — несущий.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>docker compose up -d          # Postgres
+npx nx run server:db:migrate  # применить всё</code></pre></div>
+  <ol class="flow">
+    <li><b>Создаётся jiti-загрузчик</b> — <code>createTsJiti(__filename)</code>, тот самый, с swc в режиме legacy-декораторов.</li>
+    <li><b>Импортируется <code>ortha.config.ts</code> хоста</b> по пути <code>join(context.root, options.config)</code>; берётся <code>default</code>-экспорт.</li>
+    <li><b>Импортируется модуль плагинов</b> — <code>apps/server/src/plugins.ts</code>, экспортирующий <code>buildPlugins(config)</code>.</li>
+    <li><b>Проверяется URL базы — и это отказ, а не предупреждение.</b> Если <code>config.database?.url</code> пуст, бросается ошибка с прямым текстом: «db:migrate needs to know which database to migrate, and will not fall back to the local defaults».<span class="meta">проверка стоит ДО построения списка плагинов — отдельный тест это фиксирует</span></li>
+    <li><b>Строится список плагинов</b> вызовом <code>buildPlugins(config)</code>, и он передаётся в <code>applyPluginMigrations(plugins, url)</code>.</li>
+    <li><b>Ядро отфильтровывает плагины без миграций.</b> Если таких нет ни одного — печатается «No plugin migrations to apply.» и всё.</li>
+    <li><b>Печатается, куда именно идёт запись.</b> <code>describeTarget(url)</code> даёт <code>host:port/database</code> без учётных данных; непарсящийся URL честно называется непарсящимся, а не угадывается.</li>
+    <li><b>Плагины применяются по одному, в порядке, который вернул <code>buildPlugins()</code>.</b> Каждый — своей папкой <code>migrations.dir()</code> и своей таблицей журнала <code>migrations.table</code>.</li>
+    <li><b>Падение называет, где остановились.</b> «Migrating plugin &lt;name&gt; failed — applied N of M before it», плюс явное «ничего не откатывается: N уже закоммичены», плюс главная подсказка — про <b>порядок</b> в <code>plugins.ts</code>.</li>
+    <li><b>Пул закрывается в <code>finally</code></b> независимо от исхода.</li>
+  </ol>
+  <div class="note crit">
+    <span class="label">Почему пустой DATABASE_URL — это отказ</span>
+    <p><code>new Pool({ connectionString: '' })</code> не падает: <code>pg</code> проваливается в переменные окружения libpq — <code>PGHOST</code>, <code>PGUSER</code>, <code>PGDATABASE</code> — или в localhost и OS-пользователя. Замерено в этом репозитории до появления проверки: с неустановленным <code>DATABASE_URL</code> и <code>PGDATABASE</code>, указывающим в другое место, <code>db:migrate</code> отрапортовал «Migrations complete.» <b>после того, как создал всю схему в базе, которую никто не называл</b>. <code>db:studio</code> отказывался всегда; здесь тот же самый отказ.</p>
+  </div>
+  <div class="note warn">
+    <span class="label">Порядок плагинов не объявлен нигде</span>
+    <p><code>memberships</code> из workspaces ссылается по внешнему ключу на <code>users</code> из identity, и ничто в системе эту зависимость не декларирует. Цикл применяет плагины ровно в том порядке, в каком их вернул <code>buildPlugins()</code>, поэтому сообщение об ошибке прямо указывает на порядок как на обычную причину «relation does not exist».</p>
+  </div>
+
+  <h3>6.3 Открыть Drizzle Studio</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>npx nx run server:db:studio
+npx nx run server:db:studio --port=5000        # другой порт
+npx nx run server:db:studio --host=0.0.0.0     # напечатает предупреждение</code></pre></div>
+  <ol class="flow">
+    <li><b>URL резолвится из конфига хоста</b> тем же jiti-загрузчиком — <code>ortha.config.ts</code> остаётся единственным местом, которое читает <code>DATABASE_URL</code>.</li>
+    <li><b>Пустой URL — отказ.</b> «Drizzle Studio needs a live database connection.»</li>
+    <li><b><code>--port=0</code> — отказ.</b> drizzle-kit действительно займёт эфемерный порт, но напечатает тот, который у него <em>просили</em>, и Studio окажется по адресу, о котором никто не сообщает. Отказ лучше и молчаливого игнорирования, которое здесь было раньше, и бесполезного успеха от drizzle-kit.</li>
+    <li><b>Синтезируется эфемерный конфиг во временной директории.</b> Закоммиченные drizzle-конфиги намеренно содержат только схему и не содержат секретов, поэтому конфиг создаётся на лету — и он ссылается на <code>process.env.DATABASE_URL</code>, а не инлайнит URL.</li>
+    <li><b>URL передаётся через env дочернего процесса</b> и <b>никогда не пишется на диск</b>. Эфемерный конфиг экспортирует простой объект без <code>import</code>, чтобы бандлеру drizzle-kit не понадобилась резолюция модулей из временной директории.</li>
+    <li><b>Небезопасный bind предупреждает вслух.</b> Любой <code>--host</code>, кроме <code>localhost</code>, <code>127.0.0.1</code>, <code>::1</code>, <code>[::1]</code>, печатает предупреждение с адресом: у Studio нет аутентификации и есть полный доступ на чтение и запись, а drizzle-kit об этой разнице молчит.</li>
+    <li><b>Ctrl+C — это успех.</b> <code>execFileSync</code> бросает, когда ребёнка убили сигналом; <code>SIGINT</code> и <code>SIGTERM</code> распознаются и возвращают успех. Считать документированный способ остановки красным падением — значит приучать людей игнорировать красное.</li>
+    <li><b>Временная директория удаляется в <code>finally</code></b> при любом исходе.</li>
+  </ol>
+
+  <h3>6.4 Выпустить релиз</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>npm run release:dry-run     # репетиция: ничего не пишет, не пушит, не публикует
+npm run release             # версия → changelog → тег → push → публикация → GitHub Release
+npm run release:publish     # только публикация, чтобы дожать частично упавший релиз
+npm run release -- 1.2.0    # принудительная версия вместо выведенной</code></pre></div>
+  <ol class="flow">
+    <li><b>Преполётные проверки.</b> <code>tools/release/release.mjs</code> грузит <code>.env</code> и отказывается стартовать, если вы не на <code>main</code> (обходится <code>--allow-branch</code>), дерево грязное, ветка отстала от <code>origin/main</code>, у npm нет пригодных учётных данных или отсутствует <code>GITHUB_TOKEN</code>.<span class="meta">nx release коммитит, тегирует и ПУШИТ до публикации — поздно найденная проблема оставляет тег и пустой реестр</span></li>
+    <li><b>Версия.</b> <code>nx release</code> выводит её из conventional commits (<code>feat:</code> → minor, <code>fix:</code> → patch, <code>!</code> → major), режим <code>fixed</code>: все пакеты двигаются вместе.</li>
+    <li><b><code>preVersionCommand</code> собирает всё:</b> <code>npx nx run-many -t build --projects=@orthacms/*,create-ortha-app</code>.</li>
+    <li><b><code>pack</code> стейджит каждый пакет</b> в <code>dist/pack/&lt;projectRoot&gt;/</code> с переписанным манифестом. Таргет зависит от <code>build</code>.</li>
+    <li><b>Подтверждение.</b> <code>nx release</code> спрашивает перед публикацией, и этот вопрос оставлен намеренно: публикацию нельзя отменить, а номер версии нельзя переиспользовать.</li>
+    <li><b>Публикация по одной.</b> Каждый пакет проходит через рабочий слот с файловой блокировкой, пробуется реестром через <code>GET</code> и публикуется <code>npm publish &lt;packageRoot&gt; --json</code>.</li>
+    <li><b>GitHub Release.</b> Один общий <code>CHANGELOG.md</code> на воркспейс, тег вида <code>v{version}</code>, релиз создаётся по <code>GITHUB_TOKEN</code>.</li>
+    <li><b>Если что-то упало — <code>npm run release:publish</code>.</b> Пакеты, уже лежащие в реестре, пропускаются пробой без единой записи.</li>
+  </ol>
+</section>
+
+<section id="release">
+  <h2 class="sec"><span class="num">07</span>Релизный процесс детально</h2>
+
+  <p>Все пакеты под <code>packages/</code> публикуются <b>в один заход, одной версией, одним тегом</b>. В <code>nx.json</code> это описано так: <code>projects: ["@orthacms/*", "create-ortha-app", "!@orthacms/nx", "!@orthacms/copilot-provider-fake"]</code>, <code>projectsRelationship: "fixed"</code>, <code>releaseTagPattern: "v{version}"</code>. Приложения (<code>apps/admin</code>, <code>apps/server</code>) приватны и не публикуются никогда: они — референсный хост, а не дистрибутив.</p>
+
+  <h3>Почему тарбол — это не закоммиченный манифест</h3>
+  <p>Воркспейс резолвит пакеты <b>из исходников</b>: <code>exports</code> указывает на <code>./src/index.ts</code>, а <code>tsconfig.base.json</code> даёт условие <code>@orthacms/source</code>. У потребителя, ставящего пакет из npm, нет ни того, ни другого — и нет способа скомпилировать наш TypeScript. Поэтому релиз обязан <em>отменить</em> ровно ту вещь, которая удобна в разработке. Делают это три выводимых таргета, и все три приходят из этого пакета — то есть новый пакет получает их фактом своего существования.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Шаг</th><th>Что происходит</th><th>Что попадает в результат</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">build</td>
+        <td><code>tsc --build tsconfig.lib.json</code> — JS и <code>.d.ts</code> в <code>dist/</code> пакета, попутно собираются project references</td>
+        <td>Серверные пакеты компилируются в CommonJS (следствие <code>nodenext</code> и отсутствия <code>"type": "module"</code>), админские — в ESM для бандлера</td>
+      </tr>
+      <tr>
+        <td class="mono">pack</td>
+        <td><code>tools/release/pack.mjs</code> собирает публикуемый корень в <code>dist/pack/&lt;projectRoot&gt;/</code></td>
+        <td><code>package.json</code> переписанный · <code>dist/</code> (вывод tsc + не-TS ассеты вроде <code>styles.css</code>) · <code>migrations/</code> дословно, если плагин их везёт · <code>templates/</code> дословно, если пакет их везёт · <code>README.md</code> и <code>LICENSE</code></td>
+      </tr>
+      <tr>
+        <td class="mono">nx-release-publish</td>
+        <td>Публикует <b>эту директорию</b>, а не корень проекта, через <code>packageRoot</code>. Исполнитель — наш, а не <code>@nx/js:release-publish</code></td>
+        <td>Тарбол ровно из застейдженного содержимого</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Что именно переписывает pack в манифесте</h4>
+  <ul>
+    <li><b><code>exports</code></b> — каждая подпуть переводится с <code>./src/*.ts</code> на <code>./dist/*.js</code>, причём декларации предлагаются первыми (чтобы <code>types</code> выигрывал у tsc), а компилированный JS — как <code>default</code>.</li>
+    <li><b><code>bin</code></b> — ремапится так же, как <code>main</code>, в обеих формах, которые принимает npm: голая строка и карта. Оставленный указывать на <code>./src/cli.ts</code>, он публикует команду, которая устанавливается чисто и умирает на первом <code>npx</code>, на чужой машине, с ошибкой про несуществующую команду, а не про файл.</li>
+    <li><b>Зависимости на воркспейс</b> — объявленные как <code>"*"</code>, что в реестре означает «что угодно последнее», пинятся на версию релиза.</li>
+    <li><b><code>files</code></b> — <code>dist</code> плюс <code>migrations</code> и <code>templates</code>, если они есть; иначе npm их просто не опубликует.</li>
+    <li><b><code>publishConfig.access: 'public'</code></b> — проставляется всегда.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Две вещи, которые pack отказывается отгружать</span>
+    <p>Обе были настоящими багами и обе валят релиз, а не доезжают до реестра. <b>(1) Точка входа, которую не собрали</b> — каждый путь в сгенерированном <code>exports</code> обязан существовать в стейджинге. <b>(2) Фантомная зависимость</b> — пакет, импортирующий то, что объявлено только в <em>корневом</em> манифесте, резолвится здесь (npm поднимает зависимости) и просто отсутствует в дереве потребителя. Импорты только типов тоже считаются: они попадают в <code>.d.ts</code>.</p>
+  </div>
+
+  <p class="small sub">Стейджинг лежит в корне воркспейса, а не рядом с пакетом, намеренно: корневые globs <code>workspaces</code> покрывают <code>packages/*</code>, и директория стейджинга внутри плоского пакета читается как второй воркспейс с тем же именем — после чего npm отказывается работать вообще.</p>
+
+  <h3>Троттлинг: почему публикация не может быть просто npm publish</h3>
+  <p>npm ограничивает, <b>как быстро</b> один аккаунт пишет. Опубликованные с той скоростью, с какой их планирует Nx, тарболы начинают получать <code>429 Too Many Requests</code> где-то в середине списка — а к этому моменту версия уже закоммичена, отмечена тегом и запушена, то есть репозиторий утверждает, что релиз состоялся, а реестр имеет только его половину.</p>
+
+  <p>Nx запускает <code>nx-release-publish</code> как обычные задачи — параллельно, в форкнутых воркерах, — поэтому интервал невозможно выдержать внутри одного процесса. Отсюда файловая блокировка под <code>dist/.release-publish</code>: кто держит её, тот публикует, остальные ждут своей очереди.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Механизм</th><th>Как устроен</th><th>Что защищает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">withPublishSlot</td>
+        <td>Файл <code>lock</code> создаётся флагом <code>wx</code> (падение при существовании — это и есть мьютекс) и содержит pid держателя. Блокировка удерживается <b>и на время паузы тоже</b>, чтобы пакеты выстраивались в очередь, а не спали все разом и потом гонялись</td>
+        <td>Сериализация публикаций поверх параллелизма задач Nx</td>
+      </tr>
+      <tr>
+        <td class="mono">spacing</td>
+        <td>Минимальный интервал между двумя публикациями. Может быть функцией — она вычисляется только <em>после</em> захвата слота, чтобы пакет, который уже узнал, что публиковаться не будет, не отсиживал паузу</td>
+        <td>Скоростной лимит записи</td>
+      </tr>
+      <tr>
+        <td class="mono">heartbeat</td>
+        <td>Держатель обновляет mtime своего lock раз в 60 с (таймер <code>unref</code>-нут, чтобы застрявшая публикация не держала event loop воркера)</td>
+        <td>Разводит «умер» и «долго работает»</td>
+      </tr>
+      <tr>
+        <td class="mono">staleAfter</td>
+        <td>15 минут <b>молчания</b>, после которых блокировку можно украсть. Именно молчания, а не возраста: лестница ретраев по умолчанию спит 30+60+120+240+300 с = 12,5 минуты перед шестой попыткой, а <code>ORTHA_PUBLISH_RETRIES=8</code> уводит её за двадцать</td>
+        <td>Зависший воркер не заклинивает все следующие релизы</td>
+      </tr>
+      <tr>
+        <td class="mono">holderIsAlive</td>
+        <td>Проверка pid сигналом <code>0</code>, <b>до</b> проверки возраста. <code>ESRCH</code> — доказательство, что никто не держит; <code>EPERM</code> означает «жив и чужой». Нечитаемый или битый lock считается живым, чтобы настоящая гонка всё-таки подождала</td>
+        <td>Релиз, прерванный Ctrl-C, оставляет lock — иначе каждый возобновлённый релиз начинался бы с пятнадцатиминутного зависания</td>
+      </tr>
+      <tr>
+        <td class="mono">release</td>
+        <td>Снимает блокировку, <b>только если она всё ещё наша</b> (pid совпадает)</td>
+        <td>Если lock всё-таки украли, снятие его отсюда выдало бы слот <em>третьему</em> публикатору — одно наложение превратилось бы в каскад</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Жизненный путь одной публикации</h4>
+  <div class="states">
+    <span class="state">очередь</span>
+    <span class="arrow">— взял блокировку →</span>
+    <span class="state pending">пауза</span>
+    <span class="arrow">— проба GET →</span>
+    <span class="state">npm publish</span>
+    <span class="arrow">→</span>
+    <span class="state active">опубликован</span>
+    <span class="arrow">либо</span>
+    <span class="state disabled">отказ</span>
+  </div>
+  <p class="small sub">Из состояния «проба» есть два выхода мимо публикации: <code>version-published</code> уводит сразу в успех без записи, а взведённый предохранитель — сразу в отказ, тоже без записи. Из «npm publish» ретраибельный ответ возвращает в паузу с удвоенным откатом, и так до исчерпания попыток.</p>
+
+  <h3>Проба реестра: спросить, прежде чем говорить</h3>
+  <p><code>PUT</code> — метрируемая операция, <code>GET</code> — нет. Перед каждой публикацией делается один <code>GET</code> пакумента (<code>lib/release/registry.ts</code>), и его ответ решает сразу два вопроса.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ответ пробы</th><th>Что он означает</th><th>Что делает исполнитель</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">version-published</td><td>Ровно эта версия уже в реестре</td><td>Пропуск без единой записи — это и есть возобновление упавшего релиза</td></tr>
+      <tr><td class="mono">name-exists</td><td>Имя есть, эта версия — новая</td><td>Обычная публикация с полной лестницей ретраев</td></tr>
+      <tr><td class="mono">name-absent</td><td>404 — публикация <b>создаст имя</b></td><td>Ровно одна попытка, без лестницы</td></tr>
+      <tr><td class="mono">unknown</td><td>Реестр не ответил: офлайн, DNS, прокси</td><td>Публикуем и даём решать <code>PUT</code>. Проба, которая не смогла ответить, никогда не должна быть причиной падения</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub">Слэш в scoped-имени экранируется в форму <code>%2f</code> — так делают собственные клиенты npm. Токен, если он есть, шлётся как <code>Bearer</code>, и нужен ровно для одного: чтобы <b>restricted</b>-пакет читался как <code>name-exists</code>, а не <code>name-absent</code>. Ищется он в трёх местах по порядку: собственный ключ npm вида <code>npm_config_//registry.npmjs.org/:_authToken</code>, затем <code>NPM_TOKEN</code>, затем <code>NODE_AUTH_TOKEN</code>.</p>
+
+  <h3>Что ретраится, а что нет</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ответ npm</th><th>Классификация</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>429 / «too many requests» / «rate limit» / <code>E429</code> / <code>ERATELIMIT</code> — <b>на бампе версии</b></td><td class="mono">retryable</td><td>Ретрай с откатом 30 с → 60 → 120 → 240 → 300 (потолок), 5 дополнительных попыток</td></tr>
+      <tr><td>429 — <b>на создании имени</b></td><td class="mono">creation-blocked</td><td>Одна попытка и честный ответ. Взводится «предохранитель» рядом с блокировкой</td></tr>
+      <tr><td><code>E50x</code>, <code>500/502/503/504</code> с текстом сервера</td><td class="mono">retryable</td><td>Ретрай («the registry returned a server error»)</td></tr>
+      <tr><td><code>ETIMEDOUT</code>, <code>ECONNRESET</code>, <code>ECONNREFUSED</code>, <code>EAI_AGAIN</code>, «socket hang up», «network»</td><td class="mono">retryable</td><td>Ретрай («the connection to the registry failed»)</td></tr>
+      <tr><td><code>EPUBLISHCONFLICT</code> / «cannot publish over the previously published versions»</td><td class="mono">already-published</td><td><b>Успех.</b> Именно это видит возобновлённый релиз для всего, что уже уехало</td></tr>
+      <tr><td>Битый манифест, отсутствующая точка входа, отвергнутый токен</td><td class="mono">failed</td><td>Падение на первой попытке — ретрай только удлинит путь к тому же ответу</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub">Серверные ошибки распознаются по собственным формулировкам npm (<code>npm error code E503</code>, <code>503 Service Unavailable - PUT https://…</code>), а не по голому числу, которое встречается в неродственном выводе вроде размеров файлов. Проверка на rate limit намеренно <b>не срабатывает</b> на обычном <code>E403</code>.</p>
+
+  <div class="note crit">
+    <span class="label">Создание имени — другой лимит, и его не пересидеть</span>
+    <p>Всё вышеописанное — про скорость записи, и интервал это чинит. Создание <b>нового имени пакета</b> метрируется отдельно и куда жёстче. Измерено: релиз 0.1.0 создал 25 имён за 32 секунды, после чего npm отказал остальным 12 — и продолжал отказывать им и в 0.2.0, и в 0.2.1, пока бампы версий на уже существующих 25 именах в тех же прогонах проходили нетронутыми. Час полностью простаивающего аккаунта ничего не изменил.</p>
+    <p>Поэтому: <b>429 на создании — терминальный</b>. Одна попытка, внятное сообщение, и взведённый флаг рядом с блокировкой. Пакеты, стоящие в очереди за ним, выходят из игры <b>не потратив ни одного запроса</b>: один заблокированный релиз стоит одной отклонённой записи, а не одной на пакет. Флаг спрашивается заново <em>изнутри</em> слота, а не только на входе — до первой попытки публикации ответ всегда был бы «нет».</p>
+    <p>Лечится это только обращением в поддержку npm — или предварительным засевом имён: <code>npm run release:reserve</code> создаёт недостающие имена батчами, публикуя <b>настоящий застейдженный тарбол</b> под версией <code>0.0.0-reserve.0</code> и dist-тегом <code>reserve</code>. <code>latest</code> при этом остаётся непроставленным, так что <code>npm install</code> ничего не найдёт до настоящего релиза, а не поставит пустышку. Первый отказ завершает прогон: каждая отклонённая попытка — сигнал для рейт-лимитера.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Репетируйте через npm run release:dry-run, никогда через nx run-many</span>
+    <p><code>nx run &lt;project&gt;:nx-release-publish --dryRun</code> работает — флаг доходит до исполнителя. <code>nx run-many -t nx-release-publish --dryRun</code> <b>не работает</b>: <code>run-many</code> съедает <code>--dryRun</code> сам, опция не приходит, и таргет выполняет <b>настоящий</b> <code>npm publish</code>. На аутентифицированной машине это публикует по-настоящему, а для имени, которое аккаунт ещё не создавал, тратит одно из рационированных созданий. <code>npm run release:dry-run</code> идёт через <code>nx release publish --dry-run</code>, который выставляет ещё и <code>NX_DRY_RUN</code>, так что репетиция держится в обоих случаях.</p>
+  </div>
+
+  <h3>Что исполнитель пропускает без записи</h3>
+  <ul>
+    <li><b><code>private: true</code> в застейдженном манифесте</b> — «Skipped &lt;pkg&gt;, because it is marked private».</li>
+    <li><b>Nx не разрешил новую версию</b> (<code>nxReleaseVersionData[project].newVersion === null</code>) — публиковать нечего, а спрашивать npm значило бы заработать ещё один 403.</li>
+    <li><b>Проба сказала <code>version-published</code></b> — «that version is already on the registry».</li>
+    <li><b>Предохранитель взведён другим пакетом</b> — статус <code>blocked-by-peer</code>: сообщение называет пакет, который упёрся в лимит первым, а этот не тратит запрос.</li>
+  </ul>
+  <p class="small sub">Сухой прогон не пробует реестр и не ждёт ничего: он ничего не пишет, значит и лимита, под который надо подстраиваться, у него нет.</p>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">08</span>Конфигурация и окружение</h2>
+
+  <h3>Переменные окружения</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Переменная</th><th>Кто читает</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">DATABASE_URL</td><td><code>ortha.config.ts</code> хоста → <code>db:migrate</code>, <code>db:studio</code></td><td>Единственный источник адреса базы. Пустое значение — отказ в обоих исполнителях</td></tr>
+      <tr><td class="mono">NPM_TOKEN</td><td><code>release.mjs</code>, проба реестра</td><td>Автоматизационный токен с правом публикации в scope <code>@orthacms</code>. Передаётся npm как конфигурация дочернего процесса, <b>никогда не пишется в <code>.npmrc</code></b>. Можно оставить пустым и публиковаться от <code>npm login</code></td></tr>
+      <tr><td class="mono">NODE_AUTH_TOKEN</td><td>Проба реестра</td><td>Запасной источник токена (типичен для CI)</td></tr>
+      <tr><td class="mono">GITHUB_TOKEN</td><td><code>release.mjs</code> → <code>nx release</code></td><td>Токен с доступом <code>repo</code>, которым создаётся GitHub Release</td></tr>
+      <tr><td class="mono">ORTHA_PUBLISH_DELAY</td><td><code>release-publish</code></td><td>Интервал между публикациями, мс. По умолчанию 5000</td></tr>
+      <tr><td class="mono">ORTHA_PUBLISH_RETRIES</td><td><code>release-publish</code></td><td>Дополнительных попыток на ретраибельную ошибку. По умолчанию 5</td></tr>
+      <tr><td class="mono">ORTHA_PUBLISH_RETRY_BACKOFF</td><td><code>release-publish</code></td><td>Первый откат, мс; дальше удваивается. По умолчанию 30000</td></tr>
+      <tr><td class="mono">NX_DRY_RUN</td><td><code>release-publish</code></td><td>Выставляется <code>nx release publish --dry-run</code>; включает сухой прогон наравне с опцией <code>dryRun</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code># замедлить публикации на один прогон
+ORTHA_PUBLISH_DELAY=10000 ORTHA_PUBLISH_RETRIES=8 npm run release</code></pre></div>
+
+  <p><b>Приоритет числовых настроек:</b> окружение → опция таргета → встроенное значение по умолчанию. Из окружения принимается любое конечное неотрицательное целое, включая <code>0</code>: ноль осмыслен (никакой паузы) и не должен молча проваливаться в дефолт.</p>
+
+  <h3>Точки конфигурации вне пакета</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что задаёт</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">nx.json → plugins</td><td>Строка <code>"@orthacms/nx"</code> — единственное, что подключает вывод таргетов</td></tr>
+      <tr><td class="mono">nx.json → targetDefaults</td><td><code>nx-release-publish</code>: дублированный <code>executor</code> и <b>единственное место</b>, где живёт <code>dependsOn: ['pack']</code></td></tr>
+      <tr><td class="mono">nx.json → release</td><td>Список проектов, режим <code>fixed</code>, шаблон тега, conventional commits, <code>preVersionCommand</code>, один общий <code>CHANGELOG.md</code></td></tr>
+      <tr><td class="mono">.nxignore</td><td>Скрывает <code>packages/create-ortha-app/templates</code> от вывода всех плагинов сразу</td></tr>
+      <tr><td class="mono">&lt;plugin&gt;/drizzle.config.ts</td><td>Признак для <code>db:generate</code> и одновременно источник путей <code>schema</code> / <code>out</code>. Схема-онли, без секретов</td></tr>
+      <tr><td class="mono">apps/server/ortha.config.ts</td><td>Признак для <code>db:migrate</code> / <code>db:studio</code>; единственное место, читающее <code>DATABASE_URL</code></td></tr>
+      <tr><td class="mono">apps/server/src/plugins.ts</td><td><code>buildPlugins(config)</code> — список плагинов и, что важнее, их <b>порядок</b></td></tr>
+      <tr><td class="mono">&lt;package&gt;/tsconfig.lib.json</td><td>Наличие файла — обязательное условие для <code>build</code>; сам файл задаёт, что и куда компилируется</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Минимальный <code>.env</code>, которого хватает для работы с базой</summary>
+    <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>DATABASE_URL=postgres://ortha:ortha@localhost:5432/ortha_cms</code></pre></div>
+    <p class="small">Больше <code>db:generate</code>, <code>db:migrate</code> и <code>db:studio</code> ничего не требуют. Первому не нужно и этого. Для параллельных стендов слот <em>n</em> фиксирует свои порт и базу (<code>ortha_cms_an</code>), и <code>npm run worktree -- provision &lt;slot&gt;</code> пишет уже подогнанный <code>.env</code> — таргеты БД при этом не меняются вовсе, они просто читают другой URL.</p>
+  </details>
+
+  <h3>Как добавить новую команду</h3>
+  <ol class="flow">
+    <li><b>Создать <code>src/executors/&lt;name&gt;/executor.ts</code> и <code>schema.json</code>.</b> Логику держать в <code>src/lib/</code>, исполнитель — тонкий.</li>
+    <li><b>Зарегистрировать в <code>executors.json</code></b> с полями <code>implementation</code>, <code>schema</code>, <code>description</code>.</li>
+    <li><b>Опционально: вывести в <code>createNodesV2</code>,</b> чтобы таргет сам прицеплялся к проектам по признаку файла.</li>
+  </ol>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">09</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Глоб вывода — ровно <code>**/{drizzle.config.ts,ortha.config.ts,package.json}</code>; ни один таргет этого пакета не прописывается на проекте вручную.</span></li>
+    <li><span class="id">И-02</span><span>Проект с <code>drizzle.config.ts</code> получает <code>db:generate</code> и <b>не получает</b> <code>db:migrate</code> или <code>db:studio</code>.</span></li>
+    <li><span class="id">И-03</span><span>Проект с <code>ortha.config.ts</code> получает <code>db:migrate</code> и <code>db:studio</code> — оба некэшируемые.</span></li>
+    <li><span class="id">И-04</span><span><code>db:generate</code> некэшируем и <b>не объявляет ни входов, ни выходов</b>, против которых его можно было бы кэшировать.</span></li>
+    <li><span class="id">И-05</span><span><code>db:generate</code> не открывает соединение с базой и не требует ни одного секрета.</span></li>
+    <li><span class="id">И-06</span><span><code>db:migrate</code> и <code>db:studio</code> отказываются работать при пустом URL базы и <b>никогда</b> не проваливаются в локальные умолчания libpq.</span></li>
+    <li><span class="id">И-07</span><span>Проверка URL в <code>db:migrate</code> выполняется <b>до</b> построения списка плагинов: ничего не открывается и ничего не применяется.</span></li>
+    <li><span class="id">И-08</span><span>Миграции применяются строго в порядке, который вернул <code>buildPlugins()</code>, каждый плагин — под своей таблицей журнала.</span></li>
+    <li><span class="id">И-09</span><span>Отказ миграции называет плагин, число уже закоммиченных плагинов и указывает на порядок как на вероятную причину; пул закрывается в любом случае.</span></li>
+    <li><span class="id">И-10</span><span>URL базы никогда не пишется на диск: Studio получает его через <code>env</code> дочернего процесса, а эфемерный конфиг ссылается на <code>process.env.DATABASE_URL</code>.</span></li>
+    <li><span class="id">И-11</span><span>Временная директория эфемерного конфига удаляется в <code>finally</code> при любом исходе.</span></li>
+    <li><span class="id">И-12</span><span><code>--port=0</code> для Studio — отказ, а не молчаливое игнорирование.</span></li>
+    <li><span class="id">И-13</span><span>Любой <code>--host</code>, кроме loopback, печатает предупреждение об отсутствии аутентификации до старта Studio.</span></li>
+    <li><span class="id">И-14</span><span>Остановка Studio по <code>SIGINT</code>/<code>SIGTERM</code> — успех таргета, а не падение.</span></li>
+    <li><span class="id">И-15</span><span><code>build</code>, <code>pack</code> и <code>nx-release-publish</code> выводятся только для пакета под <code>packages/</code>, с именем в манифесте и с <code>tsconfig.lib.json</code> рядом.</span></li>
+    <li><span class="id">И-16</span><span>Непарсящийся <code>package.json</code> даёт <b>ноль таргетов</b>, а не падение вычисления графа.</span></li>
+    <li><span class="id">И-17</span><span>Пакет с <code>private: true</code> получает <b>только</b> <code>build</code>.</span></li>
+    <li><span class="id">И-18</span><span><code>nx-release-publish</code> всегда указывает <code>packageRoot</code> на <code>dist/pack/&lt;projectRoot&gt;</code>, а не на корень проекта; исполнитель объявлен и в выводе, и в <code>targetDefaults</code>, и оба объявления совпадают.</span></li>
+    <li><span class="id">И-19</span><span><code>pack</code> некэшируем: он читает <code>dist</code>, который не входит в его объявленные входы.</span></li>
+    <li><span class="id">И-20</span><span>Публикации сериализованы файловой блокировкой; в один момент времени в воркспейсе публикуется не более одного пакета.</span></li>
+    <li><span class="id">И-21</span><span>Блокировка удерживается и на время паузы, и снимается только тем, кто ею владеет (совпадение pid).</span></li>
+    <li><span class="id">И-22</span><span>Живой держатель обновляет блокировку heartbeat&#39;ом; <code>staleAfter</code> ограничивает <b>молчание</b>, а не длительность работы.</span></li>
+    <li><span class="id">И-23</span><span>Блокировка мёртвого держателя (<code>ESRCH</code>) забирается немедленно, без ожидания <code>staleAfter</code>; нечитаемая или битая — считается живой.</span></li>
+    <li><span class="id">И-24</span><span>Перед каждой публикацией выполняется проба реестра одним <code>GET</code>; любой её сбой сводится к <code>unknown</code> и никогда не становится причиной падения публикации.</span></li>
+    <li><span class="id">И-25</span><span>Уже опубликованная версия пропускается <b>без единой записи</b> в реестр; проскочивший <code>EPUBLISHCONFLICT</code> тоже читается как успех.</span></li>
+    <li><span class="id">И-26</span><span>429 на бампе версии ретраится; 429 на <b>создании имени</b> — терминален и получает ровно одну попытку.</span></li>
+    <li><span class="id">И-27</span><span>Первое заблокированное создание взводит предохранитель, и остальные новые имена в том же прогоне выходят из игры не потратив ни одного запроса.</span></li>
+    <li><span class="id">И-28</span><span>Ошибка не из-за реестра (битый манифест, отсутствующая точка входа, отвергнутый токен) падает на первой попытке.</span></li>
+    <li><span class="id">И-29</span><span>Сухой прогон не пробует реестр и не ждёт паузу.</span></li>
+    <li><span class="id">И-30</span><span>Приоритет числовых настроек: окружение → опция таргета → умолчание; <code>0</code> из окружения принимается как значение.</span></li>
+    <li><span class="id">И-31</span><span>Пакет <code>@orthacms/nx</code> остаётся <code>private</code> и исключён из релиза явным <code>!@orthacms/nx</code>.</span></li>
+    <li><span class="id">И-32</span><span>Исполнители БД не содержат собственной реализации: <code>db:generate</code>, <code>db:migrate</code> и <code>db:studio</code> вызывают функции <code>@orthacms/cli</code>, и это единственная реализация на монорепозиторий и на сгенерированное приложение.</span></li>
+    <li><span class="id">И-33</span><span>Загрузка TypeScript хоста идёт через <code>createTsJiti</code> с legacy-декораторами; оба исполнителя используют один и тот же загрузчик.</span></li>
+    <li><span class="id">И-34</span><span>Пакет остаётся CommonJS: <code>require</code>/<code>__dirname</code>/<code>__filename</code>, никогда <code>import.meta</code>.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">10</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Существующий набор — <b>79</b> jest-кейсов в восьми файлах рядом с кодом (<code>npx nx test nx</code>); они мокают на границе процесса — <code>node:child_process</code>, <code>pg</code>, <code>fetch</code>, jiti, — так что весь пакет покрывается без базы, реестра и графа Nx. Вывод таргетов гоняется против одноразового корня воркспейса на диске: именно это делает предохранители манифеста проверяемыми вообще.</p>
+
+  <h3>Вывод таргетов</h3>
+  <ul class="check">
+    <li><b>Проект с <code>drizzle.config.ts</code></b> → <span class="exp">ровно один таргет <code>db:generate</code>, <code>cache: false</code>, <code>cwd</code> = корень проекта, <code>config</code> = <code>drizzle.config.ts</code>.</span></li>
+    <li><b>Проект с <code>ortha.config.ts</code></b> → <span class="exp">два таргета, оба <code>cache: false</code>; у <code>db:migrate</code> в опциях есть <code>plugins</code>, у <code>db:studio</code> — нет.</span></li>
+    <li><b>Публикуемый пакет под <code>packages/</code></b> → <span class="exp">ровно три таргета: <code>build</code>, <code>pack</code>, <code>nx-release-publish</code>; <code>packageRoot</code> = <code>dist/pack/&lt;projectRoot&gt;</code>.</span></li>
+    <li><b>Пакет с <code>private: true</code></b> → <span class="exp">ровно один таргет — <code>build</code>.</span></li>
+    <li><b>Манифест вне <code>packages/</code> (apps, корень воркспейса)</b> → <span class="exp">пустой объект таргетов.</span></li>
+    <li><b>Манифест без <code>name</code></b> → <span class="exp">пустой объект таргетов.</span></li>
+    <li><b>Пакет без <code>tsconfig.lib.json</code></b> → <span class="exp">пустой объект таргетов.</span></li>
+    <li><b>Битый JSON в <code>package.json</code></b> → <span class="exp">пустой объект таргетов; <code>nx graph</code> строится, ни одна команда <code>nx</code> не падает.</span></li>
+    <li><b><code>npx nx show project &lt;plugin&gt; --json</code> для нового плагина</b> → <span class="exp">все положенные таргеты присутствуют без единой строчки конфигурации в проекте.</span></li>
+  </ul>
+
+  <h3>db:generate</h3>
+  <ul class="check">
+    <li><b>Запуск при полностью остановленном Postgres</b> → <span class="exp">успех: соединения не открывается.</span></li>
+    <li><b>Запуск с <code>--name=…</code> после правки схемы</b> → <span class="exp">новый SQL-файл в <code>migrations/</code>, обновлённые journal и snapshot.</span></li>
+    <li><b>Повторный запуск с тем же <code>--name</code> без правок схемы</b> → <span class="exp">drizzle-kit сообщает об отсутствии изменений; результат <b>не</b> берётся из кэша Nx.</span></li>
+    <li><b>Правка схемы плагина, чей <code>schema</code> указывает вне <code>src/lib/schema/</code> (media, alarms, copilot, content, workspaces)</b> → <span class="exp">миграция генерируется — старый баг с несовпадающим входом кэша не воспроизводится.</span></li>
+    <li><b>Сломать путь <code>schema</code> в конфиге</b> → <span class="exp">одна короткая ошибка «drizzle-kit generate failed in &lt;cwd&gt;», без многокадрового стека с argv.</span></li>
+  </ul>
+
+  <h3>db:migrate</h3>
+  <ul class="check">
+    <li><b><code>DATABASE_URL</code> не задан</b> → <span class="exp">отказ с текстом про «will not fall back to the local defaults»; ни одной таблицы не создано.</span></li>
+    <li><b><code>DATABASE_URL</code> пуст, но заданы <code>PGDATABASE</code>/<code>PGHOST</code></b> → <span class="exp">тот же отказ; посторонняя база не тронута.</span></li>
+    <li><b>Чистая база</b> → <span class="exp">в логе названы <code>host:port/database</code> без учётных данных и число плагинов; в конце «Migrations complete.».</span></li>
+    <li><b>Повторный запуск на уже мигрированной базе</b> → <span class="exp">идемпотентно, новых применений нет.</span></li>
+    <li><b>Переставить workspaces перед identity в <code>plugins.ts</code></b> → <span class="exp">падение называет плагин, число закоммиченных до него и указывает на порядок.</span></li>
+    <li><b>Убить процесс Postgres в середине</b> → <span class="exp">пул закрывается, ошибка называет плагин; повторный запуск продолжает с него же.</span></li>
+    <li><b>Плагин с декорированным полем <code>email!: string</code> в DTO</b> → <span class="exp">загрузка конфига проходит; падения в <code>transform-typescript</code> нет.</span></li>
+  </ul>
+
+  <h3>db:studio</h3>
+  <ul class="check">
+    <li><b>Запуск без <code>DATABASE_URL</code></b> → <span class="exp">отказ до старта drizzle-kit.</span></li>
+    <li><b><code>--port=0</code></b> → <span class="exp">отказ с объяснением, а не запуск на неизвестном порту.</span></li>
+    <li><b><code>--host=0.0.0.0</code></b> → <span class="exp">предупреждение с адресом и портом печатается <b>до</b> старта.</span></li>
+    <li><b><code>--host=127.0.0.1</code></b> → <span class="exp">предупреждения нет.</span></li>
+    <li><b>Проверить временную директорию во время работы</b> → <span class="exp">в эфемерном конфиге <code>process.env.DATABASE_URL</code>, а не сам URL.</span></li>
+    <li><b>Ctrl+C</b> → <span class="exp">таргет завершается успехом; временная директория удалена.</span></li>
+  </ul>
+
+  <h3>Публикация</h3>
+  <ul class="check">
+    <li><b><code>npm run release:dry-run</code> с чистого <code>main</code></b> → <span class="exp">ни одной записи в реестр, ни одного push; в логе «Would publish …» для каждого пакета.</span></li>
+    <li><b>Запуск не с <code>main</code> / с грязным деревом / с отставшей веткой</b> → <span class="exp">преполёт отказывает <b>до</b> того, как что-либо закоммичено или отмечено тегом.</span></li>
+    <li><b>Отсутствует <code>GITHUB_TOKEN</code> (не dry-run)</b> → <span class="exp">отказ на преполёте.</span></li>
+    <li><b>Приватный пакет в списке</b> → <span class="exp">«Skipped …, because it is marked private»; запроса к реестру нет.</span></li>
+    <li><b>Nx не разрешил новую версию для проекта</b> → <span class="exp">«Skipped …, because no new version was resolved».</span></li>
+    <li><b>Версия уже в реестре</b> → <span class="exp">пропуск по ответу пробы, без <code>npm publish</code>.</span></li>
+    <li><b>Реестр отвечает <code>EPUBLISHCONFLICT</code></b> → <span class="exp">успех, а не падение.</span></li>
+    <li><b>Реестр отвечает 429 на бампе версии</b> → <span class="exp">ретраи с откатом 30/60/120/240/300 с; в логе номер попытки из общего числа.</span></li>
+    <li><b>Реестр отвечает 429 на создании имени</b> → <span class="exp">ровно одна попытка, файл <code>creation-blocked</code> появляется в <code>dist/.release-publish</code>.</span></li>
+    <li><b>Второй новый пакет после сработавшего предохранителя</b> → <span class="exp">падает без запроса к реестру, сообщение называет пакет, упёршийся первым.</span></li>
+    <li><b>Существующее имя при взведённом предохранителе</b> → <span class="exp">публикуется нормально.</span></li>
+    <li><b>Реестр недоступен (сеть отключена) на этапе пробы</b> → <span class="exp">ответ <code>unknown</code>, публикация всё равно пытается.</span></li>
+    <li><b>Два одновременных <code>nx-release-publish</code></b> → <span class="exp">второй ждёт и печатает «waiting for another package to finish publishing»; наложения нет.</span></li>
+    <li><b>Убить процесс-держатель блокировки</b> → <span class="exp">следующий забирает слот немедленно, без пятнадцатиминутного ожидания.</span></li>
+    <li><b>Держатель, работающий дольше <code>staleAfter</code>, но обновляющий lock</b> → <span class="exp">блокировку не крадут.</span></li>
+    <li><b><code>ORTHA_PUBLISH_DELAY=0</code></b> → <span class="exp">пауза действительно нулевая, а не подменённая дефолтом 5000.</span></li>
+    <li><b>Стереть <code>dist/</code> между прогонами</b> → <span class="exp">блокировка и предохранитель очищены — оба живут под <code>dist/.release-publish</code>.</span></li>
+  </ul>
+
+  <h3>Стейджинг тарбола</h3>
+  <ul class="check">
+    <li><b><code>nx run &lt;pkg&gt;:pack</code>, затем осмотр <code>dist/pack/&lt;projectRoot&gt;/package.json</code></b> → <span class="exp"><code>exports</code> указывает на <code>./dist</code>, зависимости на воркспейс запинены версией релиза, <code>publishConfig.access: 'public'</code>.</span></li>
+    <li><b>Пакет с <code>bin</code></b> → <span class="exp">путь переписан на вывод сборки; обе формы (строка и карта) обработаны; несуществующий bin валит <code>pack</code>.</span></li>
+    <li><b>Плагин с <code>migrations/</code></b> → <span class="exp">папка перенесена дословно и перечислена в <code>files</code>.</span></li>
+    <li><b><code>create-ortha-app</code></b> → <span class="exp"><code>templates/</code> перенесена и перечислена в <code>files</code>.</span></li>
+    <li><b>Пакет, импортирующий зависимость, объявленную только в корневом манифесте</b> → <span class="exp"><code>pack</code> отказывает: фантомная зависимость до реестра не доезжает.</span></li>
+    <li><b>Новый пакет добавлен в <code>packages/</code>, но не классифицирован в <code>features.ts</code></b> → <span class="exp">падают тесты <code>create-ortha-app</code> — намеренно.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">11</span>Границы ответственности</h2>
+  <p>Главная линия в этом пакете проходит между ним и <code>@orthacms/cli</code>. Правило простое: <b>что запускает только этот репозиторий — остаётся здесь; что должно работать и в установленном из npm приложении — уезжает в CLI</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Что делает <code>@orthacms/nx</code></th><th>Что делает <code>@orthacms/cli</code></th></tr></thead>
+    <tbody>
+      <tr><td>Генерация миграций</td><td>Выводит таргет, собирает абсолютный <code>cwd</code>, передаёт опции</td><td><code>runDrizzleKitGenerate</code>: резолвит бинарь drizzle-kit, запускает, переписывает сообщение об ошибке</td></tr>
+      <tr><td>Применение миграций</td><td>Выводит таргет, грузит TypeScript хоста через jiti+swc, отказывает при пустом URL</td><td><code>applyPluginMigrations</code>: пул <code>pg</code>, цикл по плагинам, таблицы журнала, <code>describeTarget</code>, диагностика падения</td></tr>
+      <tr><td>Drizzle Studio</td><td>Выводит таргет, резолвит URL, отказывает при пустом URL и при <code>--port=0</code></td><td><code>runDrizzleKitStudio</code>: эфемерный конфиг, передача URL через env, предупреждение о небезопасном bind, трактовка Ctrl+C</td></tr>
+      <tr><td>Обнаружение корня приложения и чтение конфига</td><td>Читает пути, которые дал Nx: корень воркспейса известен из контекста</td><td><code>findProjectRoot</code>, <code>loadHost</code>, <code>requireDatabaseUrl</code>, константы <code>LAYOUT</code> — работает из любой поддиректории приложения</td></tr>
+      <tr><td>Публикация в npm</td><td><b>Целиком здесь:</b> блокировка, интервал, ретраи, проба реестра, предохранитель на создание имён</td><td>Ничего — потребитель релиз не выпускает</td></tr>
+      <tr><td>Стейджинг тарбола</td><td>Выводит таргет <code>pack</code> и указывает на него <code>packageRoot</code></td><td>Ничего — сама сборка стейджинга живёт в <code>tools/release/pack.mjs</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чем занимаются соседи</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает этот плагин</th></tr></thead>
+    <tbody>
+      <tr><td>Схема БД и SQL-миграции</td><td>Каждый плагин отдельно (<code>drizzle.config.ts</code> + <code>migrations/</code>)</td><td>Знает, <em>как</em> сгенерировать и применить, но никогда — <em>что</em></td></tr>
+      <tr><td>Соединение с БД в рантайме</td><td><code>@orthacms/database</code></td><td>Открывает собственный пул только на время миграции и закрывает его</td></tr>
+      <tr><td>Порядок плагинов</td><td><code>apps/server/src/plugins.ts</code></td><td>Применяет в том порядке, который получил, и указывает на порядок при падении</td></tr>
+      <tr><td>Сборка стейджинга и переписывание манифеста</td><td><code>tools/release/pack.mjs</code></td><td>Вызывает скрипт таргетом <code>pack</code> и объявляет его выход</td></tr>
+      <tr><td>Преполёт, <code>.env</code>, GitHub Release</td><td><code>tools/release/release.mjs</code> + <code>nx release</code></td><td>Отвечает только за один <code>npm publish</code> за раз</td></tr>
+      <tr><td>Скаффолдинг приложения</td><td><code>create-ortha-app</code></td><td>Ничего: генераторов Nx этот пакет не поставляет</td></tr>
+      <tr><td>Сборка приложений</td><td>webpack (сервер) и Vite (админка)</td><td>Выводит <code>build</code> только для <code>packages/</code>, приложения не трогает</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего здесь нет</h3>
+  <ul>
+    <li><b>Генераторов.</b> В манифесте объявлен только ключ <code>executors</code>; создать плагин командой <code>nx g</code> нельзя.</li>
+    <li><b>Собственного <code>project.json</code>.</b> Пакет описан одним <code>package.json</code>; свой же <code>build</code> он получает через собственный вывод.</li>
+    <li><b>Отката миграций.</b> <code>down</code>-миграций нет; при падении уже применённые плагины остаются закоммиченными, и это сказано в сообщении явно.</li>
+    <li><b>Декларации зависимостей между плагинами.</b> Порядок задаётся вручную в <code>plugins.ts</code> и нигде не проверяется автоматически.</li>
+    <li><b>Проверки, что схема и миграции не разъехались.</b> Кэш убран именно потому, что создавал такой дрейф, но активной проверки взамен не появилось.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">12</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика — особенно там, где цифра в документе выглядит как проверяемый факт.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">packages/nx/src/executors/<br>db-generate/executor.ts</td>
+        <td>Docstring функции: «Cacheable — inputs are the schema files, output is the plugin&#39;s migrations directory.»</td>
+        <td><b>Прямо противоречит выводу таргета в том же пакете.</b> <code>createNodesV2</code> ставит <code>cache: false</code> и сопровождает это большим комментарием о том, почему кэш здесь и невозможен, и вреден. Docstring остался от прежнего поведения</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/nx/AGENTS.md</td>
+        <td>«five of this workspace&#39;s <b>eight</b> [drizzle-конфигов] point outside <code>src/lib/schema/</code>». Тот же счёт «восемь» повторён в комментарии <code>src/index.ts</code></td>
+        <td>Конфигов сейчас <b>одиннадцать</b>, и вне <code>src/lib/schema/</code> указывают <b>семь</b> из них: <code>apps/server</code>, <code>apps/server-e2e</code>, alarms, content, copilot, media, workspaces. Внутрь указывают четыре: activity, database, identity, segments. Аргумент от этого только усиливается, но цифры устарели</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/releasing.md · packages/nx/AGENTS.md · комментарии в коде</td>
+        <td>«one lockstep release: one version, one tag, one GitHub Release, <b>37 tarballs</b>» — и та же цифра ещё пять раз: «~37 of them», «37 packages in one release», «12 writes, not 37»</td>
+        <td>Публикуемых пакетов сейчас <b>56</b> (все непубличные манифесты под <code>packages/*</code> и <code>packages/*/*</code>, включая <code>create-ortha-app</code>). Приватных два — <code>@orthacms/nx</code> и <code>@orthacms/copilot-provider-fake</code>. Цифра 37 отражает более ранний состав репозитория; на неё же опирается арифметика примера «резюме на 12 пакетов вместо 37»</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/nx/src/executors/<br>db-migrate/executor.ts</td>
+        <td>В комментарии: «reported &quot;Migrations complete.&quot; after creating all <b>37 tables</b> in a database nobody named»</td>
+        <td>Совпадение с числом тарболов случайно — это число таблиц на момент замера. Сегодня схема шире; замер не повторялся. Формулировка выглядит как актуальный факт о системе, а является историческим протоколом</td>
+      </tr>
+      <tr>
+        <td class="mono">.nxignore</td>
+        <td>«<code>@orthacms/nx</code> infers a <code>db:migrate</code> target onto <code>templates/default/src/server</code>»</td>
+        <td>В шаблоне путь другой — <code>templates/default/apps/server/ortha.config.ts</code>. Сам механизм исключения описан верно, ошибочен только путь в объяснении</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/nx/AGENTS.md, «Architecture»</td>
+        <td>«Release logic (<code>src/lib/release/</code>: <code>publish.ts</code>, <code>throttle.ts</code>, <code>registry.ts</code>) stays here»</td>
+        <td>В той же директории лежит четвёртый спек — <code>pack.spec.ts</code>, — который тестирует <code>tools/release/pack.mjs</code>, файл <b>вне</b> пакета. Перечисление в AGENTS.md о нём не упоминает, и по документу неочевидно, что тесты <code>pack</code> живут здесь</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/nx/AGENTS.md, «What it provides»</td>
+        <td>Про <code>db:migrate</code>: «It <b>refuses to run without a database URL</b>» — и всё</td>
+        <td>Не сказано главное для тестировщика: проверка стоит <b>до</b> вызова <code>buildPlugins()</code>, то есть при пустом URL список плагинов даже не строится. Это зафиксировано отдельным тестом («refuses before building the plugin list»), но в документе отсутствует</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/nx/AGENTS.md, «Commands»</td>
+        <td>Перечислены три команды — <code>db:generate</code>, <code>db:migrate</code>, <code>db:studio</code></td>
+        <td>Выводимых таргетов <b>шесть</b>: ещё <code>build</code>, <code>pack</code> и <code>nx-release-publish</code>. Они описаны выше по документу, но в разделе «Commands», куда человек смотрит первым, их нет</td>
+      </tr>
+      <tr>
+        <td class="mono">nx.json → plugins</td>
+        <td><code>@nx/js/typescript</code> сконфигурирован с <code>build: { targetName: "build", configName: "tsconfig.lib.json" }</code></td>
+        <td>Эта настройка ничего не выводит: манифесты воркспейса указывают на исходники, поэтому <code>@nx/js</code> <code>build</code> здесь не выводит вовсе — его выводит <code>@orthacms/nx</code>. Конфигурация выглядит действующей, а является инертной, и при чтении <code>nx.json</code> создаёт впечатление двух источников одного таргета</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Почему цифры в этом артефакте посчитаны, а не переписаны</summary>
+    <p class="small">Все количественные утверждения выше получены перечислением по рабочему дереву на момент составления: 11 файлов <code>drizzle.config.ts</code> вне <code>node_modules</code>; 1 файл <code>ortha.config.ts</code> вне игнорируемых шаблонов; 56 манифестов под <code>packages/*</code> и <code>packages/*/*</code> без <code>private: true</code>; 4 записи в <code>executors.json</code>; 6 таргетов в <code>createNodesV2</code>; 79 кейсов <code>it(...)</code> в восьми спек-файлах пакета. Там, где документ утверждал другое, расхождение вынесено в таблицу выше, а не подогнано под документ.</p>
+  </details>
+</section>
+
+<footer class="end">
+  <p><b>Паспорт плагина сборки.</b> Составлен по группе <code>packages/nx</code> в общем каркасе серии: бизнес-описание → состав → каталог таргетов → механизм вывода → загрузка TypeScript → сценарии → релиз → конфигурация → инварианты → чек-лист → границы → расхождения. Разделы, которых у этого пакета нет по природе (модель данных, HTTP API, экраны админки, права), выпали: он не владеет ни одной таблицей, не отдаёт ни одного маршрута и не имеет пользовательского интерфейса.</p>
+  <p>Источник — исходный код: <code>src/index.ts</code>, четыре исполнителя со своими схемами опций, <code>src/lib/jiti.ts</code>, три модуля <code>src/lib/release/</code> и восемь спек-файлов рядом с ними; плюс корневой <code>nx.json</code>, <code>.nxignore</code>, <code>docs/releasing.md</code>, <code>tools/release/{release,pack}.mjs</code> и публичный API <code>@orthacms/cli</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 12.</p>
+</footer>
+
+</main>
+</div>

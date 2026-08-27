@@ -1,0 +1,1402 @@
+<title>Паспорт плагина Transfer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/transfer</p>
+    <h1 class="title">Transfer
+      <small>Экспорт и импорт контента — ровно один шаг вглубь графа</small>
+    </h1>
+    <p class="lede">Transfer вынимает контент из CMS файлом и заводит его обратно. Он не владеет ни одной таблицей и ни одной миграцией: это <strong>протокольный адаптер</strong> над плагином content — читает через его сервисы и пишет <strong>только</strong> через <code>EntryWriterService</code>. Два продуктовых решения держат всю конструкцию: экспорт уходит от выбранных записей <strong>ровно на один шаг</strong>, а личность записи на чужой инсталляции задаёт <strong>натуральный ключ</strong>, а не идентификатор строки.</p>
+    <ul class="facts">
+      <li><b>3</b> пакета в группе</li>
+      <li><b>5</b> HTTP-маршрутов</li>
+      <li><b>4</b> формата</li>
+      <li><b>0</b> таблиц БД</li>
+      <li><b>2</b> события аудита</li>
+      <li><b>2</b> собственных права</li>
+      <li><b>2</b> диалога, <b>3</b> слота</li>
+      <li><b>10</b> настраиваемых ограничений</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#formats">Матрица форматов</a></li>
+    <li><a href="#travel">Что едет, что остаётся ссылкой</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл переноса</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Transfer решает четыре живые редакционные задачи, у которых нет ничего общего, кроме файла посередине: отдать переводчику колонку текста в таблице, перенести раздел между инсталляциями, держать копию контента вне системы, засеять staging продакшн-данными.</p>
+
+  <h3>Почему это не «кнопка выгрузки»</h3>
+  <p>ADR-0014 формулирует это как одно решение, распавшееся на три вопроса.</p>
+  <ul>
+    <li><b>Насколько далеко тянуть?</b> Статья без автора, тегов и обложки приедет на другую сторону статьёй с пустыми полями. Значит, экспорт обязан ходить по связям — и в ту же секунду обязан знать, где остановиться. Графы контента почти всегда связны: рекурсивный обход от одной статьи надёжно достаёт почти всю библиотеку, без предупреждения и без возможности для нажавшего понять, что это сейчас произойдёт.</li>
+    <li><b>Что запись вообще значит на другой стороне?</b> <code>id</code> строки — факт про одну базу. Перенесённый, он не называет ничего, поэтому импорт по идентификаторам умеет только создавать. Запустили один и тот же файл дважды — получили два комплекта всего.</li>
+    <li><b>Где этому жить?</b> Экспорт и импорт трогают контент, связи, байты медиа и локали. Внутри <code>content/server</code> это дало бы тому пакету зависимость от хранилища и формат архива; размазанное по четырём плагинам — правило глубины в четырёх местах.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Три ответа, на которых стоит всё остальное</span>
+    <p><b>Отдельный плагин-адаптер.</b> <code>transfer → content</code>, <code>transfer → media</code> (опционально). Обратной стрелки нет: в перенос никто не вызывает, поэтому граф пакетов остаётся ациклическим.</p>
+    <p><b>Глубина ровно один шаг.</b> Глубина 0 — выбранные записи и их локальные близнецы; глубина 1 — всё, до чего дотянулись по одной связи, выгружается целиком; глубина 2 — не выгружается, но <em>ссылки на неё выживают</em>, неся натуральный ключ.</p>
+    <p><b>Личность едет натуральным ключом.</b> У каждой записи и каждой ссылки есть <code>$key</code> — значения полей, которыми запись своего типа опознаётся. Поля названы в конфигурации плагина; не названы — выводятся эвристикой, и выбор пишется в манифест каждого экспорта.</p>
+  </div>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор и переводчик</h4>
+      <p class="small sub">Выделил записи в библиотеке — «Экспорт» — CSV. Правит колонку копирайта в таблице, возвращает файл через «Импорт…», сначала смотрит, что именно поменяется, и только потом жмёт.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Контент-инженер</h4>
+      <p class="small sub">ZIP с байтами файлов, перенос раздела между инсталляциями. Ему важны политики конфликтов и то, что импорт не создаст второго автора из-за того, что приехала вторая статья.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Оператор / служба безопасности</h4>
+      <p class="small sub">Два события аудита в общем outbox: кто, когда и сколько вынес. Экспорт — единственная операция, вывозящая контент воркспейса наружу пачкой, вместе с файлами.</p>
+    </div>
+  </div>
+
+  <h3>Чем Transfer не является</h3>
+  <ul>
+    <li><b>Это не резервное копирование.</b> Экспорт ходит на один шаг от выбранного, а не снимает базу. Версии записей, черновики-версии, корзина, права, воркспейсы, пользователи в файл не попадают.</li>
+    <li><b>Это не миграция схемы.</b> Типы контента на принимающей стороне должны уже существовать; неизвестный тип — вердикт <code>unknown-type</code>, а не создание типа.</li>
+    <li><b>Это не фоновая задача.</b> Большой экспорт остаётся синхронным запросом, ограниченным потолками. Таблицы <code>transfer_jobs</code>, прогресса и ссылки на готовый архив нет — ADR-0014 явно оставляет для них место и туда не идёт.</li>
+    <li><b>Это не свой способ писать в базу.</b> Каждая запись проходит через <code>EntryWriterService</code>, то есть импорт физически не может обогнать валидацию полей, область воркспейса, проверку целей связей, правило одной локали, проверку медиа-ассета, ревизии, outbox и привязанное i18n-расширение.</li>
+    <li><b>Это не отдельная страница админки.</b> Маршрутов пакет не добавляет: экспорт и импорт — действия над контентом, на который человек уже смотрит.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Одна фраза, которую стоит запомнить</span>
+    <p><b>Импорт никогда не может больше, чем мог бы сам вызывающий руками.</b> <code>content:import</code> — это право <em>запустить</em> импорт; право <em>создать</em> и <em>изменить</em> запись проверяется отдельно, на каждую запись, по обычным ключам <code>content:create</code> / <code>content:update</code>.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/transfer</code> — три пакета. Разделение не косметическое: ядро обязано быть тестируемым без контейнера и без React, поэтому в нём нет ни часов, ни базы, ни фреймворка.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">domain</td><td class="mono">@orthacms/transfer-domain</td>
+        <td>Ядро без фреймворка: контракт документа, порты форматов, правила натуральных ключей, словарь вердиктов, потолки</td>
+        <td><code>TransferDocument</code>, <code>ExportSerializer</code>/<code>ImportParser</code>, 4 формата, <code>keyFingerprint</code>, <code>TransferIdMap</code>, <code>DEFAULT_TRANSFER_LIMITS</code>. Единственная зависимость — <code>@orthacms/content-domain</code></td>
+      </tr>
+      <tr>
+        <td class="mono">server</td><td class="mono">@orthacms/transfer-server</td>
+        <td>Плагин NestJS: маршруты, обход графа, самописный ZIP, чтение загруженного файла, двухфазный конвейер импорта</td>
+        <td>5 маршрутов, <code>EntryGraphWalker</code>, <code>zip-writer</code>/<code>zip-reader</code>/<code>crc32</code>, <code>TransferSchemaCatalog</code>, 2 события. <b>Ноль таблиц, ноль миграций</b></td>
+      </tr>
+      <tr>
+        <td class="mono">admin</td><td class="mono">@orthacms/transfer-admin</td>
+        <td>Два диалога и три вклада в слоты Content Library. <b>Маршрутов не добавляет</b></td>
+        <td><code>ExportDialog</code>, <code>ImportDialog</code>, <code>ImportVerdictList</code>, 4 хука данных, 3 хука слотов</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Раскладка внутри пакетов</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">domain/src/lib</h4>
+      <p class="small sub"><code>document/</code> — контракт документа; <code>schema/</code> — структурный взгляд на тип контента; <code>identity/</code> — вывод и чтение натурального ключа; <code>formats/</code> — порты и четыре формата; <code>csv/</code> — RFC 4180 и уплощение записи в строку; <code>import/</code> — карта идентификаторов, две политики, словарь вердиктов; <code>limits.ts</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">server/src/lib</h4>
+      <p class="small sub"><code>archive/</code> — писатель и читатель ZIP плюс CRC-32; <code>schema/</code> — реестр → схема ядра и единственное место, где выбираются поля-идентификаторы; <code>export/</code> — обход, склейка с сериализатором, маршруты; <code>import/</code> — чтение загрузки, двухфазный конвейер, путь медиа.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">admin/src/lib</h4>
+      <p class="small sub"><code>api/</code> — четыре хука данных (по одному на маршрут, кроме шаблона); <code>components/</code> — два диалога и таблица вердиктов; <code>hooks/</code> — три хука слотов; <code>constants/</code> — ключи прав, идентификаторы вкладов, ключи кэша.</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/content-server</code></b> владеет реестром типов, <code>EntriesService</code>, <code>EntryWriterService</code>, <code>RelationLinkService</code> и слотами админки — transfer только их читатель. <b><code>@orthacms/media-server</code></b> владеет ассетами, хранилищем и <code>UploadAssetUseCase</code>; без него плагин всё равно поднимается, а медиаполя едут ссылками. <b><code>@orthacms/i18n-server</code></b> — transfer <em>не зависит</em> от него вообще: <code>locale</code> и <code>locale_group_id</code> — конвертные колонки самого content, и обход читает «другие строки этой записи» родовым образом.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+
+  <p>Transfer добавляет ровно <b>два</b> ключа прав в плоскую модель Identity — и оба намеренно отдельные, а не свёрнутые в <code>content:read</code> и <code>content:create</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">content:export</td><td>Оба маршрута экспорта — предпросчёт и сама выгрузка</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:import</td><td>Оба маршрута импорта — сухой прогон и применение</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:read</td><td>Скачать пустой CSV-шаблон с колонками типа</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">content:create</td><td><b>Перепроверяется на каждую запись</b>, которую импорт собирается создать</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:update</td><td><b>Перепроверяется на каждую запись</b>, которую импорт собирается обновить</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему наблюдатель не получает экспорт</span>
+    <p>Наблюдатель и так читает каждую запись — постранично, через интерфейс. Разница не в доступе, а в <b>массовом вывозе</b>: выгрузка одним файлом, вместе с байтами медиа, — это другое действие, и именно его оператор хочет уметь не выдавать и уметь потом найти в журнале. Комментарий в <code>system-roles.ts</code> называет это прямым текстом: «viewer does not get export».</p>
+  </div>
+
+  <h3>Как право доходит до кода</h3>
+  <ul>
+    <li><b>На сервере:</b> оба контроллера объявляют классовый стек <code>@UseGuards(OriginGuard, PermissionsGuard, WorkspaceGuard, ContentGrantGuard)</code>, а на каждом методе висит <code>@RequirePermissions(...)</code>. Стек скопирован с массового контроллера самого content — <b>намеренно</b>: <code>ContentGrantGuard</code> — это то, что не даёт участнику воркспейса, которому выдан только <code>article</code>, выгрузить <code>tag</code>, назвав его в URL.</li>
+    <li><b>Перепроверка на импорте:</b> контроллер читает реальный набор прав вызывающего через <code>PermissionsService.forRole(user.roleId)</code> и передаёт в use-case флаги <code>can.create</code> / <code>can.update</code>. Запись, для которой нужного флага нет, получает вердикт <code>error</code> с причиной <code>forbidden</code> — и это происходит <em>до</em> попытки записи, а не после отказа писателя.</li>
+    <li><b>В админке:</b> <code>useHasPermission('content:export')</code> и <code>useHasPermission('content:import')</code> прячут пункты меню. Это только честность интерфейса; настоящая проверка — на сервере.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Тонкость, которая не закрыта в UI</span>
+    <p>Пункт «Импорт…» показывается тому, у кого есть <code>content:import</code>, и <b>не</b> проверяет <code>content:create</code>/<code>content:update</code>. У трёх системных ролей эти права всегда выдаются вместе, поэтому в стандартной поставке это незаметно. У кастомной роли с одним лишь <code>content:import</code> диалог откроется, файл проверится, а каждая запись получит <code>forbidden</code>. Константы <code>CONTENT_CREATE</code> / <code>CONTENT_UPDATE</code> в <code>transfer-admin</code> объявлены с комментарием «нужны рядом с импортом», но ни одним хуком не читаются.</p>
+  </div>
+</section>
+
+<section id="formats">
+  <h2 class="sec"><span class="num">04</span>Матрица форматов</h2>
+
+  <p>Форматов четыре, и они стоят за парой портов — <code>ExportSerializer</code> и <code>ImportParser</code>. Обходчик графа никогда не узнаёт, что такое формат: добавить XLSX или XML — это новая пара реализаций плюс строка в таблице возможностей, а не ветка внутри обхода.</p>
+
+  <p><code>TRANSFER_FORMAT_CAPABILITIES</code> — <b>не документация</b>. Диалог экспорта читает её, чтобы отключить переключатель файлов; сервер читает её, чтобы решить, нужен ли архив. Одна таблица — значит интерфейс не может пообещать того, что сервер молча не сделает.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Формат</th><th>Расширение / MIME</th><th class="center">Везёт байты</th><th class="center">Без потерь</th><th class="center">Много типов</th><th>Для чего он</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">json</td><td class="mono">.json · application/json</td>
+        <td class="center no">—</td><td class="center yes">✓</td><td class="center yes">✓</td>
+        <td>Один объект с отступами: манифест и все записи. Читаемый вариант — то, что открывают глазами и правят руками</td>
+      </tr>
+      <tr>
+        <td class="mono">ndjson</td><td class="mono">.ndjson · application/x-ndjson</td>
+        <td class="center no">—</td><td class="center yes">✓</td><td class="center yes">✓</td>
+        <td>Манифест первой строкой, дальше по записи на строку. Кодировка записи та же, что у JSON, — поэтому документ, записанный одним, читается другим без потерь</td>
+      </tr>
+      <tr>
+        <td class="mono">zip</td><td class="mono">.zip · application/zip</td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td>
+        <td><b>Единственный формат, который везёт байты файлов.</b> Внутри: <code>manifest.json</code>, <code>entries/&lt;type&gt;.ndjson</code> и <code>assets/&lt;id&gt;/&lt;имя&gt;</code></td>
+      </tr>
+      <tr>
+        <td class="mono">csv</td><td class="mono">.csv · text/csv</td>
+        <td class="center no">—</td><td class="center no">—</td><td class="center no">—</td>
+        <td>Плоская таблица на тип. Настоящий сценарий, который она обслуживает хорошо: вынуть колонку текста, перевести или вычитать в таблице, вернуть обратно</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему CSV нескольких типов — это ZIP</span>
+    <p>Одна таблица с колонкой <code>$type</code> потребовала бы объединения полей всех типов в шапке — нечитаемо ровно в том инструменте, ради которого CSV и выбирают. Поэтому сериализатор отдаёт по файлу <code>&lt;type&gt;.csv</code> на тип, а сервер, увидев больше одного члена, складывает их в архив. Диалог говорит об этом заранее отдельной строкой.</p>
+  </div>
+
+  <h3>Что именно теряет CSV</h3>
+  <p>Потеря структурная, а не случайная: у таблицы одно значение в ячейке, а у записи — документ с форматированием, упорядоченный список ссылок и набор файлов. Задача <code>csv/flatten.ts</code> — не починить это, а сделать потерю <b>предсказуемой</b> и невозможной спутать с полным экспортом.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Тип поля</th><th>Как уезжает в ячейку</th><th>Как читается обратно</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">richtext</td><td><code>richTextPlainText</code> — только текст тела, без разметки: ровно то, над чем работает переводчик</td><td>Каждая строка становится абзацем через <code>htmlToRichTextDocument</code>. Форматирование не восстанавливается</td></tr>
+      <tr><td class="mono">relation</td><td>Токены <code>type:key1|key2</code>, разделённые <code>;</code>. Экранирование обратным слэшем: любой разделитель может встретиться в слаге</td><td><code>parseRefToken</code> режет по <b>первому неэкранированному</b> двоеточию — значение ключа вправе содержать двоеточие (URL, время), имя типа не вправе</td></tr>
+      <tr><td class="mono">media</td><td>Список имён (или URL/путь) через <code>;</code></td><td><b>Не восстанавливается вообще.</b> Имя файла в таблице — не файл; выдумать из него ссылку на ассет значит перепривязать записи к тому, что случайно совпало по имени. Ячейка игнорируется, существующее медиа записи не трогается</td></tr>
+      <tr><td class="mono">multiselect</td><td>Значения через <code>;</code> с экранированием</td><td>Обратный разбор с тем же экранированием</td></tr>
+      <tr><td class="mono">json</td><td><code>JSON.stringify</code></td><td><code>JSON.parse</code>; невалидная ячейка остаётся строкой — о ней скажет валидатор поля, а не падение всего файла</td></tr>
+      <tr><td class="mono">date / datetime</td><td>ISO-строка</td><td>Строка как есть, дальше её разбирает валидатор поля</td></tr>
+      <tr><td>обратная сторона двусторонней связи</td><td><b>Колонки нет.</b> Она не владеет хранением — колонка, правки в которой никуда не денутся, была бы обманом</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Шапка CSV — это пять конвертных колонок (<code>$id</code>, <code>$depth</code>, <code>$locale</code>, <code>$localeGroup</code>, <code>$status</code>), а дальше поля в порядке схемы. Колонка, которой у типа нет, — <b>жёсткий отказ файла с её именем</b>, а не тихий пропуск: опечатка или переименованный заголовок означают, что целая колонка отредактированного текста выброшена, а импорт отрапортовал успех.</p>
+
+  <p>CSV не несёт манифеста, поэтому он синтезируется: <code>depth</code> — всё <code>false</code>, и это точность, а не заглушка (плоская таблица никуда не ходила), <code>exportedAt</code> — эпоха, <code>sourceWorkspaceId</code> — пустая строка, <code>identity</code> — то, что резолвит принимающая сторона.</p>
+</section>
+
+<section id="travel">
+  <h2 class="sec"><span class="num">05</span>Что едет, а что остаётся ссылкой</h2>
+
+  <p>Правило одно и оно исполняется в одном цикле обходчика, а не размазано по читателям.</p>
+
+  <div class="states">
+    <span class="state active">глубина 0 · выбранное</span>
+    <span class="arrow">— одна связь →</span>
+    <span class="state pending">глубина 1 · целиком</span>
+    <span class="arrow">— вторая связь →</span>
+    <span class="state disabled">глубина 2 · только ключ</span>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид данных</th><th class="center">Едет</th><th>Как именно и почему</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Выбранные записи</td><td class="center yes">целиком</td>
+        <td>Скалярные значения, ссылки, медиа-ссылки, <code>$key</code>, <code>$depth: 0</code>. Читаются через <code>writer.loadLiveByIds</code> — живые строки воркспейса, мягко удалённые исключены</td>
+      </tr>
+      <tr>
+        <td>Локальные близнецы выбранного</td><td class="center yes">целиком</td>
+        <td>Переключатель <code>locales</code>, по умолчанию включён. Читается <code>locale_group_id</code> — конвертная колонка content для любого типа с <code>i18n: true</code>. Каждая локаль — <b>отдельная запись</b> документа; обратно они сшиваются в одну по группе</td>
+      </tr>
+      <tr>
+        <td>Связанные записи (один шаг)</td><td class="center yes">целиком</td>
+        <td>Переключатель <code>relations</code>, по умолчанию включён. <code>$depth: 1</code>. Уже посещённые узлы не перечитываются</td>
+      </tr>
+      <tr>
+        <td>Локали связанных записей</td><td class="center no">по запросу</td>
+        <td>Переключатель <code>relationLocales</code>, <b>по умолчанию выключен</b>: он множит размер на количество локалей поверх количества связей — сюрприз, о котором никто не просил</td>
+      </tr>
+      <tr>
+        <td>Связи связей (глубина 2)</td><td class="center no">только ключ</td>
+        <td>Сами записи не выгружаются. Но их <code>$key</code> дочитывается <b>дешёвой проекцией только по колонкам идентичности</b> — это то, что делает фразу «импорт свяжет, если найдёт» правдой, а не пожеланием</td>
+      </tr>
+      <tr>
+        <td>Байты медиа</td><td class="center no">только в ZIP</td>
+        <td>Переключатель <code>media</code>. В ZIP — членом <code>assets/&lt;id&gt;/&lt;имя&gt;</code>, поток открывается только когда писатель до него дошёл. В остальных форматах едут метаданные: имя, MIME, размер, контрольная сумма <code>sha256:…</code>, alt, дорожки субтитров</td>
+      </tr>
+      <tr>
+        <td>Дорожки субтитров (video/audio)</td><td class="center yes">описанием</td>
+        <td><code>TransferAssetTrack</code>: <code>kind</code>, <code>srclang</code>, <code>label</code>, <code>path</code> либо <code>url</code>, <code>default</code></td>
+      </tr>
+      <tr>
+        <td>Статус публикации</td><td class="center no">уезжает, но не приезжает</td>
+        <td><code>$status</code> пишется обходчиком для publishable-типа и <b>не читается импортом</b> — см. раздел 16</td>
+      </tr>
+      <tr>
+        <td>Версии, история, ревизии</td><td class="center no">нет</td>
+        <td>Экспортируется живая строка. Ревизии на принимающей стороне порождает сам <code>EntryWriterService</code> как для любой другой записи</td>
+      </tr>
+      <tr>
+        <td>Мягко удалённые записи (корзина)</td><td class="center no">нет</td>
+        <td>Обходчик везде добавляет <code>isNull(deletedAt)</code> для paranoid-типа, а кнопка экспорта скрыта в представлении корзины</td>
+      </tr>
+      <tr>
+        <td>Схема типов, права, воркспейсы, пользователи</td><td class="center no">нет</td>
+        <td>Не входит в область плагина. Манифест несёт <code>sourceWorkspaceId</code> — <b>исключительно информационно</b></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Ключевая асимметрия</span>
+    <p>Обход останавливается на <b>записях</b>, а не на <b>ссылках</b>. Запись глубины 1 всё равно получает разрешимые <code>$ref</code>, заполненные проекцией по строкам глубины 2. Ссылка, несущая только чужой <code>id</code> строки, неразрешима где-либо ещё — это ровно та проблема, ради которой натуральные ключи и существуют.</p>
+  </div>
+
+  <h3>Только владеющая сторона связи</h3>
+  <p><code>owningRelationFields</code> исключает обратную сторону двусторонней связи намеренно: это <em>та же</em> связь, прочитанная с другого конца. Пройти обе значило бы выгрузить каждое ребро дважды и — хуже — позволить импорту записать одну связь с двух направлений с двумя разными порядками. У двусторонней связи один владелец, и порядок владельца — это порядок.</p>
+
+  <p>Связи «многие» читаются через <code>relations.snapshotLinks</code> — <b>полный</b> упорядоченный набор ссылок строки, в отличие от превью в таблице записей, которое читает одну ограниченную страницу. Экспорт, потерявший трёхсотый тег записи, тихо потерял бы данные при обратном импорте. Чтение батчами по 8 строк — чтобы большой экспорт не забрал весь пул соединений под один запрос.</p>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">06</span>Модель данных</h2>
+
+  <div class="note">
+    <span class="label">Таблиц нет</span>
+    <p>Плагин <b>не владеет ни одной таблицей и ни одной миграцией</b>. У него нет <code>drizzle.config.ts</code>, нет каталога <code>migrations/</code> и нет собственной таблицы журнала миграций. Перенос читает и пишет контент, который уже существует; единственное, что он добавляет, — два события аудита, которые едут в общем outbox из <code>@orthacms/database</code>.</p>
+  </div>
+
+  <h3>Модель — это документ, а не схема БД</h3>
+  <p><code>TransferDocument</code> — то, что производит экспорт и потребляет импорт, во всех форматах. Форматы отличаются тем, <em>как это записано</em> (один объект JSON, строка на запись, плоская таблица, член архива); они не отличаются тем, <em>что это значит</em>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле манифеста</th><th>Что это</th><th>Зачем оно там</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">version</td><td>Версия формата на момент экспорта; сейчас <code>1</code></td><td>Импортёр <b>отказывается</b> читать версию выше своей, а не гадает. Поднимается тогда, когда изменение заставит старый импортёр прочитать новый документ <em>неверно</em>: новое опциональное поле — не повод, изменившийся смысл — повод</td></tr>
+      <tr><td class="mono">exportedAt</td><td>ISO-метка времени экспорта</td><td>Ориентир для человека</td></tr>
+      <tr><td class="mono">sourceWorkspaceId</td><td>Воркспейс-источник</td><td><b>Только информационно.</b> Импорт всегда штампует воркспейс своего запроса, поэтому вручную отредактированный манифест — это способ неверно подписать свой же экспорт, а не способ пересечь границу арендатора</td></tr>
+      <tr><td class="mono">rootType</td><td>Тип, от которого шёл экспорт</td><td>Проверяется на разборе: манифест, не называющий тип, — отказ</td></tr>
+      <tr><td class="mono">depth</td><td>Четыре флага: <code>relations</code>, <code>media</code>, <code>locales</code>, <code>relationLocales</code></td><td>Читатель отличает частичный файл от целого</td></tr>
+      <tr><td class="mono">identity</td><td>Поля идентичности по типам, как их разрешил <b>экспортёр</b></td><td>Импорт сопоставляет по тем же полям, на которых ключевался экспорт, вместо повторного вывода по схеме, которая могла уехать. Иначе «одни и те же записи, импортированные дважды» — ровно тот отказ, который это порождает</td></tr>
+      <tr><td class="mono">counts</td><td><code>roots</code>, <code>related</code>, <code>assets</code>, <code>assetBytes</code></td><td>То же, что показал предпросчёт; уходит и в событие аудита</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле записи</th><th>Что это</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">$type</td><td>Имя типа контента</td></tr>
+      <tr><td class="mono">$id</td><td>Идентификатор строки-источника. Ручка <b>внутри одного документа</b>; в целевую строку никогда не записывается</td></tr>
+      <tr><td class="mono">$key</td><td>Значения натурального ключа по именам полей. Пустой, если тип не разрешил ни одного поля идентичности</td></tr>
+      <tr><td class="mono">$depth</td><td><code>0</code> или <code>1</code>. Импортёр читает это: запись глубины 1 — контекст, поэтому провал валидации на ней деградирует до пропущенной связи, а не роняет ту запись, которую действительно просили</td></tr>
+      <tr><td class="mono">$locale, $localeGroup</td><td>Слаг локали и групповой идентификатор перевода — для строки локализованного типа. Близнецы в одном документе делят группу, и это то, как импортёр восстанавливает её без собственного правила сопоставления локалей</td></tr>
+      <tr><td class="mono">$status</td><td>Черновик/опубликовано — для publishable-типа</td></tr>
+      <tr><td class="mono">values</td><td>Скалярные значения по именам полей. Даты нормализованы в ISO, чтобы документ был обычным JSON в любом формате</td></tr>
+      <tr><td class="mono">relations</td><td>По полю: одна ссылка для одиночной связи, список для «многих» (в порядке владельца), <code>null</code> для явно пустой одиночной</td></tr>
+      <tr><td class="mono">media</td><td>По одной записи на каждый упомянутый ассет: поле, <code>$id</code> источника, путь в архиве или URL, имя, MIME, размер, <code>checksum</code>, <code>alt</code>, дорожки</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Ссылка несёт две ручки, потому что они отвечают на разные вопросы</h3>
+  <ul>
+    <li><code>$id</code> разрешается <b>внутри этого документа</b> — случай, когда цель выгружена рядом и обе создаются прямо сейчас, так что никакой натуральный ключ ещё ни с чем не совпадёт.</li>
+    <li><code>$key</code> разрешается против принимающей инсталляции, которая этого документа никогда не видела.</li>
+    <li><code>$locale</code> — <b>часть совпадения, а не украшение</b>: у локализованного типа значения ключа строчные, поэтому ключ без локали неоднозначен ровно там, где перевод делит слаг с оригиналом.</li>
+  </ul>
+
+  <h3>Как выбираются поля идентичности</h3>
+  <p>Порядок в <code>resolveIdentityFields</code> строгий, и источник выбора записан в <code>IdentityResolution.source</code>:</p>
+  <ol class="flow">
+    <li><b><code>configured</code> — названо в конфигурации плагина.</b> Побеждает безоговорочно, <em>включая</em> случай, когда названо поле, которого в схеме больше нет: это ошибка конфигурации, которую стоит показать как неразрешимый ключ, а не замазать догадкой.<span class="meta">identity: { product: ['sku'], author: ['email'] }</span></li>
+    <li><b><code>unique-field</code> — первое поле, похожее на идентификатор.</b> Кандидатами считаются только «ключуемые» типы: text, select, number, money, date, datetime. Совпадение — по <code>relation.unique === true</code> либо по имени: <code>slug</code>, <code>key</code>, <code>code</code>, <code>sku</code>, <code>email</code>, <code>handle</code>, <code>identifier</code>.<span class="meta">у скалярной колонки в схеме нет флага unique — только у связей, отсюда эвристика по имени</span></li>
+    <li><b><code>required-text</code> — первое обязательное текстовое поле.</b> Обычно это заголовок. Два поста законно могут делить заголовок; два поста не могут делить слаг — поэтому шаг 2 стоит раньше.</li>
+    <li><b><code>row-id</code> — ничего не нашлось.</b> Ключа нет, сопоставление падает на идентификатор строки-источника.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Локализованное поле — кандидат, и это осознанно</span>
+    <p>Запись переноса — это одна <b>строка</b>, а не «запись поверх языков»: английская и немецкая версии статьи едут двумя записями и сшиваются обратно по локальной группе. Значит, послокальный слаг опознаёт ровно ту строку, которой принадлежит. От столкновения <code>en</code>/<code>hello</code> с <code>de</code>/<code>hello</code> спасает не исключение поля, а то, что локаль вложена в <code>keyFingerprint</code>. Исключать локализованные поля означало бы оставить полностью локализованный тип — нормальную форму — вообще без ключа, и тогда каждый импорт дублировал бы каждую строку.</p>
+  </div>
+
+  <p><code>keyFingerprint</code> кодируется <b>через JSON, а не склейкой через разделитель</b>, потому что части — пользовательский контент: какой разделитель ни выбери, слаг может его содержать. <code>["post","en","slug","a b"]</code> и <code>["post","en","slug a","b"]</code> здесь разные строки, а склейка через пробел или двоеточие схлопнула бы их и тихо связала две несвязанные записи. Поле без пригодного значения <b>опускается</b>, а не пишется пустой строкой, — так <code>isCompleteKey</code> отличает «у записи нет ключа» от «ключ записи — пустая строка».</p>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">07</span>Жизненный цикл переноса</h2>
+
+  <h3>Экспорт — один проход</h3>
+  <div class="states">
+    <span class="state">выбор</span>
+    <span class="arrow">→</span>
+    <span class="state pending">предпросчёт</span>
+    <span class="arrow">→</span>
+    <span class="state">обход графа</span>
+    <span class="arrow">→</span>
+    <span class="state">сериализация</span>
+    <span class="arrow">→</span>
+    <span class="state active">аудит</span>
+    <span class="arrow">→</span>
+    <span class="state active">поток в ответ</span>
+  </div>
+  <p>Предпросчёт — <b>тот же самый обход</b>, у которого выбросили записи. Это принципиально: предпросчёт, посчитанный более дешёвым способом, рано или поздно разойдётся с тем, что он предсказывает, а именно ему верят перед кликом.</p>
+
+  <h3>Импорт — один конвейер, запущенный дважды</h3>
+  <div class="states">
+    <span class="state">файл выбран</span>
+    <span class="arrow">→</span>
+    <span class="state pending">сухой прогон</span>
+    <span class="arrow">→</span>
+    <span class="state">вердикты по записям</span>
+    <span class="arrow">→</span>
+    <span class="state active">применение</span>
+    <span class="arrow">⤳ ошибка ⤳</span>
+    <span class="state disabled">откат транзакции + удаление блобов</span>
+  </div>
+  <p>Сухой прогон и применение — <b>один и тот же код с перевёрнутым флагом</b> <code>dryRun</code>. Отдельно посчитанный предпросмотр однажды пообещал бы то, что применение сделало бы иначе, а предпросмотр — ровно та вещь, которой доверяют перед нажатием.</p>
+
+  <h3>Внутри применения — два прохода</h3>
+  <ol class="flow">
+    <li><b>Сначала контекст.</b> Записи сортируются по убыванию глубины: сперва <code>$depth: 1</code>, потом <code>$depth: 0</code>. Запись глубины 1 — это то, на что указывает запись глубины 0, поэтому большинство ссылок разрешится уже на первом проходе. Для обязательной связи на непубликуемом типе это критично: <code>null</code> во внешнем ключе там будет отвергнут сразу.</li>
+    <li><b>Значения — первыми, ссылки — вторыми.</b> Записи пишутся без связей, затем связи проставляются, когда все строки существуют. Это стоит второго прохода и покупает корректность на формах, с которыми топологическая сортировка не справляется <em>вообще</em>: цикл (<code>post.related → post</code>) и пара, ссылающаяся друг на друга. Побочный, но важный эффект — внутренний порядок документа перестаёт иметь значение.</li>
+    <li><b>Второй проход стартует не с пустого мешка.</b> <code>toColumns</code> пишет отсутствующее в мешке поле как <code>null</code> — сохранение заменяет документ целиком, — поэтому второе обновление, несущее только поля связей, обнулило бы каждый скаляр, только что записанный первым проходом. В <code>linkPass</code> вместе с целевой строкой кладётся <b>точный мешок значений</b>, который был записан.</li>
+    <li><b>Лишнего обновления не будет.</b> Если <code>sameLink</code> говорит, что связи не изменились по сравнению с первой записью, второй <code>UPDATE</code> не делается: он стоил бы не только запроса, но и <b>второй ревизии</b> — и тогда каждая импортированная запись несла бы в истории две отметки об одном импорте. Сравнение позиционное, а не множественное: у связи «многие» порядок владельца — это порядок.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Границы транзакции и то, что в неё не влезает</span>
+    <p>Всё применение целиком идёт в <b>одной транзакции</b> (<code>UnitOfWork.run</code>): падение на середине не оставляет ничего, потому что наполовину импортированный граф хуже, чем не импортированный, — никто не может сказать, какая половина настоящая.</p>
+    <p><b>Блобы в транзакцию не входят.</b> Строки откатятся, байты в хранилище — нет. Поэтому каждый ассет, созданный за прогон, запоминается, и провалившийся прогон их удаляет. Учёт <b>пробегозависимый и принадлежит вызывающему</b> (<code>ImportMediaRun</code>): положи его на синглтон-сервис — и два одновременных импорта откатили бы файлы друг друга.</p>
+  </div>
+
+  <h3>Состояния диалога импорта</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Что видно</th><th>Что доступно</th></tr></thead>
+    <tbody>
+      <tr><td><span class="state">файл не выбран</span></td><td>Поле файла, ссылка на CSV-шаблон, два вопроса политик</td><td>«Проверить файл» отключена</td></tr>
+      <tr><td><span class="state pending">файл выбран</span></td><td>То же</td><td>«Проверить файл» активна</td></tr>
+      <tr><td><span class="state pending">проверка</span></td><td>Спиннер + «Проверяем…»</td><td>Кнопка заблокирована</td></tr>
+      <tr><td><span class="state active">вердикт получен</span></td><td>Сводка счётчиков, сводка по файлам, таблица вердиктов</td><td>«Выбрать другой файл» и «Импортировать»; последняя отключена, если <code>hasChanges</code> ложно</td></tr>
+      <tr><td><span class="state disabled">ошибка</span></td><td>Alert с сообщением сервера, если оно пригодно к показу</td><td>Можно поменять файл или политику</td></tr>
+      <tr><td><span class="state">вердикт устарел</span></td><td>Таблица <b>снята</b></td><td>Смена файла <em>или любой</em> из двух политик обнуляет предпросмотр — показывать вердикты одного файла над кнопкой «Импортировать» другого было бы худшей ошибкой этого диалога</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">08</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>8.1 Экспорт из редактора записи</h3>
+  <p class="sub small">Пункт «Экспорт…» живёт в секции Extras того же ⋯-меню, где i18n держит «Опубликовать все локали»: действие над записью, которая уже открыта, рядом с другими такими же действиями.</p>
+  <ol class="flow">
+    <li><b>Хук слота решает, показывать ли пункт.</b> <code>useExportEntryAction</code> возвращает <code>null</code>, если нет права <code>content:export</code> или если это форма создания — сохранённой записи ещё нет, экспортировать нечего.<span class="meta">так вклад в слот прячет себя, не пропуская вызов собственного хука</span></li>
+    <li><b>Оверлей возвращается даже когда пункт скрыт.</b> Диалог рендерится вне содержимого меню: содержимое ⋯-меню размонтируется ровно в тот момент, когда меню закрывается, — то есть ровно тогда, когда диалог должен появиться. По той же причине уже открытый диалог переживает сохранение записи (переход «создание → редактирование» переключает <code>isCreate</code>).</li>
+    <li><b>Диалог открывается с форматом ZIP и глубиной по умолчанию.</b> <code>relations</code>, <code>media</code>, <code>locales</code> включены, <code>relationLocales</code> выключен.</li>
+    <li><b>Каждое движение переключателя перезапрашивает предпросчёт.</b> <code>POST /api/content/:type/export/preview</code> с той же тройкой (ids, format, depth). Ключ кэша содержит <b>отсортированный</b> список идентификаторов, чтобы один и тот же выбор, сделанный в другом порядке кликов, был одной записью кэша, а не двумя.<span class="meta">staleTime: Short — переключить чекбокс туда-обратно не должно перезапускать обход графа</span></li>
+    <li><b>Эффективная глубина считается на клиенте, но по той же таблице возможностей.</b> Формат, не умеющий возить байты, делает <code>media</code> ложным и отключает чекбокс; <code>relationLocales</code> имеет смысл, только если <code>relations</code> включён, поэтому он отключён вслед за ним.</li>
+    <li><b>Счётчики объявляются вежливо.</b> Строка под переключателями помечена <code>aria-live="polite"</code>: пользователь скринридера, выбирающий опции, обязан получать ту же обратную связь, что зрячий получает, глядя на числа. Форма фразы зависит от <code>carriesFileBytes</code>: «9 файлов · 12,4 МБ» или «9 файлов (перечислены, не включены)».</li>
+    <li><b>Нажатие «Экспорт» шлёт <code>POST</code> с <code>responseType: 'blob'</code>.</b> Загрузка идёт через blob, а не переходом по URL, потому что маршрут — <code>POST</code>, несущий выбор и опции глубины: URL, на который можно перейти, просто не существует.</li>
+    <li><b>Object URL отзывается сразу после диспетчеризации клика.</b> Оставить его живым — значит держать весь файл в памяти до конца жизни вкладки; для экспорта с медиа это ровно та память, которую держать не надо.</li>
+    <li><b>Тост читает <code>X-Transfer-Records</code>.</b> Число полезно и скрипту, который файл не открывает.</li>
+  </ol>
+
+  <h3>8.2 Обход графа — что делает сервер</h3>
+  <p class="sub small"><code>EntryGraphWalker.walk</code>. Это единственное место, где живёт правило глубины.</p>
+  <ol class="flow">
+    <li><b>Корни.</b> <code>writer.loadLiveByIds(type, ids, workspaceId)</code> — живые строки этого типа в этом воркспейсе. Идентификатор, называющий чужую строку, просто отсутствует в результате, поэтому подделанный запрос не вытянет данные через границу.</li>
+    <li><b>Локальные близнецы, если просили.</b> Собираются <code>locale_group_id</code> корней, дочитываются все строки этих групп. Обратите внимание, <em>что</em> здесь читается: конвертная колонка, которую content определяет сам для любого типа с <code>i18n: true</code>. Перенос никогда не узнаёт, что <em>значит</em> локаль, — отсюда и отсутствие зависимости от i18n-плагина.</li>
+    <li><b>Строки превращаются в записи глубины 0.</b> Попутно собираются два множества: соседи (по типам) и идентификаторы ассетов. Именно поэтому чтения связей ниже батчатся по типу, а не выдаются на каждую запись.</li>
+    <li><b>Ссылка создаётся «отложенной».</b> <code>pendingRef</code> возвращает <code>{ $type, $id, $key: {} }</code> и запоминает соседа. <code>$key</code> заполнится позже, когда все строки станут известны.</li>
+    <li><b>Соседи дочитываются — один раз каждый.</b> Уже посещённые узлы отбрасываются по множеству <code>visited</code>, ключ которого — <code>type id</code>. Тип, которого нет в реестре, пропускается молча.</li>
+    <li><b>Записи глубины 1 строятся тем же кодом.</b> Их собственные соседи (то есть глубина 2) <b>складываются в ту же карту соседей</b> — не для выгрузки, а чтобы у них потом взять ключи.</li>
+    <li><b>Проверяется потолок записей.</b> Превышение <code>maxEntries</code> — <code>TransferLimitError</code> с предложением сузить выбор или выключить связанные записи.</li>
+    <li><b>Заполняются ключи всех ссылок.</b> Сначала бесплатно — из уже выгруженных записей, индексом по <code>type:id</code> (две записи могут указывать на одного соседа, поэтому индексируется один раз и читается, а не резолвится на каждую ссылку). Оставшееся — те самые соседи глубины 2 — читается <b>проекцией только по колонкам идентичности</b> плюс <code>locale</code> для локализованного типа.<span class="meta">в проекции используется PgColumn, а не AnyColumn: select-строитель Drizzle принимает только более узкий тип</span></li>
+    <li><b>Читаются ассеты, если просили байты.</b> Сначала потолок количества (<code>maxAssets</code>), затем резолвер медиа — <b>воркспейс-ограниченный поиск</b>, — затем построчно размер, контрольная сумма и ключ хранения из таблицы самого медиаплагина. Байты складываются нарастающим итогом и проверяются против <code>maxBytes</code> на каждом ассете.</li>
+    <li><b>Размер и checksum читаются в обход порта <code>MediaAssetResolver</code>.</b> Этот порт существует, чтобы content мог <em>валидировать</em> медиаполе, не зная, что такое медиаплагин; расширить его ключом хранения значило бы протащить заботы хранилища в каждую его реализацию.</li>
+    <li><b>Считаются итоги.</b> <code>roots</code> — записи глубины 0, <code>related</code> — всё остальное, <code>assets</code>, <code>assetBytes</code>.</li>
+  </ol>
+
+  <h3>8.3 Сборка файла и архива</h3>
+  <ol class="flow">
+    <li><b>Документ собирается.</b> Манифест + записи. <code>identity</code> берётся из <code>catalog.identityMap()</code> — из <b>единственного</b> места, где идентичность решается.</li>
+    <li><b>Сериализатор превращает документ в список файлов.</b> Список, а не файл: формат вправе быть несколькими файлами (CSV на тип; манифест плюс файлы записей в архиве).</li>
+    <li><b>Один текстовый член и никаких байтов — стримится напрямую.</b> Заворачивать одиночный файл в архив, о котором никто не просил, незачем.</li>
+    <li><b>Всё остальное — архив.</b> Члены выдаются <b>лениво</b>, асинхронным генератором: поток ассета из хранилища открывается только тогда, когда писатель до него дошёл, поэтому экспорт на тысячу файлов никогда не держит тысячу открытых чтений.</li>
+    <li><b>Пропавший объект — дырка в архиве, а не провал экспорта.</b> Запись всё равно называет ассет, а импорт сообщит о недостающем файле. Отказать во всей загрузке из-за одного вычищенного блоба — худшая сделка.</li>
+    <li><b>Имя файла в архиве обеззараживается.</b> Каталогом уже служит идентификатор ассета, поэтому <code>safeFileName</code> только держит имя одним сегментом пути: слэш или <code>..</code> в сохранённом имени не должны стать структурой. Обрезка до 180 символов.</li>
+    <li><b>ZIP пишется потоком, с дескрипторами данных.</b> Локальный заголовок обязан нести CRC и размеры, которые до прохода байтов неизвестны; бит 3 общего назначения говорит «размеры идут после данных», поэтому заголовок пишется нулями, а дескриптор дописывается следом. Бит 11 помечает имя как UTF-8 — файл, названный на любом языке, переживает поездку.</li>
+    <li><b>CRC-32 (IEEE 802.3) считается инкрементально.</b> Таблица строится лениво: импорт модуля не стоит ничего, пока перенос не запустился. Полином — обращённый <code>0xedb88320</code>.</li>
+    <li><b>Ассеты складываются, а не сжимаются.</b> Картинки, видео и PDF уже сжаты — дефлейт стоит процессора и покупает процент-другой, а <code>deflateRawSync</code> на файле в 100 МБ отменил бы весь смысл потоковой записи. Текстовые члены дефлейтятся: они маленькие, всё равно лежат в памяти и жмутся на порядок.</li>
+    <li><b>Метка времени в архиве фиксированная</b> (1980-01-01, самая ранняя выразимая в DOS). Взять «сейчас» — и два экспорта одинакового контента различались бы побайтово, что ломает сравнение архивов в тесте и делает бессмысленным любое будущее кэширование.</li>
+    <li><b>Событие аудита пишется <em>до</em> того, как ушёл первый байт.</b> Прерванная на середине загрузка всё равно вынесла данные; записывать только завершённые переносы значило бы оставить самый интересный случай — сорвавшийся — вовсе без следа.</li>
+    <li><b>Заголовки ответа.</b> <code>Content-Type</code>, <code>Content-Disposition: attachment; filename="&lt;тип&gt;-&lt;YYYYMMDD-HHmmss&gt;.&lt;ext&gt;"</code>, <code>X-Transfer-Records</code> и <code>X-Content-Type-Options: nosniff</code> — ниже по течению никто не должен «донюхать» это до чего-то исполняемого.</li>
+  </ol>
+
+  <h3>8.4 Импорт, шаг первый: чтение загруженного файла</h3>
+  <p class="sub small">Это граница. Выше неё всё — <code>TransferDocument</code>, который кодовая база понимает; ниже — байты, которые выбрал незнакомец.</p>
+  <ol class="flow">
+    <li><b>Multer ограничен тем же числом, что и читатель.</b> <code>MulterModule.register({ limits: { fileSize: maxUploadBytes } })</code>: если бы multer отказывал на одном размере, а читатель проверял другой, одно из двух чисел было бы декорацией.</li>
+    <li><b>Размер и пустота проверяются до всего.</b> Файл больше <code>maxUploadBytes</code> или нулевой длины — <code>400</code> с фразой, называющей число.</li>
+    <li><b>Формат определяют <em>байты</em>, а не имя.</b> <code>.json</code>, начинающийся с сигнатуры ZIP, — это архив. Имя файла и заявленный клиентом формат — подсказка.</li>
+    <li><b>Не-архив декодируется как UTF-8 строго.</b> <code>Buffer.toString('utf8')</code> никогда не бросает — он подставляет U+FFFD, — поэтому невалидные байты приехали бы символами замены, тихо записанными в контент. Присутствие символа замены <code>U+FFFD</code> — отказ с просьбой пересохранить в UTF-8.</li>
+    <li><b>Если формат не угадан по имени — нюхается первый непробельный символ.</b> <code>{</code> и первая строка, заканчивающаяся <code>}</code>, — NDJSON; просто <code>{</code> — JSON; иначе CSV.</li>
+    <li><b>Архив: сначала центральный каталог.</b> Это собственный индекс архива, он несёт заявленные размеры каждого члена — значит, количество членов, размер каждого, суммарный размер и коэффициент сжатия проверяются <b>до того, как что-либо распаковано</b>. Читатель, идущий по локальным заголовкам, узнаёт размер, уже за него заплатив; ровно это zip-бомба и эксплуатирует.</li>
+    <li><b>ZIP64 не поддерживается, и это сказано вслух.</b> Архив такого размера всё равно за <code>maxArchiveTotalBytes</code>; полуподдержка была бы хуже отказа.</li>
+    <li><b>Пути разбираются раньше всего остального.</b> Нулевой байт, абсолютный путь, буква диска, сегмент <code>..</code> — отказ. <b>Отказ, а не санация</b>: <code>../../etc/passwd</code>, отсанированный до <code>etc/passwd</code>, — всё ещё путь, который выбрал автор, а не мы.</li>
+    <li><b>Коэффициент сжатия — сигнал, приходящий раньше байтов.</b> Одного потолка суммы мало: весь фокус бомбы в том, что сжатый файл достаточно мал, чтобы проплыть мимо лимита загрузки. Проверка включается, только когда сжатых данных больше 1 КБ, иначе отношение ничего не значит.</li>
+    <li><b>Распаковка — по одному члену, с жёстким потолком вывода.</b> Заявленный размер — это утверждение; <code>maxOutputLength</code> делает его пределом. Метод, отличный от <code>store</code> и <code>deflate</code>, — отказ.</li>
+    <li><b>Текстом читаются только те члены, которые определяет формат архива:</b> <code>manifest.json</code>, <code>*.ndjson</code>, <code>*.csv</code>, <code>*.json</code>. Архив, в который кто-то положил README, всё равно импортируется. Всё под <code>assets/</code> уходит в карту байтов.</li>
+    <li><b>ZIP с CSV внутри читается как CSV.</b> Именно это производит многотиповый CSV-экспорт, значит, так же он и должен вернуться.</li>
+    <li><b>Версия манифеста проверяется в одном месте.</b> Разбор архива подкладывает манифест синтетической строкой в общий NDJSON-читатель — чтобы у этого файла не завелась вторая копия проверки версии, способная разъехаться.</li>
+    <li><b>Ничто в файле не называет воркспейс.</b> Манифест несёт воркспейс-источник, и импортёр его <b>не читает</b>: на каждую запись штампуется воркспейс запроса.</li>
+  </ol>
+
+  <h3>8.5 Импорт, шаг второй: сопоставление записей с существующими</h3>
+  <p class="sub small"><code>matchAll</code>. Запросов — по два на тип, а не по два на запись: файл может нести тысячи строк, и запрос на каждую был бы классическим N+1.</p>
+  <ol class="flow">
+    <li><b>Дорога первая — идентификатор строки-источника.</b> Собираются все <code>$id</code>, <b>прошедшие проверку формы uuid</b>, и одним запросом спрашивается, какие из них до сих пор называют живую строку этого типа в этом воркспейсе.<span class="meta">проверка формы обязательна: в CSV колонку $id человек может вписать что угодно, и передача этого в сравнение с uuid — синтаксическая ошибка Postgres и 500</span></li>
+    <li><b>Дорога вторая — натуральный ключ.</b> Поля берутся из <b>манифеста</b> (<code>identityFor</code>), а не выводятся заново. Вывести локально на одной стороне и прочитать манифест на другой — ровно тот способ, которым существующая запись всё равно создаётся заново: две стороны считают отпечаток по разным полям, карта не попадается, и каждое совпадение тихо деградирует до создания.</li>
+    <li><b>Ключ, называющий выброшенное поле, не совпадает ни с чем</b> — и это лучше исключения: <code>usable</code> отфильтровывает поля, которых нет в таблице, и если хоть одного не хватило, тип пропускается.</li>
+    <li><b>Выборка сужается по значениям первой колонки ключа.</b> Большая коллекция не читается целиком ради файла на двадцать строк.</li>
+    <li><b>Строка-кандидат отпечатывается ровно так же, как входящая запись</b> — включая локаль, которая для этого дочитывается проекцией. Первое совпадение выигрывает; повторные отпечатки игнорируются.</li>
+    <li><b>Порядок дорог в <code>run</code>: сначала ключ, потом идентификатор.</b> Ключ — это личность, что-то значащая на другой инсталляции. Идентификатор — запасной путь, срабатывающий, только когда файл вернулся в ту базу, из которой уехал; там он не догадка, а факт.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Зачем запасной путь по идентификатору строки вообще нужен</span>
+    <p>Это единственное, что может связать (а не скопировать) тип, у которого <b>нет выводимого поля идентичности</b>: категория с одним необязательным <code>name</code> резолвит ноль полей. Без этой дороги каждый импорт такого типа добавлял бы ещё одну копию каждой строки. Ради неё <code>matchAll</code> и делает второй, дешёвый запрос на тип.</p>
+  </div>
+
+  <h3>8.6 Импорт, шаг третий: решение по двум политикам</h3>
+  <p>Политик <b>две</b>, и какая из них управляет записью, зависит только от её глубины: запись, которую выбрал вызывающий, — <code>ConflictPolicy</code>; запись, приехавшая потому, что на неё указали, — <code>RelationPolicy</code>. Разделять их обязательно: продублировать статью — разумная просьба, а продублировать её автора из-за того, что дублировали статью, — нет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Политика</th><th>Значение</th><th>Совпадения нет</th><th>Совпадение есть</th><th>Вердикт при совпадении</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4"><b>Конфликтов</b><br><span class="small sub">глубина 0</span></td><td class="mono">skip <span class="pill pill-ses">по умолчанию</span></td><td>create · <code>new</code></td><td>Оставить существующее нетронутым</td><td>skip · <code>conflict-skipped</code></td></tr>
+      <tr><td class="mono">update</td><td>create · <code>new</code></td><td>Перезаписать значения существующей строки</td><td>update · <code>matched</code></td></tr>
+      <tr><td class="mono">duplicate</td><td>create · <code>new</code></td><td>Создать вторую строку, несмотря на совпадение</td><td>create · <code>conflict-duplicated</code></td></tr>
+      <tr><td class="mono">fail</td><td>create · <code>new</code></td><td>Отказать всему прогону на первом же совпадении</td><td>error · <code>matched</code></td></tr>
+      <tr><td rowspan="3"><b>Связей</b><br><span class="small sub">глубина 1</span></td><td class="mono">link <span class="pill pill-ses">по умолчанию</span></td><td>create · <code>new</code> — иначе связь повисла бы</td><td>Совпасть и связаться, <b>ничего не записывая</b></td><td>skip · <code>relation-linked</code></td></tr>
+      <tr><td class="mono">update</td><td>create · <code>new</code></td><td>Совпасть, связаться и перезаписать значения</td><td>update · <code>matched</code></td></tr>
+      <tr><td class="mono">recreate</td><td>create · <code>new</code></td><td>Никогда не совпадать: новая строка на каждую связанную запись</td><td>create · <code>relation-recreated</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Обратите внимание на первую колонку результатов: <b>отсутствие совпадения означает создание при любой политике</b>, включая <code>recreate</code> и <code>fail</code>. У связанной записи, которой не с чем связаться, нет выбора — иначе повиснет та связь, ради которой она в файле и оказалась. Причина при этом различается: <code>new</code>, если тип имеет ключ, и <code>no-identity</code>, если полей идентичности не нашлось.</p>
+
+  <div class="note warn">
+    <span class="label">Почему <code>link</code> — это «skip», но с другой причиной</span>
+    <p>Действие то же самое, что у конфликтного <code>skip</code>: строке ничего не пишется. Но сообщается это отдельным кодом <code>relation-linked</code>, потому что это <b>не конфликт</b>: запись существует, связь на неё укажет, и в этом весь замысел. Пользователь видит «Уже здесь — ваши записи свяжутся с ней», а не «Уже здесь — оставлено без изменений».</p>
+  </div>
+
+  <ol class="flow">
+    <li><b>Пропущенная запись всё равно запоминается в карте идентификаторов.</b> Пропущенная запись — это строка, которая <em>существует</em>, значит, ссылки других записей на неё обязаны разрешиться.</li>
+    <li><b>Права проверяются после решения и до записи.</b> Нужно <code>create</code> или <code>update</code> — смотрится соответствующий флаг; нет — вердикт <code>error</code> · <code>forbidden</code>, и следующая запись.</li>
+    <li><b>Сухой прогон останавливается здесь.</b> Вердикт записан, счётчик увеличен, совпадение (если было) запомнено — <em>ключа</em> достаточно, чтобы отчёт о неразрешённых ссылках был точным. Новой строки, на которую можно указать, у сухого прогона нет.</li>
+    <li><b>Реальная запись: создание или обновление.</b> Компилятор не видит, что <code>update</code> возвращается только при совпадении, поэтому код читает совпадение один раз и падает в создание, а не отбрасывает проверку утверждением.</li>
+    <li><b>Локальная группа собирается по ходу.</b> Первый близнец группы её создаёт, остальные присоединяются к тому, что он сделал: карта <code>sourceGroup → targetGroup</code> живёт один прогон. Локаль и групповой идентификатор просто передаются в <code>EntryWriterService</code>, а валидирует их привязанное i18n-расширение.</li>
+    <li><b>Отказ писателя не роняет прогон.</b> Он становится вердиктом <code>error</code> · <code>validation-failed</code>, и в <code>issues</code> кладутся <b>распакованные</b> сообщения по полям. Собственная сводка исключения — «Entry validation failed» — наименее полезная фраза, которую можно дать читателю об отвергнутой записи: она сообщает, что что-то не так, и не называет ничего.</li>
+  </ol>
+
+  <h3>8.7 Импорт: что происходит с медиафайлами</h3>
+  <ol class="flow">
+    <li><b>Сначала — то, что уже видели в этом прогоне.</b> <code>TransferAssetMap</code> резолвит по идентификатору источника, а если его нет — по контрольной сумме.</li>
+    <li><b>Затем — дедупликация по <code>sha256</code> внутри воркспейса.</b> Идентичные байты — это тот же ассет, как бы файл ни назывался. Импорт, перезаливающий каждый байт, продублировал бы медиатеку на втором прогоне того же файла, а команды перегоняют импорты постоянно.<span class="meta">поиск обязательно ограничен воркспейсом: совпадение только по сумме связало бы запись воркспейса A с ассетом воркспейса B — одинаковые файлы (общий логотип, сток) встречаются сплошь и рядом</span></li>
+    <li><b>Только если ничего не совпало — байты едут.</b> Их берут из карты членов архива по <code>ref.path</code>. Нет пути или нет байтов — в бесформатном файле это ожидаемо: запись всё ещё называет ассет, который существует только у источника.</li>
+    <li><b>Загрузка идёт через <code>UploadAssetUseCase</code> медиаплагина, а не вставкой строки.</b> Заявленному в архиве MIME не верят на слово: путь загрузки самого медиаплагина заново выводит вид ассета и применяет свои правила.</li>
+    <li><b>Без актора ассет не создаётся.</b> <code>uploaded_by</code> в медиа — <code>NOT NULL</code>, а импорт по API-токену не имеет сессионного пользователя; вместо того чтобы выдумывать его, ассет объявляется отсутствующим, а остальное импортируется.</li>
+    <li><b>Каждый созданный за прогон ассет попадает в <code>run.uploaded</code>.</b> При провале транзакции они удаляются — иначе откатившийся импорт оставит в бакете байты, на которые ничто не ссылается и которые никто никогда не соберёт. Откат «по возможности» и намеренно молчалив о частных неудачах: импорт уже упал, и превращать проблему уборки в ту ошибку, которую видит пользователь, значило бы спрятать настоящую.</li>
+    <li><b>Нерезолвившийся ассет просто не попадает в значение поля.</b> Записать идентификатор, ничего не называющий, было бы хуже.</li>
+  </ol>
+
+  <h3>8.8 Импорт: второй проход и обновление админки</h3>
+  <ol class="flow">
+    <li><b>Проход по связям — обычный <code>update</code> через того же писателя.</b> Значит, через те же проверки целей и то же правило одной локали, что любое другое сохранение.</li>
+    <li><b>Неразрешившаяся ссылка выбрасывается из полезной нагрузки и попадает в вердикт.</b> Отказать записи из-за одного отсутствующего соседа значило бы завалить весь импорт из-за одной связи.</li>
+    <li><b>Сухой прогон отчитывается отдельно.</b> Ничего не записано, поэтому ссылка разрешима, только если её цель уже существует либо сама лежит в документе; оба факта известны.</li>
+    <li><b>Ответ.</b> <code>{ version, counts, verdicts, hasChanges }</code>. Прогон из одних пропусков — не ошибка, но предлагать для него кнопку «Импортировать» было бы ложью, поэтому <code>hasChanges</code> ложно и кнопка отключена.</li>
+    <li><b>Аудит применения.</b> Событие <code>transfer.content.imported</code> с воркспейсом и счётчиками, актор прикрепляется <code>attachActor</code>.</li>
+    <li><b>Админка обновляет кэш каждого затронутого типа.</b> Вердикты называют их поимённо, значит, набор точный, а не угаданный: прогон, создавший статью <em>и</em> автора, на которого она указывает, обязан обновить оба списка.</li>
+    <li><b>Обновление идёт через <code>refreshEntryCaches</code> из <code>@orthacms/content-admin</code>, а не через ключ, написанный здесь.</b> Раньше инвалидировался <code>['content']</code>, который не совпадает <b>ни с чем</b>: корни библиотеки — <code>content-entries</code> / <code>content-entry</code>, TanStack сравнивает сегменты целиком, а <code>'content' !== 'content-entries'</code>. Импорт проходил, тост это подтверждал, таблица не двигалась.</li>
+    <li><b>Тип, в который импортировали, добавляется всегда</b> — даже прогон, в котором каждая запись ошиблась, оставляет список стоящим перечитывания. Плюс инвалидация <code>['media']</code> префиксом: импорт архива грузит ассеты.</li>
+  </ol>
+
+  <h3>8.9 Круговой рейс: экспорт, перенос, импорт</h3>
+  <ol class="flow">
+    <li><b>Статья и её автор экспортируются в ZIP</b> с включёнными связями, файлами и локалями. В документе: статья (<code>$depth: 0</code>) и её локальные близнецы, автор (<code>$depth: 1</code>), ссылки со заполненным <code>$key</code>, обложка в <code>assets/&lt;id&gt;/…</code>, манифест с полями идентичности.</li>
+    <li><b>Файл уезжает на другую инсталляцию</b> и загружается через «Импорт…» той коллекции, куда его кладут.</li>
+    <li><b>Сухой прогон.</b> Автор ищется по <code>email</code> (или по тому, что назвала конфигурация); если он там уже есть — вердикт <code>skip</code> · <code>relation-linked</code>. Статья ищется по <code>slug</code>; нет такой — <code>create</code> · <code>new</code>.</li>
+    <li><b>Применение, порядок глубин.</b> Сначала автор (глубина 1) — при <code>link</code> ему ничего не пишется, но карта запоминает целевую строку. Потом статья: обложка резолвится по контрольной сумме или заливается, значения пишутся, и ссылка на автора уже разрешима на <b>первой</b> записи.</li>
+    <li><b>Второй проход по связям чаще всего ничего не делает</b> — <code>sameLink</code> видит, что связи не изменились, и лишнего <code>UPDATE</code> с лишней ревизией не будет.</li>
+    <li><b>Повторный запуск того же файла ничего не сломает.</b> На политиках по умолчанию (<code>skip</code> + <code>link</code>) второй прогон даёт нули в create/update, <code>hasChanges</code> ложно, диалог честно говорит «Ничто в этом файле здесь ничего не изменит».</li>
+  </ol>
+
+  <h3>8.10 Цикл переводчика на CSV</h3>
+  <ol class="flow">
+    <li><b>Выделение записей → «Экспорт» → CSV.</b> Диалог заранее говорит: богатый текст станет простым, ссылки — списком ключей, файлы — только именами. Если типов больше одного, там же сказано, что скачается ZIP.</li>
+    <li><b>Первый импорт можно не угадывать.</b> В диалоге импорта есть ссылка «Скачать пустой CSV с нужными колонками» — <code>GET /api/content/:type/import/template</code>: одна строка заголовка. Это снимает худшую часть первого импорта — угадать имена колонок, ошибиться в одной и получить отказ файла.</li>
+    <li><b>Правится колонка текста</b> в привычном табличном редакторе.</li>
+    <li><b>Возврат.</b> Тип берётся из имени файла, а если такого типа нет — из коллекции, чью кнопку нажали. Файл, названный тем, чего у инсталляции нет, отвергается <b>по имени</b>, а не угадывается в чужую таблицу.</li>
+    <li><b>Строка из одних пустых ячеек пропускается</b> — так выглядит завершающая пустая строка в таблице, и импорт создавал бы из неё пустую запись на каждом обороте.</li>
+    <li><b>Сопоставление и запись.</b> <code>$id</code> из конвертной колонки даёт вторую дорогу сопоставления при возврате в ту же базу; на другой инсталляции работает <code>slug</code>. Медиа-колонка игнорируется, существующее медиа записи не трогается.</li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">09</span>HTTP API</h2>
+  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост. Все пять маршрутов сидят на одном контроллерном префиксе <code>content</code> и несут общий классовый стек охраны: <code>OriginGuard</code>, <code>PermissionsGuard</code>, <code>WorkspaceGuard</code>, <code>ContentGrantGuard</code> — поверх глобального <code>AuthGuard</code>. Легенда: <span class="pill pill-ses">session</span> — нужна валидная сессия, <span class="pill pill-perm">право</span> — нужна сессия и указанное право.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">POST /content/:typeName/export/preview</td>
+        <td><span class="pill pill-perm">content:export</span></td>
+        <td><code>{ ids[], format, depth? }</code></td>
+        <td><code>200 { roots, related, assets, assetBytes, carriesFileBytes }</code></td>
+        <td><code>400</code> невалидный DTO; <code>403</code> нет права или чужой Origin; <code>404</code> тип неизвестен <b>или</b> не выдан воркспейсу</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /content/:typeName/export</td>
+        <td><span class="pill pill-perm">content:export</span></td>
+        <td><code>{ ids[], format, depth? }</code></td>
+        <td><code>200</code> поток файла + <code>Content-Disposition</code>, <code>X-Transfer-Records</code>, <code>X-Content-Type-Options: nosniff</code></td>
+        <td>те же; превышение потолков — см. предупреждение ниже</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /content/:typeName/import/preview</td>
+        <td><span class="pill pill-perm">content:import</span></td>
+        <td><code>multipart/form-data</code>: <code>file</code>, <code>policy?</code>, <code>relations?</code></td>
+        <td><code>200 { version, counts, verdicts[], hasChanges }</code>, <b>записей нет</b></td>
+        <td><code>400</code> нет файла, пустой, слишком большой, не UTF-8, не разбирается, версия формата выше поддерживаемой, неизвестная колонка CSV, архив не прошёл проверки; <code>403</code>; <code>404</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /content/:typeName/import</td>
+        <td><span class="pill pill-perm">content:import</span></td>
+        <td>то же</td>
+        <td><code>200 { counts, verdicts[] }</code>, всё в одной транзакции</td>
+        <td>те же, плюс отказ политики <code>fail</code> приходит вердиктами, а не статусом</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /content/:typeName/import/template</td>
+        <td><span class="pill pill-perm">content:read</span></td>
+        <td>—</td>
+        <td><code>200</code> CSV из одной строки заголовка, <code>&lt;type&gt;-template.csv</code></td>
+        <td><code>404</code> тип неизвестен или не выдан; <b>см. предупреждение о заголовке воркспейса</b></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Заголовок воркспейса и ссылка на шаблон</span>
+    <p><code>WorkspaceGuard</code> читает <code>X-Workspace-Id</code> и отвечает <code>400</code>, если его нет. Маршрут шаблона стоит под тем же классовым стеком, но в диалоге импорта он открывается <b>обычной ссылкой</b> <code>&lt;a href="/api/content/&lt;type&gt;/import/template"&gt;</code> — навигация браузера произвольный заголовок отправить не может. То есть в текущем виде ссылка «Скачать пустой CSV с нужными колонками» приводит к <code>400 Missing or malformed X-Workspace-Id header</code>. Сценарий 8.10 описывает задуманное поведение; фактическое зафиксировано в разделе 16.</p>
+  </div>
+
+  <h3>Валидация тела экспорта</h3>
+  <ul>
+    <li><b><code>ids</code> обязателен и непуст.</b> Не «пусто значит всё»: «выгрузить всю коллекцию» — реальная просьба, но её надо выражать выделением всей коллекции в интерфейсе, где виден счётчик. Пустое тело, тихо означающее «всё», — это форма, которая производит случайные выгрузки библиотеки целиком.</li>
+    <li><b>Потолок выборки — 1000 идентификаторов</b> (<code>MAX_EXPORT_IDS</code>), каждый обязан быть uuid v4.</li>
+    <li><b><code>format</code> обязателен</b> и проверяется по <code>TRANSFER_FORMATS</code>.</li>
+    <li><b><code>depth</code> необязателен</b>, вложенный объект из четырёх булевых флагов, валидируется через <code>@ValidateNested</code>. Отсутствующие ключи домерживаются до <code>DEFAULT_DEPTH</code>.</li>
+    <li>Любое лишнее поле отвергается глобальным <code>ValidationPipe</code> (<code>whitelist</code> + <code>forbidNonWhitelisted</code>) ещё до контроллера.</li>
+  </ul>
+
+  <h3>Валидация тела импорта</h3>
+  <p>Тело — multipart, поэтому каждое поле приезжает строкой; <code>@IsBoolean()</code> здесь нет ни на чём. Настоящих настройки две: <code>policy</code> (значение из <code>CONFLICT_POLICIES</code>, по умолчанию <code>skip</code>) и <code>relations</code> (значение из <code>RELATION_POLICIES</code>, по умолчанию <code>link</code>). Обе необязательные.</p>
+
+  <div class="note warn">
+    <span class="label">Как читается ответ импорта</span>
+    <p>Один <b>вердикт на запись</b>: <code>{ $type, $id, label, locale?, action, reason, targetId?, unresolved?, issues? }</code>. <code>action</code> — одно из <code>create</code>/<code>update</code>/<code>skip</code>/<code>error</code>; <code>reason</code> — <b>стабильный код, а не фраза</b>: формулировку и её переводы держит админка, факт держит сервер. <code>label</code> — то, как запись назвал бы редактор: первое значение ключа, иначе первое непустое текстовое поле, иначе идентификатор источника.</p>
+  </div>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">10</span>Админка: где это лежит и как себя ведёт</h2>
+
+  <p>Пакет <b>не добавляет маршрутов</b>. Всё, что он делает, — действия над контентом, на который человек уже смотрит, поэтому он живёт в швах Content Library. Регистрировать <b>после</b> <code>contentAdminPlugin()</code>, который эти швы и объявляет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Вклад</th><th>Идентификатор</th><th>Когда скрыт</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ENTRY_MENU_SLOT</td><td><b>Экспорт…</b> в ⋯-меню редактора, группа Extras, порядок 30</td><td class="mono">transfer.export.entry</td><td>Нет <code>content:export</code>; форма создания (сохранённой записи ещё нет)</td></tr>
+      <tr><td class="mono">RECORDS_BULK_ACTION_SLOT</td><td><b>Экспорт</b> в панели выделения, порядок 10</td><td class="mono">transfer.export.selection</td><td>Нет <code>content:export</code>; представление корзины; пустое выделение</td></tr>
+      <tr><td class="mono">RECORDS_MENU_SLOT</td><td><b>Импорт…</b> в ⋯-меню коллекции, порядок 10</td><td class="mono">transfer.import</td><td>Нет <code>content:import</code>; представление корзины</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Почему импорт — у коллекции, а не у выделения</h3>
+  <p>При импорте <b>ничего не выделено</b>: приезжает то, что лежит в файле, — поэтому панель выделения была бы категориальной ошибкой. И он не стоит отдельной кнопкой в тулбаре рядом с поиском и фильтрами: импорт — операция редкая, а поиск, колонки и фильтры используются в каждый заход, и отдавать им ширину под это неправильно.</p>
+
+  <h3>Три места, где легко наступить на размонтирование</h3>
+  <ul>
+    <li><b>Оверлей рендерится вне содержимого меню.</b> Содержимое ⋯-меню размонтируется ровно в тот момент, когда меню закрывается, — то есть ровно тогда, когда диалог должен появиться.</li>
+    <li><b>Панель выделения умирает вместе с выделением.</b> Поэтому <code>onDone</code> зовётся <b>после успешной загрузки</b>, а не при открытии диалога: очистить выделение на открытии значило бы размонтировать панель, а с ней и диалог.</li>
+    <li><b>Оверлей возвращается даже когда пункт скрыт.</b> Уже открытый диалог переживает переключение в корзину и сохранение записи, а не исчезает посреди взаимодействия.</li>
+  </ul>
+
+  <h3>Диалог экспорта</h3>
+  <ul>
+    <li>Заголовок склоняется по числу: «Экспорт N записей». Описание сразу называет правило: «Экспортируются выбранные записи плюс один шаг того, на что они ссылаются. Их собственные ссылки сохраняются как связи, а не копируются».</li>
+    <li>Селектор формата, под ним — предупреждение о потерях (только если формат не lossless) и отдельная строка про ZIP для CSV.</li>
+    <li>Четыре переключателя, у каждого подпись-подсказка, привязанная через <code>aria-describedby</code>. Отключённый переключатель файлов — это <b>честность</b>: формат, не умеющий возить байты, не должен принимать флаг и игнорировать его.</li>
+    <li>Живая строка счётчиков с <code>aria-live="polite"</code>. Три состояния: «Считаем…», числа, «Не удалось посчитать размер. Экспорт всё равно может сработать».</li>
+    <li>Ошибка предпросчёта <b>не блокирует</b> кнопку экспорта — только сообщает.</li>
+  </ul>
+
+  <h3>Диалог импорта</h3>
+  <ul>
+    <li><b>Два вопроса, а не один</b>, и оба одной формы — по радиогруппе с подписью под каждым вариантом, чтобы читатель видел: это два разных ответа. «Если запись уже есть здесь» управляет записями файла; «Записи, на которые файл ссылается» управляет теми, на кого они указывают.</li>
+    <li>У вопроса о конфликтах есть поясняющая строка о том, <em>что считается «уже здесь»</em>: совпадение по ключевому полю вроде слага или e-mail либо «это ровно та запись, из которой файл выгружен».</li>
+    <li><b>Высота ограничена самим диалогом.</b> <code>DialogContent</code> не задаёт высоты и центрируется фиксированно, поэтому длинный диалог — два объяснённых вопроса плюс таблица вердиктов — убегает за оба края ноутбучного экрана вместе с кнопкой «Импортировать». Здесь: три строки грид-раскладки (шапка, тело, подвал) и прокрутка <b>только тела</b>.</li>
+    <li><b>Три разных отступа внутри группы</b> — намеренно: подсказка стоит вплотную под легендой (это одна шапка), варианты отодвинуты от шапки, варианты разведены между собой. Иначе группа читается как список из пяти равных строк.</li>
+    <li><b>Широкий зазор между блоками</b> (gap-8): на собственном ритме групп семь опций с двумя заголовками читались бы как один список.</li>
+    <li>Ошибка показывается <code>Alert variant="destructive"</code> и берёт сообщение сервера, если оно строкой.</li>
+  </ul>
+
+  <h3>Таблица вердиктов</h3>
+  <ul>
+    <li><b>Сортировка: сначала проблемы</b>, затем пропуски, затем обновления и создания. Читатель этой таблицы ищет, что пойдёт не так, а не подтверждение, что почти всё нормально. Внутри группы порядок стабильный — виден порядок самого файла.</li>
+    <li><b>Показываются первые 100 строк.</b> Файл на пять тысяч записей иначе отрисовал бы пять тысяч строк таблицы в диалог — одновременно медленно и нечитаемо. Итоги над таблицей — это сводка; сам список нужен, чтобы увидеть форму прогона и проблемы в нём. Под таблицей — строка «Показаны первые N из M».</li>
+    <li><b>Состояние передано формой, а не только словами</b>: у каждого действия свой вариант <code>Badge</code> (создание — <code>default</code>, обновление — <code>secondary</code>, пропуск — <code>outline</code>, проблема — <code>destructive</code>).</li>
+    <li>Неразрешённые ссылки выводятся отдельной строкой: «Связи не найдены: … Они останутся пустыми, всё остальное всё равно импортируется». Сообщения валидации — отдельной строкой в красном.</li>
+    <li>Локаль строки показывается маленькой заглавной пометкой рядом с названием записи.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключи кэша</span>
+    <p>Свой ключ у плагина один — <code>transferKeys.exportPreview(type, format, ids, depth)</code>, и идентификаторы в нём <b>отсортированы</b>. Всё остальное после импорта обновляется чужими руками: <code>refreshEntryCaches</code> из <code>content-admin</code> для каждого затронутого типа и префикс <code>['media']</code> для медиатеки.</p>
+  </div>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">11</span>Конфигурация</h2>
+
+  <p>Плагин собирается на композиционном корне: <code>TransferPlugin(config.plugins.transfer)</code>, <b>после</b> <code>ContentPlugin</code> (чей реестр и писатель он использует) и, если файлы должны ехать, после <code>MediaServerPlugin</code>. Без медиа он всё равно работает: медиаполя едут ссылками, а импорт сообщает о них как об отсутствующих, вместо того чтобы отказываться подниматься.</p>
+
+  <p>В админке — <code>transferAdminPlugin()</code>, <b>после</b> <code>contentAdminPlugin()</code>.</p>
+
+  <h3>Две настройки, и обе важны</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ключ</th><th>Тип</th><th>Что это решает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">identity</td><td class="mono">Record&lt;string, readonly string[]&gt;</td>
+        <td>Какие поля опознают запись каждого типа. <b>Настройка, которую стоит заполнить.</b> Всё, что делает импорт, стоит на способности сказать «эта входящая запись — вот та существующая строка», а выводимый запасной вариант — эвристика. Каталог, ключуемый на <code>sku</code>, и список участников на <code>email</code> должны сказать об этом здесь, а не надеяться, что эвристика согласится. Тип, оставленный без ключа, падает на выводимый выбор, который сообщается в манифесте каждого экспорта, — так что то, на чём импорт совпал, никогда не секрет</td>
+      </tr>
+      <tr>
+        <td class="mono">limits</td><td class="mono">Partial&lt;TransferLimits&gt;</td>
+        <td>Потолки одного переноса. Опущенные ключи сохраняют поставочные значения</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Конфигурация валидируется <b>жадно</b>, тем же способом, что у <code>ContentPlugin</code> и <code>I18nServerPlugin</code>: пустой список полей для типа и пустая строка внутри списка — исключение на старте. Список идентичности, не называющий полей, — та ошибка конфигурации, которая иначе всплыла бы как «каждый импорт создаёт дубликаты», месяцами позже и совсем не рядом с причиной.</p>
+
+  <h3>Потолки</h3>
+  <p>Экспорт и импорт нуждаются в границах по противоположным причинам. Экспорт ограничен, чтобы неосторожный фильтр не попросил один запрос выстримить в память всю библиотеку; импорт ограничен, потому что файл <b>недоверенный</b> — маленький архив может описывать огромный, и разбор без потолка — это тот баг, который превращает сжатый файл в аварию.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ключ</th><th>По умолчанию</th><th>Сторона</th><th>Что ограничивает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">maxEntries</td><td class="num-col">5 000</td><td>экспорт</td><td>Записи, до которых экспорт может дотянуться, корни и связанные вместе</td></tr>
+      <tr><td class="mono">maxAssets</td><td class="num-col">2 000</td><td>экспорт</td><td>Различные ассеты в одном экспорте</td></tr>
+      <tr><td class="mono">maxBytes</td><td class="num-col">512 МиБ</td><td>экспорт</td><td>Суммарные байты файлов в одном экспорте</td></tr>
+      <tr><td class="mono">maxImportRecords</td><td class="num-col">5 000</td><td>импорт</td><td>Записи, которые импорт прочитает из документа</td></tr>
+      <tr><td class="mono">maxColumns</td><td class="num-col">200</td><td>импорт</td><td>Колонки одной плоской строки</td></tr>
+      <tr><td class="mono">maxUploadBytes</td><td class="num-col">256 МиБ</td><td>импорт</td><td>Байты загруженного файла <b>до</b> распаковки; тем же числом настроен multer</td></tr>
+      <tr><td class="mono">maxArchiveEntries</td><td class="num-col">10 000</td><td>импорт</td><td>Членов в загруженном архиве</td></tr>
+      <tr><td class="mono">maxArchiveEntryBytes</td><td class="num-col">128 МиБ</td><td>импорт</td><td>Во что может распаковаться один член; тем же числом ограничен <code>maxOutputLength</code> zlib</td></tr>
+      <tr><td class="mono">maxArchiveTotalBytes</td><td class="num-col">1 ГиБ</td><td>импорт</td><td>Во что может распаковаться весь архив</td></tr>
+      <tr><td class="mono">maxCompressionRatio</td><td class="num-col">200</td><td>импорт</td><td>Наибольшее терпимое отношение распакованного к сжатому по всему архиву</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Отдельно, вне <code>TransferLimits</code>: <code>MAX_EXPORT_IDS = 1000</code> — потолок выборки в DTO экспорта, и <code>MAX_ROWS = 100</code> — потолок строк таблицы вердиктов в админке.</p>
+
+  <div class="note warn">
+    <span class="label">Как это стоит крутить</span>
+    <p><code>maxEntries</code> и <code>maxBytes</code> поднимают под осознанную массовую миграцию. Импортные архивные потолки — это <b>граница безопасности, а не настройка ёмкости</b>: опустить их не стоит ничего, поднимать надо намеренно. Шаблон, который ставит <code>create-ortha-app</code>, не регистрирует типов контента, поэтому там <code>identity: {}</code> и <code>limits: {}</code>.</p>
+  </div>
+
+  <h3>DI-токены</h3>
+  <ul>
+    <li><code>TRANSFER_CONFIG</code> — валидированная конфигурация, <code>@InjectTransferConfig()</code>.</li>
+    <li><code>TRANSFER_LIMITS</code> — <b>уже смерженные</b> лимиты, <code>@InjectTransferLimits()</code>: потребитель не домерживает умолчания второй раз.</li>
+  </ul>
+
+  <p>Модуль <b>не глобальный и не экспортирует ничего</b> — в перенос никто в системе не вызывает. Всё, что ему нужно, приходит с другой стороны: реестр и писатель content, хранилище и путь загрузки media, права identity — из модулей, которые уже глобальны.</p>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">12</span>Безопасность: что и почему сделано именно так</h2>
+
+  <h3>Три границы, которые здесь пересекаются</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Граница воркспейса</h4>
+      <p class="small sub">Каждое чтение и каждая запись несут <code>workspaceId</code> запроса. <code>WorkspaceGuard</code> проверяет членство, резолвер медиа ограничен воркспейсом, дедуп по контрольной сумме ограничен воркспейсом, манифест-источник не читается вовсе.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Граница выданного контента</h4>
+      <p class="small sub"><code>ContentGrantGuard</code> отказывает типу, который этому воркспейсу не выдан, <b>тем же <code>404</code></b>, что и неизвестному типу. Маршрут экспорта без него был бы способом прочитать мимо контентной поверхности воркспейса — и хуже, чем на списочном эндпоинте, потому что данные при этом уезжают.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Граница недоверенных байтов</h4>
+      <p class="small sub">Читатель ZIP — единственное место плагина, куда приходят байты, которых здесь никто не писал. Порядок проверок и есть защита.</p>
+    </div>
+  </div>
+
+  <h3>Почему архив свой, а не с npm</h3>
+  <p>Потому что чтение недоверенного архива — та самая точка, и порядок проверок в ней важнее удобства библиотеки: центральный каталог читается первым, поэтому количество членов, размер каждого, суммарный размер и коэффициент сжатия отвергаются <b>до</b> распаковки чего бы то ни было. И потому что поведение по памяти — весь смысл писателя: экспорт может быть сотнями мегабайт медиа, поэтому ничто не держится целиком.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Атака / случай</th><th>Что происходит</th></tr></thead>
+    <tbody>
+      <tr><td>Zip-бомба</td><td>Отказ по <code>maxCompressionRatio</code> ещё на чтении каталога, до распаковки; плюс потолки члена и суммы</td></tr>
+      <tr><td>Заголовок врёт о размере</td><td><code>maxOutputLength</code> у <code>inflateRawSync</code> делает заявленный размер пределом, а не обещанием</td></tr>
+      <tr><td>Путь <code>../</code> или абсолютный</td><td><b>Отказ, не санация.</b> Санированный путь — это догадка о том, что имел в виду автор, а автор здесь недоверенный</td></tr>
+      <tr><td>Нулевой байт в имени</td><td>Отказ</td></tr>
+      <tr><td>ZIP64</td><td>Явный отказ с объяснением, а не полуподдержка</td></tr>
+      <tr><td>Неподдерживаемый метод сжатия</td><td>Отказ с именем члена</td></tr>
+      <tr><td>Файл не в UTF-8</td><td>Отказ вместо тихой записи символов замены в контент</td></tr>
+      <tr><td>Манифест из будущей версии формата</td><td>Отказ с точной формулировкой, какая версия у файла и какую читает эта инсталляция</td></tr>
+      <tr><td>Манифест называет чужой воркспейс</td><td>Игнорируется. Штампуется воркспейс запроса — это способ неверно подписать свой экспорт, а не пересечь границу арендатора</td></tr>
+      <tr><td><code>$id</code> из CSV — не uuid</td><td>Проверка формы перед запросом; иначе это синтаксическая ошибка Postgres и <code>500</code></td></tr>
+      <tr><td>Ссылка на ассет чужого воркспейса</td><td>Резолвер просто не возвращает его — байты не пересекут границу</td></tr>
+      <tr><td>Импорт под правами, которых нет</td><td>Вердикт <code>forbidden</code> на запись; <code>content:import</code> не заменяет <code>content:create</code>/<code>content:update</code></td></tr>
+      <tr><td>Экспорт мягко удалённых записей</td><td>Не читаются (<code>deletedAt IS NULL</code>), кнопка скрыта в корзине</td></tr>
+      <tr><td>CSRF на маршрутах записи</td><td><code>OriginGuard</code> на классовом стеке обоих контроллеров</td></tr>
+      <tr><td>Подмена типа содержимого при выдаче</td><td><code>X-Content-Type-Options: nosniff</code> и на экспорте, и на шаблоне</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что регистрируется</h3>
+  <p>Два события в общем транзакционном outbox, <code>aggregateType: 'transfer.content'</code>, <code>aggregateId</code> — имя типа:</p>
+  <ul>
+    <li><code>transfer.content.exported</code> — воркспейс, формат, число выбранных, плюс все четыре счётчика обхода. Пишется <b>до</b> первого байта.</li>
+    <li><code>transfer.content.imported</code> — воркспейс и счётчики результата. Пишется после применения.</li>
+  </ul>
+  <p>Экспорт — это чтение, а чтение, поднимающее событие аудита, достаточно необычно, чтобы объяснить: это единственная операция, вывозящая контент воркспейса <b>наружу</b> пачкой, вместе с файлами. Кто это сделал, когда и сколько уехало — ровно тот вопрос, который оператор задаёт постфактум, и по контентным таблицам его не восстановить: там ничего не менялось. Актор прикрепляется через <code>attachActor</code>; без сессионного пользователя событие пишется без него.</p>
+
+  <div class="note crit">
+    <span class="label">Известная дыра в обработке ошибок</span>
+    <p><code>TransferLimitError</code> — обычный <code>Error</code>, не <code>HttpException</code>, и в системе <b>нет фильтра исключений</b>, который бы его отображал. Значит, превышение <code>maxEntries</code>, <code>maxAssets</code> или <code>maxBytes</code> отдаёт клиенту <code>500</code>, а не <code>413</code> с фразой, называющей лимит, как обещает ADR-0014. Формулировки самих сообщений при этом написаны и до пользователя не доходят. Подробности — в разделе 16.</p>
+  </div>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">13</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Плагин не владеет ни одной таблицей и ни одной миграцией; всё, что он добавляет, — два события в общем outbox.</span></li>
+    <li><span class="id">И-02</span><span><b>Каждая</b> запись идёт через <code>EntryWriterService</code>. Прямых обращений к контентным таблицам на запись нет ни одного.</span></li>
+    <li><span class="id">И-03</span><span>Обход достаёт целиком только глубины 0 и 1; из глубины 1 наружу не следуют. Глубина 2 существует в документе только как ссылки.</span></li>
+    <li><span class="id">И-04</span><span>Ссылка записи глубины 1 несёт разрешимый <code>$key</code>, дочитанный проекцией по колонкам идентичности, а не один лишь чужой <code>id</code>.</span></li>
+    <li><span class="id">И-05</span><span>Обратная сторона двусторонней связи не экспортируется, не получает CSV-колонки и не пишется на импорте. Порядок владельца — это порядок.</span></li>
+    <li><span class="id">И-06</span><span>Предпросчёт экспорта выполняет <b>тот же самый</b> обход, что и экспорт: числа в диалоге — это то, что приедет.</span></li>
+    <li><span class="id">И-07</span><span>Сухой прогон и применение импорта — один код с флагом <code>dryRun</code>; вердикты, показанные предпросмотром, описывают то, что сделает применение.</span></li>
+    <li><span class="id">И-08</span><span>Сухой прогон не пишет ни строки и ни байта.</span></li>
+    <li><span class="id">И-09</span><span>Применение целиком идёт в одной транзакции; блобы, записанные упавшим прогоном, удаляются по <code>ImportMediaRun</code>, который принадлежит вызывающему, а не синглтону.</span></li>
+    <li><span class="id">И-10</span><span>Записи пишутся значениями вперёд, связями следом, поэтому цикл и взаимная ссылка импортируются, а внутренний порядок документа не значит ничего.</span></li>
+    <li><span class="id">И-11</span><span>Второй проход стартует с точного мешка значений, записанного первым, и выполняется только если связи действительно изменились — второй ревизии на один импорт не возникает.</span></li>
+    <li><span class="id">И-12</span><span>Совпадение ищется сперва по натуральному ключу, затем по идентификатору строки-источника, и <b>обе стороны</b> отпечатка читают <code>identityFor</code> — копию из манифеста.</span></li>
+    <li><span class="id">И-13</span><span>Отсутствие совпадения означает создание при <b>любой</b> из семи политик.</span></li>
+    <li><span class="id">И-14</span><span>Глубина 0 управляется только <code>ConflictPolicy</code>, глубина 1 — только <code>RelationPolicy</code>; одна настройка на обе не действует.</span></li>
+    <li><span class="id">И-15</span><span><code>link</code> ничего не пишет в совпавшую связанную запись; создаётся только та, которой не с чем связаться.</span></li>
+    <li><span class="id">И-16</span><span>Пропущенная запись остаётся в карте идентификаторов, чтобы ссылки на неё разрешались.</span></li>
+    <li><span class="id">И-17</span><span>Ключ без полей не индексируется — иначе он сталкивался бы с каждой другой безключевой записью типа и связывал бы несвязанное.</span></li>
+    <li><span class="id">И-18</span><span>Локаль входит в отпечаток ключа; <code>en</code>/<code>hello</code> и <code>de</code>/<code>hello</code> остаются двумя строками.</span></li>
+    <li><span class="id">И-19</span><span>Отпечаток кодируется JSON, а не склейкой через разделитель.</span></li>
+    <li><span class="id">И-20</span><span>Локальные близнецы одного документа приходят в одну группу перевода на принимающей стороне.</span></li>
+    <li><span class="id">И-21</span><span>Пакет не зависит от <code>@orthacms/i18n-server</code>; локаль читается как конвертная колонка.</span></li>
+    <li><span class="id">И-22</span><span>Импорт никогда не превышает прав вызывающего: <code>content:create</code> / <code>content:update</code> перепроверяются на каждую запись.</span></li>
+    <li><span class="id">И-23</span><span>Ни одна операция не пересекает границу воркспейса: воркспейс запроса штампуется на каждую запись, а <code>sourceWorkspaceId</code> манифеста не читается.</span></li>
+    <li><span class="id">И-24</span><span>Тип, не выданный воркспейсу, неотличим от несуществующего — один и тот же <code>404</code>.</span></li>
+    <li><span class="id">И-25</span><span>Центральный каталог архива читается первым; количество, размеры и коэффициент сжатия отвергаются до распаковки.</span></li>
+    <li><span class="id">И-26</span><span>Путь, выходящий за корень архива, отвергается, а не санируется.</span></li>
+    <li><span class="id">И-27</span><span>Документ формата версии выше <code>TRANSFER_FORMAT_VERSION</code> отвергается, а не читается «как получится».</span></li>
+    <li><span class="id">И-28</span><span>Байты решают формат загруженного файла; имя файла и заявленный формат — подсказка.</span></li>
+    <li><span class="id">И-29</span><span>Не-UTF-8 файл отвергается, а не импортируется символами замены.</span></li>
+    <li><span class="id">И-30</span><span>CSV-колонка, которой у типа нет, — жёсткий отказ файла с её именем, а не тихий пропуск.</span></li>
+    <li><span class="id">И-31</span><span>Медиа-ячейка CSV никогда не восстанавливается в ссылку на ассет.</span></li>
+    <li><span class="id">И-32</span><span>Байты ассета заливаются только тогда, когда ни идентификатор источника, ни контрольная сумма ничего не нашли <b>в этом же воркспейсе</b>.</span></li>
+    <li><span class="id">И-33</span><span>Байты ассета едут только в ZIP; таблица возможностей — единственный источник этого решения и для сервера, и для интерфейса.</span></li>
+    <li><span class="id">И-34</span><span>Событие экспорта записано до того, как ушёл первый байт ответа.</span></li>
+    <li><span class="id">И-35</span><span>Пропавший в хранилище объект — дырка в архиве, а не провал экспорта.</span></li>
+    <li><span class="id">И-36</span><span>Ассеты в архиве складываются без сжатия, текстовые члены дефлейтятся, метка времени фиксирована — два экспорта одинакового контента побайтово совпадают.</span></li>
+    <li><span class="id">И-37</span><span>Слой <code>transfer-domain</code> не читает ни часов, ни базы и не импортирует ни NestJS, ни Drizzle, ни React; его единственная зависимость — <code>@orthacms/content-domain</code>.</span></li>
+    <li><span class="id">И-38</span><span>Модуль плагина не глобален и ничего не экспортирует: стрелка зависимостей направлена только от переноса.</span></li>
+    <li><span class="id">И-39</span><span>Пустая выборка на экспорт отвергается; «пусто значит всё» в API не существует.</span></li>
+    <li><span class="id">И-40</span><span>Смена файла или любой из двух политик снимает таблицу вердиктов.</span></li>
+    <li><span class="id">И-41</span><span>После импорта обновляется кэш <b>каждого</b> типа, названного вердиктами, плюс типа коллекции, плюс медиатеки.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">14</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат». Существующее покрытие: <code>apps/server-e2e/src/server/transfer/transfer-round-trip.spec.ts</code> (один файл, ~30 тестов), плюс юнит-тесты ядра — <code>csv.spec.ts</code>, <code>flatten.spec.ts</code>, <code>keyFingerprint.spec.ts</code>, <code>natural-key.spec.ts</code>, <code>id-map.spec.ts</code> и <code>archive.spec.ts</code> на стороне сервера. Набора <code>admin-e2e</code> для этого пакета <b>нет вообще</b>.</p>
+
+  <h3>Экспорт</h3>
+  <ul class="check">
+    <li><b>Экспорт одной записи со связями</b> → <span class="exp">в документе она и её соседи глубины 1; у ссылок заполнен <code>$key</code>; манифест несёт <code>identity</code> и <code>counts</code>.</span></li>
+    <li><b>Тот же экспорт с <code>relations: false</code></b> → <span class="exp">только корни; ссылки остались, записей глубины 1 нет.</span></li>
+    <li><b>Экспорт локализованной записи с <code>locales: true</code></b> → <span class="exp">каждая локаль — отдельная запись, все делят <code>$localeGroup</code>.</span></li>
+    <li><b><code>relationLocales</code> по умолчанию</b> → <span class="exp">выключен; включение увеличивает <code>related</code>.</span></li>
+    <li><b>Предпросчёт и экспорт с одними параметрами</b> → <span class="exp">одинаковые <code>roots</code>/<code>related</code>/<code>assets</code>/<code>assetBytes</code>.</span></li>
+    <li><b>Формат ZIP с файлами</b> → <span class="exp">внутри <code>manifest.json</code>, <code>entries/&lt;type&gt;.ndjson</code> и <code>assets/&lt;id&gt;/…</code>; архив читается стандартным распаковщиком.</span></li>
+    <li><b>Формат CSV одного типа</b> → <span class="exp">один файл, шапка = конвертные колонки + поля схемы, без обратных сторон связей.</span></li>
+    <li><b>Формат CSV нескольких типов</b> → <span class="exp">скачивается ZIP с несколькими <code>&lt;type&gt;.csv</code>.</span></li>
+    <li><b>JSON и NDJSON одного набора</b> → <span class="exp">одинаковые записи; NDJSON — манифест первой строкой.</span></li>
+    <li><b>Два экспорта одинакового контента в ZIP</b> → <span class="exp">байт в байт совпадают (фиксированная метка времени).</span></li>
+    <li><b>Ассет удалён из хранилища, но строка есть</b> → <span class="exp">архив без этого члена, экспорт успешен, запись всё равно называет ассет.</span></li>
+    <li><b>Экспорт без зарегистрированного медиаплагина</b> → <span class="exp">медиаполя едут ссылками, экспорт не падает.</span></li>
+    <li><b>Имя ассета содержит <code>/</code> или начинается с точек</b> → <span class="exp">внутри архива это один безопасный сегмент пути.</span></li>
+    <li><b>Пустой <code>ids</code></b> → <span class="exp">400.</span></li>
+    <li><b>1001 идентификатор</b> → <span class="exp">400.</span></li>
+    <li><b>Неизвестный формат</b> → <span class="exp">400.</span></li>
+    <li><b>Лишнее поле в теле</b> → <span class="exp">400 от <code>ValidationPipe</code>.</span></li>
+    <li><b>Выборка, превышающая <code>maxEntries</code></b> → <span class="exp"><b>ожидается</b> 413 с фразой, называющей лимит; <b>фактически</b> 500 — см. раздел 16.</span></li>
+  </ul>
+
+  <h3>Импорт: базовый цикл</h3>
+  <ul class="check">
+    <li><b>Экспорт графа, очистка, импорт того же файла</b> → <span class="exp">граф восстановлен: записи, связи, локальные группы, файлы.</span></li>
+    <li><b>Сухой прогон</b> → <span class="exp">200 с вердиктами; в БД не изменилось ничего; счётчики совпадают с последующим применением.</span></li>
+    <li><b>Повторный запуск того же файла на умолчаниях</b> → <span class="exp"><code>create = 0</code>, <code>update = 0</code>, <code>hasChanges = false</code>, дубликатов не появилось.</span></li>
+    <li><b>Документ с циклом (A → B → A)</b> → <span class="exp">обе записи созданы, обе связи проставлены.</span></li>
+    <li><b>Порядок записей в файле перемешан</b> → <span class="exp">результат тот же.</span></li>
+    <li><b>Ссылка на запись, которой нет ни в файле, ни в базе</b> → <span class="exp">связь пуста, запись создана, вердикт несёт <code>unresolved</code>.</span></li>
+    <li><b>Запись с обязательной связью на непубликуемом типе</b> → <span class="exp">создаётся успешно, потому что глубина 1 пишется первой.</span></li>
+    <li><b>Импорт без файла</b> → <span class="exp">400 «No file was uploaded.»</span></li>
+    <li><b>Файл нулевой длины</b> → <span class="exp">400.</span></li>
+    <li><b>Файл не является документом переноса</b> → <span class="exp">400 с внятной фразой, а не стек.</span></li>
+    <li><b>Манифест с <code>version: 2</code></b> → <span class="exp">400 с указанием обеих версий.</span></li>
+    <li><b>Документ, где тип неизвестен инсталляции</b> → <span class="exp">вердикт <code>error</code> · <code>unknown-type</code>, остальные записи обрабатываются.</span></li>
+  </ul>
+
+  <h3>Импорт: политики</h3>
+  <ul class="check">
+    <li><b>Совпадение + <code>skip</code></b> → <span class="exp">строка не тронута, вердикт <code>skip</code> · <code>conflict-skipped</code>.</span></li>
+    <li><b>Совпадение + <code>update</code></b> → <span class="exp">значения перезаписаны, вердикт <code>update</code> · <code>matched</code>.</span></li>
+    <li><b>Совпадение + <code>duplicate</code></b> → <span class="exp">появилась вторая строка, вердикт <code>create</code> · <code>conflict-duplicated</code>.</span></li>
+    <li><b>Совпадение + <code>fail</code></b> → <span class="exp">вердикт <code>error</code>, ничего не записано.</span></li>
+    <li><b>Связанная запись есть + <code>link</code></b> → <span class="exp">второго автора нет, статья указывает на существующего, вердикт <code>skip</code> · <code>relation-linked</code>.</span></li>
+    <li><b>Связанная запись есть + <code>update</code></b> → <span class="exp">автор обновлён из файла и связан.</span></li>
+    <li><b>Связанная запись есть + <code>recreate</code></b> → <span class="exp">создан новый автор, статья указывает на него.</span></li>
+    <li><b>Связанной записи нет + <code>recreate</code></b> → <span class="exp">создана (иначе связь повисла бы).</span></li>
+    <li><b>Комбинация <code>duplicate</code> + <code>link</code></b> → <span class="exp">вторая копия статьи, но <b>один</b> автор — политики независимы.</span></li>
+    <li><b>Тип без выводимого поля идентичности, повторный импорт в ту же базу</b> → <span class="exp">совпадение по <code>$id</code>, дубликатов нет.</span></li>
+    <li><b>Тот же файл на другой инсталляции</b> → <span class="exp">совпадение по <code>$id</code> не срабатывает, работает только натуральный ключ.</span></li>
+    <li><b>Конфигурация <code>identity</code> называет несуществующее поле</b> → <span class="exp">не совпадает ни с чем (не исключение); экспорт при этом пишет это в манифест.</span></li>
+    <li><b>Ключ совпадает, локали разные</b> → <span class="exp">две отдельные строки, а не перезапись друг друга.</span></li>
+  </ul>
+
+  <h3>Импорт: права и границы</h3>
+  <ul class="check">
+    <li><b>Экспорт наблюдателем</b> → <span class="exp">403.</span></li>
+    <li><b>Импорт наблюдателем</b> → <span class="exp">403.</span></li>
+    <li><b>Оба маршрута без сессии</b> → <span class="exp">401.</span></li>
+    <li><b>Тип, не выданный воркспейсу</b> → <span class="exp">404, неотличимый от неизвестного типа.</span></li>
+    <li><b>Роль с <code>content:import</code>, но без <code>content:create</code></b> → <span class="exp">каждая создаваемая запись — вердикт <code>error</code> · <code>forbidden</code>, ничего не записано.</span></li>
+    <li><b>Манифест называет чужой воркспейс</b> → <span class="exp">записи ушли в воркспейс запроса.</span></li>
+    <li><b>Запрос без <code>X-Workspace-Id</code></b> → <span class="exp">400.</span></li>
+    <li><b>Посторонний <code>Origin</code></b> → <span class="exp">403.</span></li>
+    <li><b>Неизвестное значение <code>policy</code> или <code>relations</code></b> → <span class="exp">400.</span></li>
+  </ul>
+
+  <h3>Архив и недоверенные байты</h3>
+  <ul class="check">
+    <li><b>Архив с <code>../</code> в имени члена</b> → <span class="exp">400, отказ, а не запись куда-то ещё.</span></li>
+    <li><b>Архив с абсолютным путём или буквой диска</b> → <span class="exp">400.</span></li>
+    <li><b>Нулевой байт в имени члена</b> → <span class="exp">400.</span></li>
+    <li><b>Zip-бомба высокой степени сжатия</b> → <span class="exp">400 до распаковки; профиль памяти процесса не растёт.</span></li>
+    <li><b>Заголовок занижает <code>uncompressedSize</code></b> → <span class="exp">400 от <code>maxOutputLength</code>.</span></li>
+    <li><b>Членов больше <code>maxArchiveEntries</code></b> → <span class="exp">400.</span></li>
+    <li><b>Архив ZIP64</b> → <span class="exp">400 с объяснением и советом выгружать меньшими партиями.</span></li>
+    <li><b>Метод сжатия, отличный от store/deflate</b> → <span class="exp">400 с именем члена.</span></li>
+    <li><b>Обрезанный архив / битый каталог</b> → <span class="exp">400, не 500.</span></li>
+    <li><b>Архив с посторонним README внутри</b> → <span class="exp">импортируется нормально, README проигнорирован.</span></li>
+    <li><b><code>.json</code>, начинающийся сигнатурой ZIP</b> → <span class="exp">читается как архив.</span></li>
+    <li><b>Файл в CP1251</b> → <span class="exp">400 с просьбой пересохранить в UTF-8.</span></li>
+    <li><b>Загрузка больше <code>maxUploadBytes</code></b> → <span class="exp">отказ; multer и читатель отказывают на одном и том же числе.</span></li>
+  </ul>
+
+  <h3>CSV</h3>
+  <ul class="check">
+    <li><b>Шаблон типа</b> → <span class="exp">одна строка заголовка, совпадающая с шапкой экспорта того же типа.</span></li>
+    <li><b>Неизвестная колонка в шапке</b> → <span class="exp">400 с именем колонки.</span></li>
+    <li><b>Завершающая пустая строка</b> → <span class="exp">пустая запись не создаётся.</span></li>
+    <li><b>Значение с запятой, кавычкой и переводом строки</b> → <span class="exp">RFC 4180 круговой рейс без потерь.</span></li>
+    <li><b>Слаг, содержащий <code>;</code>, <code>|</code>, <code>:</code> или <code>\</code></b> → <span class="exp">токен ссылки экранируется и разбирается обратно тем же значением.</span></li>
+    <li><b>Медиа-колонка заполнена</b> → <span class="exp">игнорируется; существующее медиа записи не изменилось.</span></li>
+    <li><b>Богатый текст в несколько абзацев</b> → <span class="exp">уехал простым текстом, вернулся абзацами; разметка не восстановлена, и это ожидаемо.</span></li>
+    <li><b>Файл назван типом, которого нет</b> → <span class="exp">400 по имени, а не запись в чужую таблицу.</span></li>
+  </ul>
+
+  <h3>Медиа</h3>
+  <ul class="check">
+    <li><b>Импорт архива с новым файлом</b> → <span class="exp">ассет создан через <code>UploadAssetUseCase</code>, <code>assetsNew = 1</code>.</span></li>
+    <li><b>Повторный импорт того же архива</b> → <span class="exp"><code>assetsReused</code> вместо <code>assetsNew</code>, медиатека не удвоилась.</span></li>
+    <li><b>Тот же файл уже есть в другом воркспейсе</b> → <span class="exp">не переиспользуется — дедуп ограничен воркспейсом.</span></li>
+    <li><b>Импорт упал после заливки ассетов</b> → <span class="exp">строки откатились, залитые ассеты удалены, бакет чист.</span></li>
+    <li><b>Два одновременных импорта</b> → <span class="exp">падение одного не удаляет файлы другого.</span></li>
+    <li><b>Импорт по API-токену без сессионного пользователя</b> → <span class="exp">ассет не создаётся, остальное импортируется.</span></li>
+    <li><b>Ссылка на ассет без байтов (JSON-формат)</b> → <span class="exp">поле не получает выдуманного идентификатора.</span></li>
+  </ul>
+
+  <h3>Админка</h3>
+  <ul class="check">
+    <li><b>Открыть «Экспорт…» из ⋯-меню редактора</b> → <span class="exp">диалог появляется и остаётся, хотя меню закрылось.</span></li>
+    <li><b>Экспорт из панели выделения</b> → <span class="exp">выделение снимается только после успешной загрузки, диалог не исчезает на открытии.</span></li>
+    <li><b>Переключить формат на CSV</b> → <span class="exp">чекбокс «Файлы» отключён и читается выключенным; появились обе поясняющие строки.</span></li>
+    <li><b>Снять «Связанные записи»</b> → <span class="exp">чекбокс «Языки связанных записей» отключается.</span></li>
+    <li><b>Двигать переключатели</b> → <span class="exp">строка счётчиков обновляется и объявляется скринридером.</span></li>
+    <li><b>Предпросчёт упал</b> → <span class="exp">показано «Не удалось посчитать размер», кнопка экспорта остаётся активной.</span></li>
+    <li><b>Открыть «Импорт…» и сменить файл после проверки</b> → <span class="exp">таблица вердиктов исчезла.</span></li>
+    <li><b>Сменить любую из двух политик после проверки</b> → <span class="exp">таблица вердиктов исчезла.</span></li>
+    <li><b>Прогон из одних пропусков</b> → <span class="exp">баннер «Ничто в этом файле здесь ничего не изменит», кнопка «Импортировать» отключена.</span></li>
+    <li><b>Файл на 500 записей</b> → <span class="exp">показаны первые 100, проблемы наверху, под таблицей — строка «Показаны первые 100 из 500».</span></li>
+    <li><b>Длинный диалог на ноутбучном экране</b> → <span class="exp">прокручивается только тело, кнопка «Импортировать» на экране.</span></li>
+    <li><b>Импорт создал статью и автора</b> → <span class="exp">обновились оба списка, не только тот, откуда запускали.</span></li>
+    <li><b>Импорт архива с файлами</b> → <span class="exp">медиатека тоже перечитана.</span></li>
+    <li><b>Роль без права</b> → <span class="exp">соответствующего пункта в меню нет.</span></li>
+    <li><b>Представление корзины</b> → <span class="exp">нет ни «Экспорт», ни «Импорт…».</span></li>
+    <li><b>Ссылка «Скачать пустой CSV»</b> → <span class="exp"><b>сегодня</b> приводит к 400 из-за отсутствия <code>X-Workspace-Id</code>; тест обязан это фиксировать до исправления.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">15</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Transfer</th></tr></thead>
+    <tbody>
+      <tr><td>Таблицы контента, реестр типов, валидация, ревизии</td><td><code>content-server</code></td><td>Читает через <code>EntriesService</code>/<code>EntryWriterService</code>/<code>RelationLinkService</code> и пишет <b>только</b> через <code>EntryWriterService</code></td></tr>
+      <tr><td>Подключение к БД, транзакции, outbox</td><td><code>@orthacms/database</code></td><td>Пользуется <code>UnitOfWork</code> и <code>OutboxWriter</code>; ни одной своей таблицы</td></tr>
+      <tr><td>Ассеты, хранилище, загрузка файлов</td><td><code>media-server</code></td><td>Читает <code>MediaAssetResolver</code>, <code>STORAGE_PROVIDER</code> и таблицу <code>media_asset</code>; создаёт через <code>UploadAssetUseCase</code>. Зависимость <b>опциональная</b></td></tr>
+      <tr><td>Локали, группы перевода, правило одной локали</td><td><code>i18n-server</code> через порт расширения content</td><td>Читает и передаёт конвертные колонки, не зная, что такое локаль. <b>Зависимости на i18n нет</b></td></tr>
+      <tr><td>Права и роли</td><td><code>identity-server</code></td><td>Владеет двумя ключами по смыслу; проверяет их обычными <code>PermissionsGuard</code>/<code>@RequirePermissions</code> и перепроверяет <code>content:create</code>/<code>content:update</code> через <code>PermissionsService</code></td></tr>
+      <tr><td>Членство в воркспейсе и выданный контент</td><td><code>workspaces-server</code>, <code>content-server</code></td><td>Ставит <code>WorkspaceGuard</code> и <code>ContentGrantGuard</code> в свой стек; собственных правил не заводит</td></tr>
+      <tr><td>Журнал действий</td><td><code>activity</code></td><td>Порождает два события; строки журнала пишет кто-то другой</td></tr>
+      <tr><td>Слоты Content Library</td><td><code>content-admin</code></td><td>Объявляет три вклада; сами слоты и порядок их отрисовки принадлежат content</td></tr>
+      <tr><td>Инвалидация кэша записей в админке</td><td><code>content-admin</code></td><td>Зовёт <code>refreshEntryCaches</code>, а не пишет свои ключи</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Асинхронных задач.</b> Большой экспорт — синхронный запрос. <code>transfer_jobs</code>, прогресса и ссылки на готовый архив нет; ADR-0014 явно оставляет для этого место и туда не идёт.</li>
+    <li><b>Переноса статуса публикации.</b> <code>$status</code> уезжает и не приезжает — см. раздел 16.</li>
+    <li><b>Форматов XLSX и XML.</b> Порт под них есть, реализаций нет.</li>
+    <li><b>Отображения источника идентичности в интерфейсе.</b> <code>IdentityResolution.source</code> вычисляется, но никем не читается — см. раздел 16.</li>
+    <li><b>Своей страницы или маршрута в админке.</b> Всё живёт в швах библиотеки контента, и это решение, а не пробел.</li>
+    <li><b>Экспорта по фильтру.</b> Экспортируется только явно перечисленный набор идентификаторов, максимум 1000.</li>
+    <li><b>Набора <code>admin-e2e</code>.</b> Для двух диалогов, трёх вкладов в слоты и таблицы вердиктов браузерных тестов нет ни одного.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">16</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Часть из них — расхождение документа с кодом, часть — расхождение кода с самим собой; и то и другое дезориентирует и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано / задумано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">docs/adr/0014, раздел «Consequences»</td>
+        <td>«A big export is still a synchronous request, bounded by configurable ceilings that answer <code>413</code> with a sentence naming the limit»</td>
+        <td><code>TransferLimitError</code> наследует обычный <code>Error</code>, а фильтра исключений, который бы его отображал, в проекте <b>нет</b> — ни в <code>transfer-server</code>, ни в <code>bootstrap-server</code>, ни в <code>apps/server/src/main.ts</code>. Значит, превышение <code>maxEntries</code>, <code>maxAssets</code> или <code>maxBytes</code> уходит клиенту как <code>500</code>, а тщательно написанные фразы («Narrow the selection, or turn off related records») до пользователя не доходят</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/ImportDialog + ImportEntriesController</td>
+        <td>Ссылка «Скачать пустой CSV с нужными колонками» ведёт на <code>GET /api/content/:type/import/template</code></td>
+        <td>Маршрут стоит под классовым <code>WorkspaceGuard</code>, который требует заголовок <code>X-Workspace-Id</code>. Обычная навигация браузера по <code>&lt;a href&gt;</code> заголовков не отправляет, поэтому ссылка отдаёт <code>400 Missing or malformed X-Workspace-Id header</code>. Тестом это не покрыто: e2e дёргает маршрут через supertest, который заголовок ставит</td>
+      </tr>
+      <tr>
+        <td class="mono">domain/document + server/import</td>
+        <td><code>TransferRecord.$status</code> описан как «Draft/published, for a publishable type» и заполняется обходчиком</td>
+        <td>Импорт <code>$status</code> <b>не читает вообще</b> — единственное упоминание во всём <code>transfer-server</code> находится в обходчике. Опубликованная запись, выгруженная и импортированная на другой инсталляции, приезжает в состоянии по умолчанию писателя. Ни вердикта, ни предупреждения об этом нет</td>
+      </tr>
+      <tr>
+        <td class="mono">domain/import/verdict.ts + admin/ImportVerdictList</td>
+        <td>Объявлены и переведены 14 кодов причин, включая <code>unknown-field</code>, <code>unresolved-relations</code>, <code>dependency-failed</code> и <code>missing-asset</code> — с содержательными комментариями («The record is context (depth 1) and its own record failed»)</td>
+        <td>Эти четыре кода сервер <b>не порождает никогда</b>. Неразрешённые ссылки едут в отдельном поле <code>unresolved</code> при любом действии; недостающий ассет просто выпадает из значения поля; провал зависимости и неизвестное поле не различаются от <code>validation-failed</code>. Переводы для них написаны и мертвы</td>
+      </tr>
+      <tr>
+        <td class="mono">domain/identity/natural-key.ts</td>
+        <td><code>IdentityResolution.source</code> — «surfaced in the UI so the rule isn&#39;t a secret»; <code>TransferSchemaCatalog.identityOf()</code> отдаёт поля <b>и</b> источник</td>
+        <td>У <code>identityOf()</code> нет ни одного вызывающего во всём монорепозитории, и наружу из <code>transfer-server</code> он не экспортируется отдельно. Ни один экран не показывает, по какому полю и почему будет идти сопоставление. Наружу уезжают только сами поля — в манифесте</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/constants/index.ts</td>
+        <td><code>CONTENT_CREATE</code> / <code>CONTENT_UPDATE</code> — «Needed alongside import — an import may never exceed what its caller could do»</td>
+        <td>Ни один хук их не читает; из <code>index.ts</code> пакета они не экспортируются. Пункт «Импорт…» гейтится только на <code>content:import</code>. У трёх системных ролей это незаметно (права всегда идут комплектом), у кастомной роли — диалог откроется, и каждая запись получит <code>forbidden</code></td>
+      </tr>
+      <tr>
+        <td class="mono">server/import/application, отчёт сухого прогона по CSV</td>
+        <td>Сухой прогон сообщает неразрешённые ссылки, считая известными те цели, что лежат в том же документе</td>
+        <td>Множество «в документе» строится по <code>record.$key</code>, а CSV-парсер (<code>rowToRecord</code>) всегда ставит <code>$key: {}</code> — ключ на импорте вычисляется позже, из <code>values</code>. Значит, для CSV сухой прогон помечает как неразрешённые ссылки на записи, которые лежат в том же файле и будут созданы. Применение при этом отрабатывает верно — расходятся именно предпросмотр и результат</td>
+      </tr>
+      <tr>
+        <td class="mono">domain/formats/csv-format.ts</td>
+        <td>Отсутствие схемы типа на экспорте — «a hard failure at export time instead»</td>
+        <td>Бросается <code>TransferParseError</code> — класс, чьё имя и назначение относятся к <em>разбору</em>, — на пути сериализации. Контроллер экспорта его не ловит и в <code>400</code> не отображает: до клиента это дойдёт как <code>500</code></td>
+      </tr>
+      <tr>
+        <td class="mono">export/http/dto/export-request.dto.ts</td>
+        <td><code>@ApiProperty({ default: TRANSFER_FORMAT.Json })</code> — в OpenAPI формат по умолчанию заявлен как JSON</td>
+        <td>Поле <b>обязательное</b> (<code>@IsIn</code> без <code>@IsOptional</code>), то есть умолчания у него нет вообще, а диалог админки открывается на <code>zip</code>. Три разных ответа на один вопрос в трёх местах</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md, таблица слотов</td>
+        <td>«<code>RECORDS_MENU_SLOT</code> — Import… in the collection&#39;s ⋯ menu», а <code>transferAdminPlugin</code> в комментарии пишет «leftmost in the toolbar»</td>
+        <td>Мелкое, но противоречивое описание одного и того же места в двух соседних файлах</td>
+      </tr>
+      <tr>
+        <td class="mono">Покрытие тестами</td>
+        <td>Пакет описан как имеющий и серверную, и админскую половину</td>
+        <td>Серверный e2e — один файл на ~30 тестов, и он хорошо покрывает политики, права и круговой рейс. Браузерного набора (<code>apps/admin-e2e/src/transfer</code>) <b>нет</b>: ни a11y, ни клавиатуры, ни устаревания вердиктов, ни поведения оверлеев при размонтировании — то есть ровно тех вещей, которые <code>admin/AGENTS.md</code> называет «худшей ошибкой этого диалога»</td>
+      </tr>
+      <tr>
+        <td class="mono">Лимиты в e2e</td>
+        <td>Десять настраиваемых потолков</td>
+        <td>Ни один из них в <code>transfer-round-trip.spec.ts</code> не проверяется. Архивные проверки покрыты юнит-тестами <code>archive.spec.ts</code>, экспортные потолки — ничем</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Что из этого стоит чинить первым</span>
+    <p><b>Первое</b> — отображение <code>TransferLimitError</code> в <code>413</code>: сегодня самый вероятный отказ большого экспорта выглядит как поломка сервера. <b>Второе</b> — ссылка на CSV-шаблон: она предлагается прямо в диалоге и не работает. <b>Третье</b> — <code>$status</code>: перенос опубликованного контента молча роняет его в черновики, и об этом не сказано нигде.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Каркас серии.</b> Артефакт сделан по образцу паспорта <code>packages/identity</code>: бизнес-описание → состав → права → форматы → что едет → данные → жизненный цикл → сценарии → API → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Два раздела добавлены под специфику этого пакета — матрица форматов и таблица «что едет, а что остаётся ссылкой»; раздел о таблицах БД сжат до одной рамки, потому что таблиц у плагина нет.</p>
+  <p>Источник — исходный код: <code>packages/transfer/{domain,server,admin}</code>, <code>docs/adr/0014-transfer-as-a-separate-plugin.md</code>, регистрация плагинов в <code>apps/server/src/plugins.ts</code> и <code>apps/admin/src/plugins.ts</code>, конфигурация в <code>apps/server/ortha.config.ts</code>, набор прав в <code>packages/identity/server/src/lib/rbac/system-roles.ts</code>, тесты в <code>apps/server-e2e/src/server/transfer/</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 16.</p>
+</footer>
+
+</main>
+</div>

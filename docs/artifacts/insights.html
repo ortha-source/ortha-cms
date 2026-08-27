@@ -1,0 +1,1126 @@
+<title>Паспорт плагина Insights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакет · packages/insights/admin</p>
+    <h1 class="title">Insights
+      <small>Рабочая панель воркспейса, которая не знает ни одного своего виджета</small>
+    </h1>
+    <p class="lede">Insights — это дашборд воркспейса по адресу <code>/workspaces/:id/insights</code>: «что изменилось и что затихло». Пакет поставляет <strong>только рамку</strong> — маршрут, кнопку в рельсе, выбор диапазона, полосы секций, оболочку карточки, границу ошибок вокруг каждой карточки и набор примитивов графиков. <strong>Ни одного собственного виджета в нём нет</strong>, и он не импортирует ни один другой feature-пакет. Каждая карточка приезжает через слот <code>INSIGHTS_WIDGET_SLOT</code> из того пакета, который владеет данными за ней.</p>
+    <ul class="facts">
+      <li><b>1</b> пакет (только admin)</li>
+      <li><b>0</b> собственных виджетов</li>
+      <li><b>13</b> виджетов в реестре</li>
+      <li><b>3</b> пакета-поставщика</li>
+      <li><b>4</b> секции + запасная</li>
+      <li><b>10</b> маршрутов данных</li>
+      <li><b>9</b> экспортируемых примитивов</li>
+      <li><b>4</b> диапазона времени</li>
+      <li><b>0</b> таблиц БД</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#frame">Место в системе и принцип «только рамка»</a></li>
+    <li><a href="#contract">Контракт слота виджета</a></li>
+    <li><a href="#registry">Полный реестр виджетов</a></li>
+    <li><a href="#routes">Маршруты данных и экраны</a></li>
+    <li><a href="#flows">Сценарии по шагам</a></li>
+    <li><a href="#states">Состояния</a></li>
+    <li><a href="#range">Диапазон дат</a></li>
+    <li><a href="#charts">Примитивы графиков и палитра</a></li>
+    <li><a href="#a11y">Доступность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы ответственности</a></li>
+    <li><a href="#gaps">Расхождения кода и документации</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Insights отвечает на вопрос, который редакция задаёт себе постоянно и на который до сих пор отвечала выгрузками: <b>что происходит с контентом прямо сейчас</b>. Не «сколько у нас записей вообще», а «сколько добавилось за выбранный период», «что опубликовано, но давно не трогали», «что готово, но не выложено», «где не переведено», «кто и когда работает».</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Замена ручных выгрузок.</b> Все цифры, которые редактор раньше добывал фильтрами в библиотеке контента и подсчётом строк, собраны на одном экране и пересчитываются сервером.</li>
+    <li><b>Один общий период.</b> Диапазон выбирается один раз на всю страницу, а не в каждой карточке. Дашборд, где каждая карточка считает свой период, провоцирует ложные сравнения между соседними числами.</li>
+    <li><b>Видимый долг, а не только достижения.</b> Половина виджетов показывает не успехи, а незакрытую работу: «затихшие» публикации, неотгруженные правки, картинки без alt-текста, непереведённые записи.</li>
+    <li><b>Расширяемость без правки дашборда.</b> Новый плагин со своими данными добавляет свою карточку сам — код Insights при этом не меняется вообще.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор / контрибьютор</h4>
+      <p class="small sub">Видит объём и темп: сколько записей, сколько опубликовано, что скопилось в черновиках, что затихло. Право <code>content:read</code> есть у всех трёх системных ролей, включая наблюдателя.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Локализатор</h4>
+      <p class="small sub">Полоса «Localisation &amp; media»: покрытие переводами по языкам и по типам контента, с переключением между этими двумя разрезами внутри одной карточки.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Руководитель редакции</h4>
+      <p class="small sub">Полоса «Team»: тепловая карта сохранений по дням недели и часам (UTC) — когда на самом деле идёт работа.</p>
+    </div>
+  </div>
+
+  <h3>Чем Insights не является</h3>
+  <p>Границы здесь важнее возможностей, потому что именно они объясняют, почему на дашборде нет половины того, что от дашборда ждут:</p>
+  <ul>
+    <li><b>Это не аналитика посещаемости.</b> Данных о запросах к публичному API нет вообще: единственный след обращения — <code>api_tokens.last_used_at</code>. Показатели «популярные записи», «трафик», «доля ошибок» невозможны не потому, что до них не дошли руки, а потому, что их нечем считать.</li>
+    <li><b>Это не хранилище метрик.</b> Проекций, снапшотов и агрегирующих таблиц нет: каждый запрос — живой агрегат по рабочим таблицам контента, медиа и локалей. Пакет <code>insights/admin</code> не владеет ни одной таблицей БД и не имеет серверной половины.</li>
+    <li><b>Это не журнал действий.</b> Кто что сделал — плагин <code>activity</code>. Insights показывает только агрегаты, без имён и без строк событий.</li>
+    <li><b>Это не конструктор дашбордов.</b> Сохранённой раскладки нет: пользователь не может ни спрятать карточку, ни перетащить её. Состав страницы полностью определяется установленным набором плагинов и правами.</li>
+    <li><b>Это не источник данных.</b> Ни один запрос к API не отправляется из этого пакета — каждый виджет ходит за своими данными сам, из своего пакета.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Дашборд — это модуль, который <b>обязательнее всех прочих скатывается в «знает про всех»</b>. Обычная реализация импортирует контент, медиа, локали, активность, копайлот — и становится узлом, который ломается от любого изменения где угодно. Здесь сделано наоборот: зависимость развёрнута. Insights объявляет два слота и ничего не импортирует; зависимость на <code>@orthacms/insights-admin</code> есть у <code>content-admin</code>, <code>media-admin</code> и <code>i18n-admin</code>, а не наоборот. Проверить это можно одной командой: в <code>package.json</code> пакета среди зависимостей нет ни одного feature-пакета — только <code>bootstrap-admin</code>, <code>design-system</code>, <code>utils-admin</code>, <code>workspaces-admin</code> и <code>identity-admin</code>.</p>
+  </div>
+</section>
+
+<section id="frame">
+  <h2 class="sec"><span class="num">02</span>Место в системе и принцип «только рамка»</h2>
+
+  <p>Пакет ровно один: <code>packages/insights/admin</code> → <code>@orthacms/insights-admin</code>. Серверной половины не существует — считать нечего, вся арифметика живёт у владельцев данных. Плагин живёт <b>строго внутри воркспейса</b>: ни одного маршрута верхнего уровня, ни одной записи в глобальной навигации.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что вносит</th><th>Куда</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Кнопка в рельсе воркспейса</td><td class="mono">WORKSPACE_NAV_SLOT</td><td><code>to: 'insights'</code>, <code>order: 30</code>, иконка <code>BarChart3</code>, цвет <code>text-nav-amber</code></td></tr>
+      <tr><td>Маршрут</td><td class="mono">WORKSPACE_ROUTE_SLOT</td><td><code>insights/*</code>, страница загружается лениво (<code>lazy</code> + <code>Suspense</code> с <code>InsightsPageSkeleton</code>)</td></tr>
+      <tr><td>Четыре секции по умолчанию</td><td class="mono">INSIGHTS_SECTION_SLOT</td><td><code>DEFAULT_INSIGHTS_SECTIONS</code> — через собственный слот, не в обход него</td></tr>
+      <tr><td>Виджеты</td><td>—</td><td><b>ни одного</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Секции — тоже контрибуции</h3>
+  <p>Привилегированного набора полос нет. Четыре встроенные — <code>overview</code>, <code>content</code>, <code>reach</code>, <code>team</code> — идут через <code>INSIGHTS_SECTION_SLOT</code> точно так же, как чужие. Из этого следуют три способа поменять форму страницы:</p>
+  <ul>
+    <li><b>Добавить полосу.</b> Внести <code>InsightsSection</code> с новым <code>id</code>. Встроенные пронумерованы 10/20/30/40 — шаг в десять оставлен, чтобы чужая полоса влезла между двумя без перенумерации. Без <code>order</code> элемент получает <code>DEFAULT_INSIGHTS_ORDER = 100</code>, то есть встаёт <em>после</em> встроенных, а не в середину.</li>
+    <li><b>Переопределить полосу.</b> Внести тот же <code>id</code>. Контрибуции сливаются по <code>id</code>, побеждает последняя, <b>поле за полем</b>: <code>{ id: 'team', defaultTitle: 'People' }</code> переименовывает полосу, не сбрасывая её порядок, описание и иконку, и не перемещая её. Позиция при слиянии сохраняется <b>первая</b>.</li>
+    <li><b>Заменить целиком.</b> <code>InsightsPlugin({ sections })</code> подменяет набор; <code>DEFAULT_INSIGHTS_SECTIONS</code> экспортирован, чтобы его можно было развернуть и дополнить. <code>sections: []</code> даёт страницу, где каждая полоса приходит от плагинов.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Порядок регистрации имеет значение — но только для секций</span>
+    <p>Слияние секций забирает <b>последнюю</b> контрибуцию, поэтому <code>InsightsPlugin()</code> обязан быть зарегистрирован <em>раньше</em> любого пакета, который переопределяет его полосу. В <code>apps/admin/src/plugins.ts</code> он стоит первым среди «внутренностей воркспейса» — сразу после <code>WorkspacesPlugin()</code> и <b>до</b> <code>ContentPlugin()</code> — именно поэтому. Контрибуции <em>виджетов</em> от порядка не зависят: <code>createAdmin</code> собирает слоты всех плагинов одним проходом после того, как отработали все фабрики.</p>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Ничего не пропадает молча</span>
+    <p>Виджет, назвавший секцию, которую никто не зарегистрировал, <b>не исчезает</b> — он попадает в замыкающую запасную полосу «More» (<code>id: 'other'</code>). Полоса помечена атрибутом <code>data-section-fallback="true"</code>, поэтому её появление на правильно собранной странице — баг, на который можно и нужно писать утверждение в тесте. Прежнее поведение (выбросить, предупредить только в dev) было худшим из возможных: карточка отсутствует, и нигде об этом ни слова.</p>
+  </div>
+
+  <h3>Раскладка пакета</h3>
+  <p>По ADR-0003 пакет слоёный, но <b>без слоя <code>domain/</code></b>: это read-only-просмотрщик, клиентских бизнес-правил в нём нет.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Путь</th><th>Что там</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">utils/insightsPlugin</td><td>Фабрика <code>AdminPlugin</code> + <code>DEFAULT_INSIGHTS_SECTIONS</code></td></tr>
+      <tr><td class="mono">utils/resolveInsightsLayout</td><td><b>Чистая свёртка</b>: слияние секций, фильтр по правам, сортировка, запасная полоса</td></tr>
+      <tr><td class="mono">utils/insightsRange</td><td>Окно как значение: набор диапазонов, дни, разбор и запись <code>?range=</code></td></tr>
+      <tr><td class="mono">utils/chartTone</td><td>Роли палитры: <code>series-1/2</code> и лестница <code>q0…q5</code></td></tr>
+      <tr><td class="mono">hooks/useInsightsLayout</td><td>Тонкий адаптер: два слота + состояние авторизации → чистая свёртка</td></tr>
+      <tr><td class="mono">hooks/useInsightsRange</td><td>Общее окно и его провайдер, источник истины — URL</td></tr>
+      <tr><td class="mono">presentation/slots/insightsSlots</td><td>Две точки расширения и <code>INSIGHTS_SECTION_IDS</code></td></tr>
+      <tr><td class="mono">presentation/pages/InsightsPage</td><td>Сама страница</td></tr>
+      <tr><td class="mono">presentation/components/*</td><td>Оболочка карточки, граница ошибок, полоса секции, выбор диапазона, 7 примитивов графиков, скелет страницы</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Все правила, которые могли бы <em>тихо потерять</em> чужую карточку, собраны в одной чистой функции <code>resolveInsightsLayout</code>, принимающей простые данные. Поэтому они покрыты обычными юнит-тестами (<b>17</b> случаев, окружение <code>node</code>) — без браузера, без реестра слотов и без сессии. Правила разбора диапазона вынесены туда же, ещё <b>7</b> случаев.</p>
+</section>
+
+<section id="contract">
+  <h2 class="sec"><span class="num">03</span>Контракт слота виджета</h2>
+
+  <p>Две точки расширения, обе объявлены через <code>createSlot</code> из <code>@orthacms/utils-admin</code>:</p>
+  <ul>
+    <li><code>INSIGHTS_WIDGET_SLOT</code> — <code>createSlot&lt;InsightsWidget&gt;('insights.widget')</code></li>
+    <li><code>INSIGHTS_SECTION_SLOT</code> — <code>createSlot&lt;InsightsSection&gt;('insights.section')</code></li>
+  </ul>
+
+  <h3>Что виджет обязан объявить</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Обяз.</th><th>Тип</th><th>Зачем именно так</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">id</td><td class="center yes">да</td><td class="mono">string</td><td>Стабильная идентичность: ключ React, атрибут <code>data-widget-id</code> в разметке (по нему цепляются e2e), и та ручка, на которую опиралась бы сохранённая раскладка, если бы она была</td></tr>
+      <tr><td class="mono">section</td><td class="center yes">да</td><td class="mono">string</td><td><code>id</code> полосы. Незарегистрированное значение — <b>не ошибка</b>: виджет уезжает в запасную полосу</td></tr>
+      <tr><td class="mono">order</td><td class="center no">нет</td><td class="mono">number</td><td>Порядок внутри полосы. По умолчанию <code>DEFAULT_INSIGHTS_ORDER = 100</code>. Сортировка стабильна, поэтому равный <code>order</code> у двух плагинов даёт детерминированную страницу, а не зависящую от порядка обхода</td></tr>
+      <tr><td class="mono">size</td><td class="center no">нет</td><td class="mono">'xs'|'sm'|'md'|'lg'|'full'</td><td>Ширина в двенадцатых: 3 / 4 / 6 / 8 / 12. По умолчанию <code>md</code>. Это <b>просьба, а не гарантия</b> — см. ниже</td></tr>
+      <tr><td class="mono">permission</td><td class="center no">нет</td><td class="mono">string</td><td>Право, без которого виджет не показывается вообще. Носится <b>на элементе слота</b> и одновременно проверяется внутри компонента</td></tr>
+      <tr><td class="mono">titleId</td><td class="center yes">да</td><td class="mono">string</td><td>Ключ <code>react-intl</code> для имени виджета</td></tr>
+      <tr><td class="mono">defaultTitle</td><td class="center yes">да</td><td class="mono">string</td><td>Запасное имя. Его показывает <b>граница ошибок</b>, когда компонент упал</td></tr>
+      <tr><td class="mono">Component</td><td class="center yes">да</td><td class="mono">ComponentType</td><td>Тело виджета. <b>Без пропсов</b>: читает что нужно само — открытый воркспейс, выбранный диапазон, свой запрос</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="sub small">Форма повторяет <code>HOME_SECTION_SLOT</code> из <code>shell-admin</code>, а не изобретает новую: компонент без пропсов, который сам добирает контекст. Иначе страница была бы вынуждена знать, как выглядят данные каждого виджета.</p>
+
+  <div class="note">
+    <span class="label">Почему право дублируется</span>
+    <p><code>permission</code> лежит на элементе слота <b>и</b> проверяется внутри компонента (<code>useHasPermission</code> в хуке данных, <code>enabled: canRead</code> у запроса). Дублирование намеренное: страница обязана узнать, есть ли у полосы хоть один видимый виджет, <em>до</em> того как отрисует её заголовок — иначе наблюдатель без <code>content:read</code> получил бы заголовок «Content» над пустотой. Та же логика, что у боковой панели воркспейса, которая тоже проверяет дважды.</p>
+  </div>
+
+  <div class="note">
+    <span class="label">Зачем виджету имя, если он рисует его сам</span>
+    <p>Тело виджета печатает свой заголовок само, через <code>WidgetCard</code>. <code>titleId</code>/<code>defaultTitle</code> на элементе слота нужны для случая, когда тело <b>не отрисовалось</b>: граница ошибок подставляет их в заглушку, потому что «Gone quiet перестал работать» — несравнимо полезнее анонимной сломанной карточки.</p>
+  </div>
+
+  <h3>Что объявляет секция</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Обяз.</th><th>Комментарий</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">id</td><td class="center yes">да</td><td>На него ссылается <code>InsightsWidget.section</code>; попадает в разметку как <code>data-section-id</code></td></tr>
+      <tr><td class="mono">titleId</td><td class="center yes">да</td><td>Ключ заголовка полосы</td></tr>
+      <tr><td class="mono">defaultTitle</td><td class="center yes">да</td><td>Запасной заголовок</td></tr>
+      <tr><td class="mono">order</td><td class="center no">нет</td><td>По умолчанию 100 — то есть после встроенных 10/20/30/40</td></tr>
+      <tr><td class="mono">descriptionId / defaultDescription</td><td class="center no">нет</td><td>Строка под заголовком: чужая полоса может объяснить себя, а не быть голым ярлыком</td></tr>
+      <tr><td class="mono">icon</td><td class="center no">нет</td><td>Иконка слева от заголовка</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub small">Тонкость: если <code>defaultDescription</code> задано, а <code>descriptionId</code> — нет, ключ выводится автоматически как <code>&#123;titleId&#125;.description</code>.</p>
+
+  <h3>Ширина — просьба, а не гарантия</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th><code>size</code></th><th>Двенадцатых на <code>lg</code>+</th><th>Фактические классы</th><th>Что происходит на узком экране</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">xs</td><td class="center">3</td><td class="mono">col-span-6 lg:col-span-3</td><td>Половина строки — четыре плитки складываются в две по две</td></tr>
+      <tr><td class="mono">sm</td><td class="center">4</td><td class="mono">col-span-12 md:col-span-6 lg:col-span-4</td><td>Половина на <code>md</code>, полная ширина ниже</td></tr>
+      <tr><td class="mono">md</td><td class="center">6</td><td class="mono">col-span-12 lg:col-span-6</td><td>Полная ширина</td></tr>
+      <tr><td class="mono">lg</td><td class="center">8</td><td class="mono">col-span-12 lg:col-span-8</td><td>Полная ширина</td></tr>
+      <tr><td class="mono">full</td><td class="center">12</td><td class="mono">col-span-12</td><td>Полная ширина всегда</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Тепловая карта или список из пяти полос, ужатые в треть экрана телефона, перестают читаться, поэтому ниже <code>lg</code> всё схлопывается к полной ширине. Классы записаны <b>целыми литералами</b>: Tailwind сканирует исходный текст и никогда не выпускает интерполированное имя класса.</p>
+
+  <div class="note warn">
+    <span class="label">Защита от чужой опечатки</span>
+    <p><code>spanFor()</code> проверяет <code>Object.hasOwn(SIZE_SPAN, size)</code>, а не просто читает <code>SIZE_SPAN[size]</code>. Прямое чтение при опечатке давало <code>undefined</code>, <code>cn</code> его выбрасывал, и виджет оказывался в одной колонке из двенадцати — щепка, и нигде ни одной ошибки. <code>Object.hasOwn</code> заодно закрывает случай, когда <code>size</code> называет член прототипа (<code>constructor</code>, <code>toString</code>) и читается «истинное, но не строка». Тип это запрещает — но пишет контрибуцию другой пакет, который может компилироваться не против этого типа.</p>
+  </div>
+
+  <h3>Как выглядит контрибуция</h3>
+  <p>Из фабрики плагина-владельца; нужна зависимость на <code>@orthacms/insights-admin</code> — то же направление, что у любого наполнителя слота:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Шаг</th><th>Что делает контрибутор</th></tr></thead>
+    <tbody>
+      <tr><td class="center">1</td><td>Добавляет <code>@orthacms/insights-admin</code> в зависимости своего <code>package.json</code></td></tr>
+      <tr><td class="center">2</td><td>Пишет компонент, который внутри рисует <code>&lt;WidgetCard&gt;</code> и один из примитивов</td></tr>
+      <tr><td class="center">3</td><td>Заводит хук данных: свой <code>queryKey</code> с <code>workspace.id</code> (и <code>days</code>, если виджет зависит от периода), <code>retry: 1</code>, <code>enabled: canRead</code></td></tr>
+      <tr><td class="center">4</td><td>Вносит элемент в <code>INSIGHTS_WIDGET_SLOT</code> из своей фабрики <code>slots: [...]</code>, указав <code>section: INSIGHTS_SECTION_IDS.…</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub small">Insights в этот момент не меняется вообще. Именно это и есть проверка того, что рамка — рамка.</p>
+</section>
+
+<section id="registry">
+  <h2 class="sec"><span class="num">04</span>Полный реестр виджетов</h2>
+
+  <p>Это главный раздел артефакта: единственное место, где собрано, из чего вообще состоит страница Insights. В коде такого списка нет — и не может быть, потому что каждая строка ниже объявлена в <em>чужом</em> пакете. Сегодня поставщиков <b>три</b>, виджетов <b>тринадцать</b>.</p>
+
+  <p class="sub">Легенда прав: <span class="pill pill-perm">content:read</span> и <span class="pill pill-perm">media:read</span> — право проверяется дважды, на элементе слота и внутри хука данных. Диапазон: <span class="pill pill-ses">период</span> — запрос зависит от выбранного окна, <span class="pill pill-pub">снимок</span> — не зависит.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Виджет</th><th>Пакет</th><th>Секция</th><th>Что показывает</th><th>Маршрут данных</th><th>Право</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Entries</b><br><span class="mono small">insights.content.entries</span><br><span class="meta">order 10 · size xs</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">overview</td>
+        <td>Всего записей в воркспейсе, прирост «+N за период» и спарклайн истории. Плитка <code>StatWidget</code></td>
+        <td class="mono">GET /api/insights/content/totals<br><span class="pill pill-ses">период</span> <code>?days=</code></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Published</b><br><span class="mono small">insights.content.published</span><br><span class="meta">order 20 · size xs</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">overview</td>
+        <td>Опубликованных записей, прирост за период, спарклайн. Плитка <code>StatWidget</code></td>
+        <td class="mono">GET /api/insights/content/totals<br><span class="pill pill-ses">период</span> <span class="meta">тот же запрос</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Drafts</b><br><span class="mono small">insights.content.drafts</span><br><span class="meta">order 30 · size xs</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">overview</td>
+        <td>Черновиков, а вместо прироста — «N% от всех записей»: у черновика нет осмысленной дельты за период</td>
+        <td class="mono">GET /api/insights/content/totals<br><span class="pill pill-ses">период</span> <span class="meta">тот же запрос</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Media storage</b><br><span class="mono small">insights.media.storage</span><br><span class="meta">order 40 · size xs</span></td>
+        <td class="mono">media-admin</td>
+        <td class="mono">overview</td>
+        <td>Занято в хранилище (число и единица разделены, чтобы цифра осталась в табличном начертании) и «N ассетов». Тон дельты <code>flat</code></td>
+        <td class="mono">GET /api/insights/media/storage<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">media:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Gone quiet</b><br><span class="mono small">insights.content.stale</span><br><span class="meta">order 10 · size md</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">content</td>
+        <td>Опубликованные записи по времени с последней правки: пять корзин — до 30 дней, 31–90, 91–180, 181–365, больше года. <code>BarRows</code> по лестнице <code>q0…q5</code> + предупреждающий чип «N старше года»</td>
+        <td class="mono">GET /api/insights/content/stale<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Draft and published, by type</b><br><span class="mono small">insights.content.pipeline</span><br><span class="meta">order 20 · size md</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">content</td>
+        <td>Где лежит вес воркспейса: по каждому типу контента — сколько опубликовано и сколько в черновиках. Двухсегментный <code>BarRows</code> (<code>series-1</code>/<code>series-2</code>)</td>
+        <td class="mono">GET /api/insights/content/pipeline<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Publishing velocity</b><br><span class="mono small">insights.content.velocity</span><br><span class="meta">order 30 · size lg</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">content</td>
+        <td>Публикаций на бакет времени внутри окна. Сервер сам выбирает гранулярность (<code>day</code> / <code>week</code> / <code>month</code>), подпись карточки меняется вслед за ней. <code>AreaTrend</code> + чип с итогом за период</td>
+        <td class="mono">GET /api/insights/content/velocity<br><span class="pill pill-ses">период</span> <code>?days=</code></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Waiting to go live</b><br><span class="mono small">insights.content.unshipped</span><br><span class="meta">order 40 · size sm</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">content</td>
+        <td>Опубликованные записи, несущие неопубликованные правки, по типам и итогом. Чип <code>ok</code> «всё отгружено» либо <code>warn</code> «N% от живых»</td>
+        <td class="mono">GET /api/insights/content/unshipped<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Translation coverage</b><br><span class="mono small">insights.i18n.coverage</span><br><span class="meta">order 5 · size full</span></td>
+        <td class="mono">i18n-admin</td>
+        <td class="mono">reach</td>
+        <td>Насколько далеко продвинут каждый язык. Переключатель разреза внутри карточки: «By language» / «By type». Три итога — полностью локализовано, не начато, начато но неполно</td>
+        <td class="mono">GET /api/insights/i18n/coverage<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+      <tr>
+        <td><b>What&#39;s using the storage</b><br><span class="mono small">insights.media.storageBreakdown</span><br><span class="meta">order 10 · size sm</span></td>
+        <td class="mono">media-admin</td>
+        <td class="mono">reach</td>
+        <td>Байты и количество ассетов по видам: изображение, видео, аудио, документ, архив. <code>BarRows</code></td>
+        <td class="mono">GET /api/insights/media/storage<br><span class="pill pill-pub">снимок</span> <span class="meta">тот же запрос, что у плитки</span></td>
+        <td><span class="pill pill-perm">media:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Uploads</b><br><span class="mono small">insights.media.uploads</span><br><span class="meta">order 20 · size sm</span></td>
+        <td class="mono">media-admin</td>
+        <td class="mono">reach</td>
+        <td>Сколько ассетов добавлено на бакет времени. <code>ColumnTrend</code> — столбцы, а не линия: это дискретные подсчёты, и линия между ними подразумевала бы промежуточные значения, которых никто не измерял</td>
+        <td class="mono">GET /api/insights/media/uploads<br><span class="pill pill-ses">период</span> <code>?days=</code></td>
+        <td><span class="pill pill-perm">media:read</span></td>
+      </tr>
+      <tr>
+        <td><b>Images missing alt text</b><br><span class="mono small">insights.media.alt</span><br><span class="meta">order 30 · size sm</span></td>
+        <td class="mono">media-admin</td>
+        <td class="mono">reach</td>
+        <td>Долг по доступности библиотеки: сколько изображений с alt-текстом и сколько без, доля непокрытых. Чип <code>ok</code> «всё покрыто» либо <code>warn</code> «N% без alt»</td>
+        <td class="mono">GET /api/insights/media/alt<br><span class="pill pill-pub">снимок</span></td>
+        <td><span class="pill pill-perm">media:read</span></td>
+      </tr>
+      <tr>
+        <td><b>When the work happens</b><br><span class="mono small">insights.content.punchcard</span><br><span class="meta">order 10 · size full</span></td>
+        <td class="mono">content-admin</td>
+        <td class="mono">team</td>
+        <td>Сохранения по дням недели и часам (UTC). <code>HeatGrid</code> 7×24 + <code>RampLegend</code> «quiet → busy»</td>
+        <td class="mono">GET /api/insights/content/punchcard<br><span class="pill pill-ses">период</span> <code>?days=</code></td>
+        <td><span class="pill pill-perm">content:read</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Сводка по поставщикам</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">content-admin — 8</h4>
+      <p class="small sub">Три плитки в Overview, четыре карточки в Content, одна в Team. Все на <code>content:read</code>. Данные — <code>content-server</code>, шесть маршрутов под <code>/api/insights/content/*</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">media-admin — 4</h4>
+      <p class="small sub">Плитка в Overview и три карточки в Reach. Все на <code>media:read</code>. Данные — <code>media-server</code>, три маршрута под <code>/api/insights/media/*</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">i18n-admin — 1</h4>
+      <p class="small sub">Одна карточка на всю ширину в Reach. Данные — <code>i18n-server</code>, <code>/api/insights/i18n/coverage</code>.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему покрытие переводами — карточка i18n, а не content</span>
+    <p>Эту карточку стоит читать как образец. Её вносит пакет, владеющий <b>вопросом</b>, а не таблицей. Покрытие — это утверждение о <em>настроенном наборе локалей</em>, которого <code>content-server</code> намеренно не знает. Карточка, собранная там, смогла бы сказать, какие языки встречаются в данных, но никогда — каких не хватает. Правило: если честный ответ виджета требует факта, которым владеет ровно один пакет, — виджет принадлежит этому пакету.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Как заполняется каждая полоса</span>
+    <p><b>overview</b> — четыре плитки <code>xs</code>, ровно одна строка из двенадцатых (3+3+3+3). <b>content</b> — <code>md</code>+<code>md</code>, затем <code>lg</code>+<code>sm</code> (8+4): именно поэтому «Publishing velocity» объявлен <code>lg</code>, а не <code>full</code> — иначе «Waiting to go live» уехал бы на отдельную строку. <b>reach</b> — <code>full</code> сверху (порядок 5, раньше медийных десяток) и три <code>sm</code> под ним (4+4+4). <b>team</b> — одна карточка <code>full</code>. Ни одна полоса не собрана «как получилось»: числа подобраны так, чтобы строка закрывалась ровно.</p>
+  </div>
+
+  <h3>Экономия запросов внутри реестра</h3>
+  <p>Тринадцать виджетов — но <b>десять</b> маршрутов данных и меньше сетевых запросов, чем виджетов. Три плитки контента (<code>Entries</code>, <code>Published</code>, <code>Drafts</code>) читают один и тот же <code>totals</code> и делят один <code>queryKey</code>, поэтому TanStack Query схлопывает их в <b>один</b> запрос. То же самое у медиа: плитка <code>Media storage</code> и карточка <code>What's using the storage</code> читают один <code>storage</code>. При этом каждый остаётся отдельным виджетом со своим состоянием загрузки и своей ошибкой — независимые индикаторы без трёх round-trip&#39;ов за один агрегат.</p>
+
+  <div class="note crit">
+    <span class="label">Чего в реестре нет и почему</span>
+    <p><b>Трафик публичного API</b> — популярные записи, число чтений, доля ошибок — сегодня <b>невозможен</b>: ничего не фиксирует обращение к публичному API, кроме <code>api_tokens.last_used_at</code>. Это отдельная работа по сбору данных, а не «ещё один виджет». <b>Сохранённой раскладки</b> нет: пользователь не может ни спрятать карточку, ни переставить её; ручкой, на которую опиралась бы такая функция, был бы <code>InsightsWidget.id</code>. <b>Виджетов от <code>activity</code>, <code>copilot</code>, <code>alarms</code>, <code>segments</code>, <code>transfer</code>, <code>users</code> не существует</b> — ни один из этих пакетов не вносит ничего в <code>INSIGHTS_WIDGET_SLOT</code>.</p>
+  </div>
+</section>
+
+<section id="routes">
+  <h2 class="sec"><span class="num">05</span>Маршруты и экраны</h2>
+
+  <h3>5.1 Экран</h3>
+  <p>Экран ровно один. Внутри воркспейса, без записи в глобальной навигации.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Путь</th><th>Что это</th><th>Как попасть</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">/workspaces/:id/insights</td><td>Страница Insights: верхняя панель с хлебной крошкой и выбором диапазона, заголовок, подзаголовок «What changed in <em>{workspace}</em>, and what&#39;s gone quiet», далее полосы секций</td><td>Кнопка «Insights» в рельсе воркспейса (<code>order: 30</code>, иконка столбиков, янтарный акцент)</td></tr>
+      <tr><td class="mono">/workspaces/:id/insights?range=90d</td><td>Тот же экран с явно заданным окном; ссылку можно переслать</td><td>Выбор в сегментированном контроле; в URL пишется <code>replace</code>, а не <code>push</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub small">Маршрут объявлен как <code>insights/*</code> и подгружается лениво: до загрузки чанка показывается <code>InsightsPageSkeleton</code> — полноценная заглушка страницы (панель, заголовок, три полосы плейсхолдеров), а не пустое место. Имя вкладки ставится через <code>useDocumentTitle</code>, иначе приватный маршрут звался бы просто «Admin» (WCAG 2.4.2).</p>
+
+  <h3>5.2 Маршруты данных</h3>
+  <p>Ни один из них не принадлежит Insights — все живут в серверных пакетах владельцев. Глобальный префикс <code>/api</code> ставит хост; воркспейс приезжает <b>только заголовком</b> <code>X-Workspace-Id</code>, поэтому его нет ни в одном пути. Все десять закрыты одинаково: <code>@UseGuards(PermissionsGuard, WorkspaceGuard)</code> + <code>@RequirePermissions(...)</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Маршрут</th><th>Владелец</th><th>Параметры</th><th>Право</th><th>Кто читает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">GET /api/insights/content/totals</td><td class="mono">content-server</td><td><code>days</code></td><td><span class="pill pill-perm">content:read</span></td><td>Entries, Published, Drafts</td></tr>
+      <tr><td class="mono">GET /api/insights/content/stale</td><td class="mono">content-server</td><td>—</td><td><span class="pill pill-perm">content:read</span></td><td>Gone quiet</td></tr>
+      <tr><td class="mono">GET /api/insights/content/pipeline</td><td class="mono">content-server</td><td>—</td><td><span class="pill pill-perm">content:read</span></td><td>Draft and published, by type</td></tr>
+      <tr><td class="mono">GET /api/insights/content/velocity</td><td class="mono">content-server</td><td><code>days</code></td><td><span class="pill pill-perm">content:read</span></td><td>Publishing velocity</td></tr>
+      <tr><td class="mono">GET /api/insights/content/unshipped</td><td class="mono">content-server</td><td>—</td><td><span class="pill pill-perm">content:read</span></td><td>Waiting to go live</td></tr>
+      <tr><td class="mono">GET /api/insights/content/punchcard</td><td class="mono">content-server</td><td><code>days</code></td><td><span class="pill pill-perm">content:read</span></td><td>When the work happens</td></tr>
+      <tr><td class="mono">GET /api/insights/media/storage</td><td class="mono">media-server</td><td>—</td><td><span class="pill pill-perm">media:read</span></td><td>Media storage, What&#39;s using the storage</td></tr>
+      <tr><td class="mono">GET /api/insights/media/uploads</td><td class="mono">media-server</td><td><code>days</code></td><td><span class="pill pill-perm">media:read</span></td><td>Uploads</td></tr>
+      <tr><td class="mono">GET /api/insights/media/alt</td><td class="mono">media-server</td><td>—</td><td><span class="pill pill-perm">media:read</span></td><td>Images missing alt text</td></tr>
+      <tr><td class="mono">GET /api/insights/i18n/coverage</td><td class="mono">i18n-server</td><td>—</td><td><span class="pill pill-perm">content:read</span></td><td>Translation coverage</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему часть маршрутов не берёт период</span>
+    <p>Это не недоделка, а содержательное решение по каждому виджету. <b>Gone quiet</b>: корзины сами по себе и есть ось времени, и они фиксированы, чтобы ответ значил одно и то же при любом выбранном окне. <b>Waiting to go live</b>: незакрытая правка остаётся незакрытой, сделана она утром или прошлой весной, — окно могло бы только спрятать часть очереди. <b>Images missing alt text</b>: долг по доступности — это стоящий итог, а не событие последних 30 дней; сузив окно, пользователь видел бы, как долг «уменьшается». <b>Translation coverage</b>: непереведённая запись непереведена независимо от даты создания. <b>Media storage</b>: занятый объём — это состояние, а не поток.</p>
+  </div>
+
+  <p><code>days</code> валидируется на сервере как целое от 1 до <b>365</b>, по умолчанию 30. Ширину бакета выбирает сервер из этого же числа: до 31 дня — по дням, до 120 — по неделям, дальше — по месяцам. Клиент гранулярность не запрашивает, он её получает в ответе (<code>granularity</code>) и подставляет соответствующую подпись.</p>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">06</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>6.1 Открытие страницы</h3>
+  <ol class="flow">
+    <li><b>Пользователь жмёт «Insights» в рельсе воркспейса.</b> Роутер попадает на <code>insights/*</code>; чанк страницы подгружается лениво, до его прихода видно <code>InsightsPageSkeleton</code>.<span class="meta">кнопка внесена через WORKSPACE_NAV_SLOT, order 30</span></li>
+    <li><b>Страница поднимает <code>InsightsRangeProvider</code>.</b> Он читает <code>?range=</code> из URL; отсутствующее или неизвестное значение даёт <code>30d</code>.</li>
+    <li><b><code>useInsightsLayout</code> собирает раскладку.</b> Читает <code>INSIGHTS_SECTION_SLOT.getItems()</code>, <code>INSIGHTS_WIDGET_SLOT.getItems()</code> и права из состояния авторизации <b>один раз</b>, а не по хуку на виджет, и передаёт всё в чистую <code>resolveInsightsLayout</code>.<span class="meta">права читаются один раз именно для того, чтобы решить судьбу заголовка полосы до её отрисовки</span></li>
+    <li><b>Свёртка выдаёт список полос.</b> Секции слиты по <code>id</code>, отсортированы; виджеты отфильтрованы по правам и отсортированы; пустые полосы выброшены целиком, вместе с заголовком; сироты собраны в замыкающую «More».</li>
+    <li><b>Каждая полоса рисует заголовок и сетку из двенадцати колонок.</b> Каждая ячейка получает <code>data-widget-id</code> и класс ширины.</li>
+    <li><b>Каждый виджет обёрнут в <code>WidgetBoundary</code></b> с <code>resetKey = range</code> и монтируется без пропсов.</li>
+    <li><b>Каждый виджет сам открывает свой запрос.</b> Insights в этом не участвует и не знает, сколько запросов ушло. Плитки, делящие <code>queryKey</code>, схлопываются в один.<span class="meta">retry: 1, staleTime — STALE_TIME.Standard, enabled: canRead</span></li>
+    <li><b>Карточки заполняются независимо.</b> Медленный агрегат задерживает свою карточку, а не страницу.</li>
+  </ol>
+
+  <h3>6.2 Смена диапазона</h3>
+  <ol class="flow">
+    <li><b>Пользователь выбирает «90d»</b> в сегментированном контроле верхней панели.</li>
+    <li><b><code>setRange</code> дописывает параметр в URL.</b> Не заменяет строку запроса целиком, а <b>сливает</b> с существующей — у оболочки и у виджетов могут быть свои параметры, и смена периода не имеет права их снести. Значение по умолчанию из URL <b>удаляется</b>, а не пишется.<span class="meta">replace, не push: выбор периода — управление видом, а не шаг истории</span></li>
+    <li><b>Провайдер пересчитывает <code>days</code></b> (7 / 30 / 90 / 365) и раздаёт новое значение через контекст.</li>
+    <li><b>Виджеты, зависящие от периода, перезапрашивают</b> — их <code>queryKey</code> содержит <code>days</code>, поэтому это обычный промах кэша, а не ручная инвалидация. Виджеты-снимки не двигаются вообще.</li>
+    <li><b>Все <code>WidgetBoundary</code> получают новый <code>resetKey</code></b> и сбрасывают записанный отказ: карточка, упавшая на данных прошлого окна, получает второй шанс.</li>
+  </ol>
+
+  <h3>6.3 Появление нового виджета в системе</h3>
+  <ol class="flow">
+    <li><b>Пакет-владелец добавляет зависимость</b> на <code>@orthacms/insights-admin</code>.</li>
+    <li><b>Пишет компонент</b>, рисующий <code>WidgetCard</code> и один из примитивов; передаёт в карточку четыре флага состояния своего запроса.</li>
+    <li><b>Вносит элемент в <code>INSIGHTS_WIDGET_SLOT</code></b> из своей фабрики, называя секцию через <code>INSIGHTS_SECTION_IDS</code>.</li>
+    <li><b>Хост подхватывает контрибуцию</b> при следующем старте. Порядок регистрации плагина значения не имеет.<span class="meta">имеет — только если пакет переопределяет секцию</span></li>
+    <li><b>Код Insights не изменился ни на строку.</b> Это и есть критерий, по которому проверяется, что рамка осталась рамкой.</li>
+  </ol>
+
+  <h3>6.4 Установка без части плагинов</h3>
+  <ol class="flow">
+    <li><b>Развёртывание без <code>media-admin</code>.</b> В слоте нет ни одного медийного виджета.</li>
+    <li><b>Полоса «Localisation &amp; media» остаётся зарегистрированной</b> — её вносит сам Insights.</li>
+    <li><b>Но если и <code>i18n-admin</code> нет</b>, у полосы не остаётся ни одного видимого виджета, и <code>resolveInsightsLayout</code> выбрасывает её целиком — вместе с заголовком.</li>
+    <li><b>Пользователь видит страницу без «дырки»</b>: не подписанный пустой блок, а просто на одну полосу меньше.</li>
+    <li><b>Если не осталось ни одной полосы</b>, страница показывает единственную строку: «No insights are available yet. Widgets appear here as the plugins that own the data are installed.»</li>
+  </ol>
+</section>
+
+<section id="states">
+  <h2 class="sec"><span class="num">07</span>Состояния: загрузка, пусто, отказ одного виджета, нет прав</h2>
+
+  <p>Дашборд отличается от обычного экрана тем, что на нём одновременно живут девять и больше независимых состояний. Поэтому лестница состояний вынесена в <b>одно место</b> — в <code>WidgetCard</code>, — и ни один контрибутор не может её случайно схлопнуть.</p>
+
+  <h3>7.1 Лестница из четырёх ветвей</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ветвь</th><th>Флаг</th><th>Что рисуется</th><th>Что слышит скринридер</th></tr></thead>
+    <tbody>
+      <tr><td><b>Загрузка</b></td><td class="mono">isPending</td><td>Блок <code>role="status"</code> с <code>skeletonRows</code> полосами (по умолчанию 4) и <code>data-testid="widget-skeleton"</code></td><td>«Loading <em>{название}</em>…» — <b>с именем карточки</b>, потому что одновременно объявляются девять</td></tr>
+      <tr><td><b>Отказ</b></td><td class="mono">isError</td><td>Красная плашка «This didn&#39;t load. Refresh to try again.»</td><td><code>role="alert"</code> — настойчиво</td></tr>
+      <tr><td><b>Пусто</b></td><td class="mono">isEmpty</td><td>Приглушённая строка «Nothing to show for this period yet.» либо своя через <code>emptyMessage</code></td><td><code>role="status"</code> — вежливо: ничего не сломано</td></tr>
+      <tr><td><b>Данные</b></td><td>—</td><td><code>children</code>: сам график</td><td>Текстовая альтернатива графика (раздел 10)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему ветви нельзя объединять</span>
+    <p>Отказ, нарисованный как «пусто», — <b>самое вредное, что может сделать дашборд</b>. «Ничего не требует внимания» и «мы не смогли спросить» выглядят одинаково и означают противоположное. Порядок ветвей закреплён: <code>isError</code> старше <code>isEmpty</code>. По той же причине <code>StatWidget</code> при отказе печатает <b>длинное тире</b>, а не <code>0</code>: ноль читается как «ни одного», тире — как «неизвестно». Тире помечено <code>aria-hidden</code> (скринридер прочёл бы его как «дефис» или промолчал), поэтому рядом лежит скрытый текст «Unavailable —», иначе плитка озвучивала бы только свой ярлык и была бы неотличима от карточки, у которой значения просто нет.</p>
+  </div>
+
+  <p>Ещё две мелочи той же природы: <b>чип в углу карточки подавляется, пока данных нет</b> — «156 старше года» рядом со скелетом утверждает число, которое ещё не загружено. И <b>подпись-итог под телом</b> показывается только в ветви «данные», не в «пусто».</p>
+
+  <h3>7.2 Отказ одного виджета</h3>
+  <p>Два разных механизма, и их важно не путать:</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Запрос не удался</h4>
+      <p class="small sub">Виджет получает <code>isError</code> и сам рисует ветвь отказа внутри своей карточки. Соседи не затронуты, потому что у каждого свой запрос. Повторов — <b>один</b>, а не три по умолчанию TanStack: три попытки с экспоненциальной задержкой держат сломанную карточку на скелете около семи секунд, и на странице, чья вся идея в том, что одна карточка падает отдельно, это читается как зависание, а не как отказ.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Компонент бросил исключение</h4>
+      <p class="small sub"><code>WidgetBoundary</code> — класс-компонент (у React до сих пор нет хука-эквивалента <code>componentDidCatch</code>, а ловить надо именно бросок в фазе рендера). Ловит, пишет в консоль <code>[insights] widget "<em>имя</em>" failed to render</code> вместе со стеком компонентов и рисует заглушку с заголовком виджета и текстом «This widget stopped working. The rest of the page is unaffected.»</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему граница ошибок здесь обязательна</span>
+    <p>Компоненты приезжают <b>из других пакетов</b>, и Insights не имеет никакой возможности проверить, что они рисуют. Один маппер, споткнувшийся о неожиданный <code>null</code> в <code>media-admin</code>, не должен уносить с собой секции контента и команды. Без <code>resetKey</code> единственный бросок был бы <b>пожизненным</b> для страницы: карточка, упавшая на данных одного окна, оставалась бы сломанной даже после переключения на окно, где данные в порядке. Поэтому в <code>resetKey</code> кладётся выбранный диапазон — «поменяйте период» становится тем самым действием восстановления, которого у упавшей карточки иначе нет.</p>
+  </div>
+
+  <h3>7.3 Нет прав</h3>
+  <p>Гейтинг двухуровневый, и уровни решают разные задачи:</p>
+  <ol class="flow">
+    <li><b>Уровень раскладки.</b> <code>resolveInsightsLayout</code> выбрасывает виджеты, чьё <code>permission</code> отсутствует в наборе прав пользователя. Виджет без <code>permission</code> виден всем.</li>
+    <li><b>Уровень полосы.</b> Полоса, у которой после фильтра не осталось ни одного виджета, исчезает целиком — вместе с заголовком. Наблюдатель без <code>media:read</code> не получает подписанной пустоты.</li>
+    <li><b>Уровень запроса.</b> Хук данных ещё раз спрашивает <code>useHasPermission</code> и ставит <code>enabled: canRead</code> — даже если бы компонент как-то был смонтирован, запрос бы не ушёл.</li>
+    <li><b>Уровень сервера.</b> Маршрут закрыт <code>PermissionsGuard</code> + <code>WorkspaceGuard</code>; клиентский гейтинг — это удобство, а не защита.</li>
+  </ol>
+  <p class="sub small">Наблюдательный факт: сегодня все тринадцать виджетов объявляют право, и это либо <code>content:read</code>, либо <code>media:read</code>. Оба есть у всех трёх системных ролей, поэтому в стандартной установке полная страница видна и наблюдателю тоже. Полоса схлопывается на практике не из-за роли, а из-за того, что плагин не установлен.</p>
+
+  <h3>7.4 Пустая страница</h3>
+  <p>Если после свёртки не осталось ни одной полосы, страница печатает одну строку вместо сетки. Формулировка выбрана так, чтобы объяснять <em>причину</em>, а не извиняться: «виджеты появятся здесь по мере установки плагинов, которые владеют данными». Это единственно честный текст, потому что пустая страница здесь означает ровно это.</p>
+</section>
+
+<section id="range">
+  <h2 class="sec"><span class="num">08</span>Диапазон дат и как он доезжает до запросов</h2>
+
+  <p>Четыре окна, один контрол на всю страницу.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Выбор</th><th>Видимая подпись</th><th><code>days</code> в запросе</th><th>Значение в URL</th><th>Гранулярность сервера</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">7d</td><td>7d</td><td class="center">7</td><td class="mono">?range=7d</td><td>по дням</td></tr>
+      <tr><td class="mono">30d</td><td>30d</td><td class="center">30</td><td><b>отсутствует</b></td><td>по дням</td></tr>
+      <tr><td class="mono">90d</td><td>90d</td><td class="center">90</td><td class="mono">?range=90d</td><td>по неделям</td></tr>
+      <tr><td class="mono">12m</td><td>12m</td><td class="center">365</td><td class="mono">?range=12m</td><td>по месяцам</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Три правила, закреплённые тестами</h3>
+  <ul>
+    <li><b>Источник истины — URL, а не состояние компонента.</b> Диапазон в <code>useState</code> означал бы, что «дашборд за 90 дней», о котором человек рассказывает коллеге, невозможно ни переслать, ни забукмаркать, ни пережить перезагрузку и возврат из редактора записи, — и ссылка молча отправляла бы получателя на другой вид. Все прочие списковые поверхности админки уже решили это так же, через <code>useTableUrlState</code>.</li>
+    <li><b>Значение по умолчанию в URL не пишется.</b> Голая ссылка <code>/insights</code> должна и дальше означать «текущее окно по умолчанию». Если бы выбор 30d писал <code>?range=30d</code>, каждый когда-либо сохранённый букмарк оказался бы навсегда прибит к сегодняшнему умолчанию, и его последующее изменение до этих ссылок не дошло бы.</li>
+    <li><b>Неизвестное значение откатывается к умолчанию</b>, а не бросает исключение и не даёт пустой дашборд. Опечатка, правка URL руками, ссылка, написанная под окно, которого в этой версии уже нет, — у страницы нет способа сказать читателю, что его ссылка неправильная, поэтому полезное поведение то, при котором числа всё равно показаны.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Путь значения до запроса</span>
+    <p><code>?range=90d</code> → <code>parseInsightsRange</code> → <code>InsightsRange</code> → <code>RANGE_DAYS[range]</code> → <code>days: 90</code> в контексте → <code>useInsightsRange()</code> внутри чужого хука → одновременно в <b>ключ кэша</b> и в <b>параметры запроса</b>. Ключ и параметр берутся из одного значения, поэтому смена периода — обычный промах кэша, а не ручная инвалидация. Виджет, которому период не нужен, просто не вызывает <code>useInsightsRange</code>, и его ключ периода не содержит.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Хук не бросает вне провайдера</span>
+    <p><code>useInsightsRange</code>, вызванный без <code>InsightsRangeProvider</code>, возвращает умолчание и пустой <code>setRange</code>, а не падает. Причина конкретная: виджет пишет <em>другой</em> пакет, и вполне может отрисовать его в своём тесте или витрине компонентов, где страницы Insights вокруг нет. Жёсткий бросок там был бы ловушкой, а не полезной ошибкой.</p>
+  </div>
+
+  <p>Ещё две детали контрола: Radix сбрасывает значение при повторном нажатии на активный элемент, поэтому <code>onValueChange</code> игнорирует пустое значение — иначе виджеты остались бы вообще без окна. И запись в URL <b>сливается</b> с уже существующими параметрами, а не заменяет их.</p>
+</section>
+
+<section id="charts">
+  <h2 class="sec"><span class="num">09</span>Примитивы графиков и палитра</h2>
+
+  <p><b>Библиотеки графиков в проекте нет</b>, и её добавление должно быть аргументировано, а не принято по умолчанию. Вся страница — это списки полос, один площадной график и две тепловые карты; Recharts весит около 500 КБ и приносит собственное согласование для меток, которые здесь суть несколько <code>div</code>-ов и один <code>path</code>. Плюс главное: эти примитивы читают <b>те же токены дизайн-системы</b>, что и остальная админка, поэтому следуют теме без параллельной системы стилей.</p>
+
+  <h3>9.1 Что экспортируется наружу</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Экспорт</th><th>Форма</th><th>Когда брать</th><th>Кто уже использует</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">WidgetCard</td><td>Оболочка карточки</td><td><b>Всегда</b>, кроме плиток: она владеет лестницей из четырёх состояний</td><td>8 виджетов</td></tr>
+      <tr><td class="mono">WidgetChip</td><td>Пилюля в правом верхнем углу</td><td>Одно число, которое карточка больше всего хочет донести</td><td>Gone quiet, Waiting to go live, Publishing velocity, alt-текст, покрытие переводами</td></tr>
+      <tr><td class="mono">StatWidget</td><td>Плитка: число + дельта + спарклайн</td><td>Заголовочная цифра в Overview. Своя карточка, не <code>WidgetCard</code></td><td>Entries, Published, Drafts, Media storage</td></tr>
+      <tr><td class="mono">Sparkline</td><td>Крошечная линия без осей</td><td>Внутри плитки. Отдельно почти не нужен</td><td><code>StatWidget</code></td></tr>
+      <tr><td class="mono">BarRows</td><td>Список горизонтальных полос, до двух сегментов</td><td>Сравнение категорий с подписью слева и числом справа</td><td>Gone quiet, pipeline, unshipped, storage, coverage</td></tr>
+      <tr><td class="mono">AreaTrend</td><td>Площадной график с осью и сеткой</td><td>Непрерывная величина во времени</td><td>Publishing velocity</td></tr>
+      <tr><td class="mono">ColumnTrend</td><td>Компактные столбцы</td><td><b>Дискретные подсчёты</b> событий во времени</td><td>Uploads</td></tr>
+      <tr><td class="mono">HeatGrid</td><td>Сетка ячеек по интенсивности</td><td>Две категориальные оси и величина в пересечении</td><td>When the work happens</td></tr>
+      <tr><td class="mono">RampLegend</td><td>Шкала лестницы <code>q0…q5</code></td><td><b>Обязательно</b> рядом с тепловой картой</td><td>When the work happens</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub small">Плюс роли палитры: <code>toneBackground</code>, <code>toneForIntensity</code>, <code>toneInk</code>, <code>SEQUENTIAL_TONES</code> и тип <code>ChartTone</code>. <b><code>WidgetBoundary</code> наружу не экспортируется</b> — её ставит сама полоса секции, контрибутору она не нужна.</p>
+
+  <h3>9.2 Правила цвета, обязательные для чужого виджета</h3>
+  <p>Палитра живёт в <code>apps/admin/src/styles.css</code> как <code>--color-chart-*</code>, а адресуется <b>ролями</b>, а не именами цветов: виджет просит «вторую серию» или «четвёртую ступень», а тема решает, как это выглядит на той поверхности, куда карточка приземлилась.</p>
+  <ul>
+    <li><b>Ровно два категориальных слота.</b> <code>series-1</code> / <code>series-2</code> — единственная пара, проходящая по различимости при дальтонизме <b>одновременно</b> на светлой карточке (<code>#ffffff</code>) и на тёмной (<code>#19191f</code>). Синий с фиолетовым — очевидный следующий кандидат — проваливается на ΔE 1.9 при протанопии в тёмной теме. Виджету, которому нужна третья категория, нужен <b>другой график</b>, а не третий цвет.</li>
+    <li><b><code>q0…q5</code> — последовательная лестница</b>, только для величины. Никогда не различать ею категории: читатель домыслит упорядоченность, которой нет.</li>
+    <li><b>Направление лестницы переворачивается между темами.</b> Низ прижат к поверхности карточки, верх читается ярко — так что «больше» всегда значит «заметнее». Любая подпись про эту шкалу обязана быть сформулирована так же: «цвет насыщается с возрастом», <b>никогда</b> не «темнее — значит старее»: это верно ровно в одной теме. Поэтому и <code>RampLegend</code> подписан «quiet → busy», а не цветами.</li>
+    <li><b>Никакого текста внутри заливки.</b> Числа выносятся в колонку-читалку в чернильном токене. Цифра, напечатанная на полосе, обязана оставаться читаемой на той ступени палитры, куда она попала, в обеих темах; вынос убирает весь класс дефектов сразу.</li>
+    <li><b>Нулевой сегмент выбрасывается, а не рисуется.</b> У сегментов есть пол в 3px, чтобы маленькое-но-настоящее значение оставалось видимым, — и этот пол превращал отсутствующую категорию в щепку цвета: локаль, в которой ничего не пропущено, рисовала штрих «пропущенного» оттенка, то есть график утверждал обратное своим данным. Фильтр стоит внутри <code>BarRows</code>, чтобы ни один контрибутор об этом не думал.</li>
+    <li><b>Статусные цвета <code>WidgetChip</code> отделены от палитры серий</b> и всегда идут с иконкой: если бы чип красился в цвет серии, читатель обоснованно связал бы его с полосой того же цвета ниже.</li>
+  </ul>
+  <p class="sub small">Значения палитры хранятся в <b>hex</b>, а не в <code>oklch</code>, как остальные токены: это выход валидатора, и переписывание их в другую систему дало бы дрейф округления от тех чисел, которые фактически проверялись.</p>
+
+  <h3>9.3 Мелочи, спрятанные внутри примитивов</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Защита от NaN</h4>
+      <p class="small sub"><code>BarRows</code>: нулевой или отрицательный знаменатель дал бы каждой полосе ширину <code>NaN%</code>, что рисуется как <b>полная</b> полоса — самый неверный из возможных выводов. Откат к 1: пустые данные рисуют ничто. <code>Sparkline</code>: у идеально плоского ряда размах нулевой, деление на него поставило бы все точки в <code>NaN</code>; размах откатывается к 1.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Акцент на последнем столбце</h4>
+      <p class="small sub"><code>ColumnTrend</code> отдаёт последнему столбцу самую глубокую ступень лестницы: на дашборде ищут именно свежий столбец, а акцент здесь ничего не стоит, потому что лестница больше ничего не кодирует.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Спарклайн масштабируется к себе</h4>
+      <p class="small sub">Ряд нормируется к собственным min/max, а не к нулю: на таком размере вопрос — форма изменения, а не его величина относительно начала координат. Рисуется только при двух и более точках.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Ступень для нуля</h4>
+      <p class="small sub"><code>toneForIntensity(0)</code> прибит к <code>q0</code> — ступени, ближайшей к поверхности карточки, — чтобы «ничего» отступало, а не читалось как «немного чего-то». Остальные ступени делят диапазон по порогам 0.2 / 0.45 / 0.7 / 0.9.</p>
+    </div>
+  </div>
+</section>
+
+<section id="a11y">
+  <h2 class="sec"><span class="num">10</span>Доступность</h2>
+
+  <p>Дашборд — сложный для доступности случай: девять графиков без текста, девять одновременных загрузок и контрол, у которого подписи из двух символов. Разобрано по пунктам.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Проблема</th><th>Решение</th><th>Критерий</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>График не имеет текста</td>
+        <td>У <code>AreaTrend</code> и <code>HeatGrid</code> есть <b>настоящая таблица</b> в <code>&lt;details&gt;</code> «Table view» под графиком. <code>role="img"</code> делает всё внутри графика презентационным, поэтому кроме одного предложения оттуда ничего не достаётся, а всплывающие подсказки на ячейках недостижимы с клавиатуры</td>
+        <td>1.1.1</td>
+      </tr>
+      <tr>
+        <td>Второе значение сплит-полосы доходит только цветом</td>
+        <td>Каждая дорожка <code>BarRows</code> — <code>role="img"</code> с <code>aria-label</code>, собранным из подписей <b>всех</b> сегментов, включая нулевые: «0 пропущено» — это информация, которую полоса нарисовать не может, но строка её означает. Колонка-читалка называет только первую серию, поэтому вторая иначе доходила бы одним оттенком</td>
+        <td>1.4.1, 1.1.1</td>
+      </tr>
+      <tr>
+        <td>Подписи периода — «7d», «90d»</td>
+        <td>Единица добавлена <b>скрытым текстом</b> внутри кнопки, а не через <code>aria-label</code>. <code>aria-label</code> «90 days» вытеснял бы видимое «90d», и пользователь голосового ввода, сказав «нажать 90d», не попадал бы никуда. Композиция даёт «90d days»: и произносится полностью, и содержит написанное</td>
+        <td>2.5.3</td>
+      </tr>
+      <tr>
+        <td>Скелеты невидимы для ассистивных технологий</td>
+        <td><code>role="status"</code> + скрытая подпись «Loading <em>{название}</em>…», <b>именованная заголовком карточки</b>: девять одновременных объявлений иначе не различить</td>
+        <td>4.1.3</td>
+      </tr>
+      <tr>
+        <td>«Пусто» молчало, «отказ» говорил</td>
+        <td>Обе ветви объявляют: отказ — <code>role="alert"</code>, пусто — <code>role="status"</code>. Ровно ту пару, ради различения которой существует вся лестница, скринридер раньше слышал наполовину</td>
+        <td>4.1.3</td>
+      </tr>
+      <tr>
+        <td>Плитка при отказе не озвучивала ничего</td>
+        <td>Длинное тире помечено <code>aria-hidden</code>, рядом лежит скрытое «Unavailable —»</td>
+        <td>1.1.1</td>
+      </tr>
+      <tr>
+        <td>Пропуск уровня заголовка</td>
+        <td>Страница владеет <code>h1</code>, полоса секции — <code>h2</code>, карточка — <code>h3</code>. Было <code>h4</code>: правило axe <code>heading-order</code> — best-practice, а стенд сканирует только набор тегов WCAG, поэтому ничто это не ловило</td>
+        <td>2.4.6</td>
+      </tr>
+      <tr>
+        <td>Имя вкладки — просто «Admin»</td>
+        <td><code>useDocumentTitle</code> на странице</td>
+        <td>2.4.2</td>
+      </tr>
+      <tr>
+        <td>Строка из одной непереведённой фразы</td>
+        <td>Заглушка <code>WidgetBoundary</code> рендерит <code>&lt;FormattedMessage&gt;</code>: класс-компонент не может вызвать <code>useIntl</code>, из-за чего эта строка дольше всех оставалась английским литералом</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Что проверяют e2e-наборы доступности</summary>
+    <p><code>apps/admin-e2e/src/insights/a11y.spec.ts</code> — сканы axe в трёх состояниях страницы: всё загружено, всё грузится, <b>одна карточка упала</b>; плюс достижимость и управляемость выбора диапазона с клавиатуры и наличие текстовой альтернативы у каждого графика. <code>announcements.spec.ts</code> — объявления загрузки по имени, вежливое «пусто» против настойчивого «отказ», «значение недоступно» у плитки, отсутствие пропусков в структуре заголовков, адресуемость варианта диапазона по напечатанной на нём подписи, и таблица тепловой карты как настоящая таблица.</p>
+  </details>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Пакет не импортирует <b>ни один</b> feature-пакет. Его зависимости — только <code>bootstrap-admin</code>, <code>design-system</code>, <code>utils-admin</code>, <code>workspaces-admin</code>, <code>identity-admin</code>.</span></li>
+    <li><span class="id">И-02</span><span>Пакет не вносит <b>ни одного</b> элемента в <code>INSIGHTS_WIDGET_SLOT</code>.</span></li>
+    <li><span class="id">И-03</span><span>Ни один виджет не пропадает молча: виджет с незарегистрированной секцией оказывается в замыкающей полосе с <code>data-section-fallback="true"</code>.</span></li>
+    <li><span class="id">И-04</span><span>Полоса, у которой не осталось видимых виджетов, не рисуется вообще — вместе с заголовком.</span></li>
+    <li><span class="id">И-05</span><span>Секции сливаются по <code>id</code>, побеждает последняя контрибуция — <b>поле за полем</b> и только по фактически заданным полям; позиция полосы при этом сохраняется <b>первая</b>.</span></li>
+    <li><span class="id">И-06</span><span>Сортировка виджетов и секций стабильна: одинаковый <code>order</code> у двух плагинов сохраняет порядок регистрации, а не отдаётся на волю обхода объекта.</span></li>
+    <li><span class="id">И-07</span><span>Элемент без <code>order</code> получает <code>DEFAULT_INSIGHTS_ORDER = 100</code>, то есть встаёт <b>после</b> встроенных 10/20/30/40, а не в середину.</span></li>
+    <li><span class="id">И-08</span><span>Виджет, чьё <code>permission</code> отсутствует у пользователя, исключается из раскладки; фильтр прав применяется и к сиротам в запасной полосе.</span></li>
+    <li><span class="id">И-09</span><span>Право проверяется дважды: на элементе слота — до отрисовки заголовка полосы, и в хуке данных — через <code>enabled</code>.</span></li>
+    <li><span class="id">И-10</span><span><code>WidgetCard</code> разрешает ровно одну из четырёх ветвей; <code>isError</code> старше <code>isEmpty</code>.</span></li>
+    <li><span class="id">И-11</span><span><code>StatWidget</code> при отказе <b>никогда</b> не печатает число: длинное тире плюс скрытый текст «Unavailable».</span></li>
+    <li><span class="id">И-12</span><span>Чип в углу и подпись-итог под телом показываются только при наличии данных.</span></li>
+    <li><span class="id">И-13</span><span>Бросок внутри одного виджета не размонтирует соседей: каждый обёрнут в собственный <code>WidgetBoundary</code>.</span></li>
+    <li><span class="id">И-14</span><span>Смена диапазона сбрасывает записанный границей отказ (<code>resetKey = range</code>), то есть падение не пожизненно.</span></li>
+    <li><span class="id">И-15</span><span>Каждый виджет открывает <b>свой</b> запрос; сама страница не делает ни одного сетевого запроса.</span></li>
+    <li><span class="id">И-16</span><span>Все Insights-запросы ставят <code>retry: 1</code>, а не три по умолчанию.</span></li>
+    <li><span class="id">И-17</span><span>Ключ кэша каждого виджета содержит <b>id воркспейса</b>; у зависящих от периода — ещё и <code>days</code>. Воркспейс приезжает на сервер только заголовком, который на попадании в кэш не отправляется.</span></li>
+    <li><span class="id">И-18</span><span>Источник истины диапазона — URL. Значение по умолчанию в URL <b>не пишется</b>; неизвестное значение откатывается к умолчанию; запись идёт через <code>replace</code> и <b>слиянием</b> с существующими параметрами.</span></li>
+    <li><span class="id">И-19</span><span><code>useInsightsRange</code> вне провайдера возвращает умолчание и пустой <code>setRange</code>, а не бросает.</span></li>
+    <li><span class="id">И-20</span><span>Неизвестное значение <code>size</code> даёт ширину <code>md</code>, а не одну колонку из двенадцати; проверка — <code>Object.hasOwn</code>, а не простое чтение по ключу.</span></li>
+    <li><span class="id">И-21</span><span>Все классы ширины и палитры записаны <b>целыми литералами</b>: интерполированное имя класса Tailwind не выпустит, и полосы отрисовались бы прозрачными.</span></li>
+    <li><span class="id">И-22</span><span>Нулевой сегмент <code>BarRows</code> не рисуется, но <b>называется</b> в <code>aria-label</code> дорожки.</span></li>
+    <li><span class="id">И-23</span><span>Ни одна подпись к лестнице <code>q0…q5</code> не описывает цвет («темнее», «светлее») — только величину: направление лестницы переворачивается между темами.</span></li>
+    <li><span class="id">И-24</span><span>Структура заголовков без пропусков: <code>h1</code> — страница, <code>h2</code> — полоса секции, <code>h3</code> — карточка (в том числе заглушка границы ошибок).</span></li>
+    <li><span class="id">И-25</span><span>Пакет не владеет ни одной таблицей БД, не имеет серверной половины и не поставляет миграций.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Существующее покрытие: юнит-тесты чистой свёртки и разбора диапазона (<code>17</code> + <code>7</code> случаев, окружение <code>node</code>) и три e2e-набора — <code>apps/admin-e2e/src/insights/{insights,a11y,announcements}.spec.ts</code> (<code>25</code> + <code>5</code> + <code>6</code> случаев), где сид <code>support/api/insights.ts</code> умеет уронить или опустошить <b>ровно один</b> маршрут.</p>
+
+  <h3>Рамка и контракт слота</h3>
+  <ul class="check">
+    <li><b>Открыть страницу на полной установке</b> → <span class="exp">видны все 13 карточек, каждая под своим <code>data-widget-id</code>, полосы — под <code>data-section-id</code>.</span></li>
+    <li><b>Проверить сетевую панель</b> → <span class="exp">каждый виджет ходит на свой маршрут; трёх запросов <code>totals</code> нет — только один; <code>storage</code> тоже один на две карточки.</span></li>
+    <li><b>Внести виджет с <code>section: 'nope'</code></b> → <span class="exp">карточка видна в замыкающей полосе «More» с <code>data-section-fallback="true"</code>, а не исчезает.</span></li>
+    <li><b>Внести виджет без <code>order</code></b> → <span class="exp">встаёт после всех, у кого <code>order</code> задан.</span></li>
+    <li><b>Два виджета с одинаковым <code>order</code></b> → <span class="exp">порядок совпадает с порядком регистрации и не меняется между перезагрузками.</span></li>
+    <li><b>Виджет с <code>size: 'huge'</code></b> → <span class="exp">рисуется как <code>md</code> (половина строки), а не щепкой в одну колонку.</span></li>
+    <li><b>Внести секцию с существующим <code>id</code> и одним полем <code>defaultTitle</code></b> → <span class="exp">заголовок сменился; порядок, описание и иконка сохранились; полоса не переехала в конец.</span></li>
+    <li><b>Зарегистрировать переопределяющий плагин <em>раньше</em> <code>InsightsPlugin()</code></b> → <span class="exp">переопределение <b>не применяется</b> — побеждает последняя контрибуция. Это и есть причина порядка в <code>plugins.ts</code>.</span></li>
+    <li><b><code>InsightsPlugin({ sections: [] })</code></b> → <span class="exp">все встроенные полосы исчезли; виджеты уехали в «More».</span></li>
+  </ul>
+
+  <h3>Раскладка и права</h3>
+  <ul class="check">
+    <li><b>Пользователь без <code>content:read</code></b> → <span class="exp">карточек контента нет; полос «Content» и «Team» нет вместе с заголовками; запросы к <code>/insights/content/*</code> не уходят.</span></li>
+    <li><b>Пользователь без <code>media:read</code>, но с <code>content:read</code></b> → <span class="exp">в Overview три плитки вместо четырёх; в Reach остаётся только покрытие переводами.</span></li>
+    <li><b>Установка без <code>media-admin</code> и <code>i18n-admin</code></b> → <span class="exp">полоса «Localisation &amp; media» не отрисована вообще.</span></li>
+    <li><b>Ни одного видимого виджета</b> → <span class="exp">одна строка объяснения вместо сетки, без пустых полос.</span></li>
+    <li><b>Обратиться к <code>/api/insights/content/totals</code> напрямую без права</b> → <span class="exp">403 от <code>PermissionsGuard</code>: клиентский гейтинг — удобство, не защита.</span></li>
+    <li><b>Без заголовка <code>X-Workspace-Id</code></b> → <span class="exp">отказ от <code>WorkspaceGuard</code>.</span></li>
+  </ul>
+
+  <h3>Диапазон</h3>
+  <ul class="check">
+    <li><b>Выбрать 90d</b> → <span class="exp">в URL появился <code>?range=90d</code>; перезапросились только зависящие от периода виджеты (<code>totals</code>, <code>velocity</code>, <code>punchcard</code>, <code>uploads</code>); остальные не дёрнулись.</span></li>
+    <li><b>Выбрать 30d обратно</b> → <span class="exp">параметр из URL <b>удалён</b>, а не переписан на <code>?range=30d</code>.</span></li>
+    <li><b>Нажать «Назад» после восьми переключений</b> → <span class="exp">браузер уходит со страницы, а не отматывает восемь шагов (<code>replace</code>).</span></li>
+    <li><b>Открыть <code>?range=90d&amp;foo=1</code> и сменить период</b> → <span class="exp"><code>foo=1</code> на месте.</span></li>
+    <li><b>Открыть <code>?range=42q</code></b> → <span class="exp">страница показывает данные за 30 дней, ничего не падает, дашборд не пустой.</span></li>
+    <li><b>Переслать ссылку с <code>?range=12m</code></b> → <span class="exp">получатель видит ровно то же окно; в запросах <code>days=365</code>.</span></li>
+    <li><b>Нажать активный вариант ещё раз</b> → <span class="exp">выбор не сбрасывается в пустой, окно остаётся прежним.</span></li>
+    <li><b>Отрисовать чужой виджет вне страницы Insights</b> → <span class="exp">он получает окно по умолчанию, а не исключение.</span></li>
+  </ul>
+
+  <h3>Состояния</h3>
+  <ul class="check">
+    <li><b>Уронить <b>один</b> маршрут (500)</b> → <span class="exp">его карточка показывает красную плашку; все остальные карточки и полосы на месте и с данными.</span></li>
+    <li><b>Уронить маршрут покрытия переводами</b> → <span class="exp">полоса «Localisation &amp; media» остаётся, медийные карточки в ней работают.</span></li>
+    <li><b>Уронить <code>totals</code></b> → <span class="exp">все три плитки показывают тире, а не <code>0</code>; ни одна не рисует «пусто».</span></li>
+    <li><b>Отдать пустой воркспейс (валидные пустые ответы)</b> → <span class="exp">карточки показывают «пусто», а не ошибку; подпись-итог не печатается.</span></li>
+    <li><b>Замерить время до отображения отказа</b> → <span class="exp">одна повторная попытка, не три; карточка не сидит на скелете ~7 секунд.</span></li>
+    <li><b>Задержать один маршрут на 5 с</b> → <span class="exp">его карточка на скелете, остальные уже с данными; страница не заблокирована.</span></li>
+    <li><b>Заставить компонент виджета бросить исключение</b> → <span class="exp">на его месте заглушка <b>с названием виджета</b>; в консоли строка <code>[insights] widget "…" failed to render</code>; соседи живы.</span></li>
+    <li><b>После броска сменить диапазон</b> → <span class="exp">карточка перемонтировалась и пробует снова, а не остаётся сломанной до перезагрузки страницы.</span></li>
+    <li><b>Переключить воркспейс</b> → <span class="exp">числа перезапрошены, а не взяты из кэша прошлого воркспейса.</span></li>
+  </ul>
+
+  <h3>Графики и доступность</h3>
+  <ul class="check">
+    <li><b>Скан axe на загруженной, загружающейся и частично упавшей странице</b> → <span class="exp">нарушений нет во всех трёх состояниях.</span></li>
+    <li><b>Пройти выбор диапазона только с клавиатуры</b> → <span class="exp">контрол достижим и управляем; фокус видим.</span></li>
+    <li><b>Найти вариант по напечатанной подписи («90d»)</b> → <span class="exp">доступное имя <b>содержит</b> видимый текст.</span></li>
+    <li><b>Раскрыть «Table view» у тепловой карты</b> → <span class="exp">настоящая <code>&lt;table&gt;</code> с <code>scope="col"</code>/<code>scope="row"</code>, значения читаются без наведения мыши.</span></li>
+    <li><b>Прослушать сплит-полосу</b> → <span class="exp">озвучены <b>обе</b> серии, включая нулевую («0 missing»), а не только нарисованная.</span></li>
+    <li><b>Локаль без пропусков в покрытии</b> → <span class="exp">штриха «пропущенного» оттенка нет — нулевой сегмент не рисуется.</span></li>
+    <li><b>Прослушать переход в загрузку</b> → <span class="exp">каждая карточка объявляется <b>по имени</b>, а не девять одинаковых «Loading…».</span></li>
+    <li><b>Сравнить объявление «пусто» и «отказ»</b> → <span class="exp">первое вежливое (<code>status</code>), второе настойчивое (<code>alert</code>); оба звучат.</span></li>
+    <li><b>Пройти структуру заголовков</b> → <span class="exp"><code>h1</code> → <code>h2</code> → <code>h3</code> без пропусков.</span></li>
+    <li><b>Переключить светлую и тёмную тему</b> → <span class="exp">лестница остаётся читаемой в обе стороны, подписи легенды не апеллируют к «темнее/светлее».</span></li>
+    <li><b>Сузить окно браузера до ширины телефона</b> → <span class="exp">тепловая карта и списки полос идут в полную ширину; горизонтальной прокрутки страницы нет.</span></li>
+    <li><b>Отдать данные, где максимум равен нулю</b> → <span class="exp">полосы не рисуются вовсе, ни одна не растянута на всю ширину.</span></li>
+    <li><b>Отдать идеально плоский ряд в плитку</b> → <span class="exp">спарклайн рисуется прямой линией, а не исчезает и не даёт <code>NaN</code>.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Insights</th></tr></thead>
+    <tbody>
+      <tr><td>Содержимое карточек и их данные</td><td><code>content-admin</code> / <code>media-admin</code> / <code>i18n-admin</code></td><td>Ничего. Объявляет слот и рисует то, что в него положили</td></tr>
+      <tr><td>Агрегирующие SQL-запросы</td><td><code>content-server</code>, <code>media-server</code>, <code>i18n-server</code></td><td>Не имеет серверной половины вообще</td></tr>
+      <tr><td>Таблицы и миграции</td><td>плагины-владельцы данных</td><td>Не владеет ни одной таблицей; проекций и снапшотов нет</td></tr>
+      <tr><td>Маршрут и рельс воркспейса</td><td><code>workspaces-admin</code></td><td>Вносит одну кнопку и один маршрут в его слоты</td></tr>
+      <tr><td>Проверка прав</td><td><code>identity-admin</code> (клиент) и <code>identity-server</code> (сервер)</td><td>Читает набор прав из состояния авторизации и фильтрует раскладку</td></tr>
+      <tr><td>Механика слотов</td><td><code>utils-admin</code> (<code>createSlot</code>)</td><td>Только объявляет два слота</td></tr>
+      <tr><td>Сбор плагинов и порядок регистрации</td><td>хост (<code>apps/admin/src/plugins.ts</code>)</td><td>Требует быть зарегистрированным раньше тех, кто переопределяет его секции</td></tr>
+      <tr><td>Компоненты интерфейса</td><td><code>design-system</code></td><td>Свои — только оболочка карточки и семь примитивов графиков</td></tr>
+      <tr><td>Журнал действий, кто что сделал</td><td><code>activity</code></td><td>Показывает только агрегаты; имён и событий не касается</td></tr>
+      <tr><td>Аналитика публичного API</td><td>никто (не реализовано)</td><td>Не может показать: обращения не фиксируются</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Сохранённой раскладки.</b> Ни спрятать карточку, ни переставить, ни собрать свой набор. Ручкой была бы <code>InsightsWidget.id</code>.</li>
+    <li><b>Экспорта и печати.</b> Ни выгрузки CSV, ни печатного вида — числа живут только на экране.</li>
+    <li><b>Произвольного диапазона.</b> Четыре фиксированных окна, без «с… по…» и без сравнения с предыдущим периодом на уровне страницы (дельта есть только внутри плиток).</li>
+    <li><b>Разреза по автору, типу или разделу на уровне страницы.</b> Фильтры, если они есть, живут внутри отдельной карточки — как переключатель разреза в покрытии переводами.</li>
+    <li><b>Автообновления.</b> Данные приходят один раз на монтирование и живут по <code>staleTime</code>; ни опроса, ни живого потока.</li>
+    <li><b>Виджетов делимости по воркспейсам.</b> Вся страница — про один открытый воркспейс, сводного взгляда «по всем сразу» нет.</li>
+    <li><b>Данных о трафике публичного API.</b> Единственный существующий след — <code>api_tokens.last_used_at</code>; это отдельная работа по сбору, а не ещё один виджет.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">packages/insights/admin/AGENTS.md, «Contributing a widget»</td>
+        <td>«Sizes … <b>only apply from the <code>lg</code> breakpoint up</b>; below that widgets collapse toward full width»</td>
+        <td>Верно только для <code>md</code>, <code>lg</code> и <code>full</code>. В <code>SIZE_SPAN</code> размер <code>xs</code> — это <code>col-span-6 lg:col-span-3</code>, то есть <b>половина строки</b> на любом экране, а <code>sm</code> — <code>col-span-12 md:col-span-6 lg:col-span-4</code>, то есть половина уже с <code>md</code>. Именно так четыре плитки Overview складываются «две на две» на планшете. Докстринг самого <code>InsightsSectionBand</code> оговаривает случай <code>sm</code>, но про <code>xs</code> молчит тоже</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/insights/admin/AGENTS.md, «End-to-end cover»</td>
+        <td>Перечисляет <code>apps/admin-e2e/src/insights/{insights,a11y}.spec.ts</code></td>
+        <td>Наборов <b>три</b>: есть ещё <code>announcements.spec.ts</code> — шесть случаев про объявления загрузки по имени, вежливое «пусто» против настойчивого «отказа», недоступное значение плитки, структуру заголовков, адресуемость варианта диапазона и таблицу тепловой карты. Это ровно тот набор, который проверяет самые тонкие решения пакета, и он не упомянут</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/insights/admin/AGENTS.md, «Not built yet»</td>
+        <td>«Top contributors and Copilot usage (<b>both sketched</b>, neither wired)»</td>
+        <td>Никаких следов ни того, ни другого в репозитории нет: ни компонентов, ни маршрутов, ни ветки в реестре — поиск по обоим названиям находит только саму эту строку. Читатель ищет «набросок», которого не существует</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/insights/admin/AGENTS.md, «The time window lives in the URL»</td>
+        <td>«<code>useInsightsRange</code> is the <b>only place</b> that knows any of this»</td>
+        <td>Правила разбора и записи <code>?range=</code> вынесены в <code>utils/insightsRange</code> — именно затем, чтобы их можно было тестировать без браузера; хук — только React- и router-обвязка. Соседний абзац того же документа это описывает верно («all pinned by <code>utils/insightsRange</code>&#39;s spec»), то есть документ противоречит сам себе</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/insights/admin/AGENTS.md, «The extension points»</td>
+        <td>«An <code>InsightsWidget</code> is <code>{ id, section, <b>order</b>, size?, permission?, … }</code>» — <code>order</code> без вопросительного знака, в отличие от соседей</td>
+        <td>В типе <code>order?: number</code> — необязательное, с умолчанием <code>DEFAULT_INSIGHTS_ORDER</code>. Разница существенная: контрибутор, поверивший записи, будет считать поле обязательным и не узнает про поведение по умолчанию</td>
+      </tr>
+      <tr>
+        <td class="mono">Корневой <code>AGENTS.md</code>, «Project overview»</td>
+        <td>Перечисляет <code>alarms</code>, <code>segments</code>, <code>transfer</code>, <code>mcp</code>, <code>copilot</code> и другие, но <b>не упоминает <code>insights</code></b></td>
+        <td>Пакет описан только в <code>CONTEXT-MAP.md</code> (строка 38, описание точное). Формально это не противоречие — корневой файл и не претендует на полный список, — но агент или разработчик, начавший с канонического файла контекста, о существовании дашборда и его слота не узнает</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Замечено попутно (не расхождения, но стоит знать)</h3>
+  <ul>
+    <li><b>Идентификатор секции <code>reach</code> и её заголовок «Localisation &amp; media» разошлись.</b> Контрибутор пишет <code>INSIGHTS_SECTION_IDS.Reach</code> — слово, ничего не говорящее ни про локали, ни про медиа, — и попадает в полосу, которая на экране называется совсем иначе.</li>
+    <li><b>Права в наборе прав склеиваются через запятую.</b> <code>useInsightsLayout</code> строит ключ мемоизации как <code>permissions.join(',')</code> и тут же разбирает обратно через <code>split(',')</code>. Пока все ключи прав имеют форму <code>область:действие</code>, это безопасно; ключ, содержащий запятую, распался бы на два несуществующих.</li>
+    <li><b>Верхняя граница периода совпадает с потолком сервера.</b> Выбор «12m» отправляет <code>days=365</code>, а серверный DTO принимает максимум ровно 365. Запаса нет: любое расширение набора диапазонов вверх потребует одновременной правки <code>MAX_INSIGHTS_DAYS</code>, иначе крайний вариант начнёт давать 400.</li>
+    <li><b>Виджет покрытия переводами гейтится на <code>content:read</code>, а не на праве локализации.</b> Отдельного права у i18n нет, так что это единственный возможный выбор, — но из реестра это не очевидно.</li>
+    <li><b>Дублирование состояния запроса.</b> Три плитки контента и две медийные карточки читают по одному общему <code>queryKey</code>: запрос один, а карточек — пять, и каждая рисует своё состояние. При отказе пользователь увидит несколько сообщений об одной и той же неудаче.</li>
+  </ul>
+</section>
+
+<footer class="end">
+  <p><b>Паспорт пакета <code>@orthacms/insights-admin</code>.</b> Сделан по тому же каркасу, что и артефакт по <code>identity</code>: бизнес-описание → место в системе → контракт расширения → реестр → маршруты и экраны → сценарии → состояния → диапазон → графики → доступность → инварианты → чек-лист → границы → расхождения. Главный раздел здесь — <b>реестр виджетов</b>: в самом коде такого списка нет и быть не может, потому что каждая его строка объявлена в чужом пакете.</p>
+  <p>Источник — исходный код: <code>packages/insights/admin/**</code> целиком, фабрики плагинов <code>content-admin</code>, <code>media-admin</code> и <code>i18n-admin</code>, их хуки и шлюзы данных, контроллеры <code>/api/insights/*</code> в <code>content-server</code>, <code>media-server</code> и <code>i18n-server</code>, состав плагинов хоста и наборы e2e. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+</footer>
+
+</main>
+</div>

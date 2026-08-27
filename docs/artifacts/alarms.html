@@ -1,0 +1,1354 @@
+<title>Паспорт плагина Alarms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/alarms</p>
+    <h1 class="title">Alarms
+      <small>Правила, которые говорят «здесь непорядок» — и никогда не запрещают сохранить</small>
+    </h1>
+    <p class="lede">Alarms закрывает разрыв между «схема пропускает» и «редакция считает это ошибкой». Воркспейс сам объявляет, что считать проблемой («опубликованная статья, автор которой ещё черновик»), и CMS помечает такие записи везде, где с ними работают. <strong>Ни одна пометка никогда не блокирует сохранение или публикацию</strong> — это решение, а не текущее ограничение (<code>ADR-0015</code>). Правило — это <strong>дословно сохранённый фильтр списка записей</strong>, вычисляемый тем же движком, что и сам список, поэтому оно физически не может означать ничего другого.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>9</b> HTTP-маршрутов</li>
+      <li><b>2</b> таблицы БД</li>
+      <li><b>2</b> миграции</li>
+      <li><b>2</b> ключа прав</li>
+      <li><b>3</b> источника вычисления</li>
+      <li><b>3</b> уровня важности</li>
+      <li><b>2</b> состояния находки</li>
+      <li><b>6</b> слотов админки</li>
+      <li><b>1</b> инструмент копайлота</li>
+      <li><b>0</b> блокирующих проверок</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл находки</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность и устойчивость</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>CMS уже умеет жёстко проверять контент — но ровно в одном месте: в схеме типа. <code>EntryValidationService</code> проверяет значения, <code>publish-gate.ts</code> решает, можно ли публиковать, <code>EntryWriterService</code> считает обязательные связи. Эти правила твёрдые, и это правильная твёрдость: поле, объявленное <code>required</code>, не может отсутствовать у опубликованной записи.</p>
+
+  <p>Но большой класс настоящих контентных проблем там невыразим — и не должен быть выразим. Alarms существует именно для них.</p>
+
+  <h3>Что ловят алармы</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Случай</th><th>Почему схема не может это поймать</th></tr></thead>
+    <tbody>
+      <tr><td>Опубликованная статья, автор которой — черновик</td><td><code>publishedOnly</code> — это фильтр видимости <b>на чтении</b>. Публикация проходит успешно; связь просто исчезает из ответа API, страница уезжает без автора, и никому об этом не сообщают</td></tr>
+      <tr><td>Опубликованная статья без обложки</td><td>Сделать поле <code>required</code> нельзя: тогда нельзя будет сохранить незаконченный черновик, а ради этого черновики и существуют</td></tr>
+      <tr><td>Три тысячи записей, написанных до вторничного решения редакции</td><td>О них уже никогда не возникнет ни одного события. Политика приходит после контента</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Три правила, на которых всё держится</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Аларм не блокирует запись</h4>
+      <p class="small sub">Ни <code>info</code>, ни <code>warn</code>, ни <code>error</code> не гейтят сохранение, публикацию и вообще ничто. Важность упорядочивает список и красит значок — и всё. Правило порождает информацию; решение принимает человек.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Правило — сохранённый фильтр списка</h4>
+      <p class="small sub"><code>alarm_rules.filter</code> хранит <b>то же самое JSON-дерево</b>, которое список записей кладёт в <code>?filter=</code>, и вычисляется через content&#39;овский <code>EntryMatchQuery</code>. Своего языка запросов у алармов нет и не будет.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Находка — состояние, не событие</h4>
+      <p class="small sub">Одна строка на пару <code>(правило, запись)</code>. Открывается, когда запись начала подходить под условие; закрывается сама, когда перестала. История (<code>first_seen_at</code>) переживает и закрытие, и повторное открытие.</p>
+    </div>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Главное продуктовое решение · ADR-0015</span>
+    <p><b>Первое, что попросят после запуска, — блокирующий уровень важности. Ответ на это — сам ADR.</b> Уровень с правом вето превращает плагин алармов и publish-gate в две конкурирующие инстанции, решающие, валидна ли запись, — и они разойдутся. После этого нельзя верить ни одной: та, что действительно применяется (гейт), — та, которую никто не читает. Если что-то <em>обязано</em> быть непубликуемым, этому место в схеме типа контента.</p>
+  </div>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор</h4>
+      <p class="small sub">Открывает статью — и в правой панели записи видит «Автор не опубликован». Он не обязан знать, что существуют какие-то правила. Это <b>та поверхность, ради которой всё сделано</b>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Владелец редакционной политики</h4>
+      <p class="small sub">Открывает страницу Alarms воркспейса: что помечено по всему воркспейсу, сгруппированное по алармам, и сами алармы. Он же их и заводит — фильтруя список записей.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Копайлот</h4>
+      <p class="small sub">Один инструмент чтения <code>admin_alarms_findings</code> — чтобы вопрос «что не так с контентом этого воркспейса?» вообще стал отвечаемым. Записи через инструмент нет.</p>
+    </div>
+  </div>
+
+  <h3>Чем Alarms не является</h3>
+  <ul>
+    <li><b>Это не валидация.</b> Валидация отказывает; аларм сообщает. Пересечения между ними нет по построению.</li>
+    <li><b>Это не язык запросов.</b> Условие можно выразить ровно тем, чем можно отфильтровать список записей, — ни больше, ни меньше. Если нужного оператора нет, расширяют <b>движок фильтров</b> (<code>FilterOperator</code> в <code>@orthacms/utils-server</code> и <code>buildEntryFilterSurface</code> в content), а не алармы.</li>
+    <li><b>Это не агрегаты.</b> «Два товара делят один slug», «в разделе меньше трёх статей» — это <code>GROUP BY</code>, а не предикат по одной строке. Такое требует второго вида правил и второго вычислителя. Это <b>вне области</b>, а не «в планах».</li>
+    <li><b>Это не уведомления.</b> Ни писем, ни вебхуков. Доставка наружу — отдельная функция на существующем outbox с его ретраями и dead-letter, а не очередь внутри алармов.</li>
+    <li><b>Это не про медиа и не про пользователей.</b> Субъект правила — только запись контента. Механизм обобщается, но порт для обобщения имеет смысл проектировать после появления второго субъекта, а не до.</li>
+    <li><b>Здесь нет заглушения отдельной находки.</b> Оно было выпущено, проработало один релиз и было <b>отозвано целиком</b> (миграция <code>0001_drop_finding_mute</code>) — см. раздел 5.</li>
+  </ul>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/alarms</code> — это <b>два</b> пакета. Отдельного <code>domain</code>-пакета нет и он не нужен: доменное ядро здесь настолько тонкое (три файла чистого TypeScript), что живёт слоем <code>domain/</code> внутри серверного пакета.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">server</td><td class="mono">@orthacms/alarms-server</td>
+        <td>Плагин NestJS: два контроллера, сервис жизненного цикла правил, вычислитель, подписчик на outbox, периодический обход, схема и миграции</td>
+        <td>2 таблицы, 9 маршрутов, 1 инструмент копайлота, журнал миграций <code>__drizzle_migrations_alarms</code></td>
+      </tr>
+      <tr>
+        <td class="mono">admin</td><td class="mono">@orthacms/alarms-admin</td>
+        <td>Плагин админки: страница алармов, редактор аларма и вклады в шесть слотов</td>
+        <td><code>/workspaces/:id/alarms*</code> (3 маршрута), блок проверок в панели записи, колонка «Checks», кнопка «Save as alarm», рендер результата инструмента копайлота</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Раскладка серверного пакета</h3>
+  <p>Пакет переведён на слои (<code>ADR-0003</code>): <code>domain / application / infrastructure / http</code>. Слой <code>domain/</code> не импортирует ни <code>@nestjs/*</code>, ни <code>drizzle-orm</code>, ни <code>class-validator</code>.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">domain/alarm-severity.ts</td><td><code>info | warn | error</code>, их порядок, <code>severityRank</code>, guard <code>isAlarmSeverity</code></td></tr>
+      <tr><td class="mono">domain/finding-state.ts</td><td><code>open | resolved</code> и чистая функция <code>nextFindingState(matches)</code></td></tr>
+      <tr><td class="mono">domain/filter-tree-segments.ts</td><td>Первый сегмент пути каждого листа дерева фильтра — то, чем распознаётся «правило ходит по связи». Чистая, покрыта юнит-тестами, ограничение глубины обхода <code>MAX_DEPTH = 16</code></td></tr>
+      <tr><td class="mono">application/alarm-rules.service.ts</td><td>Жизненный цикл правила: проверить фильтр → сохранить → пересчитать. Здесь же <code>preview</code> и <code>resolveType</code></td></tr>
+      <tr><td class="mono">infrastructure/alarm-rule.repository.ts</td><td>Хранение правил, поиск «правил, ходящих в этот тип», перевод нарушения уникального индекса в <code>DuplicateAlarmRuleNameError</code></td></tr>
+      <tr><td class="mono">infrastructure/alarm-finding.store.ts</td><td><code>reconcile</code> (идемпотентный upsert + закрытие), чтения для списка, батча и счётчиков</td></tr>
+      <tr><td class="mono">infrastructure/alarm-evaluator.service.ts</td><td>Три пути вычисления, все — через <code>EntryMatchQuery</code></td></tr>
+      <tr><td class="mono">infrastructure/entry-event.subscriber.ts</td><td>Events из outbox → вычисление; здесь же обратный проход</td></tr>
+      <tr><td class="mono">infrastructure/alarm-sweep.service.ts</td><td>Периодический обход на обычном <code>setInterval</code></td></tr>
+      <tr><td class="mono">copilot/alarms-tool.provider.ts</td><td>Регистрация <code>admin_alarms_findings</code> в общем реестре инструментов</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему нет агрегата и нет порта репозитория</span>
+    <p>ADR-0003 прямо говорит: <b>тонкий контекст получает мапперы и проекции</b>, а не доменную модель, которая ему не нужна. Единственный инвариант правила — уникальность имени, а это индекс в БД; машина состояний находки — одна чистая функция. Навязать сюда агрегат и порт было бы <em>нарушением</em> ADR, а не соответствием ему.</p>
+  </div>
+
+  <h3>От кого зависит и почему порядок регистрации важен</h3>
+  <ul>
+    <li><code>@orthacms/content-server</code> — <code>EntryMatchQuery</code> (вычисление фильтра), <code>WorkspaceGrantsQuery</code> (гранты воркспейса), реестр типов. <b>AlarmsPlugin регистрируется после ContentPlugin.</b></li>
+    <li><code>@orthacms/database</code> — клиент БД через <code>@InjectDatabase()</code> и <code>OutboxDispatcher</code>, к которому подписчик регистрируется на bootstrap. <b>После DatabasePlugin.</b></li>
+    <li><code>@orthacms/identity-server</code> — <code>PermissionsGuard</code>, <code>RequirePermissions</code>, <code>OriginGuard</code>, каталог <code>PERMISSIONS</code>.</li>
+    <li><code>@orthacms/workspaces-server</code> — <code>WorkspaceGuard</code> и <code>@CurrentWorkspace()</code>.</li>
+    <li><code>@orthacms/tools-server</code> — общий реестр инструментов; внедряется <code>@Optional()</code>, поэтому деплой без копайлота и без MCP просто не регистрирует инструмент.</li>
+    <li><code>@orthacms/utils-server</code> — <code>FilterException</code>, <code>isUniqueViolation</code>.</li>
+  </ul>
+  <p class="small sub">В <code>apps/server/src/plugins.ts</code> плагин зарегистрирован как <code>AlarmsPlugin()</code> — <b>без единого аргумента</b>. Оба пакета входят в <code>CORE_PACKAGES</code> генератора приложений, то есть ставятся в сгенерированное приложение безусловно.</p>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+
+  <p>Прав ровно два, и разделены они по одной оси: <b>«кто может видеть находку»</b> отдельно от <b>«кто решает, что воркспейс считает неправильным»</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">alarms:read</td>
+        <td>Список правил с их счётчиками, страница алармов, находки по записи, сводка по важности; блок проверок в редакторе записи; колонка «Checks»; инструмент копайлота</td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td>
+      </tr>
+      <tr>
+        <td class="mono">alarms:manage</td>
+        <td>Создать, изменить, удалить правило; предпросмотр совпадений; ручной пересчёт («Check now»); кнопка «Save as alarm» в тулбаре списка</td>
+        <td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему чтение отдано всем трём ролям</span>
+    <p>Находки рендерятся <b>прямо в редакторе записи</b>, и делают это именно затем, чтобы контрибьютор мог с ними что-то сделать. Роль, которая правит записи, обязана уметь их видеть — иначе поверхность, ради которой всё построено, для неё пуста. Комментарий в <code>packages/identity/server/src/lib/rbac/system-roles.ts</code> формулирует это так: «правило — это редакционная политика, а не правка».</p>
+  </div>
+
+  <h3>Как право доходит до кода</h3>
+  <ul>
+    <li><b>На сервере:</b> оба контроллера несут <code>@UseGuards(PermissionsGuard, WorkspaceGuard)</code> на классе, а каждый метод — <code>@RequirePermissions(PERMISSIONS.ALARMS_READ)</code> или <code>ALARMS_MANAGE</code>. Права-константы, а не строковые литералы.</li>
+    <li><b><code>OriginGuard</code> — на маршрут, а не на класс.</b> Он висит на всех пяти пишущих маршрутах (включая <code>preview</code>, который формально POST) и <b>не висит</b> на чтениях. Так же устроены контроллеры content: эти маршруты аутентифицируются кукой, значит CSRF-абельны, а чтения состояние не меняют.</li>
+    <li><b>Область — воркспейс.</b> <code>WorkspaceGuard</code> читает заголовок <code>X-Workspace-Id</code>, а <code>@CurrentWorkspace()</code> отдаёт его в контроллер. Ни один запрос не может дотянуться до чужого воркспейса — <code>workspaceId</code> входит в <code>where</code> каждого запроса репозитория и хранилища находок.</li>
+    <li><b>В админке:</b> <code>useHasPermission('alarms:read' | 'alarms:manage')</code>. Все три запроса-хука (<code>useAlarmRules</code>, <code>useAlarmSummary</code>, <code>useFindingsByEntry</code>) принимают <code>enabled</code> и <b>отключены</b> без права — участник без <code>alarms:read</code> не отправляет запрос, который сервер всё равно вернул бы 403. Пункт навигации несёт <code>permission: 'alarms:read'</code> и не рисуется вовсе.</li>
+    <li><b>Кнопки прячутся, а не блокируются.</b> «Save as alarm» без <code>alarms:manage</code> (или без <code>?filter=</code> в URL) просто не рендерится: неподписанная disabled-кнопка — ответ хуже отсутствия кнопки.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Токен API сюда не дотянется никогда</span>
+    <p><code>scopePermissions</code> внешнего API-токена выдаёт <code>content:*</code> плюс <code>media:read</code>/<code>media:create</code> — и всё. <code>alarms:read</code> <b>не минтится ни одной областью токена</b>. Именно поэтому инструмент копайлота объявлен как <code>surfaces: ['copilot']</code>: предложенный MCP, он появился бы в <code>tools/list</code> и получал бы отказ на каждом вызове — хуже, чем отсутствовать, потому что рекламировал бы несуществующую возможность.</p>
+  </div>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">04</span>Модель данных</h2>
+  <p>Плагин владеет <b>двумя</b> таблицами и везёт свои миграции сам (<code>drizzle.config.ts</code> + закоммиченные <code>migrations/*.sql</code>, собственный журнал <code>__drizzle_migrations_alarms</code>, применяется хостом через <code>nx run server:db:migrate</code>). Соединение к БД плагин не открывает — клиент внедряется из <code>@orthacms/database</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th><th>Ключевые поля и ограничения</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">alarm_rules</td><td>Правило, за которым следит воркспейс</td>
+        <td>
+          <code>id</code> uuid PK · <code>workspace_id</code> uuid · <code>content_type</code> text · <code>name</code> · <code>finding_title</code> · <code>description</code> nullable · <code>severity</code> text · <code>filter</code> <b>jsonb</b> · <code>enabled</code> bool = true · <code>broken_reason</code> nullable · <code>last_scan_at</code> nullable · <code>created_by</code> uuid nullable · <code>created_at</code> · <code>updated_at</code>.<br>
+          Индексы: <b>уникальный</b> <code>(workspace_id, name)</code> — имена правил суть словарь воркспейса, два «Missing cover» сделали бы каждую находку двусмысленной; обычный <code>(workspace_id, content_type, enabled)</code> — горячий путь вычислителя «все включённые правила этого типа», выполняемый на каждую запись.
+        </td>
+      </tr>
+      <tr>
+        <td class="mono">alarm_findings</td><td>Вердикт одного правила об одной записи</td>
+        <td>
+          <b>PK <code>(rule_id, entry_id)</code></b> · <code>rule_id</code> → <code>alarm_rules.id</code> <b>ON DELETE CASCADE</b> · <code>entry_id</code> uuid · <code>workspace_id</code> uuid · <code>content_type</code> text · <code>state</code> text · <code>detail</code> jsonb nullable · <code>first_seen_at</code> · <code>last_seen_at</code> · <code>resolved_at</code> nullable.<br>
+          Индексы: <code>(workspace_id, state, rule_id)</code> — страница алармов; <code>(entry_id, state)</code> — виджет в редакторе записи и колонка списка, которые спрашивают «что открыто на этих записях» и никогда не интересуются закрытым.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Первичный ключ — это и есть вся идемпотентность</span>
+    <p>Доставка из outbox — <b>at-least-once</b>, значит вычислителю могут вручить один и тот же <code>entry.updated</code> дважды. Upsert по <code>(rule_id, entry_id)</code> делает второй проход no-op вместо дубликата строки. Он же заставляет работать машину состояний: <code>first_seen_at</code> пишется <b>только вставкой</b> и никогда не обновляется, поэтому «это висит уже три месяца» переживает и закрытие находки, и её повторное открытие.</p>
+  </div>
+
+  <h3>Чего в схеме намеренно нет</h3>
+  <ul>
+    <li><b>FK на воркспейс.</b> Таблица <code>workspaces</code> принадлежит другому плагину, а кросс-плагинными внешними ключами эта кодовая база строки не скоупит.</li>
+    <li><b>FK на запись.</b> Записи живут в сгенерированных хостом таблицах <code>content_&lt;name&gt;</code>, по одной на тип, — указывать просто не на что. Честность поддерживают подписчики на <code>entry.deleted</code> / <code>entry.purged</code>.</li>
+    <li><b>FK на автора правила.</b> <code>created_by</code> — uuid без ссылки, как <code>activity_events.actor_id</code>: правило обязано пережить удаление того, кто его написал.</li>
+    <li><b>Перечисление (enum) для <code>severity</code> и <code>state</code>.</b> Оба хранятся как <code>text</code>, чтобы добавление уровня важности не было миграцией. Плата за это — необходимость приводить неизвестное значение: <code>coerceSeverity</code> и <code>severityLook</code> откатываются к <code>warn</code>. Бросать исключение значило бы уронить всю страницу алармов из-за одной кривой строки.</li>
+  </ul>
+
+  <h3>Две миграции</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Миграция</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">0000_init_alarms.sql</td><td>Создаёт обе таблицы, четыре индекса и каскадный FK. Обратите внимание: в исходном варианте <code>alarm_findings</code> несла ещё три колонки — <code>muted_at</code>, <code>muted_by</code>, <code>muted_reason</code></td></tr>
+      <tr><td class="mono">0001_drop_finding_mute.sql</td><td>Отзыв заглушения. <b>Сначала</b> <code>UPDATE … SET state='open' WHERE state='muted'</code>, и только <b>потом</b> три <code>DROP COLUMN</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему порядок внутри 0001 несущий</span>
+    <p>После удаления колонок опознать бывшие заглушённые строки было бы нечем. Оставшись в состоянии <code>muted</code>, которое ни один код больше не знает, они попали бы в вилку: их <b>исключает</b> любой подсчёт <code>state = 'open'</code> и <b>включает</b> предикат списка <code>state &lt;&gt; 'resolved'</code>. Значок воркспейса и его же список разошлись бы в показаниях. Нормализация в <code>open</code> — честный исход отзыва функции: аларм снова говорит то, что думает.</p>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">05</span>Жизненный цикл находки</h2>
+
+  <div class="states">
+    <span class="state">нет строки</span>
+    <span class="arrow">— запись начала подходить →</span>
+    <span class="state pending">open</span>
+    <span class="arrow">⇄ перестала / снова начала ⇄</span>
+    <span class="state active">resolved</span>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Что значит</th><th>Видно в интерфейсе?</th><th>Что с историей</th></tr></thead>
+    <tbody>
+      <tr><td><span class="state pending">open</span></td><td>Запись подходит под условие правила прямо сейчас</td><td class="yes">Да — везде</td><td><code>first_seen_at</code> — момент первой вставки, дальше не меняется</td></tr>
+      <tr><td><span class="state active">resolved</span></td><td>Перестала подходить (или запись удалили в корзину)</td><td class="no">Нет — только по явному <code>?state=resolved</code></td><td>Строка сохраняется вместе с <code>first_seen_at</code>; заполняется <code>resolved_at</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Почему это машина состояний, а не «удалить строку, когда перестало подходить»: <code>resolved</code> хранит <code>first_seen_at</code>, поэтому запись, снова начавшая подходить, — это <b>та же самая находка с целой историей</b>, а не свежая, которая выглядит появившейся сегодня. Переход считает одна чистая функция <code>nextFindingState(matches)</code>, и она — единственное место, где это правило живёт: её значение пишется в <code>ON CONFLICT</code>-клаузу upsert&#39;а, где ошибка была бы тихим повреждением данных, а не упавшим запросом.</p>
+
+  <h4>Как источник события влияет на состояние</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Событие</th><th>Что происходит с находками записи</th><th>Почему именно так</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">entry.created / updated</td><td>Переоценка против всех активных правил типа; открытие или закрытие</td><td>Обычный путь</td></tr>
+      <tr><td class="mono">entry.published / unpublished / restored</td><td>То же + <b>обратный проход</b> по записям, которые ссылаются на эту</td><td>Публикация автора меняет смысл статей, а не самого автора</td></tr>
+      <tr><td class="mono">entry.deleted</td><td><code>resolveForEntry</code> — <b>закрывает</b> все находки записи, любым правилом порождённые. Плюс обратный проход</td><td>Мягкое удаление обратимо, и история обязана вернуться вместе с записью. Удалять строки нельзя</td></tr>
+      <tr><td class="mono">entry.purged</td><td><code>deleteForEntry</code> — <b>физически удаляет</b> все находки записи и на этом останавливается</td><td>Строки в таблице контента больше нет: находке не на что указывать и восстанавливать нечего</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Заглушение находки: было, отозвано, следов не оставлено</span>
+    <p>Третье состояние <code>muted</code> с полями <code>muted_at</code> / <code>muted_by</code> / <code>muted_reason</code> и двумя маршрутами существовало один релиз. Аргумент отзыва: <b>аларм либо прав насчёт записи, либо не прав</b>; глушить записи поштучно — способ жить с плохим условием вместо того, чтобы сузить или выключить сам аларм, где следующий человек увидит это решение. Отзыв сделан <b>целиком</b> — состояние, колонки, оба маршрута, счётчики и проекция для копайлота, — потому что наполовину удалённая функция хуже любого из двух состояний. Отсутствие закреплено тестами: <code>apps/server-e2e/.../alarm-findings.spec.ts</code> — «has no mute route left to call»; <code>apps/admin-e2e/src/alarms/alarms.spec.ts</code> — блок «Muting → is offered nowhere», проверяющий, что нет ни кнопки, ни вкладки.</p>
+  </div>
+
+  <h4>Жизненный цикл правила</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Признак</th><th>Смысл</th><th>Следствие для вычисления</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">enabled = true</td><td>Правило работает</td><td>Участвует во всех трёх путях</td></tr>
+      <tr><td class="mono">enabled = false</td><td>Выключено вручную</td><td><b>Исключено</b> из <code>activeForType</code>, <code>allActive</code> и обратного прохода. Уже открытые находки <b>сохраняются</b> и продолжают показываться</td></tr>
+      <tr><td class="mono">broken_reason ≠ null</td><td>Сохранённое дерево фильтра перестало разбираться против своего типа (поле переименовали, связь убрали)</td><td>Исключено из тех же трёх выборок (<code>broken_reason is null</code> в <code>where</code>), но <b>показано в интерфейсе</b> как требующее внимания</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Тихо никогда не совпадать — худшее, что может сделать инструмент корректности: это выглядит ровно как «всё в порядке». Поэтому сломанное правило не просто пропускается — оно объявляет о себе: красный <code>Alert</code> на карточке правила и на странице редактора, с текстом самой ошибки движка фильтров.</p>
+
+  <div class="note warn">
+    <span class="label">Обратный путь из «сломано» — только через правку фильтра</span>
+    <p><code>markBroken</code> вызывается из <code>safeMatch</code> при <code>FilterException</code>. Снимается флаг <b>единственным способом</b>: <code>PATCH</code> с ключом <code>filter</code> — репозиторий обнуляет <code>brokenReason</code> в том же <code>UPDATE</code> («фильтр, который только что прошёл валидацию, по определению больше не сломан»). Успешный <code>rescan</code> флаг <b>не снимает</b>. То есть если тип контента починили обратно (поле вернули), правило само не оживёт — его придётся открыть и сохранить условие заново.</p>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">06</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>6.1 Как аларм рождается на самом деле: «Save as alarm» в тулбаре списка</h3>
+  <p class="sub small">Это главный вход в функцию, и он спроектирован под последовательность, которую человек проходит в реальности: что-то выглядит неправильно → он фильтрует список записей → видит четырнадцать записей и убеждается глазами → просит CMS следить за этим дальше. К третьему шагу условие <b>уже построено и уже проверено на строках, которые он видел</b>.</p>
+  <ol class="flow">
+    <li><b>Человек фильтрует список записей.</b> Обычный query builder Content Library. Условие уезжает в URL как <code>?filter=&lt;JSON&gt;</code>, таблица под ним перерисовывается — очевидное следствие, которое и делает условие проверенным.</li>
+    <li><b>В тулбаре появляется кнопка «Save as alarm».</b> Она рисуется только при выполнении <b>двух</b> условий: есть право <code>alarms:manage</code> и в URL есть непустой <code>?filter=</code>. Оба случая <b>прячут</b> кнопку, а не блокируют.<span class="meta">SaveFilterAsRuleAction, вклад в RECORDS_TOOLBAR_SLOT</span></li>
+    <li><b>Фильтр читается прямо из строки запроса</b> через <code>useSearchParams</code>, а не из <code>RecordsToolbarContext.params</code>. Причина: контекст несёт только те ключи, которые элемент <b>объявил своими</b>, а <code>?filter=</code> принадлежит собственному контролу фильтров content. Объявить его своим значило бы, что его значение поедет в запрос списка дважды.</li>
+    <li><b>Диалог просит две строки и уровень.</b> Условие в диалоге <b>не показывается и не редактируется</b>: оно было построено в списке, который человек прямо сейчас видит, и повторное предъявление приглашало бы перепроверять только что сделанную работу.<span class="meta">две строки — не дублирование, см. врезку ниже</span></li>
+    <li><b>Пока человек печатает, диалог считает совпадения.</b> <code>POST /alarms/rules/preview</code> отдаёт <code>{ matched, total, sampleIds }</code>. Знаменатель — та половина, которая превращает число в суждение: «14» не значит ничего, «14 из 312» значит, что правило примерно правильное, а «298 из 312» — что оно вывернуто.</li>
+    <li><b>Отправка.</b> <code>POST /alarms/rules</code> с <code>{ contentType, name, findingTitle, severity, filter }</code>. Диалог отдаёт фильтр <b>дословно</b> — тот же объект, что был в URL.</li>
+    <li><b>Сервер сканирует коллекцию, не дожидаясь событий, и только потом отвечает.</b> В ответе — и правило, и результат первого скана, поэтому тост говорит «сохранено, помечено 14 записей», а не «сохранено» с предложением сходить посмотреть.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Две строки, которые кажутся дублирующими</span>
+    <p><b>Имя аларма</b> — как он назван в списке, на языке редакционной политики: «Relations point at published records». <b>«Что увидят редакторы»</b> (<code>finding_title</code>) — предложение, которое появится рядом с одной статьёй: «Автор не опубликован». Схлопнуть их — получить либо список, состоящий из инструкций, либо редактора, которому про его текст сообщают «связи указывают на опубликованные записи».</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Мина, которую выкопала эта кнопка</span>
+    <p>В query builder был относительный оператор <code>within_last</code>, который резолвился в <b>конкретную дату отсечения в браузере</b> при сериализации. Для URL это правильно: расшаренная ссылка «за последние 7 дней» обязана показывать те же строки, что видел отправитель. Для <b>сохранённого</b> фильтра это тихая ошибка: правило «не обновлялось 90 дней», написанное сегодня, навсегда означало бы «не обновлялось с 24 августа» и выглядело бы при этом совершенно нормально. Поэтому <code>within_last</code> стал настоящим серверным оператором (<code>col &gt;= now() - make_interval(...)</code>, резолвится Postgres во время запроса), а <code>treeToJsonFilter</code> получил опцию <code>relativeDates</code>. <b>Следствие, которое надо знать:</b> аларм, сохранённый из тулбара списка, наследует уже замороженную дату из URL — URL не умеет сказать, что именно человек имел в виду. Сделать окно скользящим — правка в одну строку в редакторе аларма.</p>
+  </div>
+
+  <h3>6.2 Создание с нуля, со страницы алармов</h3>
+  <p class="sub small">Второй путь, добавленный <b>по просьбе пользователя, в отмену задокументированного решения</b>. Исходное рассуждение при этом никуда не делось.</p>
+  <ol class="flow">
+    <li><b>Кнопка «New alarm»</b> в шапке страницы алармов, только при <code>alarms:manage</code> → маршрут <code>alarms/rules/new</code>, та же страница <code>AlarmRuleEditorPage</code> с пропом <code>mode="create"</code>.<span class="meta">один компонент на оба режима: формы буквально одинаковы, разница только в одном &lt;Select&gt;</span></li>
+    <li><b>Сначала — «что смотрим».</b> Селект коллекций (только <code>kind === 'collection'</code>). Пока тип не выбран, вместо конструктора условий стоит фраза «Choose a collection above to set conditions», а кнопка «Edit conditions» задизейблена. Смена типа <b>обнуляет дерево</b> условий: они принадлежали полям старого типа.</li>
+    <li><b>Условия строит тот же query builder</b>, поверх той же поверхности <code>/content-schema/:name/filter-fields</code>.</li>
+    <li><b>Живой счётчик совпадений — то, что делает этот путь приемлемым.</b> Пустая форма условий приглашает написать аларм против коллекции, в которую никто не смотрел, — так и получают правило, совпадающее со всем. Форма опирается на счётчик: при <code>matched === total &gt; 0</code> она прямо говорит «это все записи коллекции — вероятно, условие вывернуто». <b>Если этот счётчик деградирует, форма превращается в тот самый футган, о котором было решение.</b></li>
+    <li><b>Сохранение</b> — тот же <code>POST /alarms/rules</code>, тот же немедленный скан, тост с числом помеченного, возврат в список.</li>
+  </ol>
+
+  <h3>6.3 Правка аларма: Apply меняет чипы, Save перепроверяет коллекцию</h3>
+  <p class="sub small">В списке записей у Apply есть очевидное следствие — перезапускается таблица под ним. В редакторе аларма таблицы нет, поэтому фиксация условия не меняла ничего видимого, и Apply читался как мёртвая кнопка. Обе половины лечения находятся на экране в покое, а не за ещё одним кликом.</p>
+  <ol class="flow">
+    <li><b>Форма засеивается один раз, по <code>rule.id</code>.</b> Эффект зависит от идентификатора, а <b>не от объекта правила</b>: иначе фоновый рефетч TanStack Query пересеял бы форму серверной копией и выбросил правки в процессе.</li>
+    <li><b>Тип контента не показывается и не меняется.</b> <code>UpdateAlarmRuleDto</code> вообще не содержит <code>contentType</code>. Смена типа не отредактировала бы аларм — она молча перенацелила бы все уже открытые им находки на другую коллекцию.</li>
+    <li><b>Зафиксированные условия видны как чипы</b> (<code>QueryBuilderSummary</code>) в покое. Нажали Apply — чипы изменились: правка визуально переехала из конструктора в аларм. Удаление чипа фиксирует изменение немедленно, как в тулбаре списка.</li>
+    <li><b>Панель конструктора закрывается после Apply</b> (в отличие от списка, где она остаётся открытой) — иначе она закрывала бы собой единственное, что изменилось. Фокус возвращается на кнопку-переключатель через <code>requestAnimationFrame</code>: свёрнутая область становится <code>inert</code>, и фокус внутри неё провалился бы на <code>&lt;body&gt;</code>, а следующий Tab начал бы обход с начала документа.</li>
+    <li><b>Счётчик совпадений пересчитывается сам</b>, как только условия изменились. Раньше он был за кнопкой «Count matches» — единственное число, говорящее, значит ли правило то, что думает автор, было доступно только тому, кто знал, что о нём надо спросить. Эффект ключуется на <b>сериализованном фильтре через ref</b>, а не на <code>preview.mutate</code>: идентичность мутации меняется каждый рендер, и зависимость от неё давала один скан коллекции на каждое нажатие клавиши в поле имени.</li>
+    <li><b>Уведомление «условия изменены»</b> срабатывает всегда, когда экранные условия расходятся с сохранёнными — <b>включая случай, когда их все очистили</b> (прежняя проверка <code>filterKey !== null</code> считала это «не о чем сообщать»). Рендерится оно только когда есть что сохранять: у пустого состояния и задизейбленного Save есть более конкретные слова.</li>
+    <li><b>Save всегда отправляет фильтр.</b> Раньше при пустом условии ключ опускался, а API читает отсутствие ключа как «оставь как было» — то есть очистить все условия и нажать Save молча сохраняло старое. Теперь сохранение без условий просто запрещено (Save задизейблен): аларм без условия помечает каждую запись коллекции.</li>
+    <li><b>Сервер, получив новый фильтр, пересчитывает <em>до</em> ответа.</b> Иначе таблица находок продолжала бы описывать <b>предыдущее</b> условие — и делала бы это с полной уверенностью.<span class="meta">AlarmRulesService.update: assertParses → repository.update → evaluator.rescan, и только потом viewOf</span></li>
+  </ol>
+  <div class="note warn">
+    <span class="label">Тонкость: пересчёт при правке идёт только для включённого правила</span>
+    <p><code>update</code> вызывает <code>rescan</code> при условии <code>dto.filter !== undefined &amp;&amp; updated.enabled</code>. У <code>create</code> такой проверки нет — новое правило сканируется <b>всегда</b>, даже если создано с <code>enabled: false</code>. Асимметрия несущественна на практике (интерфейс не даёт создать выключенный аларм), но её стоит знать при работе с API напрямую.</p>
+  </div>
+
+  <h3>6.4 Условие редактора — полная поверхность полей списка, а не половина</h3>
+  <p>Это был настоящий баг, и он объясняет самый нетривиальный кусок кода в пакете. Список записей предлагает <b>серверные</b> пути фильтрации <b>плюс</b> то, что дают плагины через <code>RECORDS_FILTER_FIELDS_SLOT</code> — например, i18n&#39;овские <code>localeCount</code> / <code>hasLocale</code> / <code>missingLocale</code>, вычисляемые подзапросами того же плагина. Аларм, сохранённый из такого списка, может нести любой из двух видов.</p>
+  <ol class="flow">
+    <li><b>Читать только <code>useFilterFields</code> было мало.</b> Условие по локали возвращалось как «This field is no longer available — pick another one», после чего гейт Apply отказывал в <b>любой</b> правке этого аларма: он отвергает всякое правило, чьё поле не может разрешить.</li>
+    <li><b><code>useFields</code> — это хук.</b> Поэтому он вызывается <b>безусловно</b>, с модульной константой-заглушкой <code>NO_SCHEMA</code>, пока настоящая схема не загрузилась. Условный вызов по <code>schema.data</code> менял количество хуков между рендерами и <b>ронял страницу в error boundary</b> — React считает хуки, а не намерения, и падение тут тотальное, а не «список полей неполный».</li>
+    <li><b>Состояние загрузки едет вместе с полями.</b> Пустая поверхность, ещё загружающаяся и упавшая — три разных факта. Панель получает <code>fieldsPending</code>, <code>fieldsError</code> и <code>onRetryFields</code>; при этом <code>schema.isPending</code> подмешивается <b>только когда тип вообще выбран</b> — отключённый запрос сообщает <code>isPending</code> вечно, и конструктор утверждал бы, что грузится, на странице, где ничего не запрашивали.</li>
+    <li><b>Пикер связанных записей передаётся отдельно.</b> Query builder намеренно не имеет своего слоя данных, поэтому <code>renderRelationValue={RelationValuePicker}</code> обязан прийти от того, кто его монтирует. Список это делал, редактор — нет; из-за чего выбор связанной записи работал в таблице и не работал здесь.</li>
+  </ol>
+
+  <h3>6.5 Путь событий: запись изменилась</h3>
+  <p class="sub small">Самый дешёвый из трёх путей и единственный, работающий на каждой записи. Подписчик <code>EntryEventSubscriber</code> регистрируется в <code>OutboxDispatcher</code> на <code>onApplicationBootstrap</code> — ровно так же, как подписчик журнала активности.</p>
+  <ol class="flow">
+    <li><b>Событие приходит из outbox.</b> Список разрешённых видов: <code>entry.created</code>, <code>updated</code>, <code>published</code>, <code>unpublished</code>, <code>deleted</code>, <code>restored</code>, <code>purged</code>. Тип контента читается из <code>payload.contentType</code>; без него обработчик молча выходит.</li>
+    <li><b>Спецслучаи разбираются до всего остального.</b> <code>entry.purged</code> → <code>deleteForEntry</code> и выход. <code>entry.deleted</code> → <code>resolveForEntry</code>, затем обратный проход, и выход.</li>
+    <li><b>Определяется воркспейс записи.</b> <code>matches.workspaceOf(type, entryId)</code> читает его <b>из собственной таблицы записи</b>. Если строка исчезла между коммитом и доставкой — выход без ошибки: оценивать нечего, а событие удаления или чистки уже стоит в очереди.</li>
+    <li><b>Берутся активные правила этого типа.</b> Один индексированный запрос по <code>(workspace_id, content_type, enabled)</code> с дополнительным <code>broken_reason is null</code>.</li>
+    <li><b>Каждое правило точечно проверяется на одной записи.</b> <code>matchingIds(type, rule.filter, workspaceId, { entryIds: [entryId] })</code> — то же самое вычисление, что у списка, но с явным сужением до одной строки.</li>
+    <li><b>Результат согласуется.</b> <code>reconcile(rule, examined=[entryId], matched)</code>: если совпало — upsert в <code>open</code>; не совпало — <code>UPDATE … state='resolved'</code> при условии <code>state &lt;&gt; 'resolved'</code>. Записи <b>вне</b> <code>examined</code> не трогаются вовсе — иначе проход по трём строкам стирал бы остальные находки правила.</li>
+  </ol>
+  <div class="note">
+    <span class="label">Сбой здесь — не сбой записи, которая его вызвала</span>
+    <p>Событие зафиксировано вместе с записью, поэтому outbox повторит его с backoff&#39;ом, а находки просто отстанут. Кнопка «Check now» — ручное восстановление для правила, чьё событие в итоге ушло в парковку.</p>
+  </div>
+
+  <h3>6.6 Обратный проход: находки закрывают себя сами</h3>
+  <p class="sub small">Самая неочевидная строка в таблице путей — и причина, по которой находки вообще умеют закрываться. «Эта опубликованная статья ссылается на черновик автора» — факт о <b>статье</b>, а событие, которое его исправляет, приходит про <b>автора</b>.</p>
+  <ol class="flow">
+    <li><b>Проход запускается только на пяти видах событий:</b> <code>published</code>, <code>unpublished</code>, <code>deleted</code>, <code>restored</code>, <code>purged</code>. Это ровно те, после которых меняется <em>смысл</em> записей, ссылающихся на изменённую, при том что сами они не менялись.</li>
+    <li><b>Ищутся правила-кандидаты.</b> <code>byTraversedType</code> берёт включённые несломанные правила воркспейса и для каждого сравнивает <code>filterTreeSegments(rule.filter)</code> (первый сегмент пути каждого листа) с картой связей его типа. Совпал сегмент, чья связь целится в изменённый тип — правило кандидат, и мы знаем <b>имя поля связи</b>.<span class="meta">сопоставление в TypeScript, а не в SQL: jsonb-containment не выражает «любой лист, чей field начинается с этого сегмента», без индекса, которого эта таблица не хочет</span></li>
+    <li><b>Собираются связанные записи.</b> Фильтр <code>{ and: [{ field: '&lt;relation&gt;.id', op: 'eq', value: changedEntryId }] }</code> — <b>дерево, которое мы можем составить</b>, а не строка, которую пришлось бы разбирать заново. Ограничено <code>maxDependentsPerEvent</code>.</li>
+    <li><b>Добавляются записи, которые правило помечает сейчас.</b> <code>liveEntryIds(rule.id)</code>, тоже урезанные до <code>maxDependentsPerEvent</code>: правило с тысячами открытых находок не должно превращать одну публикацию в полную сверку. Остаток подберёт следующий пересчёт или обход.</li>
+    <li><b>Объединение проверяется исходным фильтром правила и согласуется.</b> Одним проходом: запись, которая начала подходить, открывает находку; та, что перестала, — закрывает.</li>
+    <li><b>Падение обратного прохода не роняет основное согласование.</b> Оно ловится, логируется как <code>warn</code> и не заставляет диспетчер повторять всё событие: цена — устаревшая находка до следующего обхода.</li>
+  </ol>
+
+  <h3>6.7 Полный пересчёт одного правила (rescan)</h3>
+  <p class="sub small">Единственное место, где плагин трогает целую коллекцию, — значит, единственное, которому нужен потолок. Вызывается из трёх мест: при создании правила, при правке фильтра, и вручную кнопкой «Check now» / «Re-check».</p>
+  <ol class="flow">
+    <li><b>Проверяется, зарегистрирован ли тип.</b> Нет — правило помечается сломанным («Content type "…" is not registered.») и возвращается нулевой результат.</li>
+    <li><b>Коллекция перечисляется постранично</b> по <code>scanBatchSize</code> записей, вплоть до <code>maxScanEntries</code>. Перечисление идёт через <b>тот же</b> <code>matchingIds</code> с <b>пустым деревом</b> <code>{}</code> — «предикат отсутствует». Один путь кода, одно понятие «какие строки существуют».</li>
+    <li><b>Каждая страница проверяется фильтром правила</b> через <code>safeMatch</code>. Сорвался разбор фильтра — правило помечается сломанным, и функция возвращает <b>частичный</b> результат вместо того, чтобы объявить «ничего не совпало».</li>
+    <li><b>Достигнут потолок — в лог уходит предупреждение.</b> Молчаливо сообщить о чистом скане усечённого набора — худшее, что может сделать инструмент корректности.</li>
+    <li><b>К осмотренному добавляются записи, которые правило помечает, но окно скана не увидело</b> — записи в корзине или ушедшие за потолок. <b>Добавить их в <code>examined</code>, не добавляя в <code>matched</code>, — это ровно то, что их закрывает.</b> Без этого такая находка висела бы открытой вечно.</li>
+    <li><b>Согласование и штамп <code>last_scan_at</code>.</b></li>
+    <li><b>Ответ говорит, что именно произошло:</b> <code>{ ruleId, scanned, opened, resolved, open }</code>. Тост показывает это словами — «проверено 312, помечено 14, снято 3», — потому что «готово» не отвечает ни на один вопрос.<span class="meta">scanned — только записи в окне скана, без добавленных «снаружи окна»</span></li>
+  </ol>
+  <div class="note warn">
+    <span class="label">Почему <code>opened</code> — сознательный недосчёт</span>
+    <p>Новыми считаются строки, у которых <code>first_seen_at === now</code>, то есть настоящие вставки. Находка, которая была закрыта и <em>снова</em> открылась, опознаётся по обнулению <code>resolved_at</code>, чего <code>RETURNING</code> увидеть не может. Это выбор в пользу <b>недосчёта повторных открытий</b>, а не пересчёта устойчивого состояния: «14 новых» при 14 давно висящих было бы враньём, а «0 новых» при одном повторно открывшемся — всего лишь скромностью.</p>
+  </div>
+
+  <h3>6.8 Периодический обход (sweep)</h3>
+  <p class="sub small">Существует ради целого класса правил, которые событиями не покрываются в принципе.</p>
+  <ol class="flow">
+    <li><b>Зачем он вообще нужен.</b> «Опубликовано и не обновлялось 90 дней», «черновик пролежал месяц» — такие правила описывают запись именно потому, что <b>её никто не трогает</b>. Никакого <code>entry.updated</code> о ней не придёт никогда, и без периодического прохода правило срабатывало бы только на строках, которые правили по другим поводам.</li>
+    <li><b>Почему интервал, а не планировщик.</b> Планировщика в репозитории нет, и заводить его ради одного таймера — это зависимость и забота деплоя. Прецедент — <code>OutboxDispatcher</code>: обычный <code>setInterval</code> в процессе, а работа за ним сделана идемпотентной, так что несколько API-процессов означают лишь, что обход случается чаще, чем настроено.</li>
+    <li><b>Первый обход намеренно отложен на один интервал.</b> Старт — худший момент для сканирования коллекций, и ничто не становится более устаревшим за минуту после запуска, чем было за минуту до.</li>
+    <li><b>Таймер <code>unref()</code>&#39;нут</b> — процесс не держится открытым ради фонового пересчёта.</li>
+    <li><b>Правила обходятся последовательно.</b> Скан читает целые коллекции; двадцать одновременно превратили бы фоновую гигиену в самое тяжёлое, что делает база. Параллельные вызывающие <b>схлопываются на уже идущий обход</b> (<code>if (this.running) return this.running</code>), а не запускают второй.</li>
+    <li><b>Падение одного правила не завершает обход</b> — оно логируется, остальные правила не связаны с ним, и их находки не должны молча перестать обновляться.</li>
+    <li><b>Остановка ждёт идущий обход.</b> Ожидание важно даже при идемпотентной работе: скан, прерванный посреди правила, согласовал часть своих батчей и не согласовал остальные, и его находки не описывают ни старое состояние, ни новое, пока что-нибудь не отработает снова.</li>
+  </ol>
+  <div class="note crit">
+    <span class="label">Обход — по процессу, а не по деплою</span>
+    <p>Это честный компромисс, а не бесплатный обед. Обход <b>не годится ни для чего, что обязано случиться ровно один раз</b>. <code>sweepIntervalMinutes: 0</code> выключает его целиком — и это настоящий выбор, поэтому валидация конфигурации отвергает только отрицательное значение, а ноль пропускает.</p>
+  </div>
+
+  <h3>6.9 Что происходит при пересечении трёх источников</h3>
+  <p>Три пути отличаются <b>только тем, какие строки осматриваются</b>. Все три заканчиваются в одном и том же <code>EntryMatchQuery</code> и в одном и том же <code>reconcile</code>.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Источник</th><th>Осматривает</th><th>Что бывает при наложении</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Событие жизненного цикла</b><br><span class="small sub">из outbox, at-least-once</span></td>
+        <td>Одну запись против всех активных правил её типа (+ зависимые записи на пяти видах событий)</td>
+        <td>Повторная доставка того же события — <b>no-op</b>: upsert по <code>(rule_id, entry_id)</code> обновит <code>last_seen_at</code> и больше ничего</td>
+      </tr>
+      <tr>
+        <td><b>Явный пересчёт</b><br><span class="small sub">create / update-filter / кнопка</span></td>
+        <td>Всю коллекцию против <b>одного</b> правила (до потолка) + записи, которые это правило помечает</td>
+        <td>Пересчёт и событие про одну запись пишут в одну и ту же строку. Кто позже — тот и прав; оба вычисляют один предикат, поэтому расхождения быть не может</td>
+      </tr>
+      <tr>
+        <td><b>Периодический обход</b><br><span class="small sub">интервал в процессе</span></td>
+        <td>Каждое активное правило по всем воркспейсам, по очереди, тем же <code>rescan</code></td>
+        <td>Несколько процессов = несколько обходов = просто чаще. Второй обход в одном процессе схлопывается на первый</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Ключ к безопасности пересечений — <b>ограниченность <code>examined</code></b>. Согласование трогает исключительно те записи, которые проход реально осмотрел. Поэтому событийный проход по одной строке не может стереть находки, только что открытые полным сканом, а полный скан не может «откатить» вердикт о записи, изменившейся во время скана: следующее событие о ней придёт и перепишет строку.</p>
+  <p>Единственный неидемпотентный по числам аспект — <b>счётчики в отчёте о скане</b> (<code>opened</code> / <code>resolved</code>). Они описывают конкретный проход, а не состояние, и при наложении двух проходов сумма их отчётов не обязана совпадать с итоговым <code>open</code>. Итоговое <code>open</code> при этом читается отдельным запросом уже после согласования и всегда точно.</p>
+
+  <h3>6.10 Удаление правила, записи и воркспейса</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что удаляют</th><th>Что происходит с находками</th><th>Механизм</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Правило</b> (<code>DELETE /alarms/rules/:id</code>)</td>
+        <td>Все его находки исчезают физически</td>
+        <td>FK <code>alarm_findings.rule_id</code> с <code>ON DELETE CASCADE</code>. Логика: с исчезнувшим правилом их <b>нечем интерпретировать</b> — заголовок находки, её важность и имя аларма живут в строке правила, а не в строке находки. Диалог подтверждения говорит это прямо: «"{name}" и всё, что он пометил, будет удалено. Сами записи не тронуты»</td>
+      </tr>
+      <tr>
+        <td><b>Запись — в корзину</b> (<code>entry.deleted</code>)</td>
+        <td>Находки <b>закрываются</b> (<code>resolved</code>), не удаляются</td>
+        <td><code>resolveForEntry</code>. Восстановление обязано вернуть историю вместе с записью, а <code>first_seen_at</code> и есть эта история. Плюс обратный проход: то, что на неё ссылалось, могло изменить смысл</td>
+      </tr>
+      <tr>
+        <td><b>Запись — восстановление</b> (<code>entry.restored</code>)</td>
+        <td>Переоценивается заново; подходящие находки открываются с прежним <code>first_seen_at</code></td>
+        <td>Обычный событийный путь + обратный проход</td>
+      </tr>
+      <tr>
+        <td><b>Запись — окончательная чистка</b> (<code>entry.purged</code>)</td>
+        <td>Находки <b>удаляются</b> физически</td>
+        <td><code>deleteForEntry</code>. Строки в таблице контента больше нет: указывать не на что и восстанавливать нечего. Это единственный случай, когда удалять строку правильно</td>
+      </tr>
+      <tr>
+        <td><b>Воркспейс</b></td>
+        <td class="no">Ничего. Строки <code>alarm_rules</code> и <code>alarm_findings</code> остаются</td>
+        <td>Alarms <b>не регистрирует <code>WorkspacePurger</code></b> и не имеет FK на <code>workspaces</code>. Сам по себе побочный ущерб ограничен: удаление воркспейса отказывается идти, пока в нём есть записи контента, поэтому находок к тому моменту практически не остаётся, — но <b>правила остаются сиротами</b>. См. раздел 14</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.11 Что видит редактор, открыв запись</h3>
+  <ol class="flow">
+    <li><b>Виджет монтируется в <code>ENTRY_SIDEBAR_WIDGET_SLOT</code></b> с порядком 40 — под встроенными блоками «Детали» и публикации. Находка — это контекст записи, а не первое, что нужно при её открытии.</li>
+    <li><b>Создаваемая запись пропускается.</b> У неё ещё нет id — находить нечего, и запроса не делается вовсе.</li>
+    <li><b>Один батч-запрос</b> <code>GET /alarms/findings/by-entry?entryIds=&lt;id&gt;</code>. Тот же хук, что и у колонки списка, — поэтому на страницу записей уходит один запрос, а не по одному на строку.</li>
+    <li><b>Три состояния различимы.</b> Загрузка → спиннер. Ошибка → «Checks could not be loaded, so this record has not been checked». Пусто → «No alarm flags this record». <b>Ошибку нельзя рендерить как пустоту</b>: «ничего не помечено» и «мы не смогли проверить» выглядят одинаково, но успокаивает только первое.</li>
+    <li><b>Каждая находка — иконка важности + заголовок находки + имя аларма</b> мелким шрифтом. Имя аларма здесь для того, чтобы редактор, желающий понять, <em>почему</em> с него это спрашивают, знал, с чего начать.</li>
+    <li><b>Своей рамки виджет не рисует</b> — использует <code>EntrySidebarSection</code>. Отдельная карточка была бы единственной плавающей коробкой в плоской панели.</li>
+  </ol>
+
+  <h3>6.12 Копайлот читает находки</h3>
+  <ol class="flow">
+    <li><b>Инструмент один и только на чтение:</b> <code>admin_alarms_findings</code>, <code>readOnly: true</code>, <code>effect: 'read'</code>, <code>requires: ['alarms:read']</code>, <code>surfaces: ['copilot']</code>. Регистрируется в общем реестре из <code>onModuleInit</code> через <code>@Optional()</code>-внедрённый <code>ToolRegistry</code>.</li>
+    <li><b>Он ходит в то же <code>AlarmFindingStore</code></b>, что и HTTP-маршруты, и область — <code>ToolContext.workspaceId</code>, разрешаемый до диспетчеризации. Вызов физически не может прочитать чужой воркспейс.</li>
+    <li><b>Страница и её разбивка по важности — два чтения одного предиката.</b> <code>severityCounts</code> делит <code>where</code>-строитель со <code>list</code>, поэтому полоска сверху не может описывать другой набор, чем список под ней. Это разбивка <b>всего набора</b>, а не страницы: выборка, описывающая себя как воркспейс, — ровно тот вид уверенной неправоты, который модель потом повторяет как факт.</li>
+    <li><b>Проекция намеренно узкая.</b> <code>findings-tool-output.ts</code> (чистый, покрыт юнит-тестами) выбрасывает <code>detail</code> — непрозрачный jsonb-мешок, чья форма принадлежит написавшему её правилу, — и обе сырые метки времени в пользу <code>openForDays</code>. Дни округляются <b>вниз</b>: находка четырёх часов от роду — «0 дней», то есть «сегодня»; округление вверх состарило бы всё на полсуток, и модель заявила бы это как факт.</li>
+    <li><b>Список назван <code>items</code> не случайно:</b> шейп-ориентированный <code>summarizeToolOutput</code> движка ранов читает <code>{ items, total }</code> как «14 результатов» безо всякого кода про алармы.</li>
+    <li><b>Результат рендерится, а не остаётся JSON&#39;ом.</b> Админка вкладывает <code>FindingsToolResult</code> в <code>COPILOT_TOOL_RESULT_SLOT</code> — строки со ссылками. Большинство результатов инструментов — это происхождение ответа; здесь список помеченных записей <b>и есть</b> ответ, и каждой строке есть куда вести.</li>
+    <li><b><code>readToolFindings</code> возвращает <code>null</code>, а не бросает.</b> Транскрипт проигрывается из сохранённой истории, и результат, записанный старой сборкой инструмента, доедет до сегодняшнего рендерера. Любая нераспознанная форма проваливается к сырому payload, который <code>ToolStep</code> и так умеет показать: JSON-блоб несравнимо лучше упавшего диалога. Строка с неизвестной важностью <b>отбрасывается</b>, а не рисуется под чужой; счётчик в шапке берётся из <code>bySeverity</code>, поэтому итог остаётся честным.</li>
+    <li><b>Единственное, чего нет больше нигде в продукте, — возраст находки.</b> Страница алармов показывает дату, панель записи — ничего, и ни то, ни другое не отвечает на вопрос, который у человека действительно есть, когда ему вручают список проблем: <em>что из этого гниёт дольше всего</em>. <code>FindingAgeBar</code> рисует полоску, отмасштабированную к самой старой находке в этом же результате (пол 4%, чтобы свежая находка читалась как строка, а не как её отсутствие), с числом текстом рядом: <b>число — это данные, полоска — только сравнение</b>, поэтому скринридер, forced colors или печать теряют ранжирование с одного взгляда и больше ничего.</li>
+    <li><b>Пишущего инструмента нет.</b> Создание аларма защитимо как <code>propose</code>-инструмент, но только когда предложение сможет нести живой предпросмотр («совпадает с 14 из 312»): JSON-дерево фильтра на карточке — не то, что рецензент может осмысленно одобрить.</li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">07</span>HTTP API</h2>
+  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост, и все — под <code>WorkspaceGuard</code> (заголовок <code>X-Workspace-Id</code>). Легенда доступа: <span class="pill pill-perm">право</span> — нужна сессия и указанное право; <span class="pill pill-ses">workspace</span> — плюс членство в воркспейсе. <b>Публичных маршрутов здесь нет ни одного.</b></p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /alarms/rules</td>
+        <td><span class="pill pill-perm">alarms:read</span> <span class="pill pill-ses">workspace</span></td>
+        <td>—</td>
+        <td><code>AlarmRuleView[]</code> — каждое правило с живым <code>openCount</code>, отсортировано по <code>name</code></td>
+        <td><code>401</code> / <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /alarms/rules</td>
+        <td><span class="pill pill-perm">alarms:manage</span> <span class="pill pill-ses">workspace</span> OriginGuard</td>
+        <td><code>{ contentType, name, findingTitle, description?, severity, filter, enabled? }</code></td>
+        <td><code>201 { rule, scan }</code> — <b>после</b> полного скана коллекции</td>
+        <td><code>400</code> фильтр не разбирается (сообщение движка); <code>404</code> неизвестный <b>или</b> негранченный тип; <code>409</code> имя занято в воркспейсе; <code>403</code> чужой Origin</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /alarms/rules/preview</td>
+        <td><span class="pill pill-perm">alarms:manage</span> <span class="pill pill-ses">workspace</span> OriginGuard</td>
+        <td><code>{ contentType, filter }</code></td>
+        <td><code>200 { matched, total, sampleIds }</code> — <code>sampleIds</code> не более 5</td>
+        <td><code>400</code>; <code>404</code>; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">PATCH /alarms/rules/:id</td>
+        <td><span class="pill pill-perm">alarms:manage</span> <span class="pill pill-ses">workspace</span> OriginGuard</td>
+        <td><code>{ name?, findingTitle?, description?, severity?, filter?, enabled? }</code> — <b>без <code>contentType</code></b></td>
+        <td><code>200 AlarmRuleView</code>. Смена <code>filter</code> валидируется, сбрасывает <code>brokenReason</code> и <b>запускает пересчёт до ответа</b></td>
+        <td><code>400</code>; <code>404</code> нет правила или тип не разрешён; <code>409</code>; <code>403</code>; невалидный uuid → <code>400</code> от <code>ParseUUIDPipe</code></td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /alarms/rules/:id</td>
+        <td><span class="pill pill-perm">alarms:manage</span> <span class="pill pill-ses">workspace</span> OriginGuard</td>
+        <td>—</td>
+        <td><code>204</code>, находки уходят каскадом</td>
+        <td><code>404</code>; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /alarms/rules/:id/rescan</td>
+        <td><span class="pill pill-perm">alarms:manage</span> <span class="pill pill-ses">workspace</span> OriginGuard</td>
+        <td>—</td>
+        <td><code>200 { ruleId, scanned, opened, resolved, open }</code></td>
+        <td><code>404</code>; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /alarms/findings</td>
+        <td><span class="pill pill-perm">alarms:read</span> <span class="pill pill-ses">workspace</span></td>
+        <td><code>?state=</code> <code>?ruleId=</code> <code>?severity=</code> <code>?page=</code> <code>?pageSize=</code></td>
+        <td><code>{ items, total, page, pageSize }</code>, сортировка <code>last_seen_at DESC, entry_id</code></td>
+        <td><code>400</code> невалидный DTO; <code>401</code> / <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /alarms/findings/by-entry</td>
+        <td><span class="pill pill-perm">alarms:read</span> <span class="pill pill-ses">workspace</span></td>
+        <td><code>?entryIds=</code> — <b>через запятую</b>, не более 100</td>
+        <td><code>{ byEntry: { [entryId]: AlarmFindingView[] } }</code>, только неразрешённые</td>
+        <td><code>400</code> больше 100 id или не-uuid среди них</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /alarms/findings/summary</td>
+        <td><span class="pill pill-perm">alarms:read</span> <span class="pill pill-ses">workspace</span></td>
+        <td>—</td>
+        <td><code>{ open: { error, warn, info }, openTotal }</code></td>
+        <td><code>401</code> / <code>403</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Решения, зашитые в контракт</h3>
+  <ul>
+    <li><b>Неизвестный тип и негранченный тип отвечают одинаково.</b> Один <code>UnknownAlarmContentTypeError</code>, одно сообщение, один <code>404</code>. Это собственное правило content (<code>resolveGrantedType</code>): различающий их редактор правил снова открыл бы канал для перечисления модели контента деплоя.</li>
+    <li><b><code>filter</code> объявлен как <code>@IsObject()</code>, и это правильно.</b> Авторитет в вопросе «корректно ли дерево» — <code>parseFilterTree</code> против названного типа, тот же парсер, что у списка. Пересказ его грамматики декораторами создал бы вторую, более слабую копию, которая разойдётся с первой при первом же новом операторе.</li>
+    <li><b><code>FilterException</code> становится <code>400</code> с сообщением движка.</b> Вызывающий — редактор правил, и «unknown field author.statuss» — это весь нужный ответ.</li>
+    <li><b>Порядок маршрутов в модуле.</b> Контроллер находок объявляет литеральные сегменты <code>by-entry</code> и <code>summary</code> и живёт под другим префиксом, чем контроллер правил, — затенять их нечему. Регистрируются они всё равно findings-first, по образцу content, где <code>bulk</code> идёт впереди <code>:id</code>.</li>
+    <li><b>Двойная защёлка на <code>pageSize</code>.</b> DTO ограничивает его <code>@Max(100)</code>, и контроллер <b>ещё раз</b> зажимает <code>Math.min(MAX_PAGE_SIZE, …)</code>. Валидатор — глубина обороны, а не граница.</li>
+    <li><b>Список без <code>?state=</code> исключает <code>resolved</code>, а не показывает всё.</b> Закрытое — это история, доступная только по явному запросу.</li>
+    <li><b><code>entryIds</code> через запятую, а не повторяющимся параметром.</b> Строка едет в URL, из которого строится ключ TanStack Query, и одна стабильная строка ключуется лучше массива с плавающим порядком.</li>
+    <li><b>Ограничение батча — 100, размером с одну страницу списка.</b> Просить больше страницы означает делать эндпоинтом то, для чего он не построен.</li>
+  </ul>
+
+  <details>
+    <summary>Длины и потолки, зашитые в <code>alarms.constants.ts</code></summary>
+    <ul>
+      <li><code>DEFAULT_PAGE_SIZE = 25</code>, <code>MAX_PAGE_SIZE = 100</code></li>
+      <li><code>NAME_MAX_LENGTH = 120</code> — имя правила и заголовок находки</li>
+      <li><code>TEXT_MAX_LENGTH = 500</code> — описание правила</li>
+      <li><code>FILTER_MAX_LENGTH = 8192</code> — грубая первая защёлка на JSON-дерево, <b>перед</b> собственными лимитами узлов и глубины у движка фильтров (та же слоистость, что в <code>activity.constants.ts</code>). <span class="sub">Объявлена, но в DTO не применяется — см. раздел 14</span></li>
+      <li><code>MAX_BATCH_ENTRY_IDS = 100</code>, <code>PREVIEW_SAMPLE_SIZE = 5</code></li>
+      <li><code>WRITE_CHUNK = 500</code> в хранилище находок — <b>не тюнинг, а граница корректности</b>: Postgres принимает максимум 65535 bind-параметров на запрос, при восьми колонках на строку потолок одной вставки — около 8000 находок, за которым драйвер валит всё согласование. Пятьсот оставляет порядок запаса и держит запросы достаточно короткими, чтобы медленный оставался прерываемым</li>
+    </ul>
+  </details>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">08</span>Админка: экраны, слоты, состояния</h2>
+
+  <h3>Шесть слотов, три маршрута</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Вклад</th><th>Для кого</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ENTRY_SIDEBAR_WIDGET_SLOT</td><td><code>EntryAlarmsWidget</code> — блок «Checks» в панели записи, порядок 40</td><td><b>Редактор, на странице, где это чинится.</b> Поверхность, ради которой всё существует</td></tr>
+      <tr><td class="mono">RECORDS_COLUMN_SLOT</td><td>Колонка «Checks» (<code>AlarmsColumnCell</code>), <code>appliesTo: () =&gt; true</code></td><td>Тот, кто просматривает коллекцию. <b>По умолчанию выключена</b></td></tr>
+      <tr><td class="mono">RECORDS_TOOLBAR_SLOT</td><td><code>SaveFilterAsRuleAction</code> — «Save as alarm»</td><td>Тот, кто только что отфильтровал список и хочет, чтобы за этим следили</td></tr>
+      <tr><td class="mono">WORKSPACE_ROUTE_SLOT</td><td>3 маршрута: <code>alarms</code> (60), <code>alarms/rules/new</code> (61), <code>alarms/rules/:ruleId</code> (62) — все lazy</td><td>Владелец редакционной политики</td></tr>
+      <tr><td class="mono">WORKSPACE_NAV_SLOT</td><td>Пункт «Alarms», иконка <code>BellRing</code>, порядок 40, <code>permission: 'alarms:read'</code></td><td>Все, у кого есть чтение</td></tr>
+      <tr><td class="mono">COPILOT_TOOL_RESULT_SLOT</td><td><code>FindingsToolResult</code> для <code>admin_alarms_findings</code></td><td>Тот, кто спросил копайлот</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub small">Три первых — это слоты Content Library, и <b>ни один из них не потребовал ни строчки изменений в <code>content-admin</code></b>. Тот же принцип инверсии и с копайлотом: пакет копайлота ничего не узнаёт про алармы. Маршрут <code>alarms</code> имеет порядок 60 — заметно позже контента: приземляясь в воркспейс, человек должен попадать в библиотеку, а не в список проблем.</p>
+
+  <div class="note">
+    <span class="label">Пользовательское существительное — «alarm», кодовое — «rule»</span>
+    <p>Каждая строка, которую читает человек, говорит «alarm»: «Save as alarm», «New alarm», «Delete this alarm?», третья вкладка — «Alarms». <b>Идентификаторы</b> сообщений, типы, компоненты, ключи кэша и пути API <code>/alarms/rules</code> сохраняют <code>rule</code>. Разделение пришло из баг-репорта: «rule» связно внутри страницы с заголовком Alarms и не значит ничего в тулбаре списка записей, где кнопка стоит рядом с «Filters» и выбором колонок. Единственное место, где <code>rule</code> уцелело в копирайте, — имя <em>плейсхолдера</em> сообщения (<code>{rule} · {contentType}</code>), которое никто не читает.</p>
+  </div>
+
+  <h3>Страница алармов: две вкладки</h3>
+  <ul>
+    <li><b>Flagged</b> — что помечено, <b>сгруппированное по аларму</b>, со счётчиком открытого в бейдже вкладки (из <code>summary</code>).</li>
+    <li><b>Alarms</b> — карточки правил со счётчиком, датой последней проверки и тремя действиями: «Check now», «Edit», «Delete». Выключенное правило помечено «Off»; сломанное несёт красный <code>Alert</code> с текстом ошибки.</li>
+  </ul>
+
+  <h4>Почему находки сгруппированы, а не выведены плоским списком</h4>
+  <p>Воркспейс с тысячей помеченных записей давал сорок страниц строк, в которых ничто не говорило, какой аларм за это отвечает, и каждая строка повторяла одно и то же предложение. Собственная документация страницы заявляла группировку «потому что именно так это чинят» с первого коммита; код этого не делал.</p>
+  <ul>
+    <li><b>Группы берутся из алармов, а не из страницы находок.</b> Каждое правило уже несёт свой <code>openCount</code>, поэтому и список групп, и число на каждом заголовке точны, не прочитав ни одной находки. Группировка <em>страницы</em> находок на клиенте дала бы заголовки, описывающие те двадцать пять строк, которые вернулись, — «3 записи» над кучей из девяноста.</li>
+    <li><b>Записи группы грузятся при её раскрытии.</b> Воркспейс с двадцатью алармами иначе выпустил бы двадцать запросов, чтобы нарисовать экран, на котором девятнадцать закрыты.</li>
+    <li><b>Каждая группа пагинируется сама</b>, по 10, и <b>зажимает свою страницу к <code>pageCount</code></b>: страница за концом оставляет читателя на пустом списке со спрятанным пейджером.</li>
+    <li><b>Порядок — сначала громче, потом больше.</b> Сначала <code>error</code>, внутри уровня — по убыванию количества.</li>
+    <li><b>Рисуются только алармы, у которых что-то есть.</b> Аларм на нуле — это строка, существующая, чтобы ничего не сказать; ему место на вкладке Alarms.</li>
+    <li><b>Одна группа раскрыта при входе; если их больше одной — все закрыты</b>, и страница читается как сводка, в которую проваливаются. «N записей помечено» на карточке аларма больше не <em>фильтрует</em> список: оно раскрывает группу этого аларма, оставляя остальные видимыми, — строго больше информации за тот же клик.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Находка умеет назвать запись только идентификатором</span>
+    <p>На сервере нет понятия «поле для отображения», которое хранилище могло бы приджойнить, поэтому строка показывает <code>contentType</code> + entry id табличными цифрами и делает его ссылкой на <code>/workspaces/:id/content/:type/:entryId</code>. Это <b>честный доступный сегодня идентификатор</b>: дать находке человеческий заголовок — серверное изменение, которое стоит сделать, а не подделывать на клиенте.</p>
+  </div>
+
+  <h3>Важность — это форма, а не только цвет</h3>
+  <p><code>severityLook</code> — единственное место, где важность превращается в вид, и оно отдаёт <b>иконку</b> наравне с классами: <code>CircleAlert</code> для error, <code>TriangleAlert</code> для warn, <code>Info</code> для info. Цвета — зарезервированные статусные токены дизайн-системы (<code>destructive</code> / <code>warning</code> / <code>info</code>), а не произвольные ступени палитры. Прогон валидатора палитры по реально отгруженным значениям даёт:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пара</th><th>ΔE при дейтеранопии</th><th>ΔE при нормальном зрении</th><th>Порог</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">#a06108 (warn) ↔ #d40c1a (error)</td><td class="num-col"><b>0.9</b></td><td class="num-col"><b>14.8</b></td><td class="num-col">15</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Два самых громких уровня — именно та пара, которую читатель не различит по тону: красный и оранжевый одной светлоты. Для статусного токена, применяемого по одному за раз, это нормально — под это его и размеряли. Здесь все три появляются в одном списке, и читатель обязан их различать. Поэтому важность несёт <b>прежде всего форма</b>, цвет соглашается с формой, а слово присутствует всегда (видимо на чипе, <code>sr-only</code> на голом глифе). Три избыточных кодирования — это то, чего требует WCAG 1.4.1.</p>
+  <p class="small sub">Полоска возраста в результате копайлота — <b>одного нейтрального цвета</b>: длина уже несёт величину, а раскраска по важности навесила бы два кодирования на одну метку, опираясь ровно на ту красно-янтарную пару, которую дальтоник не разделяет.</p>
+
+  <h3>Детали, которые легко потерять</h3>
+  <ul>
+    <li><b>Ключи кэша несут id воркспейса.</b> Скоуп — серверный, через заголовок <code>X-Workspace-Id</code>, который вешает общий <code>apiClient</code>; без id в ключе переключение воркспейса отдавало бы находки предыдущего из кэша. Ключ батча ещё и <b>сортирует id</b>, чтобы два рендера одной страницы попадали в одну запись кэша независимо от порядка строк.</li>
+    <li><b>Колонка уважает <code>isVisible</code>.</b> Расширяющие колонки скрыты по умолчанию, а <code>useRowsData</code> исполняется на каждом рендере в любом случае — игнорируя флаг, мы ходили бы в сеть на каждой странице каждого списка за данными, на которые никто не смотрит.</li>
+    <li><b><code>isError</code> никогда не рендерится как пустое состояние.</b> Список находок, список правил, виджет записи и ячейка колонки — у каждого свои слова для отказа.</li>
+    <li><b>Пустые состояния — центрированная фигура, а не <code>Alert</code>.</b> Баннер во всю ширину — форма уведомления о том, что только что произошло; на широком экране пустая страница в такой рамке читается как предупреждение. И «алармов нет вовсе» отличается от «алармы есть, ничего не совпало»: успокаивает только второе, а действие есть только у первого.</li>
+    <li><b>Мутации инвалидируют корень <code>alarmsKeys.all(workspaceId)</code>.</b> Правка аларма запускает серверный пересчёт, который разом меняет счётчик на его карточке, группы на вкладке Flagged и бейдж сводки. Более узкого размещения, стоящего бухгалтерии, нет — а различать «переименование» и «смена условия» на клиенте значило бы, что клиент решает, пересканировал ли сервер: факт, известный только серверу.</li>
+    <li><b>Контролы, вложенные в чужой тулбар, выглядят как соседи.</b> Выбор колонок и переключатель «Filters» — outline-кнопки обычного размера с <code>shadow-none</code>; «Save as alarm» несла <code>size="sm"</code> и тень и читалась как другой класс контрола, вклинившийся в их ряд.</li>
+    <li><b><code>Alert</code> только с описанием кладёт иконку <em>внутрь</em> описания.</b> <code>Alert</code> абсолютно позиционирует верхнеуровневый <code>&lt;svg&gt;</code> в <code>left-4 top-4</code> и подтягивает блок рядом на 3px вверх — геометрия под «заголовок над описанием». Однострочный баннер без заголовка получает иконку у верха коробки и предложение мимо её центра. Обёртка иконки и текста в flex-строку выводит их из-под селекторов <code>[&amp;&gt;svg]</code>.</li>
+    <li><b>Обе страницы несут <code>PageTopBar</code></b> — то же оформление, что у любого другого раздела воркспейса, и именно там живёт путь назад: хлебные крошки редактора — <code>Alarms › &lt;имя аларма&gt;</code>, так что две открытые вкладки различаются по тому, какой аларм в них правят, а не обе читаются как «Edit alarm».</li>
+  </ul>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">09</span>Конфигурация</h2>
+  <p>Всё, что здесь есть, <b>ограничивает работу</b>. Сами правила живут в базе, потому что они — контент воркспейса, а не настройка деплоя. <b>Ни одной переменной окружения плагин не читает</b>: в <code>apps/server/src/plugins.ts</code> он зарегистрирован как <code>AlarmsPlugin()</code> — без аргументов, то есть на одних умолчаниях.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>По умолчанию</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">maxScanEntries</td><td class="num-col"><code>20 000</code></td><td>Потолок записей, осматриваемых одним полным пересчётом одного правила. Пересчёт — единственное место, трогающее целую коллекцию, значит единственное, которому нужен потолок; событийный путь смотрит только на то, что изменилось. Скан, упёршийся в потолок, <b>сообщает, что он осмотрел</b>, а не делает вид, что видел всё</td></tr>
+      <tr><td class="mono">scanBatchSize</td><td class="num-col"><code>500</code></td><td>Сколько записей один пересчёт читает за раз. Ограничивает пиковую память на большой коллекции, не меняя выводов скана</td></tr>
+      <tr><td class="mono">sweepIntervalMinutes</td><td class="num-col"><code>60</code></td><td>Как часто активные правила пересчитываются в фоне. <b><code>0</code> выключает обход целиком</b> — единственное поле, где ноль является настоящим выбором</td></tr>
+      <tr><td class="mono">maxDependentsPerEvent</td><td class="num-col"><code>500</code></td><td>На сколько записей одно событие вправе разойтись в обратном проходе. Применяется дважды: и к связанным записям, и к уже помеченным этим правилом</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Конфигурация, которая молча ничего не делает, отвергается при сборке</span>
+    <p><code>assertConfig</code> в фабрике плагина отказывает при нецелом или меньшем единицы значении у трёх «положительных» полей. <b>Ноль или отрицательное здесь не значит «без ограничений»</b> — это скан, который осматривает ноль строк и рапортует о чистой коллекции. Это единственный режим отказа, которого у плагина не должно быть никогда, поэтому он ловится в конструкторе, а не обнаруживается по подозрительно пустой странице алармов. У <code>sweepIntervalMinutes</code> отвергается только отрицательное.</p>
+  </div>
+
+  <details>
+    <summary>Порядок регистрации и запуск</summary>
+    <p><code>AlarmsPlugin</code> регистрируется <b>после</b> <code>DatabasePlugin</code> (клиент БД и outbox) и <b>после</b> <code>ContentPlugin</code> (реестр типов, поверхность фильтров, запрос грантов). Модуль объявлен <code>global: true</code> — как и все прочие плагины здесь, — чтобы его сервисы были внедряемы откуда угодно; наружу экспортируются <code>ALARMS_CONFIG</code>, <code>AlarmFindingStore</code>, <code>AlarmEvaluator</code> и <code>AlarmRulesService</code> для поверхностей, которые захотят читать находки не через HTTP. <code>EntryEventSubscriber</code> и <code>AlarmSweepService</code> регистрируются/вооружаются на <code>onApplicationBootstrap</code>, то есть внутри <code>app.init()</code>: после сборки всех модулей и до того, как сервер начал слушать. <code>AlarmsCopilotToolProvider</code> регистрируется раньше, на <code>onModuleInit</code>, через <code>@Optional()</code>-реестр.</p>
+  </details>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">10</span>Безопасность и устойчивость</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Нет перечисления модели контента</h4>
+      <p class="small sub">Незарегистрированный тип и негранченный воркспейсу тип дают <b>один и тот же</b> <code>404</code> с одним и тем же текстом. Это правило пришло из content (<code>resolveGrantedType</code>), и редактор правил не имеет права его ослабить.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Область — воркспейс, всегда</h4>
+      <p class="small sub"><code>WorkspaceGuard</code> на обоих контроллерах, <code>workspace_id</code> в <code>where</code> каждого запроса, и <code>ToolContext.workspaceId</code> для инструмента копайлота, разрешаемый до диспетчеризации.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">CSRF закрыт по маршрутам</h4>
+      <p class="small sub"><code>OriginGuard</code> висит на пяти пишущих маршрутах (включая POST <code>preview</code>) и не висит на чтениях — так же, как в контроллерах content. Маршруты аутентифицируются кукой, значит CSRF-абельны.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Инструмент копайлота не доступен MCP</h4>
+      <p class="small sub"><code>surfaces: ['copilot']</code> объявлено явно, а не оставлено на волю проверки прав. Будущая область токена, которая случайно включила бы <code>alarms:read</code>, иначе молча открыла бы поверхность MCP, которую никто не решал открывать.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Идемпотентность вместо «ровно один раз»</h4>
+      <p class="small sub">Доставка at-least-once, upsert по составному PK, операции над множествами в путях удаления и закрытия. Ни один путь не полагается на однократность доставки.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Сломанное дерево не роняет подписчика</h4>
+      <p class="small sub"><code>safeMatch</code> ловит <code>FilterException</code>, помечает правило сломанным и возвращает <code>null</code>. Возврат пустого массива вместо <code>null</code> означал бы «ничего не совпало» и <b>закрыл бы все находки правила</b> по дороге к рапорту об успехе.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Обход глубины у чужого JSON</h4>
+      <p class="small sub"><code>filterTreeSegments</code> ограничивает обход <code>MAX_DEPTH = 16</code>. Сохранённое дерево — это данные, а данные могут быть кривыми или враждебно глубокими: строку правила можно отредактировать руками или восстановить из бэкапа, снятого через смену схемы.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Неизвестное значение не роняет страницу</h4>
+      <p class="small sub"><code>coerceSeverity</code> на сервере и <code>severityLook</code> в админке откатываются к <code>warn</code>. Колонка текстовая специально, чтобы новая важность не была миграцией, — значит, старая сборка может получить новое значение.</p>
+    </div>
+  </div>
+
+  <h3>Устойчивость: что происходит, когда что-то ломается</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Отказ</th><th>Поведение</th><th>Восстановление</th></tr></thead>
+    <tbody>
+      <tr><td>Событие не доставилось / упало</td><td>Находки отстают. Запись, вызвавшая событие, сохранена — она не пострадала</td><td>Ретраи outbox с backoff; в пределе — кнопка «Check now»</td></tr>
+      <tr><td>Упал обратный проход</td><td><code>warn</code> в лог, основное согласование уже прошло</td><td>Следующий обход или пересчёт</td></tr>
+      <tr><td>Фильтр перестал разбираться</td><td>Правило помечено <code>broken</code>, исключено из вычисления, показано красным в интерфейсе</td><td>Открыть редактор, поправить условие и сохранить (только <code>PATCH</code> с <code>filter</code> снимает флаг)</td></tr>
+      <tr><td>Пересчёт упёрся в потолок</td><td><code>warn</code> в лог, находки за потолком не обновлены; отчёт честно показывает <code>scanned</code></td><td>Поднять <code>maxScanEntries</code> или сузить правило</td></tr>
+      <tr><td>Одно правило падает в обходе</td><td><code>warn</code> в лог, обход продолжается остальными</td><td>Следующий интервал</td></tr>
+      <tr><td>Процесс останавливается посреди обхода</td><td><code>onModuleDestroy</code> снимает таймер и <b>дожидается</b> идущего обхода</td><td>Незавершённый скан оставил бы находки, не описывающие ни старое, ни новое состояние</td></tr>
+      <tr><td>Запись исчезла между коммитом и доставкой</td><td>Подписчик молча выходит: оценивать нечего</td><td>Событие удаления или чистки уже в очереди</td></tr>
+      <tr><td>Реестра инструментов нет в деплое</td><td><code>@Optional()</code> — инструмент просто не регистрируется</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Ни один уровень важности не блокирует запись. В плагине нет ни одного пути, возвращающего отказ на сохранение или публикацию; <code>severity</code> используется только для сортировки, окраски и фильтрации.</span></li>
+    <li><span class="id">И-02</span><span>Условие правила хранится <b>дословно</b> как дерево фильтра списка записей и вычисляется через <code>EntryMatchQuery</code>. Второго формата условий в системе нет.</span></li>
+    <li><span class="id">И-03</span><span>Все три пути вычисления (событие, явный пересчёт, обход) заканчиваются в одном <code>EntryMatchQuery</code> и одном <code>AlarmFindingStore.reconcile</code>; различаются только осматриваемым набором строк.</span></li>
+    <li><span class="id">И-04</span><span>Согласование трогает <b>только</b> записи из <code>examined</code>. Проход по одной строке не может закрыть находки, о которых он не спрашивал.</span></li>
+    <li><span class="id">И-05</span><span>Повторно доставленное событие не меняет ничего, кроме <code>last_seen_at</code>: upsert по <code>(rule_id, entry_id)</code> идемпотентен.</span></li>
+    <li><span class="id">И-06</span><span><code>first_seen_at</code> пишется только вставкой и никогда не обновляется — история переживает закрытие и повторное открытие находки.</span></li>
+    <li><span class="id">И-07</span><span>Создание правила выполняет полный скан коллекции <b>до</b> ответа; правка фильтра включённого правила — тоже.</span></li>
+    <li><span class="id">И-08</span><span>Правило, чей фильтр перестал разбираться, помечается <code>broken</code>, исключается из всех трёх путей вычисления и <b>показывается</b> в интерфейсе. Оно никогда не «тихо не совпадает».</span></li>
+    <li><span class="id">И-09</span><span>Неудача вычисления фильтра приводит к <code>null</code>, а не к пустому набору совпавших: «не смогли проверить» не должно превращаться в «ничего не совпало» и закрывать все находки правила.</span></li>
+    <li><span class="id">И-10</span><span>Пересчёт добавляет в осмотренное записи, которые правило помечает, но окно скана не увидело, — иначе такая находка остаётся открытой навсегда.</span></li>
+    <li><span class="id">И-11</span><span>Пересчёт, упёршийся в <code>maxScanEntries</code>, пишет предупреждение и не сообщает о чистом скане усечённого набора.</span></li>
+    <li><span class="id">И-12</span><span><code>entry.deleted</code> <b>закрывает</b> находки записи, <code>entry.purged</code> — <b>удаляет</b> их. Мягкое удаление обратимо, чистка — нет.</span></li>
+    <li><span class="id">И-13</span><span>Удаление правила удаляет его находки каскадом БД; удаление правила невозможно из чужого воркспейса (<code>workspace_id</code> в <code>where</code> у <code>DELETE</code>).</span></li>
+    <li><span class="id">И-14</span><span>Имя правила уникально внутри воркспейса на уровне БД; нарушение переводится в <code>409</code>, а не в необработанную ошибку драйвера.</span></li>
+    <li><span class="id">И-15</span><span>Тип контента правила неизменяем: <code>UpdateAlarmRuleDto</code> не содержит поля <code>contentType</code>.</span></li>
+    <li><span class="id">И-16</span><span>Незарегистрированный и негранченный тип отвечают одинаковым <code>404</code> с одинаковым сообщением.</span></li>
+    <li><span class="id">И-17</span><span>Все маршруты требуют сессии, членства в воркспейсе и одного из двух прав; чтения — <code>alarms:read</code>, все записи — <code>alarms:manage</code>; все записи дополнительно несут <code>OriginGuard</code>.</span></li>
+    <li><span class="id">И-18</span><span>Список находок без явного <code>?state=</code> исключает <code>resolved</code>; батч по записям всегда исключает <code>resolved</code>.</span></li>
+    <li><span class="id">И-19</span><span>Разбивка по важности и страница списка строятся <b>одним</b> предикатом (<code>findingsWhere</code>) и не могут описывать разные наборы.</span></li>
+    <li><span class="id">И-20</span><span>Заглушения находки нет нигде: ни состояния, ни колонок, ни маршрута, ни вкладки, ни действия в строке. Отсутствие закреплено серверным и браузерным тестом.</span></li>
+    <li><span class="id">И-21</span><span>Конфигурация с нулевым или отрицательным ограничением отвергается при конструировании плагина; <code>sweepIntervalMinutes: 0</code> — легальное «не обходить».</span></li>
+    <li><span class="id">И-22</span><span>Обратный проход рассматривает только правила, чьё дерево фильтра упоминает связь, целящуюся в изменившийся тип, и ограничен <code>maxDependentsPerEvent</code> с обеих сторон.</span></li>
+    <li><span class="id">И-23</span><span>Обход последователен, схлопывает параллельные вызовы на уже идущий и дожидается завершения при остановке модуля.</span></li>
+    <li><span class="id">И-24</span><span>Слой <code>domain/</code> серверного пакета не импортирует ни <code>@nestjs/*</code>, ни <code>drizzle-orm</code>, ни <code>class-validator</code>.</span></li>
+    <li><span class="id">И-25</span><span>Записи в БД чанкуются по 500 строк — ниже потолка bind-параметров Postgres, который иначе валит всё согласование целиком.</span></li>
+    <li><span class="id">И-26</span><span>Редактор аларма сериализует условие с <code>relativeDates: true</code>; относительное окно остаётся относительным, а не замерзает на дате написания правила.</span></li>
+    <li><span class="id">И-27</span><span>Сохранение без единого условия невозможно: аларм без условия пометил бы каждую запись коллекции.</span></li>
+    <li><span class="id">И-28</span><span>Save всегда отправляет ключ <code>filter</code>; отсутствие ключа API читает как «не трогай», и очистка условий молча сохраняла бы старое.</span></li>
+    <li><span class="id">И-29</span><span>Заголовок и счётчик группы берутся из <code>openCount</code> правила, а не из страницы находок под ним.</span></li>
+    <li><span class="id">И-30</span><span>Все запросы админки отключены (<code>enabled: false</code>) без соответствующего права; ключи кэша содержат id воркспейса.</span></li>
+    <li><span class="id">И-31</span><span>Колонка «Checks» не делает запросов, пока она скрыта (<code>isVisible</code> прокинут в <code>enabled</code> хука).</span></li>
+    <li><span class="id">И-32</span><span>Важность несёт как минимум три кодирования: форма глифа, цвет и слово. Ни одна поверхность не кодирует её только цветом.</span></li>
+    <li><span class="id">И-33</span><span>Состояния «загрузка», «ошибка» и «пусто» различимы в каждой из четырёх поверхностей чтения (список находок, список правил, виджет записи, ячейка колонки).</span></li>
+    <li><span class="id">И-34</span><span>Инструмент копайлота — только на чтение, объявлен <code>surfaces: ['copilot']</code>, ограничен воркспейсом рана и не имеет пишущего парного инструмента.</span></li>
+    <li><span class="id">И-35</span><span><code>readToolFindings</code> никогда не бросает: нераспознанная форма даёт <code>null</code> и падение к сырому payload, строка с неизвестной важностью отбрасывается, а счётчик берётся из <code>bySeverity</code>.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат». Существующие наборы: <code>apps/server-e2e/src/server/alarms/</code> (3 файла: <code>alarm-rules.spec.ts</code>, <code>alarm-findings.spec.ts</code>, <code>alarm-rule-edit.spec.ts</code>) и <code>apps/admin-e2e/src/alarms/alarms.spec.ts</code> (сид — <code>support/api/alarms.ts</code>). Юнит-тестами покрыты <code>filter-tree-segments</code>, <code>finding-state</code>, <code>findings-tool-output</code> на сервере и <code>toolOutput</code> в админке. Серверная часть проверяется <code>curl</code> + <code>psql</code>, админская — браузером.</p>
+
+  <h3>Правила: создание и валидация</h3>
+  <ul class="check">
+    <li><b>Создать правило над коллекцией, где уже есть подходящие записи</b> → <span class="exp">в ответе <code>scan.open &gt; 0</code>; в <code>alarm_findings</code> строки со <code>state='open'</code>. Правило право в первый же день.</span></li>
+    <li><b>Фильтр с несуществующим полем</b> → <span class="exp">400 с сообщением движка фильтров; строки в <code>alarm_rules</code> не появилось.</span></li>
+    <li><b>Второе правило с тем же именем в том же воркспейсе</b> → <span class="exp">409.</span></li>
+    <li><b>То же имя в другом воркспейсе</b> → <span class="exp">201 — уникальность составная.</span></li>
+    <li><b><code>contentType</code>, которого нет в деплое</b> → <span class="exp">404 «Unknown content type "…"».</span></li>
+    <li><b><code>contentType</code>, который есть, но не гранчен воркспейсу</b> → <span class="exp">тот же 404 с тем же текстом, байт в байт.</span></li>
+    <li><b>Лишнее поле в теле</b> → <span class="exp">400 от глобального <code>ValidationPipe</code>.</span></li>
+    <li><b><code>severity</code> вне трёх значений</b> → <span class="exp">400.</span></li>
+    <li><b>Имя длиной 121 символ</b> → <span class="exp">400.</span></li>
+    <li><b>Запрос с чужим <code>Origin</code></b> → <span class="exp">403 на всех пяти пишущих маршрутах, включая <code>preview</code>.</span></li>
+  </ul>
+
+  <h3>Правила: правка, пересчёт, удаление</h3>
+  <ul class="check">
+    <li><b>Сменить фильтр на более узкий</b> → <span class="exp">ответ приходит уже после пересчёта; находки, которые открывало прежнее условие, закрыты; открыты те, что подразумевает новое.</span></li>
+    <li><b>Сменить фильтр, затем вызвать <code>rescan</code></b> → <span class="exp">скан использует <b>новое</b> условие: оно действительно сохранено, а не только применено разово.</span></li>
+    <li><b>Переименовать правило, не трогая фильтр</b> → <span class="exp">пересчёта нет; <code>last_scan_at</code> не изменился.</span></li>
+    <li><b>PATCH с <code>contentType</code> в теле</b> → <span class="exp">400 (незадекларированное поле).</span></li>
+    <li><b>PATCH правила из чужого воркспейса</b> → <span class="exp">404.</span></li>
+    <li><b>PATCH с невалидным uuid в пути</b> → <span class="exp">400 от <code>ParseUUIDPipe</code>.</span></li>
+    <li><b>Удалить правило с открытыми находками</b> → <span class="exp">204; ноль строк в <code>alarm_findings</code> с этим <code>rule_id</code>; записи контента не тронуты.</span></li>
+    <li><b>Удалить несуществующее правило</b> → <span class="exp">404.</span></li>
+    <li><b><code>rescan</code> правила, чьи данные не менялись</b> → <span class="exp"><code>opened = 0</code>, <code>resolved = 0</code>, <code>open</code> неизменен; <code>last_scan_at</code> обновлён.</span></li>
+    <li><b>Дважды подряд запустить <code>rescan</code></b> → <span class="exp">второй ничего не меняет — согласование идемпотентно.</span></li>
+  </ul>
+
+  <h3>Находки: открытие, закрытие, идемпотентность</h3>
+  <ul class="check">
+    <li><b>Опубликовать запись, подходящую под правило</b> → <span class="exp">через outbox открывается находка; <code>first_seen_at</code> — момент вставки.</span></li>
+    <li><b>Починить запись (перестала подходить)</b> → <span class="exp">находка закрывается сама, без единого клика; <code>first_seen_at</code> сохранился, заполнен <code>resolved_at</code>.</span></li>
+    <li><b>Сломать её снова</b> → <span class="exp">та же строка возвращается в <code>open</code>, <code>first_seen_at</code> — <b>прежний</b>, <code>resolved_at</code> обнулён.</span></li>
+    <li><b>Доставить одно и то же событие дважды</b> → <span class="exp">одна строка; изменился только <code>last_seen_at</code>.</span></li>
+    <li><b>Опубликовать <em>связанную</em> запись (автора)</b> → <span class="exp">находки на статьях, которые на неё ссылались, закрываются обратным проходом.</span></li>
+    <li><b>Удалить запись в корзину</b> → <span class="exp">все её находки в <code>resolved</code>; строки на месте.</span></li>
+    <li><b>Восстановить её</b> → <span class="exp">подходящие находки снова <code>open</code> с прежним <code>first_seen_at</code>.</span></li>
+    <li><b>Окончательно вычистить запись</b> → <span class="exp">строк находок с этим <code>entry_id</code> не осталось.</span></li>
+    <li><b>Оставить открытую находку и урезать <code>maxScanEntries</code> так, чтобы её запись не попала в окно скана</b> → <span class="exp">пересчёт всё равно её закрывает, если она перестала подходить (она добавляется в осмотренное «снаружи окна»).</span></li>
+  </ul>
+
+  <h3>Чтения и права</h3>
+  <ul class="check">
+    <li><b>Viewer читает <code>GET /alarms/rules</code></b> → <span class="exp">200.</span></li>
+    <li><b>Viewer вызывает <code>POST /alarms/rules</code></b> → <span class="exp">403.</span></li>
+    <li><b>Не участник воркспейса вызывает любой маршрут</b> → <span class="exp">отказ от <code>WorkspaceGuard</code>.</span></li>
+    <li><b><code>GET /alarms/findings</code> без <code>state</code></b> → <span class="exp"><code>resolved</code> в выдаче нет.</span></li>
+    <li><b><code>?state=resolved</code></b> → <span class="exp">приходит только история.</span></li>
+    <li><b><code>?pageSize=1000</code></b> → <span class="exp">400 от DTO; при обходе пайпа — зажатие до 100.</span></li>
+    <li><b><code>?page=0</code></b> → <span class="exp">400 (<code>@Min(1)</code>).</span></li>
+    <li><b><code>by-entry</code> со 101 id</b> → <span class="exp">400.</span></li>
+    <li><b><code>by-entry</code> с не-uuid среди id</b> → <span class="exp">400.</span></li>
+    <li><b><code>by-entry</code> с пустым параметром</b> → <span class="exp">200 и <code>{ byEntry: {} }</code>, без запроса в БД.</span></li>
+    <li><b><code>summary</code> при полном отсутствии находок</b> → <span class="exp"><code>{ open: { error: 0, warn: 0, info: 0 }, openTotal: 0 }</code>, а не пустой объект.</span></li>
+    <li><b>Сумма <code>summary.open</code> и количество открытых в списке</b> → <span class="exp">совпадают: это два чтения одного предиката.</span></li>
+  </ul>
+
+  <h3>Сломанное правило и потолки</h3>
+  <ul class="check">
+    <li><b>Переименовать поле в схеме типа так, чтобы сохранённый фильтр перестал разбираться, и сохранить запись</b> → <span class="exp">правило получает <code>broken_reason</code>; его находки <b>не закрываются</b>; на карточке правила — красный алерт с текстом ошибки.</span></li>
+    <li><b>Сохранить ещё одну запись этого типа</b> → <span class="exp">сломанное правило пропускается, остальные правила работают.</span></li>
+    <li><b>Вернуть поле обратно и вызвать <code>rescan</code></b> → <span class="exp">скан отрабатывает, но <code>broken_reason</code> <b>остаётся</b> — правило по-прежнему исключено из событийного пути. Снимается только <code>PATCH</code> с <code>filter</code>.</span></li>
+    <li><b>Коллекция больше <code>maxScanEntries</code></b> → <span class="exp">в логе предупреждение с именем правила и потолком; <code>scanned</code> в ответе равен потолку.</span></li>
+    <li><b>Правило с числом открытых находок больше <code>maxDependentsPerEvent</code>, публикация связанной записи</b> → <span class="exp">обратный проход не разворачивается в полную сверку; остаток подбирает следующий обход.</span></li>
+    <li><b>Строка правила с <code>severity = 'critical'</code>, вписанная руками в БД</b> → <span class="exp">страница алармов открывается, правило показано как <code>warn</code>; ничего не падает.</span></li>
+  </ul>
+
+  <h3>Обход</h3>
+  <ul class="check">
+    <li><b>Правило «не обновлялось N дней», никто ничего не трогает</b> → <span class="exp">после интервала находка появляется — событий-то не было.</span></li>
+    <li><b><code>sweepIntervalMinutes: 0</code></b> → <span class="exp">таймер не заводится вообще.</span></li>
+    <li><b><code>sweepIntervalMinutes: -1</code> / <code>maxScanEntries: 0</code></b> → <span class="exp">приложение не стартует, сообщение называет поле и полученное значение.</span></li>
+    <li><b>Два параллельных вызова <code>sweep()</code></b> → <span class="exp">второй возвращает тот же промис; второго прохода нет.</span></li>
+    <li><b>Одно правило падает в обходе</b> → <span class="exp">в логе предупреждение, остальные правила обойдены.</span></li>
+    <li><b>Остановка приложения во время обхода</b> → <span class="exp"><code>onModuleDestroy</code> дожидается завершения.</span></li>
+  </ul>
+
+  <h3>Админка: создание аларма</h3>
+  <ul class="check">
+    <li><b>Отфильтровать список записей</b> → <span class="exp">в тулбаре появляется «Save as alarm», по виду не отличимая от соседних контролов.</span></li>
+    <li><b>Снять фильтр</b> → <span class="exp">кнопка исчезает.</span></li>
+    <li><b>Войти contributor&#39;ом</b> → <span class="exp">кнопки нет ни при каком фильтре; прямой POST всё равно даёт 403.</span></li>
+    <li><b>Диалог: сохранить</b> → <span class="exp">тост называет имя и число помеченных записей; список алармов обновился.</span></li>
+    <li><b>Диалог с уже занятым именем</b> → <span class="exp">сообщение об ошибке в диалоге, диалог не закрывается.</span></li>
+    <li><b>«New alarm» → выбрать коллекцию</b> → <span class="exp">до выбора конструктор условий недоступен и подсказывает выбрать коллекцию.</span></li>
+    <li><b>Сменить коллекцию после набора условий</b> → <span class="exp">условия сброшены — они принадлежали полям прежнего типа.</span></li>
+    <li><b>Условие, совпадающее со всей коллекцией</b> → <span class="exp">явное предупреждение «это все записи — условие, вероятно, вывернуто».</span></li>
+    <li><b>Создать с пустым условием</b> → <span class="exp">кнопка «Create alarm» задизейблена.</span></li>
+  </ul>
+
+  <h3>Админка: редактор аларма</h3>
+  <ul class="check">
+    <li><b>Открыть аларм</b> → <span class="exp">сохранённое условие видно чипами <b>без</b> раскрытия конструктора; счётчик совпадений посчитан сам.</span></li>
+    <li><b>Печатать в поле имени</b> → <span class="exp">запросов предпросмотра <b>не</b> добавляется — эффект ключуется только на условиях.</span></li>
+    <li><b>Изменить условие и нажать Apply</b> → <span class="exp">чипы изменились, панель свернулась, фокус вернулся на кнопку-переключатель, счётчик пересчитался.</span></li>
+    <li><b>Убрать все условия</b> → <span class="exp">Save задизейблен; показано пустое состояние, а не уведомление «условия изменены».</span></li>
+    <li><b>Изменить условие и не сохранять</b> → <span class="exp">жёлтое уведомление «ничего не помечено и не снято, пока вы не сохраните».</span></li>
+    <li><b>Сохранить</b> → <span class="exp">на сервер уходят условия, которые на экране; после возврата в список счётчик правила соответствует новому условию.</span></li>
+    <li><b>Аларм, условие которого использует слот-поле (например, локаль)</b> → <span class="exp">оно читается как нормальное условие, а не как «поле больше недоступно»; Apply работает, аларм остаётся редактируемым.</span></li>
+    <li><b>Поверхность полей ещё грузится</b> → <span class="exp">конструктор показывает состояние загрузки, а не «мёртвый» Apply.</span></li>
+    <li><b>Запрос полей упал</b> → <span class="exp">объяснение и кнопка повтора.</span></li>
+    <li><b>Условие по связи</b> → <span class="exp">в значении предлагается пикер записей, а не текстовое поле.</span></li>
+    <li><b>Открыть аларм под contributor</b> → <span class="exp">поля только для чтения, кнопок сохранения нет.</span></li>
+    <li><b>Открыть несуществующий id</b> → <span class="exp">«No such alarm» и путь назад, а не пустой экран.</span></li>
+  </ul>
+
+  <h3>Админка: страница, панель записи, колонка</h3>
+  <ul class="check">
+    <li><b>Открыть страницу алармов</b> → <span class="exp"><code>PageTopBar</code>, две вкладки со счётчиками; при одной группе она раскрыта, при нескольких — все закрыты.</span></li>
+    <li><b>Не раскрывать группу</b> → <span class="exp">её записи <b>не запрашиваются</b>.</span></li>
+    <li><b>Нажать «N записей помечено» на карточке аларма</b> → <span class="exp">открывается вкладка Flagged и раскрывается группа этого аларма; остальные остаются видимыми.</span></li>
+    <li><b>Пролистать группу до конца, затем починить последние записи</b> → <span class="exp">страница группы зажимается к последней существующей, пейджер не пропадает вместе с содержимым.</span></li>
+    <li><b>Запрос правил падает</b> → <span class="exp">алерт «Couldn&#39;t load findings» — <b>не</b> пустое состояние.</span></li>
+    <li><b>Ни одного аларма</b> → <span class="exp">«No alarms yet» с объяснением, как их заводят, и кнопкой (при <code>alarms:manage</code>).</span></li>
+    <li><b>Алармы есть, ничего не совпадает</b> → <span class="exp">другое состояние: «Nothing is flagged. Так выглядит чистый воркспейс».</span></li>
+    <li><b>Открыть помеченную запись</b> → <span class="exp">блок «Checks» в панели: заголовок находки + имя аларма + глиф важности.</span></li>
+    <li><b>Открыть чистую запись</b> → <span class="exp">«No alarm flags this record».</span></li>
+    <li><b>Уронить <code>by-entry</code></b> → <span class="exp">«Checks could not be loaded» — не «ничего не помечено».</span></li>
+    <li><b>Создать новую запись</b> → <span class="exp">блок не рисуется и запроса не делает.</span></li>
+    <li><b>Колонка «Checks» выключена</b> → <span class="exp">запросов <code>by-entry</code> нет ни на одной странице списка.</span></li>
+    <li><b>Включить колонку</b> → <span class="exp">один запрос на страницу; в ячейке — по глифу на присутствующую важность, счётчик цифрами и <code>sr-only</code>-сводка со списком заголовков.</span></li>
+    <li><b>Участник без <code>alarms:read</code></b> → <span class="exp">пункта «Alarms» в навигации нет; прямой заход на URL даёт карточку «You cannot view alarms»; сетевых запросов не отправляется.</span></li>
+    <li><b>Переключить воркспейс</b> → <span class="exp">находки предыдущего не показываются даже мгновение (id воркспейса в ключах кэша).</span></li>
+    <li><b>Осмотр экранов axe</b> → <span class="exp">нарушений нет ни с находкой на экране, ни с открытым конструктором, ни на пустой форме создания.</span></li>
+  </ul>
+
+  <h3>Заглушение: проверка отсутствия</h3>
+  <ul class="check">
+    <li><b>Искать кнопку с текстом /mute/i на странице алармов</b> → <span class="exp">ноль совпадений.</span></li>
+    <li><b>Искать вкладку «Muted»</b> → <span class="exp">её нет; стрип — «Flagged» и «Alarms».</span></li>
+    <li><b>Вызвать любой из бывших маршрутов заглушения</b> → <span class="exp">404: маршрута не существует.</span></li>
+    <li><b>Проверить колонки <code>alarm_findings</code> в мигрированной БД</b> → <span class="exp">ни <code>muted_at</code>, ни <code>muted_by</code>, ни <code>muted_reason</code>.</span></li>
+    <li><b>Прогнать миграции на БД, где были строки <code>state='muted'</code></b> → <span class="exp">все они стали <code>open</code>; ни одной строки в нераспознаваемом состоянии.</span></li>
+    <li><b>Отдать рендереру результата копайлота старый payload с полями <code>muted</code></b> → <span class="exp">они игнорируются, а не рендерятся.</span></li>
+  </ul>
+
+  <h3>Копайлот</h3>
+  <ul class="check">
+    <li><b>Спросить копайлот про проблемы воркспейса</b> → <span class="exp">вызывается <code>admin_alarms_findings</code>; результат рендерится строками со ссылками, а не JSON&#39;ом.</span></li>
+    <li><b>Полоска возраста</b> → <span class="exp">масштабирована к самой старой находке в этом же результате; у самой свежей ширина не нулевая; число днями стоит текстом рядом.</span></li>
+    <li><b>Шапка результата</b> → <span class="exp">описывает весь набор (<code>total</code> и <code>bySeverity</code>), а строка «ещё N не показано» — разницу.</span></li>
+    <li><b>Скормить рендереру мусор вместо результата</b> → <span class="exp"><code>null</code> и падение к сырому payload; диалог не падает.</span></li>
+    <li><b>Проверить <code>tools/list</code> у MCP-эндпоинта</b> → <span class="exp"><code>admin_alarms_findings</code> отсутствует.</span></li>
+    <li><b>Вызвать инструмент под ролью viewer</b> → <span class="exp">работает: <code>alarms:read</code> есть у всех трёх ролей.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Alarms</th></tr></thead>
+    <tbody>
+      <tr><td>Подключение к БД и запуск миграций</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Владеет <b>файлами</b> схемы и миграций, но не соединением и не шагом применения</td></tr>
+      <tr><td>Грамматика и вычисление фильтра</td><td><code>utils-server</code> (<code>FilterOperator</code>, <code>parseFilterTree</code>) + <code>content-server</code> (<code>EntryMatchQuery</code>, <code>buildEntryFilterSurface</code>)</td><td><b>Только вызывает.</b> Нужного оператора нет — расширяют движок, а не алармы</td></tr>
+      <tr><td>Жёсткие правила валидности контента</td><td><code>content-server</code>: <code>EntryValidationService</code>, <code>publish-gate.ts</code>, <code>EntryWriterService</code></td><td>Ничего. Аларм не отказывает и не может научиться отказывать</td></tr>
+      <tr><td>События жизненного цикла записи</td><td><code>content-server</code> порождает, <code>OutboxDispatcher</code> доставляет</td><td>Подписывается на семь видов; регистрируется в диспетчере на bootstrap</td></tr>
+      <tr><td>Гранты контента воркспейсу</td><td><code>content-server</code> (<code>WorkspaceGrantsQuery</code>)</td><td>Спрашивает перед каждой операцией с типом; повторяет её же ответ <code>404</code></td></tr>
+      <tr><td>Права, роли и охрана маршрутов</td><td><code>identity-server</code></td><td>Владеет двумя ключами (<code>alarms:read</code>, <code>alarms:manage</code>) — но объявлены они в каталоге identity</td></tr>
+      <tr><td>Область воркспейса</td><td><code>workspaces-server</code> (<code>WorkspaceGuard</code>)</td><td>Использует; своей проверки членства не имеет</td></tr>
+      <tr><td>Реестр инструментов и авторизация вызова</td><td><code>tools-server</code></td><td>Вкладывает один инструмент и объявляет его поверхность</td></tr>
+      <tr><td>Рендер чата и транскрипта</td><td><code>copilot-admin</code></td><td>Вкладывает рендерер в <code>COPILOT_TOOL_RESULT_SLOT</code>; копайлот про алармы не знает</td></tr>
+      <tr><td>Список записей, редактор записи, тулбар</td><td><code>content-admin</code></td><td>Вкладывается в три его слота; <b>ни строчки изменений в content-admin не потребовалось</b></td></tr>
+      <tr><td>Query builder и его сериализация</td><td><code>query-builder-admin</code></td><td>Использует <code>QueryBuilderPanel</code>, <code>QueryBuilderSummary</code>, <code>treeToJsonFilter</code>, <code>jsonFilterToTree</code>; единственный в админке, кто просит <code>relativeDates</code></td></tr>
+      <tr><td>Журнал действий</td><td><code>activity</code></td><td class="no">Ничего. Создание, правка и удаление правила <b>не попадают</b> в журнал активности</td></tr>
+      <tr><td>Уборка при удалении воркспейса</td><td><code>workspaces-server</code> (<code>WorkspacePurgeRegistry</code>)</td><td class="no">Не регистрируется. Правила воркспейса остаются в БД</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Правил-агрегатов.</b> «Два товара делят slug», «в разделе меньше трёх статей», «перевод старше оригинала» — это <code>GROUP BY</code>, а не предикат по строке. Нужен второй вид правил и второй вычислитель. Вне области, а не в планах.</li>
+    <li><b>Субъектов, кроме записей контента.</b> Медиа без <code>alt</code>, пользователь без роли. Механизм обобщается; порт для обобщения стоит проектировать после появления второго субъекта.</li>
+    <li><b>Доставки наружу.</b> Вебхуки — отдельная функция на существующем outbox с его ретраями, backoff&#39;ом и dead-letter.</li>
+    <li><b>Человеческого заголовка записи в находке.</b> На сервере нет понятия display-поля; строка показывает id. Это серверное изменение, которое стоит сделать.</li>
+    <li><b>Переключателя «включить/выключить аларм» в интерфейсе.</b> Поле <code>enabled</code> есть в схеме, в обоих DTO и на карточке правила («Off»), но <b>ни редактор, ни диалог создания его не выставляют</b> — сегодня выключить аларм можно только <code>PATCH</code>&#39;ем напрямую.</li>
+    <li><b>Записи через копайлот.</b> Ни создания правила, ни изменения находки. См. раздел 6.12.</li>
+    <li><b>Сводки на главной.</b> <code>GET /alarms/findings/summary</code> описан как «числа для бейджа навигации и панели дашборда»; сегодня его читает только счётчик вкладки «Flagged».</li>
+    <li><b>Планировщика.</b> Обход — таймер в процессе; для «ровно один раз» он не годится и никогда не притворялся, что годится.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика. Подавляющее большинство — <b>следы отозванного заглушения</b>, о котором <code>packages/alarms/admin/AGENTS.md</code> прямо утверждает: «Nothing here half-remembers it».</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">docs/design/alarms.md</td>
+        <td>Модель описана как <code>finding ─ (rule, entry) → open | muted | resolved, first_seen_at, muted_reason</code>; целый финальный раздел «Open question» посвящён тому, кому дать право заглушать, и предлагает «дать контрибьютору глушить с обязательной причиной»</td>
+        <td>Заглушения <b>нет</b>: миграция <code>0001_drop_finding_mute</code> нормализовала строки и удалила три колонки, состояний два. Документ помечен «Status: shipped», то есть читается как описание текущего поведения. <b>Самое дезориентирующее расхождение в группе</b></td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0015-…-non-blocking.md</td>
+        <td>Пункт «Decision 3»: «…and can be muted with a reason that survives both»</td>
+        <td>Та же отозванная функция. ADR принят 2026-08-24 и не обновлён после отзыва</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/design/alarms.md</td>
+        <td>«There is no create-rule page at all; <code>AlarmRuleEditorPage</code> edits an existing one»</td>
+        <td>Страница создания есть: маршрут <code>alarms/rules/new</code>, тот же компонент с <code>mode="create"</code>, кнопка «New alarm» в шапке. Пакетный <code>AGENTS.md</code> честно пишет, что это «added at a user&#39;s request, reversing a documented decision», — а кросс-режущий документ решение не отразил</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/alarms/admin/src/lib/<br>infrastructure/alarmsGateway/index.ts</td>
+        <td>Последняя строка типа <code>AlarmsGateway</code> — висящий JSDoc <code>/** Silences one finding. */</code> прямо перед закрывающей скобкой</td>
+        <td>Метода после комментария нет. Осколок заглушения, переживший отзыв, — ровно то, что <code>AGENTS.md</code> обещает не оставлять</td>
+      </tr>
+      <tr>
+        <td class="mono">…/presentation/components/<br>FindingGroupList/index.tsx</td>
+        <td>Объявлено сообщение <code>emptyMutedBody</code> («Muting a flagged record silences it until someone unmutes it…»); JSDoc говорит «The flagged and muted views» и «каждая строка несёт свой <code>openCount</code> / <code>mutedCount</code>»</td>
+        <td>Сообщение <b>нигде не используется</b> (единственное вхождение — само объявление), второго счётчика в типе <code>AlarmRule</code> нет, вьюх две</td>
+      </tr>
+      <tr>
+        <td class="mono">…/presentation/pages/<br>AlarmsPage/index.tsx</td>
+        <td>JSDoc: «what is flagged, <b>what has been silenced</b>, and the rules behind both»; комментарий у типа: «Which of the <b>three</b> views the page is showing»; комментарий у <code>SegmentedControl</code>: «read as a header band rather than as <b>three</b> tabs»</td>
+        <td>Тип <code>AlarmsTab</code> — <code>'open' | 'rules'</code>, вкладок две, глушить нечего</td>
+      </tr>
+      <tr>
+        <td class="mono">…/FindingGroupList/<br>FindingGroup/index.tsx</td>
+        <td>Комментарий у эффекта зажатия страницы: «<b>Muting</b> the last row of a trailing page leaves this group&#39;s page past the end»</td>
+        <td>Заглушения нет; страница уезжает за конец от <b>исправления</b> последних записей. Механика верна, причина названа несуществующая</td>
+      </tr>
+      <tr>
+        <td class="mono">…/copilot/alarms-tool.provider.ts</td>
+        <td>JSDoc: «There is deliberately no write tool here. <b>Muting a finding</b> is the act of deciding an exception is acceptable, which is the one judgement this feature exists to ask a human for»</td>
+        <td>Вывод («пишущего инструмента нет») верен, но первое из двух его обоснований опирается на удалённую функцию</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/alarms/server/AGENTS.md</td>
+        <td>Таблица маршрутов и весь остальной текст — <b>точны</b>. Единственная неточность: раздел «Behaviour worth knowing» не упоминает, что успешный <code>rescan</code> не снимает флаг <code>broken</code></td>
+        <td>Флаг снимается исключительно <code>PATCH</code>&#39;ем с ключом <code>filter</code> (<code>alarm-rule.repository.ts</code>). Правило, чей тип починили, само не оживает</td>
+      </tr>
+      <tr>
+        <td class="mono">…/alarms.constants.ts</td>
+        <td><code>TEXT_MAX_LENGTH</code> прокомментирована как «Max length of a rule description <b>and of a mute reason</b>»; <code>FILTER_MAX_LENGTH = 8192</code> задокументирована как «грубая первая защёлка» перед лимитами движка</td>
+        <td>Причины заглушения не существует. <code>FILTER_MAX_LENGTH</code> <b>не применяется нигде</b>: в <code>save-alarm-rule.dto.ts</code> у поля <code>filter</code> стоит только <code>@IsObject()</code>, ограничения длины нет. Практический эффект ограничен (дерево всё равно проходит лимиты узлов и глубины у движка), но константа вводит в заблуждение</td>
+      </tr>
+      <tr>
+        <td class="mono">…/types/alarm-views.ts + контроллер</td>
+        <td><code>AlarmSummaryView</code> прокомментирован как «Counts behind the workspace&#39;s alarms badge <b>and home panel</b>»; <code>AlarmRuleView.openCount</code> — как «Findings currently open (i.e. <b>not resolved</b>)»</td>
+        <td>Панели на главной нет. <code>openCount</code> считается строго по <code>state = 'open'</code>, а не «не resolved», — сейчас это одно и то же, но формулировка описывает прежнюю трёхсостоянную модель</td>
+      </tr>
+      <tr>
+        <td class="mono">…/alarm-rules.service.ts (<code>update</code>)</td>
+        <td>Пакетный <code>AGENTS.md</code>: «Editing a filter forces a rescan before the response returns»</td>
+        <td>Пересчёт идёт при условии <code>updated.enabled</code>. У выключенного правила смена фильтра <b>не</b> вызывает пересчёта — что защитимо (правило всё равно исключено из вычисления), но безусловной формулировке противоречит. У <code>create</code> при этом скан безусловен, даже при <code>enabled: false</code></td>
+      </tr>
+      <tr>
+        <td class="mono">packages/alarms/admin/AGENTS.md</td>
+        <td>Раскладка описана как «utils/alarmsPlugin — the AdminPlugin factory — <b>routes + five slots</b>»</td>
+        <td>Вкладов в слоты <b>шесть</b> (включая сам <code>WORKSPACE_ROUTE_SLOT</code>); «пять» получается, только если маршруты не считать слотом, хотя они им являются. Мелочь, но при сверке сбивает счёт</td>
+      </tr>
+      <tr>
+        <td class="mono">Плагин целиком</td>
+        <td>Ни один документ не обсуждает удаление воркспейса</td>
+        <td>Alarms не регистрирует <code>WorkspacePurger</code> и не имеет FK на <code>workspaces</code>. Строки <code>alarm_rules</code> удалённого воркспейса <b>остаются сиротами</b> навсегда. Практический ущерб мал (обход будет их пересканировать в пустоту, находки закроются), но это отличается от того, как поступают <code>media</code> и копайлот, и нигде не отмечено как выбор</td>
+      </tr>
+      <tr>
+        <td class="mono">Плагин целиком</td>
+        <td>Ни один документ не отмечает отсутствие журналирования</td>
+        <td>Создание, правка и удаление правила <b>не пишут ни одного события в outbox</b> и не попадают в журнал активности — при том что правило есть редакционная политика воркспейса, то есть ровно тот класс решений, который журнал существует фиксировать</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Второй артефакт серии.</b> Сделан по группе <code>packages/alarms</code> по каркасу пилотного паспорта <code>identity</code>: бизнес-описание → состав → права → данные → жизненный цикл → сценарии → API → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения.</p>
+  <p>Источник — исходный код: контроллеры, DTO, сервисы, вычислитель, подписчик, схема Drizzle и обе миграции на сервере; фабрика плагина, хуки, шлюз, страницы и компоненты в админке. Прочитаны и сверены <code>docs/adr/0015-alarms-are-non-blocking.md</code>, <code>docs/design/alarms.md</code> и оба <code>AGENTS.md</code>. Файлы документации использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+</footer>
+
+</main>
+</div>

@@ -1,0 +1,1609 @@
+<title>Паспорт плагина i18n</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/i18n</p>
+    <h1 class="title">i18n
+      <small>Локализация контента: одна запись — по строке на язык</small>
+    </h1>
+    <p class="lede">i18n делает типы контента с флагом <code>i18n: true</code> многоязычными: <strong>одна строка на локаль</strong>, соседи по переводу связаны общим <code>locale_group_id</code>. При этом библиотека контента <strong>не знает, что такое локаль</strong> — всё поведение локалей живёт в этом плагине и подключается к контенту через один <strong>синхронный open-host порт</strong>. Плагин не владеет ни одной таблицей и не везёт ни одной миграции: набор локалей — это конфигурация хоста, а колонки <code>locale</code> / <code>locale_group_id</code> добавляет сам сборщик таблиц контента.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>4</b> HTTP-маршрута</li>
+      <li><b>0</b> своих таблиц</li>
+      <li><b>0</b> миграций</li>
+      <li><b>6</b> хуков open-host порта</li>
+      <li><b>4</b> инструмента агента</li>
+      <li><b>9</b> слотов админки</li>
+      <li><b>4</b> ключа прав</li>
+      <li><b>3</b> виртуальных поля фильтра</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#policy">Политика локалей</a></li>
+    <li><a href="#port">Синхронный open-host порт</a></li>
+    <li><a href="#reach">Куда доезжают локали</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#tools">Инструменты агента</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>i18n отвечает на один продуктовый вопрос: <b>как редакция ведёт один и тот же материал на нескольких языках</b>, не превращая это в ручную синхронизацию копий. Ответ плагина — модель «строка на локаль»: немецкая версия статьи это отдельная запись со своим id, своим статусом публикации и своей историей версий, но она принадлежит той же <b>группе перевода</b>, что и английская.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Перевод — это работа, а не копия.</b> У каждой локали свой черновик, своя публикация, своя лента ревизий. Немецкую версию можно держать в черновике, пока английская уже живая, и наоборот.</li>
+    <li><b>Общие поля не переводят дважды.</b> Автор типа помечает поле как <code>localized</code> — оно варьируется по языкам. Всё остальное <b>общее</b>: правка такого поля в одной локали переписывает его во всех соседях внутри той же транзакции. Цена товара, дата события, слаг — редактируются один раз.</li>
+    <li><b>Пропущенный перевод видно.</b> Виртуальные фильтры <code>hasLocale</code> / <code>missingLocale</code> / <code>localeCount</code> в таблице записей и карточка «Покрытие переводами» на странице Insights отвечают на вопрос «где именно отстаём» — по языкам и по типам контента.</li>
+    <li><b>Библиотека контента остаётся нейтральной.</b> content-server знает про колонку <code>locale</code> только то, что она есть и NOT NULL. Что такое «валидный слаг», «локаль по умолчанию», «fallback» — целиком здесь. Убрать плагин — и типы с <code>i18n: true</code> просто не загрузятся (загрузочная проверка content-server прямо скажет, что нужен плагин локализации).</li>
+    <li><b>Язык — это разметка, а не подпись.</b> Слаг локали по контракту является тегом BCP-47, а направление письма (<code>ltr</code>/<code>rtl</code>) сервер резолвит сам. Поэтому админка проставляет <code>lang</code> и <code>dir</code> на области полей, на имени локали и на превью без собственной таблицы соответствий (WCAG 3.1.2 и 1.3.2).</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор-переводчик</h4>
+      <p class="small sub">Открывает запись, в панели «Locale» видит все настроенные языки: у существующих — статус публикации, у отсутствующих — «Add». Нажатие на отсутствующий язык открывает форму создания, уже привязанную к той же группе перевода, с общими полями исходника.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Контент-менеджер</h4>
+      <p class="small sub">Переключает язык таблицы записей одним контролом, включает колонку «Locales», фильтрует «нет немецкого», через меню записи публикует или снимает с публикации сразу все локали.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Руководитель / владелец продукта</h4>
+      <p class="small sub">Карточка «Покрытие переводами» на Insights: сколько записей полностью локализованы, сколько не начаты, сколько не дописаны — в разрезе по языкам и по типам контента.</p>
+    </div>
+  </div>
+
+  <h3>Чем i18n не является</h3>
+  <ul>
+    <li><b>Это не перевод текста.</b> Плагин не обращается ни к какому переводчику. Текст пишет человек (или копайлот через свои propose-инструменты); i18n отвечает за структуру и целостность.</li>
+    <li><b>Это не локализация интерфейса.</b> Язык самой админки — это <code>react-intl</code> и один <code>IntlProvider</code> хоста. i18n локализует <em>контент</em>, а не подписи кнопок.</li>
+    <li><b>Это не владелец данных.</b> Ни одной таблицы, ни одной миграции. Строки живут в сгенерированных таблицах контента, конфигурация локалей — в коде хоста.</li>
+    <li><b>Это не отдельный маршрут записи.</b> Создание перевода — это обычный <code>POST /api/content/:type</code> с полем <code>localeGroupId</code>. Своего write-эндпоинта у плагина нет вообще.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Раскладка <b>слоёная, но лёгкая</b> (ADR-0003): есть <code>domain/</code> для value-объектов (<code>Locale</code>, <code>LocaleSet</code>) и чистой политики (<code>LocalePolicy</code>), но <b>нет</b> агрегата, unit-of-work и outbox — потому что писать здесь нечего, плагин не владеет таблицами. Вместо доменных событий определяющей чертой остаётся <b>синхронный open-host порт</b>: расширение обязано выполняться <em>внутри</em> транзакции записи контента, поэтому порт, а не событие, — правильная интеграция.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/i18n</code> — это <b>два</b> пакета. Отдельного <code>domain</code>-пакета здесь нет (в отличие от <code>content</code> или <code>copilot</code>): доменный слой достаточно мал, чтобы жить папкой <code>src/lib/domain</code> внутри серверного пакета, а админка держит свою маленькую зеркальную копию правил.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/i18n-server</td><td>Плагин NestJS: связывание порта контента, доменный слой локалей, 4 маршрута, read-модель Insights, 4 инструмента агента</td><td>Реестр локалей, политика fallback, синхронизация общих полей, виртуальные фильтры, блокировка группы перевода. <b>Ноль таблиц</b></td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/i18n-admin</td><td>Плагин админки: <b>ни одного маршрута, ни одного пункта меню</b> — только вклады в чужие слоты</td><td>9 слотов (8 у <code>content-admin</code> + 1 у <code>insights-admin</code>), 10 вкладов, 4 data-хука, свой <code>domain/localePolicy</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Раскладка серверного пакета</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Папка</th><th>Что внутри</th><th>Зависит от фреймворка</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">domain/value-objects</td><td><code>Locale</code> (формат слага, непустое имя, направление), <code>LocaleSet</code> (непустота, уникальность, ровно один default, запрет удалять default)</td><td class="center no">нет</td></tr>
+      <tr><td class="mono">domain/locale-policy.ts</td><td><code>LocalePolicy</code>: <code>resolve</code>, <code>shouldWidenToDefault</code>, <code>fallbackChain</code>, <code>requiredLocalesForPublish</code></td><td class="center no">нет</td></tr>
+      <tr><td class="mono">domain/errors</td><td><code>InvalidLocaleError</code>, <code>InvalidLocaleSetError</code>, <code>UnknownLocaleError</code> — транспортно-нейтральные</td><td class="center no">нет</td></tr>
+      <tr><td class="mono">locales/services</td><td><code>LocaleRegistryService</code> — единственный <code>@Injectable()</code>-шов над доменом; <code>OrphanedLocaleChecker</code> — загрузочная сверка конфига с данными</td><td class="center yes">Nest + Drizzle</td></tr>
+      <tr><td class="mono">content/services</td><td><code>EntryLocaleExtensionService</code> (896 строк — сердце плагина), <code>LocaleGroupService</code> (чтения групп), <code>locale-group-lock.ts</code></td><td class="center yes">Nest + Drizzle</td></tr>
+      <tr><td class="mono">insights/</td><td><code>http/controllers</code>, <code>infrastructure/queries</code>, <code>types</code> — единственная папка, разложенная строго по слоям</td><td class="center yes">Nest + Drizzle</td></tr>
+      <tr><td class="mono">copilot/</td><td>Два read-инструмента, два propose-инструмента, два applier'а</td><td class="center yes">Nest</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/content-server</code></b> объявляет порт <code>CONTENT_ENTRY_EXTENSION</code>, добавляет колонки <code>locale</code>/<code>locale_group_id</code> (флаг типа <code>i18n: true</code>), владеет правилом <code>relationLocaleSync</code> и пишет ревизии. <b><code>@orthacms/content-graphql</code></b> отдаёт <code>locale</code>, <code>localeGroupId</code> и <code>translations</code> — но это адаптер над тем же public-api. <b><code>@orthacms/transfer-*</code></b> возит локали в документе переноса (<code>$locale</code>, <code>$localeGroup</code>). <b><code>@orthacms/insights-admin</code></b> — страница, куда i18n вставляет свою карточку.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+
+  <p>Своих прав плагин <b>не вводит</b>. Он переиспользует четыре ключа из контентного набора Identity — и это осознанно: локаль не является отдельным объектом доступа, она является измерением записи. Кто может читать записи — тот видит их локали; кто может создавать записи — тот может создать перевод.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает в i18n</th><th>Где проверяется</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">content:read</td>
+        <td>панель локалей записи, батч-сводка по группам, карточка покрытия, оба read-инструмента агента</td>
+        <td><code>GetEntryLocalesController</code>, <code>LocaleSummaryController</code>, <code>LocalizationCoverageController</code>, обе <code>ToolDefinition.requires</code></td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td>
+      </tr>
+      <tr>
+        <td class="mono">content:create</td>
+        <td>создание перевода (строка «Add» в панели локалей становится нажимаемой)</td>
+        <td>только фронт — <code>useHasPermission(CONTENT_CREATE)</code> в <code>LocaleWidget</code>; сервер проверяет право на самом <code>POST /api/content/:type</code></td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td>
+      </tr>
+      <tr>
+        <td class="mono">content:update</td>
+        <td>оба propose-инструмента копайлота (<code>i18n_propose_translation</code>, <code>i18n_propose_bulk_translation</code>)</td>
+        <td><code>ToolDefinition.requires</code>; применение идёт через <code>EntryWriterService.create</code> от имени пользователя</td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td>
+      </tr>
+      <tr>
+        <td class="mono">content:publish</td>
+        <td>пункты меню «Publish all locales» / «Unpublish all locales»</td>
+        <td>только фронт — <code>useHasPermission</code> в обоих хуках; сами операции идут через bulk-эндпоинты контента, которые и охраняют право</td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему право на перевод — это content:update, а не content:create</span>
+    <p>Инструменты копайлота требуют <code>content:update</code>, хотя технически создают строку. Комментарий в коде объясняет: перевод — это <b>изменение существующего материала</b>, а не появление нового, и именно так на это смотрит редактор. Батч (<code>i18n_propose_bulk_translation</code>) берёт <b>тот же</b> ключ — пакетность это способ <em>попросить</em>, а не способ получить полномочия, которых у поштучного инструмента не было (ADR-0005 §7).</p>
+  </div>
+
+  <h3>Три уровня охраны маршрутов</h3>
+  <p>Все три контентных/insights-маршрута несут одинаковую тройку: сессия (глобальный <code>AuthGuard</code> хоста) → <code>PermissionsGuard</code> с <code>@RequirePermissions(CONTENT_READ)</code> → <code>WorkspaceGuard</code> (заголовок <code>X-Workspace-Id</code>). Маршрут <code>GET /api/i18n/locales</code> — единственный без права и без воркспейса: он отдаёт конфигурацию развёртывания, одинаковую для всех, и достаточно сессии.</p>
+
+  <p>Батч-сводка дополнительно несёт <code>OriginGuard</code>, хотя это чтение. Гард смотрит на <b>глагол, который видит браузер</b>: <code>POST</code> — это форма любой cross-site отправки, маршрут достижим по одной cookie, а «это всего лишь чтение» — свойство сегодняшнего обработчика, которое никакой тест не зафиксировал. Для легитимных вызывающих гард бесплатен (админка шлёт <code>Origin</code>, не-браузерные клиенты не шлют ничего).</p>
+
+  <div class="note warn">
+    <span class="label">Грант типа проверяется не везде одинаково</span>
+    <p><code>resolveI18nType</code> (HTTP-путь) <b>намеренно не проверяет</b> контент-гранты воркспейса: его вызывающие уже стоят за workspace-scoped контроллером, до которого дошли из собственного UI. А вот инструменты агента <b>перепроверяют</b> гранты через <code>WorkspaceGrantsQuery.grantedSlugs</code>, потому что имя типа приходит от <em>модели</em>, которой можно управлять прочитанным контентом. «Не выдан грант» и «не существует» — одно и то же сообщение, чтобы прогон не мог перечислить типы развёртывания.</p>
+  </div>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">04</span>Модель данных — своих таблиц нет</h2>
+
+  <p>Это главный факт о пакете: в <code>packages/i18n/server</code> нет <code>drizzle.config.ts</code> и нет папки <code>migrations/</code>. Владеть нечем. Всё, чем оперирует плагин, живёт в чужих объектах.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что</th><th>Где физически лежит</th><th>Кто создаёт</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">locale</td>
+        <td>колонка <code>text NOT NULL</code> в сгенерированной таблице <code>content_&lt;name&gt;</code></td>
+        <td><code>content-server</code>, <code>buildTables()</code>, только при <code>meta.i18n</code></td>
+      </tr>
+      <tr>
+        <td class="mono">locale_group_id</td>
+        <td>колонка <code>uuid NOT NULL DEFAULT gen_random_uuid()</code> там же</td>
+        <td>тот же сборщик; дефолт — это то, из-за чего <b>обычное создание записи само начинает новую группу</b></td>
+      </tr>
+      <tr>
+        <td class="mono">&lt;table&gt;_group_locale_unique</td>
+        <td>уникальный индекс на <code>(locale_group_id, locale)</code>; на paranoid-типах <b>частичный</b> (<code>WHERE deleted_at IS NULL</code>)</td>
+        <td><code>content-server</code>. Именно он делает дубль локали чистым 409, а не порчей группы</td>
+      </tr>
+      <tr>
+        <td class="mono">(locale, &lt;field&gt;_id)</td>
+        <td>уникальный индекс для one-to-one на i18n-типе — «в пределах одного языка цель занята один раз»</td>
+        <td><code>content-server</code>: у локализованной записи «ровно один владелец» надо считать в записях, а не в строках</td>
+      </tr>
+      <tr>
+        <td class="mono">locale_group_id</td>
+        <td>колонка в таблице ревизий</td>
+        <td><code>content-server</code>, <code>revision-table.ts</code></td>
+      </tr>
+      <tr>
+        <td class="mono">набор локалей</td>
+        <td>литеральный массив в <code>apps/server/ortha.config.ts</code> → <code>plugins.i18n.locales</code></td>
+        <td>хост. Не БД, не таблица настроек, не UI</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Следствие: «удалить локаль» — это правка кода, а не операция</span>
+    <p>Раз набор локалей — литерал в конфиге, никакой операции удаления не существует. <code>LocaleSet.remove</code> написан и охраняет default от удаления — но плагин <b>никогда его не вызывает</b>. Есть только диф, который никто не считает. Именно поэтому появился <code>OrphanedLocaleChecker</code> (см. раздел 12).</p>
+  </div>
+
+  <h3>Одна блокировка, которой плагин всё-таки владеет</h3>
+  <p>Класс advisory-блокировки <code>0x4c47</code> («LG») — единственная «сущность», которую i18n заводит в базе. Это транзакционная <code>pg_advisory_xact_lock(LG, hashtext(locale_group_id))</code>, сериализующая записи внутри одной группы перевода. Класс выбран так, чтобы не столкнуться с другими блокировками приложения: <code>WK</code> (общий контент воркспейса), <code>RE</code> (нумерация ревизий), <code>RL</code> (дозапись связей).</p>
+</section>
+
+<section id="policy">
+  <h2 class="sec"><span class="num">05</span>Политика локалей</h2>
+
+  <p>Первый из двух главных разделов. «Политика локалей» — это набор чистых правил, которые определяют, <b>что такое валидная локаль</b>, <b>какая локаль считается активной</b> и <b>во что она расширяется</b>. Правила живут в <code>domain/</code>, не знают ни про Nest, ни про Drizzle, ни про React, и покрыты юнит-тестами без всякой обвязки контента.</p>
+
+  <h3>Что считается валидной локалью</h3>
+  <p>Правило формата принадлежит value-объекту <code>Locale</code> (раньше было inline на фабрике плагина). Конструктор <code>Locale.create</code> отвергает три вещи и кидает <code>InvalidLocaleError</code>:</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Проверка</th><th>Правило</th><th>Примеры</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Формат слага</td>
+        <td><code>/^[a-z]{2,3}(-[a-z0-9]+)*$/</code> — строчный первичный тег из 2–3 букв, дальше сколько угодно подтегов через дефис</td>
+        <td>годится: <code>en</code>, <code>de</code>, <code>pt-br</code>, <code>zh-hans</code>, <code>az-arab</code>. Не годится: <code>EN</code>, <code>pt_BR</code>, <code>e</code>, <code>english</code></td>
+      </tr>
+      <tr>
+        <td>Длина слага</td>
+        <td>не длиннее <code>LOCALE_SLUG_MAX_LENGTH = 35</code> — практическая граница BCP-47</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Имя</td>
+        <td><code>name.trim()</code> не должно быть пустым</td>
+        <td><code>{ slug: 'de', name: '   ' }</code> → ошибка</td>
+      </tr>
+      <tr>
+        <td>Направление</td>
+        <td><code>dir</code>, если задано, — строго <code>'ltr'</code> или <code>'rtl'</code></td>
+        <td>любое другое значение → ошибка</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Слаг — это тег BCP-47, и это контракт</span>
+    <p>Регекс намеренно повторяет строчную форму BCP-47, и <b>ничто в коде не приводит регион к верхнему регистру</b>. Причина утилитарная: любое значение <code>locale</code>, которое плагин отдаёт наружу (в списке локалей, в <code>EntryLocaleItem</code>, в колонке записи), можно подставить дословно в HTML-атрибут <code>lang</code>. Поэтому админка ставит <code>lang={entry.locale}</code> на область полей, на превью и на опубликованную страницу без таблицы соответствий — и скринридер перестаёт читать немецкий с английской фонетикой.</p>
+  </div>
+
+  <h4>Направление письма выводится, а не спрашивается</h4>
+  <p><code>dir</code> необязателен в конфиге и <b>всегда присутствует на проводе</b>. Если хост его не указал, <code>inferLocaleDir(slug)</code> выводит его из слага по трёхступенчатому правилу:</p>
+  <ol class="flow">
+    <li><b>Явный подтег письменности решает первым.</b>
+      <span class="meta">RTL: adlm, arab, aran, hebr, nkoo, rohg, syrc, thaa, yezi · LTR: cyrl, latn, hans, hant</span>
+      Поэтому <code>az-arab</code> — RTL, а <code>ku-latn</code> — LTR, чем бы ни был язык сам по себе.
+    </li>
+    <li><b>Иначе решает первичный языковой подтег.</b>
+      <span class="meta">ar, arc, ckb, dv, fa, he, ks, ku, nqo, ps, sd, ug, ur, yi</span>
+      Список сознательно короткий и консервативный — это языки, с которыми CMS реально настраивают, а не зеркало CLDR. Он даёт только <em>значение по умолчанию</em>.
+    </li>
+    <li><b>Иначе — <code>ltr</code>.</b>
+      <span class="meta">объявленный в конфиге dir всегда побеждает вывод</span>
+      Так добавление арабского — это одна строка конфига, а не тихий провал доступности.
+    </li>
+  </ol>
+
+  <h3>Инварианты набора локалей</h3>
+  <p>То, что не может проверить одна локаль, проверяет <code>LocaleSet</code> (ошибка <code>InvalidLocaleSetError</code>):</p>
+  <ul>
+    <li><b>Непустота</b> — минимум одна локаль.</li>
+    <li><b>Уникальность слагов</b> — дубль отвергается по имени слага.</li>
+    <li><b>Ровно один default</b> — не ноль и не два (<code>defaults.length !== 1</code>). Именно это делает <code>LocaleSet.default()</code> тотальной функцией: она никогда не возвращает <code>undefined</code>.</li>
+    <li><b>Порядок конфига сохраняется</b> — это порядок отображения в переключателе, в панели, в бейджах.</li>
+    <li><b><code>remove()</code> отказывается удалять default</b> и отказывается удалять не-члена. Метод существует, но плагин его не вызывает (см. раздел 04).</li>
+  </ul>
+
+  <p>Проверка <b>ранняя</b>: <code>I18nServerPlugin()</code> вызывает <code>assertConfig</code>, который есть просто <code>LocaleSet.fromDefs(config.locales)</code>. Неправильно настроенный хост падает <b>на конструировании плагина</b> — до старта, до первого запроса.</p>
+
+  <h3>Какая локаль активна: правило resolve</h3>
+  <p><code>LocalePolicy.resolve(slug?)</code> — единственный шлюз, через который проходит любой путь, обращённый к запросу:</p>
+
+  <div class="states">
+    <span class="state">slug отсутствует</span><span class="arrow">→</span><span class="state active">локаль по умолчанию</span>
+    <span class="arrow">·</span>
+    <span class="state">slug настроен</span><span class="arrow">→</span><span class="state active">эта локаль</span>
+    <span class="arrow">·</span>
+    <span class="state">slug не настроен</span><span class="arrow">→</span><span class="state disabled">UnknownLocaleError → HTTP 400</span>
+  </div>
+
+  <p>Домен кидает транспортно-нейтральную ошибку; в HTTP 400 её превращает <code>LocaleRegistryService.resolve</code> — единственный <code>@Injectable()</code>-шов, адаптирующий домен к DI. Это важное свойство: <b>неизвестный слаг никогда не резолвится в дефолт</b>. Молчаливая подстановка означала бы, что контрол подписан «English», а список показывает что-то другое.</p>
+
+  <h3>Цепочка fallback</h3>
+  <p>Fallback у i18n ровно один и он <b>короткий: длина цепочки максимум 2</b>. Никакой иерархии «pt-br → pt → en» нет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод <code>LocalePolicy</code></th><th>Что отвечает</th><th>Правило</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">shouldWidenToDefault(requested, fallbackRequested)</td>
+        <td>надо ли расширять список до дефолтной локали</td>
+        <td><code>true</code> только когда fallback запрошен <b>и</b> запрошенная локаль сама не является дефолтной (иначе расширять некуда)</td>
+      </tr>
+      <tr>
+        <td class="mono">fallbackChain(requested, fallbackRequested)</td>
+        <td>упорядоченные локали, которые стоит пробовать</td>
+        <td><code>[requested]</code> в строгом режиме, <code>[requested, default]</code> при расширении</td>
+      </tr>
+      <tr>
+        <td class="mono">requiredLocalesForPublish()</td>
+        <td>какие локали обязаны существовать, чтобы группа считалась полностью опубликованной</td>
+        <td>всегда <code>[default]</code> — группа не может выйти в свет без канонического перевода</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>Два режима чтения списка</b>, и это единственное место, где fallback вообще применяется:</p>
+  <ul>
+    <li><b>Строгий</b> (по умолчанию, режим таблицы записей): <code>locale = X</code>. Непереведённые группы просто не видны. Так редактор, переключившийся на немецкий, видит именно немецкий контент, а не смесь.</li>
+    <li><b>С расширением</b> (<code>?localeFallback=default</code>, режим пикера связей): «запрошенная локаль <b>или</b> дефолтная строка группы, у которой запрошенной строки нет». Реализуется через <code>OR</code> с коррелированным <code>NOT EXISTS</code> по алиасу той же таблицы. Гарантия — <b>одна строка на группу</b>.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Правило одно, реализаций две — и это осознанно</span>
+    <p><code>LocalePolicy</code> — <em>чистое переформулирование</em> того же правила, которое кодирует SQL в <code>listScope</code>. Адаптер продолжает рендерить запрос сам; домен не рендерит SQL. То есть в кодовой базе правило записано дважды: как чистая функция (тестируемая и читаемая) и как предикат Drizzle (исполняемая). ADR-0003 прямо говорит, что слоение <b>не обязано</b> превращать корректный open-host порт в событие — и здесь та же логика распространена на fallback.</p>
+  </div>
+
+  <h3>Клиентская копия политики</h3>
+  <p>В админке есть <code>domain/localePolicy</code> — framework-free зеркало серверного правила (без React и без роутера), чтобы переключатель, чип заголовка и виджет редактора резолвили <b>одно</b> правило, а не переписывали одну и ту же цепочку <code>??</code> трижды.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Функция</th><th>Что делает</th><th>Тонкость</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">resolveActiveLocale({entryLocale, urlLocale, defaultSlug})</td><td>активная локаль по приоритету: локаль сохранённой записи → <code>?locale=</code> → дефолт</td><td>каждый источник проверяется <b>на пустоту</b>, а не на nullish: <code>?locale=</code> даёт <code>''</code>, и голая цепочка <code>??</code> зарезолвила бы активную локаль в пустую строку</td></tr>
+      <tr><td class="mono">findLocale(locales, slug)</td><td>настроенная локаль по слагу либо <code>undefined</code></td><td><b>не</b> подставляет дефолт при промахе — запрос всё равно уйдёт с плохим слагом, и контрол не должен подписывать чужой список</td></tr>
+      <tr><td class="mono">isDefaultLocale / toLocaleListParam</td><td>правило «дефолтная локаль = чистый URL»</td><td>сервер скоупится на дефолт при отсутствии параметра, поэтому два написания не могут разойтись</td></tr>
+      <tr><td class="mono">localeName / localeDir</td><td>отображаемое имя и направление по слагу</td><td><code>localeDir</code> — это <b>поиск, а не догадка</b>: админка не держит собственного списка RTL-языков</td></tr>
+      <tr><td class="mono">localeAttrs(locales, slug)</td><td>пара <code>{ lang, dir }</code>, которую разворачивают на элемент</td><td>неизвестный слаг даёт <code>{}</code>, а не неверный язык; незагруженное направление даёт только <code>lang</code>, а не неверный <code>dir</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="port">
+  <h2 class="sec"><span class="num">06</span>Синхронный open-host порт</h2>
+
+  <p>Второй главный раздел и определяющая черта пакета. Всё поведение локалей подключается к библиотеке контента через <b>один DI-порт</b>, вызываемый <b>синхронно, внутри той же транзакции</b>, что и сама запись.</p>
+
+  <h3>Кто объявляет и кто связывает</h3>
+  <p>Инверсия здесь не такая, как привычно: <b>порт объявляет потребитель поведения</b>, а связывает — поставщик.</p>
+
+  <ol class="flow">
+    <li><b><code>content-server</code> объявляет порт.</b>
+      <span class="meta">packages/content/server/src/lib/extension/entry-extension.ts</span>
+      Файл содержит только типы и один <code>Symbol</code> — <code>CONTENT_ENTRY_EXTENSION</code>. NestJS-декораторов в нём нет намеренно: реализации живут в других пакетах.
+    </li>
+    <li><b><code>content-server</code> спрашивает порт опционально.</b>
+      <span class="meta">@Optional() @Inject(CONTENT_ENTRY_EXTENSION)</span>
+      Спрашивают <code>EntriesService</code>, <code>EntryWriterService</code>, <code>EntryMatchQuery</code>, <code>PublicEntriesQuery</code>. Если расширения нет — контент работает как обычная нелокализованная CMS.
+    </li>
+    <li><b><code>i18n-server</code> связывает реализацию.</b>
+      <span class="meta">I18nModule.forRoot: { provide: CONTENT_ENTRY_EXTENSION, useExisting: EntryLocaleExtensionService }</span>
+      Модуль объявлен <code>global: true</code>, поэтому связывание резолвится внутри (тоже глобального) модуля контента без явного импорта. Та же инверсия, что у <code>CONTENT_CATALOG</code> в Identity, только роли поменяны местами.
+    </li>
+    <li><b>Порядок регистрации обязателен.</b>
+      <span class="meta">apps/server/src/plugins.ts — I18nServerPlugin(config.plugins.i18n) идёт после ContentPlugin</span>
+      Плагин читает <code>CONTENT_REGISTRY</code> контента и связывает его порт.
+    </li>
+    <li><b>Отсутствие расширения ловится на старте.</b>
+      <span class="meta">EntryExtensionBootCheck (content-server)</span>
+      Если зарегистрирован тип с <code>i18n: true</code>, но никто не связал порт, приложение падает с явным текстом «зарегистрируйте плагин локализации после ContentPlugin, либо снимите флаг». Иначе первый же <code>create</code> дал бы 500 на NOT NULL <code>locale</code>.
+    </li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Одна привязка, не список</span>
+    <p>Порт рассчитан на <b>одного</b> провайдера на приложение. Если когда-нибудь понадобится второе расширение, документация порта предписывает связать композит, который разветвляет вызовы: форма порта (SQL-фрагменты объединяются через AND, наборы колонок сливаются) складывается чисто.</p>
+  </div>
+
+  <h3>Почему синхронный, а не доменное событие</h3>
+  <p>Это прямо зафиксированное решение, а не недоделка. ADR-0003 переводит плагины на слоёную раскладку с агрегатами, unit-of-work и transactional outbox — но так же прямо оговаривает, что <b>слоение не обязано превращать корректный open-host порт в событие</b>. Здесь порт корректен по четырём причинам:</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Расширение должно быть <em>внутри</em> конвейера</h4>
+      <p class="small sub">Скоупинг списка добавляет предикат в тот самый <code>WHERE</code>; штамповка создания дописывает колонки в тот самый <code>INSERT</code>; виртуальные фильтры участвуют в разборе <code>?filter=</code>. Подписчик, узнающий о записи после коммита, физически не может ни того, ни другого.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Откат должен быть общим</h4>
+      <p class="small sub">Синхронизация общих полей перевалидирует опубликованных соседей. Провал — это 422 и откат <b>всего</b> сохранения. Асинхронный подписчик уже не может отменить закоммиченную правку — он мог бы только оставить живой перевод невалидным.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Блокировка должна быть первой</h4>
+      <p class="small sub"><code>beforeWrite</code> — это <b>первый оператор</b> в транзакции записи, до строкового <code>UPDATE</code> самого конвейера. Событие, по определению, приходит позже — а тогда взаимоблокировка уже возможна.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Ответ нужен вызывающему сразу</h4>
+      <p class="small sub"><code>afterUpdate</code> <b>возвращает переписанные строки соседей</b>, и конвейер контента дописывает по ревизии на каждую — в той же транзакции. Асинхронно этот возврат некому получить.</p>
+    </div>
+  </div>
+
+  <p>Отдельно: <b>ревизии пишет контент, а не i18n</b>, и это тоже осознанно. Нумерация версий сериализуется по записи advisory-блокировкой, и второй писатель, выдающий номера в обход, — это ровно тот способ, которым появляются дубли версий.</p>
+
+  <h3>Контракт: шесть хуков</h3>
+  <p>Каждый метод вызывается <b>безусловно для любого типа</b>, поэтому реализация <b>обязана быть no-op для нелокализованных типов</b> — иначе связывание расширения меняло бы поведение посторонних типов. В <code>EntryLocaleExtensionService</code> каждый метод открывается строкой <code>if (!type.i18n) return …</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Хук</th><th>Когда</th><th>Что делает i18n</th><th>No-op</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">listScope</td>
+        <td>синхронно, при сборке <code>WHERE</code> списка</td>
+        <td>валидирует <code>?locale=</code> (неизвестный → 400), по умолчанию берёт дефолт, скоупит строго; при <code>?localeFallback=default</code> расширяет через <code>OR … NOT EXISTS</code></td>
+        <td><code>undefined</code></td>
+      </tr>
+      <tr>
+        <td class="mono">createColumns</td>
+        <td><code>await</code>, перед <code>INSERT</code></td>
+        <td>штампует валидированный <code>locale</code>; при переданном <code>localeGroupId</code> сначала проверяет, что группа реально есть в этом воркспейсе (иначе <b>404</b>), и только потом присоединяет строку к ней</td>
+        <td><code>{}</code></td>
+      </tr>
+      <tr>
+        <td class="mono">beforeWrite</td>
+        <td><b>первый оператор</b> транзакций create и update</td>
+        <td>берёт транзакционную advisory-блокировку на <code>locale_group_id</code></td>
+        <td>ничего не делает и без группы (свежее создание — конкурировать не с кем)</td>
+      </tr>
+      <tr>
+        <td class="mono">afterUpdate</td>
+        <td>внутри транзакций create <b>и</b> update, после записи колонок и дельт связей</td>
+        <td>синхронизирует общие поля/связи на соседей, демотирует переписанного опубликованного соседа в <code>draft</code>, перевалидирует тех, кто <b>был</b> опубликован; возвращает переписанные строки</td>
+        <td><code>[]</code></td>
+      </tr>
+      <tr>
+        <td class="mono">describeFanout</td>
+        <td>вне транзакции, по запросу вызывающего</td>
+        <td>read-only ответ «что ещё перепишет эта запись»: имена полей, которые путешествуют, + слаги локалей соседей</td>
+        <td><code>undefined</code></td>
+      </tr>
+      <tr>
+        <td class="mono">filterExtension</td>
+        <td>при разборе <code>?filter=</code></td>
+        <td>объявляет три виртуальных поля и резолвит их в <code>EXISTS</code>/коррелированный <code>count</code> по группе</td>
+        <td><code>undefined</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>afterUpdate: что именно путешествует</h3>
+  <p>Три вида состояния, каждый вычисляется <b>один раз</b> и применяется к каждому соседу:</p>
+  <ol class="flow">
+    <li><b>Общие колонки.</b>
+      <span class="meta">sharedColumns() — скаляры и медиа без флага localized; связь только если она column-backed и Shared</span>
+      Идентичны во всех локалях. Копируются дословно.
+    </li>
+    <li><b>Зеркальные (mirrored) FK одиночных связей.</b>
+      <span class="meta">mirroredColumnsByLocale() → RelationLinkService.equivalentIdsByLocale</span>
+      Цель исходника резолвится в её собственный перевод на языке соседа. Нерезолвимая ссылка становится <code>null</code>, а не остаётся указывать на перевод <em>предыдущей</em> записи — тихо неверные данные хуже пустого поля, которое редактор видит и на котором спотыкается публикация.
+    </li>
+    <li><b>Наборы ссылок join-backed связей.</b>
+      <span class="meta">linkSetsByLocale() — Shared: дословно; Mirrored: через группу перевода цели, порядок сохраняется</span>
+      Зеркальная ссылка, у цели которой нет перевода на языке соседа, просто <b>не ставится</b> — сохранение английского не должно падать из-за того, что немецкого тега ещё нет.
+    </li>
+  </ol>
+
+  <p>Режим определяет правило <code>relationLocaleSync(owner, spec)</code>, живущее в <b>content-server</b>: <code>None</code>, если тип-владелец не i18n, связь inverse или у неё не выставлен <code>syncAcrossLocales</code>; иначе <code>Mirrored</code>, если цель тоже i18n, и <code>Shared</code>, если нет.</p>
+
+  <div class="note warn">
+    <span class="label">Четыре защитных механизма внутри afterUpdate</span>
+    <p><b>1.</b> Прежде чем что-либо читать (и, главное, <b>блокировать</b>), проверяется, может ли вообще что-то путешествовать — оба входа бесплатны. Иначе каждое сохранение локализованного типа брало бы <code>FOR UPDATE</code> на строки, которые не собиралось писать.<br>
+    <b>2.</b> Сосед, у которого совпадают все три вида состояния, <b>не трогается вообще</b> — именно этот сторож не даёт одному сохранению перевыпустить версии всей группы. Сравнение идёт через <code>IS DISTINCT FROM</code> (а не <code>&lt;&gt;</code>), и каждое значение биндится <b>кодировщиком своей колонки</b> (<code>sql.param</code>): голая интерполяция разворачивала массивное поле (jsonb-мультиселект, json, множественное медиа) в <em>список параметров</em>, что Postgres читал как record и отвергал.<br>
+    <b>3.</b> Статусы «до записи» снимаются <code>SELECT … FOR UPDATE</code> <b>до</b> синхронизации: <code>UPDATE</code> демотирует затронутые строки в <code>draft</code>, и проверка «был ли опубликован» по возвращённому статусу молча пропустила бы всех.<br>
+    <b>4.</b> Изменение <b>только связей</b> всё равно пишет строку — так она зарабатывает свою ревизию и свою демотацию.</p>
+  </div>
+
+  <h4>Демотация опубликованного соседа</h4>
+  <div class="states">
+    <span class="state active">сосед published</span>
+    <span class="arrow">→ правка общего поля →</span>
+    <span class="state pending">draft, published_at сохранён</span>
+    <span class="arrow">= читается как</span>
+    <span class="state pending">Modified</span>
+  </div>
+  <p>Оставлять соседа <code>published</code> было нельзя: тогда одна и та же правка была бы <em>живой</em> в нетронутых языках и <em>ожидающей</em> в отредактированном, а свежедописанная черновая версия соседа описывала бы строку, которая объявляет себя опубликованной. <code>published_at</code> сохраняется, поэтому сосед читается как <b>Modified</b> (живой контент + неопубликованные правки), а не как никогда не публиковавшийся черновик.</p>
+
+  <h4>Создание идёт внутрь, а не наружу</h4>
+  <p>На <code>context.created</code> логика переворачивается: новый сосед приходит с общими <em>значениями</em> исходника (клиент их копирует), но <b>без единой связи</b> — связи никогда не ездят в теле создания. Распространение наружу из такой строки протолкнуло бы пустоту на строки, которые были правильными. Поэтому <code>inheritRelationsFromGroup</code> тянет связи <b>внутрь</b> от донора — детерминированно от строки дефолтной локали, если она в группе есть, иначе от лексикографически первой. Колонки при создании всё же распространяются наружу — это и делает так, что намеренно другое общее значение при создании побеждает.</p>
+  <p>Выведенные колонки при этом <b>дописываются в объект <code>row</code> по месту</b>: вызывающий снимает с него снимок для версии 1 <em>после</em> вызова, и запись только в БД оставила бы первую версию описывающей то, чего строка никогда не держала.</p>
+
+  <h3>beforeWrite: почему advisory-блокировка, а не ORDER BY</h3>
+  <p>Это самое тонкое место пакета. Синхронизация блокирует всех соседей через <code>FOR UPDATE</code>, и упорядочивание <em>этого</em> оператора группу от взаимоблокировок не спасает: к моменту, когда работает <code>afterUpdate</code>, транзакция <b>уже держит строковую блокировку</b> на редактируемой записи — её взял собственный <code>UPDATE</code> конвейера, до любого кода i18n. Два одновременных сохранения в двух локалях одной записи держат каждый ту строку, которую другой собирается запросить, <b>при любом порядке</b> выборки соседей: первая блокировка не входит в упорядочиваемый набор.</p>
+
+  <div class="note crit">
+    <span class="label">Измеренный эффект</span>
+    <p>До исправления: <b>19 из 60</b> перемежающихся кросс-локальных сохранений возвращали 500 (<code>deadlock detected</code>, SQLSTATE 40P01). После: <b>0</b>. Блокировка, взятая в <code>beforeWrite</code>, предшествует каждой строковой блокировке, поэтому второй писатель просто <b>ждёт</b> — что и есть правильный исход для двух правок одной записи. Упорядочивание соседей по id в коде осталось, но как гарантия детерминизма, а не как исправление взаимоблокировки; в комментарии это прямо оговорено.</p>
+  </div>
+
+  <h3>describeFanout: единственный хук, который никто не вызывает из конвейера</h3>
+  <p>Read-only двойник <code>afterUpdate</code>, отвечающий на вопрос «что эта запись перепишет кроме названной строки» <b>до</b> того, как что-либо записано. Конвейер записей его не зовёт. Он существует для propose-инструментов копайлота: по <b>ADR-0009</b> предложение применяется в момент составления, поэтому одна принятая правка общего поля переписывает запись на всех языках, а чек читается как правка одной записи.</p>
+  <ul>
+    <li><b>Фильтрует поля до любого чтения</b> — сохранение, трогающее только per-locale поля (то есть настоящий перевод), не стоит ни одного запроса.</li>
+    <li><b>Один self-join</b>, а не «прочитать id группы, потом прочитать группу»: батч-инструмент описывает до <code>BULK_MAX_SAVE_ITEMS</code> элементов за ход.</li>
+    <li><b>Не берёт блокировок и не фильтрует <code>deleted_at</code></b> — блокировки нет, потому что хук работает вне транзакции записи и его ответ по построению совещательный; удалённые не отфильтрованы, потому что <code>propagateToSiblings</code> переписывает и корзинных соседей, и умолчать о них значило бы преуменьшить именно то изменение, ради раскрытия которого хук и существует.</li>
+    <li><b>Возвращает <code>undefined</code>, а не пустое описание</b>, когда строка одна в группе: оговорка на каждой правке научила бы читателя пролистывать её на той единственной, где она важна.</li>
+    <li><b><code>travelsToSiblings</code> намеренно шире, чем <code>sharedColumns</code></b>: общие колонки, зеркальные FK и наборы ссылок применяются тремя разными механизмами, но для человека это один факт — значение, поставленное здесь, окажется там.</li>
+  </ul>
+
+  <h3>filterExtension: три виртуальных поля</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Тип</th><th>Допустимые операторы</th><th>SQL</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">hasLocale</td><td>enum настроенных слагов</td><td><span class="pill pill-pub">eq</span> <span class="pill pill-pub">in</span></td><td><code>EXISTS</code> соседа в названной локали</td></tr>
+      <tr><td class="mono">missingLocale</td><td>enum настроенных слагов</td><td><span class="pill pill-pub">eq</span> <span class="pill pill-pub">in</span></td><td><code>NOT EXISTS</code>; <code>in</code> — это <b>«отсутствуют все перечисленные»</b></td></tr>
+      <tr><td class="mono">localeCount</td><td>число</td><td><span class="pill pill-pub">eq</span> <span class="pill pill-pub">ne</span> <span class="pill pill-pub">gt</span> <span class="pill pill-pub">gte</span> <span class="pill pill-pub">lt</span> <span class="pill pill-pub">lte</span></td><td>коррелированный <code>count(*)</code> по группе</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему у hasLocale отняли ne / nin</span>
+    <p>Они были разрешены и читались как отрицание «есть такая локаль» — но это не отрицание. Они квантифицируют <b>внутри</b> <code>EXISTS</code>: <code>hasLocale ne "de"</code> рендерится в <code>EXISTS(sibling WHERE locale &lt;&gt; 'de')</code> — «в группе есть хоть какая-то локаль, кроме немецкой», чему <b>удовлетворяет полностью переведённая запись</b>. На вопрос «покажи записи без немецкого» возвращались именно немецкие. Отсутствие выражает поле <code>missingLocale</code>, поэтому отрицания теперь дают 400 с именем поля — видимый и исправимый отказ вместо тихо другого ответа. Админский <code>useLocaleFilterFields</code> зеркалит это ограничение, чтобы drawer не предлагал правило, которое API отвергнет.</p>
+  </div>
+
+  <p>Подзапрос группы ограничен <b>настроенным</b> набором локалей — ровно так же, как <code>configuredScope</code> в запросе покрытия. Без этого два вида на одну запись расходились: строка в слаге, который хост уже выкинул, поднимала <code>localeCount</code> выше настроенного итога, и запись, которую карточка покрытия объявляла полностью локализованной, не отвечала ни <code>localeCount eq 3</code>, ни какому-либо согласованному с этим <code>hasLocale</code>.</p>
+</section>
+
+<section id="reach">
+  <h2 class="sec"><span class="num">07</span>Куда доезжают локали</h2>
+
+  <p>Плагин влияет на четыре поверхности, и в трёх из них его код вообще не участвует — он лишь один раз объяснил контенту, что такое локаль.</p>
+
+  <h3>Локализованные записи и группы локалей в контенте</h3>
+  <ul>
+    <li><b>Флаг типа <code>i18n: true</code></b> — единственный переключатель. Он добавляет две колонки, уникальный индекс <code>(locale_group_id, locale)</code> и локале-скоупленный уникальный индекс для one-to-one.</li>
+    <li><b>Ключи-конверты не редактируются.</b> DTO сохранения (и внутренний, и публичный) прямо перечисляют <code>locale</code> и <code>localeGroupId</code> среди зарезервированных: их нельзя выставить через <code>values</code>. <code>locale</code> приходит отдельным полем тела/параметром, <code>localeGroupId</code> — отдельным полем тела на создании.</li>
+    <li><b>Одиночная запись (single) и коллекция ведут себя одинаково</b> — single просто резолвит свою одну строку по активной локали.</li>
+    <li><b>Ревизии знают про группу</b> — <code>locale_group_id</code> есть в таблице ревизий, и сосед, переписанный синхронизацией, получает свою версию.</li>
+  </ul>
+
+  <h3>Публичный API</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поверхность</th><th>Как выражена локаль</th><th>Отказ</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>REST public-api</td>
+        <td><code>?locale=</code> и <code>?localeFallback=</code> идут <b>дословно через порт</b>; <code>PublicEntriesQuery</code> просто добавляет <code>listScope</code> расширения к своему предикату видимости</td>
+        <td>неизвестный слаг → 400 (решает <code>LocalePolicy</code>)</td>
+      </tr>
+      <tr>
+        <td>REST, <code>?translations=preview</code></td>
+        <td>прикрепляет соседей по группе как <code>translations</code>; <b>один</b> запрос на страницу через <code>locale_group_id IN (…)</code>; строится на <code>liveWhere</code>, а не на <code>readableWhere</code> — иначе скоуп прибил бы чтение к одной локали, чего поиск переводов делать не должен. Всё остальное про видимость не меняется: черновая локаль остаётся невидимой</td>
+        <td>на нелокализованном типе — 400 с текстом «type is not a localized content type»</td>
+      </tr>
+      <tr>
+        <td>GraphQL</td>
+        <td><code>locale</code> и <code>localeGroupId</code> — поля конверта, появляющиеся только на i18n-типе; поле <code>translations</code> отдаёт <b>другие опубликованные</b> строки группы, отсортированные по слагу (сама запись не повторяется)</td>
+        <td>тип без i18n просто не имеет этих полей в схеме</td>
+      </tr>
+      <tr>
+        <td>GraphQL, дельты связей</td>
+        <td>enum <code>LOCALE_GROUP</code>: id в дельте читаются как id групп перевода и резолвятся в строку группы <b>на языке исходной записи</b></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>MCP</td>
+        <td><code>i18n_locales_list</code> доступен внешнему агенту; <code>content_translations</code> — собственный инструмент MCP, <b>только опубликованное</b></td>
+        <td><code>i18n_translations_get</code> для MCP закрыт (см. раздел 10)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Перенос контента (transfer)</h3>
+  <p>Документ переноса везёт локаль как два служебных поля записи: <code>$locale</code> (слаг строки) и <code>$localeGroup</code> (исходный id группы). Соседи внутри одного документа делят <code>$localeGroup</code>, и <b>именно так импортёр восстанавливает группу</b>, не выдумывая правила сопоставления по локалям.</p>
+  <ul>
+    <li><b>Локаль входит в натуральный ключ.</b> У локализованного типа значения ключа уникальны в пределах локали, а не в пределах группы — иначе <code>en/hello</code> и <code>de/hello</code> сталкивались бы. Отпечаток ключа явно отделяет две локали одного ключа, а отсутствующая локаль образует <b>собственную корзину</b>, а не «любую локаль».</li>
+    <li><b>Глубина локалей — отдельный переключатель.</b> В <code>TransferDepth</code> два независимых флага: <code>locales</code> (взять всех соседей выбранных записей) и <code>relationLocales</code> (взять соседей ещё и у связанных записей).</li>
+    <li><b>Соседи по локали — это депth 0.</b> Локальный сосед выбранной записи считается тем, что «пользователь выбрал сам», а не подтянутым контекстом.</li>
+    <li><b>CSV знает эти поля.</b> В плоском формате <code>$locale</code> и <code>$localeGroup</code> — обычные служебные столбцы.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Никакого i18n-кода в переносе нет</span>
+    <p><code>transfer-server</code> пишет всё через <code>EntryWriterService</code> контента, а значит проходит через связанное расширение — со штамповкой локали, проверкой группы, уникальным индексом и синхронизацией общих полей. Импорт не может обогнать ни валидацию, ни скоуп воркспейса, ни права вызывающего.</p>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">08</span>Сценарии по шагам</h2>
+
+  <h3>Сценарий A. Редактор создаёт немецкий перевод статьи</h3>
+  <ol class="flow">
+    <li><b>Открывает английскую статью.</b>
+      <span class="meta">GET /api/content/article/:id · GET /api/i18n/content/article/:id/locales</span>
+      Панель «Locale» в правой колонке показывает три строки: English (текущая, отмечена галкой), Deutsch (тускло, «Add»), Français (тускло, «Add»).
+    </li>
+    <li><b>Нажимает «Deutsch».</b>
+      <span class="meta">beginLocaleSwitch → оверлей накрывает страницу → через ~220 мс navigate()</span>
+      Если в форме есть несохранённые правки, срабатывает <b>общий приложенческий</b> guard навигации, а не локальный диалог.
+    </li>
+    <li><b>Открывается форма создания, привязанная к группе.</b>
+      <span class="meta">/content/article/new?locale=de&amp;localeGroupId=&lt;gid&gt; · router state.translateFrom + translateFromLocale</span>
+      Значения исходника едут в состоянии роутера; <code>translateFromLocale</code> едет вместе с ними, потому что общие поля вот-вот скопируются в строку <em>другого</em> языка и редактору назначения иначе неоткуда узнать, на каком они языке (WCAG 3.1.2).
+    </li>
+    <li><b>Редактор переводит локализованные поля и жмёт Save.</b>
+      <span class="meta">POST /api/content/article с body.locale и body.localeGroupId (createBodyKeys)</span>
+      Отдельного «создать перевод» вызова <b>нет</b>: это обычное сохранение черновика.
+    </li>
+    <li><b>Сервер: beforeWrite берёт блокировку группы.</b>
+      <span class="meta">pg_advisory_xact_lock(LG, hashtext(gid))</span>
+      Первый оператор транзакции.
+    </li>
+    <li><b>createColumns проверяет группу и штампует локаль.</b>
+      <span class="meta">assertGroupExists → 404, если группы нет в этом воркспейсе; иначе locale='de', localeGroupId=gid</span>
+      Опечатка в id не может породить бродячую группу из одной строки.
+    </li>
+    <li><b>INSERT. Дубль локали ловит уникальный индекс.</b>
+      <span class="meta">(locale_group_id, locale) → 23505 → 409</span>
+      Арбитр — база, а не проверка «сначала посчитали, потом записали».
+    </li>
+    <li><b>afterUpdate в режиме created: связи тянутся внутрь.</b>
+      <span class="meta">inheritRelationsFromGroup: донор — строка дефолтной локали; выведенные колонки дописываются в row по месту</span>
+      Новый перевод получает те ссылки, которые у записи уже были.
+    </li>
+    <li><b>Колонки распространяются наружу; версия 1 снимается уже после.</b>
+      <span class="meta">propagateToSiblings({relations: false})</span>
+      Совпадающие соседи не трогаются.
+    </li>
+    <li><b>Ответ 201, редирект на редактор новой строки.</b>
+      <span class="meta">Панель локалей перечитывается по entry.updatedAt</span>
+      Deutsch теперь строка-переключатель с бейджем Draft.
+    </li>
+  </ol>
+
+  <h3>Сценарий B. Правка общего поля в одной локали</h3>
+  <ol class="flow">
+    <li><b>Редактор меняет цену (поле без <code>localized</code>) в немецкой строке и жмёт Save.</b>
+      <span class="meta">PATCH/PUT /api/content/product/:id</span>
+    </li>
+    <li><b>beforeWrite берёт блокировку группы — до строкового UPDATE конвейера.</b>
+      <span class="meta">параллельное сохранение английской строки будет ждать здесь, а не устроит взаимоблокировку</span>
+    </li>
+    <li><b>Конвейер пишет строку и дельты связей.</b>
+      <span class="meta">UPDATE … RETURNING</span>
+    </li>
+    <li><b>afterUpdate решает, есть ли что распространять — до любого чтения.</b>
+      <span class="meta">shared.length || canSyncRelations; иначе выход без FOR UPDATE</span>
+      На типе без общих полей и без синхронизируемых связей запрос не выполняется вовсе.
+    </li>
+    <li><b>Соседи выбираются с FOR UPDATE, порядок по id.</b>
+      <span class="meta">включая soft-deleted — чтобы восстановление вернулось согласованным с группой</span>
+      Здесь же снимаются <b>статусы до записи</b>.
+    </li>
+    <li><b>Для каждого соседа: сначала связи, потом колонки.</b>
+      <span class="meta">IS DISTINCT FROM с sql.param по кодировщику колонки</span>
+      Полностью совпавший сосед пропускается — он не получит ни строки истории, ни демотации.
+    </li>
+    <li><b>Переписанный опубликованный сосед демотируется в draft, published_at сохраняется.</b>
+      <span class="meta">status: 'draft', updatedAt: now()</span>
+      Английская строка читается как <b>Modified</b>.
+    </li>
+    <li><b>Соседи, которые <em>были</em> опубликованы, перевалидируются.</b>
+      <span class="meta">EntryValidationService.validate(toRecord(...))</span>
+      Провал → <b>422</b> с per-field issues и текстом «Shared fields would invalidate the published "…" translation», и <b>всё сохранение откатывается</b>. Черновики валидировать не нужно — то же правило, что при прямом сохранении черновика.
+    </li>
+    <li><b>Переписанные строки возвращаются конвейеру, тот дописывает по ревизии на каждую.</b>
+      <span class="meta">в той же транзакции</span>
+      История соседа не пропускает изменение, и позднее восстановление не отменит его молча.
+    </li>
+  </ol>
+
+  <h3>Сценарий C. Копайлот переводит запись в три языка одним ходом</h3>
+  <ol class="flow">
+    <li><b>Модель зовёт <code>i18n_locales_list</code>.</b>
+      <span class="meta">requires: content:read · effect: read · surfaces: не указано → и копайлот, и MCP</span>
+      Слаги — конфигурация развёртывания, их нет ни в схеме, ни в системном промпте.
+    </li>
+    <li><b>Модель читает исходник и зовёт <code>i18n_propose_bulk_translation</code>.</b>
+      <span class="meta">items[{id, locale, values}], ≤ BULK_MAX_SAVE_ITEMS · requires: content:update</span>
+      Пять языков одной записи и восемь записей на одном языке — это один и тот же список.
+    </li>
+    <li><b>Инструмент проверяет всё до того, как что-либо будет написано.</b>
+      <span class="meta">грант типа → тип локализован → слаг настроен → группа читается один раз на уникальный id → локаль ещё не занята → два элемента не метят в один слот → только localized-поля</span>
+      Отказ валит <b>весь</b> вызов, ничего не записывается — поэтому повтор исправленного батча безопасен.
+    </li>
+    <li><b>Инструмент возвращает <code>ProposalDraft</code>, ничего не записывая.</b>
+      <span class="meta">kind: 'i18n.entry.bulk-translate' · changes с префиксом items[i].field</span>
+      Префикс нужен, потому что карточка ключует строки по <code>field</code>, и пять языков, переводящих <code>title</code>, схлопнулись бы в одну строку.
+    </li>
+    <li><b>Движок прогона записывает предложение и <b>сразу применяет</b> его (ADR-0009).</b>
+      <span class="meta">BulkTranslationProposalApplier</span>
+    </li>
+    <li><b>Applier перечитывает грант, затем идёт по элементам последовательно.</b>
+      <span class="meta">каждая запись берёт общий контентный лок воркспейса + advisory-лок группы, поэтому веер только конкурировал бы сам с собой</span>
+    </li>
+    <li><b>Для каждого элемента: читаются общие значения исходника, поверх кладётся перевод.</b>
+      <span class="meta">sharedValues(): пропускаются localized-поля, many/inverse связи, и любая связь с per-locale id</span>
+      Читается на <b>момент применения</b>, а не замораживается в предложении: общее поле могли отредактировать между составлением и применением.
+    </li>
+    <li><b>Создание идёт через тот же <code>EntryWriterService.create</code>, что и HTTP.</b>
+      <span class="meta">никакого второго механизма записи</span>
+      Поэтому дубль <code>(group, locale)</code> — чистый 409, а не испорченная группа.
+    </li>
+    <li><b>Первая же ошибка останавливает батч и бросает исключение.</b>
+      <span class="meta">«Translation 3 of 5 (fr) failed: … The first 2 were saved and the rest were not.»</span>
+      У предложения одна строка и один статус, поэтому по-элементного вердикта не существует, а «ничего не сохранено» было бы враньём про уже записанные строки.
+    </li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Почему applier обязан читать исходник — самая дорогая ошибка этого пакета</span>
+    <p>Propose-инструмент принимает <b>только localized-значения</b>. Но создание — это целая строка: <code>coerceValues</code> штампует каждое объявленное поле, и общее поле, которого никто не прислал, приходит как <code>null</code>, а не как «отсутствует». Тогда ломается сразу двое: новая строка проваливает собственную проверку обязательности (<code>tag.slug</code> обязателен <em>и</em> общий, а ни один перевод тега его не несёт), и — что хуже — расширение принимает этот <code>null</code> за общее значение, которое сохранение <em>несёт</em>, и толкает его на всех соседей группы. Опубликованный сосед перевалидируется и валит создание откатом, а <b>группа из одних черновиков такой защиты не имеет — и общее поле молча обнуляется на всех языках</b>. Именно поэтому у контентных инструментов <b>отобрали</b> аргумент <code>localeGroupId</code>: i18n-инструменты теперь единственный вход, а контентные applier'ы отказываются присоединяться к сохранённой группе.</p>
+  </div>
+
+  <h3>Сценарий D. Переключение языка в таблице записей</h3>
+  <ol class="flow">
+    <li><b>Пользователь открывает переключатель в тулбаре.</b>
+      <span class="meta">Popover + обычный Input + список role="listbox"; фокус остаётся в поиске, ↑/↓ двигают aria-activedescendant, Enter выбирает</span>
+      Строки имеют <code>tabIndex={-1}</code>, чтобы длинный список локалей не превращался в Tab-полосу препятствий.
+    </li>
+    <li><b>Выбирает Deutsch.</b>
+      <span class="meta">beginLocaleSwitch('Deutsch', apply) — apply отложен на COVER_MS</span>
+      Повторный выбор активной локали — no-op, кроме случая, когда в URL стоит неизвестный слаг: там это единственное нажатие, которое чистит плохой параметр, и его пропускать нельзя.
+    </li>
+    <li><b>Оверлей накрывает страницу, и только потом меняется URL.</b>
+      <span class="meta">updateParams({ locale: toLocaleListParam('de', 'en') }) → ?locale=de</span>
+      Дефолтная локаль пишется как <b>чистый URL</b> — сервер и так скоупится на дефолт при отсутствии параметра.
+    </li>
+    <li><b>Сервер скоупит список строго.</b>
+      <span class="meta">listScope → WHERE locale = 'de'</span>
+      Непереведённые группы не показываются.
+    </li>
+    <li><b>Оверлей держится, пока не стихнут запросы.</b>
+      <span class="meta">useIsFetching() → settleLocaleSwitch(), пол MIN_HOLD_MS = 380 мс, потолок MAX_HOLD_MS = 5000 мс</span>
+      Пол нужен потому, что «нет запросов» сразу после свопа означает лишь, что запросы ещё не выпущены; потолок — чтобы зависший запрос не оставил страницу закрытой навсегда.
+    </li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">09</span>HTTP API</h2>
+
+  <p><b>Четыре маршрута, все читающие.</b> Маршрута записи у плагина нет вообще: создание перевода — это <code>POST /api/content/:typeName</code> с <code>localeGroupId</code> в теле.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Гарды</th><th>Право</th><th>Ответ</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /api/i18n/locales</td>
+        <td><span class="pill pill-ses">сессия</span></td>
+        <td>—</td>
+        <td><code>{ items: [{ slug, name, isDefault, dir }] }</code> в порядке конфига</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /api/i18n/content/:typeName/:id/locales</td>
+        <td><span class="pill pill-ses">сессия</span> <span class="pill pill-perm">PermissionsGuard</span> <span class="pill pill-pub">WorkspaceGuard</span></td>
+        <td class="mono">content:read</td>
+        <td><code>{ localeGroupId, items: [{ locale, dir, isDefault, entry }] }</code> — по элементу на <b>каждую настроенную</b> локаль; <code>entry</code> либо <code>{ id, status?, publishedAt?, updatedAt }</code>, либо <code>null</code></td>
+        <td>404 — неизвестный тип; <b>400</b> — тип не локализован; 404 — записи нет или она в корзине/чужом воркспейсе; 400 — не-UUID в <code>:id</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /api/i18n/content/:typeName/locale-summary</td>
+        <td><span class="pill pill-ses">сессия</span> <span class="pill pill-perm">OriginGuard</span> <span class="pill pill-perm">PermissionsGuard</span> <span class="pill pill-pub">WorkspaceGuard</span></td>
+        <td class="mono">content:read</td>
+        <td><b>200</b> (не 201): <code>{ groups: { &lt;groupId&gt;: [{ locale, entryId, status?, publishedAt? }] } }</code></td>
+        <td>400 — тип не локализован; 400 — не-UUID в <code>groupIds</code> или их больше <code>LOCALE_SUMMARY_MAX_GROUPS = 100</code>; 403 — нет <code>Origin</code>/чужой Origin</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /api/insights/i18n/coverage</td>
+        <td><span class="pill pill-ses">сессия</span> <span class="pill pill-perm">PermissionsGuard</span> <span class="pill pill-pub">WorkspaceGuard</span></td>
+        <td class="mono">content:read</td>
+        <td><code>{ locales[], records, localized, notLocalized, requiresLocalization, types[] }</code></td>
+        <td>—; параметра <code>?days=</code> <b>нет</b></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему сводка — это POST, который отвечает 200</span>
+    <p>Страница uuid'ов не помещается в query string, поэтому список групп едет телом. Но это чтение — значит 200, а не 201, который заявил бы, что что-то создано. Ключи ответа <b>ровно те же</b>, что в запросе: каждый запрошенный id заранее засеян пустым массивом, а строки скоуплены воркспейсом — поэтому группа из чужого воркспейса и id, не значащий ничего, возвращаются одинаково. Вызывающий не узнаёт ничего, чего сам не прислал.</p>
+  </div>
+
+  <h3>Почему покрытие висит под <code>insights/</code>, а не под <code>i18n/</code></h3>
+  <p>Эндпоинты страницы Insights сгруппированы <b>по тому, чем они являются</b>, рядом с контентными и медийными — читатель, ищущий данные карточки, находит их возле данных других карточек. Обратная сторона: имя маршрута не подсказывает, какой плагин им владеет. Владеет i18n, и по существенной причине — покрытие есть вопрос про <b>настроенный</b> набор локалей, а content-server о смысле локали не знает ничего и может сообщить, какие слаги <em>встречаются</em> в данных, но не какие <em>отсутствуют</em>. А отсутствие — это и есть весь виджет.</p>
+
+  <h3>Четыре правила, которые кодирует запрос покрытия</h3>
+  <ul class="inv">
+    <li><span class="id">К-01</span><span><b>Единица счёта — запись, а не строка.</b> Локализованная запись — это по строке на язык, поэтому счёт строк отчитался бы о 40 материалах на 3 языках как о 120 объектах и обнулил бы смысл всех долей. Везде считаются <code>locale_group_id</code>, через <code>count(distinct)</code> — distinct держит цифру честной на paranoid-типе, где индекс частичный и корзинная строка иначе посчиталась бы дважды.</span></li>
+    <li><span class="id">К-02</span><span><b>Строки в ненастроенной локали отфильтрованы.</b> Именно это делает «полностью локализовано» тем, чем оно называется: сброшенный слаг не является покрытием ничего, а оставленный он поднял бы число различных локалей группы выше настроенного итога — и запись могла бы быть «перепокрыта» и при этом не засчитана как полная. Группа целиком из таких строк выпадает — это верный ответ, а не запись с нулём языков.</span></li>
+    <li><span class="id">К-03</span><span><b><code>notLocalized</code> — подмножество <code>requiresLocalization</code>, а не второй ломоть.</b> Запись, существующая на одном языке из четырёх, одновременно не имеет ни одного перевода и нуждается в переводах. Это разные цифры, потому что это разные работы. При <b>одной</b> настроенной локали <code>notLocalized</code> принудительно равен <code>0</code>: переводить некуда, иначе каждая запись отчиталась бы сразу и как полностью локализованная, и как не локализованная вовсе.</span></li>
+    <li><span class="id">К-04</span><span><b>Строки по типам разбивают итог воркспейса.</b> <code>requiresLocalization</code> каждого типа суммируется в конвертный; так же и с остальными. Это и делает два разреза карточки одной историей, а не двумя. Тест server-e2e проверяет сумму — расходящаяся с итогом цифра по типу это ровно та неправильность, которой дашборд верят.</span></li>
+  </ul>
+
+  <p>Реализация: развёртка группы (<code>records</code> / complete / single) — это один сгруппированный подзапрос, свёрнутый внешним агрегатом. Чтение по строке на группу и подсчёт в JS протащили бы весь контент воркспейса по проводу ради трёх целых чисел. Тип, которым воркспейс никогда не пользовался, <b>опускается</b>, а не показывается нулём — то же правило применяет и контентный конвейер.</p>
+</section>
+
+<section id="tools">
+  <h2 class="sec"><span class="num">10</span>Инструменты агента</h2>
+
+  <p>Четыре инструмента в общем реестре <code>@orthacms/tools-server</code>, регистрируются из <code>I18nModule.forRoot</code>. Реестр внедряется <code>@Optional()</code> — развёртывание без копайлота и без MCP это нормально, тогда инструменты просто не регистрируются.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Инструмент</th><th>effect</th><th>surfaces</th><th>requires</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">i18n_locales_list</td>
+        <td><span class="pill pill-pub">read</span></td>
+        <td><b>поле отсутствует → и копайлот, и MCP</b></td>
+        <td class="mono">content:read</td>
+        <td>отдаёт настроенные локали со слагами и флагом дефолта</td>
+      </tr>
+      <tr>
+        <td class="mono">i18n_translations_get</td>
+        <td><span class="pill pill-pub">read</span></td>
+        <td class="mono">['copilot']</td>
+        <td class="mono">content:read</td>
+        <td>по элементу на настроенную локаль: есть ли перевод, его id и статус публикации</td>
+      </tr>
+      <tr>
+        <td class="mono">i18n_propose_translation</td>
+        <td><span class="pill pill-perm">propose</span></td>
+        <td class="mono">['copilot']</td>
+        <td class="mono">content:update</td>
+        <td>черновик <code>i18n.entry.translate</code>: одна запись в одну локаль</td>
+      </tr>
+      <tr>
+        <td class="mono">i18n_propose_bulk_translation</td>
+        <td><span class="pill pill-perm">propose</span></td>
+        <td class="mono">['copilot']</td>
+        <td class="mono">content:update</td>
+        <td>черновик <code>i18n.entry.bulk-translate</code>: до <code>BULK_MAX_SAVE_ITEMS</code> пар «запись × локаль» одним изменением</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Два read-инструмента лежат в одном файле и приземляются на разные поверхности</span>
+    <p><b><code>i18n_locales_list</code> отдан и MCP.</b> Он возвращает конфигурацию развёртывания, одинаковую для всех, без данных воркспейса и без состояния публикации — утекать нечему. А внешнему агенту он нужен ровно затем же, зачем копайлоту: <code>?locale=</code> на публичных чтениях принимает слаг, которого нет ни в одной схеме и ни в одном промпте, так что без списка клиент либо опускает параметр и молча читает язык по умолчанию, либо гадает и получает ошибку.</p>
+    <p><b><code>i18n_translations_get</code> — только копайлот.</b> <code>LocaleGroupService.entryLocales</code> строит предикат из <code>liveWhere</code>, который скоупит воркспейс и мягкое удаление, но <b>не состояние публикации</b> — то есть сообщает о черновом соседе <em>и его статусе</em>. Токен MCP с правом <code>read</code> этого видеть не должен (собственный <code>content_translations</code> у MCP — только опубликованное), а сузить инструмент до опубликованного значило бы отобрать ответ у копайлота, где он и полезен.</p>
+    <p>Решающий вопрос всегда один: <b>что этот инструмент показал бы токену, держащему <code>content:read</code></b> — а не «кто из потребителей его попросил».</p>
+  </div>
+
+  <h3>Что propose-инструменты проверяют сами</h3>
+  <p>По ADR-0009 изменение применяется в момент составления, поэтому проверки инструмента — <b>последние перед записью</b>:</p>
+  <ul>
+    <li><b>Грант типа и его существование — одно сообщение.</b> «Неизвестный тип в этом воркспейсе» одинаково отвечает и на «нет такого типа», и на «здесь он не выдан», чтобы прогон не мог перечислить типы развёртывания.</li>
+    <li><b>«Не локализован» — отдельная явная ошибка.</b> Она описывает тип, до которого вызывающий уже доказал, что дотягивается, и её безопасно и полезно произнести. Пустой ответ <code>[]</code> читался бы как «у этого нет других языков», тогда как правда — «этот контент не переводится вообще».</li>
+    <li><b>Слаг резолвится против настроенного набора</b> с подсказкой «вызови <code>i18n_locales_list</code>».</li>
+    <li><b>Локаль не должна уже существовать в группе</b> — иначе прямое указание «используй <code>content_propose_update</code> на той строке».</li>
+    <li><b>Отказ от общего поля.</b> Общее поле по определению одно на всю группу, поэтому его «перевод» либо был бы проигнорирован, либо молча переписал бы всех соседей. Сообщение перечисляет и отвергнутые поля, и то, какие поля на этом типе действительно варьируются по локалям.</li>
+    <li><b>Пустой набор значений — тоже ошибка.</b></li>
+  </ul>
+
+  <h4>Три проверки, специфичные для батча</h4>
+  <ul>
+    <li><b>Группа читается один раз на уникальный <code>id</code>-исходник.</b> Пять языков одной записи задают идентичный вопрос; во время propose ничего не пишется, поэтому кэшируется <b>весь view</b>, а не только id группы.</li>
+    <li><b>Два элемента, метящие в один слот <code>(группа, локаль)</code>, отвергаются заранее</b> — иначе они столкнулись бы с уникальным индексом на середине применения, когда первые переводы уже записаны.</li>
+    <li><b>Каждая ошибка префиксована номером элемента</b> (<code>Item 3: …</code>), а отказ валит весь вызов целиком.</li>
+  </ul>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">11</span>Админка</h2>
+
+  <p>Своих экранов у <code>@orthacms/i18n-admin</code> <b>нет</b>: ни маршрута, ни layout'а, ни пункта навигации. Пакет целиком состоит из вкладов в чужие слоты — восемь у <code>content-admin</code> и один у <code>insights-admin</code>. Регистрировать его надо <b>после</b> <code>ContentPlugin()</code>.</p>
+
+  <h3>Девять слотов, десять вкладов</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Вклад</th><th>Где виден</th><th>Условие показа</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">RECORDS_TOOLBAR_SLOT</td>
+        <td class="mono">LocaleSwitcher</td>
+        <td>тулбар таблицы записей</td>
+        <td><code>schema.i18n</code> <b>и</b> настроено <b>≥ 2</b> локалей; при ошибке чтения — кнопка повтора вместо исчезновения</td>
+      </tr>
+      <tr>
+        <td class="mono">RECORDS_COLUMN_SLOT</td>
+        <td class="mono">LocalesColumnCell</td>
+        <td>необязательная колонка «Locales»</td>
+        <td><code>appliesTo: s =&gt; !!s.i18n</code>; по умолчанию выключена, включается в пикере колонок</td>
+      </tr>
+      <tr>
+        <td class="mono">ENTRY_SIDEBAR_WIDGET_SLOT</td>
+        <td class="mono">LocaleWidget</td>
+        <td>панель «Locale» в правой колонке редактора</td>
+        <td><code>schema.i18n</code> и есть локали; работает и в режиме создания</td>
+      </tr>
+      <tr>
+        <td class="mono">ENTRY_HEADER_SLOT</td>
+        <td class="mono">LocaleTitleChip</td>
+        <td>бейдж рядом с заголовком записи</td>
+        <td><code>schema.i18n</code>; <b>гейт — схема, а не список локалей</b></td>
+      </tr>
+      <tr>
+        <td class="mono">RECORDS_FILTER_FIELDS_SLOT</td>
+        <td class="mono">useLocaleFilterFields</td>
+        <td>drawer конструктора фильтров</td>
+        <td><code>schema.i18n</code> и локали загрузились, иначе пустой массив</td>
+      </tr>
+      <tr>
+        <td class="mono">CONTENT_OVERLAY_SLOT</td>
+        <td class="mono">LocaleSwitchOverlay</td>
+        <td>полноэкранная накрышка при переключении языка</td>
+        <td>только когда идёт переключение</td>
+      </tr>
+      <tr>
+        <td class="mono">ENTRY_MENU_SLOT</td>
+        <td class="mono">usePublishAllLocales</td>
+        <td>меню «…» редактора, группа <code>extras</code>, order 10</td>
+        <td>тип i18n <b>и</b> publishable, запись сохранена, есть <code>content:publish</code>, локалей <b>≥ 2</b></td>
+      </tr>
+      <tr>
+        <td class="mono">ENTRY_MENU_SLOT</td>
+        <td class="mono">useUnpublishAllLocales</td>
+        <td>там же, order 20</td>
+        <td>то же, но условие «хотя бы одна локаль сейчас живая»</td>
+      </tr>
+      <tr>
+        <td class="mono">ENTRY_PARAMS_SLOT</td>
+        <td>невизуальная обвязка</td>
+        <td>—</td>
+        <td>всегда; см. ниже</td>
+      </tr>
+      <tr>
+        <td class="mono">INSIGHTS_WIDGET_SLOT</td>
+        <td class="mono">LocalizationCoverageWidget</td>
+        <td>карточка «Translation coverage», секция <em>Reach</em>, <code>size: 'full'</code>, <code>order: 5</code></td>
+        <td><code>permission: content:read</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>ENTRY_PARAMS_SLOT — три разных вещи в одном вкладе</h4>
+  <ul>
+    <li><b><code>listParamKeys: ['locale']</code></b> — чтение одиночной записи (single) резолвит свою строку по активной локали.</li>
+    <li><b><code>createBodyKeys: ['locale', 'localeGroupId']</code></b> — тело создания несёт локаль и целевую группу; сервер штампует соседа. Имя ключа группы совпадает с серверным <code>SaveEntryDto.localeGroupId</code>, поэтому слот пробрасывает его дословно.</li>
+    <li><b><code>relationCandidateParams</code></b> — кандидаты пикера связей скоупятся <b>строго</b> активной локалью (<code>{ locale }</code>, без fallback), потому что кросс-локальная связь запрещена. Локаль берётся у сохранённой записи (режим правки) или из <code>?locale=</code> формы создания (у черновика перевода ещё нет <code>entry</code>), — поэтому пикер остаётся «в языке» в обоих режимах.</li>
+  </ul>
+
+  <h3>Переключатель локали в редакторе записи</h3>
+  <p><code>LocaleWidget</code> рендерится как <code>EntrySidebarSection</code> контента, а не как собственная карточка: рельс редактора — это одна плоская панель Properties из секций, разделённых линиями, и карточка была бы единственной плавающей коробкой в ней.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Строка локали</th><th>Вид</th><th>Действие</th></tr></thead>
+    <tbody>
+      <tr><td>текущая</td><td>галочка, подсветка <code>bg-accent</code>, <code>aria-current</code></td><td>нет</td></tr>
+      <tr><td>перевод существует</td><td>имя + бейдж статуса (<b>только на publishable-типе</b>)</td><td>переход в редактор соседа</td></tr>
+      <tr><td>перевода нет, есть <code>content:create</code></td><td>приглушённое имя + «+ Add»</td><td>перенацеливает форму: <code>/:type/new?locale=…&amp;localeGroupId=…</code></td></tr>
+      <tr><td>перевода нет, нет права</td><td>инертная строка с текстом «Not translated — you can't create translations»</td><td>нет</td></tr>
+      <tr><td>состав группы не прочитался</td><td>инертная строка с текстом «Unknown — couldn't load»</td><td>нет; неизвестность <b>перевешивает</b> право</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Каждая навигация дописывает <code>tabSegment</code> из контекста слота — переключение, сделанное со вкладки Relations, приводит на вкладку Relations соседа, а не выбрасывает на General. В подвале секции показан <code>localeGroupId</code> с тултипом-объяснением; у свежего создания без группы вместо id стоит приглушённая заметка «Assigned when this record is saved.»</p>
+
+  <div class="note warn">
+    <span class="label">Инертная строка обязана говорить, почему она инертна</span>
+    <p>Раньше это была действующая строка с <code>opacity-50</code>: токен, подобранный так, чтобы едва пройти 4.5:1, и затем вдвое ослабленный — <b>измерено 2.18:1</b> против рельса, ниже AA. Текста она не несла, поэтому <em>запрещённая</em> локаль и <em>отсутствующая</em> были одной и той же тусклой линией без программной разницы. Теперь причина — настоящий текст в полном контрасте. Атрибут <code>aria-disabled</code> здесь не годится: контрола нет, а на <code>listitem</code> он и не поддерживается.</p>
+  </div>
+
+  <h3>Состояния: ошибка — это не пустота</h3>
+  <p>Три чтения гейтят всё в пакете, и каждое раньше проваливалось во что-то, что читалось как <em>ответ</em>:</p>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Список локалей не прочитался</h4>
+      <p class="small sub">Все поверхности делали ранний возврат, и переключатель — единственный контрол, способный очистить <code>?locale=</code> — исчезал, пока список оставался скоуплен этой локалью. Теперь переключатель рисует кнопку повтора, а чип заголовка откатывается на собственный <code>locale</code> строки (это тег BCP-47, он может назвать себя сам).</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Состав группы не прочитался</h4>
+      <p class="small sub">Все локали резолвились в «соседа нет», и панель предлагала <em>создать</em> перевод, который уже существует, а его сохранение потом отвечало 409. Теперь панель говорит, что состав не прочитан, и пока это так — ни одна строка не действующая.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Батч-сводка не прочиталась</h4>
+      <p class="small sub">Ячейка «Locales» рисовалась пустой — ровно так же выглядит «у записи нет других локалей». Теперь она пишет <em>Unavailable</em> с тултипом. У ячейки три исхода и три разных рендера, каждый с текстом, который прочтёт скринридер.</p>
+    </div>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Неизвестный слаг не должен резолвиться в дефолт</span>
+    <p>Сервер отвечает 400 на ненастроенный <code>?locale=</code>. Переключатель, подписанный «English», описывал бы список, которого он не показывает, — а повторный выбор English проглатывался как «уже активна», и выхода не оставалось, кроме правки URL. Теперь переключатель сообщает неизвестный слаг (иконка предупреждения, красный текст, отдельный <code>aria-label</code> с инструкцией), и <b>любой</b> выбор применяется: <code>findLocale</code> возвращает <code>undefined</code> вместо отката к дефолту, а <code>resolveActiveLocale</code> считает пустой <code>?locale=</code> отсутствующим.</p>
+  </div>
+
+  <h3>Публикационное состояние: четыре, а не два</h3>
+  <p>Обе поверхности, показывающие статус локали (<code>LocaleRow</code> в панели и <code>LocaleBadge</code> в колонке), рендерят <b>классификатор content-admin</b> — <code>entryStatusView</code> / <code>ENTRY_STATUS_VIEW_VARIANT</code> / <code>EntryStatusBadge</code>, а не собственное <code>published ? … : …</code>. Сервер хранит два значения, но состояний <b>четыре</b>: локаль с живым контентом плюс неопубликованными правками читается как <b>Modified</b>, что двусторонняя ветвь молча схлопывала в «Draft». Здесь это как раз массовый случай: правка <b>общего</b> поля переписывает всех соседей и переводит в это состояние всю группу.</p>
+  <p>Поэтому оба wire-view несут <code>publishedAt</code> рядом со <code>status</code> — это и есть тот бит, что разделяет два черновых состояния. В бейдже колонки состояние едет в <b>доступное имя ссылки</b> (сам бейдж показывает слаг, цвет один ничего не сообщает), причём как <b>локализованная подпись</b>: <code>entryStatusView</code> возвращает машинный токен, и его интерполяция вставляла бы английское слово в нижнем регистре в доступное имя на любом языке интерфейса.</p>
+
+  <h3>Data-слой: четыре хука</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Хук</th><th>Запрос</th><th>Кэш</th><th>Тонкость</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">useLocales</td>
+        <td>GET /i18n/locales</td>
+        <td><code>STALE_TIME.Forever</code>, ключ без воркспейса</td>
+        <td>отдаёт <b><code>isError</code> как часть контракта</b>, а не как деталь: без него провал чтения тихо удалял бы всю фичу</td>
+      </tr>
+      <tr>
+        <td class="mono">useEntryLocales</td>
+        <td>GET …/:id/locales</td>
+        <td>ключ <code>[..., workspaceId, typeName, entryId]</code></td>
+        <td>используется панелью, а также обоими пунктами меню «все локали»</td>
+      </tr>
+      <tr>
+        <td class="mono">useLocaleSummaries</td>
+        <td>POST …/locale-summary</td>
+        <td>ключ включает <b>отсортированные</b> уникальные id</td>
+        <td>питает и колонку, и панель в режиме создания; гейтится на <code>isVisible</code> колонки — иначе батч летел на каждой странице ради колонки, которую никто не включал</td>
+      </tr>
+      <tr>
+        <td class="mono">useLocalizationCoverage</td>
+        <td>GET /insights/i18n/coverage</td>
+        <td><code>STALE_TIME.Standard</code>, ключ с воркспейсом, <code>retry: 1</code></td>
+        <td>воркспейс доезжает до сервера только как ambient-заголовок и не шлётся на попадании в кэш — без id в ключе переключение воркспейса показывало бы чужое покрытие</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>Хука «создать перевод» нет.</b> Сосед создаётся обычным Save/Publish редактора; 409 на дубль локали и 404 на неизвестную группу всплывают штатным путём ошибок сохранения.</p>
+
+  <h3>Карточка «Translation coverage»</h3>
+  <p>Три заголовочные цифры слева, список полосок справа, переключатель <b>By language / By type</b>. Это <b>смена вида над одной выдачей</b>, а не две карточки и не второй запрос: «какой язык отстаёт» и «в каком типе контента работа» спрашивает один человек с интервалом в секунду, а разделение по карточкам произвольно приписало бы общие цифры одной из них.</p>
+  <ul>
+    <li><b>Знаменатель у осей разный, и ради этого меняется легенда.</b> По языкам каждая полоска масштабируется к числу записей воркспейса — длина полоски есть охват языка. По типам — к самому большому типу, так что длина читается как «сколько контента в этом типе», а синяя доля — «сколько из него доделано». Именно это делает видимым «долг сидит в Article».</li>
+    <li><b>Подзаголовок карточки едет вместе с осью</b> — оставленный на языковой формулировке, он описывал бы график, которого на экране уже нет.</li>
+    <li><b>Три цифры — не разбиение, и подписи это проговаривают:</b> «in every language» / «no translations started» / «missing at least one». Это три вопроса, а не три ломтя, — почему это и не круговая диаграмма.</li>
+    <li><b>Пустой воркспейс не получает зелёного чипа.</b> <code>requires === 0</code> истинно и когда всё переведено, и когда записей нет вовсе; второе — не достижение, а воркспейс, в который ни разу не писали, сам себе выдавал «Fully translated».</li>
+    <li><b>0% и 100% зарезервированы за настоящими значениями.</b> Обычное округление печатало «0%» рядом с видимой полоской (3 из 609) и «100%» рядом с карточкой, чей чип говорил, что работа осталась (608 из 609). Близкий промах зажимается в 1% / 99%. Деление вообще случается только здесь — сервер шлёт счётчики и никогда не делит.</li>
+  </ul>
+
+  <h3>Флориш переключения</h3>
+  <p><code>LocaleSwitchOverlay</code> плюс модульный стор <code>utils/localeTransition</code>. Триггер зовёт <code>beginLocaleSwitch(name, apply)</code>, передавая <b>сам своп</b> (<code>updateParams</code> в тулбаре, <code>navigate</code> в виджете) как <code>apply</code>, вместо того чтобы выполнить его сразу.</p>
+  <ul>
+    <li><b>Стор модульный, а не React-state</b> — переключение из виджета <em>уводит</em> со страницы, размонтируя триггер, и флориш обязан это пережить и быть перечитан свежим хостом оверлея на назначении.</li>
+    <li><b>Хост страничный, а не внутриредакторный.</b> Он вложен в <code>CONTENT_OVERLAY_SLOT</code>, который <code>ContentLibraryPage</code> рендерит вне своих маршрутов. Раньше его рисовали внутри редактора — а тот размонтируется под свою загрузку, поэтому накрышка пропадала на середине перехода, обнажая полностраничный спиннер, и возвращалась после ре-рендера: два загрузчика мигали по очереди.</li>
+    <li><b>Удержание управляется данными, а не таймером.</b> Оверлей смотрит на <code>useIsFetching()</code> и зовёт <code>settleLocaleSwitch()</code>, когда ничего не летит; пол <code>MIN_HOLD_MS</code> нужен, потому что «нет запросов» до выпуска запросов назначения ничего не значит, а потолок <code>MAX_HOLD_MS</code> не даёт зависшему запросу оставить страницу закрытой.</li>
+    <li><b>Быстрое пере-переключение отменяет отложенный <code>apply</code></b> — побеждает последний выбор. Размонтирование триггера тоже отменяет ещё не выполненный своп, но <b>не</b> уже выполненный: с этого момента флориш законно в полёте.</li>
+    <li><b>Чисто визуально:</b> <code>pointer-events-none</code>, <code>motion-reduce:animate-none</code>, портал в <code>document.body</code>, фон <code>bg-background/95 backdrop-blur-sm</code>.</li>
+  </ul>
+
+  <h3>Язык и направление в разметке</h3>
+  <p><code>localeAttrs(locales, slug)</code> отдаёт пару <code>{ lang, dir }</code> для разворачивания на любой элемент, рендерящий текст этой локали: строки и триггер переключателя, имя в чипе заголовка, строки панели. <b>Отображаемое имя локали написано на этой локали</b>, поэтому ему нужна разметка ещё до того, как открыт какой-либо контент. Окружающая служебная копия («(default)», «Translated fields») остаётся на языке админки и намеренно вынесена за пределы размеченного элемента.</p>
+  <p>В чипе заголовка разделитель <code> · </code> стоит <b>снаружи</b> размеченного span'а, в направлении самого чипа: внутри него RTL-имя утаскивало разделитель на неверную свою сторону — разделитель принадлежит вёрстке чипа, а не имени.</p>
+  <p>Ряд переведённых полей редактора несёт <code>lang={entry.locale}</code> (через <code>EntryFieldSections</code> контента), с <code>dir="auto"</code> на обоих рядах. <b>Подписи полей пока наследуют этот <code>lang</code></b> — разметка каждого контрола по отдельности требует проброса в каждой ветке <code>EntryFieldInput</code> и ведётся отдельной задачей.</p>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">12</span>Конфигурация</h2>
+
+  <p>Переменных окружения у i18n <b>нет ни одной</b>. Вся конфигурация — литеральный объект в <code>apps/server/ortha.config.ts</code> под ключом <code>plugins.i18n</code>. Это осознанно: набор локалей — стабильная продуктовая настройка, а не секрет и не тюнинг под окружение.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ключ</th><th>Тип</th><th>По умолчанию</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">locales</td>
+        <td class="mono">LocaleDef[]</td>
+        <td>обязателен</td>
+        <td>доступные локали в порядке отображения; ровно одна с <code>isDefault: true</code></td>
+      </tr>
+      <tr>
+        <td class="mono">locales[].slug</td>
+        <td class="mono">string</td>
+        <td>обязателен</td>
+        <td>тег BCP-47 в строчном виде; хранится в колонке <code>locale</code></td>
+      </tr>
+      <tr>
+        <td class="mono">locales[].name</td>
+        <td class="mono">string</td>
+        <td>обязателен</td>
+        <td>отображаемое имя; пишется <b>на этом языке</b></td>
+      </tr>
+      <tr>
+        <td class="mono">locales[].isDefault</td>
+        <td class="mono">boolean?</td>
+        <td class="mono">false</td>
+        <td>ровно у одной локали должно быть <code>true</code></td>
+      </tr>
+      <tr>
+        <td class="mono">locales[].dir</td>
+        <td class="mono">'ltr' | 'rtl' ?</td>
+        <td>выводится из слага</td>
+        <td>объявление всегда побеждает вывод; на проводе присутствует всегда</td>
+      </tr>
+      <tr>
+        <td class="mono">orphanedLocales</td>
+        <td class="mono">'fail' | 'warn' ?</td>
+        <td class="mono">'fail'</td>
+        <td>что делать на старте, если в данных есть строки в необъявленной локали</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Текущая конфигурация репозитория</summary>
+    <p class="small"><code>plugins.i18n.locales</code> = <code>en</code> (English, default), <code>de</code> (Deutsch), <code>fr</code> (Français); <code>orphanedLocales: 'fail'</code>. Комментарий в конфиге отдельно предупреждает, что бэкфилл миграции предполагает <code>'en'</code> в качестве дефолта.</p>
+  </details>
+
+  <h3>Удаление локали — единственное изменение, которое проваливается молча</h3>
+  <p>Добавление локали безопасно и само о себе объявляет: группы получают пустой слот, покрытие показывает <code>translated: 0</code>, панель показывает <code>entry: null</code>. Удаление — ни то, ни другое.</p>
+
+  <div class="note crit">
+    <span class="label">Что происходит при удалении локали из конфига</span>
+    <p>Ничего не удаляет строки и ничто их не мигрирует. С этой секунды <b>каждый читающий путь их прячет</b>: <code>?locale=de</code> становится 400, панель локалей итерирует настроенный набор, покрытие и виртуальные фильтры ограничены им, батч-сводка их отбрасывает. Немецкий контент цел и достижим только через <code>psql</code>, а продукт больше никогда о нём не упоминает — включая того, кто это изменение и сделал: он видит уменьшившийся переключатель локалей и больше ничего.</p>
+  </div>
+
+  <p><code>OrphanedLocaleChecker</code> считает этот диф <b>один раз на старте</b> (<code>OnApplicationBootstrap</code>): по каждому локализованному типу — различающиеся ненастроенные слаги с числом строк, один <code>GROUP BY locale</code> на тип, по колонке, которую и так покрывает индекс <code>(locale_group_id, locale)</code>. Корзинные строки тоже считаются: восстановление вернуло бы строку в локали, которую нечем показать, — та же проблема, только отложенная.</p>
+  <ul>
+    <li><b><code>'fail'</code> (по умолчанию)</b> — старт прерывается с сообщением, перечисляющим настроенные слаги, каждый осиротевший слаг с числом строк и подсказку «поставьте <code>'warn'</code>, чтобы всё-таки загрузиться». Выбор (мигрировать строки или вернуть локаль) ставится перед тем, кто менял конфиг, пока это ещё его изменение.</li>
+    <li><b><code>'warn'</code></b> — тот же отчёт уходит в лог, приложение продолжает старт. Для развёртывания, сознательно находящегося в середине миграции.</li>
+    <li><code>findOrphans()</code> публичный — миграционный скрипт или операторский эндпоинт могут задать тот же вопрос, не переизобретая правило.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">13</span>Инварианты</h2>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span><b>Ровно одна локаль по умолчанию.</b> Проверяется на конструировании плагина (<code>LocaleSet.create</code>: <code>defaults.length !== 1</code> → <code>InvalidLocaleSetError</code>). Следствие: <code>LocaleSet.default()</code> — тотальная функция, и во всём остальном коде «а вдруг дефолта нет» не обрабатывается.</span></li>
+    <li><span class="id">И-02</span><span><b>Набор локалей непуст и слаги уникальны.</b> Пустой массив и дубль слага падают там же, до старта, до первого запроса.</span></li>
+    <li><span class="id">И-03</span><span><b>Слаг локали есть тег BCP-47 в строчном виде.</b> <code>/^[a-z]{2,3}(-[a-z0-9]+)*$/</code>, не длиннее 35. Ничто в коде не приводит регион к верхнему регистру — значение подставляется в <code>lang</code> дословно.</span></li>
+    <li><span class="id">И-04</span><span><b>Направление письма всегда присутствует на проводе.</b> В конфиге <code>dir</code> необязателен, но <code>Locale.dir</code> всегда резолвлен (объявлен или выведен). Потребитель ставит <code>dir</code> безусловно, а не гадает.</span></li>
+    <li><span class="id">И-05</span><span><b>Неизвестный слаг — это 400, никогда не подстановка дефолта.</b> Единственный шлюз — <code>LocalePolicy.resolve</code>, обёрнутый <code>LocaleRegistryService.resolve</code>. Правило дублируется на клиенте: <code>findLocale</code> возвращает <code>undefined</code> при промахе.</span></li>
+    <li><span class="id">И-06</span><span><b>Отсутствие <code>?locale=</code> означает локаль по умолчанию.</b> Поэтому дефолтная локаль в админке пишется как чистый URL (<code>toLocaleListParam</code>) — два написания не могут разойтись.</span></li>
+    <li><span class="id">И-07</span><span><b>Цепочка fallback не длиннее двух.</b> Только <code>[requested]</code> или <code>[requested, default]</code>, и только при <code>?localeFallback=default</code>. Иерархического fallback (<code>pt-br → pt → en</code>) не существует.</span></li>
+    <li><span class="id">И-08</span><span><b>Каждый хук порта — no-op на нелокализованном типе.</b> Все шесть методов открываются проверкой <code>type.i18n</code>. Связывание расширения не может изменить поведение постороннего типа — это требование контракта порта, а не вежливость.</span></li>
+    <li><span class="id">И-09</span><span><b>Одна строка на пару <code>(группа, локаль)</code>.</b> Арбитр — уникальный индекс БД (на paranoid-типах частичный, <code>WHERE deleted_at IS NULL</code>), а не проверка в коде. Дубль всегда 409, а не порча группы.</span></li>
+    <li><span class="id">И-10</span><span><b><code>localeGroupId</code> на создании должен называть существующую группу этого воркспейса</b> — иначе 404. Опечатка не может породить бродячую одностроковую группу. Окно TOCTOU безобидно: строка остаётся валидной, а дубли всё равно ловит индекс.</span></li>
+    <li><span class="id">И-11</span><span><b>Обычное создание начинает свою группу.</b> Id берётся из дефолта колонки (<code>gen_random_uuid()</code>), а не из кода — поэтому «начать новую группу» и «присоединиться к существующей» различаются наличием одного аргумента.</span></li>
+    <li><span class="id">И-12</span><span><b>Блокировка группы берётся до любой строковой блокировки.</b> <code>beforeWrite</code> — первый оператор транзакции. Упорядочивание соседей по id остаётся, но как детерминизм, а не как защита от взаимоблокировки.</span></li>
+    <li><span class="id">И-13</span><span><b>Сохранение, которому нечего распространять, не берёт блокировок соседей.</b> Проверка «есть ли общие колонки или синхронизируемая связь» выполняется <b>до</b> чтения. Оба входа бесплатны: колонки — из мешка значений сохранения, синхронизируемость связи — свойство схемы.</span></li>
+    <li><span class="id">И-14</span><span><b>Сосед, у которого всё совпадает, не переписывается.</b> Ни строки истории, ни демотации, ни <code>updatedAt</code>. Сравнение через <code>IS DISTINCT FROM</code>, каждое значение биндится кодировщиком своей колонки.</span></li>
+    <li><span class="id">И-15</span><span><b>Переписанный опубликованный сосед уходит в <code>draft</code>, сохраняя <code>published_at</code>.</b> Читается как <b>Modified</b>, а не как никогда не публиковавшийся черновик. Публикация любой локали остаётся построчной; это правило лишь не даёт одной локали выйти в свет на чужом сохранении.</span></li>
+    <li><span class="id">И-16</span><span><b>Сосед, который <em>был</em> опубликован, обязан остаться валидным.</b> Перевалидация читает <b>предзаписные</b> статусы, снятые <code>SELECT … FOR UPDATE</code>; провал — 422 и откат всего сохранения. Черновики валидировать не требуется — то же правило, что при прямом сохранении черновика.</span></li>
+    <li><span class="id">И-17</span><span><b>Нерезолвимая зеркальная связь обнуляется, а не оставляется.</b> Оставленное значение указывало бы на перевод <em>предыдущей</em> записи — тихо неверные данные хуже пустого поля.</span></li>
+    <li><span class="id">И-18</span><span><b>Зеркальная ссылка на непереведённую цель просто не ставится и не валит сохранение.</b> Английское сохранение не должно падать из-за того, что немецкого тега ещё нет. За это отвечает <code>equivalentIdsByLocale</code> — снисходительный двойник <code>resolveLocaleGroups</code>, который кидает 422 (правильно для явного вызова API, неправильно для неявной синхронизации).</span></li>
+    <li><span class="id">И-19</span><span><b>Создание тянет связи внутрь, а не выталкивает наружу.</b> Донор выбирается детерминированно: строка дефолтной локали, иначе лексикографически первая. Выведенные колонки дописываются в <code>row</code> по месту, потому что снимок для версии 1 снимается после вызова.</span></li>
+    <li><span class="id">И-20</span><span><b>Ревизии пишет контент, а не i18n.</b> <code>afterUpdate</code> возвращает переписанные строки, конвейер дописывает по версии на каждую в той же транзакции. Нумерация сериализуется advisory-блокировкой; второй писатель, выдающий номера в обход, — это способ породить дубли версий.</span></li>
+    <li><span class="id">И-21</span><span><b><code>hasLocale</code> принимает только <code>eq</code> и <code>in</code>.</b> <code>ne</code>/<code>nin</code> отрицают <em>внутри</em> <code>EXISTS</code> и отвечают на другой вопрос. Отказ — 400 с именем поля. Админский drawer зеркалит то же ограничение, чтобы не предлагать правило, которое API отвергнет.</span></li>
+    <li><span class="id">И-22</span><span><b><code>missingLocale in [a, b]</code> означает «отсутствуют все перечисленные».</b> Это <code>notExists</code> над объединением. «Отсутствует хоть одна» выражается как <code>or</code> из правил <code>missingLocale eq</code>.</span></li>
+    <li><span class="id">И-23</span><span><b>Виртуальные фильтры и покрытие ограничены одним и тем же настроенным набором.</b> <code>groupScope</code> расширения и <code>configuredScope</code> запроса покрытия. Без этого два вида на одну запись расходились бы: <code>localeCount</code> уезжал выше настроенного итога.</span></li>
+    <li><span class="id">И-24</span><span><b>Единица покрытия — запись, а не строка.</b> Везде <code>count(distinct locale_group_id)</code>. Строки по типам суммируются в конвертные итоги — это проверяет отдельный тест server-e2e.</span></li>
+    <li><span class="id">И-25</span><span><b>При одной настроенной локали <code>notLocalized</code> принудительно равен 0.</b> Иначе каждая запись отчиталась бы одновременно как полностью локализованная и как не локализованная вовсе.</span></li>
+    <li><span class="id">И-26</span><span><b>Ключи ответа сводки — ровно ключи запроса.</b> Каждый запрошенный id засеян <code>[]</code>, строки скоуплены воркспейсом: чужая группа и несуществующий id неотличимы.</span></li>
+    <li><span class="id">И-27</span><span><b>Инструменты агента перепроверяют гранты типа, HTTP-путь — нет.</b> Имя типа от модели управляемо контентом, который она прочла; имя типа из UI уже прошло workspace-scoped контроллер.</span></li>
+    <li><span class="id">И-28</span><span><b>Propose-инструмент принимает только <code>localized</code>-поля</b>, а applier обязан подмешать общие значения исходника, прочитанные <b>в момент применения</b>. Иначе <code>coerceValues</code> штампует общие поля как <code>null</code>, и группа из черновиков молча обнуляется на всех языках.</span></li>
+    <li><span class="id">И-29</span><span><b>Батч-applier пишет последовательно и останавливается на первой ошибке</b>, называя, сколько успело приземлиться. У предложения одна строка и один статус — по-элементного вердикта не существует.</span></li>
+    <li><span class="id">И-30</span><span><b>Ошибка — это не пустота.</b> Три чтения админки (<code>useLocales</code>, <code>useEntryLocales</code>, <code>useLocaleSummaries</code>) обязаны отличать «нет данных» от «не смогли спросить», и каждая поверхность рисует это отдельным состоянием.</span></li>
+    <li><span class="id">И-31</span><span><b>Кросс-локальная связь запрещена.</b> Кандидаты пикера скоупятся строго активной локалью, без fallback. Соответственно и applier не копирует per-locale связи исходника.</span></li>
+    <li><span class="id">И-32</span><span><b>Плагин не владеет ни одной таблицей и не везёт ни одной миграции.</b> Отсутствие <code>drizzle.config.ts</code> — это часть контракта пакета, а не упущение.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">14</span>Чек-лист тестирования</h2>
+
+  <p>Разложен по уровням: юнит (без БД), server-e2e (нужен Docker — testcontainer с Postgres), admin-e2e (мокнутый API, без бэкенда), ручная проверка на живом стенде.</p>
+
+  <h3>Юнит — <code>npx nx test @orthacms/i18n-server</code></h3>
+  <ul class="check">
+    <li><b>Валидация конфига на конструировании</b> <span class="exp">— пустой массив локалей, дубль слага, ноль дефолтов, два дефолта, кривой слаг (<code>EN</code>, <code>pt_BR</code>, <code>e</code>), пустое имя, <code>dir</code> вне <code>ltr|rtl</code>: всё падает на вызове <code>I18nServerPlugin()</code>, а не при старте</span></li>
+    <li><b>Вывод направления</b> <span class="exp">— <code>ar</code>/<code>he</code>/<code>fa</code>/<code>ur</code> → rtl; <code>az-arab</code> → rtl; <code>ku-latn</code> → ltr; явный <code>dir</code> побеждает вывод</span></li>
+    <li><b><code>LocalePolicy.resolve</code></b> <span class="exp">— отсутствие слага → дефолт; известный → он; неизвестный → <code>UnknownLocaleError</code></span></li>
+    <li><b><code>shouldWidenToDefault</code> / <code>fallbackChain</code></b> <span class="exp">— fallback запрошен и локаль не дефолтная → цепочка из двух; запрошенная == дефолтная → одна; fallback не запрошен → одна</span></li>
+    <li><b><code>LocaleSet.remove</code></b> <span class="exp">— отказ удалять дефолт, отказ удалять не-члена</span></li>
+    <li><b>Propose-инструменты</b> <span class="exp">— <code>translation-proposal.provider.spec.ts</code>: отказ на общем поле, отказ на пустых значениях, отказ на занятой локали, отказ на двух элементах в один слот, префикс <code>Item N:</code>, превышение <code>BULK_MAX_SAVE_ITEMS</code></span></li>
+  </ul>
+
+  <h3>Server-e2e — <code>apps/server-e2e/src/server/i18n/</code></h3>
+  <ul class="check">
+    <li><b>Список локалей</b> <span class="exp">— отдаёт настроенные, ровно один <code>isDefault</code></span></li>
+    <li><b>Штамповка при создании</b> <span class="exp">— без <code>locale</code> берётся дефолт; явная локаль штампуется; неизвестная → 400; обычное создание получает свою свежую группу</span></li>
+    <li><b>Скоупинг списка</b> <span class="exp">— без <code>?locale=</code> только дефолт; с <code>?locale=de</code> строго немецкий; неизвестный слаг → 400; <code>?localeFallback=default</code> подставляет дефолтную строку там, где запрошенной нет — и ровно одну на группу</span></li>
+    <li><b>Создание соседа</b> <span class="exp">— новый черновик с общей группой; дубль локали → <b>409</b>; неизвестная целевая локаль → 400; <code>localeGroupId</code>, не называющий группу воркспейса → <b>404</b></span></li>
+    <li><b>Синхронизация общих полей</b> <span class="exp">— общее поле уезжает соседям, <code>localized</code> — нет; массивное (jsonb) общее поле синхронизируется без падения предиката; повторная отправка неизменного массива не трогает соседей</span></li>
+    <li><b>Ревизии</b> <span class="exp">— по версии каждому переписанному соседу; при правке только <code>localized</code>-поля история соседей не трогается вовсе</span></li>
+    <li><b>Демотация и валидация</b> <span class="exp">— переписанный опубликованный сосед уходит в draft с сохранённым <code>publishedAt</code>; черновой сосед и его <code>publishedAt</code> не трогаются; синхронизация, которая сделала бы опубликованного соседа невалидным → <b>422</b> и полный откат</span></li>
+    <li><b>Синхронизация связей</b> <span class="exp">— общая many-связь уезжает всем; отвязывание тоже уезжает; новый перевод получает связи группы; новый перевод <b>не</b> стирает связи, с которыми он не пришёл; зеркальная many и зеркальная single раскладываются по локалям; зеркальная ссылка на непереведённую цель отбрасывается, сохранение проходит; unsynced-связь остаётся независимой по локалям</span></li>
+    <li><b>One-to-one по локалям</b> <span class="exp">— одна запись делит цель между своими локалями; цель, уже занятая <b>в той же локали</b>, отвергается; мягкое удаление держателя освобождает цель</span></li>
+    <li><b>Схема отдаёт режим синхронизации</b> <span class="exp">— чтобы редактор мог объяснить своё поведение; на типе без локалей про локали не говорится ничего</span></li>
+    <li><b>Виртуальные фильтры</b> <span class="exp">— <code>hasLocale</code>/<code>missingLocale</code> выбирают по членству в группе; <code>localeCount</code> сравнивает число переводов; <code>hasLocale ne</code> → 400</span></li>
+    <li><b>Панель и сводка</b> <span class="exp">— по элементу на настроенную локаль (present или null); батч по странице строк; оба маршрута → 400 на нелокализованном типе</span></li>
+    <li><b>Регресс нелокализованных типов</b> <span class="exp">— <code>?locale=</code> на обычном типе игнорируется</span></li>
+    <li><b>Целостность локалей</b> <span class="exp">— <code>i18n-locale-integrity.spec.ts</code>: конкурентные кросс-локальные сохранения не дают <code>deadlock detected</code></span></li>
+    <li><b>RTL</b> <span class="exp">— <code>i18n-rtl-locales.spec.ts</code>: <code>dir</code> приезжает в списке и на элементах панели</span></li>
+    <li><b>Одна локаль</b> <span class="exp">— <code>i18n-single-locale-coverage.spec.ts</code>: <code>notLocalized</code> равен 0</span></li>
+    <li><b>Покрытие</b> <span class="exp">— <code>apps/server-e2e/src/server/insights/localization-insights.spec.ts</code>: свёртка запись-против-строки и сумма по типам, равная конвертному итогу</span></li>
+    <li><b>Осиротевшие локали</b> <span class="exp">— строки в необъявленном слаге: <code>'fail'</code> валит старт с перечислением, <code>'warn'</code> пишет тот же отчёт и продолжает; корзинные строки тоже считаются</span></li>
+  </ul>
+
+  <h3>Admin-e2e — <code>apps/admin-e2e/src/content/i18n.spec.ts</code></h3>
+  <ul class="check">
+    <li><b>Переключатель</b> <span class="exp">— не рисуется на нелокализованном типе; не рисуется при одной настроенной локали; при ошибке чтения рисует кнопку повтора; неизвестный <code>?locale=</code> показывается как таковой и любой выбор применяется</span></li>
+    <li><b>Клавиатура переключателя</b> <span class="exp">— фокус остаётся в поиске, ↑/↓ двигают подсветку, Enter выбирает, строки не ловят Tab</span></li>
+    <li><b>Чистый URL для дефолта</b> <span class="exp">— выбор дефолтной локали убирает <code>?locale=</code>, а не пишет <code>?locale=en</code></span></li>
+    <li><b>Панель локалей</b> <span class="exp">— текущая отмечена; существующая ведёт к соседу; отсутствующая ведёт на форму создания с <code>?locale=</code> и <code>localeGroupId</code>; сохраняется <code>tabSegment</code></span></li>
+    <li><b>Инертные строки</b> <span class="exp">— без <code>content:create</code> строка говорит «нельзя создавать переводы»; при провале чтения состава — «Unknown», и это перевешивает право</span></li>
+    <li><b>Бейдж статуса только на publishable-типе</b> <span class="exp">— на always-live типе строка не рисует бейдж вовсе</span></li>
+    <li><b>Modified вместо Draft</b> <span class="exp">— локаль с <code>status: draft</code> и непустым <code>publishedAt</code> должна читаться как Modified и в панели, и в бейдже колонки</span></li>
+    <li><b>Колонка Locales</b> <span class="exp">— выключена по умолчанию; включённая делает <b>один</b> POST на страницу; выключенная не делает ни одного; три состояния (loading / Unavailable / бейджи) различимы</span></li>
+    <li><b>Меню «все локали»</b> <span class="exp">— «Publish all» скрыт при одной локали, «Unpublish all» скрыт когда живого нет; строки диалога подписаны локалями, а не одинаковыми заголовками</span></li>
+    <li><b>Карточка покрытия</b> <span class="exp">— <code>apps/admin-e2e/src/insights/insights.spec.ts</code>: переключение By language / By type меняет полоски, легенду и подзаголовок вместе; пустой воркспейс не получает зелёного чипа</span></li>
+    <li><b>Доступность</b> <span class="exp">— axe без нарушений на редакторе с панелью и на таблице с колонкой; имя локали несёт <code>lang</code>/<code>dir</code>; состояние публикации есть в доступном имени ссылки-бейджа и локализовано</span></li>
+  </ul>
+
+  <h3>Ручная проверка на живом стенде</h3>
+  <ul class="check">
+    <li><b>Флориш</b> <span class="exp">— переключение на локаль с непрогретым кэшем: спиннер редактора не должен мелькать из-под накрышки; быстрое пере-переключение — побеждает последний выбор; клик по постороннему пункту меню во время накрышки не должен утащить на брошенную локаль</span></li>
+    <li><b>Взаимоблокировки</b> <span class="exp">— две вкладки, две локали одной записи, одновременные сохранения общего поля: второй ждёт, оба проходят, 500 не появляется</span></li>
+    <li><b>Откат при 422</b> <span class="exp">— правка общего поля, ломающая обязательность в опубликованном соседе: ни одна строка не должна измениться</span></li>
+    <li><b>RTL</b> <span class="exp">— добавить <code>{ slug: 'ar', name: 'العربية' }</code> без <code>dir</code>: направление должно приехать <code>rtl</code>, чип заголовка не должен утащить разделитель</span></li>
+    <li><b>Удаление локали</b> <span class="exp">— убрать <code>fr</code> из конфига при существующих французских строках: старт обязан упасть с перечислением типов и числом строк</span></li>
+    <li><b>Копайлот</b> <span class="exp">— «переведи это на немецкий, французский и испанский»: <b>одна</b> карточка изменения, один шаг прогона; ответ на несуществующий язык должен подсказывать <code>i18n_locales_list</code>; перевод общего поля должен быть отвергнут с перечислением реально локализованных полей</span></li>
+    <li><b>Перенос</b> <span class="exp">— экспорт с включённой глубиной локалей и импорт в чистый воркспейс: группы должны восстановиться, натуральные ключи двух локалей не должны схлопнуться</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">15</span>Границы ответственности</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вопрос</th><th>Отвечает</th><th>Не отвечает</th></tr></thead>
+    <tbody>
+      <tr><td>Какие локали существуют, какая по умолчанию, как читается неизвестный слаг</td><td class="mono">i18n-server (domain/)</td><td>—</td></tr>
+      <tr><td>Есть ли у типа колонки <code>locale</code>/<code>locale_group_id</code>, какие на них индексы</td><td class="mono">content-server (table-builder)</td><td class="mono">i18n</td></tr>
+      <tr><td>Считается ли связь синхронизируемой и как (<code>Shared</code>/<code>Mirrored</code>/<code>None</code>)</td><td class="mono">content-server (relationLocaleSync)</td><td class="mono">i18n — только машинерия применения</td></tr>
+      <tr><td>Кто пишет ревизию соседу</td><td class="mono">content-server</td><td class="mono">i18n — только возвращает переписанные строки</td></tr>
+      <tr><td>Кто разрешает запись и по какому праву</td><td class="mono">identity-server + content-server</td><td class="mono">i18n — своих прав не вводит</td></tr>
+      <tr><td>Чей это воркспейс</td><td class="mono">workspaces-server (WorkspaceGuard)</td><td class="mono">i18n</td></tr>
+      <tr><td>Как выглядит бейдж статуса публикации</td><td class="mono">content-admin (entryStatusView)</td><td class="mono">i18n-admin — переиспользует классификатор</td></tr>
+      <tr><td>Кто рисует страницу Insights</td><td class="mono">insights-admin</td><td class="mono">i18n-admin — только одна карточка</td></tr>
+      <tr><td>Кто везёт локали в экспорте/импорте</td><td class="mono">transfer-*</td><td class="mono">i18n — но каждая запись импорта идёт через связанный порт</td></tr>
+      <tr><td>Кто предлагает и применяет перевод от агента</td><td class="mono">i18n-server (copilot/)</td><td>—; контентные инструменты <b>лишены</b> аргумента <code>localeGroupId</code></td></tr>
+      <tr><td>Кто переводит текст</td><td>человек или модель</td><td class="mono">i18n — не обращается ни к какому переводчику</td></tr>
+      <tr><td>Язык интерфейса админки</td><td class="mono">bootstrap-admin (react-intl, один IntlProvider)</td><td class="mono">i18n — локализует контент, а не UI</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего в пакете нет и не планируется по текущему коду</h3>
+  <ul>
+    <li><b>Нет иерархического fallback.</b> <code>pt-br</code> не откатывается в <code>pt</code>. Цепочка максимум из двух: запрошенная и дефолтная.</li>
+    <li><b>Нет UI управления локалями.</b> Локали — литерал в коде хоста, а не запись в БД. Комментарий сервера прямо называет будущую таблицу пер-локальных настроек «первым кандидатом», если владение таблицами когда-нибудь понадобится.</li>
+    <li><b>Нет операции удаления локали.</b> Только диф и загрузочная проверка.</li>
+    <li><b>Нет собственного маршрута создания перевода.</b> Присоединение к группе — это то, что аргумент <code>localeGroupId</code> уже означает.</li>
+    <li><b>Нет пер-локальных прав.</b> Нельзя дать редактору доступ только к немецкому.</li>
+    <li><b>Нет статуса «требует перевода» на записи.</b> Отставание вычисляется запросом (покрытие, виртуальные фильтры), а не хранится флагом.</li>
+    <li><b>Нет доменных событий и outbox</b> — писать нечего, и это прямо зафиксировано как решение, а не как отложенная работа.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">16</span>Расхождения кода и документации</h2>
+
+  <p>Все утверждения из <code>AGENTS.md</code> и JSDoc сверялись с реализацией. Ниже — то, где они разошлись. Ни одно из расхождений не является дефектом поведения; все они вводят читателя в заблуждение.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что написано</th><th>Что в коде</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">server/src/lib/utils/i18n-plugin.ts</td>
+        <td>JSDoc: «serves the locale-domain API under <code>/api/i18n</code> (locales list, per-entry locale panel, batched summaries, <b>create-translation</b>)»</td>
+        <td>Маршрута создания перевода не существует. Комментарий в самом <code>I18nModule.forRoot</code> прямо говорит противоположное: «Reads only… so this plugin owns no entry-write route». Документ противоречит соседнему файлу того же пакета</td>
+      </tr>
+      <tr>
+        <td class="mono">server/src/lib/content/services/locale-group.service.ts</td>
+        <td>JSDoc класса: «Read-only — writes live in <code>{@link TranslationService}</code>»</td>
+        <td>Класса <code>TranslationService</code> в репозитории <b>нет вообще</b> — ни в этом пакете, ни в соседних. Ссылка битая; записи идут через <code>EntryWriterService</code> контента</td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md, раздел «Architecture / conventions»</td>
+        <td>«Feature-then-kind layout (<code>locales/</code>, <code>content/{services,controllers,dto}</code>)»</td>
+        <td>Противоречит собственной шапке файла («Layout: layered (ADR-0003)») и реальной раскладке: есть <code>domain/{value-objects,errors}</code> и <code>insights/{http,infrastructure,types}</code>, разложенный строго по слоям. Документ противоречит сам себе</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md, список слотов</td>
+        <td><code>RECORDS_TOOLBAR_SLOT</code> → «a searchable dropdown (design-system <code>Popover</code> + <b><code>Command</code></b>)»</td>
+        <td>Компонент намеренно <b>не</b> использует cmdk <code>Command</code>: <code>Popover</code> + обычный <code>Input</code> над одним <code>overflow-y-auto</code> списком. Его собственный JSDoc отдельно объясняет, почему от <code>Command</code> отказались (колесо мыши и рамка) и что клавиатурный контракт теперь свой</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md, список слотов</td>
+        <td>Переключатель «shown <b>only when</b> <code>schema.i18n</code>»</td>
+        <td>Условий два: кроме <code>schema.i18n</code> он скрывается при <code>locales.length &lt; 2</code> (комментарий: развёртывание с одной локалью не нуждается в контроле, которому нечего менять) и, наоборот, <b>рисуется</b> при ошибке чтения — как кнопка повтора. Ни то, ни другое в этом пункте не упомянуто</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/src/lib/utils/i18nPlugin/index.tsx</td>
+        <td>JSDoc фабрики: «relation-picker candidates are scoped to the source entry's locale <b>with default-locale fallback</b>»</td>
+        <td>Кандидаты скоупятся <b>строго</b>, без fallback: комментарий на десять строк ниже, в самом <code>relationCandidateParams</code>, говорит «strictly… cross-locale linking isn't allowed, so no default fallback», и код возвращает <code>{ locale }</code>. <code>AGENTS.md</code> здесь прав, JSDoc — нет</td>
+      </tr>
+      <tr>
+        <td class="mono">server, три JSDoc'а подряд</td>
+        <td><code>GetEntryLocalesController</code>, <code>LocaleGroupService.entryLocales</code> и админский <code>useEntryLocales</code> описывают элемент как «(id, status, updatedAt)»</td>
+        <td>Вид несёт ещё и <code>publishedAt</code> — и это не деталь: именно он отделяет <b>Modified</b> от <b>Draft</b>, без него панель не может их различить. Тип <code>EntryLocaleItem</code> и <code>admin/AGENTS.md</code> это документируют, а три перечисленных JSDoc'а — нет</td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md, описание <code>LocaleSet.remove</code></td>
+        <td>Метод описан как охраняющий дефолт «от этого класса ошибок»</td>
+        <td>Формально верно, но метод <b>мёртвый</b>: тот же абзац сам признаёт, что плагин его никогда не вызывает. Стоит читать как документацию к неиспользуемому API — реальную защиту даёт <code>OrphanedLocaleChecker</code></td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md, «Data layer»</td>
+        <td><code>useEntryLocales</code> — «(the widget, on a saved record)»</td>
+        <td>Хук используют три потребителя: <code>LocaleWidget</code>, <code>usePublishAllLocales</code> и <code>useUnpublishAllLocales</code>. Два последних в этом пункте не названы, хотя описаны выше в том же файле</td>
+      </tr>
+      <tr>
+        <td class="mono">content-server, контракт <code>beforeWrite</code></td>
+        <td>Порт объявляет сигнатуру из четырёх аргументов: <code>(tx, type, params, workspaceId)</code></td>
+        <td>Реализация i18n принимает три и <code>workspaceId</code> не использует. Для TypeScript это законно, но читатель порта ожидает, что аргумент кому-то нужен — на сегодня им не пользуется никто</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Чего проверка не покрыла</span>
+    <p>Метрика «19 из 60 сохранений возвращали 500 до исправления взаимоблокировки» взята из <code>AGENTS.md</code> и комментария в <code>locale-group-lock.ts</code> — воспроизвести её на живом стенде в рамках этой сверки не удалось. То же относится к измерению контраста «2.18:1» для прежнего <code>opacity-50</code> в <code>LocaleRow</code>. Обе цифры приведены как утверждения авторов кода, а не как перепроверенный факт.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Второй артефакт серии.</b> Сделан по группе <code>packages/i18n</code> по тому же каркасу, что паспорт Identity: бизнес-описание → состав → права → данные → политика локалей → порт → досягаемость → сценарии → API → инструменты → админка → конфигурация → инварианты → чек-лист → границы → расхождения. Два раздела, которых у Identity не было, — «Политика локалей» и «Синхронный open-host порт» — заняли место разделов «Жизненный цикл» и «Безопасность»: у i18n нет ни машины состояний учётной записи, ни собственной модели угроз, зато есть чистое доменное правило и один шов, через который всё поведение подключается к чужому конвейеру.</p>
+  <p>Источник — исходный код: <code>packages/i18n/server/src/**</code>, <code>packages/i18n/admin/src/**</code>, контракт порта в <code>packages/content/server/src/lib/extension/</code>, сборщик таблиц <code>collection/table-builder.ts</code>, документ переноса <code>packages/transfer/domain/src/lib/document/</code> и конфигурация <code>apps/server/ortha.config.ts</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 16.</p>
+</footer>
+
+</main>
+</div>

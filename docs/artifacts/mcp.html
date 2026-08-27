@@ -1,0 +1,1567 @@
+<title>Паспорт плагина MCP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакет · packages/mcp/server</p>
+    <h1 class="title">MCP
+      <small>Парадная дверь для внешнего ИИ-агента: один маршрут, один протокол, ноль собственных инструментов</small>
+    </h1>
+    <p class="lede">MCP — это <strong>протокольный адаптер</strong>. Он не знает ничего про контент, медиа и локали: он принимает JSON-RPC на единственном маршруте <code>POST /api/v1/mcp</code>, проверяет bearer-токен, выбирает воркспейс и передаёт вызов в <em>чужой</em> реестр инструментов. Внешний агент — Claude Desktop, Cursor, самописный клиент на SDK — получает ровно тот же CRUD над контентом, что и публичный HTTP API, с той же аутентификацией и тем же решением о правах. Плагин не владеет ни одной таблицей и ни одним инструментом.</p>
+    <ul class="facts">
+      <li><b>1</b> HTTP-маршрут</li>
+      <li><b>23</b> инструмента по MCP</li>
+      <li><b>6</b> методов JSON-RPC</li>
+      <li><b>5</b> кодов ошибок JSON-RPC</li>
+      <li><b>0</b> таблиц БД</li>
+      <li><b>0</b> миграций</li>
+      <li><b>3</b> ограничителя обмена</li>
+      <li><b>2</b> области токена</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав пакета</a></li>
+    <li><a href="#roles">Области токена и права</a></li>
+    <li><a href="#tools">Каталог инструментов</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл вызова</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API и JSON-RPC</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>У CMS уже есть полноценный внешний API — <code>/api/v1/*</code> с bearer-токенами, которые выписываются на странице «API-токены». Всё, что скрипт может сделать с этой CMS снаружи, он может сделать там. Проблема не в возможностях, а в <b>способе знакомства</b>.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Агент не читает OpenAPI.</b> MCP-клиент узнаёт, что умеет сервер, <em>спросив его</em> — он вызывает <code>tools/list</code> и получает список инструментов с описаниями и JSON-схемами аргументов. Он не скачивает спецификацию и не синтезирует по ней REST-клиент. Поэтому реальный вопрос не «должен ли агент уметь править контент» (он уже умеет — с токеном и HTTP-библиотекой), а «получит ли он описанную, отфильтрованную по правам поверхность, или каждому оператору придётся писать свой мост».</li>
+    <li><b>Правила безопасности не в контроллерах.</b> Только опубликованное по умолчанию, мягко удалённые строки невидимы, невыданный тип контента неотличим от несуществующего, связи не пересекают локали, валидация откладывается до публикации, нумерация ревизий под advisory-блокировкой, транзакционный outbox. Всё это живёт в <code>PublicEntriesQuery</code>, <code>PublicEntryWritesService</code> и <code>EntryWriterService</code> под ними. Вторая точка входа, переписавшая бы хоть что-то из этого, была бы не второй точкой входа, а <b>второй, тихо расходящейся моделью безопасности</b>. Поэтому каждый обработчик инструмента дёргает те же объекты, что и HTTP-контроллер.</li>
+    <li><b>Один каталог на два потребителя.</b> Тот же реестр инструментов в процессе читает копайлот. Инструмент, добавленный для одного, автоматически доступен другому — если он сам не сказал обратного полем <code>surfaces</code>.</li>
+    <li><b>Отзыв в один клик.</b> Никакого второго хранилища учётных данных: тот же <code>ApiTokenService.verify</code>, та же таблица токенов. Оператор отозвал токен — доступ по MCP умер в ту же секунду.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Внешний агент</h4>
+      <p class="small sub">Подключается к <code>POST /api/v1/mcp</code> с <code>Authorization: Bearer</code>. Видит только те инструменты, которые область его токена позволяет вызвать, и получает ошибки в виде, который модель может прочитать и исправить.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Оператор развёртывания</h4>
+      <p class="small sub">Решает, включать ли дверь вообще (<code>MCP_ENABLED</code>), и выписывает узкие токены: <code>read</code> для агента-читателя, <code>full</code> для агента-автора, с явным списком воркспейсов.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик плагина</h4>
+      <p class="small sub">Добавляет инструмент у себя, не трогая этот пакет: <code>ToolProvider</code> в своём модуле плюс ответ на вопрос «для кого это?». MCP про его плагин не узнаёт ничего.</p>
+    </div>
+  </div>
+
+  <h3>Чем MCP-плагин не является</h3>
+  <p>Границы здесь важнее возможностей — почти всё, чего от него ждут, находится в соседних пакетах:</p>
+  <ul>
+    <li><b>Это не реестр инструментов.</b> <code>ToolDefinition</code>, <code>ToolContext</code>, <code>ToolProvider</code>, <code>ToolRegistry</code>, <code>createToolContext</code> и <code>toToolError</code> живут в <code>@orthacms/tools-server</code>. MCP <em>импортирует</em> <code>ToolsModule</code>, а не предоставляет его — иначе развёртывание, которому нужен только копайлот, тянуло бы через этот бочонок <code>@modelcontextprotocol/sdk</code>, то есть зависимость от протокола, на котором оно не говорит.</li>
+    <li><b>Это не инструменты.</b> Контентные инструменты контрибьютит <code>content/server</code>, медийные — <code>media/server</code>, локали — <code>i18n/server</code>, аудитории — <code>segments/server</code>. Именно эта инверсия позволяет обработчику звать <code>PublicEntriesQuery</code> напрямую: этот объект внутренний для контента и наружу не экспортируется.</li>
+    <li><b>Это не MCP-клиент.</b> Копайлот отдельно планирует <em>ходить</em> в MCP-серверы оператора (<code>docs/design/copilot.md</code> §4). Это противоположное направление и другая фича. Здесь CMS <em>является</em> MCP-сервером.</li>
+    <li><b>Это не второй API.</b> Ни одного нового правила видимости, ни одного нового формата токена, ни одной новой таблицы. Только другой способ спросить то же самое.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Nest охраняет <b>маршруты</b>, а MCP — это <b>один маршрут, несущий десятки операций</b>. Поэтому три охранника публичного API здесь переписаны как три не-Nest-механизма: <code>ApiTokenGuard</code> → бирная половина <code>McpAuthService.authenticate</code>, <code>ApiTokenWorkspaceGuard</code> → его же воркспейсная половина, <code>@RequirePermissions(...)</code> → поле <code>requires</code> у инструмента, которое центрально проверяет <code>ToolRegistry.call</code> <b>до диспетчеризации</b>. Ни одного нового правила — только другая точка приложения тех же правил.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав пакета и его окружение</h2>
+
+  <p>В группе <code>packages/mcp</code> ровно один пакет — <code>server</code>. Ни <code>admin</code>, ни <code>domain</code> у него нет и не предполагается: у протокольного адаптера нет ни экрана, ни доменной модели.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что делает</th><th>Почему он существует отдельно</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">lib/utils/mcp-plugin.ts</td>
+        <td>Фабрика <code>McpPlugin({ config })</code> — то, что хост кладёт в список плагинов. Возвращает <code>{ name: 'mcp', module, mcpConfig }</code></td>
+        <td>Валидирует настройки <b>жадно</b>, при построении: пустое имя или версия, ноль/отрицательный/<code>NaN</code> в потолках — исключение здесь, а не кривой ответ <code>initialize</code> через неделю</td>
+      </tr>
+      <tr>
+        <td class="mono">lib/mcp.module.ts</td>
+        <td>Глобальный динамический модуль. <code>imports: [ToolsModule]</code>, <code>controllers: config.enabled ? [McpController] : []</code></td>
+        <td>Реестр <b>импортируется, а не предоставляется</b>: он общий с копайлотом, и оба потребителя обязаны видеть один и тот же экземпляр</td>
+      </tr>
+      <tr>
+        <td class="mono">lib/mcp.tokens.ts</td>
+        <td><code>MCP_CONFIG</code> (Symbol) и декоратор <code>InjectMcpConfig()</code></td>
+        <td>Модуль без зависимостей (импортирует только <code>@nestjs/common</code>), чтобы провайдеры ссылались на токен, не образуя цикла с <code>mcp.module.ts</code></td>
+      </tr>
+      <tr>
+        <td class="mono">lib/types/mcp-config.ts</td>
+        <td><code>McpPluginConfig</code>: <code>enabled</code>, <code>name</code>, <code>version</code>, <code>callTimeoutMs</code>, <code>maxResultBytes</code></td>
+        <td>Пять полей — это весь набор решений, которые оператор здесь принимает</td>
+      </tr>
+      <tr>
+        <td class="mono">lib/http/mcp-auth.service.ts</td>
+        <td>Bearer → проверенный токен → <code>ToolContext</code> (+ разрешённый воркспейс)</td>
+        <td>Единственное место аутентификации этого эндпоинта. Сессионная кука здесь <b>не принимается</b></td>
+      </tr>
+      <tr>
+        <td class="mono">lib/http/mcp.controller.ts</td>
+        <td><code>@All()</code> на <code>v1/mcp</code>: 405 на <code>GET</code>/<code>DELETE</code>, поднятие транспорта и протокольного сервера на один запрос</td>
+        <td>Транспорт SDK нарочно <em>не спрашивают</em> про <code>GET</code> — он открыл бы вечный SSE-поток</td>
+      </tr>
+      <tr>
+        <td class="mono">lib/protocol/build-mcp-server.ts</td>
+        <td>Протокольный сервер <b>на один запрос</b>: <code>tools/list</code>, <code>tools/call</code>, <code>resources/list</code>, <code>resources/read</code>, дедлайн вызова, потолок результата, отображение ошибок</td>
+        <td>Список инструментов — функция от вызывающего, поэтому сервер строится вокруг уже разрешённого контекста, а не переспрашивает «кто спрашивает» в каждом обработчике</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Соседи, без которых он не работает</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Зависимость</th><th>Что берётся</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">@orthacms/tools-server</td><td><code>ToolRegistry</code>, <code>ToolsModule</code>, <code>ToolContext</code>, <code>createToolContext</code>, <code>toToolError</code>, <code>ToolOutput</code>, <code>ToolError</code></td><td>Каталог инструментов и <b>единственная</b> точка авторизации вызова</td></tr>
+      <tr><td class="mono">@orthacms/identity-server</td><td><code>ApiTokenService.verify</code>, <code>scopePermissions</code>, декоратор <code>@Public()</code></td><td>Учётные данные и перевод области токена в набор прав</td></tr>
+      <tr><td class="mono">@orthacms/workspaces-server</td><td><code>WORKSPACE_HEADER</code>, <code>WORKSPACE_ID_PATTERN</code></td><td>Имя заголовка и формат идентификатора — те же константы, что у REST-охранника</td></tr>
+      <tr><td class="mono">@orthacms/bootstrap-server</td><td>Тип <code>ServerPlugin</code></td><td>Контракт плагина для хоста</td></tr>
+      <tr><td class="mono">@modelcontextprotocol/sdk</td><td><code>Server</code> (низкоуровневый), <code>StreamableHTTPServerTransport</code>, схемы запросов, <code>McpError</code>, <code>ErrorCode</code></td><td><b>Единственная</b> новая рантайм-зависимость, запертая в одном пакете (версия <code>^1.30.0</code>)</td></tr>
+      <tr><td class="mono">@nestjs/swagger</td><td><code>@ApiExcludeController()</code></td><td>Исключение маршрута из OpenAPI-документа</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему низкоуровневый Server, а не McpServer</span>
+    <p>Хелпер SDK <code>McpServer</code> принимает Zod-схемы, а здесь каждая схема — это <b>сгенерированный на рантайме JSON Schema</b>: типы контента заданы в коде и лежат в реестре, их форма вычисляется на старте. Превращать сгенерированный JSON Schema в Zod, чтобы SDK превратил его обратно, — это потеря информации ради ничего.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Области токена и права</h2>
+
+  <p>У MCP <b>нет своей модели прав</b>. Актор здесь всегда токен (<code>kind: 'token'</code>), его права — это результат <code>scopePermissions(token.scope)</code> из <code>identity-server</code>, а решение «можно ли» принимает <code>ToolRegistry.call</code>, сверяя <code>ToolDefinition.requires</code> с этим набором. Ролей RBAC здесь не бывает: роль минтившего человека <b>никогда не спрашивают</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th class="center">read</th><th class="center">full</th><th>Что оно открывает по MCP</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">content:read</td><td class="center yes">✓</td><td class="center yes">✓</td><td>Семь читающих контентных инструментов + ресурсы схем + <code>i18n_locales_list</code></td></tr>
+      <tr><td class="mono">content:create</td><td class="center no">—</td><td class="center yes">✓</td><td><code>content_create</code>, половина <code>content_bulk_save</code></td></tr>
+      <tr><td class="mono">content:update</td><td class="center no">—</td><td class="center yes">✓</td><td><code>content_update</code>, вторая половина <code>content_bulk_save</code>, <b>и расширение видимости до черновиков</b></td></tr>
+      <tr><td class="mono">content:publish</td><td class="center no">—</td><td class="center yes">✓</td><td><code>content_publish</code>, <code>content_unpublish</code> и их массовые варианты</td></tr>
+      <tr><td class="mono">content:delete</td><td class="center no">—</td><td class="center yes">✓</td><td><code>content_delete</code>, <code>content_bulk_delete</code></td></tr>
+      <tr><td class="mono">media:read</td><td class="center yes">✓</td><td class="center yes">✓</td><td>Три инструмента <code>media_*</code> и <code>content_media</code></td></tr>
+      <tr><td class="mono">media:create</td><td class="center no">—</td><td class="center yes">✓</td><td>Ни одного инструмента здесь: загрузка идёт REST-маршрутом <code>POST /api/v1/media/assets</code></td></tr>
+      <tr><td class="mono">segments:read</td><td class="center yes">✓</td><td class="center yes">✓</td><td><code>segments_list</code>, <code>content_access_get</code></td></tr>
+      <tr><td class="mono">segments:manage</td><td class="center no">—</td><td class="center yes">✓</td><td><code>content_access_set</code> — и только на уровне записи, не справочника аудиторий</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Права <code>media:update</code>, <code>media:delete</code>, <code>activity:read</code>, <code>users:*</code>, <code>alarms:*</code>, <code>copilot:*</code>, <code>tokens:*</code>, <code>workspaces:*</code> и <code>views:share</code> не выдаёт <b>ни одна</b> область токена. Инструмент, который их требует, физически не может быть виден агенту — но правильный способ это выразить всё равно <code>surfaces: ['copilot']</code>, чтобы причина была объявлена, а не следовала из случайного совпадения таблицы областей.</p>
+
+  <h3>Как право доходит до вызова</h3>
+  <ol class="flow">
+    <li><b>Область → набор прав.</b> <code>scopePermissions(scope)</code> — чистая функция без Nest и Drizzle, единственный источник истины «что может эта область».<span class="meta">packages/identity/server/src/lib/api-tokens/domain/api-token-scope.ts</span></li>
+    <li><b>Набор прав → контекст.</b> <code>createToolContext(actor, workspaceId)</code> даёт <code>context.can(permission)</code> — простую проверку членства в <code>Set</code>. Функция <b>никогда не выводит права сама</b>: их разрешает тот, кто аутентифицировал вызывающего.</li>
+    <li><b>Контекст → фильтр списка.</b> <code>registry.visibleTo(context, 'mcp')</code> прячет то, что актор всё равно не смог бы вызвать. Это <b>удобство</b>, а не граница.</li>
+    <li><b>Контекст → граница.</b> <code>registry.call(name, args, context, 'mcp')</code> перепроверяет <code>requires</code> перед диспетчеризацией. Клиент волен назвать инструмент, которого ему не показывали, — и получит отказ.<span class="meta">это и есть граница безопасности; ADR-0006 §5</span></li>
+    <li><b>Внутри обработчика — более тонкие решения.</b> <code>context.can(...)</code> используется там, где правило касается <em>аргумента</em>, а не операции: <code>assertDraftVisibility</code> требует <code>content:update</code>, чтобы разрешить <code>status: 'draft'|'any'</code>.</li>
+  </ol>
+
+  <div class="note warn">
+    <span class="label">Почему видимость черновиков пробуется правом content:update</span>
+    <p><code>content:read</code> есть у <b>обеих</b> областей, поэтому оно ничего не различает. Различает <code>content:update</code>. Логика: токен, который может читать черновики, — это токен, который мог бы их и опубликовать. А расширение вообще существует потому, что иначе пишущий агент создал бы черновик и <b>больше никогда его не увидел</b>: чтение по умолчанию отдаёт только опубликованное, и записывающий API стал бы write-only.</p>
+  </div>
+
+  <h3>Валидация каталога на старте</h3>
+  <p>Реестр реализует <code>OnApplicationBootstrap</code> и проверяет собранный каталог <b>один раз, на старте</b>, выбрасывая все проблемы разом. Отказ здесь прерывает <code>app.init()</code>, то есть процесс вообще не начинает обслуживать. Проверяется:</p>
+  <ul>
+    <li><b>Уникальность имени</b> — два плагина, заявившие одно имя, сделали бы выбор реализации зависящим от порядка регистрации.</li>
+    <li><b>Формат имени</b> — <code>^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$</code>. Имя с пробелом регистрируется и вызывается только присылкой того же пробела; <code>Content_List</code> рядом с <code>content_list</code> — два живых инструмента в одну букву разницы.</li>
+    <li><b>Непустой <code>surfaces</code></b> — пустой массив означает «не предложен никому», то есть мёртвый инструмент.</li>
+    <li><b>Существование прав</b> — каждое значение <code>requires</code> должно быть в <code>PERMISSION_KEYS</code>. Строковый литерал, разошедшийся со списком, оставил бы инструмент невызываемым для всех и молча.</li>
+    <li><b>Форма <code>inputSchema</code></b> — обязан быть объектом типа <code>object</code>.</li>
+  </ul>
+</section>
+
+<section id="tools">
+  <h2 class="sec"><span class="num">04</span>Каталог инструментов, доступных по MCP</h2>
+
+  <p>Двадцать три инструмента, ни одного из них этот пакет не писал. Шестнадцать даёт <code>content/server</code>, три — <code>media/server</code>, один — <code>i18n/server</code>, три — <code>segments/server</code>. Токен области <code>read</code> видит <b>тринадцать</b> из них, токен <code>full</code> — все двадцать три.</p>
+
+  <p>Инструменты <b>обобщённые</b>, с <code>typeName</code> в аргументах, а не сгенерированные под каждый тип контента. Причина в цене: MCP-клиент загружает схемы всех инструментов в контекст модели при подключении, поэтому <code>article_create</code>, <code>author_create</code>, <code>tag_create</code>… масштабировали бы стоимость каждого разговора числом коллекций — и не могли бы быть фиксированным набором, потому что видимые типы зависят от выданных воркспейсу грантов. Форму типа модель узнаёт по требованию через <code>content_type_get</code>.</p>
+
+  <h3>4.1 Контент — 16 инструментов, все <code>surfaces: ['mcp']</code></h3>
+  <p class="sub small">Штамп ставится одной строкой на весь набор, а не инструменту по инструменту: это единообразно <b>набор публичного API</b> — чтение через <code>PublicEntriesQuery</code> (только опубликованное), запись через <code>PublicEntryWritesService</code> (атрибуция токену).</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Имя</th><th>Что делает</th><th>Вход</th><th>Требует</th><th class="center">read</th><th>Отличие от copilot-варианта</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">content_types_list</td>
+        <td>Типы контента этого воркспейса: машинное имя, метка, вид (коллекция/сингл), признаки publishable / localized / soft-delete</td>
+        <td>—</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td>Копайлотовский <code>admin_content_types</code> смотрит на админский реестр; здесь список <b>обрезан грантами</b> воркспейса</td>
+      </tr>
+      <tr>
+        <td class="mono">content_type_get</td>
+        <td>Полная схема полей одного типа + <code>valuesSchema</code> в виде JSON Schema для конструирования <code>values</code></td>
+        <td class="mono">typeName</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td>Аналога нет; та же <code>fieldSchema</code>, что порождает OpenAPI-документ, поэтому два описания типа не могут разойтись</td>
+      </tr>
+      <tr>
+        <td class="mono">content_list</td>
+        <td>Страница записей типа. Свободный поиск, структурный фильтр, сортировка, страницы, разреженный набор полей</td>
+        <td class="mono">typeName, status?, search?, filter?, sort?, page?, pageSize?, fields?, locale?</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td><code>admin_content_search</code> видит черновики по одному <code>content:read</code>; здесь <code>status</code> открывается только правом <code>content:update</code></td>
+      </tr>
+      <tr>
+        <td class="mono">content_get</td>
+        <td>Одна запись по <code>id</code> либо по <code>localeGroupId</code>+<code>locale</code>, с раскрытием связей, медиа и переводов</td>
+        <td class="mono">typeName, id | localeGroupId, locale?, status?, fields?</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td><code>admin_content_get</code> отдаёт черновик редактору; здесь черновик, удалённая запись, чужой воркспейс и несуществующий id читаются <b>одинаково — «не найдено»</b></td>
+      </tr>
+      <tr>
+        <td class="mono">content_relations</td>
+        <td>Одна упорядоченная страница связей одного поля — обход ограничения превью в <code>content_get</code></td>
+        <td class="mono">typeName, id | localeGroupId, field, page?, pageSize?</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td>Аналога нет. Показываются и считаются <b>только опубликованные</b> цели</td>
+      </tr>
+      <tr>
+        <td class="mono">content_media</td>
+        <td>Все медиаполя записи, разложенные по имени поля в метаданные ассета и URL</td>
+        <td class="mono">typeName, id | localeGroupId</td>
+        <td class="mono">content:read + media:read</td><td class="center yes">✓</td>
+        <td>Аналога нет. Единственный контентный инструмент, требующий двух прав</td>
+      </tr>
+      <tr>
+        <td class="mono">content_translations</td>
+        <td>Остальные локали записи, по слагу локали. Сама запись не повторяется</td>
+        <td class="mono">typeName, id | localeGroupId</td>
+        <td class="mono">content:read</td><td class="center yes">✓</td>
+        <td>Копайлотовский <code>i18n_translations_get</code> <b>сообщает статус чернового соседа</b> — поэтому он <code>['copilot']</code>, а этот работает по публичным правилам</td>
+      </tr>
+      <tr>
+        <td class="mono">content_create</td>
+        <td>Создать запись. На publishable-типе она ложится <b>черновиком</b>: публикация — отдельный вызов</td>
+        <td class="mono">typeName, values, locale?</td>
+        <td class="mono">content:create</td><td class="center no">—</td>
+        <td><code>content_propose_create</code> ничего не пишет и возвращает изменение движку прогона; здесь запись происходит сразу</td>
+      </tr>
+      <tr>
+        <td class="mono">content_update</td>
+        <td><b>Частичное</b> обновление: присланные <code>values</code> сливаются с сохранёнными, явный <code>null</code> очищает поле</td>
+        <td class="mono">typeName, id | localeGroupId, values, locale?</td>
+        <td class="mono">content:update</td><td class="center no">—</td>
+        <td><code>content_propose_update</code> — предложение под подпись человека; здесь — прямая запись, атрибутированная токену</td>
+      </tr>
+      <tr>
+        <td class="mono">content_publish</td>
+        <td>Перепроверить сохранённую запись и вывести в эфир. Момент, когда бьёт <code>required</code></td>
+        <td class="mono">typeName, id | localeGroupId, locale?</td>
+        <td class="mono">content:publish</td><td class="center no">—</td>
+        <td>Аналога нет: копайлот публикует принятием предложения, а не отдельным инструментом</td>
+      </tr>
+      <tr>
+        <td class="mono">content_unpublish</td>
+        <td>Вернуть запись в черновики</td>
+        <td class="mono">typeName, id | localeGroupId, locale?</td>
+        <td class="mono">content:publish</td><td class="center no">—</td>
+        <td>Аналога нет</td>
+      </tr>
+      <tr>
+        <td class="mono">content_delete</td>
+        <td>Удалить запись. Восстановимо из корзины на soft-delete-типе, иначе навсегда. <code>destructive: true</code></td>
+        <td class="mono">typeName, id | localeGroupId, locale?</td>
+        <td class="mono">content:delete</td><td class="center no">—</td>
+        <td>Аналога нет. Удаляет <b>ровно одну строку</b>: на локализованном типе остальные переводы живут</td>
+      </tr>
+      <tr>
+        <td class="mono">content_bulk_save</td>
+        <td>Создать и/или обновить много записей одного типа. <b>Всегда успешен как вызов</b>: у каждого элемента свой вердикт на своей позиции</td>
+        <td class="mono">typeName, items[]</td>
+        <td class="mono">content:create + content:update</td><td class="center no">—</td>
+        <td>Аналога нет. Модели в описании прямо сказано читать <code>failed</code> и не докладывать пакет как сохранённый без проверки</td>
+      </tr>
+      <tr>
+        <td class="mono">content_bulk_publish</td>
+        <td>Опубликовать много черновиков; непрошедшие уезжают в <code>skipped</code> с причиной — <code>already-published</code>, <code>blocked</code>, <code>not-found</code></td>
+        <td class="mono">typeName, ids[]</td>
+        <td class="mono">content:publish</td><td class="center no">—</td>
+        <td>Аналога нет. Частично пропущенный пакет — <b>нормальный</b> исход</td>
+      </tr>
+      <tr>
+        <td class="mono">content_bulk_unpublish</td>
+        <td>Вернуть в черновики многие. <code>count</code> — сколько реально изменилось</td>
+        <td class="mono">typeName, ids[]</td>
+        <td class="mono">content:publish</td><td class="center no">—</td>
+        <td>Аналога нет</td>
+      </tr>
+      <tr>
+        <td class="mono">content_bulk_delete</td>
+        <td>Удалить многие. <code>destructive: true</code></td>
+        <td class="mono">typeName, ids[]</td>
+        <td class="mono">content:delete</td><td class="center no">—</td>
+        <td>Аналога нет</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.2 Общие инструменты — <code>surfaces</code> не объявлен, значит оба потребителя</h3>
+  <p class="sub small">Это те четыре, у которых нет напряжения, разводящего остальные: они не показывают черновиков по одному <code>content:read</code>, ничего не пишут, не требуют атрибуции человеку и не просят права, которого область токена не выдаёт.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Имя</th><th>Кто даёт</th><th>Что делает</th><th>Вход</th><th>Требует</th><th>Что меняется на MCP</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">i18n_locales_list</td><td class="mono">i18n/server</td>
+        <td>Локали, на которые настроено развёртывание, со слагами и признаком дефолтной</td>
+        <td>—</td><td class="mono">content:read</td>
+        <td>Ничего. Возвращает одну и ту же конфигурацию развёртывания любому вызывающему, не хранит данных воркспейса и не пишет</td>
+      </tr>
+      <tr>
+        <td class="mono">media_assets_search</td><td class="mono">media/server</td>
+        <td>Поиск по имени файла во всей медиатеке воркспейса, поверх всех папок</td>
+        <td class="mono">query?, kind?, folderId?, page?, pageSize?</td><td class="mono">media:read</td>
+        <td><b>Только <code>downloadPath</code></b>: для MCP это <code>/api/v1/media/assets/:id/raw</code> (тянется bearer-ом), для копайлота — админский <code>/api/media/...</code>. Это <em>подача</em>, а не полномочие</td>
+      </tr>
+      <tr>
+        <td class="mono">media_folders_list</td><td class="mono">media/server</td>
+        <td>Все папки медиатеки воркспейса с числом ассетов</td>
+        <td>—</td><td class="mono">media:read</td>
+        <td>Ничего</td>
+      </tr>
+      <tr>
+        <td class="mono">media_asset_read</td><td class="mono">media/server</td>
+        <td>Содержимое текстового файла из медиатеки — Markdown, CSV, JSON</td>
+        <td class="mono">assetId</td><td class="mono">media:read</td>
+        <td>Ничего</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Этот эндпоинт обслуживает больше, чем «свои» инструменты</span>
+    <p>Четыре инструмента выше принадлежат двум чужим плагинам и не объявляют поверхности. Значит, <b>изменение в инструменте, который вы не писали, меняет то, что отдаёт этот эндпоинт</b>. Именно поэтому добавление любого инструмента где угодно в монорепозитории требует ответить на вопрос «для кого это?» — по процедуре из <code>packages/tools/server/AGENTS.md</code>.</p>
+  </div>
+
+  <h3>4.3 Аудитории (segments) — два общих чтения и одна MCP-only запись</h3>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Имя</th><th>Что делает</th><th>Вход</th><th>Требует</th><th>Поверхности</th><th>Отличие от copilot-варианта</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">segments_list</td>
+        <td>Аудитории читателей, которыми воркспейс может ограничивать контент</td>
+        <td>—</td><td class="mono">segments:read</td><td>обе</td>
+        <td>Одинаково. Агент, который не может спросить, ограничена ли запись, доложит частичный список как полный</td>
+      </tr>
+      <tr>
+        <td class="mono">content_access_get</td>
+        <td>Кто может видеть одну опубликованную запись. Пустой <code>allow</code> означает <b>ВСЕ</b>, а не «никто»</td>
+        <td class="mono">entryId, typeName</td><td class="mono">segments:read</td><td>обе</td>
+        <td>Одинаково. Отвечает из собственной таблицы плагина, <b>не</b> через публичное чтение записи — иначе агент, только что ограничивший запись, не смог бы прочитать, что он сделал</td>
+      </tr>
+      <tr>
+        <td class="mono">content_access_set</td>
+        <td>Заменить оба списка сразу — кто допущен и кому отказано</td>
+        <td class="mono">entryId, typeName, allow[], deny[]</td><td class="mono">segments:manage</td><td><b>только mcp</b></td>
+        <td>Копайлотовский <code>content_propose_access</code> <em>предлагает</em>: его актор — человек, который обязан увидеть изменение. У bearer-токена спрашивать некого — реестр уже проверил <code>segments:manage</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Справочника аудиторий здесь нет намеренно: переименование тегов одной аудитории меняет, кому видна <em>каждая</em> запись, её называющая, а удаление переписывает оба списка у всех таких записей. Это администрирование словаря, и оно остаётся на экране под сессией. <code>segments:manage</code> на токене <code>full</code> достаёт ровно до уровня записи.</p>
+
+  <h3>4.4 Чего здесь нет: инструменты, помеченные <code>surfaces: ['copilot']</code></h3>
+  <p>Не список запретов, а список <b>объявленных решений</b>. E2E-набор проверяет каждое имя из этого списка на отсутствие и в <code>tools/list</code>, и при вызове по имени.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Имя</th><th>Пункт процедуры, который сработал</th><th>Что было бы, попади он сюда</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">admin_content_types<br>admin_content_search<br>admin_content_get</td><td>Показывает неопубликованное по одному <code>content:read</code></td><td>Токен области <code>read</code> увидел бы черновики: у токена <code>content:read</code> — это публичная область «только опубликованное», а у пользователя — наблюдатель, законно видящий черновики в админке. Один ключ, два смысла</td></tr>
+      <tr><td class="mono">admin_content_revisions<br>admin_content_diff</td><td>То же — снимки ревизий</td><td>История правок неопубликованных версий утекла бы наружу</td></tr>
+      <tr><td class="mono">i18n_translations_get</td><td>То же — сообщает черновой статус соседней локали</td><td>Тонкий случай: его <code>liveWhere</code> ограничен воркспейсом и мягким удалением, но не публикацией</td></tr>
+      <tr><td class="mono">activity_recent<br>workspace_members_list<br>admin_alarms_findings</td><td>Требует права, которого не выдаёт ни одна область токена (<code>activity:read</code>, <code>users:read</code>, <code>alarms:read</code>)</td><td>Не вылистались бы и так — но причина объявлена, а не оставлена на совпадение таблицы областей, которое будущая область молча отменит</td></tr>
+      <tr><td class="mono">content_propose_create<br>content_propose_update<br>content_propose_access<br>i18n_propose_translation<br>i18n_propose_bulk_translation<br>media_propose_alt_text</td><td>Обработчик ничего не пишет и возвращает изменение, которое применяет чужой движок</td><td>Вызов выглядел бы как успех и <b>не менял бы ничего</b>: у MCP нет движка прогона, который записал бы строку <code>copilot_proposals</code> и применил изменение</td></tr>
+      <tr><td class="mono">media_propose_file</td><td>То же, но острее: он <em>пишет</em></td><td>Токен <code>full</code> держит <code>media:create</code>, то есть <b>прав хватило бы</b>. Останавливает только <code>surfaces</code> — и обязан, потому что MCP-клиенту нечем ответить на запрос подтверждения, за которым стоит эта запись</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.5 Ресурсы MCP</h3>
+  <p>Кроме инструментов эндпоинт отдаёт <b>ресурсы</b> — документы, которые клиент может втянуть в контекст, не тратя вызова инструмента. Сегодня их ровно один вид: схема типа контента по URI <code>ortha://content-type/&lt;имя&gt;</code>, <code>mimeType: application/json</code>.</p>
+  <ul>
+    <li><b>Список обрезан грантами</b> воркспейса — теми же, что <code>content_types_list</code>.</li>
+    <li><b>Чтение проходит через тот же грант-шлюз</b> (<code>resolveGrantedType</code>), поэтому невыданный тип даёт 404 здесь ровно так же, как при вызове инструмента: чтение ресурса не должно быть обходом.</li>
+    <li><b>Права ресурса</b> объявляются полем <code>requires</code> и проверяются <b>до того, как у провайдера спросят байты</b>. Ни один поставляемый сегодня ресурс его не объявляет: они уже сужены грантами воркспейса.</li>
+    <li><b><code>valuesSchema</code> не перечисляет <code>required</code> у publishable-типов</b> — на них поля обязательны <em>к публикации</em>, и объявление их обязательными сказало бы модели, что она не может сохранить неполный черновик, который сохранить как раз можно.</li>
+  </ul>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">05</span>Модель данных</h2>
+
+  <p>Собственных таблиц у плагина <b>ноль</b>, миграций — <b>ноль</b>, файла <code>drizzle.config.ts</code> нет, дескриптор миграций не объявляется. Юнит-тест <code>mcp-plugin.spec.ts</code> прямо это фиксирует («owns no migrations»), чтобы таблица не появилась «случайно».</p>
+
+  <p>Это не аскеза, а следствие устройства: <b>эндпоинт не имеет состояния</b>. Хранить было бы нечего — сессий нет, идентификаторов сессий нет, журнал вызовов ведут те плагины, чьи инструменты вызвали.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Данные, которых можно было бы ожидать</th><th>Где они на самом деле</th><th>Почему не здесь</th></tr></thead>
+    <tbody>
+      <tr><td>Учётные данные агента</td><td><code>identity-server</code>, таблица API-токенов</td><td>Второе хранилище учётных данных — это второй аудит и второй способ забыть отозвать доступ</td></tr>
+      <tr><td>Сессия MCP</td><td>нигде</td><td>Каждый запрос аутентифицируется с нуля; заголовок <code>Mcp-Session-Id</code> от клиента, который думает, что у него сессия есть, просто игнорируется</td></tr>
+      <tr><td>Журнал вызовов инструментов</td><td><code>activity</code> — через события плагинов, чьи сервисы отработали</td><td>MCP не знает, что именно сделал инструмент; знает вызванный сервис</td></tr>
+      <tr><td>Ревизии и outbox контента</td><td><code>content-server</code> + <code>@orthacms/database</code></td><td>Обработчик зовёт тот же <code>EntryWriterService</code>, что и HTTP-контроллер, — и получает ту же нумерацию под advisory-блокировкой и ту же запись в outbox</td></tr>
+      <tr><td>Предложения (<code>copilot_proposals</code>)</td><td><code>copilot/server</code></td><td>У MCP нет движка прогона; поэтому <code>propose</code>-инструменты сюда и не пускают</td></tr>
+      <tr><td>Каталог инструментов</td><td>в памяти, в <code>ToolRegistry</code></td><td>Он собирается из провайдеров на <code>onModuleInit</code> и проверяется на <code>onApplicationBootstrap</code>; в БД ему делать нечего</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Известный пробел, унаследованный от публичного API</span>
+    <p>Запись, сделанная агентом, <b>атрибутируется токену, а не человеку</b>. Ревизии хранят идентификатор <em>пользователя</em>, а токен — не пользователь, поэтому ревизии агентского авторства несут <code>null</code>: «<em>null — честный ответ на вопрос “не пользователь”</em>». Это ровно тот же пробел, что уже есть у публичного write-API; ADR-0006 отмечает его как заслуживающий отдельной колонки и починки <b>до того</b>, как агентское авторство станет обычным делом. Поле <code>actor.userId</code> в контексте несёт минтившего человека, но <b>только для атрибуции</b> — на решение о правах оно не влияет никогда.</p>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">06</span>Жизненный цикл вызова</h2>
+
+  <p>Жизненного цикла «сессии» здесь нет — есть жизненный цикл <b>одного обмена</b>. Транспорт и протокольный сервер создаются на запрос и умирают вместе с ним.</p>
+
+  <div class="states">
+    <span class="state">HTTP-запрос</span>
+    <span class="arrow">→</span>
+    <span class="state pending">аутентификация</span>
+    <span class="arrow">→</span>
+    <span class="state pending">разрешение воркспейса</span>
+    <span class="arrow">→</span>
+    <span class="state">проверка глагола</span>
+    <span class="arrow">→</span>
+    <span class="state active">транспорт + Server</span>
+    <span class="arrow">→</span>
+    <span class="state active">JSON-RPC диспетчер</span>
+    <span class="arrow">→</span>
+    <span class="state">ответ</span>
+    <span class="arrow">→</span>
+    <span class="state disabled">close: teardown</span>
+  </div>
+
+  <h3>Почему именно такой порядок</h3>
+  <ol class="flow">
+    <li><b>Сначала «включено ли».</b> Контроллер регистрируется только при <code>enabled</code>, но внутри стоит ещё одна проверка с <code>503</code> — на случай будущего изменения проводки. Выключенный плагин отдаёт <b>404</b>, потому что маршрут просто не смонтирован.<span class="meta">e2e: «unmounts the endpoint when disabled»</span></li>
+    <li><b>Аутентификация — <em>до</em> того, как что-то попадёт в протокольный слой.</b> Неаутентифицированный вызывающий не должен уметь двигать конечный автомат JSON-RPC вообще — <b>даже до <code>initialize</code></b>. И ответ здесь обычный HTTP-статус: <code>401</code> — это то, что говорит MCP-клиенту «твои учётные данные не те», тогда как JSON-RPC-ошибка читалась бы как «соединение работает и вернуло сбой».</li>
+    <li><b>Разрешение воркспейса — в той же операции.</b> Один вызов <code>McpAuthService.authenticate(headers, workspaceQuery)</code> делает обе половины и сразу собирает <code>ToolContext</code>: дальше по коду не остаётся места, где контекст ещё «недоделан».</li>
+    <li><b>Проверка глагола — <em>после</em> аутентификации.</b> Иначе <code>GET</code> без токена сообщал бы 405, то есть подтверждал бы существование эндпоинта. Неаутентифицированный <code>GET</code> — это <code>401</code>, и ничего больше.<span class="meta">e2e: «401s an unauthenticated GET, before the verb is considered»</span></li>
+    <li><b>Транспорт создаётся без генератора идентификаторов сессии</b> (<code>sessionIdGenerator: undefined</code>) и с <code>enableJsonResponse: true</code>. Второе означает «отвечай одним JSON-телом, а не открывай SSE-поток»: здесь ничего не стримит — вызов инструмента возвращается один раз, — а обычный JSON лучше всех переваривают и клиенты, и прокси.</li>
+    <li><b>Протокольный сервер строится <em>вокруг уже разрешённого контекста</em>.</b> Это и есть причина «на запрос, а не один долгоживущий»: <code>tools/list</code> обязан показать токену <code>read</code> не тот набор, что токену <code>full</code>, а ресурсы обрезаются грантами воркспейса. Вшивание контекста в замыкания обработчиков при построении делает это невозможным сломать — нет общего сервера, чьи обработчики должны <em>помнить</em> переспросить, кто спрашивает.</li>
+    <li><b>Уборка вешается на <code>response.on('close')</code>.</b> Без этой строки каждый запрос протекал бы протокольным сервером и его замыканиями. Закрывается и то, и другое, как бы обмен ни закончился.</li>
+    <li><b>Тело не перечитывается.</b> Хостовый express-мидлварь уже распарсил JSON, поэтому оно передаётся третьим аргументом в <code>transport.handleRequest</code> — иначе транспорт попытался бы прочитать уже потреблённый поток.</li>
+    <li><b>Аварийный выход.</b> Если что-то бросило: заголовки ещё не отправлены — пишется <code>500</code> с JSON-RPC-конвертом <code>-32603</code>; уже отправлены — соединение просто <b>закрывается</b>. Обрезанный ответ диагностируем, а зависание — нет.</li>
+  </ol>
+
+  <h3>Три потолка одного обмена</h3>
+  <p>Ни один из них не может дать реестр инструментов: он транспортно-нейтрален, а у обмена «запрос-ответ» есть обязательства, которых нет у внутрипроцессного цикла копайлота.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ограничение</th><th>Значение</th><th>Где живёт</th><th>Что происходит сверху</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Тело запроса</b></td>
+        <td>1 МБ (<code>MAX_REQUEST_BODY</code>)</td>
+        <td>хостовый <code>bodyLimit</code> в <code>createServer</code></td>
+        <td><code>413</code> обычным Nest-телом. Это <b>выше</b> слоя JSON-RPC, поэтому и не JSON-RPC-кадр</td>
+      </tr>
+      <tr>
+        <td><b>Один <code>tools/call</code></b></td>
+        <td>30 с (<code>MCP_CALL_TIMEOUT_MS</code>)</td>
+        <td><code>build-mcp-server.ts</code>, <code>callWithinDeadline</code></td>
+        <td>результат с <code>isError: true</code>, <code>status: 504</code>, <code>code: timeout</code></td>
+      </tr>
+      <tr>
+        <td><b>Один результат инструмента</b></td>
+        <td>4 МиБ (<code>MCP_MAX_RESULT_BYTES</code>)</td>
+        <td><code>build-mcp-server.ts</code>, перед отдачей транспорту</td>
+        <td>результат с <code>isError: true</code>, <code>status: 413</code>, <code>code: result_too_large</code>, <b>с обоими размерами в тексте</b></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Дедлайн бросает работу, а не отменяет её</span>
+    <p>Обработчику передаётся сигнал, который срывается и по истечении срока, и когда вызывающий отвалился (<code>extra.signal</code> от SDK). Но инструмент, который сигнал игнорирует, <b>досчитает до конца</b> — просто его ответ никто не прочитает. Гарантия здесь — <b>ограничение ожидания вызывающего</b>, а не прекращение работы: прекратить работу этот слой не может.</p>
+    <p>Отдельная тонкость: проигравший гонку промис <b>всё равно доводится до состояния</b> (<code>pending.catch(() =&gt; undefined)</code>). Без этого обработчик, упавший <em>после</em> дедлайна, стал бы необработанным reject-ом и уронил бы процесс — ровно тот отказ, ради сдерживания которого таймаут и введён.</p>
+  </div>
+
+  <h3>Почему потолок результата — не паранойя</h3>
+  <p>Результат сериализуется <b>трижды</b>: как красиво напечатанный текстовый блок, который читает модель; как <code>structuredContent</code> для клиентов, которые его парсят; и ещё раз — транспортом, когда он собирает весь ответ. Пиковая память, таким образом, кратна полезной нагрузке, причём на каждый параллельный запрос, а в каталоге инструментов ничто не ограничивает, сколько обработчик вправе вернуть. Отказ полезнее самих данных: результат, не влезший сюда, не влезет и в контекстное окно модели, а сообщение прямо говорит ей сузить запрос.</p>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">07</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>7.1 Подключение клиента и знакомство</h3>
+  <p class="sub small">MCP-клиент не читает документацию — он спрашивает сервер. Три первых обмена — это и есть всё «знакомство».</p>
+  <ol class="flow">
+    <li><b>Оператор минтит токен.</b> Страница «API-токены» в админке: <code>read</code> — агенту-читателю, <code>full</code> — агенту-автору, плюс явный список воркспейсов. Секрет показывается один раз. <b>Область токена — это то, что решит, какие инструменты агент вообще увидит.</b><span class="meta">никакой отдельной «MCP-регистрации» не существует</span></li>
+    <li><b>Клиент настраивается на URL.</b> Конфиг MCP-клиента URL-образный, поэтому воркспейс можно назвать прямо в адресе: <code>https://cms.example.com/api/v1/mcp?workspaceId=&lt;uuid&gt;</code>. Клиенту, который умеет только stdio, мост даёт <code>mcp-remote</code> — одна строка в его конфиге и ничего, что нам пришлось бы поддерживать.</li>
+    <li><b><code>initialize</code>.</b> Клиент присылает свою версию протокола, свои возможности и имя. Сервер отвечает <code>serverInfo</code> (<code>name</code> и <code>version</code> из конфигурации плагина — это то, что клиент показывает в списке коннекторов) и <code>capabilities</code>, где объявлены два раздела: <code>tools</code> и <code>resources</code>.<span class="meta">строго после аутентификации: даже initialize неаутентифицированному недоступен</span></li>
+    <li><b><code>notifications/initialized</code>.</b> Уведомление, у него нет <code>id</code>, отвечать нечему — эндпоинт возвращает <b><code>202</code> с пустым телом</b>.</li>
+    <li><b><code>tools/list</code>.</b> Здесь и происходит главное: <code>registry.visibleTo(context, 'mcp')</code> — сначала сужение по поверхности, потом по правам актора. Каждый инструмент отдаётся с <code>name</code>, <code>title</code>, <code>description</code>, <code>inputSchema</code> и <code>annotations</code> (<code>title</code>, <code>readOnlyHint</code>, <code>destructiveHint</code>). Токен <code>read</code> <b>никогда не узнаёт</b>, что существует <code>content_create</code>, — это лучше, чем узнать об этом через отказ, и экономит модели ходы.</li>
+    <li><b><code>resources/list</code> (необязательно).</b> Схемы типов контента, обрезанные грантами воркспейса, чтобы модель могла втянуть форму типа в контекст, не тратя вызова.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему аннотации, а не «просто описания»</span>
+    <p><code>readOnlyHint</code> и <code>destructiveHint</code> — это <b>подсказки клиенту</b>, по которым он решает, что можно автоодобрить, а на что спросить человека. Они не полномочия: полномочия — это <code>requires</code>. Поэтому в контракте инструмента живут <em>два</em> словаря: <code>readOnly</code>/<code>destructive</code> отвечают клиенту «что безопасно», а <code>effect</code> (<code>read | propose | apply</code>) отвечает <em>серверу</em> «возвращённое значение — это изменение или результат». <code>propose</code>-инструмент не «только для чтения» в смысле MCP, а прямо пишущий инструмент не <code>propose</code>, как бы он ни был разрушителен.</p>
+  </div>
+
+  <h3>7.2 Аутентификация: как разбирается bearer</h3>
+  <ol class="flow">
+    <li><b>Заголовок режется по пробелам.</b> <code>header.trim().split(/\s+/)</code>. Схема сравнивается без учёта регистра с <code>bearer</code>.</li>
+    <li><b>После схемы должно остаться ровно одно значение.</b> Обрамляющие и повторяющиеся пробелы <em>вокруг</em> схемы терпятся — RFC 9110 их допускает, и клиенты их шлют. Пробел <em>внутри</em> значения — нет: в учётных данных пробелов не бывает, и склеивание кусков обратно <b>изобрело бы токен, которого вызывающий не присылал</b>, а потом доложило бы об этом изобретении как «Invalid API token», что читается как «не тот секрет», а не «кривой заголовок».<span class="meta">заметное расхождение с REST-охранником — см. раздел 15</span></li>
+    <li><b><code>ApiTokenService.verify(secret)</code>.</b> Неизвестный, отозванный и просроченный токен дают <b>один плоский 401</b>: эндпоинт не должен быть инструментом для перебора существующих токенов.</li>
+    <li><b>Собирается актор.</b> <code>kind: 'token'</code>, <code>id</code> — идентификатор самого токена (не пользователя: токен действует от себя, поэтому его отзыв всегда достаточен), <code>displayName</code> — имя токена, <code>grantedPermissions</code> — <code>new Set(scopePermissions(token.scope))</code>, <code>userId</code> — минтивший человек <b>только для атрибуции</b>.</li>
+    <li><b>Кука не рассматривается вообще.</b> Кука едет с запросом <em>сама</em> — именно это делает записи под кукой уязвимыми к CSRF. Bearer так не ездит никогда. Принять здесь и то, и другое означало бы вернуть CSRF на эндпоинт, вся суть которого — дать агенту писать контент.</li>
+  </ol>
+
+  <h3>7.3 Разрешение воркспейса</h3>
+  <p>Правило дословно совпадает с <code>ApiTokenWorkspaceGuard</code>, переписанным для не-Nest-точки вызова.</p>
+  <ol class="flow">
+    <li><b>Источник — <code>X-Workspace-Id</code>, иначе <code>?workspaceId=</code>.</b> Заголовок побеждает, если есть оба. Второе написание существует потому, что конфиги MCP-клиентов URL-образные и несколько клиентов делают собственные заголовки неудобными или невозможными, — а мультиворкспейсный токен обязан как-то назвать один.<span class="meta">оба проходят через одну и ту же проверку принадлежности; query — это написание того же правила, а не обход</span></li>
+    <li><b>Не назван, токен покрывает один воркспейс</b> → он и берётся. Обычный случай не требует настройки вообще.</li>
+    <li><b>Не назван, токен покрывает несколько</b> → <code>400</code> с числом воркспейсов и подсказкой, чем назвать. Тихий выбор одного всплыл бы как «почему тут пусто?» — отказ куда лучше.</li>
+    <li><b>Назван, но кривой формат</b> → <code>400</code> «Malformed x-workspace-id».</li>
+    <li><b>Назван, но не в корзине токена</b> → <code>403</code>. «Не в корзине» и «такого воркспейса нет» — <b>один и тот же ответ</b>, чтобы токеном нельзя было прощупать, какие идентификаторы воркспейсов существуют.</li>
+    <li><b>Назван дважды</b> → <code>400</code>. Повторённый <code>?workspaceId=a&amp;workspaceId=b</code> (и написание <code>?workspaceId[]=</code>) парсится express-ом в массив; трактовка массива как «не назван» приводила к тому, что <b>одноворкспейсный токен тихо срабатывал против своего воркспейса, хотя вызывающий назвал два чужих</b>. У запроса, называющего больше одного воркспейса, нет ответа, который не был бы догадкой. Повторённый <code>X-Workspace-Id</code> Node склеивает в одно значение через запятую — оно не проходит формат и даёт тот же <code>400</code>.</li>
+  </ol>
+
+  <h3>7.4 Полный обмен: вызов инструмента</h3>
+  <p>Ниже — реальный обмен, каким его гоняет wire-level e2e-набор (он ходит сырым JSON-RPC через supertest, а не через клиентский SDK: формат на проводе — это и есть контракт, на который опираются внешние клиенты).</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>POST /api/v1/mcp?workspaceId=6a1f0f52-4c1e-4a0e-9c8b-0f6b2a5d1c11 HTTP/1.1
+Host: cms.example.com
+Authorization: Bearer ort_9f3c…
+Accept: application/json, text/event-stream
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "content_create",
+    "arguments": {
+      "typeName": "test_article",
+      "values": { "text": "From an agent", "select": "article" }
+    }
+  }
+}</code></pre></div>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"id\": \"c4d1…\",\n  \"status\": \"draft\",\n  \"values\": { … }\n}"
+      }
+    ],
+    "structuredContent": {
+      "id": "c4d1…",
+      "status": "draft",
+      "values": { "text": "From an agent", "select": "article" }
+    }
+  }
+}</code></pre></div>
+
+  <p><b>Оба написания одного значения отдаются одновременно.</b> <code>structuredContent</code> — для клиентов, которые его парсят; текстовый блок — для моделей, которые видят только <code>content</code>. Отдать что-то одно значило бы сделать инструмент бесполезным для половины экосистемы. Значение, не являющееся объектом (массив, число), <b>заворачивается в <code>{ value: … }</code></b>, потому что <code>structuredContent</code> по спецификации обязан быть объектом — но не выбрасывается.</p>
+
+  <h4>Что произошло между этими двумя блоками, по шагам</h4>
+  <ol class="flow">
+    <li><b>Контроллер уже собрал контекст</b> (шаги 7.2–7.3) и построил протокольный сервер вокруг него.</li>
+    <li><b>SDK нашёл обработчик <code>CallToolRequestSchema</code></b> и передал ему <code>params</code> плюс <code>extra</code> с сигналом отмены.</li>
+    <li><b><code>callWithinDeadline</code> заводит свой <code>AbortController</code>.</b> К нему ретранслируется клиентский сигнал (это единственный сигнал отмены, который у этой поверхности есть) и вешается таймер. Флаг <code>expired</code> ставится <b>до</b> вызова <code>abort()</code>, чтобы слушатель, срабатывающий следом, мог отличить дедлайн от отвалившегося клиента.</li>
+    <li><b><code>registry.call('content_create', args, {…context, signal}, 'mcp')</code>.</b> Внутри реестра, строго в этом порядке:
+      <br>a) <b>сужение по поверхности</b> — <code>forSurface('mcp')</code>. Инструмент не той поверхности даёт «Unknown tool», а не предложение, которое нечем принять;
+      <br>b) <b>неизвестное имя → <code>404</code></b>, и это <em>намеренно другой</em> ответ, чем отказ по правам: набор инструментов не секрет (он одинаков для любого актора данной области и задокументирован), так что смешивать их значило бы сделать законную проблему с правами недиагностируемой. Секретны <b>данные</b> — вот там невыданный тип 404-ит ровно как несуществующий;
+      <br>c) <b>проверка <code>requires</code></b> — та самая граница;
+      <br>d) <b>подстановка <code>args ?? {}</code></b> — в реестре, а не на каждом краю: оба поставляемых потребителя раньше компенсировали это у себя;
+      <br>e) <b>валидация аргументов</b> по собственному <code>inputSchema</code> инструмента. <b>Авторизация раньше валидации</b>: вызывающий, которому нельзя, не узнаёт ничего об аргументах, и ответ на неавторизованный вызов один и тот же, что бы он ни прислал;
+      <br>f) <b>штамп поверхности</b> — <code>{...context, surface}</code>, ставится здесь, а не на краю: так поверхность, которую видит обработчик, по построению та, против которой инструмент авторизовали.
+      <span class="meta">packages/tools/server/src/lib/tool-registry.ts</span></li>
+    <li><b>Обработчик <code>content_create</code> делегирует.</b> <code>resolveGrantedType</code> — грант-шлюз; <code>validateToolInput(PublicSaveEntryDto, input)</code> — <b>настоящий HTTP-DTO</b> с теми же опциями, что у глобального <code>ValidationPipe</code> хоста (<code>whitelist</code> + <code>forbidNonWhitelisted</code>); <code>this.writes.create(...)</code> — тот же <code>PublicEntryWritesService</code>, что зовёт контроллер. <b>Ни одного правила видимости здесь не переписано.</b></li>
+    <li><b>Результат измеряется до отдачи.</b> <code>JSON.stringify(result, null, 2)</code>, <code>Buffer.byteLength</code>, сравнение с <code>maxResultBytes</code>. Измерение <em>до</em> того, как хоть одна копия попадёт в транспорт, потому что на выходе ответ стоит примерно втрое дороже.</li>
+    <li><b>Таймер снимается в <code>finally</code></b>, слушатель клиентского сигнала — тоже. Иначе долгий процесс копил бы слушателей на чужом сигнале.</li>
+  </ol>
+
+  <h3>7.5 Как уходит отказ — и почему двумя разными путями</h3>
+  <p>Отказ <code>tools/call</code> уезжает <b>результатом с <code>isError</code></b>. Отказ <code>resources/*</code> уезжает <b>ошибкой JSON-RPC</b>. Это асимметрия протокола, а не случайность, и её стоит знать до того, как «чинить» любую из половин.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Инструмент → <code>isError</code></h4>
+      <p class="small sub">Отказ инструмента — это <b>исход, который должна прочитать модель</b> и на него отреагировать («title must be at most 200 characters»). Поэтому MCP моделирует его как успешный вызов, несущий <code>isError</code>. Ошибка протокола прервала бы вызов у клиента; результат отдаётся модели, и та чинит свой следующий вызов. Отказ по правам приходит сюда же — модель, узнавшая, что у неё нет <code>content:publish</code>, перестаёт пробовать, вместо того чтобы повторять вслепую.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Ресурс → ошибка JSON-RPC</h4>
+      <p class="small sub">У чтения ресурса <b>нет модели в контуре</b>: клиент попросил байты по URI и либо получил их, либо нет. Поэтому MCP моделирует отказ как ошибку протокола, а <code>-32002</code> зарезервирован под «такого URI нет». Плоский <code>ToolError</code> едет в поле <code>data</code>, так что клиент читает те же <code>status</code>/<code>code</code>/<code>issues</code>, что и от инструмента.</p>
+    </div>
+  </div>
+
+  <p>Общее у обоих путей — <code>toToolError</code>. Он превращает брошенное в <code>{ status, code, message, issues }</code>:</p>
+  <ul>
+    <li><b><code>HttpException</code></b> — это <em>ошибка вызывающего</em>. Статус, короткий машинный код (<code>bad_request</code>, <code>unauthorized</code>, <code>forbidden</code>, <code>not_found</code>, <code>conflict</code>, <code>validation_failed</code>, иначе <code>error</code>) и <b>сообщение как есть</b>. Поле <code>issues</code> из 422-го контента <b>переносится дословно</b> — именно это делает ошибку валидации самоисправляемой.</li>
+    <li><b>Всё остальное — баг, а не ошибка вызывающего.</b> Логируется со стеком для оператора и отдаётся голым <code>500</code> / <code>internal_error</code> с текстом «см. логи сервера»: сообщение могло бы назвать таблицу, колонку или строку подключения, а результат инструмента читает <b>сторонняя модель</b>.</li>
+  </ul>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// tools/call, который не прошёл по правам — HTTP 200, JSON-RPC result
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "result": {
+    "isError": true,
+    "content": [{
+      "type": "text",
+      "text": "{\n  \"status\": 403,\n  \"code\": \"forbidden\",\n  \"message\": \"\\\"content_create\\\" requires content:create, which this token does not hold.\"\n}"
+    }]
+  }
+}
+
+// resources/read по невыданному типу — HTTP 200, JSON-RPC error
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "error": {
+    "code": -32002,
+    "message": "Unknown content type \"never_granted\".",
+    "data": { "status": 404, "code": "not_found", "message": "…" }
+  }
+}</code></pre></div>
+
+  <p><b>Отказ и отсутствие делят <code>-32002</code> намеренно.</b> Для <em>данных</em> ответ единообразен: невыданный тип контента читается ровно как несуществующий. При этом <code>data.code</code> по-прежнему различает их для клиента, которому это важно.</p>
+
+  <h3>7.6 Полный цикл авторской работы агента</h3>
+  <p class="sub small">Тот самый круг, который e2e прогоняет целиком — «creates a draft, reads it back, publishes, and deletes it». Он показывает, почему рабочий процесс должен быть написан в <em>описаниях</em> инструментов: модели больше неоткуда о нём узнать.</p>
+  <ol class="flow">
+    <li><b><code>content_types_list</code>.</b> Точка входа любого авторского разговора, а не любезность: модель не может напечатать <code>values</code>, которых не видела.</li>
+    <li><b><code>content_type_get</code>.</b> Схема полей + <code>valuesSchema</code>. Именно поэтому пишущие инструменты могут принимать открытый объект и оставаться пригодными к использованию.</li>
+    <li><b><code>content_create</code> → запись ложится <code>status: "draft"</code>.</b> На publishable-типе <em>всегда</em>: у каждого создания есть просматриваемое состояние. Обязательные поля обязательны <b>к публикации</b>, а не к созданию, поэтому черновик может быть неполным.</li>
+    <li><b><code>content_list</code> без аргументов не находит его</b> — <code>total: 0</code>. Это не баг, это заголовочное правило публичного API.<span class="meta">описание content_create прямо предупреждает: читай обратно со status: "any"</span></li>
+    <li><b><code>content_get</code> со <code>status: "any"</code> находит.</b> Расширение открыто правом <code>content:update</code> — иначе записывающий API был бы write-only.</li>
+    <li><b><code>content_update</code> сливает.</b> Присланное <code>{ number: 7 }</code> не стирает <code>text</code>; явный <code>null</code> очищает поле. На publishable-типе обновление возвращает опубликованную запись в черновик, <b>пока её опубликованная версия остаётся в эфире</b>.</li>
+    <li><b><code>content_publish</code> перепроверяет и выводит в эфир.</b> Черновик, не прошедший правила типа, падает здесь — с <b>поимённо названными полями</b> в <code>issues</code>. Это самая полезная ошибка, какую может получить модель.</li>
+    <li><b><code>content_unpublish</code> снимает с эфира</b>, <b><code>content_delete</code> удаляет.</b> После удаления <code>content_get</code> со <code>status: "any"</code> отвечает <code>code: "not_found"</code> — той же формой, что и невыданный тип.</li>
+  </ol>
+
+  <h3>7.7 Пакетные вызовы и уведомления</h3>
+  <ol class="flow">
+    <li><b>Батч.</b> Клиент вправе прислать массив кадров; ответ — массив результатов, по одному на запрос, с сохранением <code>id</code>. Это и есть причина, по которой эндпоинт — <b>один маршрут</b>, а не маршрут на инструмент: одна проверка bearer, много операций.</li>
+    <li><b>Уведомление</b> (кадр без <code>id</code>) — <code>202</code> и пустое тело.</li>
+    <li><b>Неизвестный метод</b> — <code>-32601</code> (Method not found) с HTTP 200, а не 500. Клиент, пробующий <code>prompts/list</code>, получает внятный ответ: этот сервер объявляет только <code>tools</code> и <code>resources</code>.</li>
+    <li><b>Испорченный кадр</b> — пустое тело, кадр без <code>method</code>, кадр, объявляющий JSON-RPC 1.0 — отвечается <code>400</code> с отрицательным JSON-RPC-кодом, а не 500.</li>
+    <li><b>Заголовок <code>Accept</code>.</b> Streamable HTTP требует, чтобы POST принимал <em>оба</em> типа — <code>application/json</code> и <code>text/event-stream</code>. Клиент, приславший только первый, получает <code>406</code>, и в сообщении назван недостающий тип: это самая частая ошибка первого подключения.</li>
+    <li><b><code>Mcp-Session-Id</code> игнорируется.</b> Клиент, считающий, что у него есть сессия, обслуживается нормально: сессий нет, валидировать нечего.</li>
+  </ol>
+
+  <h3>7.8 Что происходит, когда выключатель выключен</h3>
+  <ol class="flow">
+    <li><b><code>MCP_ENABLED</code> не равен <code>true</code></b> → <code>config.enabled === false</code> → <code>McpModule.forRoot</code> возвращает <code>controllers: []</code>.</li>
+    <li><b>Маршрут не смонтирован</b> → <code>POST /api/v1/mcp</code> отвечает <b>404</b>, даже с валидным токеном.</li>
+    <li><b>Но <code>ToolsModule</code> всё равно импортируется и реэкспортируется.</b> Реестр связывается и наполняется, потому что внутрипроцессный цикл копайлота потребляет тот же реестр и не имеет никакого отношения к тому, выставлена ли <em>внешняя</em> дверь.</li>
+    <li><b>И плагину-контрибьютору не приходится об этом думать.</b> Он регистрирует свои инструменты безусловно, а решает, кто до них дотянется, композиционный корень.</li>
+    <li><b>Зеркальное правило у копайлота.</b> <code>COPILOT_ENABLED</code> применяется точно так же — каждый выключатель убирает <b>свою</b> поверхность, и ни один не уменьшает общий каталог. E2E-набор <code>tools/tool-registry.spec.ts</code> проверяет <b>оба</b> направления: при снятом MCP копайлот видит полный каталог, при снятом копайлоте полный каталог видит MCP.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Почему выключено по умолчанию</span>
+    <p>Включение отдаёт <b>любому держателю токена области <code>full</code></b> возможность гнать CRUD над контентом из внешнего агента. Это решение, которое оператор принимает осознанно, а не наследует, обновив версию. Токены, области и корзины воркспейсов при этом не меняются — выключатель управляет только тем, смонтирована ли дверь.</p>
+  </div>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">08</span>HTTP API и методы JSON-RPC</h2>
+
+  <p>HTTP-поверхность пакета — <b>один маршрут</b>. Глобальный префикс <code>/api</code> ставит хост; контроллер объявлен как <code>@Controller('v1/mcp')</code>, поэтому полный путь — <code>/api/v1/mcp</code>. Легенда: <span class="pill pill-pub">public</span> — маршрут помечен <code>@Public()</code>, то есть сессионный <code>AuthGuard</code> его не трогает, <span class="pill pill-ses">bearer</span> — обязателен <code>Authorization: Bearer</code>, <span class="pill pill-perm">право</span> — решается на уровне инструмента.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">POST /v1/mcp</td>
+        <td><span class="pill pill-pub">public</span> <span class="pill pill-ses">bearer</span> <span class="pill pill-perm">requires</span></td>
+        <td>JSON-RPC 2.0: один кадр или массив кадров. Заголовки: <code>Authorization</code>, <code>Accept: application/json, text/event-stream</code>, необязательный <code>X-Workspace-Id</code>; query: необязательный <code>?workspaceId=</code></td>
+        <td><code>200</code> с JSON-RPC-ответом; <code>202</code> с пустым телом на уведомление</td>
+        <td><code>401</code> нет/неверный bearer или пробел внутри значения; <code>400</code> воркспейс не назван при мультитокене / кривой формат / назван дважды / испорченный кадр; <code>403</code> воркспейс вне корзины; <code>406</code> <code>Accept</code> не покрывает оба типа; <code>413</code> тело больше 1 МБ; <code>404</code> плагин выключен; <code>500</code> непойманное исключение (конверт <code>-32603</code>)</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /v1/mcp</td>
+        <td><span class="pill pill-pub">public</span> <span class="pill pill-ses">bearer</span></td>
+        <td>—</td>
+        <td>— (успеха нет)</td>
+        <td><code>405</code> с <code>Allow: POST</code> и конвертом <code>-32000</code>. Без токена — <code>401</code></td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /v1/mcp</td>
+        <td><span class="pill pill-pub">public</span> <span class="pill pill-ses">bearer</span></td>
+        <td>—</td>
+        <td>— (успеха нет)</td>
+        <td><code>405</code>. Без токена — <code>401</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему 405 отвечает контроллер, а не транспорт</span>
+    <p><code>GET</code> в спецификации — это <b>поток, инициируемый сервером</b>, <code>DELETE</code> — снос сессии. Ни того, ни другого здесь нет, и это ровно тот случай, под который спецификация резервирует 405. Транспорт SDK нарочно <b>не спрашивают</b>: получив <code>GET</code> в stateless-режиме, он открывает отдельный SSE-поток и держит его <b>вечно</b> — на этом эндпоинте никто никогда не отправляет сообщение по инициативе сервера, — так что клиент, который пробует <code>GET</code> (а так делают несколько), висел бы на соединении, которое ничего не понесёт, удерживая сокет, транспорт и протокольный сервер на каждую попытку. <code>@All()</code> заводит эти глаголы в тот же контроллер, чтобы ответ пришёл из протокольного слоя, а не был родовым 404 Nest-а, который клиент интерпретировать не может.</p>
+  </div>
+
+  <h3>Методы JSON-RPC</h3>
+  <p>Собственных обработчиков зарегистрировано <b>четыре</b>; ещё два метода (<code>initialize</code>, <code>ping</code>) обслуживает сам низкоуровневый <code>Server</code> из SDK. Объявленные возможности сервера — <code>{ tools: {}, resources: {} }</code>: разделов <code>prompts</code>, <code>sampling</code> и <code>logging</code> у этого сервера нет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод</th><th>Кто обслуживает</th><th>Параметры</th><th>Результат</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">initialize</td>
+        <td>SDK</td>
+        <td><code>protocolVersion</code>, <code>capabilities</code>, <code>clientInfo</code></td>
+        <td><code>serverInfo: { name, version }</code> из конфигурации плагина + <code>capabilities</code> с <code>tools</code> и <code>resources</code></td>
+        <td>Ответ на неаутентифицированный вызов — <code>401</code> ещё до протокольного слоя</td>
+      </tr>
+      <tr>
+        <td class="mono">ping</td>
+        <td>SDK</td>
+        <td>—</td>
+        <td>Пустой результат</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td class="mono">tools/list</td>
+        <td><code>build-mcp-server.ts</code></td>
+        <td>—</td>
+        <td><code>{ tools: [{ name, title, description, inputSchema, annotations }] }</code>, где <code>annotations = { title, readOnlyHint, destructiveHint }</code></td>
+        <td>Пустой список — это <b>ответ</b>, а не ошибка</td>
+      </tr>
+      <tr>
+        <td class="mono">tools/call</td>
+        <td><code>build-mcp-server.ts</code></td>
+        <td><code>name</code>, <code>arguments</code></td>
+        <td><code>{ content: [{ type: 'text', text }], structuredContent }</code></td>
+        <td><b>Никогда не ошибка JSON-RPC.</b> Всё уходит как <code>{ isError: true, content: [...] }</code>: <code>404 not_found</code> (неизвестный инструмент или инструмент чужой поверхности), <code>403 forbidden</code>, <code>422 validation_failed</code>, <code>400 bad_request</code>, <code>504 timeout</code>, <code>499 client_closed_request</code>, <code>413 result_too_large</code>, <code>500 internal_error</code></td>
+      </tr>
+      <tr>
+        <td class="mono">resources/list</td>
+        <td><code>build-mcp-server.ts</code></td>
+        <td>—</td>
+        <td><code>{ resources: [{ uri, name, description, mimeType }] }</code>, обрезано правами и грантами</td>
+        <td>Ошибка JSON-RPC через <code>toMcpError</code></td>
+      </tr>
+      <tr>
+        <td class="mono">resources/read</td>
+        <td><code>build-mcp-server.ts</code></td>
+        <td><code>uri</code></td>
+        <td><code>{ contents: [{ uri, mimeType, text }] }</code></td>
+        <td>Ошибка JSON-RPC: <code>-32002</code> на 403/404, <code>-32602</code> на 400/422, <code>-32603</code> на остальное. Плоский <code>ToolError</code> едет в <code>data</code></td>
+      </tr>
+      <tr>
+        <td class="mono">notifications/*</td>
+        <td>транспорт</td>
+        <td>кадр без <code>id</code></td>
+        <td><code>202</code>, пустое тело</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Коды ошибок JSON-RPC</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Код</th><th>Имя</th><th>Когда</th><th>Откуда</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">-32000</td><td>Server error (частный)</td><td>Конверт ответа <code>405</code> на <code>GET</code>/<code>DELETE</code>. Сообщение объясняет, что эндпоинт stateless и обслуживает только POST</td><td><code>mcp.controller.ts</code>, функция <code>methodNotAllowed</code></td></tr>
+      <tr><td class="mono">-32002</td><td>Resource not found</td><td><code>resources/read</code>: статус <code>403</code> или <code>404</code>. Отказ и отсутствие делят код намеренно</td><td>Константа <code>RESOURCE_NOT_FOUND</code> — она есть в спецификации, но не в enum SDK, поэтому выписана явно, а не приближена <code>InternalError</code>-ом</td></tr>
+      <tr><td class="mono">-32601</td><td>Method not found</td><td>Неизвестный метод, например <code>prompts/list</code></td><td>SDK</td></tr>
+      <tr><td class="mono">-32602</td><td>Invalid params</td><td><code>resources/*</code>: статус <code>400</code> или <code>422</code></td><td><code>ErrorCode.InvalidParams</code>, функция <code>jsonRpcCodeFor</code></td></tr>
+      <tr><td class="mono">-32603</td><td>Internal error</td><td><code>resources/*</code>: любой другой статус. Плюс аварийный конверт контроллера, когда транспорт бросил до отправки заголовков</td><td><code>ErrorCode.InternalError</code> и <code>mcp.controller.ts</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Испорченные кадры (пустое тело, кадр без <code>method</code>, кадр с <code>jsonrpc: "1.0"</code>) отвергает сам транспорт своим отрицательным кодом с HTTP <code>400</code>; e2e фиксирует только знак кода, потому что конкретный код здесь — деталь SDK, а не контракт этого пакета.</p>
+
+  <div class="note">
+    <span class="label">Почему маршрута нет в OpenAPI</span>
+    <p><code>@ApiExcludeController()</code>. JSON-RPC поверх одного маршрута не описывается REST-операциями, а одинокая строчка <code>POST /v1/mcp</code> в справочнике не сказала бы читателю <em>ничего</em> про инструменты. Документацией служит <code>AGENTS.md</code> пакета — и, для агента, сами описания инструментов.</p>
+  </div>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">09</span>Админка</h2>
+
+  <p><b>Собственного пакета админки у MCP нет</b> — <code>packages/mcp/admin</code> не существует. Ни экрана, ни маршрута, ни вклада в слоты. Это верно по устройству: у протокольного адаптера нечего показывать, а всё, чем оператор здесь управляет, живёт на чужих экранах.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Задача оператора</th><th>Где решается</th><th>Что нужно знать</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Выписать агенту доступ</td>
+        <td>Страница <b>«API-токены»</b> (<code>@orthacms/api-tokens-admin</code>; серверная часть — внутри <code>identity-server</code>)</td>
+        <td>Область — <code>read</code> для агента-читателя, <code>full</code> для агента-автора. Именно она решает, какие инструменты агент вообще увидит. Плюс явный список воркспейсов</td>
+      </tr>
+      <tr>
+        <td>Отозвать доступ агента</td>
+        <td>Там же</td>
+        <td>Отзыв токена немедленно закрывает и MCP: второго хранилища учётных данных нет</td>
+      </tr>
+      <tr>
+        <td>Ограничить, какие типы контента агент видит</td>
+        <td>Гранты контента воркспейса (<code>workspaces-admin</code>)</td>
+        <td>Невыданный тип неотличим от несуществующего и в инструментах, и в ресурсах</td>
+      </tr>
+      <tr>
+        <td>Ограничить, каких читателей видит опубликованная запись</td>
+        <td>Вкладка <b>«Доступ»</b> в редакторе записи + справочник аудиторий (<code>segments-admin</code>)</td>
+        <td>Агент с <code>full</code> может менять это по записи через <code>content_access_set</code>, но не может трогать справочник</td>
+      </tr>
+      <tr>
+        <td>Включить или выключить дверь</td>
+        <td><b>Переменная окружения</b>, не интерфейс</td>
+        <td><code>MCP_ENABLED=true</code> и перезапуск. Экрана-выключателя нет намеренно: это решение развёртывания, а не редакции</td>
+      </tr>
+      <tr>
+        <td>Посмотреть, что агент наделал</td>
+        <td>Журнал действий (<code>activity</code>) и история ревизий записи</td>
+        <td>Ревизия агентского авторства несёт <code>null</code> в поле пользователя — см. раздел 5</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Как подключается клиент</h3>
+  <p>Эндпоинт говорит на Streamable HTTP напрямую. Клиенту, который умеет только stdio, мост даёт <code>mcp-remote</code> — одна строка в его конфиге и ничего, что нужно поддерживать нам:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{
+    "mcpServers": {
+        "ortha-cms": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "mcp-remote",
+                "https://cms.example.com/api/v1/mcp?workspaceId=&lt;uuid&gt;",
+                "--header",
+                "Authorization: Bearer &lt;token&gt;"
+            ]
+        }
+    }
+}</code></pre></div>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">10</span>Конфигурация</h2>
+
+  <p>Плагин регистрируется в композиционном корне <b>после</b> <code>IdentityPlugin</code> (bearer-токены проверяются через его <code>ApiTokenService</code>) и после каждого плагина, контрибьютящего инструменты, — чтобы намерение читалось сверху вниз. Сама DI при этом от порядка не зависит: все модули плагинов глобальны, а контрибьюторы регистрируются в <code>onModuleInit</code>, который Nest вызывает уже после построения всего графа.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>McpPlugin({
+    config: {
+        enabled: true,
+        name: 'ortha-cms',
+        version: '1.0.0',
+        callTimeoutMs: 30_000,
+        maxResultBytes: 4_194_304
+    }
+});</code></pre></div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Переменная окружения</th><th>По умолчанию</th><th>Что означает и почему такое значение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">enabled</td><td class="mono">MCP_ENABLED</td><td><code>false</code></td>
+        <td>Смонтирована ли дверь. Читается строго как <code>=== 'true'</code>, то есть любое другое значение — это «выключено». Единственное, чем управляет: контроллер. Токены, области и корзины воркспейсов не меняются</td>
+      </tr>
+      <tr>
+        <td class="mono">name</td><td>—</td><td><code>'ortha-cms'</code></td>
+        <td>Идентичность сервера в <code>initialize</code> — то, что клиент показывает в списке коннекторов. Литерал, а не переменная: это стабильная продуктовая конфигурация. Пустое значение — исключение при построении плагина</td>
+      </tr>
+      <tr>
+        <td class="mono">version</td><td>—</td><td><code>'1.0.0'</code></td>
+        <td>То же. Пустое значение — исключение при построении</td>
+      </tr>
+      <tr>
+        <td class="mono">callTimeoutMs</td><td class="mono">MCP_CALL_TIMEOUT_MS</td><td><code>30_000</code></td>
+        <td>Потолок одного <code>tools/call</code>. 30 с щедро для любого поставляемого инструмента и заметно меньше idle-таймаутов балансировщиков, за которыми такие развёртывания стоят. Требуется <b>положительное целое</b>: ноль провалил бы каждый вызов, а <code>Number(env) || default</code> превратил бы опечатку в тихий дефолт</td>
+      </tr>
+      <tr>
+        <td class="mono">maxResultBytes</td><td class="mono">MCP_MAX_RESULT_BYTES</td><td><code>4_194_304</code> (4 МиБ)</td>
+        <td>Потолок сериализованного результата одного инструмента. Нарочно щедрый: сегодня столько не возвращает ничто в каталоге, и потолок существует, чтобы патологический результат не сериализовался трижды, а не чтобы формировать нормальное использование. Требуется положительное целое</td>
+      </tr>
+      <tr>
+        <td class="mono">—</td><td class="mono">MAX_REQUEST_BODY</td><td><code>'1mb'</code></td>
+        <td><b>Не поле MCP</b>: хостовый <code>bodyLimit</code>, применяемый ко всему приложению. Загрузки им не затронуты — они multipart и ограничены отдельно через <code>maxUploadBytes</code> медиаплагина</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что проверяется при построении плагина</h3>
+  <ul class="check">
+    <li><b><code>config.name</code> непусто</b> → <span class="exp">иначе исключение с текстом «it is the server identity MCP clients display». Кривая идентичность всплыла бы как испорченный ответ <code>initialize</code>, где диагностировать её несравнимо дороже.</span></li>
+    <li><b><code>config.version</code> непусто</b> → <span class="exp">то же.</span></li>
+    <li><b><code>callTimeoutMs</code> — положительное целое</b> → <span class="exp"><code>Number.isInteger(v) &amp;&amp; v &gt; 0</code>. Потолок, равный <code>0</code>, отрицательный или <code>NaN</code>, хуже отсутствия потолка.</span></li>
+    <li><b><code>maxResultBytes</code> — положительное целое</b> → <span class="exp">то же.</span></li>
+  </ul>
+
+  <p class="small sub">Юнит-тест <code>mcp-plugin.spec.ts</code> отдельно фиксирует, что плагин <b>строится и в выключенном состоянии</b>: реестр всё равно связывается.</p>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">11</span>Безопасность: что и почему сделано именно так</h2>
+
+  <h3>11.1 Те же учётные данные, те же правила</h3>
+  <p>MCP — это <b>вторая парадная дверь в тот же дом</b>, а не вторая модель безопасности. Он берёт bearer-токены, которые страница «API-токены» уже минтит, проверяет их тем же <code>ApiTokenService.verify</code> и выводит права тем же <code>scopePermissions</code>. Следствия прагматичные: отзыв токена закрывает MCP в ту же секунду, и нет второго хранилища учётных данных, которое пришлось бы аудировать.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Охранник на <code>/api/v1/*</code></th><th>Его двойник здесь</th><th>Что доказывает эквивалентность</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">ApiTokenGuard</td><td class="mono">McpAuthService.authenticate</td><td>Тот же <code>verify</code>, тот же плоский 401, тот же <code>scopePermissions</code></td></tr>
+      <tr><td class="mono">ApiTokenWorkspaceGuard</td><td class="mono">resolveWorkspace</td><td>Правило переписано дословно: 400 на кривой формат, 403 на «не в корзине», авто-выбор при одноворкспейсном токене, 400 при мультиворкспейсном без имени</td></tr>
+      <tr><td class="mono">@RequirePermissions(...)</td><td class="mono">ToolDefinition.requires + ToolRegistry.call</td><td>Проверка <b>до диспетчеризации</b>; обработчик собственный шлюз не проверяет никогда</td></tr>
+      <tr><td class="mono">DraftVisibilityGuard</td><td class="mono">assertDraftVisibility</td><td>Тот же пробник <code>content:update</code>, то же поведение на нераспознанном значении (оставить DTO, чтобы 400 сообщил правильную проблему)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>11.2 Кука не принимается</h3>
+  <p>Ровно как на <code>/api/v1</code>. Кука едет с запросом <b>сама</b> — именно эта амбиентность делает записи под кукой уязвимыми к CSRF; bearer так не ездит никогда. Принять оба варианта на эндпоинте, чья цель — дать агенту писать контент, значило бы вернуть CSRF ни за что. E2E проверяет это отдельным случаем: «does not accept a session cookie in place of a token».</p>
+
+  <h3>11.3 Никакого сигнала для перебора</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Что унифицировано</h4>
+      <ul class="small">
+        <li>Неизвестный / отозванный / просроченный токен → один <code>401</code>.</li>
+        <li>Воркспейс вне корзины / несуществующий воркспейс → один <code>403</code>.</li>
+        <li>Невыданный тип контента / несуществующий тип → один <code>404</code>, и в инструментах, и в ресурсах.</li>
+        <li>Черновик / удалённая запись / чужой воркспейс / неизвестный id → одно «не найдено».</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Что намеренно различено</h4>
+      <ul class="small">
+        <li><b>Неизвестный инструмент</b> (<code>404</code>) и <b>отказ по правам</b> (<code>403</code>) — разные ответы. Набор инструментов не секрет: он одинаков для любого актора данной области и задокументирован, а список выводится из собственной области вызывающего. Смешивание сделало бы законную проблему с правами недиагностируемой и заставило бы модель жечь ходы вслепую.</li>
+        <li>Правило «единый ответ» продолжает действовать для <b>данных</b>, и это ровно та граница, где оно проходит.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>11.4 Два поля, которые критичны для безопасности</h3>
+  <ul class="inv">
+    <li>
+      <span class="id">requires</span>
+      <div><b>Аналог <code>@RequirePermissions(...)</code>.</b> Ошибиться в нём — это привилегированный баг, которого не поймает ни один тайпчекер. Обработчик не имеет права проверять собственный шлюз: тогда новый инструмент сможет забыть это сделать. Реестр валидирует на старте, что каждое значение действительно существует в <code>PERMISSION_KEYS</code>, — сырой литерал, разошедшийся со списком, оставил бы инструмент невызываемым молча.</div>
+    </li>
+    <li>
+      <span class="id">surfaces</span>
+      <div><b>Столь же критично.</b> Propose-инструмент, забывший это поле, стал бы вызываемым MCP-клиентом, которому нечем принять получившееся предложение, — а <code>media_propose_file</code> ещё и <em>пишет</em>, и прав токена <code>full</code> на него хватило бы. Останавливает только <code>surfaces</code>. Защитой служат кросс-поверхностные e2e-случаи, и новый инструмент обязан обзавестись своим.</div>
+    </li>
+  </ul>
+
+  <h3>11.5 Инъекция промпта</h3>
+  <div class="note crit">
+    <span class="label">Риск, который здесь нельзя устранить — только ограничить</span>
+    <p>Агент, читающий запись CMS, в которой лежат инструкции, может им последовать. <b>Ничто в этом пакете этому помешать не может.</b> Что он ограничивает — это радиус поражения: область токена, его корзина воркспейсов и гранты контента. Отсюда практические выводы: минтить <b>узкие</b> токены; помнить, что выключатель по умолчанию выключен именно для того, чтобы оператор согласился на этот риск явно; и не выдавать <code>full</code> там, где хватит <code>read</code>.</p>
+  </div>
+
+  <h3>11.6 Что нельзя достать по MCP вообще</h3>
+  <ul>
+    <li><b>Справочник аудиторий.</b> Переименование тегов одной аудитории меняет видимость каждой записи, её называющей, установочно-широко. Это администрирование словаря — оно остаётся на экране под сессией.</li>
+    <li><b>Журнал действий, участники, находки проверок.</b> Требуют прав, которых не выдаёт ни одна область токена; вдобавок помечены <code>surfaces: ['copilot']</code>, чтобы причина была объявлена, а не следовала из совпадения.</li>
+    <li><b>Черновики токену без права записи.</b> Расширение <code>status</code> открыто правом <code>content:update</code>.</li>
+    <li><b>Загрузка файла.</b> Инструмента для этого нет; <code>media:create</code> у токена <code>full</code> ведёт на REST-маршрут <code>POST /api/v1/media/assets</code>, а не сюда.</li>
+    <li><b>Переименование и удаление чужих ассетов.</b> <code>media:update</code> и <code>media:delete</code> не выдаёт ни одна область: прикрепить ассет к записи — это авторство контента, а переименовать чужой файл в библиотеке — администрирование медиа.</li>
+  </ul>
+
+  <h3>11.7 Устойчивость</h3>
+  <ul>
+    <li><b>Каждый запрос убирает за собой.</b> <code>response.on('close')</code> закрывает и транспорт, и протокольный сервер, как бы обмен ни кончился. Без этой строки каждый запрос протекал бы сервером и замыканиями обработчиков.</li>
+    <li><b>Поздний reject не роняет процесс.</b> <code>pending.catch(() =&gt; undefined)</code> у проигравшего гонку промиса — иначе обработчик, упавший после дедлайна, стал бы необработанным reject-ом.</li>
+    <li><b>Отвал клиента — не сбой инструмента.</b> Класс <code>CallAbandoned</code> отделяет «дедлайн» и «клиент ушёл» от настоящих ошибок, чтобы ни то, ни другое не дошло до <code>toToolError</code> и не залоглось как непойманная ошибка со стеком. Отвал клиента — рутина, а дедлайн — собственное решение этого файла; ни то, ни другое не баг инструмента.</li>
+    <li><b>Ответ всегда завершается.</b> Если транспорт уже начал писать, ставить статус негде — соединение просто закрывается: обрезанный ответ диагностируем, а зависание нет.</li>
+    <li><b>Кривая проводка не доживает до первого вызывающего.</b> Валидация каталога на <code>onApplicationBootstrap</code> прерывает <code>app.init()</code>: раньше дубль имени клал обе поверхности во время работы, тогда как старт рапортовал успех.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">12</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны оставаться истинными. Нарушение любого — это либо дыра, либо расхождение двух поверхностей.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><div><b>Аутентификация предшествует протоколу.</b> Неаутентифицированный вызывающий не может двинуть конечный автомат JSON-RPC вообще, включая <code>initialize</code>. Ответ — обычный HTTP <code>401</code>, а не JSON-RPC-ошибка.</div></li>
+    <li><span class="id">И-02</span><div><b>Проверка глагола следует за аутентификацией.</b> Неаутентифицированный <code>GET</code> — это <code>401</code>, а не <code>405</code>: ответ про глагол недостижим без учётных данных.</div></li>
+    <li><span class="id">И-03</span><div><b>Сессионная кука не является учётными данными этого эндпоинта</b> — никогда, ни в каком режиме.</div></li>
+    <li><span class="id">И-04</span><div><b>Неизвестный, отозванный и просроченный токен неразличимы</b> — один плоский <code>401</code> без подсказки, что именно из трёх.</div></li>
+    <li><span class="id">И-05</span><div><b>Значение bearer не содержит внутренних пробелов.</b> Куски после схемы не склеиваются: изобретённый токен доложился бы как «неверный секрет» вместо «кривой заголовок».</div></li>
+    <li><span class="id">И-06</span><div><b>Воркспейс всегда разрешён до диспетчеризации</b> и всегда принадлежит корзине токена. Заголовок побеждает query; обе записи проходят одну проверку. Более одного названного воркспейса — <code>400</code>, а не тихий выбор.</div></li>
+    <li><span class="id">И-07</span><div><b>Права актора выводятся только из области токена.</b> Роль минтившего человека не спрашивают никогда — отзыва токена всегда достаточно, кто бы его ни выписал.</div></li>
+    <li><span class="id">И-08</span><div><b><code>ToolRegistry.call</code> — единственная граница авторизации.</b> <code>visibleTo</code> только прячет; клиент волен назвать не показанное имя. Обработчик собственный шлюз не проверяет.</div></li>
+    <li><span class="id">И-09</span><div><b>Сужение по поверхности применяется и в списке, и при вызове.</b> Инструмент <code>['copilot']</code> не виден и не вызываем здесь, каким бы широким ни был токен.</div></li>
+    <li><span class="id">И-10</span><div><b>Авторизация предшествует валидации аргументов.</b> Тот, кому нельзя, не узнаёт ничего об аргументах, и ответ одинаков, что бы он ни прислал.</div></li>
+    <li><span class="id">И-11</span><div><b>Поверхность в контексте штампует реестр</b>, а не вызывающий. Значит, обработчик по построению видит ту поверхность, против которой инструмент авторизовали. Использовать её можно <b>только для подачи</b>, никогда для полномочий.</div></li>
+    <li><span class="id">И-12</span><div><b>Отказ <code>tools/call</code> — это результат с <code>isError</code>, а не ошибка JSON-RPC.</b> Отказ <code>resources/*</code> — наоборот. Обе половины проходят через <code>toToolError</code>, поэтому плоская форма ошибки одинакова.</div></li>
+    <li><span class="id">И-13</span><div><b>Неожиданное исключение непрозрачно на обоих путях</b> — <code>500</code> / <code>internal_error</code> и текст «см. логи». Сырое сообщение драйвера на провод не попадает никогда.</div></li>
+    <li><span class="id">И-14</span><div><b>Результат отдаётся обоими написаниями</b> — текстовым блоком и <code>structuredContent</code>. Не-объект заворачивается в <code>{ value }</code>, а не выбрасывается.</div></li>
+    <li><span class="id">И-15</span><div><b>Каждый обмен ограничен тремя потолками</b>: тело запроса, время одного вызова, размер одного результата. Превышение времени и размера возвращается в виде, который модель может прочитать (<code>504</code>/<code>timeout</code>, <code>413</code>/<code>result_too_large</code>).</div></li>
+    <li><span class="id">И-16</span><div><b>Дедлайн ограничивает ожидание вызывающего, а не работу.</b> Инструмент, игнорирующий сигнал, досчитывает до конца. Ответ вызывающему приходит в любом случае.</div></li>
+    <li><span class="id">И-17</span><div><b>Транспорт и протокольный сервер живут ровно один обмен</b> и закрываются на <code>close</code>. Идентификаторов сессии не выдаётся и не проверяется; присланный <code>Mcp-Session-Id</code> игнорируется.</div></li>
+    <li><span class="id">И-18</span><div><b>Список инструментов — функция вызывающего.</b> Токен <code>read</code> и токен <code>full</code> получают разные списки от одного и того же развёртывания.</div></li>
+    <li><span class="id">И-19</span><div><b>Ни одно правило контента здесь не переписано.</b> Обработчики зовут те же <code>resolveGrantedType</code>, <code>PublicEntriesQuery</code>, <code>PublicEntryWritesService</code>, что и HTTP-контроллеры, и валидируют настоящими DTO с опциями хостового <code>ValidationPipe</code>.</div></li>
+    <li><span class="id">И-20</span><div><b>Выключатель убирает только контроллер.</b> Реестр связывается и наполняется при <code>MCP_ENABLED=false</code>, потому что тот же реестр потребляет копайлот. Симметрично <code>COPILOT_ENABLED</code>.</div></li>
+    <li><span class="id">И-21</span><div><b>Плагин не владеет ни одной таблицей и ни одной миграцией.</b> Дескриптор миграций не объявляется.</div></li>
+    <li><span class="id">И-22</span><div><b>Кривой каталог не доживает до первого вызывающего.</b> Дубль имени, невалидное имя, пустой <code>surfaces</code>, несуществующее право, кривой <code>inputSchema</code> — всё это прерывает <code>app.init()</code>, а все проблемы сообщаются разом.</div></li>
+    <li><span class="id">И-23</span><div><b>Чтение ресурса не является обходом грант-шлюза.</b> Невыданный тип 404-ит при <code>resources/read</code> ровно так же, как при вызове инструмента; <code>requires</code> ресурса проверяется <b>до</b> того, как у провайдера спросят байты.</div></li>
+    <li><span class="id">И-24</span><div><b>Чтение по умолчанию отдаёт только опубликованное.</b> Расширить до черновиков может лишь актор с <code>content:update</code>.</div></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">13</span>Чек-лист тестирования</h2>
+  <p>Формат «действие → чего ждём». Большая часть уже закрыта автотестами: юнит-набор пакета (<code>mcp-auth.service.spec.ts</code>, <code>build-mcp-server.spec.ts</code>, <code>mcp-plugin.spec.ts</code>) и wire-level e2e (<code>apps/server-e2e/src/server/mcp/mcp.spec.ts</code>, <code>apps/server-e2e/src/server/tools/tool-registry.spec.ts</code>). E2E ходит <b>сырым JSON-RPC</b> через supertest, а не через клиентский SDK: формат на проводе — это и есть контракт внешних клиентов, поэтому проверять надо байты.</p>
+
+  <h3>13.1 Аутентификация</h3>
+  <ul class="check">
+    <li><b>POST без заголовка <code>Authorization</code></b> → <span class="exp"><code>401</code>. Ни одного JSON-RPC-кадра в ответе.</span></li>
+    <li><b>POST с неизвестным bearer</b> → <span class="exp"><code>401</code> «Invalid API token», без намёка, чем именно токен плох.</span></li>
+    <li><b>Отозвать токен, повторить тот же запрос</b> → <span class="exp"><code>401</code> немедленно, без перезапуска сервера и без ожидания истечения.</span></li>
+    <li><b>Просроченный токен</b> → <span class="exp">тот же <code>401</code>, неотличимый от неизвестного и отозванного.</span></li>
+    <li><b>Прислать сессионную куку вместо токена</b> → <span class="exp"><code>401</code>. Кука на этом эндпоинте не учётные данные ни при каких условиях.</span></li>
+    <li><b>Схема в другом регистре: <code>bearer</code>, <code>BEARER</code></b> → <span class="exp">принимается: сравнение регистронезависимое.</span></li>
+    <li><b>Лишние пробелы вокруг схемы: <code>"  Bearer&nbsp;&nbsp;&nbsp;&lt;token&gt;  "</code></b> → <span class="exp">принимается — RFC 9110 это допускает, и клиенты так шлют.</span></li>
+    <li><b>Пробел внутри значения: <code>"Bearer &lt;token&gt; extra"</code></b> → <span class="exp"><code>401</code>. Куски не склеиваются: склейка изобрела бы токен, которого не присылали.</span></li>
+    <li><b>Схема не bearer (<code>Basic</code>, <code>Token</code>)</b> → <span class="exp"><code>401</code>.</span></li>
+    <li><b>Права актора при токене, выписанном администратором</b> → <span class="exp">равны <code>scopePermissions(scope)</code>, а не правам роли администратора. Проверять именно на токене <code>read</code>, выписанном админом.</span></li>
+  </ul>
+
+  <h3>13.2 Разрешение воркспейса</h3>
+  <ul class="check">
+    <li><b>Одноворкспейсный токен без заголовка и без query</b> → <span class="exp">работает; воркспейс подставлен сам. Обычный случай не требует настройки.</span></li>
+    <li><b>Мультиворкспейсный токен без указания</b> → <span class="exp"><code>400</code> с числом воркспейсов и подсказкой про заголовок и query. Не тихий выбор первого.</span></li>
+    <li><b><code>X-Workspace-Id</code> с воркспейсом из корзины</b> → <span class="exp">работает; данные именно этого воркспейса.</span></li>
+    <li><b><code>?workspaceId=</code> в URL эндпоинта</b> → <span class="exp">работает так же, как заголовок: это второе написание того же правила.</span></li>
+    <li><b>Заголовок и query названы оба и различаются</b> → <span class="exp">побеждает заголовок; query не влияет и не даёт ошибки.</span></li>
+    <li><b>Воркспейс вне корзины токена</b> → <span class="exp"><code>403</code>, идентичный ответу на несуществующий воркспейс: перебрать идентификаторы токеном нельзя.</span></li>
+    <li><b>Кривой идентификатор в заголовке или query</b> → <span class="exp"><code>400</code> «Malformed x-workspace-id».</span></li>
+    <li><b>Повторённый <code>?workspaceId=a&amp;workspaceId=b</code></b> → <span class="exp"><code>400</code> «more than one workspace». <b>Регрессия, которую легко вернуть:</b> раньше массив читался как «не назван», и одноворкспейсный токен тихо срабатывал против своего воркспейса, хотя названы были два чужих.</span></li>
+    <li><b>Повторённый заголовок <code>X-Workspace-Id</code></b> → <span class="exp"><code>400</code>: Node склеивает повторы через запятую, и склейка не проходит формат.</span></li>
+    <li><b>Запись в воркспейс вне корзины</b> → <span class="exp">отказ; проверять именно пишущим инструментом, а не только чтением.</span></li>
+  </ul>
+
+  <h3>13.3 Транспорт и протокол</h3>
+  <ul class="check">
+    <li><b><code>GET /api/v1/mcp</code> с валидным токеном</b> → <span class="exp"><code>405</code>, заголовок <code>Allow: POST</code>, в сообщении слово «stateless». <b>Ответ обязан прийти сразу</b> — если запрос висит, значит транспорт всё-таки открыл вечный SSE-поток.</span></li>
+    <li><b><code>DELETE /api/v1/mcp</code></b> → <span class="exp"><code>405</code>: сессии, которую можно закрыть, не существует.</span></li>
+    <li><b><code>GET</code> без токена</b> → <span class="exp"><code>401</code>, а не <code>405</code>: ответ про глагол недостижим без учётных данных.</span></li>
+    <li><b><code>Accept: application/json</code> без <code>text/event-stream</code></b> → <span class="exp"><code>406</code>, и в сообщении назван недостающий тип. Это самая частая ошибка первого подключения.</span></li>
+    <li><b>Заголовок <code>Mcp-Session-Id</code> от клиента, который считает, что у него есть сессия</b> → <span class="exp"><code>200</code>, заголовок проигнорирован.</span></li>
+    <li><b>Уведомление (кадр без <code>id</code>), например <code>notifications/initialized</code></b> → <span class="exp"><code>202</code> и <b>пустое</b> тело.</span></li>
+    <li><b>Батч из двух кадров (<code>tools/list</code> + <code>resources/list</code>)</b> → <span class="exp">массив из двух результатов, идентификаторы сохранены, у обоих есть <code>result</code>.</span></li>
+    <li><b>Неизвестный метод <code>prompts/list</code></b> → <span class="exp"><code>200</code> с ошибкой <code>-32601</code>, а не <code>500</code>.</span></li>
+    <li><b>Пустое тело / кадр без <code>method</code> / <code>"jsonrpc": "1.0"</code></b> → <span class="exp"><code>400</code> с отрицательным JSON-RPC-кодом, а не <code>500</code>.</span></li>
+    <li><b>Тело больше 1 МБ</b> → <span class="exp"><code>413</code> обычным Nest-телом — это выше слоя JSON-RPC, поэтому кадра здесь нет.</span></li>
+    <li><b><code>initialize</code></b> → <span class="exp"><code>serverInfo</code> ровно из конфигурации плагина; <code>capabilities</code> содержит <code>tools</code> и <code>resources</code> и <b>не</b> содержит <code>prompts</code>.</span></li>
+    <li><b>Сотня последовательных запросов</b> → <span class="exp">RSS не растёт линейно: транспорт и протокольный сервер закрываются на <code>close</code>. Регрессия здесь — утечка на каждый запрос.</span></li>
+  </ul>
+
+  <h3>13.4 Видимость и авторизация инструментов</h3>
+  <ul class="check">
+    <li><b><code>tools/list</code> токеном <code>read</code></b> → <span class="exp">13 инструментов; есть <code>content_list</code> и <code>content_types_list</code>, <b>нет</b> <code>content_create</code>, <code>content_update</code>, <code>content_publish</code>, <code>content_delete</code>.</span></li>
+    <li><b><code>tools/list</code> токеном <code>full</code></b> → <span class="exp">23 инструмента, включая все шестнадцать контентных и <code>content_access_set</code>.</span></li>
+    <li><b>Аннотации</b> → <span class="exp"><code>content_list.readOnlyHint === true</code>; <code>content_delete.readOnlyHint === false</code> и <code>destructiveHint === true</code>.</span></li>
+    <li><b>У каждого инструмента в списке</b> → <span class="exp"><code>inputSchema.type === 'object'</code> и непустое <code>description</code>. Описание — единственная документация, которую получает модель.</span></li>
+    <li><b>Токен <code>read</code> вызывает <code>content_create</code> по имени</b> → <span class="exp"><code>isError: true</code>, <code>403</code>/<code>forbidden</code>. <b>Это и есть граница:</b> список только прячет, а клиент волен назвать не показанное имя.</span></li>
+    <li><b>Токен <code>read</code> вызывает каждый пишущий инструмент по очереди</b> → <span class="exp">все до одного отказ. Проверять именно перебором, а не выборочно: <code>requires</code> задаётся у каждого инструмента отдельно.</span></li>
+    <li><b>Токен <code>read</code> просит <code>status: "draft"</code> или <code>"any"</code></b> → <span class="exp"><code>403</code>: расширение видимости открыто правом <code>content:update</code>.</span></li>
+    <li><b>Неизвестное имя инструмента</b> → <span class="exp"><code>404</code>/<code>not_found</code>, а <b>не</b> тот же ответ, что при отказе по правам. Различие намеренное.</span></li>
+    <li><b>Отказ по правам при заведомо кривых аргументах</b> → <span class="exp">приходит <code>403</code>, а не <code>422</code>: авторизация раньше валидации.</span></li>
+  </ul>
+
+  <h3>13.5 Изоляция поверхностей</h3>
+  <ul class="check">
+    <li><b><code>tools/list</code> токеном <code>full</code></b> → <span class="exp">в списке нет ни одного <code>admin_*</code>, ни одного <code>*_propose_*</code>, ни <code>i18n_translations_get</code>, ни <code>activity_recent</code>, ни <code>workspace_members_list</code>, ни <code>admin_alarms_findings</code>.</span></li>
+    <li><b>Вызвать <code>admin_content_search</code> по имени</b> → <span class="exp"><code>isError: true</code>. Сужение по поверхности применяется и при вызове, не только в списке.</span></li>
+    <li><b>Вызвать <code>media_propose_file</code> токеном <code>full</code></b> → <span class="exp"><code>isError: true</code>. <b>Самый острый случай:</b> прав у токена хватает (<code>media:create</code> входит в <code>full</code>), останавливает только <code>surfaces</code>.</span></li>
+    <li><b>Общие инструменты видны токену <code>read</code></b> → <span class="exp">в списке есть <code>i18n_locales_list</code>, <code>media_assets_search</code>, <code>media_folders_list</code>, <code>media_asset_read</code>.</span></li>
+    <li><b>Общий инструмент не только виден, но и вызываем</b> → <span class="exp"><code>i18n_locales_list</code> отрабатывает и возвращает <code>locales</code>. Инструмент, который вылистывается, но 404-ит при вызове, означал бы, что список и вызов разошлись.</span></li>
+    <li><b><code>media_assets_search</code> с MCP</b> → <span class="exp"><code>downloadPath</code> имеет вид <code>/api/v1/media/assets/&lt;id&gt;/raw</code>, и <b>этот путь реально тянется тем же bearer-ом</b> (<code>200</code>). Админский путь здесь был бы гарантированным 401.</span></li>
+    <li><b>Добавили новый инструмент в любом плагине</b> → <span class="exp">в PR есть либо <code>surfaces</code> с комментарием, в чём напряжение, либо отсутствие поля с комментарием, что напряжения нет. Отсутствие обоих — незакрытый вопрос.</span></li>
+  </ul>
+
+  <h3>13.6 Ошибки и потолки</h3>
+  <ul class="check">
+    <li><b>Аргумент, не проходящий <code>inputSchema</code></b> → <span class="exp"><code>isError</code>, <code>422</code>/<code>validation_failed</code> с поимённо названным полем в <code>issues</code>.</span></li>
+    <li><b>Пропущен обязательный аргумент</b> → <span class="exp">то же; вызов не доходит до обработчика.</span></li>
+    <li><b>Неизвестный аргумент вместо игнорирования</b> → <span class="exp">ошибка. Тихо выброшенный опечатанный аргумент даёт правдоподобно выглядящий неверный ответ — самый трудно замечаемый отказ.</span></li>
+    <li><b>Не-uuid в <code>folderId</code> / <code>assetId</code></b> → <span class="exp"><code>400</code>/<code>bad_request</code>, а не непрозрачный <code>500</code>.</span></li>
+    <li><b>Инструмент бросил <code>HttpException</code></b> → <span class="exp"><code>isError</code> со статусом, коротким кодом и сообщением как есть; <code>issues</code> перенесены дословно.</span></li>
+    <li><b>Инструмент бросил не-<code>HttpException</code></b> → <span class="exp">голый <code>500</code>/<code>internal_error</code> и текст «см. логи сервера». В ответе <b>нет</b> имени таблицы, колонки или строки подключения. В логе — стек.</span></li>
+    <li><b><code>MCP_CALL_TIMEOUT_MS=1</code>, любой вызов</b> → <span class="exp"><code>isError</code>, <code>504</code>/<code>timeout</code>, в сообщении названы имя инструмента и величина дедлайна. Вызывающий получает ответ <b>всегда</b>.</span></li>
+    <li><b>Обработчик, падающий уже после дедлайна</b> → <span class="exp">процесс жив. Регрессия здесь — необработанный reject, роняющий сервер, то есть ровно тот отказ, ради которого таймаут и введён.</span></li>
+    <li><b>Клиент разорвал соединение на середине вызова</b> → <span class="exp">в логах нет записи «unhandled error in a tool handler» со стеком: отвал клиента — рутина, а не баг инструмента.</span></li>
+    <li><b><code>MCP_MAX_RESULT_BYTES=200</code>, <code>content_types_list</code></b> → <span class="exp"><code>isError</code>, <code>413</code>/<code>result_too_large</code>, <b>оба размера названы</b>, и <code>structuredContent</code> в ответе <b>отсутствует</b>.</span></li>
+    <li><b>Результат чуть ниже потолка</b> → <span class="exp">проходит без изменений; отсечка не «примерно».</span></li>
+    <li><b>Значение-не-объект от инструмента</b> → <span class="exp">попадает в <code>structuredContent</code> как <code>{ value: … }</code>, а не теряется.</span></li>
+  </ul>
+
+  <h3>13.7 Контент: полный цикл и правила видимости</h3>
+  <ul class="check">
+    <li><b><code>content_types_list</code></b> → <span class="exp">только типы, выданные <em>этому</em> воркспейсу. Невыданный тип в списке — утечка модели данных.</span></li>
+    <li><b><code>content_type_get</code> невыданного типа</b> → <span class="exp"><code>404</code>, идентичный ответу на несуществующий тип.</span></li>
+    <li><b><code>content_list</code> без <code>status</code></b> → <span class="exp">только опубликованное. Черновик, созданный секунду назад тем же токеном, не виден и не считается в <code>total</code>.</span></li>
+    <li><b><code>content_list</code> в чужом воркспейсе</b> → <span class="exp">записи соседнего воркспейса не попадают в выдачу.</span></li>
+    <li><b><code>content_create</code> на publishable-типе</b> → <span class="exp"><code>status: "draft"</code>. Не «опубликовано», не «зависит от типа».</span></li>
+    <li><b><code>content_get</code> со <code>status: "any"</code> токеном <code>full</code></b> → <span class="exp">черновик читается — иначе записывающий API был бы write-only.</span></li>
+    <li><b><code>content_update</code> с одним полем</b> → <span class="exp">остальные поля живы; явный <code>null</code> очищает поле, а пропущенное — нет.</span></li>
+    <li><b><code>content_publish</code> невалидного черновика</b> → <span class="exp"><code>isError</code> с <code>issues</code>, где названы конкретные поля. Это самая полезная ошибка, какую может получить модель.</span></li>
+    <li><b><code>content_delete</code>, затем <code>content_get</code> со <code>status: "any"</code></b> → <span class="exp"><code>not_found</code> — той же формы, что и невыданный тип.</span></li>
+    <li><b><code>content_delete</code> на локализованном типе</b> → <span class="exp">удалена ровно одна строка; остальные переводы живы.</span></li>
+    <li><b><code>content_bulk_save</code> со смешанным пакетом</b> → <span class="exp">вызов успешен, у каждого элемента свой вердикт на своей позиции, отказ несёт ту причину, с которой упал бы одиночный вызов.</span></li>
+    <li><b><code>content_bulk_publish</code>, где часть черновиков невалидна</b> → <span class="exp">валидные опубликованы, остальные в <code>skipped</code> с причиной <code>already-published</code> / <code>blocked</code> / <code>not-found</code>. Частично пропущенный пакет — нормальный исход.</span></li>
+    <li><b><code>content_relations</code></b> → <span class="exp">показываются и считаются только опубликованные цели.</span></li>
+    <li><b>Ограничение <code>pageSize</code></b> → <span class="exp">совпадает с ограничением одноимённого HTTP-маршрута: правило написано один раз, в DTO.</span></li>
+  </ul>
+
+  <h3>13.8 Ресурсы и аудитории</h3>
+  <ul class="check">
+    <li><b><code>resources/list</code></b> → <span class="exp">только схемы выданных воркспейсу типов.</span></li>
+    <li><b><code>resources/read</code> выданного типа</b> → <span class="exp">JSON со схемой полей и <code>valuesSchema</code>.</span></li>
+    <li><b><code>resources/read</code> невыданного типа</b> → <span class="exp">JSON-RPC-<b>ошибка</b> <code>-32002</code>, и в <code>data</code> лежит <code>{ code: "not_found" }</code>. Не результат с <code>isError</code>: у ресурса другая асимметрия.</span></li>
+    <li><b><code>content_access_get</code> сразу после <code>content_access_set</code></b> → <span class="exp">читается то, что только что записали. Регрессия здесь — чтение через публичное чтение записи, при котором агент теряет из виду запись, которую сам же и ограничил.</span></li>
+    <li><b>Пустой <code>allow</code></b> → <span class="exp">означает «видят ВСЕ», а не «никто». Проверять именно на пустом списке.</span></li>
+    <li><b>Токеном <code>read</code> вызвать <code>content_access_set</code></b> → <span class="exp"><code>403</code>: нужен <code>segments:manage</code>, а его несёт только <code>full</code>.</span></li>
+    <li><b>Попытаться создать/переименовать/удалить аудиторию по MCP</b> → <span class="exp">инструмента не существует. Справочник аудиторий не выставлен ни одной токен-аутентифицированной поверхностью.</span></li>
+  </ul>
+
+  <h3>13.9 Выключатель и старт</h3>
+  <ul class="check">
+    <li><b><code>MCP_ENABLED=false</code>, POST с валидным токеном</b> → <span class="exp"><code>404</code>: маршрут не смонтирован.</span></li>
+    <li><b><code>MCP_ENABLED=false</code>, копайлот включён</b> → <span class="exp">копайлот видит <b>полный</b> каталог инструментов. Выключатель убирает свою поверхность, а не общий каталог.</span></li>
+    <li><b><code>COPILOT_ENABLED=false</code>, MCP включён</b> → <span class="exp">зеркально: MCP видит полный каталог, а маршрутов копайлота нет вовсе.</span></li>
+    <li><b>Пустое <code>config.name</code> или <code>config.version</code></b> → <span class="exp">исключение при построении плагина, а не испорченный <code>initialize</code> через неделю.</span></li>
+    <li><b><code>callTimeoutMs</code> или <code>maxResultBytes</code> = 0, отрицательное, <code>NaN</code>, дробное</b> → <span class="exp">исключение при построении. Нулевой таймаут провалил бы каждый вызов.</span></li>
+    <li><b>Два провайдера заявили одно имя инструмента</b> → <span class="exp">процесс <b>не стартует</b>: <code>app.init()</code> прерывается. Не «первый вызов падает».</span></li>
+    <li><b><code>requires</code> с несуществующим ключом права</b> → <span class="exp">процесс не стартует. Регрессия здесь — инструмент, невидимый и невызываемый для всех и молча.</span></li>
+    <li><b>Имя инструмента не в <code>snake_case</code></b> → <span class="exp">процесс не стартует. Проверять и на пробел по краям, и на <code>CamelCase</code>.</span></li>
+    <li><b>Пустой массив <code>surfaces: []</code></b> → <span class="exp">процесс не стартует: инструмент не предложен никому.</span></li>
+    <li><b>Две проблемы каталога сразу</b> → <span class="exp">в сообщении об ошибке названы <b>обе</b>, а не первая попавшаяся.</span></li>
+    <li><b>Развёртывание без MCP-плагина вообще</b> → <span class="exp">приложение стартует; плагины-контрибьюторы просто остаются незарегистрированными (<code>@Optional()</code>).</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">14</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает MCP</th></tr></thead>
+    <tbody>
+      <tr><td>Контракт инструмента, реестр, авторизация вызова</td><td><code>tools-server</code></td><td><b>Импортирует</b> <code>ToolsModule</code> и реэкспортирует его. Не определяет ни одного из типов и не владеет экземпляром реестра</td></tr>
+      <tr><td>Сами инструменты</td><td><code>content-server</code> (16), <code>media-server</code> (3), <code>segments-server</code> (3), <code>i18n-server</code> (1)</td><td>Ничего. Узнать о новом инструменте здесь не нужно ничего менять</td></tr>
+      <tr><td>Правила видимости контента, запись, ревизии, outbox</td><td><code>content-server</code> (<code>public-api/</code> и <code>EntryWriterService</code> под ним)</td><td>Ни одного правила не переписывает. Обработчики зовут те же объекты, что и HTTP-контроллеры</td></tr>
+      <tr><td>Токены, их проверка и отзыв; перевод области в права</td><td><code>identity-server</code> (<code>ApiTokenService</code>, <code>scopePermissions</code>)</td><td>Вызывает <code>verify</code> и <code>scopePermissions</code>; собственного хранилища учётных данных не имеет</td></tr>
+      <tr><td>Интерфейс выпуска и отзыва токенов</td><td><code>api-tokens-admin</code></td><td>Ничего: у MCP нет пакета админки</td></tr>
+      <tr><td>Имя заголовка воркспейса и формат идентификатора</td><td><code>workspaces-server</code> (<code>WORKSPACE_HEADER</code>, <code>WORKSPACE_ID_PATTERN</code>)</td><td>Применяет те же константы, что и REST-охранник, — правило переписано, значения нет</td></tr>
+      <tr><td>Гранты контента воркспейса</td><td><code>workspaces-server</code> + <code>content-server</code></td><td>Ничего; грант-шлюз применяется внутри обработчиков и при чтении ресурсов</td></tr>
+      <tr><td>Ограничение читателей опубликованной записи</td><td><code>segments-server</code></td><td>Отдаёт три инструмента этого плагина; справочник аудиторий не выставляет вовсе</td></tr>
+      <tr><td>Предложения, движок прогона, атрибуция человеку</td><td><code>copilot-server</code></td><td>Ничего — и именно поэтому <code>propose</code>-инструменты сюда не пускают</td></tr>
+      <tr><td>Ограничение тела запроса</td><td><code>bootstrap-server</code> (<code>bodyLimit</code>, <code>MAX_REQUEST_BODY</code>)</td><td>Не настраивает; ограничение общеприложенческое и срабатывает выше JSON-RPC</td></tr>
+      <tr><td>Глобальный префикс <code>/api</code>, <code>ValidationPipe</code>, парсер тела</td><td><code>bootstrap-server</code></td><td>Пользуется: контроллер объявлен как <code>v1/mcp</code>, а тело берётся уже распарсенным</td></tr>
+      <tr><td>Соединение с БД и миграции</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Ничего. Ни таблиц, ни миграций, ни схемы</td></tr>
+      <tr><td>Журнал действий</td><td><code>activity</code></td><td>Ничего напрямую; события порождают плагины, чьи сервисы отработали</td></tr>
+      <tr><td>Формат Streamable HTTP, JSON-RPC-конверт, negotiation</td><td><code>@modelcontextprotocol/sdk</code></td><td>Подключает транспорт и низкоуровневый <code>Server</code>; <code>GET</code>/<code>DELETE</code> перехватывает <b>до</b> транспорта</td></tr>
+      <tr><td>Мост для stdio-клиентов</td><td><code>mcp-remote</code> (сторонний, у клиента)</td><td>Ничего — одна строка в конфиге клиента и ничего в нашем коде</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Атрибуции записи человеку.</b> Ревизия агентского авторства несёт <code>null</code> в поле пользователя. Пробел унаследован от публичного write-API и заслуживает собственной колонки — ADR-0006 отмечает это как то, что стоит починить <em>до</em> массового агентского авторства.</li>
+    <li><b>Раздела <code>prompts</code>.</b> Сервер объявляет только <code>tools</code> и <code>resources</code>; предзаготовленных промптов MCP-клиенту здесь не предлагают.</li>
+    <li><b>Подписок на изменения ресурсов</b> (<code>resources/subscribe</code>) и вообще любых сообщений по инициативе сервера — прямое следствие statelessness.</li>
+    <li><b>Загрузки файлов инструментом.</b> Токен <code>full</code> держит <code>media:create</code>, но ведёт оно на REST-маршрут <code>POST /api/v1/media/assets</code>.</li>
+    <li><b>Своей телеметрии.</b> Счётчиков вызовов, длительностей и частоты отказов этот пакет не ведёт; логируется только непойманное исключение обмена.</li>
+    <li><b>Отдельного ограничения частоты.</b> <code>ThrottlerGuard</code> на этом маршруте не стоит: ограничителем служит область токена и три потолка обмена.</li>
+    <li><b>Экрана-выключателя.</b> <code>MCP_ENABLED</code> — переменная окружения; это решение развёртывания, а не редакции.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">15</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Продуктовыми багами это в основном не является, но дезориентирует и разработчика, и тестировщика — а в двух случаях (последние две строки) речь о поведении, а не о тексте.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">docs/adr/0006-cms-as-an-mcp-server.md, §4</td>
+        <td>«<b>Twelve tools</b>, flat, whatever the content model»</td>
+        <td>Контентных инструментов <b>шестнадцать</b> (добавились четыре массовых: <code>content_bulk_save</code>, <code>content_bulk_publish</code>, <code>content_bulk_unpublish</code>, <code>content_bulk_delete</code>), а всего по MCP отдаётся <b>23</b>. Сам код это знает: docstring в <code>content-tools.provider.ts</code> говорит «The sixteen content tools»</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0007-one-tool-registry-two-surfaces.md, §2</td>
+        <td>«MCP's <b>twelve</b> content tools are <code>['mcp']</code>, the copilot's <b>fourteen</b> are <code>['copilot']</code>»</td>
+        <td>То же устаревшее число. Там же осталась фраза «Today the split is total» — она уже опровергнута собственным примечанием от 2026-08-11 в шапке того же документа (четыре инструмента поверхностей не объявляют)</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/mcp/server/AGENTS.md, вводный абзац</td>
+        <td>«The MCP front door onto the CMS, <b>and the home of the shared agent tool registry</b>… It owns the protocol, the authentication, <b>and the registry</b>»</td>
+        <td>Прямо противоречит выноске в шапке того же файла («The tool registry <b>moved out</b>») и коду: <code>McpModule</code> реестр <b>импортирует</b>, а не предоставляет. Документ спорит сам с собой в пределах десяти строк</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/mcp/server/AGENTS.md, «Two consumers, one registry»</td>
+        <td>«The copilot's tool loop (<b>once its run engine lands</b>)… Nothing here needs to change <b>when the copilot arrives</b>»</td>
+        <td>Копайлот давно приехал: у него есть движок прогона, четырнадцать собственных инструментов и e2e, проверяющий изоляцию поверхностей в обе стороны. Формулировка в будущем времени устарела</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/mcp/server/AGENTS.md, пример <code>ToolProvider</code></td>
+        <td>Показан инструмент <code>media_upload</code> с <code>requires: [PERMISSIONS.MEDIA_CREATE]</code></td>
+        <td>Инструмента с таким именем в монорепозитории <b>нет ни одного</b>. У <code>media/server</code> три инструмента, и все три — чтение. Загрузка идёт REST-маршрутом. Пример иллюстративный, но читается как перечень существующего</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/mcp/server/AGENTS.md, «Who contributes tools»</td>
+        <td>«<code>i18n/server</code> the <b>locale tools</b>» (множественное число)</td>
+        <td>Сюда попадает ровно <b>один</b> — <code>i18n_locales_list</code>. Второй инструмент плагина, <code>i18n_translations_get</code>, помечен <code>surfaces: ['copilot']</code>, потому что сообщает статус чернового соседа</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/mcp/server/AGENTS.md, «The shape»</td>
+        <td>Дерево из трёх подпапок: <code>types/</code>, <code>http/</code>, <code>protocol/</code></td>
+        <td>В <code>src/lib</code> есть ещё <code>mcp.module.ts</code>, <code>mcp.tokens.ts</code> и <code>utils/mcp-plugin.ts</code> — то есть модуль, DI-токены и сама фабрика плагина в схеме не показаны</td>
+      </tr>
+      <tr>
+        <td class="mono">.env.example (корень репозитория)</td>
+        <td>Документирован только <code>MCP_ENABLED</code></td>
+        <td><code>MCP_CALL_TIMEOUT_MS</code> и <code>MCP_MAX_RESULT_BYTES</code> в файле <b>отсутствуют</b>, хотя <code>AGENTS.md</code> пакета их называет, а <code>ortha.config.ts</code> читает. При этом шаблон скаффолдера (<code>packages/create-ortha-app/templates/default/env.tmpl</code>) обе переменные содержит — то есть сгенерированное приложение документировано лучше самого репозитория</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0006, docs/adr/0007</td>
+        <td>Обе записи в статусе <b>Proposed</b></td>
+        <td>Решения давно реализованы и покрыты e2e: эндпоинт живёт, реестр вынесен в <code>tools-server</code>, поле <code>surfaces</code> проверяется на старте. Статус вводит в заблуждение читателя, который ищет «что уже есть»</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0006, §3 и таблица в 0007</td>
+        <td>Упоминаются DI-токены <code>TOOL_PROVIDER</code> и <code>COPILOT_TOOL_PROVIDER</code></td>
+        <td>Токенов не существует: у Nest нет мульти-провайдерного токена, поэтому регистрация — это <b>вызов</b> <code>toolRegistry?.register(this)</code> из <code>onModuleInit</code>. В 0007 это подано как исторический контекст, в 0006 — как проектное решение</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/server/src/lib/tools/segments-tool.provider.ts, <code>resolveType</code></td>
+        <td>Правило из <code>tools/server/AGENTS.md</code>: «Throw <code>HttpException</code> subclasses, <b>not bare <code>Error</code>s</b>»</td>
+        <td><b>Расхождение поведения, а не текста.</b> Метод бросает голый <code>new Error('Unknown content type …')</code>. Для MCP это значит, что опечатка в <code>typeName</code> у <code>content_access_get</code> / <code>content_access_set</code> прилетает модели как непрозрачный <code>500</code> / <code>internal_error</code> «The tool failed unexpectedly. See the server logs», вместо <code>404</code>, который модель могла бы исправить сама. Плюс каждая такая опечатка пишет в лог стек как «баг»</td>
+      </tr>
+      <tr>
+        <td class="mono">mcp-auth.service.ts <code>bearerFrom</code> vs. api-token.guard.ts <code>bearerFrom</code></td>
+        <td><code>AGENTS.md</code>: «the <b>same three rules</b> <code>/api/v1/*</code> applies, restated for a non-Nest call site»</td>
+        <td><b>Разбор заголовка у двух дверей разный.</b> REST-охранник склеивает всё после схемы обратно (<code>rest.join(' ')</code>), MCP требует ровно одно значение. Итог для клиента в обоих случаях <code>401</code>, но по разной причине: MCP отвергает заголовок как малформленный и в БД не ходит, а REST хеширует и ищет изобретённый токен. Расхождение малой тяжести, но «rule for rule» оно не является</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Что стоит починить в первую очередь</span>
+    <p>Из списка выше по-настоящему влияет на поведение только <b>голый <code>Error</code> в <code>segments-tool.provider.ts</code></b>: он превращает исправимую ошибку модели в непрозрачный <code>500</code> и засоряет логи стеками при обычной опечатке. Остальное — тексты, но противоречие внутри <code>packages/mcp/server/AGENTS.md</code> (пункты 3 и 4) особенно дорого: этот файл читают агенты, и он говорит про владение реестром прямо противоположное самому себе.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Артефакт серии.</b> Сделан по пакету <code>packages/mcp/server</code> по каркасу пилотного паспорта <code>identity</code>: бизнес-описание → состав → права → каталог инструментов → данные → жизненный цикл → сценарии → API → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Разделы, которых у плагина нет, честно остаются короткими: таблиц у него ноль, миграций ноль, пакета админки нет — и раздел «Модель данных» объясняет, почему это устройство, а не пробел. Добавлен один раздел, которого нет в образце, — <b>каталог инструментов</b>: для этого пакета он и есть предметная область, потому что сам пакет ни одного инструмента не пишет.</p>
+  <p>Источник — исходный код: <code>packages/mcp/server/src/**</code> целиком, реестр <code>packages/tools/server/src/lib/*</code>, охранники и DTO публичного API <code>packages/content/server/src/lib/public-api/**</code>, провайдеры инструментов в <code>content</code>, <code>media</code>, <code>i18n</code> и <code>segments</code>, отображение областей токена <code>packages/identity/server/src/lib/api-tokens/domain/api-token-scope.ts</code>, конфигурация хоста <code>apps/server/ortha.config.ts</code>, а также юнит-наборы пакета и wire-level e2e <code>apps/server-e2e/src/server/mcp/mcp.spec.ts</code> и <code>apps/server-e2e/src/server/tools/tool-registry.spec.ts</code>. Прочитаны <code>docs/adr/0006-cms-as-an-mcp-server.md</code> и <code>docs/adr/0007-one-tool-registry-two-surfaces.md</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 15.</p>
+</footer>
+
+</main>
+</div>

@@ -1,0 +1,1429 @@
+<title>Паспорт плагина Segments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/segments</p>
+    <h1 class="title">Segments
+      <small>Кому можно читать опубликованное — читательские допуски OrthaCMS</small>
+    </h1>
+    <p class="lede">Segments отвечает ровно на один вопрос: <strong>кто из читателей вправе увидеть опубликованную запись</strong>. Это не RBAC и не <code>workspace_content</code> — те решают, <em>кто может трогать</em> контент, и существуют независимо. Здесь аудитория — это именованный набор читательских тегов, запись называет допущенные и отвергнутые аудитории, а всё решение целиком укладывается в одну чистую функцию <code>canRead</code> и один SQL-предикат, который накладывается на каждое публичное чтение.</p>
+    <ul class="facts">
+      <li><b>3</b> пакета в группе</li>
+      <li><b>10</b> HTTP-маршрутов</li>
+      <li><b>2</b> таблицы БД</li>
+      <li><b>2</b> миграции</li>
+      <li><b>2</b> ключа прав</li>
+      <li><b>4</b> инструмента для агентов</li>
+      <li><b>3</b> экрана админки</li>
+      <li><b>6</b> вкладов в слоты</li>
+      <li><b>0</b> зависимостей у ядра</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#truth">Таблица истинности canRead</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#agents">Поверхности агентов</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Segments — это «список приглашённых» на опубликованный контент. Всё остальное в CMS отвечает на вопрос «кто из <em>сотрудников</em> что может сделать»; этот плагин отвечает на противоположный вопрос — «кто из <em>читателей</em> что увидит».</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Контент для конкретного клиента.</b> Документация, прайс-лист, релиз-ноты, доступные только компании Acme и никому больше. Раньше это делалось отдельным сайтом или самописной проверкой в шаблоне; здесь это два списка на записи.</li>
+    <li><b>Исключения из общего правила.</b> «Всем в Европе, кроме вот этого клиента» выражается одним запретом — потому что запрет побеждает разрешение. Если бы правила складывались наоборот, такую фразу нельзя было бы сказать вообще.</li>
+    <li><b>Один ответ на три протокола.</b> Решение компилируется в предикат внутри общего построителя запросов, поэтому REST, GraphQL и MCP закрыты одним и тем же кодом. Не три реализации, которые надо держать в согласии, а одна.</li>
+    <li><b>Устойчивость к переименованиям снаружи.</b> Читатель приходит с идентификаторами, которые уже знает <em>ваше</em> приложение (<code>acme</code>, <code>plan-pro</code>, id организации). Аудитория говорит, на какие из них она откликается. Сменился идентификатор в биллинге — правится одна строка в справочнике, а не каждая запись.</li>
+    <li><b>Ничего не ломается при установке.</b> Пока не создана хотя бы одна аудитория, плагин инертен: каталог пуст, предикат не выпускается, публичное чтение байт в байт то же, что было. Это состояние, в котором находится каждая существующая инсталляция.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор</h4>
+      <p class="small sub">Видит чип у заголовка записи («Everyone» или «Restricted») и вкладку «Доступ», где у каждой аудитории один трёхпозиционный переключатель. Кнопки «Сохранить» на вкладке нет — решение едет вместе с сохранением самой записи.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Администратор</h4>
+      <p class="small sub">Владеет словарём: заводит аудитории, правит их читательские теги, решает, в каких воркспейсах аудиторию вообще предлагают. Это единственная роль, которой доступно право <code>segments:manage</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Читатель</h4>
+      <p class="small sub">Ничего не видит и ни о чём не знает. Он просто получает или не получает запись — и не отличает «скрыто от меня» от «не существует»: закрытая запись отсутствует и в <code>items</code>, и в <code>total</code>.</p>
+    </div>
+  </div>
+
+  <h3>Чем Segments не является</h3>
+  <p>Границы здесь важнее возможностей — потому что название «сегменты» обычно обещает совсем другое:</p>
+  <ul>
+    <li><b>Это не RBAC.</b> Роли и права решают, кто может <em>трогать</em> контент — создавать, править, публиковать. Segments решает, кто может <em>читать</em> уже опубликованное. Пересечение только одно: право <code>segments:manage</code> само по себе часть RBAC.</li>
+    <li><b>Это не <code>workspace_content</code>.</b> Гранты контента говорят, какие типы доступны воркспейсу. Это тоже про «трогать».</li>
+    <li><b>Это не движок правил.</b> Нет объекта правила, нет наследования, нет порядка применения, нет умолчаний на коллекцию или воркспейс. Есть два списка на записи, и что редактор в них положил — то читатель и получает.</li>
+    <li><b>Это не персонализация.</b> Плагин не подставляет разный контент разным читателям и не ведёт сегментацию по поведению. Он только отвечает «да» или «нет» на конкретную запись.</li>
+    <li><b>Это не аутентификация читателя.</b> Откуда берутся теги читателя, плагин не знает принципиально: это порт <code>SegmentResolver</code>, который реализует хост.</li>
+    <li><b>Это не фильтр списка записей в админке.</b> Три виртуальных поля фильтра («кому видно», «кому не видно», «ограничена ли») — это вопросы редактора о своей библиотеке, а не правило видимости. Редактор видит записи своего воркспейса в любом случае.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Модель намеренно доведена до <b>двух списков и трёх правил</b>. Плата за это — отсутствие умолчаний и наследования. Выигрыш — то, что <b>строка, которую сохранил редактор, есть ровно та строка, с которой сравнивается читатель</b>: нечего пересчитывать, нечего проецировать, нечего досчитывать фоновым проходом. Поэтому запись — это один upsert, а ответ «200» означает, что изменение уже действует.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Две пустоты, которые читаются противоположно</span>
+    <p><b>Пустой список разрешённых означает «всем»</b>, а не «никому»: это состояние, в котором находится каждая запись до того, как кто-нибудь что-нибудь решил, и прочтение его как закрытой двери погасило бы всю библиотеку в день включения фичи. <b>Отсутствие контекста читателя означает анонимного читателя</b>, а не неограниченного: путь, который не покрыла middleware, получает публичный контент и ничего сверх. Обе пустоты — осознанные и направлены в разные стороны.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/segments</code> — три пакета. Разделение несёт нагрузку: доменное ядро обязано быть проверяемым таблицей истинности <em>без</em> базы, без Nest и без React, а админка обязана читать те же правила валидации, что и серверный DTO.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">domain</td><td class="mono">@orthacms/segments-domain</td><td>Framework-free ядро: сама модель и само решение</td><td><code>canRead</code>, <code>isOpen</code>, <code>sameAccess</code>, <code>isOfferedIn</code>, <code>segmentIdsForTags</code>, порт <code>SegmentResolver</code>, <code>validateSegment</code> + четыре предела. <b>Ноль зависимостей</b> в <code>package.json</code></td></tr>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/segments-server</td><td>Плагин NestJS: две таблицы, три контроллера, один предикат, четыре инструмента для агентов</td><td>Схема и миграции, <code>SegmentReadScope</code> (реализация <code>CONTENT_READ_SCOPE</code>), <code>EntryAccessWriteExtension</code>, <code>AccessFilterProvider</code>, кэш каталога, два <code>AsyncLocalStorage</code>-хранилища</td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/segments-admin</td><td>Плагин админки: справочник аудиторий + вкладка «Доступ» + четыре вклада в чужие слоты</td><td><code>/segments</code>, <code>/segments/new</code>, <code>/segments/:segmentId</code>, чип у заголовка записи, шаг пресейва, строка ревизии, поля фильтра списка записей</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Как файлы разложены внутри</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0"><code>server/src/lib</code></h4>
+      <p class="small sub"><code>schema/</code> — <code>segments</code> и <code>entry_access</code>. <code>application/</code> — <code>segment-catalog.service.ts</code> (кэш), <code>reader.store.ts</code> (кто читает), <code>principal.store.ts</code> (кто действует), <code>segments.service.ts</code> (CRUD словаря), <code>entry-access.service.ts</code> (весь путь записи). <code>infrastructure/</code> — <code>segment-read-scope.ts</code>, <code>entry-access-write-extension.ts</code>, <code>access-filter.provider.ts</code>, <code>locale-group.query.ts</code>, <code>uuid-array.ts</code>. <code>http/</code> — две middleware и три контроллера. <code>tools/</code> и <code>copilot/</code> — агентские поверхности.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>admin/src/lib</code></h4>
+      <p class="small sub">Слоевая раскладка: <code>domain/types.ts</code> (трёхпозиционная алгебра — <code>stateOf</code>, <code>withState</code>, <code>withStates</code>), <code>infrastructure/segmentsGateway.ts</code> (порт + HTTP-реализация + ключи кэша), <code>application/</code> (хуки TanStack Query, <code>useEntryAccessPresave</code>, <code>useAccessFilterFields</code>), <code>presentation/</code> (фабрика плагина, две страницы, одиннадцать компонентов).</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/identity-server</code></b> — владеет ключами прав <code>segments:read</code> / <code>segments:manage</code> и раздачей их системным ролям, а также маппингом областей API-токенов. <b><code>@orthacms/content-server</code></b> — владеет портами <code>CONTENT_READ_SCOPE</code>, <code>EntryWriteExtension</code> и реестром полей фильтра; Segments в них <em>регистрируется</em>. <b><code>@orthacms/copilot-server</code></b> — владеет реестром применителей предложений. <b><code>@orthacms/tools-server</code></b> — владеет реестром инструментов и авторизацией вызова.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+
+  <p>Прав ровно два, и разделены они не по «чтение/запись данных», а по <b>весу последствий</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">segments:read</td>
+        <td>Видеть справочник аудиторий, видеть, кому доступна запись, фильтровать список записей по доступу</td>
+        <td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td>
+      </tr>
+      <tr>
+        <td class="mono">segments:manage</td>
+        <td>Заводить, переименовывать, перетегировать, перескопировать и удалять аудитории; менять два списка на записи</td>
+        <td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему чтение отдано всем трём ролям</span>
+    <p>Редактор, который <b>не видит</b>, что запись ограничена, опубликует её в уверенности, что она публична. Это не про приватность списка аудиторий, а про то, что скрытая от редактора настройка приводит к ошибке, которую замечает читатель, а не автор. Поэтому <code>segments:read</code> держат и контрибьютор, и наблюдатель.</p>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему управление — только администратору</span>
+    <p>Переименование тегов одной аудитории меняет, кому видна <b>каждая запись, которая её называет</b>, — по всей инсталляции и без единого события в интерфейсе редактора. Удаление аудитории переписывает оба списка на каждой записи, которая её держала. Это администрирование словаря, и оно остаётся на экране с сессией, где человек читает последствия, расписанные в диалоге подтверждения.</p>
+  </div>
+
+  <h3>Как право доходит до кода — три разных пути</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Через guard на маршруте</h4>
+      <p class="small sub"><code>@UseGuards(PermissionsGuard)</code> + <code>@RequirePermissions(PERMISSIONS.SEGMENTS_READ | SEGMENTS_MANAGE)</code> на контроллерах справочника и <code>PUT /segments/entries/:entryId</code>. Обычный путь.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Через расширение записи</h4>
+      <p class="small sub">Сохранение записи запросило <code>content:update</code> — <b>другую</b> власть. Поэтому <code>EntryAccessWriteExtension.assertMayManage</code> сам достаёт актора из <code>PrincipalStore</code> и спрашивает <code>PermissionsService.forRole</code>. Актор, которого не удалось опознать, получает отказ, а не проход.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Через область токена</h4>
+      <p class="small sub"><code>scopePermissions</code> в identity: область <code>read</code> несёт <code>segments:read</code>, область <code>full</code> — <code>segments:read</code> + <code>segments:manage</code>. Реестр инструментов проверяет то же самое перед вызовом.</p>
+    </div>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область API-токена</th><th class="center">segments:read</th><th class="center">segments:manage</th><th>Что это даёт по факту</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">read</td><td class="center yes">✓</td><td class="center no">—</td><td>Спросить, ограничена ли запись, которую токен и так может прочитать. Ничего нового о самом контенте</td></tr>
+      <tr><td class="mono">full</td><td class="center yes">✓</td><td class="center yes">✓</td><td>То же плюс переписать оба списка на записи. Словарь аудиторий <b>не</b> открывается ни одной областью</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Обоснование в коде (<code>packages/identity/server/src/lib/api-tokens/domain/api-token-scope.ts</code>): токен, который не может спросить, ограничена ли запись, — это клиент, молча выдающий частичный список за полный. А назначение аудиторий на запись — редакторское решение того же веса, что публикация или удаление, которые <code>full</code> уже даёт.</p>
+</section>
+
+<section id="truth">
+  <h2 class="sec"><span class="num">04</span>Таблица истинности <code>canRead</code></h2>
+
+  <p>Три правила, применяемые строго в этом порядке, и порядок <b>и есть</b> спецификация:</p>
+  <ol class="flow">
+    <li><b>Запрет побеждает.</b> Читатель, попавший в любую отвергнутую аудиторию, отсечён — сколько бы разрешающих списков он ни удовлетворял.<span class="meta">без этого «всем в Европе, кроме одного клиента» нельзя было бы выразить</span></li>
+    <li><b>Пустой список разрешённых означает «всем».</b> Не «никому».<span class="meta">состояние, в котором каждая запись находится изначально</span></li>
+    <li><b>Иначе читатель обязан быть в списке разрешённых.</b> В том числе анонимный читатель, который не входит ни в одну аудиторию и потому видит только записи с пустым списком разрешённых.</li>
+  </ol>
+
+  <p>Ниже все содержательные комбинации. <code>A</code>, <code>B</code> — аудитории; «теги читателя» уже разрешены в набор id аудиторий через <code>segmentIdsForTags</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>allow</th><th>deny</th><th>Аудитории читателя</th><th class="center">Результат</th><th>Какое правило сработало</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">— (строки нет)</td><td class="mono">—</td><td>любые, включая пустой набор</td><td class="center yes">читает</td><td><code>COALESCE(…, true)</code> — неограниченная запись</td></tr>
+      <tr><td class="mono">[]</td><td class="mono">[]</td><td class="mono">{} (аноним)</td><td class="center yes">читает</td><td>правило 2: пустой allow — это «всем»</td></tr>
+      <tr><td class="mono">[]</td><td class="mono">[]</td><td class="mono">{A}</td><td class="center yes">читает</td><td>правило 2</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[]</td><td class="mono">{} (аноним)</td><td class="center no">не читает</td><td>правило 3: аноним не входит ни в одну аудиторию</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[]</td><td class="mono">{A}</td><td class="center yes">читает</td><td>правило 3: пересечение непусто</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[]</td><td class="mono">{B}</td><td class="center no">не читает</td><td>правило 3: пересечения нет</td></tr>
+      <tr><td class="mono">[A, B]</td><td class="mono">[]</td><td class="mono">{B}</td><td class="center yes">читает</td><td>правило 3: достаточно <b>любой одной</b> из разрешённых</td></tr>
+      <tr><td class="mono">[A, B]</td><td class="mono">[]</td><td class="mono">{A, B}</td><td class="center yes">читает</td><td>правило 3</td></tr>
+      <tr><td class="mono">[]</td><td class="mono">[A]</td><td class="mono">{A}</td><td class="center no">не читает</td><td>правило 1: запрет побеждает</td></tr>
+      <tr><td class="mono">[]</td><td class="mono">[A]</td><td class="mono">{B}</td><td class="center yes">читает</td><td>правило 1 не сработало → правило 2</td></tr>
+      <tr><td class="mono">[]</td><td class="mono">[A]</td><td class="mono">{} (аноним)</td><td class="center yes">читает</td><td>ровно «всем, кроме A»</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[A]</td><td class="mono">{A}</td><td class="center no">не читает</td><td>правило 1 раньше правила 3 — запрет побеждает собственное разрешение</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[B]</td><td class="mono">{A, B}</td><td class="center no">не читает</td><td>правило 1: попал в отвергнутую</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[B]</td><td class="mono">{A}</td><td class="center yes">читает</td><td>правило 1 мимо → правило 3 попало</td></tr>
+      <tr><td class="mono">[A]</td><td class="mono">[B]</td><td class="mono">{B}</td><td class="center no">не читает</td><td>правило 1</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Строка, ради которой существует правило 1</span>
+    <p>Комбинация <code>allow=[A]</code>, <code>deny=[A]</code> — состояние, которое сервер <b>примет</b>, а читатель разрешит как «запрещено», в то время как экран редактора говорил бы «разрешено». Поэтому клиентская функция <code>withState</code> <b>сначала удаляет, потом добавляет</b>: это делает такое состояние недостижимым из интерфейса, и это единственное место в админской доменной модели, покрытое отдельным юнит-тестом (<code>types.spec.ts</code>: «never leaves a segment in both lists»).</p>
+  </div>
+
+  <h3>То же самое в SQL, строка в строку</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Фрагмент предиката</th><th>Правило ядра</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">NOT (ea.deny &amp;&amp; $reader)</td><td>Правило 1 — запрет побеждает</td></tr>
+      <tr><td class="mono">cardinality(ea.allow) = 0</td><td>Правило 2 — пустой allow означает «всем»</td></tr>
+      <tr><td class="mono">OR ea.allow &amp;&amp; $reader</td><td>Правило 3 — пересечение с аудиториями читателя</td></tr>
+      <tr><td class="mono">COALESCE((…), true)</td><td>Строки нет вообще — запись неограниченная</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Полный вид, который собирает <code>SegmentReadScope.scope()</code>:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>SQL</th></tr></thead>
+    <tbody>
+      <tr><td class="mono" style="white-space:pre">COALESCE((
+  SELECT NOT (ea.deny &amp;&amp; $reader)
+     AND (cardinality(ea.allow) = 0 OR ea.allow &amp;&amp; $reader)
+  FROM entry_access ea WHERE ea.entry_id = article.id
+), true)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Анонимный читатель работает без единого исключения</span>
+    <p>Для анонима <code>$reader</code> — это <code>'{}'::uuid[]</code>. Оператор пересечения <code>&amp;&amp;</code> с пустым массивом ложен в обе стороны: запрет не срабатывает (ничем не запрещён), разрешающий список не срабатывает (ни в одну аудиторию не входит). Ровно то поведение, которое описывают три правила, — и никакой отдельной ветки «если читатель пуст» в коде нет.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Чего <code>canRead</code> не смотрит</span>
+    <p>Функция <b>никогда</b> не консультируется с <code>isOfferedIn</code>. Где аудиторию <em>предлагают</em> выбрать — это вопрос редактора («могу ли я взять её здесь?»), а не читателя. Сохранённое решение значит то, что имел в виду его автор; переопределять его с экрана про доступность аудитории означало бы менять, кто читает опубликованный контент, притом что ни один из двух экранов об этом не сказал бы ни слова.</p>
+  </div>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">05</span>Модель данных</h2>
+  <p>Плагин владеет <b>двумя</b> таблицами и везёт свои миграции сам: <code>drizzle.config.ts</code> + закоммиченные <code>migrations/*.sql</code>, собственная таблица журнала <code>__drizzle_migrations_segments</code>, путь к папке миграций — thunk, чтобы разрешаться и при потреблении из исходников, и при установке из npm. Соединение к БД не открывает: клиент внедряется из <code>@orthacms/database</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th><th>Ключевые поля и ограничения</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">segments</td><td>Словарь аудиторий, <b>на всю инсталляцию</b></td>
+        <td><code>id</code> uuid PK · <code>key</code> text <b>unique</b> · <code>label</code> text · <code>tags</code> text[] default <code>'{}'</code> · <code>workspace_ids</code> uuid[] default <code>'{}'</code> · <code>created_at</code>, <code>updated_at</code>.<br>Индексы: btree по <code>label</code> (порядок справочника), <b>GIN</b> по <code>workspace_ids</code> (вопрос «какие аудитории применимы здесь» — это пересечение массивов).</td>
+      </tr>
+      <tr>
+        <td class="mono">entry_access</td><td>Одна строка на <b>ограниченную</b> запись</td>
+        <td><code>entry_id</code> uuid <b>PK</b> (одна строка на запись, не на решение) · <code>workspace_id</code> uuid · <code>type_slug</code> text · <code>allow</code> uuid[] · <code>deny</code> uuid[] · <code>updated_at</code>.<br>Индексы: <b>GIN</b> по <code>allow</code> и по <code>deny</code> (оператор <code>&amp;&amp;</code> в предикате), btree по паре <code>(workspace_id, type_slug)</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Четыре решения схемы, каждое несёт нагрузку</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Одна строка на запись, а не на решение</h4>
+      <p class="small sub">Чтение задаёт <b>один</b> вопрос <b>одной</b> строке: предикат — это проба по первичному ключу и два пересечения массивов, а не join. Весь ответ по записи приходит целиком, и потому запись — обычный upsert того, что прислал редактор.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Отсутствие строки означает «неограниченно»</h4>
+      <p class="small sub">Два пустых списка приводят к <code>DELETE</code> строки, а не к её хранению. Иначе каждая запись, которую кто-нибудь когда-нибудь открывал, платила бы строкой на пути чтения. Вторая половина этого решения — <code>COALESCE(…, true)</code> в предикате.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Никаких межплагинных внешних ключей</h4>
+      <p class="small sub">Ни <code>entry_access.workspace_id</code>, ни <code>segments.workspace_ids</code> не имеют FK: <code>workspaces</code> принадлежит identity, а плагины не связаны схемой. Удалённый воркспейс оставляет id, который ничему не соответствует, — это <b>сужает</b> аудиторию, а не расширяет её.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>workspace_id</code> и <code>type_slug</code> носятся, а не джойнятся</h4>
+      <p class="small sub">Чтению они не нужны — <code>entry_id</code> уникален сам по себе. Но именно они позволяют спросить «что ограничено в этой коллекции», не трогая ни одной контентной таблицы, и именно на них ключуется фильтр списка записей.</p>
+    </div>
+  </div>
+
+  <h3>Миграции</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Что делает</th><th>Почему отдельной миграцией</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">0000_init.sql</td><td>Создаёт обе таблицы, уникальность <code>segments.key</code> и четыре индекса</td><td>Первоначальная поставка</td></tr>
+      <tr><td class="mono">0001_segment_workspaces.sql</td><td>Добавляет <code>segments.workspace_ids uuid[] NOT NULL DEFAULT '{}'</code> и GIN-индекс по нему</td><td>Дефолт <code>'{}'</code> читается как «предлагается везде» — это состояние, в котором уже находится каждая существующая строка. Прочтение пустоты как «нигде» заставило бы все аудитории исчезнуть из всех редакторов в день выката колонки</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Кэш каталога — часть модели данных, а не оптимизация</span>
+    <p><code>SegmentCatalogService</code> держит <b>весь</b> справочник в памяти, потому что путь чтения нуждается в нём <b>синхронно</b>: предикат собирается внутри построителя запроса, который не может <code>await</code>, а теги читателя обязаны стать id аудиторий <em>до</em> сборки запроса. Загрузка идёт в <code>onApplicationBootstrap</code>, то есть внутри <code>app.init()</code>: каталог, который не удалось прочитать, <b>обрывает старт</b>, а не оставляет сервер, отдающий ограниченный контент так, будто ничего не настроено. Полная перезагрузка выполняется после каждой записи в справочник — набор ограничен числом аудиторий у бизнеса, и это дешевле любой схемы инвалидации, которую стоило бы писать.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Следствие для тестов</span>
+    <p>Каталог в памяти, а <code>resetDb</code> делает <code>TRUNCATE</code> у него за спиной. Поэтому в <code>apps/server-e2e/src/support/segments.ts</code> есть <code>reloadSegmentCatalogue(app)</code>, и каждый набор, трогающий сегменты, обязан вызвать её сразу после <code>resetDb</code> — иначе <code>configured</code> останется истинным, а несуществующие id продолжат проходить валидацию.</p>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">06</span>Жизненный цикл</h2>
+
+  <h3>6.1 Жизненный цикл инсталляции</h3>
+  <div class="states">
+    <span class="state pending">плагин зарегистрирован, аудиторий нет</span>
+    <span class="arrow">— создана первая аудитория →</span>
+    <span class="state active">каталог непуст, предикат выпускается</span>
+    <span class="arrow">— удалена последняя →</span>
+    <span class="state pending">снова инертен</span>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Что делает <code>SegmentReadScope</code></th><th>Что делает <code>ReaderMiddleware</code></th><th>Что видно в админке</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="state pending">инертен</span></td>
+        <td><code>catalog.configured === false</code> → возвращает <code>undefined</code>, фрагмент не добавляется, чтение байт в байт прежнее</td>
+        <td><code>next()</code> немедленно, резолвер не вызывается</td>
+        <td>Чип у заголовка записи не рендерится вовсе; поля фильтра не предлагаются; вкладка «Доступ» показывает состояние «здесь ещё нет аудиторий»</td>
+      </tr>
+      <tr>
+        <td><span class="state active">действует</span></td>
+        <td>Выпускает предикат на каждое публичное чтение и на каждый переход по связи</td>
+        <td>Вызывает резолвер, разрешает теги в id, кладёт читателя в <code>AsyncLocalStorage</code></td>
+        <td>Чип, вкладка с переключателями, три поля фильтра, строка «Кто может это читать» в предпросмотре ревизии</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Отдельно: <code>ReaderMiddleware</code> пропускает и в том случае, если резолвер <b>не сконфигурирован</b>. Тогда каждый читатель анонимен — и это рабочая конфигурация, а не сломанная: неограниченный контент отдаётся, ограниченный нет.</p>
+
+  <h3>6.2 Жизненный цикл аудитории</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Переход</th><th>Что происходит с записями</th><th>Почему так</th></tr></thead>
+    <tbody>
+      <tr><td>Создание</td><td>Ничего. Новая аудитория никем не названа, <code>usageCount = 0</code></td><td>Теги по умолчанию равны ключу — это то, что имел в виду администратор во всех случаях, кроме того, где он сказал иначе. Воркспейсы дефолта не получают: пусто уже означает «везде»</td></tr>
+      <tr><td>Переименование <code>label</code></td><td>Ничего. Записи держат <b>id</b></td><td>Косметика справочника</td></tr>
+      <tr><td>Смена <code>tags</code></td><td>Ничего в данных, но <b>меняется, кто попадает в аудиторию</b></td><td>Ровно то, ради чего существует индирекция: идентификатор, переименованный на стороне биллинга, — это одна правка строки здесь, а не миграция по всем записям</td></tr>
+      <tr><td>Сужение <code>workspace_ids</code></td><td>Ничего. Записи, уже назвавшие аудиторию, продолжают её называть и читаться так же</td><td>Аудиторию перестают <em>предлагать</em> на новых решениях. Молча переписывать сохранённый доступ с экрана про доступность аудитории — действие, которое никто не свяжет с тем, что он сделал</td></tr>
+      <tr><td>Удаление</td><td>Одна транзакция: <code>DELETE</code> строки словаря + <code>array_remove</code> из <code>allow</code> и <code>deny</code> у всех записей, её державших, + <code>DELETE</code> тех строк <code>entry_access</code>, у которых оба списка стали пусты</td><td>Оставленный id указывал бы на аудиторию, разрешающуюся в «никого»: на стороне <code>allow</code> это молча закрывает контент, на стороне <code>deny</code> — молча открывает, и ни на одном экране нет объяснения почему</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.3 Жизненный цикл доступа записи</h3>
+  <div class="states">
+    <span class="state active">строки нет — читают все</span>
+    <span class="arrow">— редактор поставил переключатель и сохранил →</span>
+    <span class="state disabled">строка есть — ограничена</span>
+    <span class="arrow">— оба списка снова пусты →</span>
+    <span class="state active">строка удалена</span>
+  </div>
+
+  <p>Три перехода, и у каждого своя точка входа в код:</p>
+  <ul>
+    <li><b>Явное решение</b> — <code>EntryAccessService.set</code> через <code>setForGroup</code>. Замена целиком, не слияние: только полная замена умеет выразить <em>удаление</em>, у слияния нет написания для «эта аудитория больше не упомянута».</li>
+    <li><b>Наследование при создании перевода</b> — <code>inheritFromGroup</code>. Новая строка получает списки группы дословно, без проверки области воркспейса и <b>без проверки прав</b>: ничего не решается, строка просто присоединяется к записи, которая эти аудитории уже несёт.</li>
+    <li><b>Восстановление версии</b> — тот же <code>apply</code>, но <code>value</code> берётся из <code>extra</code> снимка. Версия, не назвавшая ключ <code>access</code>, оставляет доступ <b>в покое</b>.</li>
+  </ul>
+
+  <div class="note crit">
+    <span class="label">Доступ — не переводимое поле</span>
+    <p>«Кому можно это читать» — факт о <b>записи</b>, а не о её немецкой формулировке. Поэтому доступ едет как непереводимое поле: поставлен на одной локали — поставлен на всех. Оставленный по строкам, это была дыра, которую не видно ни с одного экрана: редактор ограничил английскую статью, а немецкую опубликовал всем. Группа локалей резолвится через <code>localeGroupIds</code>, который читает <b>собственную</b> колонку контента <code>locale_group_id</code>, а не идёт в <code>@orthacms/i18n-server</code>: правило допуска не должно зависеть от плагина, которого в развёртывании может не быть, а честный фолбэк («запись одна») — это ровно то, что уже получает нелокализованный тип. <b>Мягко удалённые</b> сиблинги включаются намеренно, как и в собственном распространении i18n: локаль из корзины вернётся при восстановлении, и она обязана вернуться с доступом группы.</p>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">07</span>Сценарии — как это работает по шагам</h2>
+
+  <p class="sub">Четыре входа в плагин, и они различаются <b>тем, кто действует</b>: экраны админки (сессия), «мешок» <code>extensions</code> при сохранении записи (сессия, но без собственного маршрута), bearer-токен (сам себе актор) и каталог инструментов агента (действует за человека). Ниже — все содержательные пути, в порядке от «как это включают» к «как этим пользуются машины».</p>
+
+  <h3>7.1 Первая аудитория: как инсталляция перестаёт быть инертной</h3>
+  <ol class="flow">
+    <li><b>Администратор открывает <code>/segments</code>.</b> Страница гейтится на <code>segments:read</code>; при его отсутствии — отдельное состояние «у вас нет доступа к сегментам» с указанием, какое право просить, а не пустой список.<span class="meta">пункт в боковом меню несёт <code>permission: SEGMENTS_READ</code>, иначе это была бы мёртвая ссылка</span></li>
+    <li><b>Пустой справочник объясняет последствия бездействия.</b> Текст пустого состояния прямо говорит: пока аудитории нет, каждая опубликованная запись читается всеми и ничего в вашем контент-API не меняется. Это не «нет данных», а описание работающего состояния системы.</li>
+    <li><b>«New audience» ведёт на страницу <code>/segments/new</code>, а не в диалог.</b> Аудитория перестала быть тремя короткими полями, когда у неё появился список воркспейсов, растущий вместе с инсталляцией. Модалка, которая скроллится, — это модалка, переросшая себя; плюс у страницы есть URL, и «посмотри вот на эту» становится ссылкой, а не набором указаний.</li>
+    <li><b>Ключ тянется за названием, пока его не перехватят.</b> <code>derivedKey = keyTouched ? key : slugify(label)</code> — та же условность, что у слага воркспейса: производное значение почти всегда верно, а набор в поле означает «здесь — нет».<span class="meta">при редактировании ключ только для чтения: он же — читательский тег по умолчанию</span></li>
+    <li><b>Валидация приходит из ядра, а не из формы.</b> <code>validateSegment</code> — та же функция, из констант которой читает серверный DTO. Две копии правила валидации — это две копии, которые разъедутся, и проявится это худшим из возможных способов: форма принимает то, что API затем отвергает четырёхсотым с текстом, написанным для другой аудитории.</li>
+    <li><b>Ошибки показываются по блюру или по сабмиту, никогда с первого нажатия.</b> Ключ некорректен всё то время, пока его набирают, и жалоба со второго символа — это шум про состояние, из которого человек уже выходит. Кнопка «Создать» при этом <b>никогда не блокируется</b>: мёртвая кнопка ничего не объясняет, а нажатие на неё — это то, как человек с несфокусированным полем узнаёт, где именно ошибка.</li>
+    <li><b><code>POST /api/segments</code>.</b> Сервер сам проверяет уникальность ключа и отвечает <code>409</code>, если он занят. Форма локальный список ключей <b>не</b> держит намеренно: справочник постраничный, и «существующие ключи» были бы одной его страницей — проверка, верная в большинстве случаев, хуже честно запоздалой.<span class="meta">409 приземляется на поле ключа, храня сам отказанный ключ, — сообщение исчезает, как только набрали другой</span></li>
+    <li><b>Теги по умолчанию равны ключу.</b> Аудитория без тегов не совпадает ни с кем, то есть умеет только закрывать контент. Пустой список воркспейсов дефолта не получает — пустота уже означает «во всех».</li>
+    <li><b><code>catalog.reload()</code> — и с этого момента система другая.</b> <code>configured</code> стал истинным: <code>SegmentReadScope</code> начинает выпускать предикат, <code>ReaderMiddleware</code> начинает вызывать резолвер, <code>AccessFilterProvider</code> начинает предлагать три поля фильтра, чип у заголовка записи начинает рендериться.<span class="meta">переключение из инертного состояния — единственное «включение» этой фичи; конфигурационного флага нет</span></li>
+  </ol>
+
+  <h3>7.2 Редактор ограничивает запись — главный путь записи</h3>
+  <p class="sub small">Это самый важный поток во всём плагине, и он специально сделан так, чтобы <b>не</b> быть отдельным запросом.</p>
+  <ol class="flow">
+    <li><b>Чип у заголовка записи.</b> <code>EntryAccessChip</code> в <code>ENTRY_HEADER_SLOT</code> спрашивает <code>useSegments({ workspaceId, pageSize: 1 })</code> — ему нужно знать <em>есть ли вообще</em> хоть одна аудитория, а не какие. При <code>total === 0</code> он не рендерит <b>ничего</b>: бейдж, что-либо утверждающий о доступе, был бы утверждением о системе, которая не работает.<span class="meta">чип стоит у заголовка, а не в правой панели свойств: момент, когда доступ важен, — момент перед публикацией того, что считают публичным, и он проходит за письмом, а не за аудитом колонки свойств</span></li>
+    <li><b>Клик по чипу ведёт на вкладку.</b> Ссылка, а не поповер: вкладка в одном клике и держит весь ответ, а карточка при наведении была бы вторым рендерингом того же, который надо держать в согласии. Путь строится явно, потому что у <b>одиночной</b> страницы редактор смонтирован на самом типе (<code>${typePath}/access</code>), а строка коллекции вкладывает вкладки под id записи (<code>${typePath}/${entry.id}/access</code>).</li>
+    <li><b>Слаг вкладки принадлежит контенту, а не нам.</b> <code>ENTRY_TAB_SLOT</code> выбрасывает элемент со слагом вне <code>ENTRY_TAB_SLUGS</code>: таблица маршрутов совпала бы с сегментом, а <code>entryTabFromPath</code> не смогла бы его разрешить. Поэтому <code>access</code> объявлен в <code>ENTRY_TAB</code> внутри <code>content/admin</code>.</li>
+    <li><b>Вкладка грузит два запроса.</b> Список аудиторий — <b>с областью текущего воркспейса</b>, с поиском (дебаунс 250 мс) и постранично; и сохранённый доступ записи — <code>useEntryAccess(workspaceId, entry.id, entry.updatedAt)</code>. Версия строки входит в ключ кэша, потому что доступ теперь меняется и на путях, о которых этот плагин не знает, — прежде всего при восстановлении версии.</li>
+    <li><b>Один трёхпозиционный переключатель на аудиторию.</b> «Не задано» / «Может видеть» / «Не может видеть». <b>Три состояния, а не флажок:</b> аудитория, которую никто не упомянул, читает запись, когда ничего другого не разрешено, и не читает, когда разрешено. Двухпозиционный контрол сделал бы эти два исхода неразличимыми на экране и сделал бы «не упомянута» недостижимым после первого касания строки.<span class="meta">сегментированный контрол, а не выпадающий список: все три ответа существенны, их ровно три, текущий читается без открывания чего-либо</span></li>
+    <li><b>Каждое переключение проходит через <code>withState</code>, который удаляет раньше, чем добавляет.</b> См. раздел 4: иначе достижимо состояние «и разрешена, и запрещена», которое сервер примет, а читатель разрешит как запрет.</li>
+    <li><b>Стейджинг очищает сам себя.</b> <code>stage(sameAccess(next, savedAccess) ? null : next)</code>: возврат переключателей к тому, что уже сохранено, <b>снимает</b> отметку об изменении, а не ставит в очередь круговой рейс. <code>sameAccess</code> нечувствителен к порядку — списки везде, где это важно, суть множества.</li>
+    <li><b>Массовое действие бьёт по всему совпавшему, а не по видимому.</b> «Set every audience to…» действует по <code>ids</code> из ответа списка — это <b>каждый</b> id, совпавший с фильтром, а не текущая страница. Контрол с названием «каждая аудитория», молча ставящий десять из сорока, был бы хуже отсутствия контрола: ошибку не видно, пока читателю не откажут. За серверным потолком (<code>MATCHED_IDS_CAP = 200</code>, ровно столько же, сколько запись может назвать на одной стороне) кнопки блокируются с объяснением — столько всё равно нельзя сохранить, так что предлагать это значило бы предлагать сохранение, которое вернёт 400.</li>
+    <li><b>Решения, которых нет в списке, сохраняются и подсчитываются.</b> Поиск прячет строки; аудиторию могли сузить прочь из этого воркспейса уже <em>после</em> того, как запись её назвала. Такие решения считаются под списком («ещё N решений на аудиториях, которых этот список не показывает; они продолжают действовать»), а не отбрасываются — отбрасывание переписало бы, кто читает опубликованный контент, с экрана, который об этих аудиториях не сказал ни слова.</li>
+    <li><b>Переключение вкладки размонтирует панель — и это ничего не ломает.</b> Вкладки редактора — <b>маршруты</b>, поэтому стейджинг живёт <em>выше</em>, в <code>ENTRY_PRESAVE_SLOT</code>, и достаётся вниз через <code>EntryTabContext.presave</code> — ровно так же, как отложенные загрузки в плагине медиа.</li>
+    <li><b>Кнопки «Сохранить» на вкладке нет намеренно.</b> Две альтернативы отпали: запись на каждое переключение опубликовала бы реальным читателям три промежуточных ответа по пути к задуманному; вторая кнопка «Сохранить» на вкладке редактора заставила бы пользователя помнить, которой из двух принадлежит его изменение.</li>
+    <li><b>Нажатие Save / Publish: <code>extensions()</code>.</b> Если стейджинг <code>null</code> — <b>ключ не отправляется вовсе</b>, и сервер оставляет доступ в покое. Это и есть инертность для редактора, который никогда не открывал вкладку.</li>
+    <li><b>Сервер: <code>EntryAccessWriteExtension.apply</code> внутри транзакции сохранения.</b> Content объявляет мешок <code>extensions</code> непрозрачным и передаёт его невалидированным, поэтому проверка формы — наша: <code>parse</code> строг, а некорректная нагрузка — это 400, откатывающий сохранение, а не молчаливая частичная запись.</li>
+    <li><b>Сначала <code>groupHas</code>, потом права.</b> Запрос, просящий ровно то, что уже сохранено, ничего не меняет и потому не нуждается ни в какой власти — и именно это оставляет рабочим <b>восстановление версии</b> для всякого, кто вправе восстанавливать. Спрашивается <b>вся группа локалей</b>, а не эта строка: сохранение, совпадающее с английской строкой, но не с немецкой, работу ещё имеет, и пропуск оставил бы группу наполовину ограниченной.</li>
+    <li><b><code>assertMayManage</code>.</b> Актор берётся из <code>PrincipalStore</code>, права — через <code>PermissionsService.forRole</code>. Без <code>segments:manage</code> — <code>403</code>, откатывающий сохранение. Проверка стоит <b>здесь</b>, потому что маршрута нет: сохранение спросило <code>content:create</code>/<code>content:update</code>, а решение о том, кто может <em>читать</em> запись, — другая власть. Без этой проверки контрибьютор ограничивал бы (или снимал ограничение) с любой доступной ему записи, просто назвав ключ в теле сохранения.<span class="meta">актор, которого не удалось опознать, получает отказ, а не проход: тот, кого нельзя опознать, не может быть показан обладателем права</span></li>
+    <li><b><code>setForGroup</code>: резолвится группа локалей.</b> <code>localeGroupIds</code> читает <code>locale_group_id</code> контента, включает мягко удалённых сиблингов и всегда явно включает саму запись (на создании строка видна на этой транзакции, но вызывающий мог передать id, которого запрос ещё не видит).</li>
+    <li><b>Собирается «держимое группой».</b> <code>heldInGroup</code> — все id, которые <em>любая</em> строка группы уже называет с любой стороны. Они освобождаются от проверки области воркспейса: аудиторию, суженную прочь после факта, всё ещё держит та запись, на которую смотрит редактор, и отказ на сиблинге, не успевшем догнать, завалил бы всё сохранение целиком.</li>
+    <li><b><code>validate</code> на каждую сторону.</b> Дедупликация; неизвестный id — <code>400</code> (сохранённый, он был бы решением, не совпадающим ни с кем, — закрывающим контент на стороне allow и не делающим ничего на стороне deny, притом что ни один экран не сказал бы, что запись управляется отсутствующей аудиторией); id вне области воркспейса — <code>400</code>, <b>если запись его ещё не держит</b> (редактору его не предлагали, значит запрос пришёл не с экрана).</li>
+    <li><b>Запись строк — последовательно, а не <code>Promise.all</code>.</b> Это транзакция самого сохранения, а pg-транзакция обслуживает один запрос за раз: параллельные переплетутся на одном соединении и упадут.</li>
+    <li><b>Два пустых списка удаляют строку;</b> иначе <code>INSERT … ON CONFLICT DO UPDATE</code> по <code>entry_id</code>.</li>
+    <li><b>Возвращаются id всех переписанных строк</b> — и content дописывает ревизию каждой, ровно как делает для строк, переписанных синхронизацией общих полей i18n. Сиблинг, чьи аудитории сдвинулись, а таймлайн — нет, это история, скрывающая изменение, и восстановление любой его версии молча его отменит. Одно сохранение может дойти до сиблинга сразу двумя путями (общее поле <em>и</em> аудитория), поэтому id дедуплицируются против строк, о которых доложил i18n: две ревизии на одну строку читаются как две правки.</li>
+    <li><b><code>capture</code> — на <b>каждый</b> снимок, не только на сохранения, тронувшие доступ.</b> Асимметрия с <code>apply</code> намеренная: версия, записавшая доступ только когда он менялся, при восстановлении прочиталась бы как версия, у которой доступа не было, — и тихо открыла бы запись. Для неограниченной записи возвращается <code>undefined</code>, поэтому снимок обычного открытого контента байт в байт тот же, что был до появления расширения.</li>
+    <li><b>Админка: <code>settle</code> засевает кэш, а не инвалидирует его.</b> Сохранение несло эти списки, и сервер сохранил их в той же транзакции — отказ провалил бы само сохранение, — так что засев говорит кэшу то, что он и так знает, а не гадает. Перезапрос обнулил бы контрол, на который редактор ещё смотрит, а на создании под старым (безыдешным) ключом перезапрашивать вообще нечего.</li>
+    <li><b>…и инвалидирует все <em>остальные</em> закэшированные записи.</b> <code>updatedAt</code> сиблинга не сдвигается, когда сдвинулся только его доступ, поэтому его ключ прежний, а закэшированный ответ уже ложь — переключение локали показало бы аудитории, которые у этой локали <em>были</em>. Засеянная строка из инвалидации исключается, чтобы контрол, на который смотрит редактор, не улетел в перезапрос.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему это расширение сохранения, а не второй HTTP-запрос</span>
+    <p>Три свойства, которых у второго запроса нет ни одного. <b>Одна транзакция</b> — запись, её связи, её аудитории и версия, фиксирующая всё три, коммитятся вместе или никак; два запроса умеют приземлить половину изменения. <b>Правдивая версия</b> — ревизия строится <em>внутри</em> записи, поэтому отдельный поздний запрос был бы пойман в лучшем случае <em>следующей</em> версией, то есть каждая версия хранила бы доступ, который у записи <em>был</em>. <b>Восстановимая версия</b> — восстановление применяет снимок через тот же writer, поэтому состояние расширения едет вместе с ним; иначе «вернуть как во вторник» вернуло бы вторничные слова сегодняшним читателям.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Ключ <code>access</code> стабилен навсегда</span>
+    <p><code>ACCESS_EXTENSION_KEY = 'access'</code> назван каждой уже сделанной версией, и в мешке тела сохранения, и в <code>extra</code> снимка ревизии. Переименование осиротило бы доступ, записанный во всей существующей истории, — а восстановление, не нашедшее мешка, оставляет аудитории <b>в покое</b>. Это ровно та тишина, которую не заметишь.</p>
+  </div>
+
+  <h3>7.3 Публичное чтение глазами читателя</h3>
+  <ol class="flow">
+    <li><b>Запрос входит; обе middleware стоят на <code>{*splat}</code>.</b> Не на списке путей: кто читает — свойство запроса, а не одного контроллера, и фильтр по путям был бы вторым местом, которое надо держать в согласии при добавлении каждого протокола. Шаблон именно <code>{*splat}</code>, потому что Express 5 использует path-to-regexp 8, где исторический <code>'*'</code> — ошибка разбора, а не подстановка: ошибка, которую не ловит ни один typecheck и которая оставила бы плагин молча никогда не запускающимся.</li>
+    <li><b><code>PrincipalMiddleware</code> кладёт сам <code>request</code> в <code>AsyncLocalStorage</code>.</b> Именно объект запроса, а не пользователя: middleware — единственное, что расположено обернуть остаток запроса в <code>run</code>, и она выполняется <em>раньше</em> guard'ов, резолвящих <code>request.user</code>. Guard мутирует тот же объект на месте, поэтому к моменту записи <code>user</code> уже там. В отличие от читательской, эта middleware <b>никогда не срезает путь</b>: резолюция читателя пропустима при отсутствии аудиторий, а проверка прав, молча переставшая выполняться, была бы отказом, которого никто не заметит.</li>
+    <li><b><code>ReaderMiddleware</code> решает, есть ли работа.</b> Нет аудиторий или нет резолвера — <code>next()</code> немедленно.</li>
+    <li><b>Резолвер хоста возвращает теги.</b> Порт получает Express-запрос, поэтому JWT-клейм, заголовок от CDN или обращение к биллингу одинаково достижимы. <b>Исключение ловится и логируется предупреждением</b>, а не превращается в 500: недоступный источник допусков должен деградировать сайт до его публичного контента, а не снять его с эфира.</li>
+    <li><b>Теги разрешаются в id аудиторий синхронно.</b> <code>segmentIdsForTags</code> — точное регистрозависимое совпадение по <b>любому</b> тегу. Ни шаблонов, ни префиксов, ни пространств имён: они существуют, чтобы выразить «любой такого рода», а эта модель отвечает на такой вопрос, его не задавая, — запись перечисляет аудитории, а «любой» — это пустой список.</li>
+    <li><b>Читатель кладётся в <code>ReaderStore.run</code>, и вызывается <code>next()</code>.</b> Именно <code>AsyncLocalStorage</code>, а не request-scoped-провайдер: read scope спрашивают <em>внутри построителя запроса</em>, до которого добираются из синглтона, у которого запроса на руках нет.</li>
+    <li><b>Построитель публичного запроса спрашивает реестр read scope'ов.</b> Регистрация, а не привязка DI-токена: у Nest нет мультипровайдера, два плагина, привязавшие один токен, не сливаются — второй молча заменяет первого, а для правила видимости это означает контент, тихо ставший видимым.</li>
+    <li><b><code>SegmentReadScope.scope()</code> собирает фрагмент.</b> Ищет колонку <code>id</code> у таблицы типа; если её нет — <b>бросает</b>, а не пропускает фрагмент молча (молчаливый пропуск отдал бы ограниченный контент). Id читателя связываются через <code>uuidArray</code>.</li>
+    <li><b>Фрагмент AND-ится и в окно, и в <code>count(*) over</code>.</b> Ограниченная запись отсутствует и в <code>items</code>, и в <code>total</code>: подсчёт утёк бы мощностью скрытого — «5 связей, 2 видимых» сообщает, что здесь есть три ограниченных записи.</li>
+    <li><b>Связи закрыты тем же предикатом, на каждом переходе.</b> Читатель, которому можно видеть статью, тем самым не получает права видеть всё, на что она ссылается, — поэтому scope спрашивают о <b>целевом</b> типе через <code>RelationLinkService.targetVisibleWhere</code>, до которого доходят и раскрытие в REST, и маршрут <code>/relations/:field</code>, и MCP-инструмент <code>content_relations</code>, и вложенные резолверы GraphQL. Гейт — флаг <code>publishedOnly</code>, помечающий публичное чтение: <b>админские чтения видимости не передают и не затрагиваются</b>, потому что редактор обязан видеть записи, на которые ссылается его запись, чтобы ими управлять.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Почему <code>uuidArray</code> существует отдельной функцией</span>
+    <p>Написание <code>sql`${ids}::uuid[]`</code> выглядит так, будто делает то, что нужно, — и не делает. Drizzle разворачивает JS-массив в шаблоне в <b>один плейсхолдер на элемент</b> через запятую: это то, что заставляет работать список <code>in (…)</code>, и то, что против каста <code>::uuid[]</code> даёт <b>разный сломанный запрос на каждую длину</b>. Пусто — <code>()::uuid[]</code>, синтаксическая ошибка, то есть <b>анонимный читатель</b>, единственный случай, который обязан работать всегда. Один id — <code>($1)::uuid[]</code> со скалярным связыванием, Postgres читает uuid как литерал массива и отвечает <code>malformed array literal</code>. Два — <code>($1, $2)::uuid[]</code>, конструктор строки, а не массив. И read scope, и фильтр доступа отгружались именно так и падали пятисотыми на каждом ограниченном чтении, <b>потому что юнит-спеки проверяют форму выпущенного SQL — а форма верна во всех трёх случаях</b>. <code>uuidArray</code> связывает список как один <code>sql.param</code>; его спека считает <em>параметры</em>, а не читает SQL, и наборы server-e2e его исполняют.</p>
+  </div>
+
+  <h3>7.4 Создание перевода — путь, где <code>apply</code> не выполняется вовсе</h3>
+  <ol class="flow">
+    <li><b>Редактор создаёт немецкую версию ограниченной английской статьи.</b> Форма создания перевода не шлёт мешок <code>extensions</code> вообще — ей нечего о доступе сказать.</li>
+    <li><b>Поэтому <code>apply</code> не вызывается,</b> и без третьего механизма новая строка родилась бы публичной рядом с ограниченным сиблингом. Читатель это заметит; редактор — никогда.</li>
+    <li><b>Срабатывает <code>inherit</code></b> — create-only хук контента. <code>inheritFromGroup</code> выходит немедленно, если тип не локализован или если у строки уже <em>есть</em> непустой доступ (значит, ответ дал <code>apply</code> того же сохранения, и это ответ вызывающего, а не группы).</li>
+    <li><b>Копируются списки первого ограниченного сиблинга, дословно.</b> Без проверки области воркспейса и <b>без <code>segments:manage</code></b>: ничего не решается, аудитории были выбраны, когда были выбраны, а строка присоединяется к записи, которая их уже несёт.<span class="meta">требование права здесь означало бы, что контрибьютор вообще не может перевести ограниченную статью, — а альтернатива наследованию это опубликовать её всем, ровно тот исход, ради предотвращения которого право и существует</span></li>
+  </ol>
+
+  <h3>7.5 Восстановление версии</h3>
+  <ol class="flow">
+    <li><b>Редактор жмёт «восстановить» на версии.</b> Content прогоняет снимок через тот же writer, и <code>extra.access</code> приходит в <code>apply</code> как <code>value</code> — тот же путь кода кладёт состояние обратно, что его туда положил.</li>
+    <li><b><code>groupHas</code> сравнивает с текущим.</b> Совпало — запись пропускается, права не спрашиваются: восстановление версии, чьи аудитории совпадают с сегодняшними, не является решением о доступе.</li>
+    <li><b>Не совпало — нужен <code>segments:manage</code>, иначе <code>403</code>.</b> И это правильный ответ, а не частный случай: это изменение того, кто может читать запись, какой бы кнопкой оно ни было запущено.</li>
+    <li><b>Версия, снятая до появления плагина, не несёт ключа</b> — доступ остаётся нетронутым. В предпросмотре ревизии <code>RevisionAccessValue</code> различает <b>три</b> состояния: записанный мешок; записанное «ничего», потому что запись была неограниченной («Readable by everyone»); и отсутствие ключа («Not recorded in this version»). Печатать «читают все» в третьем случае значило бы обещать изменение, которого восстановление не сделает.</li>
+    <li><b>Аудитории именуются <b>текущей</b> меткой</b> — через <code>useSegmentLookup</code>, то есть по id, а не поиском по странице справочника. Удалённая с тех пор аудитория показывается приглушённым «Deleted audience», а не сырым uuid: id — это всё, что версия хранит, и смысла в нём больше не осталось.</li>
+    <li><b>Ключ кэша записи несёт <code>updatedAt</code> строки.</b> Восстановление — как раз тот путь, о котором сегменты не знают; ключ, игнорирующий версию строки, оставил бы чип, тихо докладывающий доступ, который у записи <em>был</em>.</li>
+  </ol>
+
+  <h3>7.6 Переименование тегов и сужение области аудитории</h3>
+  <ol class="flow">
+    <li><b><code>PATCH /api/segments/:id</code> с новым <code>tags</code>.</b> Ни одна запись не трогается: записи держат id, а тег сопоставляется ровно один раз — когда приходит читатель. Это и есть окупаемость индирекции.</li>
+    <li><b><code>catalog.reload()</code></b> — иначе переименование не дошло бы до пути чтения, а переименование, которого никто не видит, это не переименование.</li>
+    <li><b>Сужение <code>workspace_ids</code> не отзывает аудиторию с записей.</b> Это меняет только то, где её <em>предлагают</em> выбрать. Экран сужения говорит об этом прямо: «Entries that already name it keep it, and keep reading the way they do now».</li>
+    <li><b>А <code>validate</code> освобождает уже держимые id.</b> Иначе следующее сохранение записи, назвавшей суженную аудиторию, отваливалось бы 400 — и, что важнее, ломалось бы восстановление версии, назвавшей аудиторию, которую запись всё ещё держит.</li>
+    <li><b>Инвалидация в админке — весь корень <code>segments</code>,</b> а не только список: метки, которыми рисуются строки открытой записи, берутся из справочника, и обновление одного списка оставило бы редактор со старым именем.</li>
+  </ol>
+
+  <h3>7.7 Удаление аудитории</h3>
+  <ol class="flow">
+    <li><b>Диалог подтверждения расписывает последствия, а не спрашивает «вы уверены?».</b> Два разных текста: если аудиторию никто не называет — «ни один читатель ничего не заметит»; если называет — «запись, которая только отказывала этой аудитории, станет читаемой всеми; запись, которая только её разрешала, перестанет быть читаемой кем-либо, кроме других названных ею аудиторий».</li>
+    <li><b><code>DELETE /api/segments/:id</code> → одна транзакция из трёх шагов.</b> Удалить строку словаря; <code>array_remove</code> id из <code>allow</code> и <code>deny</code> всех строк <code>entry_access</code>, которые его содержат; удалить строки, у которых после этого оба списка пусты.</li>
+    <li><b>Третий шаг — то же правило «нет строки = открыто», что поддерживает writer.</b> Запись, оставшаяся с двумя пустыми списками, теряет строку целиком.</li>
+    <li><b><code>catalog.reload()</code>, затем инвалидация корня <code>segments</code> в админке</b> — сервер переписал каждую запись, назвавшую аудиторию, значит каждый закэшированный ответ по записи устарел.</li>
+    <li><b>Ответ — <code>204</code>.</b> Тела нет: возвращать нечего.</li>
+  </ol>
+
+  <h3>7.8 Фильтр списка записей по доступу</h3>
+  <ol class="flow">
+    <li><b>Три виртуальных поля, а не связь.</b> <code>audienceAllowed</code> и <code>audienceDenied</code> (перечисления аудиторий воркспейса) и <code>accessRestricted</code> (булево). Связью это не сделано намеренно: связь в построителе означает <b>тип контента</b> — пикер сходил бы за <code>/content/&lt;target&gt;</code>, а поверхность фильтра пошла бы по собственным полям цели. Аудитория — строка в таблице этого плагина, за которой нет контентной модели, и моделирование её связью рекламировало бы обход (<code>audience.tags eq …</code>), на который никто не может ответить.</li>
+    <li><b>Поля подключаются через реестр полей фильтра контента</b> (<code>entryFilterProviderRegistrar</code>), поэтому они попадают в <b>собственный</b> построитель списка записей: то же дерево фильтров, те же сохраняемые представления, те же правила алармов.</li>
+    <li><b>Значения перечисления — <b>id</b>, не ключи.</b> Именно id держат списки записи, и весь смысл индирекции в том, что ключ можно переименовать, не трогая их. Метки рисует пикер админки.</li>
+    <li><b>Оператор <code>in</code> означает «любая из»</b> — пересечение массивов. «Обе» — это <code>and</code> из двух правил <code>eq</code>, которые построитель составит сам; отдельного оператора вхождения массива нет, чтобы не было двух прочтений одного оператора.</li>
+    <li><b>Отрицания нет намеренно.</b> <code>audienceAllowed ne "acme"</code> отрицал бы <em>внутри</em> EXISTS — «есть какая-то разрешённая аудитория, кроме Acme» — чему удовлетворяет запись, которая Acme <em>тоже</em> разрешает. Читается это как «не видно Acme» и им не является. Честное написание — <code>audienceDenied eq "acme"</code> или <code>accessRestricted eq true</code> внутри группы <code>not</code> на уровне дерева, которым владеет построитель.</li>
+    <li><b>Подзапрос ограничен воркспейсом.</b> Виртуальное поле — это подзапрос по таблице, о которой content-server не знает; забывший воркспейс превратил бы фильтр в межарендное чтение.</li>
+    <li><b>Пикер открывается на «is one of», а не на «is».</b> Порядок объявленных операторов решает и порядок в пикере, и умолчание. Вопрос этих полей — <em>какие аудитории</em>, и мультиселект отвечает в том числе на случай одной (одна галочка — тот же <code>in</code>, который сервер читает как пересечение). С «is» во главе, чтобы назвать вторую аудиторию, надо было сперва заметить, что существует второй оператор.</li>
+    <li><b>Это фильтр списка, а не правило видимости.</b> Кто на самом деле может <em>прочитать</em> запись, решает <code>SegmentReadScope</code> на публичном API, и ничто здесь на него не влияет.</li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">08</span>HTTP API</h2>
+  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост. Легенда доступа: <span class="pill pill-pub">bearer</span> — без сессии, по внешнему API-токену, <span class="pill pill-ses">session</span> — нужна валидная сессия, <span class="pill pill-perm">право</span> — нужно указанное право.</p>
+
+  <h3>8.1 Справочник аудиторий — <code>/api/segments</code></h3>
+  <p class="small sub">Не ограничен воркспейсом: аудитория — понятие всей инсталляции, как тип контента, и одна копия на воркспейс означала бы переименование клиента в каждом из них.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /segments</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:read</span></td>
+        <td><code>?q=</code> (подстрока по label и key, регистронезависимо), <code>?workspace=</code> (uuid), <code>?page=</code>, <code>?pageSize=</code> (≤ 100, по умолчанию 25)</td>
+        <td><code>{ items[], total, page, pageSize, ids[], idsTruncated }</code>; у каждого элемента <code>usageCount</code></td>
+        <td><code>403</code> без права; <code>400</code> невалидный DTO</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /segments/lookup</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:read</span></td>
+        <td><code>?ids=a,b</code> или <code>?ids=a&amp;ids=b</code> — обе формы, ≤ 200 uuid</td>
+        <td><code>SegmentView[]</code>, отсортированный по label</td>
+        <td><code>400</code> не-uuid. <b>Неизвестные id пропускаются</b>, а не отвергаются</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /segments/:id</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:read</span></td>
+        <td>uuid в пути (<code>ParseUUIDPipe</code>)</td>
+        <td><code>SegmentView</code></td>
+        <td><code>404</code> «Unknown segment.»; <code>400</code> не-uuid</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /segments</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:manage</span> OriginGuard</td>
+        <td><code>{ key, label, tags?, workspaceIds? }</code></td>
+        <td><code>201 SegmentView</code>; <code>tags</code> по умолчанию <code>[key]</code></td>
+        <td><code>409</code> занятый ключ; <code>400</code> формат ключа / длины / &gt; 20 тегов / &gt; 100 воркспейсов; <code>403</code> чужой Origin или нет права</td>
+      </tr>
+      <tr>
+        <td class="mono">PATCH /segments/:id</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:manage</span> OriginGuard</td>
+        <td><code>{ label?, tags?, workspaceIds? }</code> — <b>ключ неизменяем</b></td>
+        <td><code>SegmentView</code>; каталог перезагружен</td>
+        <td><code>404</code>; <code>400</code>; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /segments/:id</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:manage</span> OriginGuard</td>
+        <td>uuid в пути</td>
+        <td><code>204</code>, без тела. Аудитория вычищена из обеих сторон каждой записи, в одной транзакции</td>
+        <td><code>404</code>; <code>403</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему <code>lookup</code> объявлен до <code>:id</code></span>
+    <p>Чтобы литеральный сегмент выиграл сопоставление. Сам маршрут существует потому, что <b>страница — не весь список</b>: вызывающий, держащий <em>id</em> (чип у заголовка записи, доступ, записанный ревизией), больше не может рассчитывать, что нужные строки лежат на первой странице. Без него они печатали бы uuid или, хуже, утверждали бы, что аудитория удалена, когда она просто на третьей странице.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label"><code>ids</code> в ответе списка — это не страница</span>
+    <p><code>ids</code> — <b>каждый</b> id, совпавший с фильтром, срезанный по <code>MATCHED_IDS_CAP = 200</code>, и это ровно то число, которое запись может назвать на одной стороне: за потолком массовое действие всё равно нельзя выполнить, а <code>idsTruncated</code> — то, как редактор узнаёт, что надо сказать об этом, а не сделать часть работы молча. Стоит это одного дополнительного индексного чтения колонки uuid.</p>
+  </div>
+
+  <h3>8.2 Доступ одной записи — <code>/api/segments/entries/:entryId</code></h3>
+  <p class="small sub">Ограничено воркспейсом (<code>WorkspaceGuard</code>), поэтому id записи из другого воркспейса нельзя записать через сессию, держащую этот.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /segments/entries/:entryId</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:read</span> WorkspaceGuard</td>
+        <td>uuid в пути</td>
+        <td><code>{ allow[], deny[] }</code>. Два пустых списка = читают все</td>
+        <td><code>400</code> не-uuid; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">PUT /segments/entries/:entryId</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">segments:manage</span> WorkspaceGuard, OriginGuard</td>
+        <td><code>{ typeSlug, allow[], deny[] }</code>, каждая сторона ≤ 200 uuid</td>
+        <td><code>{ allow[], deny[] }</code> названной записи; на локализованном типе записаны <b>все</b> локали</td>
+        <td><code>400</code> неизвестный <code>typeSlug</code> / неизвестный id аудитории / аудитория вне области воркспейса; <code>403</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Это <code>PUT</code>, и API этим говорит правду</span>
+    <p>Редактор присылает <b>целиком состояние обоих списков</b>, и оно становится состоянием целиком. Сливать не во что: над записью ничего не стоит — ни правила, из которого наследовать, ни уровня выше. Только полная замена умеет выразить <em>удаление</em>: у слияния нет написания для «эта аудитория больше не упомянута». <b>Маршрут остаётся для API-клиента, который не сохраняет запись</b>, — он просто не получает ни атомарности, ни версии. Админка этим клиентом не является: в её хуках намеренно нет хука записи (метод <code>setEntryAccess</code> в шлюзе есть, но им никто не пользуется).</p>
+  </div>
+
+  <h3>8.3 Публичный API по bearer-токену — <code>/api/v1/content/:typeName/:id/access</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /v1/content/:typeName/:id/access</td>
+        <td><span class="pill pill-pub">bearer</span> <span class="pill pill-perm">segments:read</span> ApiTokenGuard, ApiTokenWorkspaceGuard</td>
+        <td><code>X-Workspace-Id</code> (обязателен, если токен покрывает больше одного воркспейса)</td>
+        <td><code>{ entryId, restricted, allow[], deny[] }</code></td>
+        <td><code>400</code> «Unknown content type» — <b>в том числе для типа, не выданного воркспейсу</b>; <code>403</code> воркспейс вне корзины токена</td>
+      </tr>
+      <tr>
+        <td class="mono">PUT /v1/content/:typeName/:id/access</td>
+        <td><span class="pill pill-pub">bearer</span> <span class="pill pill-perm">segments:manage</span> (только область <code>full</code>)</td>
+        <td><code>{ allow[], deny[] }</code> — без <code>typeSlug</code>, тип уже в пути</td>
+        <td>То же тело; на локализованном типе записаны все языки</td>
+        <td><code>400</code>; <code>403</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Три решения этого контроллера</span>
+    <p><b>Читает из таблицы плагина, а не через публичное чтение записи.</b> То чтение ограничено читателем, поэтому клиент, только что ограничивший запись, не смог бы прочитать, что он сделал: ограничение, которое он записал, и есть то, что прячет ответ. Спросить, кому можно читать запись, — не то же самое, что прочитать запись. <b>Оракулом перечисления это не становится благодаря воркспейсу:</b> id из чужого воркспейса отвечает как неограниченная запись — ровно так же, как неизвестный, потому что доступ хранится по воркспейсам. <b><code>OriginGuard</code> нет намеренно:</b> bearer-токен браузер никогда не шлёт неявно, так что требование <code>Origin</code> отвергало бы каждого серверного клиента, ничего при этом не защищая.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Публичного маршрута над словарём нет</span>
+    <p>Ни создать, ни переименовать, ни удалить аудиторию через токен нельзя ни в одной области. Это не упущение маппинга, а его явная граница: переименование тегов одной аудитории меняет видимость каждой записи, её называющей, по всей инсталляции. Будущий маршрут или инструмент над словарём — решение, которое кому-то придётся принять специально.</p>
+  </div>
+</section>
+
+<section id="agents">
+  <h2 class="sec"><span class="num">09</span>Поверхности агентов — MCP, копайлот, токен</h2>
+
+  <p>Четыре инструмента в общем реестре <code>@orthacms/tools-server</code>, и разница между ними целиком про то, <b>кто действует</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Инструмент</th><th>Поверхности</th><th>Требует</th><th>Эффект</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">segments_list</td>
+        <td>MCP + копайлот (поле <code>surfaces</code> опущено)</td>
+        <td class="mono">segments:read</td>
+        <td><code>readOnly</code></td>
+        <td>Аудитории, <b>предлагаемые в этом воркспейсе</b> (<code>isOfferedIn</code>). Пустой список означает, что инсталляция не сегментирована и про доступ говорить не о чем</td>
+      </tr>
+      <tr>
+        <td class="mono">content_access_get</td>
+        <td>MCP + копайлот</td>
+        <td class="mono">segments:read</td>
+        <td><code>readOnly</code></td>
+        <td>Два списка одной записи, с id, разрешёнными в <b>имена</b> аудиторий. Читает <code>entry_access</code> напрямую</td>
+      </tr>
+      <tr>
+        <td class="mono">content_access_set</td>
+        <td class="mono">['mcp']</td>
+        <td class="mono">segments:manage</td>
+        <td>пишет сразу</td>
+        <td>Замена обоих списков через <code>setForGroup</code>. Изменение действует к моменту возврата</td>
+      </tr>
+      <tr>
+        <td class="mono">content_propose_access</td>
+        <td class="mono">['copilot']</td>
+        <td class="mono">segments:manage</td>
+        <td class="mono">effect: 'propose'</td>
+        <td>Ничего не меняет: чертит изменение и просит человека подтвердить его на карточке</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Почему чтения на обеих поверхностях, а записи — разные инструменты</h3>
+  <ul>
+    <li><b>Bearer-токен сам себе власть.</b> Реестр уже проверил <code>segments:manage</code> против области токена — спрашивать некого и предлагать нечего, поэтому <code>content_access_set</code> пишет и возвращает.</li>
+    <li><b>Прогон копайлота действует за <em>человека</em></b> (<code>docs/adr/0009-copilot-applies-directly.md</code>): изменение записывается строкой <code>copilot_proposals</code> и выполняется под собственными правами этого человека. Поэтому у копайлота не «тот же инструмент с другим флагом», а другой инструмент.</li>
+    <li><b>Агент, который не может спросить про доступ, хуже агента, который не видит запись.</b> Read scope уже выбрасывает ограниченные записи и из <code>items</code>, и из <code>total</code>, поэтому клиент, лишённый возможности спросить, выдаёт частичный список за полный. Отсюда — оба чтения без гейта строже, чем <code>read</code>.</li>
+    <li><b>Агентские чтения отвечают из <code>entry_access</code>, а не через публичное чтение записи</b> — по той же причине, что и публичный контроллер: агент, только что ограничивший запись, не смог бы прочитать, что он сделал.</li>
+  </ul>
+
+  <h3>Предложение копайлота, шаг за шагом</h3>
+  <ol class="flow">
+    <li><b><code>summary</code> — обязательный аргумент.</b> Не удобство: карточка утверждения — это то, что человек читает вместо кода, и для правки доступа обзор важнее, чем для правки текста.</li>
+    <li><b><code>assertOffered</code> выполняется <em>в момент предложения</em>, а не при применении.</b> Аудитория, которую этому воркспейсу никогда не предлагали, — не тот выбор, который редактор мог бы сделать, и карточка, её предлагающая, была бы карточкой, чья кнопка «Принять» возвращает 400.</li>
+    <li><b>Читается состояние «до».</b> <code>EntryAccessService.get</code> для того же воркспейса и записи.</li>
+    <li><b>Диф именует аудитории, а не идентифицирует их.</b> «Can be seen by» / «Cannot be seen by» — метками; <b>пустой список разрешённых пишется словом, а не пустой ячейкой</b>, которую рецензент должен уметь прочитать. Пустота на стороне запретов действительно означает «ничего не запрещено» и так и говорит.</li>
+    <li><b>Применитель перепроверяет грант.</b> Предложение может пролежать между черновиком и принятием, и тип, лишённый гранта в этом окне, не должен быть записан по старой карточке.</li>
+    <li><b>Применитель пишет через тот же <code>setForGroup</code>.</b> Принятое предложение не может означать ничего, чего не означают сохранение записи и маршрут <code>PUT</code>: та же полная замена, то же удаление строки на двух пустых списках, та же проверка области воркспейса, та же запись всех языков.</li>
+    <li><b>Ревизию не дописывает — и это честное прочтение.</b> Сохранение несёт доступ, потому что пишется сама запись; здесь меняется только то, кто может читать уже написанное, ровно как на маршруте <code>PUT</code>. Таймлайн записи — история её содержимого; «копайлот ограничил это, и вот кто согласился» записано строкой предложения.</li>
+    <li><b>В <code>detail</code> уходит число затронутых строк</b>, чтобы квитанция прогона могла сказать «и три её перевода», а не оставить это на самостоятельное обнаружение.</li>
+  </ol>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">10</span>Админка: экраны, состояния, поведение</h2>
+
+  <p>Плагин контрибьютит <b>три маршрута</b> и <b>шесть вкладов в чужие слоты</b>. Между справочником и записью нет ничего — ни библиотеки правил, ни экрана назначения — потому что в модели между ними тоже ничего нет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Маршрут</th><th>Экран</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">/segments</td><td><code>SegmentsPage</code></td><td>Справочник аудиторий: таблица «Аудитория / Читательские теги / Предлагается в / Используется», поиск, пагинация, меню действий</td></tr>
+      <tr><td class="mono">/segments/new</td><td><code>SegmentEditorPage</code></td><td>Создание. Объявлен <b>раньше</b> <code>:segmentId</code>, чтобы литеральный сегмент выиграл сопоставление</td></tr>
+      <tr><td class="mono">/segments/:segmentId</td><td><code>SegmentEditorPage</code></td><td>Редактирование. Ключ только для чтения — он же читательский тег по умолчанию</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Компонент / хук</th><th>Зачем</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">SIDEBAR_NAV_SLOT</td><td>пункт «Segments», группа <code>directory</code>, order 40</td><td>Несёт <code>permission: SEGMENTS_READ</code> — иначе строка была бы мёртвой ссылкой для того, кто не может открыть справочник</td></tr>
+      <tr><td class="mono">ENTRY_HEADER_SLOT</td><td><code>EntryAccessChip</code></td><td>Ограничена ли эта запись <b>прямо сейчас</b></td></tr>
+      <tr><td class="mono">ENTRY_TAB_SLOT</td><td><code>EntryAccessTab</code>, слаг <code>access</code>, order 20, <code>appliesTo: () =&gt; true</code></td><td>Все решения. На <b>каждом</b> типе, в отличие от вкладки медиа: ограничить можно любую запись, а схема ничего не говорит о том, надо ли</td></tr>
+      <tr><td class="mono">ENTRY_PRESAVE_SLOT</td><td><code>useEntryAccessPresave</code></td><td>Стейджинг, вклад в <code>extensions</code> и <code>settle</code>. Смонтирован <b>над</b> вкладкой, потому что вкладки — маршруты</td></tr>
+      <tr><td class="mono">REVISION_EXTRA_SLOT</td><td><code>RevisionAccessValue</code>, ключ <code>access</code>, метка «Who can read this»</td><td>Кто мог читать прошлую версию — стало возможным ровно потому, что запись едет вместе с сохранением</td></tr>
+      <tr><td class="mono">RECORDS_FILTER_FIELDS_SLOT</td><td><code>useAccessFilterFields</code></td><td>Три поля фильтра в построителе запросов списка записей</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Состояния вкладки «Доступ»</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Когда</th><th>Что показывается</th></tr></thead>
+    <tbody>
+      <tr><td>Загрузка</td><td>Список аудиторий в полёте или (при наличии записи) её доступ в полёте</td><td>Два скелетона. Чтение доступа отключено без id записи, поэтому <b>на создании оно не резолвится никогда</b> — ожидание его там оставило бы вкладку на скелетонах навсегда</td></tr>
+      <tr><td>Здесь нет аудиторий</td><td><code>total === 0</code> и поиска нет</td><td>Отдельная фраза: «в этом воркспейсе ещё не предлагается ни одной аудитории» + кнопка в справочник. Это <b>шаг настройки</b>, а не опечатка</td></tr>
+      <tr><td>Поиск ничего не нашёл</td><td><code>total === 0</code> при непустом поиске</td><td>«Ни одна аудитория не совпадает с “…”». Другая ситуация — другое предложение</td></tr>
+      <tr><td>Рабочее</td><td>Есть аудитории</td><td>Заголовок + бейдж (открыто / ограничено) + <code>ChangedBadge</code> при незакоммиченном стейджинге; поиск слева, ссылка в справочник справа; блок массовых действий; список строк; пагинация; счётчик «решений вне списка»; строка «Применится, когда вы сохраните запись»</td></tr>
+      <tr><td>Только чтение</td><td><code>readOnly</code>, или нет <code>segments:manage</code>, или нет ручки стейджинга</td><td>Переключатели заблокированы, блок массовых действий не рендерится, нижняя строка объясняет, какое право нужно</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Два гейта на вкладке, и они разные</span>
+    <p><code>readOnly</code> говорит, что вызывающий не может править <em>значения</em> записи. <code>segments:manage</code> говорит, что он не может менять, кто её читает. Редактор с <code>content:update</code> и без второго должен уметь переписать статью и не уметь опубликовать её новой аудитории.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Чип и вкладка говорят о разном времени — намеренно</span>
+    <p>Чип рендерится из <code>EntrySlotContext</code>, у которого <b>нет</b> ручки <code>presave</code>, поэтому стейджинг он не видит. И это честное прочтение: до сохранения ограничение, о котором докладывает чип, всё ещё живое. Вкладка же говорит, чем оно станет после следующего сохранения.</p>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Ничего не заложено — не то же самое, что открытый доступ</span>
+    <p><code>EntryAccessStaging.draft</code> равен <code>null</code>, пока ничего не задано, и сохранение с <code>null</code> <b>не пишет вообще ничего</b>: ключа в мешке нет, сервер оставляет аудитории в покое. Именно это делает фичу инертной для редактора, который никогда не открывал вкладку. Возврат переключателя к тому, что уже сохранено, <b>очищает</b> стейджинг через <code>sameAccess</code>, а не закладывает круговой рейс.</p>
+  </div>
+
+  <h3>Справочник и его редактор</h3>
+  <ul>
+    <li><b>Пустое состояние объясняет работающую систему.</b> «Пока аудитории нет, каждая опубликованная запись читается всеми, и в вашем контент-API ничего не меняется» — это не «нет данных».</li>
+    <li><b>Колонка «Предлагается в» никогда не пуста.</b> Пусто означает «каждый воркспейс», поэтому так и написано бейджем, а не оставлено незаполненной ячейкой. То же и в контроле <code>SegmentWorkspacesField</code>: «оставьте все флажки снятыми — и она предлагается во всех, включая созданные позже». Противоположное прочтение (аудитория, которую никто не ограничил, не предлагается нигде) — то, из-за которого контрол выглядел бы сломанным.</li>
+    <li><b>Неудачное чтение воркспейсов — <b>не</b> пустое.</b> Оно рендерится предупреждением, оставляющим текущую область в покое: форма, тихо показавшая ноль флажков, пригласила бы сохранить аудиторию, которую человек считает неограниченной.</li>
+    <li><b>Диалог удаления расписывает последствия</b> и меняет текст, если аудиторию никто не называет.</li>
+    <li><b>Число результатов объявляется в live-регион.</b> Удаление меняет таблицу без навигации и без смены заголовка — иначе изменение осталось бы беззвучным.</li>
+    <li><b>Колонка действий названа скрытым текстом.</b> Ячейка заголовка без текста — это колонка, которую скринридер объявляет никак, читая под ней меню каждой строки.</li>
+    <li><b>Обязательные поля помечены общей <code>RequiredMark</code></b> из <code>@orthacms/content-admin</code> (одна реализация — форма аудитории и редактор записи не разъедутся), <code>aria-hidden</code>, потому что контрол несёт <code>aria-required</code> и объявлять оба значило бы сказать «обязательно» дважды. Помечены Name и Key; читательские теги — нет: аудитория без них откликается на свой ключ. Условность объяснена строкой в самой странице, а не тултипом — тултип недостижим и с клавиатуры, и с касания.</li>
+    <li><b><code>noValidate</code> на форме,</b> потому что сообщения наши: браузерный пузырь говорит другое, на другом языке, и исчезает на следующем нажатии клавиши.</li>
+  </ul>
+
+  <h3>Обе страницы грузятся в скелетон, а не в спиннер</h3>
+  <p>Фолбэк ленивого маршрута — это <b>целая страница</b>: спиннер посреди пустой говорит только, что что-то происходит, а потом переставляет все контролы на места, когда чанк приезжает. Четыре компонента, и разделены они по потребителю: <code>SegmentsListSkeleton</code> и <code>SegmentFormSkeleton</code> — тела, рисуемые <b>и</b> фолбэком маршрута, <b>и</b> собственным pending-состоянием страницы (так «грузится страница» и «грузятся её данные» становятся одной формой); <code>SegmentsPageSkeleton</code> и <code>SegmentEditorPageSkeleton</code> оборачивают их для <code>Suspense</code>. Два правила от <code>ContentLibraryPageSkeleton</code>: <b>верхняя панель настоящая, а не скелетон</b> (это идентичность страницы и её путь назад, оба известны до первого байта чанка), а <b>второй крошкой у редактора панель и есть</b> — «New audience» против «Edit audience» лежит в чанке, и выброс её оставил бы след на крошку короче и сдвинул бы его при резолве. <b><code>&lt;h1&gt;</code> визуально скрыт и называет состояние</b>: фолбэк — это страница вообще без заголовка, и именно в этом состоянии дольше всего сидит медленное соединение.</p>
+
+  <div class="note">
+    <span class="label">Что и почему лениво</span>
+    <p>Обе страницы справочника — <code>React.lazy</code>, каждая в своём чанке. Чип и вкладка — <b>нет</b>: они монтируются внутри редактора, который и так отдельный чанк, а граница <code>Suspense</code> вокруг бейджа в строке заголовка — это мигание при открытии каждой записи.</p>
+  </div>
+
+  <h3>Ключи кэша — три решения</h3>
+  <ul>
+    <li><b>Справочник и доступ записи укоренены врозь.</b> Справочник меняется, когда администратор правит аудиторию; списки записи — каждый раз, когда редактор их трогает. Общий корень заставлял бы переименование аудитории выбрасывать ответ по каждой открытой записи из кэша без причины, видимой читателю.</li>
+    <li><b>Воркспейс входит в ключ доступа записи явно.</b> До сервера он доходит только неявным заголовком <code>X-Workspace-Id</code>, который <b>не отправляется при попадании в кэш</b>, — без него один воркспейс читал бы ответ другого.</li>
+    <li><b>Id в ключе <code>lookup</code> дедуплицируются и сортируются.</b> Два компонента, спрашивающие те же id в другом порядке, спрашивают одно и то же, и несортированный ключ сходил бы за этим дважды.</li>
+  </ul>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">11</span>Конфигурация</h2>
+
+  <p>Конфигурируемая величина в этом плагине ровно <b>одна</b>, и это не переменная окружения.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Тип / по умолчанию</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">resolver</td>
+        <td><code>SegmentResolver&lt;unknown&gt;</code>, необязательно</td>
+        <td>Откуда берутся теги читателя. Получает Express-запрос, поэтому JWT-клейм, заголовок от CDN или обращение к биллингу одинаково достижимы. <b>Отсутствие — рабочая конфигурация:</b> каждый читатель анонимен, неограниченный контент отдаётся, ограниченный нет</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Всё остальное — <b>данные, которые администратор вводит в админке</b>: сами аудитории и то, что каждая запись допускает или отвергает. Переменных окружения у плагина нет, флага включения нет, потолков в конфиге нет — пределы (<code>SEGMENT_KEY_MAX = 120</code>, <code>SEGMENT_LABEL_MAX = 200</code>, <code>SEGMENT_TAG_MAX = 200</code>, <code>SEGMENT_TAGS_MAX = 20</code>, <code>IDS_MAX = 200</code>, <code>WORKSPACES_MAX = 100</code>, <code>MAX_PAGE_SIZE = 100</code>, <code>MATCHED_IDS_CAP = 200</code>) зашиты константами.</p>
+
+  <div class="note">
+    <span class="label">Порядок регистрации несёт нагрузку</span>
+    <p><code>SegmentsPlugin</code> регистрируется <b>после</b> <code>ContentPlugin</code>, чей порт <code>CONTENT_READ_SCOPE</code> он привязывает: привязка read scope осмысленна только тогда, когда есть к чему привязываться. Модуль <b>глобальный</b>, потому что <code>SegmentReadScope</code> обязан доходить до пути чтения content-server откуда угодно, где собирается запрос. Регистрация — через <code>contentReadScopeRegistrar('segments', …)</code>, <code>entryWriteExtensionRegistrar('segments', …)</code>, <code>entryFilterProviderRegistrar('segments', …)</code> и <code>copilotAppliersRegistrar('segments', …)</code>, а не привязкой DI-токенов: у Nest нет мультипровайдера, и второй плагин, привязавший тот же токен, молча заменил бы первого.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Пример из <code>apps/server/ortha.config.ts</code></span>
+    <p>В репозитории секция <code>plugins.segments</code> оставлена <b>пустой</b>, с закомментированным примером резолвера. То есть эталонная сборка работает в анонимном режиме — и это выбрано специально: аудитория, в которую никого нельзя разрешить, не может быть случайно допущена. В <code>apps/server-e2e</code> подставлен <code>headerSegmentResolver</code>, читающий заголовок <code>x-reader-tags</code> — это <b>производственный шов</b>, а не тестовый крючок рядом с ним: реальное развёртывание пишет ровно такую же форму.</p>
+  </div>
+
+  <details>
+    <summary>Как плагин собирается и что происходит при старте</summary>
+    <p><code>SegmentsPlugin(config)</code> возвращает <code>{ name: 'segments', module: SegmentsModule.forRoot(config), migrations: { dir, table } }</code>. Каталог миграций — <b>thunk</b>, чтобы разрешаться в момент миграции и работать и при потреблении из исходников, и при установке из npm; журнал — своя таблица <code>__drizzle_migrations_segments</code>, поэтому установка плагина позже ничего уже применённого не тревожит. При старте <code>SegmentCatalogService.onApplicationBootstrap</code> читает справочник и <b>логирует</b>: либо «Loaded N segment(s)», либо «No segments defined — every published entry is readable by everyone». Это единственная строка, по которой оператор понимает, в каком из двух режимов он находится.</p>
+  </details>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">12</span>Безопасность: что и почему сделано именно так</h2>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Обе пустоты направлены в безопасную сторону</h4>
+      <p class="small sub">Нет строки — запись открыта (иначе установка плагина погасила бы всю библиотеку). Нет контекста читателя — читатель <b>анонимен</b> (иначе каждая непокрытая middleware дыра стала бы открытой дверью). Нет актора в <code>PrincipalStore</code> — <b>отказ</b> (тот, кого нельзя опознать, не может быть показан обладателем права).</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Резолвер отказывает закрыто и никогда не роняет запрос</h4>
+      <p class="small sub">Адаптер, не достучавшийся до источника, возвращает пустой набор тегов, а брошенное исключение ловится и логируется предупреждением. Пустой набор всё ещё читает всё неограниченное, поэтому отказ источника деградирует до «только публичный контент», а не до отказа сайта.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Скрытое скрыто и в <code>total</code></h4>
+      <p class="small sub">Предикат стоит внутри окна <b>и</b> внутри <code>count(*) over</code>. Иначе счётчик утёк бы мощностью скрытого: «5 связей, 2 видимых» сообщает, что здесь есть три ограниченные записи.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Чужой воркспейс не отличается от несуществующего</h4>
+      <p class="small sub">Публичный контроллер доступа отвечает на id из чужого воркспейса как на неограниченную запись — ровно как на неизвестный, потому что доступ хранится по воркспейсам. Тип, не выданный воркспейсу, отвечает так же, как неизвестный тип, — тем же <code>400 Unknown content type</code>, чтобы клиент не мог узнать список типов инсталляции перебором.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Связи проверяются по цели, а не по источнику</h4>
+      <p class="small sub">Читатель, которому можно видеть статью, тем самым не получает права видеть всё, на что она ссылается. Scope спрашивают о целевом типе на каждом переходе, и гейт — флаг <code>publishedOnly</code>, помечающий публичное чтение; админские чтения не затрагиваются.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Проверка права стоит там, где идёт запись</h4>
+      <p class="small sub">У этой записи <b>нет своего маршрута</b>: она приезжает внутри сохранения, спросившего <code>content:update</code>. Проверка в расширении — единственное место, где вообще можно спросить <code>segments:manage</code>; без неё контрибьютор снимал бы ограничение с любой доступной ему записи, назвав ключ в теле сохранения.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Словарь недостижим ни одному токену</h4>
+      <p class="small sub">Область <code>full</code> даёт <code>segments:manage</code> ровно на уровне <em>записи</em>. Ни маршрута, ни инструмента над справочником не существует: переименование тегов одной аудитории меняет видимость каждой записи, её называющей, по всей инсталляции.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Неизвестный id аудитории отвергается, а не хранится</h4>
+      <p class="small sub">Сохранённый, он был бы решением, не совпадающим ни с кем: закрывал бы контент на стороне allow и не делал ничего на стороне deny — притом что ни один экран не сказал бы, что запись управляется отсутствующей аудиторией.</p>
+    </div>
+  </div>
+
+  <h3>Один класс дефектов, о котором стоит знать отдельно</h3>
+  <div class="note crit">
+    <span class="label">Форма SQL верна, а связывание — нет</span>
+    <p>Ошибка с <code>::uuid[]</code> (раздел 7.3) невидима в утверждении о выпущенном SQL, потому что <b>форма правильная во всех трёх случаях</b> — неверны только плейсхолдеры. Проявляется она пятисоткой при первом же разрешённом реальном читателе. Так отгружались и read scope, и фильтр доступа. Вывод, зафиксированный в коде: спека <code>uuid-array.spec.ts</code> считает <b>параметры</b>, а не читает SQL, а наборы server-e2e его действительно исполняют. Любой новый <code>&amp;&amp;</code> в этом плагине обязан идти через <code>uuidArray</code>.</p>
+  </div>
+
+  <h3>Отложено сознательно</h3>
+  <ul>
+    <li><b>Удаления не подключены.</b> Жёстко удалённая запись оставляет за собой строку <code>entry_access</code>. Ничто не джойнится к несуществующему id, поэтому цена — диск, а не корректность.</li>
+    <li><b>Умолчаний на коллекцию или воркспейс нет.</b> Умолчание — это наследование, а именно наследование этот дизайн отбросил специально. Если оно вернётся, оно должно вернуться одним явным правилом, а не цепочкой.</li>
+    <li><b>Отрицания в фильтре списка нет</b> — по причине из раздела 7.8: честного прочтения у него не получается.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">13</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Пока не создана ни одна аудитория, плагин <b>инертен</b>: <code>configured === false</code>, read scope возвращает <code>undefined</code>, фрагмент не добавляется, публичное чтение байт в байт то же, что до установки.</span></li>
+    <li><span class="id">И-02</span><span>Запись без строки в <code>entry_access</code> читается всеми — это обеспечивает <code>COALESCE(…, true)</code>.</span></li>
+    <li><span class="id">И-03</span><span>Пустой список <code>allow</code> означает «всем», а не «никому».</span></li>
+    <li><span class="id">И-04</span><span>Запрет побеждает: читатель, попавший хотя бы в одну аудиторию из <code>deny</code>, не читает запись — сколько бы разрешений он ни удовлетворял.</span></li>
+    <li><span class="id">И-05</span><span>Анонимный читатель (пустой набор тегов) видит ровно записи с пустым <code>allow</code>, и никакой отдельной ветки кода под него нет.</span></li>
+    <li><span class="id">И-06</span><span>SQL-предикат — это <code>canRead</code> строка в строку: сначала <code>deny</code>, затем случай пустого <code>allow</code>, затем пересечение.</span></li>
+    <li><span class="id">И-07</span><span>Ограниченная запись отсутствует и в <code>items</code>, и в <code>total</code> — на всех трёх протоколах и на каждом переходе по связи.</span></li>
+    <li><span class="id">И-08</span><span>Каждый <code>&amp;&amp;</code> связывает список через <code>uuidArray</code> — как <b>один</b> <code>sql.param</code>, никогда встраиванием массива в шаблон.</span></li>
+    <li><span class="id">И-09</span><span><code>canRead</code> никогда не консультируется с <code>isOfferedIn</code>: где аудиторию предлагают — вопрос редактора, а не читателя.</span></li>
+    <li><span class="id">И-10</span><span>Пустой <code>workspace_ids</code> означает «каждый воркспейс», а не «ни одного», — и в схеме, и в справочнике, и в контроле «Offered in».</span></li>
+    <li><span class="id">И-11</span><span>Сужение области аудитории <b>не</b> отзывает её с записей, уже её назвавших; <code>validate</code> освобождает от проверки области все id, которые запись (или её локальная группа) уже держит.</span></li>
+    <li><span class="id">И-12</span><span>Удаление аудитории вычищает её из обеих сторон каждой записи <b>в одной транзакции</b>, а запись, оставшаяся с двумя пустыми списками, теряет строку.</span></li>
+    <li><span class="id">И-13</span><span>Два пустых списка <b>удаляют</b> строку, а не сохраняются как строка с пустыми массивами.</span></li>
+    <li><span class="id">И-14</span><span>Запись доступа — это <b>полная замена</b> обоих списков, а не слияние.</span></li>
+    <li><span class="id">И-15</span><span>Доступ пишется на <b>всю локальную группу</b> записи, включая мягко удалённых сиблингов; группа резолвится по собственной колонке контента <code>locale_group_id</code>, без зависимости от <code>@orthacms/i18n-server</code>.</span></li>
+    <li><span class="id">И-16</span><span>Запись, приехавшая в мешке <code>extensions</code>, выполняется на <b>транзакции самого сохранения</b> — никогда на собственном соединении плагина.</span></li>
+    <li><span class="id">И-17</span><span>Изменение аудиторий требует <code>segments:manage</code>, проверяемого <b>в расширении</b>; запрос, просящий ровно то, что уже сохранено, ничего не меняет и власти не требует.</span></li>
+    <li><span class="id">И-18</span><span>Актор, которого не удалось опознать (<code>PrincipalStore.current()</code> вернул <code>undefined</code>), получает <code>403</code>, а не проход.</span></li>
+    <li><span class="id">И-19</span><span><code>capture</code> выполняется на <b>каждый</b> снимок, а не только на сохранения, тронувшие доступ; для неограниченной записи возвращает <code>undefined</code>.</span></li>
+    <li><span class="id">И-20</span><span><code>ACCESS_EXTENSION_KEY = 'access'</code> стабилен навсегда; восстановление версии, не назвавшей этот ключ, оставляет доступ нетронутым.</span></li>
+    <li><span class="id">И-21</span><span>Восстановление, которое <b>изменило бы</b> аудитории, требует <code>segments:manage</code>; восстановление, совпадающее с текущим состоянием группы, — нет.</span></li>
+    <li><span class="id">И-22</span><span>Каждая строка локальной группы, переписанная <code>apply</code>, получает ревизию; id дедуплицируются против строк, о которых доложил i18n.</span></li>
+    <li><span class="id">И-23</span><span>Создание перевода наследует аудитории группы <b>без</b> проверки права и <b>без</b> проверки области воркспейса, и только если у новой строки доступ ещё открыт.</span></li>
+    <li><span class="id">И-24</span><span><code>withState</code> и <code>withStates</code> всегда удаляют раньше, чем добавляют: аудитория никогда не оказывается одновременно в обоих списках.</span></li>
+    <li><span class="id">И-25</span><span><code>sameAccess</code> нечувствителен к порядку — переупорядоченный список не является ожидающим изменением ни в стейджинге, ни на пути записи.</span></li>
+    <li><span class="id">И-26</span><span>Пустой стейджинг (<code>draft === null</code>) не отправляет ключ <code>access</code> вовсе, и сервер оставляет аудитории в покое.</span></li>
+    <li><span class="id">И-27</span><span>Массовое действие вкладки действует по <code>ids</code> из ответа списка (все совпадения), а не по строкам на экране; за <code>MATCHED_IDS_CAP</code> контролы блокируются с объяснением.</span></li>
+    <li><span class="id">И-28</span><span>Решения на аудиториях, которых нет в текущем списке, сохраняются и подсчитываются, а не отбрасываются.</span></li>
+    <li><span class="id">И-29</span><span>Ключ кэша доступа записи несёт воркспейс и <code>updatedAt</code> строки; <code>settle</code> засевает сохранённую строку и инвалидирует все остальные.</span></li>
+    <li><span class="id">И-30</span><span>Чип у заголовка записи не рендерит ничего, пока в воркспейсе нет ни одной аудитории.</span></li>
+    <li><span class="id">И-31</span><span>Агентские и публичные чтения доступа отвечают из <code>entry_access</code>, а не через ограниченное читателем публичное чтение записи.</span></li>
+    <li><span class="id">И-32</span><span><code>content_access_set</code> существует только на MCP; у копайлота вместо него <code>content_propose_access</code> с <code>effect: 'propose'</code>, и оба требуют <code>segments:manage</code>.</span></li>
+    <li><span class="id">И-33</span><span>Над справочником аудиторий нет ни публичного маршрута, ни инструмента агента — ни в одной области токена.</span></li>
+    <li><span class="id">И-34</span><span>Применитель принятого предложения перепроверяет грант воркспейса и пишет через тот же <code>setForGroup</code>, что и все остальные пути.</span></li>
+    <li><span class="id">И-35</span><span>Резолвер читателя никогда не отвергает запрос: исключение ловится, логируется предупреждением и даёт анонимного читателя.</span></li>
+    <li><span class="id">И-36</span><span>Каталог загружается в <code>onApplicationBootstrap</code>; нечитаемый каталог <b>обрывает старт</b>. Каждая запись в справочник перезагружает каталог целиком.</span></li>
+    <li><span class="id">И-37</span><span>Подзапросы всех трёх виртуальных полей фильтра ограничены воркспейсом; отрицания среди их операторов нет.</span></li>
+    <li><span class="id">И-38</span><span><code>@orthacms/segments-domain</code> не имеет зависимостей вовсе, и правила валидации полей аудитории читаются из него и админской формой, и серверным DTO.</span></li>
+    <li><span class="id">И-39</span><span>Тип контента без колонки <code>id</code> заставляет <code>SegmentReadScope</code> <b>бросить</b>, а не молча пропустить фрагмент.</span></li>
+    <li><span class="id">И-40</span><span>Middleware зарегистрированы на <code>{*splat}</code> (Express 5 / path-to-regexp 8), и <code>PrincipalMiddleware</code> никогда не срезает путь.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">14</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Серверная часть проверяется <code>curl</code> + <code>psql</code>, админская — браузером. Существующие наборы: <code>apps/server-e2e/src/server/segments/</code> (5 файлов: <code>segments-directory</code>, <code>entry-access</code>, <code>public-read-scope</code>, <code>access-filter</code>, <code>agent-access</code>), <code>apps/admin-e2e/src/segments/</code> (3 файла: <code>segments-directory</code>, <code>entry-access</code>, <code>records-access-filter</code>), плюс юнит-спеки ядра (<code>entry-access.spec</code>, <code>segment.spec</code>, <code>validation.spec</code>), сервера (<code>segment-read-scope.spec</code>, <code>uuid-array.spec</code>, <code>entry-access-write-extension.spec</code>, <code>entry-access-proposal.spec</code>) и админки (<code>types.spec</code>).</p>
+
+  <div class="note warn">
+    <span class="label">Обязательный шаг харнесса</span>
+    <p>Каталог сегментов держится <b>в памяти</b>, а <code>resetDb</code> делает <code>TRUNCATE</code> у него за спиной. Каждый набор, трогающий сегменты, обязан вызвать <code>reloadSegmentCatalogue(app)</code> сразу после <code>resetDb</code> — иначе <code>configured</code> останется истинным, а id, которых уже нет, продолжат проходить валидацию.</p>
+  </div>
+
+  <h3>Инертность до первой аудитории</h3>
+  <ul class="check">
+    <li><b>Публичное чтение при пустом справочнике</b> → <span class="exp">выпущенный SQL <b>не содержит</b> подзапроса к <code>entry_access</code>; тела ответа совпадают с теми же запросами до установки плагина.</span></li>
+    <li><b><code>GET /api/segments</code> без фильтров</b> → <span class="exp"><code>total: 0</code>, <code>ids: []</code>, <code>idsTruncated: false</code>.</span></li>
+    <li><b>Открыть запись в редакторе</b> → <span class="exp">чип у заголовка не отрисован вовсе; вкладка «Доступ» показывает «в этом воркспейсе ещё нет аудиторий» + кнопку в справочник.</span></li>
+    <li><b>Открыть построитель фильтров списка записей</b> → <span class="exp">группы «Segmentation» нет — поле-перечисление без значений это правило, которое нельзя достроить.</span></li>
+    <li><b><code>segments_list</code> по MCP</b> → <span class="exp">пустой список, а не ошибка.</span></li>
+  </ul>
+
+  <h3>Таблица истинности на живой базе</h3>
+  <ul class="check">
+    <li><b>Аноним (без <code>x-reader-tags</code>) читает неограниченную запись</b> → <span class="exp">200, запись в <code>items</code>, входит в <code>total</code>.</span></li>
+    <li><b>Аноним читает запись с <code>allow=[A]</code></b> → <span class="exp">записи нет ни в <code>items</code>, ни в <code>total</code>; ответ по id — 404, неотличимый от несуществующего id.</span></li>
+    <li><b>Читатель с тегом аудитории A читает запись с <code>allow=[A]</code></b> → <span class="exp">видит.</span></li>
+    <li><b>Читатель с тегом B читает запись с <code>allow=[A]</code></b> → <span class="exp">не видит.</span></li>
+    <li><b>Читатель с тегом B читает запись с <code>allow=[A,B]</code></b> → <span class="exp">видит — достаточно любой одной.</span></li>
+    <li><b>Читатель с тегом A читает запись с <code>deny=[A]</code>, <code>allow=[]</code></b> → <span class="exp">не видит.</span></li>
+    <li><b>Читатель с тегом B читает ту же запись</b> → <span class="exp">видит — «всем, кроме A».</span></li>
+    <li><b>Аудитория A стоит и в <code>allow</code>, и в <code>deny</code>; читатель в A</b> → <span class="exp">не видит: запрет побеждает.</span></li>
+    <li><b>Читатель с неизвестным тегом</b> → <span class="exp">разрешается в пустой набор, то есть в анонимного читателя.</span></li>
+    <li><b>Тег в другом регистре («ACME» против «acme»)</b> → <span class="exp">не совпадает — сопоставление точное и регистрозависимое.</span></li>
+  </ul>
+
+  <h3>Предикат и связывание параметров</h3>
+  <ul class="check">
+    <li><b>Читатель <b>без</b> тегов на ограниченном чтении</b> → <span class="exp">200, а не 500. Это проверка на <code>()::uuid[]</code> — исторически ломавшийся случай.</span></li>
+    <li><b>Читатель ровно с <b>одной</b> аудиторией</b> → <span class="exp">200, а не <code>malformed array literal</code>.</span></li>
+    <li><b>Читатель с <b>двумя</b> аудиториями</b> → <span class="exp">200, а не ошибка конструктора строки.</span></li>
+    <li><b>Раскрытие связи публичным чтением на ограниченную цель</b> → <span class="exp">цель отсутствует и в <code>items</code>, и в <code>total</code> списка связей.</span></li>
+    <li><b>Тот же обход из админского чтения</b> → <span class="exp">цель видна: редактор обязан видеть записи, на которые ссылается его запись.</span></li>
+    <li><b>Тот же запрос через GraphQL и через MCP <code>content_relations</code></b> → <span class="exp">тот же результат, что и по REST.</span></li>
+  </ul>
+
+  <h3>Путь записи через сохранение записи</h3>
+  <ul class="check">
+    <li><b>Сохранить запись без ключа <code>access</code> в <code>extensions</code></b> → <span class="exp">строка <code>entry_access</code> не создана и не изменена.</span></li>
+    <li><b>Сохранить с <code>access</code> под ролью без <code>segments:manage</code></b> → <span class="exp">403, и <b>вся запись откатилась</b> — значения записи тоже не сохранились.</span></li>
+    <li><b>Сохранить с <code>access</code>, ровно совпадающим с текущим</b> → <span class="exp">200 даже без <code>segments:manage</code>: ничего не меняется, власть не нужна.</span></li>
+    <li><b>Сохранить с <code>extensions.access = "строка"</code> или <code>allow: [1,2]</code></b> → <span class="exp">400, сохранение откачено, частичной записи нет.</span></li>
+    <li><b>Сохранить с <code>{ allow: [id] }</code> без <code>deny</code></b> → <span class="exp">отсутствующая сторона читается как пустая, а не отвергается.</span></li>
+    <li><b>Сохранить с несуществующим id аудитории</b> → <span class="exp">400 «Unknown segment(s)».</span></li>
+    <li><b>Сохранить с id аудитории, не предлагаемой этому воркспейсу</b> → <span class="exp">400 «not offered in this workspace».</span></li>
+    <li><b>То же, но запись эту аудиторию уже держит</b> → <span class="exp">200 — уже держимые id освобождены от проверки области.</span></li>
+    <li><b>Сохранить два пустых списка на ранее ограниченной записи</b> → <span class="exp">строка <code>entry_access</code> удалена, а не обнулена.</span></li>
+    <li><b>Сохранение на локализованном типе</b> → <span class="exp">строки <code>entry_access</code> появились у <b>всех</b> локалей группы, включая мягко удалённые; у каждой переписанной строки добавилась ревизия; двойных ревизий на строку, которую тронул ещё и i18n, нет.</span></li>
+    <li><b>Сохранение, совпадающее с английской строкой, но не с немецкой</b> → <span class="exp">запись <b>выполняется</b> — <code>groupHas</code> спрашивает всю группу, а не одну строку.</span></li>
+    <li><b>Снимок ревизии обычной неограниченной записи</b> → <span class="exp"><code>extra</code> не содержит ключа <code>access</code> — байт в байт как до появления расширения.</span></li>
+    <li><b>Снимок сохранения, не тронувшего доступ, на ограниченной записи</b> → <span class="exp"><code>extra.access</code> <b>записан</b>: <code>capture</code> выполняется на каждый снимок.</span></li>
+  </ul>
+
+  <h3>Восстановление версии</h3>
+  <ul class="check">
+    <li><b>Восстановить версию, чьи аудитории совпадают с текущими, без <code>segments:manage</code></b> → <span class="exp">успех.</span></li>
+    <li><b>Восстановить версию, чьи аудитории отличаются, без <code>segments:manage</code></b> → <span class="exp">403, восстановление не выполнено целиком.</span></li>
+    <li><b>Восстановить версию, снятую до установки плагина</b> → <span class="exp">аудитории записи не изменились; строка ревизии показывает «Not recorded in this version».</span></li>
+    <li><b>Восстановить версию, назвавшую аудиторию, суженную прочь из воркспейса</b> → <span class="exp">успех, потому что запись эту аудиторию всё ещё держит.</span></li>
+    <li><b>Восстановить версию, назвавшую <b>удалённую</b> аудиторию</b> → <span class="exp">строка ревизии показывает «Deleted audience», а не сырой uuid.</span></li>
+    <li><b>После восстановления обновить редактор</b> → <span class="exp">чип отражает восстановленный доступ — ключ кэша несёт <code>updatedAt</code> строки.</span></li>
+  </ul>
+
+  <h3>Справочник аудиторий</h3>
+  <ul class="check">
+    <li><b>Создать аудиторию без <code>tags</code></b> → <span class="exp"><code>tags = [key]</code>.</span></li>
+    <li><b>Создать с занятым ключом</b> → <span class="exp">409; в форме сообщение садится на поле ключа и исчезает при вводе другого.</span></li>
+    <li><b>Ключ «Acme Corp» или «-acme»</b> → <span class="exp">400 / ошибка формы: только строчные, цифры и <code>. _ -</code>, начиная с буквы или цифры.</span></li>
+    <li><b>21 тег</b> → <span class="exp">400 / ошибка формы.</span></li>
+    <li><b>Один и тот же тег дважды</b> → <span class="exp">ошибка «дубликат».</span></li>
+    <li><b>Вставка списка тегов с завершающей пустой строкой</b> → <span class="exp">пустые отбрасываются, а не отвергаются.</span></li>
+    <li><b><code>PATCH</code> с новым <code>tags</code></b> → <span class="exp">списки записей не изменились; читатель со <b>старым</b> тегом перестал попадать в аудиторию, с новым — начал.</span></li>
+    <li><b>Сузить <code>workspaceIds</code> до одного воркспейса</b> → <span class="exp">записи другого воркспейса, назвавшие аудиторию, читаются как раньше; в их редакторе решение видно и посчитано; новые записи там аудиторию не предлагают.</span></li>
+    <li><b>Удалить используемую аудиторию</b> → <span class="exp">204; id исчез из <code>allow</code> и <code>deny</code> всех записей; записи, оставшиеся с двумя пустыми списками, потеряли строку; всё в одной транзакции.</span></li>
+    <li><b><code>GET /segments?workspace=…</code></b> → <span class="exp">вернулись аудитории, называющие этот воркспейс, <b>плюс</b> те, что не называют ни одного.</span></li>
+    <li><b><code>GET /segments/lookup?ids=</code> с одним id и с двумя через запятую и через повтор параметра</b> → <span class="exp">все три формы работают.</span></li>
+    <li><b><code>lookup</code> с неизвестным id</b> → <span class="exp">он просто отсутствует в ответе, а не 404.</span></li>
+    <li><b>Поиск с символами <code>%</code> и <code>_</code></b> → <span class="exp">читаются буквально — метасимволы ILIKE экранированы.</span></li>
+    <li><b>Справочник с более чем <code>MATCHED_IDS_CAP</code> совпадениями</b> → <span class="exp"><code>ids</code> обрезан до потолка, <code>idsTruncated: true</code>.</span></li>
+  </ul>
+
+  <h3>Права и области токенов</h3>
+  <ul class="check">
+    <li><b><code>GET /api/segments</code> под наблюдателем</b> → <span class="exp">200 — <code>segments:read</code> есть у всех трёх ролей.</span></li>
+    <li><b><code>POST /api/segments</code> под контрибьютором</b> → <span class="exp">403.</span></li>
+    <li><b><code>PUT /api/segments/entries/:id</code> под контрибьютором</b> → <span class="exp">403.</span></li>
+    <li><b>Токен области <code>read</code> на <code>GET /api/v1/content/:type/:id/access</code></b> → <span class="exp">200.</span></li>
+    <li><b>Токен области <code>read</code> на <code>PUT</code> того же пути</b> → <span class="exp">403.</span></li>
+    <li><b>Токен области <code>full</code> на <code>PUT</code></b> → <span class="exp">200, изменение действует немедленно.</span></li>
+    <li><b>Любой токен на <code>/api/segments</code></b> → <span class="exp">не проходит: словарь только по сессии.</span></li>
+    <li><b>Запрос с <code>X-Workspace-Id</code> вне корзины токена</b> → <span class="exp">403.</span></li>
+    <li><b>id записи из чужого воркспейса на <code>GET …/access</code></b> → <span class="exp">ответ как у неограниченной записи, неотличимо от неизвестного id.</span></li>
+    <li><b>Тип, не выданный воркспейсу</b> → <span class="exp">то же <code>400 Unknown content type</code>, что и у несуществующего типа.</span></li>
+  </ul>
+
+  <h3>Инструменты агентов</h3>
+  <ul class="check">
+    <li><b><code>segments_list</code> в воркспейсе, которому предлагается часть аудиторий</b> → <span class="exp">вернулись только они плюс неограниченные.</span></li>
+    <li><b><code>content_access_set</code> по MCP, затем <code>content_access_get</code> тем же токеном</b> → <span class="exp">чтение возвращает записанное, хотя запись сама себя от читателя скрыла бы.</span></li>
+    <li><b><code>content_access_set</code> из копайлота</b> → <span class="exp">инструмента нет в каталоге — <code>surfaces: ['mcp']</code>.</span></li>
+    <li><b><code>content_propose_access</code> по MCP</b> → <span class="exp">инструмента нет — <code>surfaces: ['copilot']</code>.</span></li>
+    <li><b><code>content_propose_access</code> с аудиторией, не предлагаемой воркспейсу</b> → <span class="exp">ошибка <b>на этапе предложения</b>, а не при принятии.</span></li>
+    <li><b>Карточка предложения</b> → <span class="exp">в дифе <b>метки</b> аудиторий, не uuid; пустой <code>allow</code> расписан словом «читают все», а не пустой ячейкой.</span></li>
+    <li><b>Принять предложение после того, как тип лишили гранта</b> → <span class="exp">отказ: применитель перепроверяет грант.</span></li>
+    <li><b>Принять предложение на локализованной записи</b> → <span class="exp">записаны все языки; в <code>detail.entries</code> их число; <b>ревизия не добавлена</b>.</span></li>
+    <li><b>Оба чтения под токеном области <code>read</code></b> → <span class="exp">работают.</span></li>
+  </ul>
+
+  <h3>Фильтр списка записей</h3>
+  <ul class="check">
+    <li><b><code>audienceAllowed is one of [A, B]</code></b> → <span class="exp">записи, разрешающие любую из двух.</span></li>
+    <li><b>Два правила <code>audienceAllowed equals</code> через <code>and</code></b> → <span class="exp">записи, разрешающие обе.</span></li>
+    <li><b><code>accessRestricted equals true</code></b> → <span class="exp">ровно записи, у которых есть строка <code>entry_access</code>.</span></li>
+    <li><b><code>accessRestricted equals false</code></b> → <span class="exp">записи без строки.</span></li>
+    <li><b>Попытка построить <code>ne</code> на любом из полей аудитории</b> → <span class="exp">оператор не предлагается пикером; посланный вручную даёт 400.</span></li>
+    <li><b>Правило с пустым списком значений</b> → <span class="exp">400 «needs at least one audience», а не 500.</span></li>
+    <li><b>Тот же фильтр в другом воркспейсе</b> → <span class="exp">не находит чужие записи — подзапрос ограничен воркспейсом.</span></li>
+    <li><b>Сохранить фильтр как представление и как правило аларма</b> → <span class="exp">воспроизводится теми же результатами.</span></li>
+    <li><b>Открыть пикер</b> → <span class="exp">поля лежат в группе «Segmentation», а не среди колонок типа; оператор по умолчанию — «is one of».</span></li>
+  </ul>
+
+  <h3>Админка: поведение и доступность</h3>
+  <ul class="check">
+    <li><b>Переключить аудиторию, уйти на другую вкладку редактора и вернуться</b> → <span class="exp">решение на месте, <code>ChangedBadge</code> горит.</span></li>
+    <li><b>Вернуть переключатель в исходное состояние</b> → <span class="exp"><code>ChangedBadge</code> гаснет, сохранение не отправит ключ.</span></li>
+    <li><b>Поставить и сохранить</b> → <span class="exp">в теле сохранения есть <code>extensions.access</code>; после ответа контрол не мигает и не уходит в перезапрос.</span></li>
+    <li><b>Сохранить, затем переключить локаль</b> → <span class="exp">у сиблинга показаны <b>новые</b> аудитории, а не закэшированные старые.</span></li>
+    <li><b>«Set every audience to Can see» при поиске, сузившем список</b> → <span class="exp">применилось ко всем совпавшим, а не к странице; аудитории вне совпадения не тронуты; текст под кнопками говорит, что «каждая» означает совпавшие с поиском.</span></li>
+    <li><b>Более 200 совпадений</b> → <span class="exp">кнопки заблокированы с объяснением, а не делают часть работы.</span></li>
+    <li><b>Аудитория, суженная прочь из воркспейса после решения</b> → <span class="exp">строки в списке нет, но счётчик «ещё N решений» её учитывает, и сохранение её не стирает.</span></li>
+    <li><b>Ввести поиск, стоя на четвёртой странице</b> → <span class="exp">страница сбрасывается на первую, а не показывает «нет совпадений» для термина, у которого их много.</span></li>
+    <li><b>Роль с <code>segments:read</code>, но без <code>manage</code></b> → <span class="exp">вкладка читается, переключатели заблокированы, блока массовых действий нет, нижняя строка называет нужное право.</span></li>
+    <li><b>Открыть <code>/segments</code> без <code>segments:read</code></b> → <span class="exp">страница «нет доступа»; пункт бокового меню не отрисован.</span></li>
+    <li><b>Удалить аудиторию из справочника</b> → <span class="exp">число результатов объявлено в live-регион; диалог перед этим расписал последствия и переключил текст, если аудиторию никто не называл.</span></li>
+    <li><b>Обход клавиатурой обеих страниц и вкладки</b> → <span class="exp">все контролы достижимы; у сегментированного контрола есть доступное имя вида «Access for {name}»; колонка действий названа.</span></li>
+    <li><b>Медленная сеть на <code>/segments</code> и <code>/segments/new</code></b> → <span class="exp">скелетон, а не спиннер; верхняя панель настоящая; ровно один <code>&lt;h1&gt;</code> на экране в момент подмены.</span></li>
+    <li><b>Нажать «Создать» с пустым названием</b> → <span class="exp">кнопка активна, сабмит отказывает и подсвечивает все виноватые поля сразу.</span></li>
+    <li><b>Начать набирать ключ</b> → <span class="exp">ошибка не появляется до блюра или сабмита.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">15</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Segments</th></tr></thead>
+    <tbody>
+      <tr><td>Соединение к БД и запуск миграций</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Владеет <b>файлами</b> схемы и миграций и своей таблицей журнала, но не соединением и не шагом применения</td></tr>
+      <tr><td>Ключи прав, роли, области API-токенов</td><td><code>identity-server</code></td><td>Только <b>потребляет</b> <code>PERMISSIONS.SEGMENTS_READ/MANAGE</code>, <code>PermissionsGuard</code>, <code>OriginGuard</code>, <code>ApiTokenGuard</code></td></tr>
+      <tr><td>Кто такой читатель</td><td><b>хост</b>, через порт <code>SegmentResolver</code></td><td>Ничего не знает об источнике; получает список тегов и разрешает их в id аудиторий</td></tr>
+      <tr><td>Путь публичного чтения и построитель запросов</td><td><code>content-server</code> (<code>PublicEntriesQuery</code>, <code>RelationLinkService</code>)</td><td>Регистрируется в <code>CONTENT_READ_SCOPE</code> и отдаёт один SQL-фрагмент</td></tr>
+      <tr><td>Транзакция сохранения записи, ревизии, восстановление</td><td><code>content-server</code> (<code>EntryWriterService</code>, порт <code>EntryWriteExtension</code>)</td><td>Реализует <code>apply</code> / <code>inherit</code> / <code>capture</code>; ревизии дописывает <b>content</b> по возвращённым id</td></tr>
+      <tr><td>Группа локалей и распространение общих полей</td><td><code>i18n-server</code> (и колонки, добавленные конструктором таблиц контента)</td><td>Читает <code>locale_group_id</code> <b>напрямую</b>, чтобы не зависеть от плагина, которого может не быть</td></tr>
+      <tr><td>Дерево фильтров списка записей, представления, алармы</td><td><code>content-admin</code>, <code>query-builder-admin</code>, <code>alarms</code></td><td>Отдаёт три виртуальных поля и их трансляцию в SQL</td></tr>
+      <tr><td>Реестр инструментов и авторизация вызова</td><td><code>tools-server</code></td><td>Регистрирует четыре определения и объявляет <code>surfaces</code> и <code>requires</code></td></tr>
+      <tr><td>Предложения копайлота, карточка изменения, применение</td><td><code>copilot-server</code> / <code>copilot-domain</code></td><td>Отдаёт <code>ProposalDraft</code> и один <code>ProposalApplier</code></td></tr>
+      <tr><td>Протокол MCP</td><td><code>mcp-server</code></td><td>Ничего не знает о протоколе; инструменты просто помечены <code>surfaces</code></td></tr>
+      <tr><td>Существование воркспейса</td><td><code>workspaces-server</code></td><td>Держит uuid'ы без FK; удалённый воркспейс сужает аудиторию, а не расширяет её</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Подключения к удалению записей.</b> Жёстко удалённая запись оставляет строку <code>entry_access</code>. Цена — диск, не корректность.</li>
+    <li><b>Умолчаний доступа на коллекцию или воркспейс.</b> Каждое решение сегодня — на запись. Умолчание было бы наследованием, а его этот дизайн отбросил намеренно.</li>
+    <li><b>Колонки «ограничена» в списке записей.</b> Фильтровать по доступу можно, а колонки нет.</li>
+    <li><b>Массового действия по выделению записей.</b> Массовое действие есть только внутри одной записи — «поставить всем аудиториям одно состояние».</li>
+    <li><b>Инструмента или публичного маршрута над словарём аудиторий.</b> Отсутствует намеренно, см. разделы 8 и 12.</li>
+    <li><b>Отрицания в фильтре доступа.</b> Отсутствует намеренно, см. раздел 7.8.</li>
+    <li><b>Собственного экрана «что ограничено в этой коллекции»</b>, хотя <code>entry_access</code> носит <code>workspace_id</code> и <code>type_slug</code> и индекс под такой вопрос уже есть.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">16</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">packages/segments/server/AGENTS.md, раздел «e2e»</td>
+        <td>«<code>apps/server-e2e/src/server/segments/</code> holds <b>four</b> suites — the directory, the entry-save write path, the public read scope including relations, and the three filter fields»</td>
+        <td>Наборов <b>пять</b>: перечисленных четырёх плюс <code>agent-access.spec.ts</code> — набор по инструментам агентов и публичному маршруту доступа, который в перечислении отсутствует</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/server/AGENTS.md, дерево файлов</td>
+        <td>В <code>application/</code> перечислены четыре файла, в <code>http/</code> — четыре, в <code>infrastructure/</code> — три</td>
+        <td>Не названы <code>application/principal.store.ts</code> и <code>http/principal.middleware.ts</code> — притом что <b>дальше в том же документе</b> есть целый абзац «<code>PrincipalStore</code> holds the request, not the user». Также не названы <code>infrastructure/locale-group.query.ts</code> и <code>infrastructure/uuid-array.ts</code>, у второго при этом свой раздел в том же файле</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/admin/AGENTS.md, таблица «What it contributes»</td>
+        <td>Шесть строк: справочник, редактор, чип, вкладка «Доступ», шаг сохранения, строка ревизии</td>
+        <td>Вкладов в слоты <b>шесть</b>, и два из них в таблице отсутствуют: <code>SIDEBAR_NAV_SLOT</code> (пункт бокового меню с гейтом по <code>SEGMENTS_READ</code>) и <code>RECORDS_FILTER_FIELDS_SLOT</code> (три поля фильтра). Второй описан ниже по тексту, но в сводной таблице его нет — а именно её читают как перечень поверхностей</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/admin/AGENTS.md, дерево файлов</td>
+        <td>Перечислены семь компонентов и три файла в <code>application/</code></td>
+        <td>Компонентов <b>одиннадцать</b>: не названы <code>RevisionAccessValue</code> и четыре скелетона (<code>SegmentsListSkeleton</code>, <code>SegmentFormSkeleton</code>, <code>SegmentsPageSkeleton</code>, <code>SegmentEditorPageSkeleton</code>), у которых при этом есть свой раздел в том же документе. В <code>application/</code> не назван <code>useAccessFilterFields.ts</code></td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/admin/src/lib/infrastructure/segmentsGateway.ts</td>
+        <td>Порт объявляет <code>setEntryAccess</code>, и HTTP-реализация его реализует</td>
+        <td>Метод <b>не вызывается ниоткуда</b>. Это прямое следствие решения «в хуках намеренно нет хука записи»: осталась мёртвая часть шва. Сам по себе вред невелик, но читающий порт видит путь записи, которого у админки нет</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/domain/src/lib/segment.spec.ts</td>
+        <td>Файл называется «segment.spec» и по документации домена «the decision table lives here»</td>
+        <td>Покрыт только <code>isOfferedIn</code> (три случая). У <code>segmentIdsForTags</code> — функции, которая превращает теги читателя в id аудиторий и является единственной точкой сопоставления сырых тегов, — <b>нет ни одного юнит-теста</b>: ни на «любой один тег достаточен», ни на регистрозависимость, ни на пустой список тегов</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/segments/admin/AGENTS.md, «What is not here yet»</td>
+        <td>«A records column showing which entries in a collection are restricted» и «A bulk action setting the same audiences on a selection»</td>
+        <td>Верно, но соседний корневой <code>AGENTS.md</code> описывает вклады альтернативного плагина (alarms) как «an optional records column», из-за чего при беглом чтении легко решить, что колонка есть и у сегментов. Здесь её действительно нет</td>
+      </tr>
+      <tr>
+        <td class="mono">Корневой AGENTS.md, абзац про <code>packages/segments/*</code></td>
+        <td>«<code>admin</code> is the audience directory plus the entry editor's Access tab, where each audience gets one three-state control»</td>
+        <td>Неполно: не упомянуты ни строка ревизии («Who can read this»), ни три поля фильтра списка записей, ни чип у заголовка записи — то есть половина поверхностей админского плагина. Формулировка отстала от кода, а не противоречит ему</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Что сверку прошло без замечаний</span>
+    <p>Все содержательные утверждения обоих <code>AGENTS.md</code> про модель, предикат, кэш каталога, фейл-клоуз резолвера, локальную группу, стабильность ключа <code>access</code>, проверку права внутри расширения, поведение <code>uuidArray</code>, разделение поверхностей агентов и отсутствие инструмента над словарём — подтверждаются кодом дословно. Таблица маршрутов в <code>server/AGENTS.md</code> тоже верна, включая пометки об областях и правах.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Второй артефакт серии.</b> Сделан по группе <code>packages/segments</code> по каркасу пилотного паспорта <code>identity</code>: бизнес-описание → состав → права → таблица истинности → данные → жизненный цикл → сценарии → API → поверхности агентов → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Два раздела добавлены под этот плагин: <b>таблица истинности <code>canRead</code></b> (она же спецификация и она же заготовка тестов) и <b>поверхности агентов</b>, потому что четыре входа в плагин различаются не протоколом, а тем, кто действует. Разделов «жизненный цикл учётной записи» и «SSO» здесь нет — их нет и в плагине.</p>
+  <p>Источник — исходный код: доменное ядро и его спеки, схема Drizzle и обе миграции, контроллеры и DTO, реализация <code>CONTENT_READ_SCOPE</code> и <code>EntryWriteExtension</code>, провайдеры инструментов, страницы, хуки и слоты админки, а также места стыковки в <code>identity-server</code>, <code>content-server</code> и <code>apps/server</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 16.</p>
+</footer>
+
+</main>
+</div>

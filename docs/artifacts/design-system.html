@@ -1,0 +1,1499 @@
+<title>Паспорт библиотеки Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Библиотека компонентов · packages/design-system</p>
+    <h1 class="title">Design System
+      <small>Один словарь интерфейса на весь админ-UI OrthaCMS</small>
+    </h1>
+    <p class="lede">Это <strong>не плагин</strong>. У пакета нет маршрутов, нет модуля NestJS, нет таблиц и нет ни одного ключа прав. <code>@orthacms/design-system</code> — библиотека React-компонентов на shadcn/ui: кнопки, поля, диалоги, таблицы, боковая панель. Её задача — сделать так, чтобы восемнадцать независимых admin-плагинов, написанных в разное время и разными людьми, выглядели и вели себя как одно приложение, и чтобы доступность, темизация и клавиатурная навигация доставались автору страницы <em>по умолчанию</em>, а не как отдельная работа.</p>
+    <ul class="facts">
+      <li><b>48</b> файлов компонентов</li>
+      <li><b>233</b> экспортируемых символа</li>
+      <li><b>24</b> зависимости (15 — Radix)</li>
+      <li><b>131</b> объявление токена <code>--color-*</code></li>
+      <li><b>15</b> наборов тестов · 117 кейсов</li>
+      <li><b>18</b> пакетов-потребителей</li>
+      <li><b>0</b> маршрутов, таблиц и прав</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#place">Место в системе и потребление</a></li>
+    <li><a href="#tokens">Дизайн-токены и темизация</a></li>
+    <li><a href="#inventory">Полный инвентарь компонентов</a></li>
+    <li><a href="#handmade">Примитивы, написанные вручную</a></li>
+    <li><a href="#rules">Правила и конвенции авторов</a></li>
+    <li><a href="#a11y">Доступность</a></li>
+    <li><a href="#flows">Сценарии работы</a></li>
+    <li><a href="#tests">Тесты пакета</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы ответственности</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Админка OrthaCMS собирается из плагинов: контент, медиа, воркспейсы, участники, копайлот, аудитории, проверки, аналитика — каждый живёт в своём пакете и разрабатывается отдельно. Без общей библиотеки это восемнадцать разных представлений о том, что такое «кнопка», «пустое состояние» и «модальное окно». Design System — тот единственный словарь, который делает их одним продуктом.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Визуальная целостность без координации.</b> Автор страницы в <code>content/admin</code> не договаривается с автором страницы в <code>media/admin</code> о радиусе скругления или оттенке границы — оба берут <code>Card</code> и <code>Button</code>. Все стилевые решения приняты один раз и лежат в одном месте.</li>
+    <li><b>Доступность по умолчанию, а не по памяти.</b> Это главная экономия. Ассоциация метки с полем, <code>role="alert"</code> у ошибки, <code>scope="col"</code> у заголовка таблицы, фокус-ловушка диалога, клавиатурная достижимость прокручиваемой области — всё это уже внутри примитива. Плагин, который просто взял <code>InputField</code>, получает корректную форму, ничего про WCAG не зная.</li>
+    <li><b>Темизация одним переключателем.</b> Светлая и тёмная темы — это два набора CSS-переменных. Компоненты не знают, какая тема активна: они написаны на семантических классах (<code>bg-card</code>, <code>text-muted-foreground</code>), а не на конкретных цветах. Переключение темы не требует правок ни в одном компоненте.</li>
+    <li><b>Единая точка исправления дефекта.</b> Курсор-указатель на кнопках, видимый фокус в режиме высокой контрастности, подавление анимации при <code>prefers-reduced-motion</code> — каждое из этих исправлений сделано один раз в общем слое и мгновенно распространилось на все страницы. Исправление «в каждом месте вызова» гарантированно было бы неполным.</li>
+    <li><b>Дешёвое расширение.</b> Компоненты добавляются CLI-командой shadcn прямо в исходники пакета — это <em>копия кода</em>, а не зависимость от чужой версии. Значит, любой компонент можно править под продукт, и никакой upstream-релиз этого не сломает.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Автор плагина админки</h4>
+      <p class="small sub">Пишет <code>import { Button, Card, cn } from '@orthacms/design-system'</code> и получает готовую страницу нужного вида. Не заводит собственных стилей, не подключает Radix напрямую, не думает о тёмной теме.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Пользователь админки</h4>
+      <p class="small sub">Видит один продукт, а не набор разнородных экранов. Может выбрать светлую или тёмную тему, работать только с клавиатуры, включить высокую контрастность или отключить анимацию — интерфейс это переживёт.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Владелец сгенерированного приложения</h4>
+      <p class="small sub">Получает библиотеку в наборе <code>CORE_PACKAGES</code> шаблона <code>create-ortha-app</code> — она устанавливается безусловно, потому что это первое, к чему тянется рука при написании собственной страницы.</p>
+    </div>
+  </div>
+
+  <h3>Чем Design System не является</h3>
+  <p>Границы объясняют, почему в пакете нет вещей, которых от «дизайн-системы» часто ждут:</p>
+  <ul>
+    <li><b>Это не плагин.</b> Ни <code>AdminPlugin</code>, ни <code>ServerPlugin</code>. Пакет ничего не регистрирует, не добавляет маршрутов и не участвует в жизненном цикле приложения. Его просто импортируют.</li>
+    <li><b>Это не носитель темы.</b> Токены (<code>@theme</code>, <code>.dark</code>, палитра аватаров) объявлены в <code>apps/admin/src/styles.css</code> — в приложении-хосте, а не в пакете. Пакет их только <em>потребляет</em> через семантические Tailwind-классы. Собственный CSS библиотеки — один небольшой файл на правила, которые невозможно выразить утилитами.</li>
+    <li><b>Это не i18n-слой.</b> В пакете нет <code>react-intl</code> и нет каталога переводов. Все видимые строки приходят от потребителя; исключение — чистая иконография (крестик закрытия, переключатель боковой панели), у которой английский текст по умолчанию переопределяется хостом через один контекст.</li>
+    <li><b>Это не форм-библиотека.</b> <code>InputField</code> презентационен и агностичен к форм-движку: он принимает нативные пропсы <code>&lt;input&gt;</code> и список ошибок. Валидацию и состояние формы держит потребитель (в админке — TanStack Form).</li>
+    <li><b>Это не Storybook и не витрина.</b> Каталога компонентов с примерами в репозитории нет; документацией служит JSDoc над каждым экспортом и реальные места вызова.</li>
+    <li><b>Это не библиотека графиков.</b> Токены <code>--color-chart-*</code> объявлены в хосте и используются виджетами <code>insights/admin</code>; сами компоненты визуализации в дизайн-системе не живут.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>shadcn/ui — это <b>не npm-зависимость, а генератор исходников</b>. CLI кладёт код компонента в <code>src/lib/components/ui/</code>, и с этого момента он наш: его можно переписать, переименовать роль, добавить пропс. Именно поэтому половина файлов в инвентаре расходится с upstream — <code>Alert</code> перестал быть заголовком, <code>Spinner</code> перестал быть live-регионом, <code>Table</code> научилась быть клавиатурной областью прокрутки. Обратная сторона: обновления upstream не приезжают сами, и каждое приходится сливать вручную.</p>
+  </div>
+</section>
+
+<section id="place">
+  <h2 class="sec"><span class="num">02</span>Место в системе и как потребляется</h2>
+
+  <p>Пакет — <b>плоский</b> (<code>packages/design-system</code>, без разбиения на <code>admin</code>/<code>server</code>), потому что делить нечего: серверной половины у него нет и быть не может. Публикуется как <code>@orthacms/design-system</code>, версия <code>0.4.2</code> — та же, что у всех остальных пакетов монорепозитория (релиз идёт синхронно, единым набором).</p>
+
+  <h3>Из чего состоит</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Путь</th><th>Что там</th><th>Объём</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">src/index.ts</td><td>Единственная публичная поверхность — «бочка» реэкспортов. Всё, чего в ней нет, для потребителя не существует</td><td>233 символа</td></tr>
+      <tr><td class="mono">src/lib/components/ui/</td><td>Компоненты. Один файл — одно семейство (<code>dialog.tsx</code> отдаёт десять экспортов)</td><td>48 файлов</td></tr>
+      <tr><td class="mono">src/lib/utils.ts</td><td>Утилита <code>cn</code> — склейка классов Tailwind с разрешением конфликтов</td><td>7 строк</td></tr>
+      <tr><td class="mono">src/lib/appearance/</td><td><code>AppearanceProvider</code> / <code>useAppearance</code> — выбор темы, синхронизация с <code>&lt;html&gt;</code> и <code>localStorage</code></td><td>1 модуль</td></tr>
+      <tr><td class="mono">src/lib/labels/</td><td><code>DesignSystemLabelsProvider</code> — единственный шов локализации собственной «фурнитуры» библиотеки</td><td>1 модуль</td></tr>
+      <tr><td class="mono">src/lib/hooks/use-mobile.tsx</td><td><code>useIsMobile</code> — единственная точка перелома вёрстки (768px)</td><td>1 хук</td></tr>
+      <tr><td class="mono">src/styles.css</td><td>Глобальный лист: анимации выпадашек и шага мастера, курсор на управляющих элементах, блок <code>forced-colors</code></td><td>~190 строк</td></tr>
+      <tr><td class="mono">src/test-setup.ts</td><td>Шимы jsdom для API, которых нет: <code>matchMedia</code>, <code>ResizeObserver</code>, pointer capture, <code>scrollIntoView</code></td><td>1 файл</td></tr>
+      <tr><td class="mono">components.json</td><td>Конфигурация shadcn CLI: стиль <code>new-york</code>, базовый цвет <code>neutral</code>, иконки <code>lucide</code>, CSS-переменные включены</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Как компонент попадает в браузер: сборки нет</h3>
+  <p>В монорепозитории пакеты потребляются <b>из исходников</b>. У <code>design-system</code> и <code>main</code>, и <code>types</code>, и все три ветки <code>exports["."]</code> указывают на один и тот же <code>./src/index.ts</code>; отдельно опубликован подпуть <code>./styles.css</code>. Никакого шага сборки перед потреблением не требуется — Vite приложения <code>apps/admin</code> транспилирует TSX дизайн-системы напрямую, как свой собственный код.</p>
+  <p>Из этого следуют два практических факта, которые чаще всего кусают новичка:</p>
+  <ol class="flow">
+    <li><b>Vite не типизирует.</b> Ошибка типа в компоненте библиотеки не остановит dev-сервер. Её ловит отдельная задача <code>admin:dev:typecheck</code> (<code>tsc --build --watch</code>) — четвёртая панель в <code>npm run dev</code>.<span class="meta">то же самое верно и для любого admin-плагина</span></li>
+    <li><b>Алиас <code>@/</code> внутри библиотеки не резолвится.</b> В <code>tsconfig.lib.json</code> он объявлен (<code>"@/*": ["./src/*"]</code>) и работает для <code>tsc</code>, но dev-сервер Vite приложения-потребителя его не видит и падает на <code>Failed to resolve import "@/lib/utils"</code>. Отсюда — первое из двух обязательных правил (раздел 6).</li>
+  </ol>
+  <p>Публикуемый в npm тарбол устроен иначе: <code>tools/release/pack.mjs</code> компилирует пакет через <code>tsconfig.lib.json</code> и собирает во временном корне <code>dist/pack/&lt;projectRoot&gt;/</code> переписанный манифест, где <code>exports</code> указывают уже на <code>./dist</code>. Файл <code>src/styles.css</code> <code>tsc</code> не эмитит, поэтому <code>pack</code> копирует его отдельно (все не-TS ассеты рядом с исходниками переносятся на ту же относительную позицию).</p>
+
+  <h3>Что должен смонтировать хост</h3>
+  <p>Библиотека не работает «сама по себе» — четыре её механизма требуют контекста, и все четыре хост монтирует один раз в <code>createAdmin</code> (<code>packages/bootstrap/admin</code>):</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Провайдер</th><th>Зачем</th><th>Где в дереве</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">AppearanceProvider</td><td>Тема. Держит выбор, отражает его классом <code>dark</code> на <code>&lt;html&gt;</code> и через <code>color-scheme</code></td><td>Самый верх, выше роутера — чтобы все маршруты и тосты читали одну тему</td></tr>
+      <tr><td class="mono">DesignSystemLabels</td><td>Локализация «фурнитуры». Обёртка хоста берёт строку из <code>react-intl</code> и кладёт в <code>DesignSystemLabelsProvider</code></td><td>Внутри <code>IntlProvider</code>, выше всего остального UI</td></tr>
+      <tr><td class="mono">TooltipProvider</td><td>Общая задержка подсказок (<code>delayDuration={200}</code>)</td><td>Под <code>DesignSystemLabels</code></td></tr>
+      <tr><td class="mono">Toaster</td><td>Хост тостов. Смонтирован <b>вне</b> <code>AppErrorBoundary</code> — тост это способ, которым приложение сообщает о беде, и он обязан пережить ту самую беду, которую ловит граница</td><td>Последним ребёнком <code>TooltipProvider</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Отдельно — стили: <code>apps/admin/src/styles.css</code> импортирует сначала <code>tailwindcss</code>, затем <code>packages/design-system/src/styles.css</code>, и объявляет <code>@source</code>-глоб на исходники библиотеки, чтобы Tailwind просканировал её классы.</p>
+
+  <h3>Кто и насколько активно потребляет</h3>
+  <p>Импорт из <code>@orthacms/design-system</code> встречается в <b>352 файлах</b> восемнадцати admin-пакетов; в обиходе <b>166</b> различных экспортируемых имён.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th class="center">Файлов</th><th>Что берёт характернее всего</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">content/admin</td><td class="center">67</td><td><code>Button</code>×26, <code>Spinner</code>×17, <code>cn</code>×14, <code>Badge</code>×13 — самая крупная и самая плотная поверхность в админке</td></tr>
+      <tr><td class="mono">workspaces/admin</td><td class="center">45</td><td><code>InputGroup</code>×6, <code>Avatar</code>+<code>avatarColorVar</code>, <code>Sidebar*</code>, <code>StatTile</code> — единственный потребитель плитки метрик</td></tr>
+      <tr><td class="mono">users/admin</td><td class="center">42</td><td><code>Alert</code>+<code>AlertDescription</code>×13, <code>Card*</code>, <code>RadioGroup</code>, <code>useAppearance</code>×2 (экран настроек темы)</td></tr>
+      <tr><td class="mono">media/admin</td><td class="center">31</td><td><code>Dialog</code>×5, <code>Drawer</code>, <code>Progress</code>×2 (единственный потребитель прогресса — загрузка файлов)</td></tr>
+      <tr><td class="mono">copilot/admin</td><td class="center">25</td><td><code>Sheet</code> (единственный потребитель — док-панель), <code>Kbd</code>, <code>TopBarActions</code></td></tr>
+      <tr><td class="mono">wysiwyg/admin</td><td class="center">23</td><td><code>DropdownMenu*</code> целиком, включая <code>Sub</code>/<code>RadioGroup</code>-варианты — панель инструментов редактора</td></tr>
+      <tr><td class="mono">identity/admin</td><td class="center">22</td><td><code>Card*</code>×13, <code>Field*</code>, <code>AppLoader</code> (единственный потребитель), <code>Logo</code></td></tr>
+      <tr><td class="mono">alarms/admin, segments/admin, insights/admin, activity/admin</td><td class="center">14 / 13 / 12 / 12</td><td><code>Alert</code>, <code>Skeleton</code>, <code>Table*</code>, <code>Pagination</code>, <code>SearchToolbar</code></td></tr>
+      <tr><td class="mono">shell/admin</td><td class="center">11</td><td>Единственный потребитель <code>Sidebar</code>, <code>SidebarProvider</code>, <code>SidebarInset</code>, <code>useSidebar</code>, <code>useIsMobile</code> — каркас приложения</td></tr>
+      <tr><td class="mono">query-builder/admin, i18n/admin, api-tokens/admin, transfer/admin, utils/admin</td><td class="center">11 / 8 / 7 / 3 / 2</td><td><code>SegmentedControl</code>, <code>Select</code>, <code>MultiSelect</code>, <code>Drawer</code>, <code>AVATAR_COLORS</code></td></tr>
+      <tr><td class="mono">bootstrap/admin</td><td class="center">4</td><td>Не рисует страниц — монтирует четыре провайдера из таблицы выше</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Зависимости</h3>
+  <p>24 обычные зависимости и 2 peer (<code>react</code> и <code>react-dom</code>, оба <code>^19.0.0</code>). Пятнадцать из двадцати четырёх — примитивы Radix, то есть основная масса поведения (фокус-ловушки, роли, роверинг фокуса, порталы) приходит оттуда, а библиотека добавляет к ним оформление и продуктовые решения.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Зависимость</th><th>Что даёт</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">@radix-ui/react-* (15 шт.)</td><td>avatar, checkbox, collapsible, dialog, dropdown-menu, label, popover, progress, radio-group, select, separator, slot, tabs, toggle-group, tooltip</td></tr>
+      <tr><td class="mono">class-variance-authority</td><td>Типизированные варианты (<code>buttonVariants</code>, <code>badgeVariants</code>, <code>alertVariants</code>, <code>fieldVariants</code>, <code>emptyMediaVariants</code>, <code>sidebarMenuButtonVariants</code>)</td></tr>
+      <tr><td class="mono">clsx + tailwind-merge</td><td>Две половины утилиты <code>cn</code></td></tr>
+      <tr><td class="mono">cmdk</td><td>Командная палитра и поиск внутри <code>MultiSelect</code></td></tr>
+      <tr><td class="mono">sonner</td><td>Тосты. <code>toast</code> реэкспортируется из бочки напрямую</td></tr>
+      <tr><td class="mono">vaul</td><td><code>Drawer</code> — выдвижная панель снизу/сбоку</td></tr>
+      <tr><td class="mono">react-day-picker + date-fns</td><td><code>Calendar</code>, <code>DatePicker</code>, <code>DateTimePicker</code></td></tr>
+      <tr><td class="mono">lucide-react</td><td>Иконки. Единственная иконочная библиотека, зафиксирована в <code>components.json</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Чего в зависимостях нет — и это заметно</span>
+    <p><code>tailwindcss-animate</code> / <code>tw-animate-css</code> <b>не установлены нигде в репозитории</b>. Это значит, что классы <code>animate-in</code>, <code>fade-in-0</code>, <code>zoom-in-95</code>, которые shadcn кладёт на оверлеи, <b>не генерируют никакого CSS</b>. Анимация выпадающих слоёв (<code>Popover</code>, <code>DropdownMenu</code>, <code>Select</code>) написана вручную в <code>src/styles.css</code> как класс <code>.ds-dropdown-motion</code>. А вот <code>dialog.tsx</code>, <code>sheet.tsx</code> и <code>tooltip.tsx</code> до сих пор несут те самые мёртвые классы — они безвредны, но вводят в заблуждение.</p>
+  </div>
+</section>
+
+<section id="tokens">
+  <h2 class="sec"><span class="num">03</span>Дизайн-токены и темизация</h2>
+
+  <p>Ни один компонент библиотеки не содержит конкретного цвета. Все они написаны на семантических утилитах Tailwind — <code>bg-background</code>, <code>text-muted-foreground</code>, <code>border-input</code>, <code>bg-success-soft</code> — которые разворачиваются в CSS-переменные. Сами переменные объявлены <b>не в пакете</b>, а в приложении-хосте: <code>apps/admin/src/styles.css</code>. Это осознанное разделение: библиотека описывает <em>роли</em> цвета, приложение — их <em>значения</em>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Блок в <code>apps/admin/src/styles.css</code></th><th>Что объявляет</th><th class="center">Переменных</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">@theme { … }</td><td>Светлая палитра целиком плюс <code>--radius</code>. Именно <code>@theme</code>, а не <code>@theme inline</code> — чтобы утилиты разворачивались в <code>var(--color-*)</code> и переопределение в тёмной теме срабатывало <b>в рантайме</b>, а не запекалось на этапе сборки</td><td class="center">70</td></tr>
+      <tr><td class="mono">.dark { … }</td><td>Тёмная палитра — переобъявление тех же семантических токенов. Токены боковой панели и акценты навигации сюда не входят: они изначально написаны тёмными и переносятся без изменений</td><td class="center">55</td></tr>
+      <tr><td class="mono">:root { … }</td><td>Палитра аватаров, 7 оттенков. Объявлена именно как обычные свойства, а не в <code>@theme</code>: они подставляются инлайново через <code>var(--color-avatar-…)</code>, а Tailwind вычищает из <code>@theme</code> токены, на которые не сослалась ни одна сгенерированная утилита</td><td class="center">7</td></tr>
+      <tr><td class="mono">@custom-variant dark</td><td><code>(&amp;:where(.dark, .dark *))</code> — как записывается вариант <code>dark:</code></td><td class="center">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Семейства токенов</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Семейство</th><th>Роль</th><th>Особенность</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">background / foreground / card / popover</td><td>Полотно страницы и поверхности над ним</td><td>В светлой теме карточка совпадает с фоном и отделяется границей и тенью; в тёмной — карточка на ступень светлее полотна, то есть отделяется ещё и поверхностью</td></tr>
+      <tr><td class="mono">primary / primary-foreground</td><td>Основная («контрастная») кнопка — чернильная</td><td>В тёмной теме инвертируется: светлая заливка с тёмным текстом</td></tr>
+      <tr><td class="mono">brand / brand-text / brand-soft</td><td>Единственный яркий акцент — пламенный оранжевый</td><td><b>Белый текст на <code>bg-brand</code> не проходит AA.</b> Для ссылочного текста есть отдельный <code>brand-text</code>, для заливки — чернильный <code>brand-foreground</code>. Оранжевый — цвет иконок и акцентов, не подложка под белые буквы</td></tr>
+      <tr><td class="mono">secondary / muted / accent</td><td>Приглушённые поверхности, наведение на строку, чипы</td><td><code>secondary</code> на ступень темнее <code>muted</code>/<code>accent</code>, чтобы вторичные чипы не растворялись на подсвеченной строке</td></tr>
+      <tr><td class="mono">destructive / success / warning / info</td><td>Четыре статуса, каждый парой: сплошной + мягкий</td><td>Мягкая пара — тонированная поверхность и тёмный текст того же тона; используется в <code>Badge</code>, <code>Alert</code> и типизированных тостах</td></tr>
+      <tr><td class="mono">teal-soft / violet-soft</td><td>Мягкие пары без сплошного двойника</td><td>Плитки иконок в верхней панели для областей с бирюзовым/фиолетовым акцентом (Медиа, Воркспейсы, Настройки)</td></tr>
+      <tr><td class="mono">border / input / ring</td><td>Структурная граница, граница поля ввода, кольцо фокуса</td><td><code>input</code> темнее <code>border</code> намеренно — чтобы поле читалось как редактируемое, не утемняя разделители карточек</td></tr>
+      <tr><td class="mono">sidebar-*</td><td>Восемь токенов тёмной хромировки боковой панели</td><td>Всё, что рисуется внутри панели, обязано использовать <code>sidebar-*</code>, а не светлые поверхностные токены</td></tr>
+      <tr><td class="mono">nav-orange … nav-teal</td><td>Шесть акцентов иконок навигации</td><td>Осветлены до L ≥ 0.72, чтобы каждая давала 3:1 на тёмной панели</td></tr>
+      <tr><td class="mono">status-active / status-invited</td><td>Точки статуса (активен / приглашён)</td><td>Всегда в паре с текстовой меткой — цветом одним смысл не передаётся</td></tr>
+      <tr><td class="mono">chart-1 / chart-2 / chart-q0…q5 / chart-on-deep / chart-grid / chart-axis</td><td>Палитра визуализации для виджетов Insights</td><td>Единственные токены в <b>hex</b>, а не в oklch: это вывод валидатора контраста, и переезд в другое цветовое пространство увёл бы округление от проверенных чисел</td></tr>
+      <tr><td class="mono">avatar-slate … avatar-indigo</td><td>Семь акцентов инициалов</td><td>Белые инициалы на каждом дают ≥ 5.7:1</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Как переключается тема</h3>
+  <ol class="flow">
+    <li><b>Начальное состояние читается синхронно.</b> <code>useState(readStoredTheme)</code> — значение из <code>localStorage['ortha.theme']</code> берётся прямо в инициализаторе, чтобы первая отрисовка уже была правильной и не было вспышки чужой темы.<span class="meta">недоступное или испорченное хранилище — молча даёт значение по умолчанию <code>system</code></span></li>
+    <li><b><code>system</code> разрешается против ОС.</b> Подписка на <code>matchMedia('(prefers-color-scheme: dark)')</code> живёт весь срок провайдера, так что смена системной темы применяется без перезагрузки.</li>
+    <li><b>Результат отражается на документе.</b> <code>applyToDocument</code> ставит/снимает класс <code>dark</code> на <code>&lt;html&gt;</code> и выставляет <code>style.colorScheme</code>, чтобы браузер сам перекрасил свою фурнитуру — полосы прокрутки, нативные контролы.</li>
+    <li><b>Выбор сохраняется.</b> Запись в <code>localStorage</code> обёрнута в <code>try/catch</code>: приватный режим или исчерпанная квота теряют только межсессионную память, но не саму смену темы.</li>
+    <li><b>Долговременная копия — на сервере.</b> Провайдер её не знает: плагин, читающий профиль пользователя, просто вызывает <code>setTheme</code>. <code>setTheme</code> сравнивает значение с текущим и не дёргает состояние, если оно не изменилось, — а гидратация с сервера как раз обычно повторяет уже действующее значение.</li>
+    <li><b>Вне провайдера хук не падает.</b> <code>useAppearance</code> без <code>AppearanceProvider</code> отдаёт <code>{ theme: 'system', resolvedTheme: 'light', setTheme: () =&gt; undefined }</code> — компонент в изоляции (тест) отрисуется.</li>
+  </ol>
+  <p><code>Toaster</code> — единственный компонент, который читает разрешённую тему явно: он передаёт <code>resolvedTheme</code> в sonner, потому что у sonner своя внутренняя хромировка, которая иначе разошлась бы с приложением.</p>
+
+  <h3>Что берёт на себя собственный CSS библиотеки</h3>
+  <p><code>src/styles.css</code> — единственный файл, который потребитель импортирует помимо бочки, и он не про темизацию: он про то, что нельзя выразить утилитой.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Блок</th><th>Что решает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">.ds-dropdown-motion</td><td>Появление и исчезновение <code>Popover</code>, <code>DropdownMenu</code>, <code>Select</code>. Смещение <code>--ds-drop-x/y</code> зависит от <code>data-side</code>, поэтому слой «выезжает» со стороны своего триггера. Уход быстрее прихода (90&nbsp;мс против 140): закрытие должно ощущаться мгновенным, открытие — поставленным. Работает потому, что Radix держит узел смонтированным, пока идёт анимация на <code>[data-state=closed]</code></td></tr>
+      <tr><td class="mono">.wizard-step-in</td><td>Появление шага мастера. Анимируется <b>только трансформация</b>, прозрачность всегда 1 — чтобы контент не оказался невидимым при остановленных часах анимации (фоновая вкладка, печать)</td></tr>
+      <tr><td class="mono">@layer base — курсор</td><td>Tailwind v4 больше не ставит <code>cursor: pointer</code> на кнопки. Восстановлено здесь для всех операбельных контролов; выключенные явно получают <code>not-allowed</code> (учтены три способа выключения: <code>:disabled</code>, <code>aria-disabled</code>, <code>data-disabled</code>)</td></tr>
+      <tr><td class="mono">@media (forced-colors: active)</td><td>Самое важное. См. следующую врезку</td></tr>
+      <tr><td class="mono">@media (prefers-reduced-motion)</td><td>Обе анимации выключаются. Продублировано у <code>Skeleton</code> через утилиту <code>motion-reduce:animate-none</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Режим принудительных цветов — не косметика</span>
+    <p>При <code>forced-colors: active</code> (Windows High Contrast) браузер <b>полностью отбрасывает <code>box-shadow</code></b>. А каждый индикатор фокуса в этой библиотеке — это Tailwind-утилита <code>ring-*</code>, то есть именно <code>box-shadow</code>. Следствие: пользователь с клавиатурой в высокой контрастности <b>не видел фокус нигде во всей админке</b> — отказ 2.4.7 и 1.4.11 сразу на всех страницах, которого <b>не видит ни один прогон axe</b> (axe эту медиа-фичу не эмулирует). Лечение — настоящий <code>outline</code>, который режим сохраняет. <code>!important</code> здесь несущий, а не ленивый: несколько компонентов несут рядом с кольцом <code>focus-visible:outline-none</code>, и по специфичности класс с псевдоклассом побеждает голый <code>:focus-visible</code> — без <code>!important</code> контур выключали бы ровно те компоненты, которым он нужнее всего. Отдельно: выбранное состояние, которое рисуется одной заливкой (<code>[role=option][aria-checked=true]</code>, активный пункт панели, <code>[aria-current]</code>), получает границу <code>Highlight</code>, а выключенные контролы — <code>GrayText</code>, потому что <code>opacity</code> в вынужденную палитру не входит и выключенный контрол читался бы как рабочий. <code>forced-color-adjust: none</code> не используется нигде намеренно — это ровно тот отказ, ради предотвращения которого блок и написан.</p>
+  </div>
+</section>
+
+<section id="inventory">
+  <h2 class="sec"><span class="num">04</span>Полный инвентарь компонентов</h2>
+
+  <p>48 файлов, 233 экспортируемых символа. Ниже — всё, что отдаёт <code>src/index.ts</code>, разбитое по назначению. Колонка «Активнее всего» — фактические числа импортов по репозиторию (файлов, где имя импортировано); она показывает, что в библиотеке несущее, а что почти музейное.</p>
+
+  <div class="note">
+    <span class="label">Как читать колонку «Доступность»</span>
+    <p>Там отмечено то, что компонент делает <b>за потребителя</b> — роли, ассоциации, порядок фокуса. Если ячейка говорит «требует от вызова», значит это то, что библиотека обеспечить не может и что придётся передать самому.</p>
+  </div>
+
+  <h3>4.1 Формы и ввод</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Компонент</th><th>Назначение</th><th>Ключевые пропсы / варианты</th><th>Доступность</th><th class="center">Активнее всего</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Input</td>
+        <td>Однострочное поле. Все нативные пропсы <code>&lt;input&gt;</code> проходят насквозь</td>
+        <td>Вариантов нет; размер и форма — через <code>className</code>. Высота <code>h-9</code>, фон <code>bg-card</code>, граница <code>border-input</code></td>
+        <td>Стилевая реакция на <code>aria-invalid</code> встроена (<code>aria-invalid:border-destructive</code>) — но сам атрибут ставит вызывающий. Метку не даёт: голый <code>Input</code> без <code>&lt;label&gt;</code> — дефект</td>
+        <td class="center">23</td>
+      </tr>
+      <tr>
+        <td class="mono">InputField</td>
+        <td><b>Составное поле формы целиком</b>: метка (с опциональным действием на строке), поле, подсказка, ошибка. Собрано из примитивов <code>Field*</code></td>
+        <td><code>id</code> (обязателен), <code>label</code>, <code>description</code>, <code>error</code>, <code>errors</code>, <code>invalid</code>, <code>labelAction</code>, <code>fieldClassName</code>; остальное уходит в <code>&lt;input&gt;</code></td>
+        <td>Делает всё: <code>htmlFor</code>↔<code>id</code>, <code>aria-invalid</code>, <code>aria-describedby</code> склеивается из подсказки, ошибки и пользовательского значения. <b><code>invalid={false}</code> не подавляет сообщение</b> — оно единственное, что говорит, что чинить</td>
+        <td class="center">14</td>
+      </tr>
+      <tr>
+        <td class="mono">Textarea</td>
+        <td>Многострочное поле</td>
+        <td>Как <code>Input</code>; <code>min-h-[60px]</code></td>
+        <td>То же, что у <code>Input</code>: реагирует на <code>aria-invalid</code>, метку не подставляет</td>
+        <td class="center">7</td>
+      </tr>
+      <tr>
+        <td class="mono">Label</td>
+        <td>Метка на Radix <code>Label</code></td>
+        <td>Только <code>className</code>. Реагирует на <code>peer-disabled</code></td>
+        <td>Radix обеспечивает клик по метке → фокус в контрол</td>
+        <td class="center">16</td>
+      </tr>
+      <tr>
+        <td class="mono">Field</td>
+        <td>Обёртка одного поля — базовый строительный блок форм</td>
+        <td><code>orientation</code>: <code>vertical</code> (по умолчанию) / <code>horizontal</code> / <code>responsive</code> (переключается на <code>@md</code> контейнерного запроса)</td>
+        <td><code>role="group"</code>, <code>data-invalid</code> красит всю группу в цвет ошибки. Флажок/радио в горизонтальной раскладке выравниваются по первой строке текста</td>
+        <td class="center">15</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldLabel</td>
+        <td>Метка внутри <code>Field</code>. Умеет быть «карточкой-выбором»: если внутрь вложен <code>Field</code>, метка превращается в рамку, подсвечивающуюся при <code>data-state=checked</code></td>
+        <td>Пропсы <code>Label</code>; <code>htmlFor</code> обязателен</td>
+        <td>Гасится вместе с выключенным полем через <code>group-data-[disabled=true]/field</code></td>
+        <td class="center">10</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldDescription</td>
+        <td>Подсказка под контролом</td>
+        <td><code>id</code> — чтобы вызывающий связал её через <code>aria-describedby</code></td>
+        <td>Ссылки внутри подчёркнуты и меняют цвет при наведении — не только цветом</td>
+        <td class="center">12</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldError</td>
+        <td>Сообщение об ошибке</td>
+        <td><code>children</code> (одно сообщение) <b>или</b> <code>errors</code>: массив <code>{ message?: string }</code>. Больше одного сообщения — рисуется <code>&lt;ul&gt;</code></td>
+        <td><code>role="alert"</code>. <b>Возвращает <code>null</code>, если говорить нечего</b>: <code>errors={[]}</code> и <code>errors={[{}, undefined]}</code> истинны как значения, и раньше открывали пустой live-регион, который ничего не произносил</td>
+        <td class="center">8</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldGroup</td>
+        <td>Вертикальный стек полей. Контейнер запросов <code>@container/field-group</code> — от него зависит вариант <code>responsive</code></td>
+        <td><code>className</code></td>
+        <td>Своей семантики не несёт; смысл группировки даёт <code>FieldSet</code></td>
+        <td class="center">6</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldSet · FieldLegend</td>
+        <td>Настоящие <code>&lt;fieldset&gt;</code> и <code>&lt;legend&gt;</code> для связанных флажков/радио</td>
+        <td><code>FieldLegend variant</code>: <code>legend</code> (крупнее) / <code>label</code></td>
+        <td>Родная семантика группировки — то, ради чего запрещено заменять их <code>div</code> с заголовком</td>
+        <td class="center">—</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldContent · FieldTitle · FieldSeparator</td>
+        <td>Колонка текста рядом с контролом; заголовок-строка без семантики метки; разделитель, умеющий нести подпись по центру</td>
+        <td><code>FieldSeparator</code> принимает <code>children</code> — текст на линии</td>
+        <td><code>FieldTitle</code> — намеренно не <code>&lt;label&gt;</code>: там, где подпись не относится к одному контролу</td>
+        <td class="center">1</td>
+      </tr>
+      <tr>
+        <td class="mono">InputGroup<br><span class="sub small">+ Addon, Button, Text, Input, Textarea</span></td>
+        <td>Поле со сросшимися элементами: иконка внутри, кнопка в углу, префикс/суффикс</td>
+        <td>Внутрь кладут <b>только</b> <code>InputGroupInput</code>/<code>InputGroupTextarea</code>, не голые <code>Input</code>/<code>Textarea</code></td>
+        <td><code>role="group"</code> на обёртке и на аддоне; состояние ошибки поднимается на всю группу через <code>has-[[aria-invalid=true]]</code></td>
+        <td class="center">9</td>
+      </tr>
+      <tr>
+        <td class="mono">Checkbox</td>
+        <td>Флажок на Radix</td>
+        <td>Пропсы Radix (<code>checked</code>, <code>onCheckedChange</code>, <code>disabled</code>)</td>
+        <td>Radix даёт <code>role="checkbox"</code>, <code>aria-checked</code>, работу пробелом. Метку связывает вызывающий</td>
+        <td class="center">17</td>
+      </tr>
+      <tr>
+        <td class="mono">RadioGroup · RadioGroupItem</td>
+        <td>Взаимоисключающий выбор</td>
+        <td><code>value</code>, <code>onValueChange</code>, <code>orientation</code></td>
+        <td>Radix: <code>radiogroup</code>, роверинг фокуса стрелками, один tab-стоп на всю группу</td>
+        <td class="center">7</td>
+      </tr>
+      <tr>
+        <td class="mono">Select<br><span class="sub small">+ Group, Value, Trigger, Content, Label, Item, Separator, ScrollUp/DownButton</span></td>
+        <td>Выпадающий одиночный выбор</td>
+        <td>Пропсы Radix; триггер реагирует на <code>aria-invalid</code>, контент ограничен <code>--radix-select-content-available-height</code></td>
+        <td>Radix даёт роли, типизацию с клавиатуры и возврат фокуса. Контент несёт <code>.ds-dropdown-motion</code>. Имя контролу даёт вызывающий (<code>FieldLabel</code> или <code>aria-label</code>)</td>
+        <td class="center">15</td>
+      </tr>
+      <tr>
+        <td class="mono">MultiSelect</td>
+        <td><b>Множественный выбор с поиском.</b> В shadcn такого компонента нет — собран из <code>Popover</code> + <code>Command</code> + <code>Badge</code></td>
+        <td><code>options</code>, <code>value</code>, <code>onChange</code>, <code>placeholder</code>, <code>searchPlaceholder</code>, <code>emptyText</code>, <code>id</code>, <code>invalid</code>, <code>disabled</code>, <code>aria-describedby</code>, <b><code>container</code></b></td>
+        <td>Триггер объявлен <code>role="combobox"</code> + <b><code>aria-haspopup="listbox"</code></b> (Radix по умолчанию говорит <code>dialog</code>, а открывается список). Выбранность едет на <code>aria-checked</code>, потому что <code>aria-selected</code> у cmdk занята подсветкой. Поиск ищет и по <code>label</code>, и по <code>value</code></td>
+        <td class="center">2</td>
+      </tr>
+      <tr>
+        <td class="mono">Calendar · CalendarDayButton</td>
+        <td>Календарная сетка на <code>react-day-picker</code> v10</td>
+        <td>Размер ячейки задаётся переменной <code>--cell-size</code></td>
+        <td>Навигация и разметка — от <code>react-day-picker</code>; выключенные дни через <code>aria-disabled</code></td>
+        <td class="center">—</td>
+      </tr>
+      <tr>
+        <td class="mono">DatePicker</td>
+        <td>Поле выбора даты: триггер с отформатированной датой открывает поповер с календарём</td>
+        <td><code>value: Date | undefined</code>, <code>onChange</code>, <code>placeholder</code>, <code>id</code>, <code>invalid</code>, <code>disabled</code>, <code>onBlur</code>, <code>aria-describedby</code></td>
+        <td>Поповер шириной с триггер, но не шире 300px. Без i18n: формат и подписи даёт вызывающий</td>
+        <td class="center">1</td>
+      </tr>
+      <tr>
+        <td class="mono">DateTimePicker</td>
+        <td>Одно поле на дату и время: поповер из двух секций — календарь и, под разделителем, поле времени</td>
+        <td>То же плюс <code>timeLabel</code></td>
+        <td><b>Секунды сохраняются, а не отбрасываются</b>: поле времени работает с <code>step="1"</code>, а круговой прогон через <code>HH:mm</code> раньше стирал введённое — и на следующем же рендере, и при каждой смене дня</td>
+        <td class="center">1</td>
+      </tr>
+      <tr>
+        <td class="mono">SegmentedControl<br><span class="sub small">+ Item, Count</span></td>
+        <td>Сегментированный переключатель — небольшой набор взаимоисключающих опций (например, И/ИЛИ в конструкторе фильтров)</td>
+        <td>Обёртка над Radix <code>ToggleGroup</code> с зафиксированным <code>type="single"</code>; <code>value</code>, <code>onValueChange</code>, <code>defaultValue</code></td>
+        <td>Radix даёт навигацию стрелками и семантику. <b>Активный сегмент помечен не только цветом</b>: заливка <code>primary</code> плюс переход <code>font-medium → font-semibold</code>. <code>Count</code> инвертирует фон, чтобы остаться читаемым на заливке</td>
+        <td class="center">8</td>
+      </tr>
+      <tr>
+        <td class="mono">SearchToolbar</td>
+        <td>Стандартная панель списочной страницы: поле поиска слева, кластер действий справа</td>
+        <td><code>value</code>, <code>onValueChange</code>, <code>searchLabel</code>, <code>searchPlaceholder</code>, <code>actions</code>, <code>busy</code>, <b><code>inputRef</code></b></td>
+        <td>Поле именуется <code>aria-label={searchLabel}</code>. <code>busy</code> подменяет лупу спиннером — <b>чисто визуально</b>, объявление о загрузке остаётся за списком. <code>inputRef</code> существует ради 2.4.3: кнопка «сбросить фильтры» живёт внутри пустого состояния, которое сама же и уничтожает, и без переноса фокуса он падал бы на <code>&lt;body&gt;</code></td>
+        <td class="center">3</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.2 Действия, статусы и обратная связь</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Компонент</th><th>Назначение</th><th>Ключевые пропсы / варианты</th><th>Доступность</th><th class="center">Активнее всего</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Button<br><span class="sub small">+ buttonVariants</span></td>
+        <td><b>Самый востребованный компонент библиотеки.</b> Настоящий <code>&lt;button&gt;</code>, либо любой элемент через <code>asChild</code></td>
+        <td><code>variant</code>: <code>default</code> (чернильная заливка) · <code>destructive</code> · <code>outline</code> · <code>secondary</code> · <code>ghost</code> · <code>link</code> (использует <code>brand-text</code> — оранжевый ссылочного уровня). <code>size</code>: <code>default</code> (h-9) · <code>sm</code> (h-8) · <code>lg</code> (h-10) · <code>icon</code> (9×9). <code>asChild</code></td>
+        <td>Родная кнопка: Enter/Пробел, tab-порядок, <code>disabled</code>. Фокус — <code>focus-visible:ring-2 ring-ring</code>. Иконки внутри автоматически <code>size-4</code> и <code>pointer-events-none</code>. <b>Собственного состояния «загрузка» нет</b> — его собирают из <code>Spinner</code> + <code>disabled</code></td>
+        <td class="center">146 <span class="sub small">(content ×26, users ×20, media ×19)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">Badge<br><span class="sub small">+ badgeVariants</span></td>
+        <td>Чип статуса или метки</td>
+        <td>Девять вариантов: <code>default</code> · <code>secondary</code> · <code>destructive</code> · <code>outline</code> + пять «мягких»: <code>success</code> · <code>warning</code> · <code>info</code> · <code>destructive-soft</code> · <code>primary-soft</code></td>
+        <td><code>gap-1</code> вынесен в базу намеренно: чип с иконкой встречается не реже текстового, и каждый, кто забывал добавить отступ, получал глиф, приклеенный к первой букве</td>
+        <td class="center">43</td>
+      </tr>
+      <tr>
+        <td class="mono">Alert · AlertTitle · AlertDescription</td>
+        <td>Баннер уровня страницы</td>
+        <td><code>variant</code>: <code>default</code> · <code>destructive</code> · <code>success</code> · <code>warning</code> · <code>info</code> (последние четыре — на мягких поверхностях, в тон вариантам <code>Badge</code>)</td>
+        <td><code>role="alert"</code>, имя даётся через <code>aria-labelledby</code> на <code>AlertTitle</code>. <b><code>AlertTitle</code> — это <code>&lt;div&gt;</code>, а не заголовок</b>: ранг заголовка зависит от того, где баннер смонтирован, а компонент этого знать не может; раньше жёстко стоял <code>&lt;h5&gt;</code>, и любой баннер под <code>&lt;h1&gt;</code> перепрыгивал четыре уровня. Атрибут пишется <b>только если заголовок реально смонтировался</b> — иначе это была бы ссылка в пустоту, то есть хуже безымянного баннера</td>
+        <td class="center">41</td>
+      </tr>
+      <tr>
+        <td class="mono">Toaster · toast</td>
+        <td>Хост уведомлений и функция их выпуска. <code>toast</code> реэкспортируется из <code>sonner</code> напрямую</td>
+        <td>Позиция зафиксирована — <b>нижний правый угол</b>, кнопка закрытия включена. Типизированные тосты (<code>toast.success/.error/.warning/.info</code>) едут на мягких семантических поверхностях</td>
+        <td>Живой регион sonner объявляет новые тосты. <b>Клик по телу тоста гасит именно этот тост</b>: в DOM sonner не выставляет id, а <code>toast.dismiss()</code> без аргумента убирает весь стек — поэтому обработчик находит собственную кнопку закрытия тоста и нажимает её. Клики по интерактивным детям (действие, отмена, ссылки) не перехватываются</td>
+        <td class="center">43</td>
+      </tr>
+      <tr>
+        <td class="mono">ConfirmDialog</td>
+        <td>Маленькое модальное подтверждение опасного действия</td>
+        <td><code>open</code>, <code>onOpenChange</code>, <code>title</code>, <code>description</code>, <code>confirmLabel</code>, <code>cancelLabel</code>, <code>confirmVariant</code>, <code>busy</code>, <b><code>onCloseAutoFocus</code></b>, <code>onConfirm</code></td>
+        <td>Пока <code>busy</code>, диалог не закрывается и обе кнопки выключены — двойная отправка невозможна. <code>onCloseAutoFocus</code> существует ради главного случая: подтверждённое <b>удаление</b> обычно уничтожает ту самую кнопку, которая диалог открыла, и восстановление фокуса целится в оторванный узел</td>
+        <td class="center">20</td>
+      </tr>
+      <tr>
+        <td class="mono">Spinner</td>
+        <td>Индикатор неопределённой загрузки</td>
+        <td>Пропсы <code>&lt;svg&gt;</code>; размер и цвет — через <code>className</code> и <code>currentColor</code></td>
+        <td><b>Декоративен по умолчанию (<code>aria-hidden</code>)</b> — осознанный разворот. Раньше нёс <code>role="status"</code> на самом <code>&lt;svg&gt;</code> без текста внутри: живой регион без содержимого не объявляет ничего, зато четыре спиннера на странице создавали четыре конкурирующих региона. Объявлять занятость должно то, у чего есть слова</td>
+        <td class="center">51</td>
+      </tr>
+      <tr>
+        <td class="mono">Skeleton</td>
+        <td>Один пульсирующий прямоугольник-заглушка</td>
+        <td>Форма — через <code>className</code></td>
+        <td>Текста не несёт, скринридером игнорируется. <b>Пульсация подавлена при <code>prefers-reduced-motion</code></b> — анимация, которая крутится столько, сколько идёт запрос, ровно то, чего просил не показывать чувствительный к движению пользователь</td>
+        <td class="center">34</td>
+      </tr>
+      <tr>
+        <td class="mono">SkeletonRegion</td>
+        <td>Объявляющая обёртка вокруг блока <code>Skeleton</code></td>
+        <td><code>label</code> (обязателен, <code>sr-only</code>), <code>heading</code> (необязательный <code>&lt;h1&gt;</code> для скелета <b>уровня маршрута</b>)</td>
+        <td>Один <code>role="status"</code> + <code>aria-busy</code>; заглушки внутри спрятаны <code>aria-hidden</code>. <b>Один регион на одну загружаемую поверхность</b>. Внутренняя обёртка использует <code>display: contents</code>, чтобы не сломать <code>space-y-*</code>/<code>grid</code> вызывающего. Раньше это существовало только как совет в JSDoc — и страница, уходящая в загрузку, не объявляла ничего</td>
+        <td class="center">3</td>
+      </tr>
+      <tr>
+        <td class="mono">Empty<br><span class="sub small">+ Header, Media, Title, Description, Content</span></td>
+        <td>Пустое состояние списка или страницы</td>
+        <td><code>EmptyMedia variant</code>: <code>default</code> / <code>icon</code> (плитка 40×40 с иконкой). <code>EmptyTitle asChild</code></td>
+        <td><code>EmptyTitle</code> по умолчанию <code>&lt;div&gt;</code>, потому что чаще всего пустое состояние живёт внутри страницы, у которой заголовок уже есть. Там, где пустое состояние <b>и есть</b> страница, — <code>asChild</code> и свой <code>&lt;h1&gt;</code></td>
+        <td class="center">17</td>
+      </tr>
+      <tr>
+        <td class="mono">Progress</td>
+        <td>Детерминированный индикатор</td>
+        <td><code>value</code> — 0…100</td>
+        <td>Radix даёт <code>role="progressbar"</code> и <code>aria-valuenow</code>. <b>Требует от вызова</b> <code>aria-label</code>/<code>aria-labelledby</code> с названием процесса и <code>aria-valuetext</code>, если голый процент читается плохо («3 из 5 файлов»)</td>
+        <td class="center">2</td>
+      </tr>
+      <tr>
+        <td class="mono">Tooltip<br><span class="sub small">+ Provider, Trigger, Content</span></td>
+        <td>Всплывающая подсказка</td>
+        <td><code>sideOffset</code> (по умолчанию 4); задержка задаётся один раз на <code>TooltipProvider</code></td>
+        <td>Radix: показ по наведению <b>и по фокусу</b>, закрытие по Escape. Подсказка не заменяет имя контрола</td>
+        <td class="center">8</td>
+      </tr>
+      <tr>
+        <td class="mono">Kbd</td>
+        <td>Чип клавиши (<code>↵</code>, <code>esc</code>, <code>⌘K</code>)</td>
+        <td>Настоящий <code>&lt;kbd&gt;</code>; <code>pointer-events-none</code></td>
+        <td>Стилизован под светлые поверхности — внутри тёмной боковой панели требует переопределения на <code>sidebar-*</code> токены</td>
+        <td class="center">3</td>
+      </tr>
+      <tr>
+        <td class="mono">Separator</td>
+        <td>Разделитель</td>
+        <td><code>orientation</code>, <code>decorative</code> (по умолчанию <code>true</code>)</td>
+        <td><code>decorative</code> убирает элемент из дерева доступности — правильное поведение для чисто визуальной линии; смысловой разделитель передаёт <code>decorative={false}</code></td>
+        <td class="center">7</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.3 Оверлеи</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Компонент</th><th>Назначение</th><th>Ключевые пропсы / варианты</th><th>Доступность</th><th class="center">Активнее всего</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Dialog<br><span class="sub small">+ Portal, Overlay, Trigger, Close, Content, Header, Footer, Title, Description</span></td>
+        <td>Модальное окно</td>
+        <td><code>DialogContent</code> добавляет к пропсам Radix единственный собственный — <b><code>closeLabel</code></b></td>
+        <td>Radix: ловушка фокуса, возврат фокуса на триггер, Escape, <code>aria-labelledby</code>/<code>aria-describedby</code> из <code>Title</code>/<code>Description</code>. <code>DialogTitle</code> обязателен (можно <code>sr-only</code>). Имя крестика по умолчанию берётся из <code>DesignSystemLabelsProvider</code>, а не из английского литерала на месте</td>
+        <td class="center">23</td>
+      </tr>
+      <tr>
+        <td class="mono">Sheet<br><span class="sub small">+ Portal, Overlay, Trigger, Close, Content, Header, Footer, Title, Description</span></td>
+        <td>Выезжающая панель на Radix Dialog</td>
+        <td><code>side</code>: <code>right</code> (по умолчанию) / <code>left</code> / <code>top</code> / <code>bottom</code>; <code>closeLabel</code></td>
+        <td>Та же машинерия, что у <code>Dialog</code>. Используется и внутри <code>Sidebar</code> как мобильный вариант панели</td>
+        <td class="center">1 <span class="sub small">(copilot)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">Drawer<br><span class="sub small">+ Portal, Overlay, Trigger, Close, Content, Header, Footer, Title, Description</span></td>
+        <td>Ящик с жестом перетаскивания, на <code>vaul</code></td>
+        <td>Пропсы vaul (<code>direction</code>, <code>shouldScaleBackground</code>)</td>
+        <td>Свой захват фокуса от vaul. Используется для фильтров на узком экране и медиа-панели</td>
+        <td class="center">3</td>
+      </tr>
+      <tr>
+        <td class="mono">Popover<br><span class="sub small">+ Trigger, Content, Anchor</span></td>
+        <td>Немодальный плавающий слой</td>
+        <td>Пропсы Radix + собственный <b><code>container</code></b>: куда портировать содержимое</td>
+        <td><code>container</code> — не косметика: <code>react-remove-scroll</code> разрешает прокрутку только внутри поддерева блокирующего предка, и поповер, портированный в <code>document.body</code> изнутри диалога, перестаёт прокручиваться колесом мыши. Несёт <code>.ds-dropdown-motion</code></td>
+        <td class="center">12</td>
+      </tr>
+      <tr>
+        <td class="mono">DropdownMenu<br><span class="sub small">+ Trigger, Content, Item, CheckboxItem, RadioItem, RadioGroup, Label, Separator, Shortcut, Group, Portal, Sub, SubTrigger, SubContent</span></td>
+        <td>Контекстное меню — 15 экспортов, самое полное семейство после <code>Sidebar</code></td>
+        <td>Пропсы Radix; вложенные меню через <code>Sub*</code></td>
+        <td>Radix: <code>role="menu"</code>, роверинг фокуса, типизация по первой букве, Escape, возврат фокуса. Триггер-кебаб в строке таблицы <b>требует от вызова</b> имени с привязкой к строке («Действия для {имя}»)</td>
+        <td class="center">20 <span class="sub small">(wysiwyg — единственный, кто берёт Sub* и RadioGroup)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">Command<br><span class="sub small">+ Dialog, Input, List, Empty, Group, Item, Separator, Shortcut</span></td>
+        <td>Командная палитра на <code>cmdk</code>; она же — движок поиска внутри <code>MultiSelect</code></td>
+        <td><code>CommandDialog</code> принимает <code>title</code> и <code>description</code> — по умолчанию английские «Command palette» / «Search for a command to run.»</td>
+        <td><code>CommandDialog</code> всегда рисует <code>DialogTitle</code>+<code>DialogDescription</code> внутри <code>sr-only</code>-шапки — это то, без чего Radix ругается и диалог остаётся безымянным</td>
+        <td class="center">4</td>
+      </tr>
+      <tr>
+        <td class="mono">Collapsible<br><span class="sub small">+ Trigger, Content</span></td>
+        <td>Раскрывающийся блок</td>
+        <td>Реэкспорт примитивов Radix без надстройки</td>
+        <td>Radix: <code>aria-expanded</code>, <code>aria-controls</code></td>
+        <td class="center">7</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.4 Каркас страницы и навигация</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Компонент</th><th>Назначение</th><th>Ключевые пропсы / варианты</th><th>Доступность</th><th class="center">Активнее всего</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Sidebar<br><span class="sub small">+ Provider, Content, Header, Footer, Separator, Input, Rail, Trigger, Group, GroupLabel, GroupAction, GroupContent, Menu, MenuItem, MenuButton, MenuAction, MenuBadge, MenuSkeleton, MenuSub, MenuSubItem, MenuSubButton, Inset, useSidebar, useOptionalSidebar</span></td>
+        <td><b>Крупнейший компонент библиотеки — 1043 строки, 24 экспорта.</b> Левая панель приложения: на десктопе фиксированная колонка, на мобильном — <code>Sheet</code></td>
+        <td><code>side</code>: left/right · <code>variant</code>: sidebar/floating/inset · <code>collapsible</code>: offcanvas/icon/none. Плюс четыре строковых пропса под локализацию: <code>mobileTitle</code>, <code>mobileDescription</code>, <b><code>label</code></b>, и <code>label</code> у <code>Trigger</code>/<code>Rail</code></td>
+        <td>Свёрнутая в режиме <code>offcanvas</code> панель остаётся в DOM (она просто сдвинута за край) и помечается <b><code>inert</code></b> — её контролы уходят из порядка табуляции и из дерева доступности. <code>label</code> делает панель ориентиром <code>complementary</code>: без него всё, что не внутри собственного <code>&lt;nav&gt;</code> потребителя, оказывается вне любого ориентира. Именно <code>complementary</code>, а не <code>navigation</code>, — второй навигационный ориентир вокруг настоящего <code>&lt;nav&gt;</code> утверждал бы, что вся панель состоит из ссылок</td>
+        <td class="center">shell/admin — единственный полный потребитель; <code>SidebarMenu*</code> берут ещё workspaces и users</td>
+      </tr>
+      <tr>
+        <td class="mono">SidebarProvider</td>
+        <td>Состояние панели: открыта/свёрнута, мобильный лист, горячая клавиша</td>
+        <td>Состояние сохраняется в cookie <code>sidebar_state</code> (7 дней, <code>SameSite=Lax</code>); чтение и запись обёрнуты в <code>try/catch</code> — в песочном iframe без <code>allow-same-origin</code> доступ к <code>document.cookie</code> бросает</td>
+        <td><b>Горячая клавиша <code>Ctrl/⌘+B</code> уступает полю ввода.</b> Функция <code>ownsBoldShortcut</code> распознаёт текстовые поля, <code>textarea</code>, <code>select</code> и всё внутри <code>contenteditable</code> — раньше сочетание перехватывалось на каждом нажатии, дошедшем до окна, и в теле статьи <code>Ctrl+B</code> сворачивал панель <em>и</em> не делал текст жирным</td>
+        <td class="center">shell/admin</td>
+      </tr>
+      <tr>
+        <td class="mono">SidebarInset</td>
+        <td>Основная область справа от панели, <b>разделённая на фиксированную полосу и область прокрутки</b></td>
+        <td><b><code>scrollLabel</code></b> — имя для tab-стопа области прокрутки</td>
+        <td>Корень — настоящий <code>&lt;main&gt;</code>. Область прокрутки несёт <code>tabIndex={0}</code>: прокручиваемый регион обязан быть достижим с клавиатуры (2.1.1), и это важнее всего именно тогда, когда на странице ещё нечего фокусировать — пока грузятся скелеты. Кольцо фокуса <code>ring-inset</code>, потому что родитель обрезает переполнение и внешнее кольцо было бы нарисовано за пределами своего же бокса. Роль — <code>group</code>, не <code>region</code>: имя не должно добавлять второй ориентир рядом с <code>&lt;main&gt;</code>. И роль, и имя ставятся <b>только вместе</b></td>
+        <td class="center">shell/admin</td>
+      </tr>
+      <tr>
+        <td class="mono">TopBar · TopBarIcon · TopBarActions</td>
+        <td>Тонкая полоса контекста страницы: цветная плитка иконки, хлебные крошки, действия справа</td>
+        <td>Обычные пропсы <code>&lt;div&gt;</code>. <code>TopBarActions</code> ставится <b>последним</b> ребёнком — <code>ml-auto</code> и есть то, что отделяет его от крошек</td>
+        <td>Внутри <code>SidebarInset</code> панель <b>сама выносит себя порталом</b> в фиксированную полосу, и потому полоса прокрутки начинается под ней, а не идёт во всю высоту рядом. Портал сохраняет React-контекст страницы — именно это позволяет области действий работать изнутри. Пока хост полосы не смонтирован (<code>null</code>), панель придерживается, чтобы не мигнуть в потоке страницы и не переехать. <code>TopBarIcon</code> — <code>aria-hidden</code>, контекст несут крошки. Когда панель скрыта, в полосу встраивается <code>SidebarTrigger</code></td>
+        <td class="center">9 <span class="sub small">(TopBarActions — 3)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">Breadcrumb<br><span class="sub small">+ List, Item, Link, Page, Separator, Ellipsis</span></td>
+        <td>Хлебные крошки</td>
+        <td><code>BreadcrumbLink asChild</code> — под роутерную ссылку</td>
+        <td>Настоящий <code>&lt;nav aria-label="breadcrumb"&gt;</code> и <code>&lt;ol&gt;</code>; текущая страница — <code>aria-current="page"</code>; разделитель и многоточие — <code>role="presentation"</code> + <code>aria-hidden</code></td>
+        <td class="center">10</td>
+      </tr>
+      <tr>
+        <td class="mono">TabNav · TabNavLink</td>
+        <td>Вкладки, <b>привязанные к маршрутам</b>: визуально идентичны <code>TabsList</code>, но это <code>&lt;nav&gt;</code> из ссылок</td>
+        <td><code>TabNavLink asChild</code> — передают роутерный <code>NavLink</code></td>
+        <td>Активность едет на <code>aria-current="page"</code>, который <code>NavLink</code> ставит сам, и подчёркивание завязано именно на него. <code>aria-label</code> обязателен от вызова</td>
+        <td class="center">2</td>
+      </tr>
+      <tr>
+        <td class="mono">Tabs<br><span class="sub small">+ List, Trigger, Content</span></td>
+        <td>Вкладки, где активная панель — состояние компонента, а не маршрут</td>
+        <td>Пропсы Radix</td>
+        <td>Radix: <code>tablist</code>/<code>tab</code>/<code>tabpanel</code>, стрелки. <code>TabsTrigger</code> обязан лежать внутри <code>TabsList</code></td>
+        <td class="center">1</td>
+      </tr>
+      <tr>
+        <td class="mono">Pagination<br><span class="sub small">+ Content, Item, Link, Previous, Next, Ellipsis</span></td>
+        <td>Постраничная навигация</td>
+        <td><code>PaginationPrevious</code>/<code>Next</code> принимают <code>label</code> (видимая подпись) и <code>aria-label</code>; по умолчанию английские «Previous»/«Next» и «Go to previous/next page»</td>
+        <td><code>&lt;nav role="navigation"&gt;</code> и <code>&lt;ul&gt;</code>; многоточие — <code>aria-hidden</code>. Активную страницу помечает <code>aria-current="page"</code> вызывающий</td>
+        <td class="center">5</td>
+      </tr>
+      <tr>
+        <td class="mono">Container · ContainerHeader</td>
+        <td>Обёртка тела страницы (центрирование, максимум 6xl, отступы) и шапка страницы</td>
+        <td><code>ContainerHeader</code>: <code>title</code>, <code>subtitle</code>, <code>actions</code>, <code>titleClassName</code></td>
+        <td><b><code>title</code> рендерится как <code>&lt;h1&gt;</code></b> — это канонический способ дать странице единственный заголовок. Кластер действий <code>flex-wrap</code>: шапка с тремя кнопками на узком экране раньше уезжала за правый край вместо переноса на вторую строку</td>
+        <td class="center">34 / 14</td>
+      </tr>
+      <tr>
+        <td class="mono">Card<br><span class="sub small">+ Header, Footer, Title, Description, Content</span></td>
+        <td>Карточка-поверхность</td>
+        <td><code>CardTitle asChild</code> — чтобы на экранах входа заголовок карточки был настоящим <code>&lt;h1&gt;</code></td>
+        <td>Заголовок по умолчанию <code>&lt;div&gt;</code> по той же причине, что и у <code>Alert</code>/<code>Empty</code>: ранг решает страница</td>
+        <td class="center">36</td>
+      </tr>
+      <tr>
+        <td class="mono">Table<br><span class="sub small">+ Header, Body, Footer, Head, Row, Cell, Caption</span></td>
+        <td>Таблица данных</td>
+        <td><code>TableHead scope</code> — по умолчанию <code>col</code>, переопределяемо для заголовка строки</td>
+        <td><b>Обёртка становится клавиатурной областью прокрутки только тогда, когда содержимое реально переполняет её.</b> Хук <code>useOverflows</code> следит за тремя источниками — <code>ResizeObserver</code> на обёртке, <code>ResizeObserver</code> на самой таблице (она растёт при показе колонки, а обёртка <code>w-full</code> при этом не двигается) и <code>resize</code> окна. Пока переполнения нет, лишнего tab-стопа во всех девяти таблицах админки не появляется. Стоп сопровождается <code>ring-inset</code> и ролью <code>group</code> — <code>region</code> добавил бы второй ориентир рядом с <code>&lt;main&gt;</code>. <code>scope="col"</code> по умолчанию: браузер угадывает связь по позиции, и это верно ровно до первого <code>colspan</code> или заголовка строки</td>
+        <td class="center">11</td>
+      </tr>
+      <tr>
+        <td class="mono">StatTile</td>
+        <td>Компактная плитка метрики: крупное значение над приглушённой подписью</td>
+        <td><code>label</code>, <code>value</code>, <code>icon</code> (компонент, не строка), <code>className</code></td>
+        <td>Значение набрано <code>tabular-nums</code> — колонка цифр не дёргается</td>
+        <td class="center">1</td>
+      </tr>
+      <tr>
+        <td class="mono">Avatar<br><span class="sub small">+ Image, Fallback, AVATAR_COLORS, avatarColorVar</span></td>
+        <td>Аватар с запасным вариантом на инициалах</td>
+        <td><code>AVATAR_COLORS</code> — семь ключей акцента; <code>avatarColorVar(color)</code> отдаёт <code>var(--color-avatar-…)</code> для инлайнового стиля</td>
+        <td><code>AvatarFallback</code> обязателен — на случай, если картинка не загрузилась. Белые инициалы на каждом из семи оттенков дают ≥ 5.7:1</td>
+        <td class="center">6 <span class="sub small">(+5 avatarColorVar, +4 AVATAR_COLORS)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">Logo</td>
+        <td>Знак Ortha CMS: шестиугольник в плитке плюс подпись</td>
+        <td><code>size</code>: <code>sm</code> (6×6) / <code>lg</code> (14×14); <code>showLabel</code> (по умолчанию <code>true</code>)</td>
+        <td>Иконка <code>aria-hidden</code>. При <code>showLabel={false}</code> подпись не исчезает, а уходит в <code>sr-only</code> — знак остаётся именованным</td>
+        <td class="center">3</td>
+      </tr>
+      <tr>
+        <td class="mono">AppLoader</td>
+        <td>Фирменный полноэкранный загрузчик: крупный знак, спиннер, строка статуса. Для «корневой» загрузки — старт приложения и проба авторизации, когда хромировки страницы ещё нет</td>
+        <td><code>label</code> (по умолчанию <code>'Loading…'</code>), <code>heading</code> (по умолчанию = <code>label</code>)</td>
+        <td>Корень — <b><code>&lt;main&gt;</code></b>, потому что пока экран показан, он и есть весь документ, и без него каждый узел страницы оказывался вне ориентиров. <code>role="status"</code> сидит на внутреннем блоке, а не на корне: на корне он перебил бы роль <code>main</code> и вернул проблему. Скрытый <code>&lt;h1&gt;</code> есть всегда — это состояние, в котором медленное соединение стоит дольше всего, и его чаще всего пытаются пройти по заголовкам</td>
+        <td class="center">1 <span class="sub small">(identity)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">WizardPageSkeleton</td>
+        <td>Полностраничная заглушка каркаса мастера создания — ссылка назад, шапка, липкая колонка шагов, карточка шага</td>
+        <td><code>label</code>, <code>steps</code> (3), <code>fields</code> (4)</td>
+        <td>Весь блок — один <code>role="status"</code>, содержимое <code>aria-hidden</code>. Держит раскладку неподвижной, пока грузится чанк ленивого маршрута</td>
+        <td class="center">2</td>
+      </tr>
+      <tr>
+        <td class="mono">Stepper</td>
+        <td>Вертикальная лента прогресса мастера: нумерованный маркер, соединитель, подпись, подсказка, значок «необязательно», чип-сводка введённого</td>
+        <td><code>current</code>, <code>maxReached</code>, <code>steps: StepperStep[]</code>, <code>onStepClick</code>, <code>optionalLabel</code>, <b><code>stepAriaLabel(step, n)</code></b></td>
+        <td>Маркер — настоящая <code>&lt;button&gt;</code>; пройденные шаги кликабельны, будущие <code>disabled</code>. Активный помечен <code>aria-current="step"</code>. Имя маркера обязано прийти от вызова — иконка сама по себе ничего не говорит. Ключ элемента списка — <b>позиция, а не подпись</b>: подпись это копирайт потребителя, и два шага могут законно её разделить</td>
+        <td class="center">2</td>
+      </tr>
+      <tr>
+        <td class="mono">WizardStepCard · WizardFooter</td>
+        <td>Карточка шага с анимацией входа и контекстный подвал (назад / подсказка слева, пропустить + основное действие справа)</td>
+        <td><code>WizardFooter</code>: <code>hint</code>, <code>onBack</code>, <code>backLabel</code>, <code>onSkip</code>, <code>skipLabel</code>, <code>primary</code></td>
+        <td>Карточке дают <code>key={step}</code>, чтобы перемонтировать и переиграть анимацию. Анимация только трансформацией — контент никогда не скрыт; при <code>prefers-reduced-motion</code> выключается. Ни копирайта, ни i18n внутри нет</td>
+        <td class="center">3 / 2</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.5 Утилиты, контексты и хуки</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Экспорт</th><th>Назначение</th><th>Контракт</th><th class="center">Активнее всего</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">cn</td>
+        <td><b>Утилита, на которой едет пропс <code>className</code> каждого компонента.</b> Семь строк: <code>twMerge(clsx(inputs))</code></td>
+        <td><code>clsx</code> раскладывает вложенные массивы, объекты и отбрасывает ложные значения; <code>tailwind-merge</code> разрешает конфликт в пользу <b>последнего</b> класса. Практическое следствие: <code>cn('px-4','px-8')</code> = <code>'px-8'</code>, поэтому <code>className</code> вызывающего всегда побеждает базовые классы компонента — так и держится возможность точечного исключения. Без аргументов возвращает пустую строку</td>
+        <td class="center">85</td>
+      </tr>
+      <tr>
+        <td class="mono">AppearanceProvider<br>useAppearance<br>DEFAULT_THEME · THEME_STORAGE_KEY</td>
+        <td>Тема приложения</td>
+        <td><code>{ theme, resolvedTheme, setTheme }</code>. <code>theme</code> — выбор (<code>light</code>/<code>dark</code>/<code>system</code>), <code>resolvedTheme</code> — что применено. Ключ хранилища — <code>'ortha.theme'</code>, значение по умолчанию — <code>'system'</code>. Хук вне провайдера отдаёт умолчания и no-op-сеттер</td>
+        <td class="center">provider — bootstrap; хук — users (экран настроек)</td>
+      </tr>
+      <tr>
+        <td class="mono">DesignSystemLabelsProvider<br>useDesignSystemLabels</td>
+        <td>Единственный шов локализации собственной «фурнитуры» библиотеки</td>
+        <td>Сегодня в типе <code>DesignSystemLabels</code> <b>один ключ</b>: <code>close</code>. Провайдер принимает <code>Partial</code> и мержит поверх английских умолчаний — добавление ключа не ломает потребителя, который о нём не слышал. Пропс на месте вызова (<code>closeLabel</code>) по-прежнему выигрывает</td>
+        <td class="center">bootstrap/admin</td>
+      </tr>
+      <tr>
+        <td class="mono">useIsMobile</td>
+        <td>Единственная точка перелома вёрстки, на которую смотрит хромировка: <b>768px</b> (сама 768 — уже десктоп)</td>
+        <td>Читается <b>во время рендера</b> компонентом <code>Sidebar</code>, который на основании ответа монтирует либо десктопную панель, либо <code>Sheet</code>, — поэтому значение обязано быть верным на <b>первом</b> кадре. Раньше хук стартовал с <code>undefined</code> и дозаполнялся из эффекта, и телефон получал один кадр десктопной раскладки. Вне браузера (SSR, голый jsdom) отвечает «не мобильный», а не падает</td>
+        <td class="center">2 <span class="sub small">(shell)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">useSidebar · useOptionalSidebar</td>
+        <td>Состояние боковой панели</td>
+        <td><code>useSidebar</code> вне <code>SidebarProvider</code> <b>бросает</b>; <code>useOptionalSidebar</code> отдаёт <code>null</code> — для компонентов, которые подстраиваются под панель, но не требуют её (именно так работает встроенный триггер в <code>TopBar</code> на публичных страницах)</td>
+        <td class="center">shell/admin</td>
+      </tr>
+      <tr>
+        <td class="mono">buttonVariants · badgeVariants</td>
+        <td>Генераторы классов CVA, экспортированные отдельно от компонентов</td>
+        <td>Нужны там, где элемент обязан быть не <code>&lt;button&gt;</code>, а, например, роутерной ссылкой, но обязан выглядеть кнопкой. Используются <code>content/admin</code> (×3) и внутренне — <code>PaginationLink</code></td>
+        <td class="center">3</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="handmade">
+  <h2 class="sec"><span class="num">05</span>Примитивы, написанные вручную</h2>
+
+  <p>Не всё в <code>src/lib/components/ui/</code> приехало из CLI. Часть файлов написана в этом репозитории с нуля — либо потому, что в реестре shadcn такого компонента нет вовсе, либо потому, что нужен продуктовый примитив, а не общий. Различать их важно: обновление из upstream <b>не должно их трогать</b>, а на любую правку в них некому подсказать «а как в shadcn».</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th>Почему написан руками</th><th>Что было бы, если бы его не было</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">top-bar.tsx</td><td>Продуктовая полоса контекста страницы в духе incident.io. Аналога в реестре нет</td><td>Каждый плагин рисовал бы свою шапку; и никто бы не догадался выносить её порталом из области прокрутки</td></tr>
+      <tr><td class="mono">app-loader.tsx</td><td>Фирменный загрузчик корня, из <code>Logo</code> + <code>Spinner</code></td><td>Экран загрузки без <code>&lt;main&gt;</code> и без <code>&lt;h1&gt;</code> — состояние, в котором пользователь медленного канала проводит больше всего времени</td></tr>
+      <tr><td class="mono">logo.tsx</td><td>Знак продукта. По определению не может прийти из чужого реестра</td><td>—</td></tr>
+      <tr><td class="mono">input-field.tsx</td><td>Составное поле формы. shadcn даёт кирпичи (<code>Field</code>, <code>Input</code>), но не готовую сборку</td><td>Каждая форма вручную сводила бы <code>htmlFor</code>, <code>aria-invalid</code> и <code>aria-describedby</code> — и части бы забыли</td></tr>
+      <tr><td class="mono">confirm-dialog.tsx</td><td>Продуктовый сценарий «подтвердить опасное действие», собранный поверх <code>Dialog</code></td><td>Двадцать мест вызова со своей вёрсткой подтверждения и своим (или отсутствующим) блокированием двойной отправки</td></tr>
+      <tr><td class="mono">multi-select.tsx</td><td><b>В shadcn нет множественного выбора.</b> Собран из <code>Popover</code>+<code>Command</code>+<code>Badge</code></td><td>Либо чужая зависимость, либо самодельный список без <code>aria-checked</code></td></tr>
+      <tr><td class="mono">date-picker.tsx</td><td>Обёртка над <code>Calendar</code>: поле даты и поле «дата+время»</td><td>Каждый плагин собирал бы поповер с календарём заново — и терял бы секунды на круге <code>HH:mm</code></td></tr>
+      <tr><td class="mono">segmented-control.tsx</td><td>Продуктовый вид переключателя поверх Radix <code>ToggleGroup</code></td><td>Цикл по <code>Button</code> с ручным активным состоянием — ровно то, что запрещает правило shadcn-скилла</td></tr>
+      <tr><td class="mono">search-toolbar.tsx</td><td>Стандартная панель списочной страницы</td><td>Поиск и фильтры лежали бы в разных местах на разных страницах</td></tr>
+      <tr><td class="mono">stat-tile.tsx</td><td>Плитка метрики поверх <code>Card</code></td><td>—</td></tr>
+      <tr><td class="mono">container.tsx</td><td>Обёртка тела страницы и шапка с <code>&lt;h1&gt;</code></td><td>Заголовок страницы был бы у каждого свой, и правило «один <code>&lt;h1&gt;</code> на страницу» держалось бы на дисциплине</td></tr>
+      <tr><td class="mono">tab-nav.tsx</td><td>Вкладки на ссылках. У shadcn есть только <code>Tabs</code> на состоянии</td><td>Роутерные вкладки рисовали бы как <code>Tabs</code> — то есть как <code>tablist</code>, которым они не являются</td></tr>
+      <tr><td class="mono">wizard.tsx</td><td>Общая хромировка многошагового мастера: <code>Stepper</code>, <code>WizardStepCard</code>, <code>WizardFooter</code></td><td>Мастер создания воркспейса и мастер приглашения участника разошлись бы визуально</td></tr>
+      <tr><td class="mono">wizard-page-skeleton.tsx</td><td>Заглушка ровно под раскладку мастера (<code>max-w-[920px]</code>, <code>lg:grid-cols-[244px_1fr]</code>)</td><td>Прыжок раскладки при подгрузке чанка</td></tr>
+      <tr><td class="mono">sonner.tsx</td><td>Формально CLI-компонент, но переписан почти целиком: тема из <code>useAppearance</code>, мягкие семантические поверхности для типизированных тостов, обработчик «нажал на тост — погас этот тост»</td><td>Нажатие на тост гасило бы <b>весь стек</b>, включая непрочитанное</td></tr>
+      <tr><td class="mono">labels/index.tsx · appearance/index.tsx · hooks/use-mobile.tsx</td><td>Контекст локализации фурнитуры, контекст темы, единственная точка перелома. Инфраструктура, не компоненты</td><td>Английский крестик в немецкой сессии; вспышка чужой темы при загрузке; кадр десктопной раскладки на телефоне</td></tr>
+      <tr><td class="mono">utils.ts</td><td><code>cn</code>. Это CLI-файл, но он — фундамент всего остального</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Компоненты из CLI, переписанные под продукт</h3>
+  <p>Отдельная категория: файл пришёл из shadcn, но его поведение уже наше. Это самые опасные места при обновлении из upstream — там правки легко потерять.</p>
+  <ul>
+    <li><b><code>alert.tsx</code></b> — заголовок перестал быть <code>&lt;h5&gt;</code>, добавлен контекст <code>AlertTitleContext</code>, чтобы <code>aria-labelledby</code> писался только при реально смонтированном заголовке.</li>
+    <li><b><code>spinner.tsx</code></b> — <code>role="status"</code> снят, компонент объявлен декоративным.</li>
+    <li><b><code>skeleton.tsx</code></b> — добавлен <code>SkeletonRegion</code>, которого в upstream нет вовсе, и подавление пульсации при <code>prefers-reduced-motion</code>.</li>
+    <li><b><code>table.tsx</code></b> — добавлены хук <code>useOverflows</code>, условный tab-стоп, роль <code>group</code>, <code>scope="col"</code> по умолчанию.</li>
+    <li><b><code>sidebar.tsx</code></b> — <code>useOptionalSidebar</code>, <code>InsetTopBarContext</code>, разделение <code>SidebarInset</code> на полосу и скроллпорт, <code>inert</code> у свёрнутой панели, уступка <code>Ctrl/⌘+B</code> текстовым полям, четыре пропса под локализацию.</li>
+    <li><b><code>dialog.tsx</code> / <code>sheet.tsx</code></b> — пропс <code>closeLabel</code> с умолчанием из контекста меток.</li>
+    <li><b><code>popover.tsx</code></b> — пропс <code>container</code> для портирования внутрь блокирующего прокрутку предка.</li>
+    <li><b><code>badge.tsx</code> / <code>button.tsx</code></b> — расширенные наборы вариантов (пять «мягких» у чипа, <code>brand-text</code> у ссылочной кнопки), <code>gap-1</code> в базе чипа.</li>
+    <li><b><code>empty.tsx</code> / <code>card.tsx</code></b> — <code>asChild</code> у заголовка, чтобы страница сама решала ранг.</li>
+    <li><b><code>pagination.tsx</code></b> — пропс <code>label</code> у кнопок «назад»/«вперёд» рядом с <code>aria-label</code>.</li>
+  </ul>
+</section>
+
+<section id="rules">
+  <h2 class="sec"><span class="num">06</span>Правила и конвенции авторов</h2>
+
+  <div class="note crit">
+    <span class="label">Два правила, применимых к каждому компоненту</span>
+    <p><b>1. Относительные импорты, а не <code>@/</code>.</b> Dev-сервер Vite приложения-потребителя не резолвит библиотечный алиас <code>@/*</code>, когда админка ест исходники дизайн-системы, — и падает на <code>Failed to resolve import "@/lib/utils"</code>. Из файла в <code>src/lib/components/ui/</code> это значит <code>import { cn } from '../../utils'</code>, соседний компонент — <code>'./&lt;x&gt;'</code>, хук — <code>'../../hooks/&lt;x&gt;'</code>. CLI shadcn генерирует именно <code>@/</code>-импорты, поэтому переписывать их нужно <b>каждый раз</b>. Проверено по коду: все 48 файлов используют относительные пути, ни одного <code>@/</code>-импорта в <code>src/</code> нет.<br>
+    <b>2. Экспорт из <code>src/index.ts</code>.</b> Это единственная публичная поверхность пакета. Компонент, не попавший в бочку, для потребителей не существует — <code>package.json</code> не отдаёт никаких подпутей, кроме <code>./styles.css</code> и <code>./package.json</code>. Правило распространяется и на типы (<code>ButtonProps</code>, <code>MultiSelectOption</code>, <code>StepperStep</code> и т.д.).</p>
+    <p>Оба правила действуют одинаково и на компонент, добавленный CLI, и на написанный руками.</p>
+  </div>
+
+  <h3>Раскладка файлов</h3>
+  <ul>
+    <li><b>UI-компоненты</b> → <code>src/lib/components/ui/</code>, имя файла в kebab-case (<code>input-field.tsx</code>), экспортируемые символы — в PascalCase.</li>
+    <li><b>Утилиты</b> → <code>src/lib/</code>; <b>хуки</b> → <code>src/lib/hooks/</code>.</li>
+    <li><b>Токены темы</b> — в <code>apps/admin/src/styles.css</code>, не в пакете.</li>
+    <li><b>Глобальные правила</b>, которые нельзя выразить утилитой Tailwind, — в <code>src/styles.css</code>; хост импортирует его один раз, после <code>@import 'tailwindcss'</code>.</li>
+    <li><b>Тесты</b> — рядом с компонентом, <code>&lt;component&gt;.spec.tsx</code>.</li>
+  </ul>
+
+  <h3>Конвенции TypeScript</h3>
+  <ul>
+    <li><code>type</code> вместо <code>interface</code>. <span class="sub small">(В коде есть исключения — см. раздел 13.)</span></li>
+    <li>JSDoc на каждом экспортируемом символе. Это и есть документация библиотеки: витрины нет.</li>
+    <li><code>import type</code> для импортов только типов.</li>
+    <li>Никаких расширений <code>.js</code> в импортах.</li>
+    <li>Prettier: отступ 4 пробела, одинарные кавычки (правило всего репозитория).</li>
+  </ul>
+
+  <h3>Правила стиля, которыми управляется работа с компонентами</h3>
+  <p>Их держит скилл <code>shadcn</code> — они применяются и внутри библиотеки, и в любом плагине, который её потребляет:</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Стилизация</h4>
+      <p class="small sub"><code>className</code> — для раскладки, не для перекраски. Никаких <code>space-x-*</code>/<code>space-y-*</code> — только <code>flex</code> + <code>gap-*</code>. <code>size-*</code>, когда ширина равна высоте. <code>truncate</code> вместо трёх утилит. <b>Никаких ручных <code>dark:</code>-переопределений цвета</b> — для этого есть семантические токены. Условные классы — через <code>cn()</code>, а не через шаблонные строки. Никакого ручного <code>z-index</code> на оверлеях — они управляют своим наложением сами.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Формы</h4>
+      <p class="small sub">Форма — это <code>FieldGroup</code> + <code>Field</code>, а не <code>div</code> с вертикальными отступами. Внутри <code>InputGroup</code> — только <code>InputGroupInput</code>/<code>InputGroupTextarea</code>. Набор из 2–7 вариантов — <code>ToggleGroup</code>, а не цикл по кнопкам с ручным активным состоянием. Связанные флажки/радио — <code>FieldSet</code> + <code>FieldLegend</code>. Валидность: <code>data-invalid</code> на <code>Field</code>, <code>aria-invalid</code> на контроле.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Композиция</h4>
+      <p class="small sub">Элемент всегда внутри своей группы (<code>SelectItem</code> → <code>SelectGroup</code>, <code>CommandItem</code> → <code>CommandGroup</code>). Свой триггер — через <code>asChild</code>. <code>Dialog</code>, <code>Sheet</code> и <code>Drawer</code> <b>всегда</b> требуют <code>Title</code> (можно <code>sr-only</code>). Карточка используется полным составом. У <code>Button</code> нет <code>isLoading</code> — состояние собирают из <code>Spinner</code> + <code>disabled</code>. <code>Avatar</code> всегда с <code>AvatarFallback</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Сначала компонент, потом разметка</h4>
+      <p class="small sub">Выноска — это <code>Alert</code>, а не стилизованный <code>div</code>. Пустое состояние — <code>Empty</code>. Уведомление — <code>toast()</code>. Разделитель — <code>Separator</code>, а не <code>&lt;hr&gt;</code>. Заглушка — <code>Skeleton</code>, а не собственный <code>animate-pulse</code>. Метка — <code>Badge</code>, а не покрашенный <code>span</code>.</p>
+    </div>
+  </div>
+  <p class="sub small">CLI shadcn всегда запускается с указанием рабочей области: <code>npx shadcn@latest add &lt;компонент&gt; -c packages/design-system</code>. Из корня репозитория он падает с <code>monorepo_root</code>, потому что <code>components.json</code> лежит в пакете, а не в корне.</p>
+</section>
+
+<section id="a11y">
+  <h2 class="sec"><span class="num">07</span>Доступность: что библиотека делает за потребителя</h2>
+
+  <p>Цель — WCAG 2.1 уровень AA, как инженерная практика (формального обязательства по Section 508 / VPAT сегодня нет). Автоматические проверки ловят долю нарушений: они защищают от регрессий, но не доказывают соответствие. Ниже — то, что уже встроено в примитивы, и то, что примитив обеспечить не может.</p>
+
+  <h3>Достаётся бесплатно</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что</th><th>Где реализовано</th><th>Критерий</th></tr></thead>
+    <tbody>
+      <tr><td>Метка связана с полем, ошибка связана с полем, поле помечено невалидным</td><td><code>InputField</code> сводит <code>htmlFor</code>/<code>id</code>, <code>aria-invalid</code>, <code>aria-describedby</code> (подсказка + ошибка + пользовательское значение)</td><td>1.3.1, 3.3.1, 3.3.2</td></tr>
+      <tr><td>Новая ошибка объявляется</td><td><code>FieldError</code> — <code>role="alert"</code>, и <b>только когда есть что сказать</b></td><td>4.1.3</td></tr>
+      <tr><td>Состояние загрузки объявляется ровно один раз</td><td><code>SkeletonRegion</code> — один именованный <code>role="status"</code> + <code>aria-busy</code>; <code>Skeleton</code> и <code>Spinner</code> молчат</td><td>4.1.3</td></tr>
+      <tr><td>Ориентиры на месте</td><td><code>SidebarInset</code> — настоящий <code>&lt;main&gt;</code>; <code>AppLoader</code> — <code>&lt;main&gt;</code>; <code>Sidebar label</code> — <code>complementary</code>; <code>Breadcrumb</code>/<code>TabNav</code>/<code>Pagination</code> — <code>&lt;nav&gt;</code></td><td>1.3.1, 2.4.1</td></tr>
+      <tr><td>Прокручиваемая область достижима с клавиатуры и <b>видна</b>, когда достигнута</td><td><code>SidebarInset</code> (скроллпорт) и <code>Table</code> (обёртка) — <code>tabIndex={0}</code> + <code>ring-inset</code>; у таблицы стоп берётся только при реальном переполнении</td><td>2.1.1, 2.4.7</td></tr>
+      <tr><td>Фокус виден и в режиме принудительных цветов</td><td><code>@media (forced-colors: active)</code> в <code>src/styles.css</code> — настоящий <code>outline</code> вместо <code>ring</code></td><td>2.4.7, 1.4.11</td></tr>
+      <tr><td>Скрытая панель не ловит табуляцию</td><td><code>inert</code> на свёрнутой offcanvas-панели</td><td>2.4.3</td></tr>
+      <tr><td>Заголовки не прыгают по рангам</td><td><code>AlertTitle</code>, <code>CardTitle</code>, <code>EmptyTitle</code> — по умолчанию <code>&lt;div&gt;</code>; ранг задаёт страница через <code>asChild</code></td><td>1.3.1</td></tr>
+      <tr><td>Таблица разметена по-настоящему</td><td><code>&lt;table&gt;</code>, <code>&lt;th scope="col"&gt;</code> по умолчанию, <code>&lt;caption&gt;</code></td><td>1.3.1</td></tr>
+      <tr><td>Иконка-контрол названа</td><td><code>SidebarTrigger</code>, <code>SidebarRail</code>, крестик <code>Dialog</code>/<code>Sheet</code> — <code>sr-only</code>-имя с умолчанием, переопределяемым локализованной строкой</td><td>4.1.2, 3.1.2</td></tr>
+      <tr><td>Смысл не передаётся одним цветом</td><td><code>SegmentedControlItem</code> и <code>SidebarMenuButton</code> — заливка <b>плюс</b> утолщение шрифта; <code>MultiSelect</code> — <code>aria-checked</code>, а не только галочка; точки статуса всегда с текстом</td><td>1.4.1</td></tr>
+      <tr><td>Движение уважает настройку системы</td><td><code>Skeleton</code> (<code>motion-reduce:</code>), обе анимации в <code>src/styles.css</code></td><td>2.3.3</td></tr>
+      <tr><td>Оверлей ловит и возвращает фокус, закрывается Escape</td><td>Radix — <code>Dialog</code>, <code>Sheet</code>, <code>Popover</code>, <code>DropdownMenu</code>, <code>Select</code>, <code>Tooltip</code></td><td>2.1.2, 2.4.3</td></tr>
+      <tr><td>Уведомление объявляется</td><td>Живой регион sonner под <code>Toaster</code></td><td>4.1.3</td></tr>
+      <tr><td>Выключенный контрол читается выключенным и в высокой контрастности</td><td><code>color: GrayText</code> в <code>forced-colors</code>: <code>opacity</code> в вынужденную палитру не входит</td><td>1.4.1</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что библиотека обеспечить не может</h3>
+  <ul>
+    <li><b>Имя контрола, зависящее от данных.</b> Кебаб в строке таблицы должен называться «Действия для {имя}» — компонент не знает, что за строка. Так же <code>Stepper</code> требует <code>stepAriaLabel</code>, <code>SidebarInset</code> — <code>scrollLabel</code>, <code>Table</code> — <code>aria-label</code>/<code>&lt;caption&gt;</code>, <code>Progress</code> — <code>aria-label</code> и, если нужно, <code>aria-valuetext</code>.</li>
+    <li><b>Ранг заголовка.</b> Решает страница, а не баннер и не карточка.</li>
+    <li><b>Перенос фокуса после разрушающего действия.</b> Отсюда <code>onCloseAutoFocus</code> у <code>ConfirmDialog</code> и <code>inputRef</code> у <code>SearchToolbar</code>: библиотека даёт крючок, но целиться должен вызывающий.</li>
+    <li><b>Ссылка «к основному содержимому».</b> Её рисует <code>AppShell</code> из <code>shell/admin</code>, а <code>SidebarInset</code> лишь предоставляет цель — <code>&lt;main id="main-content" tabIndex={-1}&gt;</code>. Повторно добавлять её в плагине нельзя.</li>
+    <li><b><code>&lt;html lang&gt;</code> и <code>&lt;html dir&gt;</code>.</b> Их ставит <code>createAdmin</code> из своей локали. Компонент этого делать не должен.</li>
+    <li><b>Перевод строк.</b> Все видимые тексты приходят снаружи; библиотека даёт только английские умолчания для чистой иконографии.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Два <code>role="alert"</code> в одном представлении — конфликт</span>
+    <p><code>FieldError</code> и <code>Alert</code> оба объявляют себя как <code>alert</code>. Форма, которая одновременно показывает баннер общей ошибки и ошибку поля, создаёт два живых региона, спорящих за право говорить. Это ровно та же болезнь, от которой лечили <code>Spinner</code>. Правило — не складывать два таких региона в одном экране.</p>
+  </div>
+
+  <div class="note">
+    <span class="label">Английские имена, которые нельзя переопределить</span>
+    <p>Не вся фурнитура пропущена через контекст меток. <code>Breadcrumb</code> жёстко несёт <code>aria-label="breadcrumb"</code>, <code>Pagination</code> — <code>aria-label="pagination"</code>; у обоих пропса для переопределения нет. Это не отказ 4.1.2 (имя есть), но это 3.1.2 того же класса, что уже исправили для крестика диалога: в немецкой сессии ориентир называется по-английски. Кнопки «назад»/«вперёд» у пагинации, в отличие от <code>&lt;nav&gt;</code>, переопределяются — у них есть и <code>label</code>, и <code>aria-label</code>.</p>
+  </div>
+
+  <h3>Где это проверяется</h3>
+  <p>Не в этом пакете. Доступность измеряется в <code>apps/admin-e2e</code>, где интерфейс существует по-настоящему: 7 наборов <code>a11y.spec.ts</code> (axe) и 4 набора <code>keyboard.spec.ts</code>. Плюс три набора уровня хоста:</p>
+  <ul>
+    <li><code>host/host.spec.ts</code> — «bypass blocks»: первый <code>Tab</code> попадает на ссылку пропуска, она становится видимой при фокусе, активация уводит фокус на <code>&lt;main&gt;</code>.</li>
+    <li><code>host/reflow.spec.ts</code> — то же при 320px: ссылка пропуска, которую узкая раскладка вытолкнула за экран, — не ссылка пропуска.</li>
+    <li><code>host/platform-preferences.spec.ts</code> — <b>единственное место, где сканируется тёмная палитра</b> (все прочие прогоны axe идут в светлой) и где проверяется, что индикатор фокуса переживает <code>forced-colors: active</code>. Важная деталь харнесса: <code>test.use({ forcedColors })</code> и <code>test.use({ reducedMotion })</code> в Playwright <b>не работают</b> — этих свойств нет в фиксированном списке опций контекста; годятся <code>page.emulateMedia()</code> и настройка на уровне проекта.</li>
+  </ul>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">08</span>Сценарии работы — по шагам</h2>
+
+  <h3>8.1 Добавить компонент из реестра shadcn</h3>
+  <ol class="flow">
+    <li><b>Проверить, что его ещё нет.</b> Сначала в <code>src/index.ts</code>, затем <code>npx shadcn@latest search</code>. Правило «сначала используй существующее» — первое в скилле не случайно: <code>MultiSelect</code>, <code>SearchToolbar</code>, <code>ConfirmDialog</code> уже существуют и в реестре их нет.<span class="meta">часто задача решается композицией, а не новым файлом</span></li>
+    <li><b>Запустить CLI с указанием рабочей области.</b> <code>npx shadcn@latest add &lt;компонент&gt; -c packages/design-system</code>. Без <code>-c</code> команда падает с <code>monorepo_root</code>.</li>
+    <li><b>Переписать импорты <code>@/</code> на относительные.</b> Обязательный шаг №1. Иначе dev-сервер админки не поднимется.</li>
+    <li><b>Добавить экспорты в <code>src/index.ts</code>.</b> Обязательный шаг №2. Включая типы <code>*Props</code>.</li>
+    <li><b>Проверить цвета.</b> Компонент из реестра приходит на базовой палитре <code>neutral</code>; если он использует токен, которого в <code>apps/admin/src/styles.css</code> нет, его нужно либо добавить туда (с проверкой контраста), либо заменить на существующий семантический.</li>
+    <li><b>Дописать JSDoc</b> на каждый экспортируемый символ — витрины нет, и это единственная документация.</li>
+    <li><b>Проверить сборку и типы.</b> <code>npx nx typecheck design-system</code>, затем <code>npx nx lint design-system</code>. Новую директорию Tailwind подхватит сам — <code>@source</code>-глоб в <code>apps/admin/src/styles.css</code> уже покрывает <code>src/**/*.{ts,tsx}</code>.</li>
+    <li><b>Решить, нужен ли тест.</b> По критерию из раздела 9: тест здесь оправдан только если это шов, до которого не дотянется тест страницы.</li>
+  </ol>
+
+  <h3>8.2 Изменить существующий компонент</h3>
+  <ol class="flow">
+    <li><b>Понять, кто пострадает.</b> <code>grep -rl "&lt;ИмяКомпонента" packages apps</code>. У <code>Button</code> это 146 файлов — изменение варианта по умолчанию видно всей админке.</li>
+    <li><b>Проверить, не решается ли задача на месте вызова.</b> <code>cn</code> устроен так, что <code>className</code> вызывающего побеждает базовые классы. Если исключение единичное — оно и должно остаться единичным.</li>
+    <li><b>Если правка общая — делать её в общем слое.</b> Курсор на кнопках, кольцо фокуса в высокой контрастности, подавление пульсации — всё это правки «в один файл вместо тридцати». Признак: свойство относится к «это вообще операбельно?», а не к конкретному компоненту.</li>
+    <li><b>Не менять роль без причины — и менять с объяснением.</b> Каждый случай в этой библиотеке, где роль или атрибут отличаются от upstream (<code>Alert</code>, <code>Spinner</code>, <code>Table</code>, <code>SidebarInset</code>), сопровождён комментарием с номером тикета. Это конвенция: следующий, кто «починит обратно», должен сначала прочитать почему.</li>
+    <li><b>Добавляя строку — не хардкодить её.</b> Либо пропс на месте вызова, либо ключ в <code>DesignSystemLabels</code> (тип <code>Partial</code>, поэтому новый ключ не ломает потребителя).</li>
+    <li><b>Проверить обе темы.</b> Токены объявлены дважды; правка, завязанная на конкретную светлоту, в тёмной теме обычно ломается.</li>
+    <li><b>Прогнать тесты пакета и e2e.</b> <code>npx nx test design-system</code>, затем <code>npx nx e2e admin-e2e -- --project=chromium src/**/a11y.spec.ts src/**/keyboard.spec.ts</code>.</li>
+  </ol>
+
+  <h3>8.3 Обновить компонент из upstream</h3>
+  <p class="sub small">Самый рискованный из трёх сценариев: shadcn — это копия исходников, поэтому «обновление» физически перезаписывает файл, в котором могут лежать наши правки.</p>
+  <ol class="flow">
+    <li><b>Зафиксировать текущее состояние в git.</b> Обновление должно быть отдельным коммитом, чтобы diff показал именно то, что приехало.</li>
+    <li><b>Проверить, не в списке ли переписанных.</b> Раздел 5 перечисляет файлы, где upstream уже разошёлся с нами. Для них обновление — это <b>слияние вручную</b>, а не перезапись.</li>
+    <li><b>Запустить CLI.</b> <code>npx shadcn@latest add &lt;компонент&gt; -c packages/design-system</code> — команда перезапишет файл (CLI спросит подтверждение).</li>
+    <li><b>Прочитать diff целиком.</b> Искать: пропавшие <code>aria-*</code>, вернувшийся <code>&lt;h5&gt;</code> у заголовка, вернувшийся <code>role="status"</code> у спиннера, исчезнувший <code>scope</code>, исчезнувший пропс (<code>closeLabel</code>, <code>container</code>, <code>label</code>).<span class="meta">каждая такая потеря — регресс доступности, а не косметика</span></li>
+    <li><b>Снова переписать <code>@/</code>-импорты.</b> CLI генерирует их каждый раз.</li>
+    <li><b>Сверить экспорты с <code>src/index.ts</code>.</b> Upstream мог переименовать или добавить подкомпонент.</li>
+    <li><b>Проверить мёртвые классы анимации.</b> Если приехали <code>animate-in</code>/<code>fade-in-0</code>/<code>zoom-in-95</code> — они не сгенерируют CSS: соответствующий плагин Tailwind в репозитории не установлен. Либо убрать, либо оформить движение через <code>.ds-dropdown-motion</code>.</li>
+    <li><b>Прогнать тесты пакета.</b> Наборы <code>localizable-copy</code>, <code>table</code>, <code>sidebar</code>, <code>input-field</code> написаны ровно для того, чтобы такой регресс упал здесь, а не в проде.</li>
+  </ol>
+
+  <h3>8.4 Добавить или изменить токен темы</h3>
+  <ol class="flow">
+    <li><b>Открыть <code>apps/admin/src/styles.css</code></b> — не файл в пакете.</li>
+    <li><b>Объявить в <code>@theme</code></b> (светлая) <b>и в <code>.dark</code></b> (тёмная). Пропущенная половина — это не «наследование», а токен, который в тёмной теме останется светлым.</li>
+    <li><b>Проверить контраст</b>: обычный текст 4.5:1, крупный 3:1, границы и графика 3:1. Прогон axe в <code>admin-e2e</code> проверяет <code>color-contrast</code>, и регресс здесь роняет CI.</li>
+    <li><b>Помнить про две ловушки палитры.</b> Белый текст на <code>bg-brand</code> AA не проходит — оранжевый предназначен иконкам и акцентам. В тёмной теме сплошные статусные заливки инвертируют <em>свой передний план</em> на чернильный: осветлённая заливка уже не тянет белый текст на AA.</li>
+    <li><b>Если токен подставляется инлайново</b> (как палитра аватаров), объявлять его в <code>:root</code>, а не в <code>@theme</code>: Tailwind вычищает из <code>@theme</code> токены, на которые не сослалась ни одна сгенерированная утилита.</li>
+    <li><b>Для палитры графиков</b> — не трогать значения вручную: они в hex, потому что это вывод валидатора цвета. Изменение требует повторного прогона валидатора против поверхности карточки.</li>
+  </ol>
+</section>
+
+<section id="tests">
+  <h2 class="sec"><span class="num">09</span>Тесты пакета</h2>
+
+  <p>Набор на vitest + Testing Library, среда <code>jsdom</code>: <code>npx nx test design-system</code>. Пятнадцать файлов, 117 кейсов, все — рядом с компонентом.</p>
+
+  <div class="note">
+    <span class="label">Это не упражнение в покрытии</span>
+    <p>Сюда попадает <b>шов, до которого не дотянется тест страницы</b>: комбинация пропсов, которую ни один живой потребитель не передаёт (<code>invalid={false}</code> рядом с ошибкой), коллизия, которой не даёт реальный набор данных (две опции с одинаковой подписью), значение, невидимое браузерному тесту (секунды в дате-времени), или системная настройка, которую не эмулирует e2e-харнесс. Всё, что упражняет настоящая страница, живёт в <code>apps/admin-e2e</code>, где оно упражняется по-настоящему.</p>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл</th><th class="center">Кейсов</th><th>Что именно пришпилено</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">sidebar.spec.tsx</td><td class="center">17</td><td>Провайдер, cookie-состояние, уступка <code>Ctrl/⌘+B</code> текстовым полям, <code>inert</code> у свёрнутой панели, скроллпорт <code>SidebarInset</code> и его имя</td></tr>
+      <tr><td class="mono">input-field.spec.tsx</td><td class="center">15</td><td><code>InputField</code> и <code>FieldError</code>: склейка <code>aria-describedby</code>, <code>invalid={false}</code> не прячет сообщение, <code>errors={[]}</code> и <code>errors={[{}]}</code> не открывают пустой <code>alert</code></td></tr>
+      <tr><td class="mono">multi-select.spec.tsx</td><td class="center">12</td><td>Две опции с одинаковой подписью различимы; поиск по <code>value</code>; <code>aria-checked</code>; <code>aria-haspopup="listbox"</code></td></tr>
+      <tr><td class="mono">table.spec.tsx</td><td class="center">10</td><td>Tab-стоп появляется только при переполнении; роль <code>group</code> и имя ставятся вместе; <code>scope="col"</code></td></tr>
+      <tr><td class="mono">appearance/index.spec.tsx</td><td class="center">10</td><td>Гидратация из <code>localStorage</code>, реакция на смену системной темы, класс <code>dark</code> и <code>color-scheme</code>, устойчивость к недоступному хранилищу, поведение хука вне провайдера</td></tr>
+      <tr><td class="mono">confirm-dialog.spec.tsx</td><td class="center">7</td><td><code>busy</code> запирает диалог и гасит обе кнопки; <code>onCloseAutoFocus</code> прокидывается</td></tr>
+      <tr><td class="mono">date-picker.spec.tsx</td><td class="center">7</td><td>Секунды переживают круг; смена дня сохраняет время, смена времени сохраняет день</td></tr>
+      <tr><td class="mono">wizard.spec.tsx</td><td class="center">7</td><td><code>Stepper</code>: пройденные шаги кликабельны, будущие выключены, <code>aria-current="step"</code>, два шага с одинаковой подписью не склеиваются</td></tr>
+      <tr><td class="mono">localizable-copy.spec.tsx</td><td class="center">7</td><td><b>Ключевой набор.</b> Что локализованная строка вообще может попасть в крестик <code>Dialog</code>/<code>Sheet</code>, в <code>SidebarTrigger</code>/<code>SidebarRail</code> и в кнопки <code>Pagination</code>; и что без неё умолчание остаётся английским</td></tr>
+      <tr><td class="mono">use-mobile.spec.tsx</td><td class="center">6</td><td>Верное значение на первом кадре; подписка и отписка от <code>matchMedia</code></td></tr>
+      <tr><td class="mono">tooltip.spec.tsx</td><td class="center">4</td><td><code>Tooltip</code> и подсказка на <code>SidebarMenuButton</code></td></tr>
+      <tr><td class="mono">progress.spec.tsx</td><td class="center">4</td><td><code>role="progressbar"</code>, <code>aria-valuenow</code></td></tr>
+      <tr><td class="mono">top-bar.spec.tsx</td><td class="center">4</td><td>Портирование в полосу инсета; отрисовка на месте, когда инсета нет; придерживание, пока хост не смонтирован</td></tr>
+      <tr><td class="mono">utils.spec.ts</td><td class="center">4</td><td><code>cn</code>: последний класс выигрывает конфликт, ложные значения отбрасываются, массивы разворачиваются, пустой вызов даёт <code>''</code></td></tr>
+      <tr><td class="mono">sonner.spec.tsx</td><td class="center">3</td><td>Клик по телу тоста гасит <b>этот</b> тост; клик по интерактивному ребёнку не перехватывается</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Почему без <code>src/test-setup.ts</code> ничего не запускается</summary>
+    <p>jsdom не реализует ни <code>matchMedia</code>, ни <code>ResizeObserver</code>, ни Pointer Events, на которые подписаны слои presence/dismissable в Radix, и вырезает <code>scrollIntoView</code>. Без шимов монтирование <b>любого</b> компонента, построенного на <code>Popover</code>, <code>Command</code> или <code>Sheet</code>, бросает исключение раньше, чем дело дойдёт до утверждения, — то есть швы, ради которых эти тесты написаны, были бы не «непроверенными», а «непроверяемыми». Шимы поставлены условно (<code>if (!window.matchMedia)</code>), чтобы настоящая реализация, если она есть, не подменялась.</p>
+  </details>
+
+  <details>
+    <summary>Две настройки платформы, которые проверяются не здесь</summary>
+    <p><code>apps/admin-e2e/src/host/platform-preferences.spec.ts</code> — потому что это свойства <b>собранного</b> стилевого листа, а не отдельного компонента. Там сканируется тёмная палитра (все прочие прогоны axe идут в светлой) и проверяется, что индикатор фокуса переживает <code>forced-colors: active</code>, где браузер отбрасывает <code>box-shadow</code> и вместе с ним — каждое Tailwind-кольцо <code>ring-*</code> этой библиотеки.</p>
+  </details>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">10</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Ни один файл в <code>src/</code> не импортирует через алиас <code>@/</code> — только относительными путями.</span></li>
+    <li><span class="id">И-02</span><span>Всё, что предназначено потребителю, экспортировано из <code>src/index.ts</code>; иных публичных подпутей, кроме <code>./styles.css</code> и <code>./package.json</code>, пакет не отдаёт.</span></li>
+    <li><span class="id">И-03</span><span>Ни один компонент не содержит литерального цвета: только семантические утилиты Tailwind, разворачивающиеся в <code>var(--color-*)</code>.</span></li>
+    <li><span class="id">И-04</span><span>Каждый токен светлой палитры имеет пару в <code>.dark</code> — либо переопределённую, либо намеренно унаследованную (хромировка панели и акценты навигации).</span></li>
+    <li><span class="id">И-05</span><span>Пропс <code>className</code> вызывающего всегда побеждает базовые классы компонента: <code>cn</code> ставит его последним, а <code>tailwind-merge</code> отдаёт конфликт последнему.</span></li>
+    <li><span class="id">И-06</span><span>В пакете нет ни <code>react-intl</code>, ни каталога переводов; всякая видимая строка либо приходит пропсом, либо имеет английское умолчание, переопределяемое через <code>DesignSystemLabelsProvider</code>.</span></li>
+    <li><span class="id">И-07</span><span><code>DesignSystemLabelsProvider</code> принимает <code>Partial</code>: пропущенный ключ сохраняет английское умолчание, поэтому добавление ключа не ломает существующего потребителя.</span></li>
+    <li><span class="id">И-08</span><span>Пропс на месте вызова (<code>closeLabel</code>, <code>label</code>) всегда выигрывает у значения из контекста меток.</span></li>
+    <li><span class="id">И-09</span><span><code>Spinner</code> и <code>Skeleton</code> декоративны и не объявляют ничего сами; объявление занятости даёт только именованный <code>role="status"</code> (<code>SkeletonRegion</code>, <code>AppLoader</code>, <code>WizardPageSkeleton</code>).</span></li>
+    <li><span class="id">И-10</span><span>На одну загружаемую поверхность приходится ровно один живой регион; два смонтированных одновременно — дефект.</span></li>
+    <li><span class="id">И-11</span><span><code>FieldError</code> возвращает <code>null</code>, когда сообщений нет; пустой <code>role="alert"</code> не открывается никогда.</span></li>
+    <li><span class="id">И-12</span><span><code>invalid</code> в <code>InputField</code> управляет только маркировкой контрола и никогда не подавляет сообщение об ошибке.</span></li>
+    <li><span class="id">И-13</span><span><code>aria-describedby</code> контрола склеивается из подсказки, ошибки и значения, переданного вызывающим, — ни одно из трёх не теряется.</span></li>
+    <li><span class="id">И-14</span><span><code>AlertTitle</code>, <code>CardTitle</code> и <code>EmptyTitle</code> по умолчанию не являются заголовками; ранг задаёт страница через <code>asChild</code>.</span></li>
+    <li><span class="id">И-15</span><span><code>Alert</code> пишет <code>aria-labelledby</code> только после того, как <code>AlertTitle</code> действительно смонтировался.</span></li>
+    <li><span class="id">И-16</span><span>Обёртка <code>Table</code> берёт tab-стоп <b>только</b> при фактическом переполнении; роль <code>group</code> и имя ставятся исключительно вместе.</span></li>
+    <li><span class="id">И-17</span><span>Скроллпорт <code>SidebarInset</code> фокусируем и при получении фокуса рисует видимое кольцо; кольцо — <code>inset</code>, потому что родитель обрезает переполнение.</span></li>
+    <li><span class="id">И-18</span><span>Ни один именуемый контейнер библиотеки не добавляет второго ориентира: используется <code>group</code>, а не <code>region</code>. Единственные ориентиры, которые библиотека создаёт, — <code>&lt;main&gt;</code> у <code>SidebarInset</code>/<code>AppLoader</code>, <code>complementary</code> у названной панели и <code>&lt;nav&gt;</code> у крошек, вкладок-ссылок и пагинации.</span></li>
+    <li><span class="id">И-19</span><span>Свёрнутая offcanvas-панель помечена <code>inert</code>: её контролы вне порядка табуляции и вне дерева доступности.</span></li>
+    <li><span class="id">И-20</span><span><code>Ctrl/⌘+B</code> не перехватывается, когда фокус в текстовом поле, <code>textarea</code>, <code>select</code> или внутри <code>contenteditable</code>.</span></li>
+    <li><span class="id">И-21</span><span><code>useIsMobile</code> отдаёт верное значение на первом кадре рендера, а не после эффекта.</span></li>
+    <li><span class="id">И-22</span><span>Единственная точка перелома вёрстки в библиотеке — 768px; 768 включительно считается десктопом.</span></li>
+    <li><span class="id">И-23</span><span>Любое обращение к <code>localStorage</code>, <code>document.cookie</code> и <code>matchMedia</code> обёрнуто в проверку окружения и <code>try/catch</code>; отказ хранилища теряет только сохранённость предпочтения.</span></li>
+    <li><span class="id">И-24</span><span>Тема применяется к документу двумя способами сразу: класс <code>dark</code> на <code>&lt;html&gt;</code> и <code>style.colorScheme</code> — чтобы браузер перекрасил и собственную фурнитуру.</span></li>
+    <li><span class="id">И-25</span><span><code>useAppearance</code> вне <code>AppearanceProvider</code> не бросает: отдаёт умолчания и no-op-сеттер.</span></li>
+    <li><span class="id">И-26</span><span><code>useSidebar</code> вне <code>SidebarProvider</code> бросает; для необязательной зависимости существует <code>useOptionalSidebar</code>.</span></li>
+    <li><span class="id">И-27</span><span><code>TopBar</code> внутри инсета рендерится только через портал в полосу; пока хост полосы равен <code>null</code>, панель не рисуется вовсе, чтобы не мигнуть в потоке страницы.</span></li>
+    <li><span class="id">И-28</span><span>Клик по телу тоста гасит именно этот тост; клики по кнопке закрытия, кнопкам действия/отмены и ссылкам внутри тоста не перехватываются.</span></li>
+    <li><span class="id">И-29</span><span>Позиция тостов — нижний правый угол, и решается она в <code>Toaster</code>, а не на месте вызова: <code>copilot-admin</code> опирается на это, подавляя тост при открытом доке.</span></li>
+    <li><span class="id">И-30</span><span>Всякая неоперабельная анимация подавляется при <code>prefers-reduced-motion: reduce</code>.</span></li>
+    <li><span class="id">И-31</span><span>Анимация шага мастера меняет только трансформацию; прозрачность остаётся 1, поэтому содержимое видно и при остановленных часах анимации.</span></li>
+    <li><span class="id">И-32</span><span>В режиме <code>forced-colors: active</code> у всякого <code>:focus-visible</code> есть настоящий <code>outline</code>; <code>forced-color-adjust: none</code> не используется нигде.</span></li>
+    <li><span class="id">И-33</span><span>Ни одно состояние не передаётся только цветом: выбранный сегмент и активный пункт панели дополнительно утолщают шрифт, точки статуса всегда сопровождены текстом.</span></li>
+    <li><span class="id">И-34</span><span>Белый текст никогда не ставится на <code>bg-brand</code>; для ссылочного оранжевого существует отдельный токен <code>brand-text</code>.</span></li>
+    <li><span class="id">И-35</span><span>Ключ элемента в списке шагов мастера — позиция, а не подпись: подпись принадлежит потребителю и может повторяться.</span></li>
+    <li><span class="id">И-36</span><span>Строка в <code>MultiSelect</code> идентифицируется по <code>value</code>, а подпись добавлена как <code>keywords</code> — иначе две опции с одинаковой подписью сливаются в одну.</span></li>
+    <li><span class="id">И-37</span><span>Пакет не экспортирует ничего серверного и не имеет ни маршрутов, ни модуля, ни таблиц, ни ключей прав.</span></li>
+    <li><span class="id">И-38</span><span>Единственные peer-зависимости — <code>react</code> и <code>react-dom</code> версии <code>^19</code>; всё остальное — обычные зависимости, поэтому потребитель не обязан ничего доустанавливать.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">11</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Библиотека проверяется двумя способами: юнит-тестами пакета (<code>npx nx test design-system</code>) и глазами/клавиатурой в живой админке (<code>npm run dev</code>). Серверной части у пакета нет, поэтому <code>curl</code> и <code>psql</code> здесь не при чём.</p>
+
+  <h3>Визуальная целостность</h3>
+  <ul class="check">
+    <li><b>Пройти по всем страницам админки в светлой теме</b> → <span class="exp">одинаковые скругления карточек, одинаковая высота кнопок и полей (9), одна и та же граница у полей ввода — заметно темнее структурной.</span></li>
+    <li><b>Переключить тему в тёмную</b> → <span class="exp">каждая страница перекрашивается целиком; ни одного участка, оставшегося светлым; карточки читаются как поверхность на ступень светлее полотна.</span></li>
+    <li><b>Тема <code>system</code>, сменить тему ОС при открытой вкладке</b> → <span class="exp">интерфейс перекрашивается без перезагрузки.</span></li>
+    <li><b>Перезагрузить страницу при выбранной тёмной теме</b> → <span class="exp">первая же отрисовка тёмная, вспышки светлой темы нет.</span></li>
+    <li><b>Открыть админку в приватном окне с заблокированным хранилищем</b> → <span class="exp">приложение работает, тема — <code>system</code>, ошибок в консоли нет.</span></li>
+    <li><b>Боковая панель в обеих темах</b> → <span class="exp">остаётся тёмной: её токены объявлены тёмными изначально и в <code>.dark</code> не переопределяются.</span></li>
+    <li><b>Проверить чипы <code>Badge</code> всех девяти вариантов на подсвеченной строке таблицы</b> → <span class="exp">вторичный чип не сливается с фоном наведения.</span></li>
+    <li><b>Оранжевая ссылка на белом и на тёмном</b> → <span class="exp">читается; белого текста на оранжевой заливке нигде нет.</span></li>
+    <li><b>Шапка страницы с тремя и более кнопками действий при ширине 900px</b> → <span class="exp">кластер переносится на вторую строку, а не уезжает за правый край.</span></li>
+    <li><b>Полосы прокрутки во всех областях (инсет, панель, таблица, правая панель)</b> → <span class="exp">тонкие, ползунок цвета токена границы, дорожка прозрачная — то есть меняются вместе с темой.</span></li>
+  </ul>
+
+  <h3>Формы и поля</h3>
+  <ul class="check">
+    <li><b>Клик по метке поля</b> → <span class="exp">фокус переходит в контрол.</span></li>
+    <li><b>Отправить форму с ошибкой</b> → <span class="exp">поле помечено <code>aria-invalid</code>, граница красная, сообщение появилось и объявлено (<code>role="alert"</code>).</span></li>
+    <li><b>Передать <code>invalid={false}</code> вместе с <code>error</code></b> → <span class="exp">сообщение всё равно отрисовано; спрятать его этим пропсом невозможно.</span></li>
+    <li><b>Передать <code>errors={[]}</code> или <code>errors={[{}, undefined]}</code></b> → <span class="exp">не рендерится ничего; пустого <code>role="alert"</code> в DOM нет.</span></li>
+    <li><b>Сфокусировать поле с подсказкой и ошибкой</b> → <span class="exp">скринридер зачитывает и подсказку, и ошибку — обе попали в <code>aria-describedby</code>.</span></li>
+    <li><b>Поле с собственным <code>aria-describedby</code> от вызывающего</b> → <span class="exp">оно не потеряно, а добавлено к сгенерированным.</span></li>
+    <li><b><code>MultiSelect</code> с двумя опциями, у которых одинаковая подпись</b> → <span class="exp">строки различимы, подсвечиваются по отдельности, стрелки перемещаются между ними.</span></li>
+    <li><b>Поиск в <code>MultiSelect</code> по значению опции, а не по подписи</b> → <span class="exp">опция находится.</span></li>
+    <li><b><code>MultiSelect</code> внутри <code>Dialog</code> без пропса <code>container</code></b> → <span class="exp">воспроизводится дефект: список не прокручивается колесом мыши. С переданным <code>container</code> — прокручивается.</span></li>
+    <li><b><code>DateTimePicker</code>: ввести время с секундами, затем сменить день</b> → <span class="exp">секунды сохранены.</span></li>
+    <li><b><code>DateTimePicker</code>: выбрать день, затем изменить время</b> → <span class="exp">день не сбросился.</span></li>
+    <li><b>Выключенный контрол</b> → <span class="exp">курсор <code>not-allowed</code>, клик ничего не делает; в высокой контрастности текст — <code>GrayText</code>.</span></li>
+  </ul>
+
+  <h3>Клавиатура и фокус</h3>
+  <ul class="check">
+    <li><b>Первый <code>Tab</code> на любой приватной странице</b> → <span class="exp">ссылка «к основному содержимому», она видима при фокусе; активация уводит фокус на <code>&lt;main&gt;</code>.</span></li>
+    <li><b>Пройти всю страницу табуляцией</b> → <span class="exp">на каждом стопе виден индикатор фокуса; «мёртвых» нажатий, где визуально ничего не происходит, нет.</span></li>
+    <li><b>Дойти табуляцией до области прокрутки инсета</b> → <span class="exp">кольцо фокуса видно (внутреннее), стрелки прокручивают содержимое.</span></li>
+    <li><b>Широкая таблица на узком окне</b> → <span class="exp">обёртка берёт tab-стоп и получает кольцо; на широком окне лишнего стопа нет.</span></li>
+    <li><b>Свернуть боковую панель, пройти табуляцией</b> → <span class="exp">ни один контрол скрытой панели не получает фокус.</span></li>
+    <li><b>Нажать <code>Ctrl/⌘+B</code>, стоя в поле ввода или в теле статьи</b> → <span class="exp">панель не сворачивается; в редакторе срабатывает жирное начертание.</span></li>
+    <li><b>Нажать <code>Ctrl/⌘+B</code>, стоя не в поле</b> → <span class="exp">панель переключается.</span></li>
+    <li><b>Открыть диалог, нажать <code>Tab</code> много раз</b> → <span class="exp">фокус не выходит за пределы диалога.</span></li>
+    <li><b>Закрыть диалог по <code>Escape</code></b> → <span class="exp">фокус вернулся на элемент, который его открыл.</span></li>
+    <li><b>Подтвердить удаление в <code>ConfirmDialog</code>, где кнопка-триггер исчезает</b> → <span class="exp">фокус попадает на существующий элемент, а не на <code>&lt;body&gt;</code> (нужен <code>onCloseAutoFocus</code> от вызывающего).</span></li>
+    <li><b>Сбросить фильтры кнопкой внутри пустого состояния</b> → <span class="exp">фокус возвращается в поле поиска (через <code>inputRef</code>), а не теряется.</span></li>
+    <li><b>Открыть выпадающее меню и нажать первую букву пункта</b> → <span class="exp">фокус перескакивает на пункт (типизация Radix).</span></li>
+    <li><b>Пройти <code>SegmentedControl</code> стрелками</b> → <span class="exp">переключается; вся группа занимает один tab-стоп.</span></li>
+  </ul>
+
+  <h3>Объявления скринридеру</h3>
+  <ul class="check">
+    <li><b>Уйти на страницу, которая грузится</b> → <span class="exp">объявлено ровно один раз, текстом из <code>label</code> в <code>SkeletonRegion</code>; отдельные заглушки молчат.</span></li>
+    <li><b>Смонтировать два <code>SkeletonRegion</code> одновременно</b> → <span class="exp">дефект: два конкурирующих живых региона.</span></li>
+    <li><b>Отправить действие, дающее тост</b> → <span class="exp">текст тоста объявлен.</span></li>
+    <li><b>Экран старта приложения</b> → <span class="exp">это <code>&lt;main&gt;</code>, у него есть <code>&lt;h1&gt;</code> (пусть скрытый), статус объявлен один раз.</span></li>
+    <li><b>Баннер <code>Alert</code> без <code>AlertTitle</code></b> → <span class="exp">атрибута <code>aria-labelledby</code> в DOM нет — не должно быть ссылки на несуществующий id.</span></li>
+    <li><b>Баннер <code>Alert</code> с заголовком</b> → <span class="exp">имя баннера равно тексту заголовка; заголовок не является элементом <code>h*</code>.</span></li>
+    <li><b>Обойти страницу по заголовкам</b> → <span class="exp">ровно один <code>&lt;h1&gt;</code>, ранги идут по порядку, скачков через уровень нет.</span></li>
+    <li><b>Обойти страницу по ориентирам</b> → <span class="exp">один <code>main</code>; названная боковая панель — <code>complementary</code>; ни одного безымянного <code>region</code>.</span></li>
+    <li><b>Кебаб-меню в строке таблицы</b> → <span class="exp">имя привязано к строке, а не «Действия».</span></li>
+  </ul>
+
+  <h3>Локализация фурнитуры</h3>
+  <ul class="check">
+    <li><b>Открыть админку в локали, отличной от английской, и открыть любой диалог</b> → <span class="exp">крестик называется на языке сессии.</span></li>
+    <li><b>Смонтировать <code>Dialog</code> без <code>DesignSystemLabelsProvider</code></b> → <span class="exp">крестик называется <code>Close</code> — умолчание сохранено.</span></li>
+    <li><b>Передать <code>closeLabel</code> на месте вызова</b> → <span class="exp">выигрывает пропс, а не контекст.</span></li>
+    <li><b>Проверить <code>&lt;nav&gt;</code> крошек и пагинации в неанглийской локали</b> → <span class="exp">известное расхождение: их <code>aria-label</code> остаётся английским (см. раздел 13).</span></li>
+    <li><b>Кнопки «назад»/«вперёд» пагинации с переданным <code>label</code> и <code>aria-label</code></b> → <span class="exp">и видимая подпись, и имя — на языке сессии.</span></li>
+  </ul>
+
+  <h3>Системные настройки</h3>
+  <ul class="check">
+    <li><b>Включить <code>prefers-reduced-motion: reduce</code></b> → <span class="exp">заглушки не пульсируют, шаг мастера не выезжает, выпадашки появляются без анимации; содержимое при этом видно всегда.</span></li>
+    <li><b>Включить режим высокой контрастности Windows</b> → <span class="exp">на каждом фокусируемом элементе виден контур; у прокручиваемых областей он внутренний; выбранный пункт панели и выбранная опция получают границу; выключенные контролы серые.</span></li>
+    <li><b>Прогнать axe в тёмной теме</b> → <span class="exp">нарушений контраста нет (проверяется только в <code>platform-preferences.spec.ts</code>).</span></li>
+    <li><b>Ширина окна 320px</b> → <span class="exp">горизонтальной прокрутки документа нет; ссылка пропуска остаётся достижимой; панель уходит в лист.</span></li>
+    <li><b>Сузить окно до 767px</b> → <span class="exp">боковая панель мгновенно становится листом, без кадра десктопной раскладки.</span></li>
+  </ul>
+
+  <h3>Регресс после обновления из upstream</h3>
+  <ul class="check">
+    <li><b>После <code>shadcn add</code> запустить <code>npx nx test design-system</code></b> → <span class="exp">все 117 кейсов зелёные; красный <code>localizable-copy</code> означает потерянный пропс локализации.</span></li>
+    <li><b>Найти в диффе <code>@/</code></b> → <span class="exp">не должно остаться ни одного; иначе dev-сервер админки не поднимется.</span></li>
+    <li><b>Сверить экспорты с <code>src/index.ts</code></b> → <span class="exp">ни один ранее публичный символ не пропал, новые добавлены.</span></li>
+    <li><b>Поискать в диффе <code>animate-in</code> / <code>fade-in-0</code> / <code>zoom-in-95</code></b> → <span class="exp">если приехали — это мёртвые классы: плагина, который их генерирует, в репозитории нет.</span></li>
+    <li><b>Поискать в диффе <code>role="status"</code>, <code>&lt;h5&gt;</code>, пропавший <code>scope</code></b> → <span class="exp">каждое совпадение — откат сознательного исправления доступности.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">12</span>Границы ответственности</h2>
+
+  <p>Половина вопросов про дизайн-систему на самом деле про её соседей. Таблица отвечает, куда идти.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вопрос</th><th>Отвечает</th><th>Почему не дизайн-система</th></tr></thead>
+    <tbody>
+      <tr><td>«Какого цвета кнопка в тёмной теме?»</td><td class="mono">apps/admin/src/styles.css</td><td>Библиотека знает только роль (<code>bg-primary</code>); значение принадлежит приложению</td></tr>
+      <tr><td>«Где ссылка „к основному содержимому“?»</td><td class="mono">shell/admin — AppShell</td><td>Дизайн-система предоставляет цель (<code>&lt;main id="main-content" tabIndex={-1}&gt;</code> внутри <code>SidebarInset</code>), но не саму ссылку — она одна на приложение</td></tr>
+      <tr><td>«Кто собирает боковую панель из пунктов?»</td><td class="mono">shell/admin</td><td>Библиотека даёт 24 примитива панели; какие пункты в ней и в каком порядке — решение каркаса, а слоты в него наполняют плагины</td></tr>
+      <tr><td>«Кто монтирует <code>Toaster</code>, <code>AppearanceProvider</code>, <code>TooltipProvider</code>?»</td><td class="mono">bootstrap/admin — createAdmin</td><td>Провайдеры монтируются один раз на приложение; библиотека не имеет собственной точки входа</td></tr>
+      <tr><td>«Кто ставит <code>&lt;html lang&gt;</code> / <code>dir</code>?»</td><td class="mono">bootstrap/admin — createAdmin</td><td>Свойство документа, а не компонента</td></tr>
+      <tr><td>«Кто переводит строки?»</td><td class="mono">каждый плагин через react-intl</td><td>В библиотеке нет i18n-рантайма; исключение — один ключ <code>close</code>, который наполняет обёртка <code>DesignSystemLabels</code> в bootstrap</td></tr>
+      <tr><td>«Кто валидирует форму?»</td><td class="mono">плагин (TanStack Form)</td><td><code>InputField</code> презентационен: принимает <code>invalid</code>/<code>errors</code>, не вычисляет их</td></tr>
+      <tr><td>«Кто проверяет доступность?»</td><td class="mono">apps/admin-e2e</td><td>Интерфейс существует по-настоящему только в собранном приложении; в пакете проверяются лишь швы, до которых не дотянется тест страницы</td></tr>
+      <tr><td>«Кто рисует графики?»</td><td class="mono">insights/admin</td><td>Токены <code>--color-chart-*</code> объявлены в хосте; компонентов визуализации в библиотеке нет</td></tr>
+      <tr><td>«Кто отвечает за стили редактора текста?»</td><td class="mono">wysiwyg/admin</td><td>У него собственная область <code>.ortha-wysiwyg</code>, которую хост импортирует третьей; она читает те же токены <code>--color-*</code></td></tr>
+      <tr><td>«Кто решает, попадёт ли пакет в сгенерированное приложение?»</td><td class="mono">create-ortha-app — features.ts</td><td><code>@orthacms/design-system</code> входит в <code>CORE_PACKAGES</code> и ставится безусловно: это первое, к чему тянется рука при написании своей страницы, а незадекларированный импорт — фантомная зависимость, которая перестаёт резолвиться при конфликте версий и никогда не резолвится под pnpm</td></tr>
+      <tr><td>«Кто собирает тарбол для npm?»</td><td class="mono">tools/release/pack.mjs</td><td>Пакет в репозитории намеренно резолвится из исходников; опубликованный манифест — переписанная копия, где <code>exports</code> смотрят в <code>./dist</code>, а <code>src/styles.css</code> перенесён вручную</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Отдельная граница: что делает Radix, а что мы</span>
+    <p><b>Radix</b> отвечает за поведение — роли, ловушки фокуса, роверинг, Escape, порталы, возврат фокуса, типизацию по буквам. <b>Библиотека</b> отвечает за оформление, продуктовые решения (позиция тостов, размер плитки иконки, набор вариантов) и за те доработки доступности, которые Radix не может сделать, потому что не знает контекста страницы: <code>aria-haspopup="listbox"</code> у мультиселекта, <code>aria-checked</code> вместо занятого <code>aria-selected</code>, условный tab-стоп у таблицы, <code>inert</code> у свёрнутой панели, роль <code>group</code> вместо <code>region</code>. Правило прочтения: если атрибут выставлен явно в нашем файле — значит, для этого есть причина, и она записана в комментарии рядом.</p>
+  </div>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">13</span>Расхождения кода и документации</h2>
+
+  <p>Каждое утверждение из <code>AGENTS.md</code> пакета, из скиллов <code>shadcn</code> и <code>accessibility</code> и из комментариев в стилевых файлах сверялось с реализацией. Ниже — то, что разошлось.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">design-system/AGENTS.md, «Layout»</td>
+        <td>«The package also ships a <b>small</b> global stylesheet at <code>src/styles.css</code> (the <code>wizard-step-in</code> animation used by <code>WizardStepCard</code>)»</td>
+        <td>Анимация шага мастера — примерно четверть файла. Там же: класс <code>.ds-dropdown-motion</code> с двумя <code>@keyframes</code> и разной длительностью входа/выхода (движение <code>Popover</code>/<code>DropdownMenu</code>/<code>Select</code>), восстановление <code>cursor: pointer</code> на всех операбельных контролах в <code>@layer base</code>, и большой блок <code>@media (forced-colors: active)</code> — единственное место в репозитории, где чинится индикатор фокуса в высокой контрастности. Описание не даёт понять, что правка этого файла затрагивает фокус на каждой странице</td>
+      </tr>
+      <tr>
+        <td class="mono">.claude/skills/shadcn/SKILL.md</td>
+        <td>«Theme tokens (<code>@theme inline</code>) live in <code>apps/admin/src/styles.css</code>»</td>
+        <td>Используется <code>@theme</code>, <b>не</b> <code>@theme inline</code>, и в самом файле написано, что это сделано намеренно: <code>inline</code> запёк бы значения в утилиты, и переопределение в <code>.dark</code> перестало бы действовать в рантайме. Разночтение опасное — агент, следующий скиллу, может «поправить» директиву и сломать тёмную тему целиком</td>
+      </tr>
+      <tr>
+        <td class="mono">.claude/skills/shadcn/SKILL.md</td>
+        <td>«Stack facts (from <code>components.json</code>): style new-york, base color neutral, <b><code>radix</code> primitives</b>, lucide icons, Tailwind v4»</td>
+        <td>В <code>components.json</code> нет поля про примитивы вовсе; там <code>$schema</code>, <code>style</code>, <code>rsc</code>, <code>tsx</code>, <code>tailwind</code> (<code>css</code>, <code>baseColor</code>, <code>cssVariables</code>), <code>iconLibrary</code> и <code>aliases</code>. Radix — факт по зависимостям (15 пакетов), а не по конфигурации</td>
+      </tr>
+      <tr>
+        <td class="mono">.claude/skills/accessibility/SKILL.md, «Color &amp; contrast»</td>
+        <td>«<code>muted-foreground</code> was darkened (from shadcn's <code>oklch(0.556…)</code> to <b><code>0.5</code></b>)»</td>
+        <td>Фактическое значение в светлой палитре — <code>oklch(0.49 0.015 285)</code>. В тёмной — <code>oklch(0.72 0.012 285)</code>. Число в документе не соответствует ни одному из двух</td>
+      </tr>
+      <tr>
+        <td class="mono">apps/admin/src/styles.css, комментарий к <code>--color-sidebar-*</code></td>
+        <td>«<b>Light-mode only — the admin ships no dark content theme.</b>»</td>
+        <td>Тёмная тема существует и переключается: блок <code>.dark</code> объявлен ниже в этом же файле, а <code>AppearanceProvider</code> ставит класс на <code>&lt;html&gt;</code>. Что верно по сути — токены панели <b>не переопределяются</b> в тёмной теме, потому что изначально написаны тёмными. Комментарий устарел на целую функцию</td>
+      </tr>
+      <tr>
+        <td class="mono">dialog.tsx, sheet.tsx, tooltip.tsx</td>
+        <td>Несут классы <code>animate-in</code>, <code>fade-in-0</code>, <code>zoom-in-95</code>, <code>data-[state=closed]:animate-out</code> и <code>slide-in-from-*</code></td>
+        <td>Ни <code>tailwindcss-animate</code>, ни <code>tw-animate-css</code> в репозитории <b>не установлены</b> — эти утилиты не генерируют никакого CSS. Комментарий в <code>src/styles.css</code> это прямо признаёт («those utilities are not installed») и объясняет, что именно поэтому движение выпадашек написано вручную, но мёртвые классы из трёх файлов так и не убраны. Читающий их разработчик уверен, что модалка анимирована</td>
+      </tr>
+      <tr>
+        <td class="mono">design-system/AGENTS.md, «TS conventions»</td>
+        <td>«<code>type</code> over <code>interface</code>»</td>
+        <td>Четыре объявления остаются <code>interface</code>: <code>ButtonProps</code> (<code>button.tsx</code>), <code>BadgeProps</code> (<code>badge.tsx</code>), <code>SheetContentProps</code> (<code>sheet.tsx</code>), <code>AppearanceContextValue</code> (<code>appearance/index.tsx</code>). Первые два — публичные типы, то есть расхождение видно потребителю</td>
+      </tr>
+      <tr>
+        <td class="mono">components.json, <code>aliases</code></td>
+        <td>Объявляет <code>"utils": "@/lib/utils"</code>, <code>"ui": "@/lib/components/ui"</code> и т.д.</td>
+        <td>Это ровно те импорты, которые правило №1 запрещает. Конфигурация <b>гарантирует</b>, что CLI сгенерирует запрещённый код, и ручная переписка требуется после каждого <code>shadcn add</code>. Формально это не ошибка документации — но оба текста (AGENTS.md и скилл) описывают ручной шаг как обязательный, ни разу не отметив, что его источник лежит в конфигурации рядом</td>
+      </tr>
+      <tr>
+        <td class="mono">design-system/README.md</td>
+        <td>Заглушка генератора: «This library was generated with Nx» и одна команда запуска тестов</td>
+        <td>Ни слова про два обязательных правила, про потребление из исходников, про темизацию. При этом <code>pack.mjs</code> кладёт именно этот README в тарбол — то есть на npm едет заглушка. Вся содержательная документация живёт в <code>AGENTS.md</code>, который в тарбол не попадает</td>
+      </tr>
+      <tr>
+        <td class="mono">AGENTS.md против README.md</td>
+        <td><code>npx nx test design-system</code> против <code>nx test @orthacms/design-system</code></td>
+        <td>Имя проекта — <code>@orthacms/design-system</code> (берётся из <code>package.json</code>). Два документа называют цель по-разному; выяснить, принимает ли Nx короткую форму, в этой среде не удалось (зависимости не установлены)</td>
+      </tr>
+      <tr>
+        <td class="mono">Breadcrumb, Pagination</td>
+        <td>Скилл <code>accessibility</code> перечисляет их среди «Radix-backed primitives that wire roles, labelling, and focus for you»</td>
+        <td>Оба написаны на голом HTML, без Radix, и оба несут <b>жёстко зашитый английский</b> <code>aria-label</code> (<code>"breadcrumb"</code>, <code>"pagination"</code>) без пропса для переопределения. Кнопки пагинации переопределяются, сам ориентир — нет. Это тот же класс дефекта 3.1.2, который уже исправили для крестика диалога через <code>DesignSystemLabelsProvider</code>, но до этих двух ориентиров исправление не дошло</td>
+      </tr>
+      <tr>
+        <td class="mono">CommandDialog</td>
+        <td>Умолчания <code>title="Command palette"</code> и <code>description="Search for a command to run."</code></td>
+        <td>Ещё две английские строки в дереве доступности, не проведённые через контекст меток. Переопределить их можно только пропсом на месте вызова — то есть ровно тот способ, о котором в JSDoc контекста меток написано, что «ни один потребитель этого не делал»</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Что осталось непокрытым в этом артефакте</span>
+    <p>Не проверялось <b>исполнением</b>: тесты пакета не запускались и приложение не поднималось — в этой среде нет установленных зависимостей. Все числа получены статически, из исходников и манифестов. Не разбирались построчно наиболее объёмные CLI-компоненты, где расхождений с upstream не обнаружено (<code>calendar.tsx</code>, <code>command.tsx</code>, <code>drawer.tsx</code>, <code>input-group.tsx</code>, <code>collapsible.tsx</code>) — для них в инвентаре указаны назначение, пропсы и потребители, но не внутренняя вёрстка. Контраст токенов принимался по комментариям в <code>styles.css</code>, а не пересчитывался.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Паспорт библиотеки, а не плагина.</b> Каркас серии сохранён, но разделы, которых у библиотеки компонентов нет — права, таблицы, HTTP API, жизненный цикл, конфигурация, — заменены на те, что для неё несущие: токены и темизация, полный инвентарь компонентов, правила авторов и доступность. Главный раздел — четвёртый: 48 файлов, 233 экспорта, пять групп по назначению, с фактическими числами использования по репозиторию.</p>
+  <p>Источник — исходный код <code>packages/design-system/**</code>: все 48 компонентов, <code>src/index.ts</code>, <code>src/styles.css</code>, <code>utils.ts</code>, <code>appearance/</code>, <code>labels/</code>, <code>hooks/</code>, пятнадцать наборов тестов, <code>components.json</code>, <code>package.json</code>, <code>vite.config.mts</code>, <code>tsconfig.lib.json</code>; плюс <code>apps/admin/src/styles.css</code> (значения токенов), <code>packages/bootstrap/admin</code> (монтаж провайдеров), <code>tools/release/pack.mjs</code> (публикация), скиллы <code>shadcn</code> и <code>accessibility</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 13.</p>
+</footer>
+
+</main>
+</div>

@@ -1,0 +1,1160 @@
+<title>Паспорт плагина Activity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/activity</p>
+    <h1 class="title">Activity
+      <small>Кто что сделал и когда — журнал действий OrthaCMS</small>
+    </h1>
+    <p class="lede">Activity — это <strong>общий приёмник аудита</strong>. Он не знает ни про контент, ни про медиатеку, ни про учётные записи: он подписан на транзакционный outbox и превращает доменные события чужих плагинов в строки одной таблицы <code>activity_events</code>. Схема нарочно открытая — <code>kind</code> и <code>meta</code> — потому что каталог видов событий принадлежит тому, кто их порождает, а не тому, кто их хранит. Отсюда главное правило пакета: <strong>добавить производителя — значит добавить сюда маппер</strong>, и событие без маппера теряется молча.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>1</b> HTTP-маршрут</li>
+      <li><b>1</b> таблица БД</li>
+      <li><b>1</b> миграция</li>
+      <li><b>40</b> видов событий</li>
+      <li><b>6</b> типов субъектов</li>
+      <li><b>5</b> плагинов-производителей</li>
+      <li><b>1</b> экран + <b>2</b> слота админки</li>
+      <li><b>1</b> инструмент копайлота</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#catalog">Каталог видов событий</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл события</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность и надёжность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Activity отвечает на один вопрос, который рано или поздно задаёт любая организация: <b>«кто это сделал?»</b>. Не «что сейчас лежит в базе» — это покажет сам контент, — а «как оно стало таким, чьими руками и когда». Журнал append-only: строки только добавляются, ни одного маршрута на редактирование или удаление в пакете нет.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Разбор инцидента.</b> Запись исчезла, у человека внезапно появились права, кто-то выпустил долгоживущий API-токен — журнал даёт актора, точное время и то немногое о предмете, что нужно, чтобы найти его в другом месте.</li>
+    <li><b>Подотчётность редакции.</b> Публикация, снятие с публикации, удаление и окончательное уничтожение записи — четыре разных факта, и каждый записан отдельным видом события, потому что для проверяющего это разные события.</li>
+    <li><b>Аудит доступа.</b> Приглашения, смены роли, выдача ссылки сброса пароля, вход через корпоративного провайдера, выпуск и отзыв bearer-токена — всё это административные действия, и они лежат в одном потоке с редакторскими.</li>
+    <li><b>Журнал переживает свои предметы.</b> У <code>actor_id</code> нет внешнего ключа, <code>actor_email</code> — замороженный снимок, <code>subject_id</code> — текст. Удалили пользователя, снесли запись, переименовали воркспейс — строка журнала остаётся читаемой.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Администратор</h4>
+      <p class="small sub">Единственная роль, у которой есть <code>activity:read</code>. Видит страницу <code>/activity</code>, панель «Recent activity» на главной, вкладку «Activity» в карточке участника и может спросить копайлота.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Контрибьютор и наблюдатель</h4>
+      <p class="small sub">Не видят журнал вообще: пункт бокового меню скрыт, панель на главной не рендерится, маршрут отвечает отказом, а копайлоту инструмент не предлагается на этапе формирования каталога.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик плагина</h4>
+      <p class="small sub">Ничего не вызывает напрямую. Он поднимает доменное событие в свой outbox — и должен помнить, что запись в журнал появится только если для этого вида здесь есть маппер.</p>
+    </div>
+  </div>
+
+  <h3>Чем Activity не является</h3>
+  <ul>
+    <li><b>Это не разрез по воркспейсам.</b> В <code>activity_events</code> <em>нет</em> колонки воркспейса, и это намеренно: приглашения, смены роли и жизненный цикл самого воркспейса не принадлежат никакому воркспейсу. Поэтому и на странице, и в описании инструмента копайлота прямо написано «across this deployment» — раньше там стояло «across the workspace», и это врало администратору мультиворкспейсной инсталляции на той самой странице, чья работа — быть источником истины.</li>
+    <li><b>Это не источник правды о правах.</b> Права живут в identity; Activity только читает константу <code>PERMISSIONS.ACTIVITY_READ</code> и охранник <code>PermissionsGuard</code>.</li>
+    <li><b>Это не средство отладки.</b> В журнал не попадают технические логи, HTTP-ошибки и трассировки — только бизнес-факты, которые кто-то осознанно решил зафиксировать как вид события.</li>
+    <li><b>Это не система оповещений.</b> Ничего никуда не отправляется, нет ни правил, ни подписок, ни экспорта. Есть таблица и один маршрут чтения.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Аудит <b>вынесен вниз по течению</b> от записи. Плагин-производитель кладёт доменное событие в транзакционный outbox <em>той же транзакцией</em>, что и саму мутацию; после коммита <code>OutboxDispatcher</code> доставляет событие подписчику <code>AuditEventSubscriber</code>, и уже он пишет строку журнала. Первичный ключ строки — это <b>идентификатор события</b>, вставка идёт <code>ON CONFLICT DO NOTHING</code>. Поэтому доставка «хотя бы один раз» безопасна, а путь записи и путь аудита эволюционируют независимо.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/activity</code> — <b>два</b> пакета, ровно по шву «сервер / админка». Ни доменного пакета, ни ядра здесь нет, и это осознанно: по <b>ADR-0003</b> «не навязывать DDD там, где CRUD», а Activity — контекст чтения плюс один аппендер. Пустая папка <code>domain/</code> здесь была бы нарушением ADR, а не соблюдением его.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/activity-server</td><td>Плагин NestJS: подписчик на outbox, чистый маппер, сервис чтения, контроллер, схема и миграции</td><td>1 таблица, 1 маршрут, <code>FACET_MAPPERS</code> на 40 видов, инструмент копайлота <code>activity_recent</code></td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/activity-admin</td><td>Плагин админки: страница журнала, пункт бокового меню, панель на главной, переиспользуемый хук</td><td><code>/activity</code>, <code>useActivityLog</code>, <code>ACTIVITY_KINDS</code>, <code>formatActivityAction</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Раскладка серверного пакета</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Путь</th><th>Что там</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">lib/schema/activity-events.ts</td><td>Единственная таблица + три индекса</td></tr>
+      <tr><td class="mono">lib/activity/infrastructure/audit-event-mapping.ts</td><td><b>Сердце пакета.</b> Чистая, свободная от БД функция <code>toAuditRow</code>, таблица <code>FACET_MAPPERS</code>, ошибка <code>UnmappableAuditEventError</code>, экспорт <code>AUDITED_EVENT_KINDS</code></td></tr>
+      <tr><td class="mono">lib/activity/infrastructure/audit-event.subscriber.ts</td><td><code>AuditEventSubscriber</code> — единственный живой писатель журнала. Регистрируется у диспетчера в <code>onApplicationBootstrap</code></td></tr>
+      <tr><td class="mono">lib/activity/services/activity.service.ts</td><td><code>ActivityService.list</code> (чтение) и <code>record</code> (<code>@deprecated</code>, ничего через него не пишет)</td></tr>
+      <tr><td class="mono">lib/activity/controllers/list-activity.controller.ts</td><td>Тонкий контроллер: guard, право, делегирование в сервис</td></tr>
+      <tr><td class="mono">lib/activity/dto/list-activity-query.dto.ts</td><td>Все параметры запроса с валидацией и Swagger-описаниями</td></tr>
+      <tr><td class="mono">lib/activity/activity-filter.ts</td><td><code>ACTIVITY_FILTER_SCHEMA</code> — белый список полей для конструктора фильтров</td></tr>
+      <tr><td class="mono">lib/copilot/activity-tool.provider.ts</td><td>Инструмент <code>activity_recent</code>, регистрируемый в общем реестре инструментов</td></tr>
+      <tr><td class="mono">migrations/0000_init.sql</td><td>Единственная миграция; журнал применения — <code>__drizzle_migrations_activity</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Раскладка админского пакета</h3>
+  <p>Пакет слоёный (ADR-0003), но <b>без слоя <code>domain/</code></b> — мутаций нет, клиентских доменных правил нет, это просмотрщик проекции.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слой</th><th>Модули</th><th>Правило</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">infrastructure/</td><td><code>activityGateway</code> (порт), <code>httpActivityGateway</code>, <code>activityMapper</code>, <code>activityKeys</code></td><td>Единственное место, где используется <code>apiClient</code>; все ошибки нормализуются в <code>ApiError</code></td></tr>
+      <tr><td class="mono">application/</td><td><code>useActivityLog</code></td><td>Зовёт шлюз, никогда <code>apiClient</code>. Экспортируется наружу — им пользуется вкладка участника в <code>users-admin</code></td></tr>
+      <tr><td class="mono">presentation/</td><td>Страница, компоненты, <code>activityPlugin</code>, <code>activityFilterFields</code>, <code>activityMessages</code>, <code>activityDateTime</code></td><td>Видит только вью-модели и хук; ни одной жёстко зашитой строки действия</td></tr>
+      <tr><td class="mono">types/</td><td><code>activityEvent</code>, <code>activityKinds</code></td><td>Общее ядро типов: маппер из инфраструктуры должен уметь их строить, не завися от презентации</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/database</code></b> — владеет самим outbox (<code>outbox_events</code>, <code>OutboxWriter</code>, <code>OutboxDispatcher</code>, контракт <code>DomainEvent</code>); Activity — всего лишь один из его подписчиков. <b><code>@orthacms/identity-server</code></b> — владеет портом <code>ACTIVITY_RECORDER</code> и правом <code>activity:read</code>, а также каталогом <code>IDENTITY_ACTIVITY_KINDS</code>, откуда Activity берёт часть строк видов. <b><code>@orthacms/alarms-server</code></b> — тоже подписчик outbox, но решает совсем другую задачу (проверки контента), и его находки в журнал не попадают.</p>
+  </div>
+</section>
+
+<section id="catalog">
+  <h2 class="sec"><span class="num">03</span>Каталог видов событий</h2>
+
+  <p>Это самая ценная часть паспорта и одновременно единственное место в репозитории, где весь каталог собран целиком. Источник — <code>FACET_MAPPERS</code> в <code>audit-event-mapping.ts</code>: <b>40 входных доменных событий</b>, каждое отображается ровно в один вид аудита, коллизий нет — то есть <b>40 различных значений <code>kind</code></b> может встретиться в таблице.</p>
+
+  <p>Читать таблицу так: <b>«Вид в журнале»</b> — это то, что лежит в колонке <code>kind</code> и по чему фильтрует UI; <b>«Событие-источник»</b> — это <code>kind</code> в <code>outbox_events</code>. Они совпадают не всегда: <code>member.*</code> переименовывается в <code>user.*</code>, <code>auth.signed_in</code> — в <code>user.signed_in</code>, <code>api_token.*</code> — в <code>token.*</code>. Два каталога держат раздельно намеренно: доменное событие называет факт в своём контексте, а вид аудита — в терминах того, что читает человек.</p>
+
+  <h3>3.1 Идентичность и учётные записи</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид в журнале</th><th>Событие-источник</th><th>Производитель</th><th>Субъект</th><th>Что означает</th><th>Поля meta</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">user.invited</td><td class="mono">member.invited</td><td>users</td><td class="mono">user</td><td>Администратор выписал приглашение; аккаунт создан в статусе <code>pending</code></td><td class="mono">email</td></tr>
+      <tr><td class="mono">user.invite_resent</td><td class="mono">member.invite_resent</td><td>users</td><td class="mono">user</td><td>Приглашение выписано заново</td><td class="mono">email</td></tr>
+      <tr><td class="mono">user.invite_revoked</td><td class="mono">member.removed</td><td>users</td><td class="mono">user</td><td>Приглашённый удалён до активации. Вид аудита назван «отозвано приглашение», а не «удалён»: удалять можно только неактивированного</td><td class="mono">email</td></tr>
+      <tr><td class="mono">user.password_reset_issued</td><td class="mono">member.password_reset_issued</td><td>users</td><td class="mono">user</td><td>Администратор выпустил одноразовую ссылку сброса. Пишется в момент <b>выпуска</b>, а не погашения: выдача ссылки, способной захватить аккаунт, — самостоятельное административное действие, и оно должно быть приписано выдавшему, даже если ссылкой никто не воспользовался</td><td class="mono">email</td></tr>
+      <tr><td class="mono">user.activated</td><td class="mono">user.activated</td><td>identity</td><td class="mono">user</td><td>Приглашение принято: первый пароль установлен, статус <code>pending → active</code>. Отдельный факт от входа — до этого исправления журнал показывал приглашение, потом вход, но никогда сам момент, когда аккаунт стал рабочим</td><td class="sub">нет (null)</td></tr>
+      <tr><td class="mono">user.profile_updated</td><td class="mono">member.profile_updated</td><td>users</td><td class="mono">user</td><td>Переименование участника. Событие чеканит не агрегат, а сценарий — он один знает прежнее имя</td><td class="mono">name: {from, to}</td></tr>
+      <tr><td class="mono">user.role_changed</td><td class="mono">member.role_changed</td><td>users</td><td class="mono">user</td><td>Смена роли — то есть изменение прав. Самая читаемая строка журнала при разборе доступа</td><td class="mono">from, to</td></tr>
+      <tr><td class="mono">user.suspended</td><td class="mono">member.disabled</td><td>users</td><td class="mono">user</td><td>Участник отключён; его сессии умирают вместе с этим</td><td class="sub">нет (null)</td></tr>
+      <tr><td class="mono">user.reactivated</td><td class="mono">member.reactivated</td><td>users</td><td class="mono">user</td><td>Отключённый участник включён обратно</td><td class="sub">нет (null)</td></tr>
+      <tr><td class="mono">user.password_changed</td><td class="mono">user.password_changed</td><td>identity</td><td class="mono">user</td><td>Ротация учётных данных — самостоятельная смена или погашение ссылки сброса. Актором в обоих случаях выступает владелец аккаунта: ссылку выписал администратор, но пароль выбрал человек</td><td class="mono">sessionsRevoked</td></tr>
+      <tr><td class="mono">user.signed_in</td><td class="mono">auth.signed_in</td><td>identity</td><td class="mono">user</td><td>Вход. Парольный вход <code>meta</code> не несёт; вход через провайдера записывает способ и провайдера — это первый вопрос после того, как провайдера сломали или вывели из эксплуатации</td><td class="mono">null либо {method:'sso', provider}</td></tr>
+      <tr><td class="mono">user.signed_out</td><td class="mono">auth.signed_out</td><td>identity</td><td class="mono">user</td><td>Выход. Отзывается только предъявленная сессия</td><td class="sub">нет (null) — см. примечание ниже</td></tr>
+      <tr><td class="mono">user.sso_linked</td><td class="mono">user.sso_linked</td><td>identity</td><td class="mono">user</td><td>К существующему аккаунту привязан субъект внешнего провайдера — появился <b>второй</b> способ войти. Пишется один раз на привязку, а не на каждый вход</td><td class="mono">provider</td></tr>
+      <tr><td class="mono">user.sso_provisioned</td><td class="mono">user.sso_provisioned</td><td>identity</td><td class="mono">user</td><td>Аккаунт создан из подтверждённого профиля — без приглашения и без пароля. Единственный в продукте путь появления учётной записи, которую никто явно не приглашал</td><td class="mono">provider, role</td></tr>
+      <tr><td class="mono">user.sso_role_mapped</td><td class="mono">user.sso_role_mapped</td><td>identity</td><td class="mono">user</td><td>Обработчик маппинга ролей сменил роль на входе — то есть права изменил не администратор. Пишется только при фактической смене, иначе строка появлялась бы на каждом входе до конца жизни аккаунта</td><td class="mono">provider, role</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Две потери информации, которые видно только в коде</span>
+    <p><b>Back-channel logout.</b> <code>sso-backchannel-logout.use-case.ts</code> кладёт в событие <code>{ method: 'sso_backchannel', provider }</code>, но маппер <code>auth.signed_out</code> жёстко ставит <code>meta: null</code>. В журнале выход, инициированный провайдером, выглядит ровно как обычный выход пользователя. Для <code>auth.signed_in</code> симметричная ветка есть, для <code>signed_out</code> — нет.</p>
+    <p><b>Актор back-channel-выхода.</b> Там же актору подставляется <code>email ?? ''</code> — то есть пустая строка вместо снимка адреса, и строка журнала получает актора без читаемого имени.</p>
+  </div>
+
+  <h3>3.2 Воркспейсы</h3>
+  <p>Здесь вид аудита и вид события — <b>одна и та же строка</b> (каталог принадлежит identity, константы <code>IDENTITY_ACTIVITY_KINDS</code>). Важное исключение — членство: субъектом строки становится <b>пользователь</b>, а не воркспейс.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид (= событие)</th><th>Производитель</th><th>Субъект</th><th>Что означает</th><th>Поля meta</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">workspace.created</td><td>workspaces</td><td class="mono">workspace</td><td>Создан воркспейс</td><td class="mono">name, slug</td></tr>
+      <tr><td class="mono">workspace.updated</td><td>workspaces</td><td class="mono">workspace</td><td>Изменены атрибуты воркспейса</td><td class="mono">fields: string[]</td></tr>
+      <tr><td class="mono">workspace.archived</td><td>workspaces</td><td class="mono">workspace</td><td>Воркспейс отправлен в архив</td><td class="mono">{}</td></tr>
+      <tr><td class="mono">workspace.unarchived</td><td>workspaces</td><td class="mono">workspace</td><td>Воркспейс возвращён из архива</td><td class="mono">{}</td></tr>
+      <tr><td class="mono">workspace.deleted</td><td>workspaces</td><td class="mono">workspace</td><td>Воркспейс удалён; имя и slug заморожены в <code>meta</code>, потому что искать их больше негде</td><td class="mono">name, slug</td></tr>
+      <tr><td class="mono">workspace.member_added</td><td>workspaces</td><td class="mono">user</td><td>Участника добавили в воркспейс. Субъект — <b>участник</b>: вопрос «что происходило с этим человеком» важнее, чем «что происходило с этим воркспейсом»</td><td class="mono">workspaceId, email</td></tr>
+      <tr><td class="mono">workspace.member_removed</td><td>workspaces</td><td class="mono">user</td><td>Участника исключили. <code>email</code> может быть <code>null</code>, если учётной записи уже нет</td><td class="mono">workspaceId, email</td></tr>
+      <tr><td class="mono">workspace.content_granted</td><td>workspaces</td><td class="mono">workspace</td><td>Воркспейсу выдан доступ к типу контента</td><td class="mono">slug, kind</td></tr>
+      <tr><td class="mono">workspace.content_revoked</td><td>workspaces</td><td class="mono">workspace</td><td>Доступ к типу контента отозван (возможен только когда записей этого типа в воркспейсе нет)</td><td class="mono">slug</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.3 Контент</h3>
+  <p>Вид аудита равен виду события. Семь строк — весь жизненный цикл записи. Два из них (<code>entry.published</code>/<code>entry.unpublished</code>) поднимает агрегат <code>Entry</code>, остальные пять чеканят билдеры и поднимает путь записи: у «создано» нет инварианта, который можно нарушить, поэтому городить вокруг факта агрегат (и статус публикации у типа, который не публикуется) незачем.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид (= событие)</th><th>Субъект</th><th>Что означает</th><th>Поля meta</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">entry.created</td><td class="mono">content_entry</td><td>Появилась новая запись</td><td class="mono">contentType</td></tr>
+      <tr><td class="mono">entry.updated</td><td class="mono">content_entry</td><td>Значения записи изменились. <code>fields</code> — это то, что превращает строку из факта в ревью: «правил заголовок и текст», а не «кто-то сохранил». Сохранение, ничего не изменившее, события <b>не порождает вовсе</b>, поэтому журнал считает редакторские изменения, а не заходы в редактор</td><td class="mono">contentType, fields: string[]</td></tr>
+      <tr><td class="mono">entry.published</td><td class="mono">content_entry</td><td>Запись опубликована (повторная публикация идемпотентна и события не даёт)</td><td class="mono">contentType</td></tr>
+      <tr><td class="mono">entry.unpublished</td><td class="mono">content_entry</td><td>Запись снята с публикации (снятие с уже черновика — no-op без события)</td><td class="mono">contentType</td></tr>
+      <tr><td class="mono">entry.deleted</td><td class="mono">content_entry</td><td>Запись удалена. <code>soft</code> различает два очень разных факта: надгробие, которое можно восстановить из корзины, и строку, ушедшую из таблицы в момент коммита</td><td class="mono">contentType, soft: boolean</td></tr>
+      <tr><td class="mono">entry.restored</td><td class="mono">content_entry</td><td>Надгробие снято, запись вернулась</td><td class="mono">contentType</td></tr>
+      <tr><td class="mono">entry.purged</td><td class="mono">content_entry</td><td>Запись уничтожена окончательно. Единственное действие с контентом, после которого исследовать нечего — поэтому это единственная строка, которая и есть весь оставшийся след</td><td class="mono">contentType</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.4 Медиатека</h3>
+  <p>Вид аудита равен виду события, а <code>meta</code> — это <b>полезная нагрузка события целиком, минус ключ <code>actor</code></b>. Так сделано потому, что у медиа нагрузки принципиально разной формы: у загрузки — имя и вид файла, у обновления — только то поле, которое поменялось, у перемещения — папка назначения, у удаления — ключ в хранилище. Уплощать это в одну форму значило бы терять именно то, ради чего строку читают.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид (= событие)</th><th>Субъект</th><th>Что означает</th><th>Поля meta</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">media.asset.uploaded</td><td class="mono">media_asset</td><td>Файл загружен в медиатеку</td><td class="mono">name, kind, folderId</td></tr>
+      <tr><td class="mono">media.asset.updated</td><td class="mono">media_asset</td><td>Изменён <b>один</b> атрибут файла. Один вид на четыре разных редактирования — агрегат поднимает его из <code>rename</code>, <code>retag</code>, <code>setTracks</code> и <code>setAlt</code></td><td class="mono">name | tags | tracks | alt</td></tr>
+      <tr><td class="mono">media.asset.moved</td><td class="mono">media_asset</td><td>Файл перенесён в другую папку (<code>null</code> — в корень)</td><td class="mono">folderId</td></tr>
+      <tr><td class="mono">media.asset.deleted</td><td class="mono">media_asset</td><td>Файл удалён. Ключ хранилища едет в <code>meta</code>, потому что то же самое событие — шов для сборки мусора в блоб-хранилище</td><td class="mono">storageKey, storageProvider</td></tr>
+      <tr><td class="mono">media.folder.created</td><td class="mono">media_folder</td><td>Создана папка</td><td class="mono">name, parentId</td></tr>
+      <tr><td class="mono">media.folder.renamed</td><td class="mono">media_folder</td><td>Папка переименована</td><td class="mono">name</td></tr>
+      <tr><td class="mono">media.folder.deleted</td><td class="mono">media_folder</td><td>Папка удалена</td><td class="mono">{}</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.5 Внешние API-токены</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид в журнале</th><th>Событие-источник</th><th>Субъект</th><th>Что означает</th><th>Поля meta</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">token.created</td><td class="mono">api_token.created</td><td class="mono">api_token</td><td>Выпущен долгоживущий bearer-токен к контенту воркспейсов. Субъект — сам токен, выпустивший администратор приезжает актором</td><td class="mono">name, scope, workspaceIds, lookupPrefix</td></tr>
+      <tr><td class="mono">token.revoked</td><td class="mono">api_token.revoked</td><td class="mono">api_token</td><td>Токен отозван</td><td class="mono">name, scope, workspaceIds, lookupPrefix</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему в meta токена нет ни секрета, ни хэша</span>
+    <p><code>api_tokens</code> хранит только SHA-256 — ровно затем, чтобы чтение <em>другой</em> таблицы не давало рабочей учётки. Журнал — это другая таблица, и она заведомо ниже по уровню доверия: её видит любой администратор и читает копайлот. Поэтому в <code>meta</code> едет только несекретный <code>lookupPrefix</code> — по нему строку журнала можно сопоставить со строкой на экране токенов, и больше ничего.</p>
+  </div>
+
+  <h3>3.6 Виды, которых в журнале нет</h3>
+  <p>Два доменных события identity объявлены, но <b>не отображаются</b> и, что важнее, никем не поднимаются: у <code>UserAccount.disable()</code> / <code>enable()</code> нет ни одного вызова в продуктовом коде — отключение участника идёт через агрегат <code>Member</code> в плагине users.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид события</th><th>Где объявлен</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">user.disabled</td><td class="mono">IDENTITY_EVENT_KINDS</td><td>Поднимается только агрегатом <code>UserAccount</code>, у которого нет вызывающих; в <code>FACET_MAPPERS</code> отсутствует. Фактически мёртвый код, но при появлении вызывающего действие уйдёт в тишину</td></tr>
+      <tr><td class="mono">user.enabled</td><td class="mono">IDENTITY_EVENT_KINDS</td><td>То же самое</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Расхождение каталогов сервера и админки</span>
+    <p>Сервер пишет <b>40</b> видов, админский список <code>ACTIVITY_KINDS</code> знает <b>37</b>. Не знает он три SSO-вида: <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>. Это не ошибка компиляции и не ошибка времени выполнения: маппер приводит <code>dto.kind as ActivityKind</code> без проверки, <code>formatActivityAction</code> не находит дескриптор и печатает сырой токен — то есть в колонке «Action» на экране появится буквально <code>user.sso_provisioned</code>. Тест <code>apps/admin-e2e/src/activity/activity-kinds.spec.ts</code>, который специально существует, чтобы это ловить, его не поймает: его сид <code>ALL_KINDS_ACTIVITY</code> содержит те же 37 строк.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">04</span>Роли и права</h2>
+
+  <p>У пакета <b>одно</b> право — <code>activity:read</code> (константа <code>PERMISSIONS.ACTIVITY_READ</code>, объявлена в <code>identity-server</code>, файл <code>rbac/system-roles.ts</code>). Права на запись нет и быть не может: журнал не пишет человек, его пишет подписчик.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">activity:read</td><td><code>GET /api/activity</code>, страница <code>/activity</code>, панель на главной, вкладка участника, инструмент копайлота <code>activity_recent</code></td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Роль <code>admin</code> получает право не именно как «активность», а потому что её набор — это <b>полное перечисление</b> <code>PERMISSION_KEYS</code>. Ни <code>contributor</code>, ни <code>viewer</code> его не перечисляют.</p>
+
+  <h3>Четыре места, где право проверяется</h3>
+  <ul class="check">
+    <li><b>Маршрут</b> → <span class="exp"><code>@UseGuards(PermissionsGuard)</code> + <code>@RequirePermissions(PERMISSIONS.ACTIVITY_READ)</code> на классе контроллера. Это единственная настоящая проверка.</span></li>
+    <li><b>Пункт бокового меню</b> → <span class="exp">в описании слота указано <code>permission: 'activity:read'</code>, и <code>SidebarNavButton</code> оболочки скрывает пункт. Косметика, но честная.</span></li>
+    <li><b>Страница</b> → <span class="exp"><code>useHasPermission('activity:read')</code>; без права рендерится <code>ActivityNoAccess</code>, и запрос <b>не уходит вовсе</b> (<code>enabled = canRead</code>).</span></li>
+    <li><b>Инструмент копайлота</b> → <span class="exp"><code>requires: [PERMISSIONS.ACTIVITY_READ]</code>. Профиль возможностей утаивает инструмент <b>на этапе предложения</b> (ADR-0005 §3), а не отказывает при вызове: прогон контрибьютора вообще не узнаёт, что такой инструмент существует.</span></li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Почему инструмент копайлота не ограничен воркспейсом</span>
+    <p>Ограничивать нечем: колонки воркспейса в таблице нет. Описание инструмента прямо говорит, что охват — вся инсталляция, вместо того чтобы намекать на границу, которую он не может обеспечить. Единственная граница — <code>activity:read</code>, и она та же самая, что у страницы. Администратор, спросивший копайлота про журнал, читает ровно то же, что уже видит на экране.</p>
+  </div>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">05</span>Модель данных</h2>
+
+  <p>Одна таблица, одна миграция (<code>0000_init</code>), собственный журнал применения <code>__drizzle_migrations_activity</code>. Соединения плагин не открывает — клиент Drizzle внедряется из <code>@orthacms/database</code> через <code>@InjectDatabase()</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Колонка</th><th>Тип</th><th>Назначение и почему именно так</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">id</td><td class="mono">uuid PK</td><td>По умолчанию <code>gen_random_uuid()</code>, но подписчик <b>всегда подставляет идентификатор события</b>. Это и есть ключ идемпотентности</td></tr>
+      <tr><td class="mono">kind</td><td class="mono">text NOT NULL</td><td>Открытая строка вида <code>домен.действие</code>. Не enum и не внешний ключ на справочник: каталог принадлежит производителям, а не приёмнику</td></tr>
+      <tr><td class="mono">subject_type</td><td class="mono">text NOT NULL</td><td>Шесть фактических значений: <code>user</code>, <code>workspace</code>, <code>content_entry</code>, <code>api_token</code>, <code>media_asset</code>, <code>media_folder</code></td></tr>
+      <tr><td class="mono">subject_id</td><td class="mono">text NOT NULL</td><td><b>text, а не uuid</b>: субъекты не всегда пользователи и не всегда ключуются uuid. Единственная ручка, которую строка сохраняет на свой предмет — ни внешнего ключа, ни денормализованного имени</td></tr>
+      <tr><td class="mono">actor_id</td><td class="mono">uuid NULL</td><td><b>Без внешнего ключа</b> — актора могут потом удалить, а строка обязана остаться. <code>null</code> означает системное событие</td></tr>
+      <tr><td class="mono">actor_email</td><td class="mono">text NULL</td><td>Замороженный снимок адреса на момент записи: журнал остаётся читаемым и после удаления или переименования учётки</td></tr>
+      <tr><td class="mono">meta</td><td class="mono">jsonb NULL</td><td>Открытая нагрузка; формой каждого вида владеет производитель. Не индексируется и не входит в фильтруемую поверхность</td></tr>
+      <tr><td class="mono">at</td><td class="mono">timestamptz NOT NULL</td><td><b>Логическое</b> время факта — берётся из <code>event.occurredAt</code>, то есть из момента совершения, а не из момента доставки</td></tr>
+      <tr><td class="mono">created_at</td><td class="mono">timestamptz NOT NULL</td><td>Время физической записи. <b>Никогда не выбирается</b> в <code>list</code> и не уходит на провод — внутренняя деталь</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Индексы — ровно под три формы запроса</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Индекс</th><th>Колонки</th><th>Какой вопрос обслуживает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">activity_events_subject_idx</td><td class="mono">(subject_type, subject_id, at)</td><td>«История вот этого предмета» — вкладка участника, история записи</td></tr>
+      <tr><td class="mono">activity_events_actor_idx</td><td class="mono">(actor_id, at)</td><td>«Что делал вот этот человек»</td></tr>
+      <tr><td class="mono">activity_events_kind_idx</td><td class="mono">(kind, at)</td><td>«Все публикации», «все выпуски токенов»</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Ретенция и объём — то, чего нет</span>
+    <p><b>В пакете нет ни одного механизма усечения журнала.</b> Ни задания по расписанию, ни маршрута удаления, ни настройки срока хранения, ни партиционирования — таблица растёт неограниченно и по замыслу (журнал append-only). Практически это значит, что объём определяется самым частым видом события: <code>user.signed_in</code> — по строке на каждый вход, <code>entry.updated</code> — по строке на каждое результативное сохранение (пустое сохранение события не порождает, и это единственный встроенный ограничитель). Строка компактна, но <code>meta</code> у медиа несёт всю нагрузку события целиком, включая массив <code>tracks</code>. Отдельно стоит помнить, что ниже по течению растёт и <code>outbox_events</code>: доставленные строки там тоже никогда не удаляются (частичный индекс лишь выводит их из горячего пути). Сортировка списка идёт по <code>at</code> с добивкой по <code>id</code>, а страница берётся через <code>LIMIT/OFFSET</code> — на большом смещении это неизбежно дорого, кейсетной пагинации нет.</p>
+  </div>
+
+  <h3>Что таблица нарочно не хранит</h3>
+  <ul>
+    <li><b>Воркспейс.</b> Колонки нет — и добавлять фильтр по воркспейсу в UI прямо запрещено соглашениями пакета: фильтровать не по чему, чинить надо текст, а не запрос.</li>
+    <li><b>Имя предмета.</b> Только <code>subject_id</code>. Имя, если оно вообще нужно, кладётся производителем в <code>meta</code> (<code>workspace.deleted</code> → <code>name</code>, <code>media.folder.renamed</code> → <code>name</code>).</li>
+    <li><b>Диффы.</b> Максимум — список изменённых полей (<code>fields</code>) и переходы вида <code>{from, to}</code>. Значений «до» журнал не хранит.</li>
+    <li><b>Секреты.</b> Ни паролей, ни хэшей, ни токенов, ни их хэшей.</li>
+  </ul>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">06</span>Жизненный цикл события</h2>
+
+  <p>Понимать нужно два жизненных цикла сразу: цикл строки <code>outbox_events</code> (ею владеет <code>@orthacms/database</code>) и цикл строки <code>activity_events</code> (ею владеет Activity). Второй — производная от первого.</p>
+
+  <div class="states">
+    <span class="state">мутация + событие в одной транзакции</span>
+    <span class="arrow">→</span>
+    <span class="state pending">outbox: dispatched_at IS NULL</span>
+    <span class="arrow">→</span>
+    <span class="state">доставка подписчикам</span>
+    <span class="arrow">→</span>
+    <span class="state active">outbox: dispatched_at ≠ NULL</span>
+  </div>
+  <div class="states">
+    <span class="arrow">при отказе подписчика:</span>
+    <span class="state pending">attempts++ , next_attempt_at</span>
+    <span class="arrow">→ ×15 →</span>
+    <span class="state disabled">dead letter: attempts ≥ 15, dispatched_at IS NULL</span>
+  </div>
+
+  <h3>Три исхода для доставленного события</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Маппер есть → строка</h4>
+      <p class="small sub"><code>toAuditRow</code> возвращает <code>AuditRow</code>, подписчик вставляет её <code>ON CONFLICT DO NOTHING</code>, диспетчер штампует <code>dispatched_at</code>. Нормальный путь.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Маппера нет → тишина</h4>
+      <p class="small sub">Диспетчер вообще не находит подписчика на этот вид (список <code>kinds</code> подписчика — это <code>AUDITED_EVENT_KINDS</code>), цикл по подписчикам делает ноль итераций, строка штампуется <code>dispatched_at</code>. <b>Ни ошибки, ни лога, ни следа.</b></p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Маппер отказал → dead letter</h4>
+      <p class="small sub"><code>UnmappableAuditEventError</code> вылетает наружу, диспетчер увеличивает <code>attempts</code>, ставит <code>next_attempt_at</code> и повторяет с экспоненциальной задержкой, пока не припаркует строку.</p>
+    </div>
+  </div>
+
+  <h3>null и исключение означают разное — и это главное решение пакета</h3>
+  <p><code>toAuditRow</code> возвращает <code>null</code>, когда вида нет в <code>FACET_MAPPERS</code>: «это не наше событие, пропусти». И бросает <code>UnmappableAuditEventError</code>, когда вид <b>наш</b>, но нагрузка не позволяет назвать субъекта.</p>
+  <p>Почему не подставить пустую строку? Потому что <code>subject_id</code> — единственная ручка, которую строка держит на свой предмет: внешнего ключа нет, денормализованного имени нет, <code>actor_email</code> принадлежит актору. Пустая строка проходит проверку <code>text NOT NULL</code> и даёт строку, называющую действие, воркспейс и актора — но не субъект. Это не деградировавшая запись, это <b>нечитаемая</b>, и починить её задним числом не может никто. Отказ делает дыру громкой: строка остаётся в outbox, ретраится с задержкой и в конце концов попадает в выборку мёртвых писем <code>dispatched_at IS NULL AND attempts &gt;= 15</code>. Сегодня отказать умеет один маппер — <code>membershipSubject</code>, когда в нагрузке нет <code>userId</code>.</p>
+
+  <h3>Параметры доставки (владеет <code>@orthacms/database</code>)</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Параметр</th><th>Значение</th><th>Смысл для аудита</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">DRAIN_BATCH_SIZE</td><td class="num-col">100</td><td>Сколько строк захватывает один слив (<code>FOR UPDATE SKIP LOCKED</code>, старейшие первыми)</td></tr>
+      <tr><td class="mono">POLL_INTERVAL_MS</td><td class="num-col">5000</td><td>Страховочный опрос. Основной триггер — вызов <code>drain()</code> сразу после коммита единицы работы, и он ожидается, поэтому обычно строка журнала уже есть к моменту ответа API</td></tr>
+      <tr><td class="mono">MAX_DELIVERY_ATTEMPTS</td><td class="num-col">15</td><td>После этого строка не захватывается вовсе — иначе полная пачка вечно неуспешных строк намертво встала бы в голове очереди и новые события перестали бы доставляться</td></tr>
+      <tr><td class="mono">RETRY_BASE_DELAY_MS / RETRY_MAX_DELAY_MS</td><td class="num-col">1000 / 300000</td><td>Удвоение с плато на пяти минутах: около получаса окна до признания мёртвым письмом. Без задержки 15 попыток сгорели бы за миллисекунды</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Вставка журнала не входит в транзакцию диспетчера</span>
+    <p><code>AuditEventSubscriber.handle</code> пишет через <b>корневой</b> клиент <code>this.db</code>, а не через транзакцию, в которой диспетчер захватил и штампует строку outbox. Это значит, что теоретически возможно расхождение: строка журнала вставилась, а штамп <code>dispatched_at</code> откатился — тогда событие будет доставлено повторно, и спасает только <code>ON CONFLICT DO NOTHING</code>. Обратный порядок (штамп прошёл, вставка не прошла) невозможен, потому что исключение подписчика откатывает штамп. То есть идемпотентность здесь — не украшение, а несущая конструкция.</p>
+  </div>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">07</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>7.1 Общий конвейер: от действия до строки журнала</h3>
+  <p class="sub small">Это скелет, общий для всех 40 видов. Дальше идут сценарии, где интересна конкретика.</p>
+  <ol class="flow">
+    <li><b>Пользователь совершает действие.</b> Любой пишущий маршрут любого плагина — публикация записи, приглашение, загрузка файла.</li>
+    <li><b>Агрегат или сценарий поднимает доменное событие.</b> Агрегат называет факт (<code>entry.published</code>), сценарий добавляет то, чего агрегат знать не может (<code>sessionsRevoked</code> — агрегат понятия не имеет о существовании сессий; прежнее имя участника — его знает только сценарий).<span class="meta">событие — это факт, а не команда: прошедшее время в имени не случайно</span></li>
+    <li><b>К нагрузке пристёгивается актор.</b> <code>attachActor(events, { id, email })</code> кладёт в <code>payload.actor</code> идентификатор и адрес. Это единственный способ, которым подписчик узнаёт, кто действовал: HTTP-контекста у него нет и быть не может — он работает после ответа.</li>
+    <li><b>Событие пишется в outbox <em>той же транзакцией</em>, что и мутация.</b> Это и есть транзакционный outbox: событие зафиксируется тогда и только тогда, когда зафиксируется изменение. Двухфазный коммит не нужен.<span class="meta">строка: dispatched_at IS NULL, attempts = 0</span></li>
+    <li><b>После коммита единица работы зовёт <code>drain()</code>.</b> Вызов ожидается, так что строка журнала обычно существует уже к моменту, когда HTTP-ответ уходит клиенту. Пятисекундный опрос — только страховка на случай падения процесса между коммитом и сливом.</li>
+    <li><b>Диспетчер выбирает подписчиков по виду.</b> У <code>AuditEventSubscriber</code> поле <code>kinds = AUDITED_EVENT_KINDS</code> — то есть ключи <code>FACET_MAPPERS</code>. Событие не из этого списка не доходит до аудита вообще.</li>
+    <li><b>Маппер строит строку.</b> Чистая функция без БД: выбирает вид аудита, тип и идентификатор субъекта, собирает <code>meta</code>, снимает актора с нагрузки в отдельные колонки, ставит <code>at = event.occurredAt</code> и <code>id = event.eventId</code>.<span class="meta">актор в meta не дублируется — у него уже есть две собственные колонки</span></li>
+    <li><b>Вставка с <code>ON CONFLICT DO NOTHING</code>.</b> Повторная доставка того же события попадает в тот же первичный ключ и молча ничего не делает.</li>
+    <li><b>Диспетчер штампует <code>dispatched_at</code>.</b> Событие обработано; строка outbox остаётся в таблице навсегда, но выпадает из частичного индекса ожидающих.</li>
+  </ol>
+
+  <h3>7.2 Приглашение участника — почему актор и субъект разные</h3>
+  <ol class="flow">
+    <li><b>Администратор жмёт «Пригласить».</b> Плагин users создаёт агрегат <code>Member</code>, тот поднимает <code>member.invited</code> с <code>{ email }</code>.</li>
+    <li><b><code>attachActor</code> ставит актором администратора,</b> а <code>aggregateId</code> события — это идентификатор <b>приглашённого</b>. Отсюда и берётся асимметрия строки: субъект — тот, кого пригласили, актор — тот, кто пригласил.</li>
+    <li><b>Маппер переименовывает вид:</b> <code>member.invited → user.invited</code>. Два каталога держат раздельно, потому что «member» — это термин контекста управления участниками, а журнал читают в терминах учётной записи.<span class="meta">переименование зафиксировано юнит-тестом на паритет — он сверяет строку с той, что писал прежний in-band рекордер</span></li>
+    <li><b>Человек открывает ссылку и задаёт пароль.</b> Сценарий <code>accept-invite.use-case.ts</code> кладёт в outbox <b>сразу два</b> события: <code>user.activated</code> (аккаунт стал рабочим) и <code>auth.signed_in</code> (сессия выдана).</li>
+    <li><b>В журнале появляются две строки.</b> Именно две, потому что это два разных факта: «аккаунт получил учётные данные и перешёл в <code>active</code>» и «кто-то вошёл». До того как <code>user.activated</code> завели в <code>FACET_MAPPERS</code>, событие поднималось и штамповалось доставленным, а строки не давало — журнал показывал приглашение, потом вход, и никогда сам момент активации.</li>
+    <li><b>Актор обеих строк — сам приглашённый.</b> Ссылку выписал администратор, но пароль выбрал человек, и в момент этих событий он уже действует от своего имени.</li>
+  </ol>
+
+  <h3>7.3 Публикация и правка записи</h3>
+  <ol class="flow">
+    <li><b>Редактор жмёт «Опубликовать».</b> Агрегат <code>Entry.publish(gate)</code> сначала проверяет ворота публикации, потом переход статуса, и только тогда поднимает <code>entry.published</code> с <code>{ contentType }</code>.</li>
+    <li><b>Повторная публикация события не даёт.</b> Уже опубликованная запись — идемпотентный ранний возврат. Журнал не должен наполняться строками о том, чего не произошло.</li>
+    <li><b>Правка идёт другим путём.</b> <code>entry.updated</code> чеканит не агрегат, а путь записи <code>EntryWriterService</code>, потому что у факта «значения изменились» нет собственного инварианта, а строить вокруг него агрегат (со статусом публикации, которого у непубликуемого типа нет) — лишнее.</li>
+    <li><b>Список изменённых полей вычисляется сравнением.</b> Хранимая строка сравнивается с записываемой; <code>fields</code> — это разница. Побочный эффект принципиальный: <b>сохранение, ничего не изменившее, не порождает события вовсе</b> — ни повторная отправка формы, ни переоткрытый редактор, ни восстановление уже живущей версии. Журнал считает редакторские изменения, а не круговые поездки по интерфейсу.<span class="meta">пустой fields в старой строке — это старая строка, а не no-op</span></li>
+    <li><b>Удаление раздваивается по <code>soft</code>.</b> Один маршрут, два разных факта: у «параноидного» типа ставится надгробие, которое восстановимо, у остальных строка уходит из таблицы в момент коммита. Флаг <code>soft</code> отвечает читателю журнала на вопрос «а вернуть-то можно?».</li>
+    <li><b>Окончательное уничтожение — отдельный вид.</b> <code>entry.purged</code> не сливается со вторым <code>entry.deleted</code>: это единственное действие с контентом, после которого исследовать больше нечего, и потому единственное, ради которого строка журнала — весь оставшийся след.</li>
+  </ol>
+
+  <h3>7.4 Медиатека — сценарий, который был полностью нем</h3>
+  <p class="sub small">Показателен как иллюстрация правила «добавить производителя = добавить маппер».</p>
+  <ol class="flow">
+    <li><b>Агрегаты медиа поднимали свои семь событий с самого начала.</b> В их собственном комментарии outbox прямо назван «швом для аудита и сборки мусора блобов».</li>
+    <li><b>Подписчика на них не было.</b> Диспетчер не находил ни одного получателя, штамповал строку доставленной и шёл дальше.</li>
+    <li><b>Результат: журнал молчал про всю медиатеку.</b> Загрузка, переименование, перенос, удаление файла, создание, переименование и удаление папки — восемь путей записи, восемь доставленных строк outbox, ноль строк аудита.</li>
+    <li><b>Починка — семь строк в <code>FACET_MAPPERS</code>.</b> Вид события взяли видом аудита один в один: в отличие от <code>member.*</code> у медиа не было прежнего каталога аудита, с которым надо оставаться совместимым, и выдумывать второй набор имён значило бы завести лишнее соответствие, которое надо помнить.</li>
+    <li><b><code>meta</code> — нагрузка целиком, минус актор.</b> Формы у видов разные по замыслу, и именно эта разница отвечает на вопрос «что случилось с этим файлом».</li>
+    <li><b>Проверка, что такого больше не случится, — один запрос:</b> сравнить <code>select distinct kind from outbox_events</code> с <code>AUDITED_EVENT_KINDS</code>. Плюс набор <code>apps/server-e2e/src/server/activity/activity-coverage.spec.ts</code>, где каждое утверждение — <b>пара</b>: мутация подняла событие <em>и</em> строка появилась. Любая половина по отдельности проходит и при пустом журнале.</li>
+  </ol>
+
+  <h3>7.5 Событие без маппера: что именно происходит</h3>
+  <ol class="flow">
+    <li><b>Производитель кладёт событие в outbox.</b> Строка коммитится вместе с мутацией — здесь всё честно.</li>
+    <li><b>Диспетчер захватывает строку</b> и вызывает <code>subscribersFor(kind)</code>: фильтр по <code>subscriber.kinds.includes(kind)</code>.</li>
+    <li><b>Ни один подписчик не подходит.</b> Список пуст, цикл по подписчикам делает ноль итераций, исключения нет.</li>
+    <li><b>Строка штампуется <code>dispatched_at</code>.</b> С точки зрения outbox событие доставлено успешно.</li>
+    <li><b>Действия в журнале нет и никогда не будет.</b> Ни ошибки, ни предупреждения в логе, ни счётчика, ни метрики. Восстановить задним числом можно только по <code>outbox_events</code>, пока эта таблица не усечена — а её никто не усекает, так что резерв времени большой, но это удача, а не решение.<span class="meta">так уже случалось трижды: API-токены, публикации записей и вся медиатека</span></li>
+  </ol>
+  <div class="note crit">
+    <span class="label">Почему это оставлено именно так</span>
+    <p>Альтернатива — падать на неизвестном виде — превратила бы Activity из приёмника в блокирующий шлюз: любой плагин, поднявший новое событие, ронял бы доставку всех остальных, пока в Activity не добавят маппер. Приёмник, знающий про все каталоги мира, — это ровно та связанность, которой пакет избегает. Цена решения — тишина, и её компенсируют не кодом, а дисциплиной: чек-лист «новый производитель → новый маппер», один SQL-запрос для сверки и парный e2e-набор.</p>
+  </div>
+
+  <h3>7.6 Событие, которое нельзя записать честно</h3>
+  <ol class="flow">
+    <li><b>Приходит <code>workspace.member_added</code> без <code>payload.userId</code>.</b> Маппер <code>membershipSubject</code> обязан назвать субъектом <em>участника</em>, а не воркспейс, и взять идентификатор ему неоткуда.</li>
+    <li><b>Маппер бросает <code>UnmappableAuditEventError</code>.</b> Раньше на этом месте подставлялась пустая строка: она проходит <code>NOT NULL</code>, и получалась строка, называющая действие, воркспейс и актора — но без субъекта. В интерфейсе такая ячейка «Subject» не имеет доступного имени вовсе.</li>
+    <li><b>Диспетчер ловит исключение,</b> увеличивает <code>attempts</code>, вычисляет <code>next_attempt_at</code> и логирует ошибку со стеком.</li>
+    <li><b>Строка остаётся недоставленной и ретраится с удвоением задержки</b> — примерно полчаса до потолка.</li>
+    <li><b>На пятнадцатой попытке строка паркуется.</b> Диспетчер перестаёт её захватывать, лог явно называет запрос мёртвых писем. Очередь за ней продолжает двигаться — это и есть смысл потолка попыток.</li>
+    <li><b>Оператор чинит причину и «переигрывает» строку,</b> обнулив <code>attempts</code>. Событие в таблице никуда не делось.</li>
+  </ol>
+
+  <h3>7.7 Повторная доставка</h3>
+  <ol class="flow">
+    <li><b>Доставка гарантированно «хотя бы один раз».</b> Слив мог упасть между вставкой журнала и штампом, процесс мог получить <code>SIGTERM</code> посреди пачки, два процесса могли слить пересекающиеся наборы.</li>
+    <li><b>Первичный ключ строки журнала — идентификатор события,</b> а не сгенерированный uuid. Это превращает «то же событие» в «тот же ключ».</li>
+    <li><b><code>ON CONFLICT DO NOTHING</code> по <code>activity_events.id</code></b> делает повтор буквально ничем: ни дубля, ни ошибки, ни обновления существующей строки. Важно, что это именно <code>DO NOTHING</code>, а не <code>DO UPDATE</code>: первая записанная версия строки неизменна, как и подобает аудиту.</li>
+    <li><b>Корректное завершение процесса дожидается активного слива.</b> Раньше <code>onModuleDestroy</code> только гасил таймер, и слив, застигнутый <code>SIGTERM</code>, бросали посреди пачки — подписчики отработали, штампов нет, при следующем старте всё доставляется заново. Работало только благодаря идемпотентности единственного подписчика.</li>
+  </ol>
+
+  <h3>7.8 Чтение журнала: от строки запроса до SQL</h3>
+  <ol class="flow">
+    <li><b>Запрос приходит на <code>GET /api/activity</code>.</b> Глобальный <code>AuthGuard</code> уже пропустил его по сессионной куке; <code>PermissionsGuard</code> проверяет <code>activity:read</code>.</li>
+    <li><b><code>ValidationPipe</code> хоста разбирает DTO.</b> Он трансформирует, но не преобразует типы неявно, поэтому в DTO расставлены <code>@Type</code> для <code>page</code>/<code>pageSize</code> и <code>@Transform</code> для <code>kind</code>: строка режется по запятой, элементы обрезаются, пустые выбрасываются.</li>
+    <li><b>Строится предикат из структурных параметров.</b> Всё пересекается по <code>AND</code>; <code>and(undefined, …)</code> схлопывается, поэтому запрос без фильтров — это честный полный скан.<span class="meta">subjectType, subjectId, actorId — точное равенство; kind — IN; from/to — gte/lte по at</span></li>
+    <li><b>Поиск по email актора экранируется.</b> <code>ilike</code> по шаблону с обрамляющими процентами, но метасимволы в игле экранируются — поиск по буквальному проценту ведёт себя буквально.</li>
+    <li><b>Дерево <code>?filter=</code> разбирается отдельно.</b> Строка ограничена 4096 символами на уровне DTO (грубая первая линия), затем движок фильтров валидирует дерево против <code>ACTIVITY_FILTER_SCHEMA</code> — шесть полей, по умолчанию не более 50 узлов и глубины 3. Негодное дерево даёт <code>FilterException</code> и HTTP 400.</li>
+    <li><b>Две поверхности фильтрации складываются по <code>AND</code>,</b> а не конкурируют: <code>and(listPredicate, filterSql)</code>.</li>
+    <li><b>Схема фильтров нарочно уже таблицы.</b> В ней нет <code>meta</code> (открытый jsonb — по нему нет индекса и нет контракта) и нет <code>createdAt</code> (его вообще не бывает на проводе). Только индексированные, замороженные колонки.</li>
+    <li><b>Счёт и страница выполняются параллельно.</b> Один и тот же <code>WHERE</code>, но два независимых запроса через <code>Promise.all</code> — запрос платит максимум из двух времён, а не сумму.</li>
+    <li><b>Порядок детерминирован.</b> Белый список колонок сортировки, направление, и <b>добивка по <code>id desc</code></b> — иначе при одинаковых отметках времени страницы «перемешивались» бы между запросами.</li>
+    <li><b><code>created_at</code> не выбирается вовсе.</b> Не «выбирается и удаляется», а не попадает в <code>select</code> — время физической записи наружу не выходит.</li>
+  </ol>
+
+  <h3>7.9 Экран журнала: фильтры, страницы, детали</h3>
+  <ol class="flow">
+    <li><b>Источник истины — строка адреса.</b> <code>useTableUrlState</code> держит поиск, дерево фильтров, номер страницы и размер страницы в query string, поэтому отфильтрованный вид можно переслать коллеге или положить в закладки.</li>
+    <li><b>Размер страницы зажимается перед отправкой.</b> Хук занижает бессмысленное значение до умолчания, но потолка не имеет, а сервер отвечает 400 на <code>pageSize</code> больше 100. Такой 400 из интерфейса неисправим: единственный контрол, способный это починить — селектор строк на странице — живёт внутри ветки с данными, которую упавший запрос не рендерит. Поэтому значение зажимается до отправки, и «Повторить» имеет шанс сработать.<span class="meta">PAGE_SIZE_OPTIONS = [25, 50, 100]; максимум берётся из этого же массива</span></li>
+    <li><b>Фильтры — это конструктор запросов, а не выпадающий список видов.</b> Панель <code>QueryBuilderPanel</code> раскрывается прямо между тулбаром и таблицей (аккордеон, не оверлей), шесть полей: <code>kind</code>, <code>actorEmail</code>, <code>actorId</code>, <code>subjectType</code>, <code>subjectId</code>, <code>at</code>. Список полей — статическое зеркало серверной схемы, так что собранное здесь правило всегда проходит валидацию.</li>
+    <li><b>Свёрнутые фильтры превращаются в чипы.</b> <code>QueryBuilderSummary</code> показывает применённые условия с возможностью снять любое.</li>
+    <li><b>Поиск по email — отдельный контрол,</b> вне конструктора: это самый частый вопрос («что делал вот этот человек»), и он не должен требовать сборки правила.</li>
+    <li><b>Страница зажимается к <code>pageCount</code> после сужения.</b> Иначе фильтр, оставивший одну страницу, бросил бы пользователя на пустой пятой. Эффект намеренно ждёт первых данных: до первого ответа <code>total</code> равен нулю и <code>pageCount</code> единице, и без этой защиты глубокая ссылка <code>?page=3</code> сбрасывалась бы на первую страницу.</li>
+    <li><b>Пока грузится следующая страница, видна предыдущая.</b> <code>keepPreviousData</code> плюс <code>aria-busy</code> на контейнере — таблица не мигает пустотой.</li>
+    <li><b>Строка раскрывается в панель деталей.</b> Полный субъект, актор, точное время и вся <code>meta</code>, сплющенная в пары «ключ: значение». Панель существует в DOM всегда, чтобы анимироваться, но в свёрнутом виде <b>полностью убрана из дерева доступности</b> (<code>aria-hidden</code> и <code>inert</code>) — иначе страница из 25 событий объявлялась таблицей на 50 строк с пустой строкой между каждой парой.</li>
+    <li><b>Клик по строке разворачивает её — но не поверх выделения.</b> Это журнал, из него копируют идентификаторы; клик, завершающий перетаскивание выделения, игнорируется, если в документе есть выделенный текст.</li>
+    <li><b>Даты всегда идут через тотальные функции.</b> Маппер не подменяет непарсящуюся отметку времени — подставить «сейчас» в строку аудита значит молча переписать запись. Ценой этого правильного решения является возможный <code>Invalid Date</code>, на котором <code>toISOString()</code> бросает <code>RangeError</code>; поэтому каждый атрибут <code>datetime</code> идёт через <code>activityDateTime</code>, а каждая видимая дата — через <code>intl.formatDate</code>. Один незащищённый вызов однажды обнулил весь SPA: над слотами главной нет границы ошибок.</li>
+  </ol>
+
+  <h3>7.10 Журнал участника в карточке пользователя</h3>
+  <ol class="flow">
+    <li><b>Вкладка живёт в <code>users-admin</code>,</b> а не здесь — но данные берёт хуком <code>useActivityLog</code> из этого пакета. Это и есть причина, по которой хук экспортируется наружу и почему его имя и сигнатура заморожены.</li>
+    <li><b>Вопрос вкладки составной:</b> события <em>про</em> человека и события, совершённые <em>им</em>. Структурными параметрами это не выражается — они пересекаются по <code>AND</code>.</li>
+    <li><b>Поэтому вкладка шлёт дерево <code>?filter=</code> с <code>or</code>:</b> «(<code>subjectType = user</code> И <code>subjectId = :id</code>) ИЛИ <code>actorId = :id</code>».<span class="meta">ровно та грамматика, которую эндпоинт уже разбирает — второго маршрута заводить не пришлось</span></li>
+    <li><b>Ярлыки действий берутся из общего каталога</b> <code>formatActivityAction</code>, чтобы две поверхности, которые администратор сравнивает глазами, называли одно и то же событие одинаково.</li>
+  </ol>
+
+  <h3>7.11 Копайлот спрашивает про журнал</h3>
+  <ol class="flow">
+    <li><b>Инструмент регистрируется в общем реестре</b> при построении графа DI. Реестр внедряется <code>@Optional()</code>: инсталляция без копайлота и без MCP — норма, тогда провайдер просто ни с кем не регистрируется.</li>
+    <li><b><code>surfaces: ['copilot']</code></b> — инструмент предлагается только копайлоту, но не MCP-эндпоинту. Внешний агент с bearer-токеном журнал не читает.</li>
+    <li><b>Профиль возможностей отсеивает инструмент на этапе предложения.</b> Прогон пользователя без <code>activity:read</code> вообще не узнаёт о его существовании; на исполнении право проверяется повторно.</li>
+    <li><b>Размер страницы зажимается дважды:</b> объявлен в JSON-схеме (максимум 25) и всё равно зажат в обработчике. Валидатор — эшелонированная оборона, а не граница.</li>
+    <li><b>Порядок фиксирован:</b> сортировка по <code>at</code>, направление <code>desc</code>. Модель не может попросить другой — «свежее сверху» это весь контракт инструмента.</li>
+    <li><b><code>meta</code> отдаётся модели как есть.</b> Часть её — текст, написанный пользователями, то есть недоверенный; но он доходит до модели внутри «забора недоверенного содержимого» движка прогонов, как и любой другой результат инструмента. Безопасность даёт забор, а не вырезание — вырезание сделало бы инструмент лишь менее полезным.</li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">08</span>HTTP API</h2>
+
+  <p>Один маршрут. Он же — вся поверхность, доступная снаружи.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ</th><th>Ответ</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /api/activity</td>
+        <td><span class="pill pill-ses">сессия</span> <span class="pill pill-perm">activity:read</span></td>
+        <td class="mono">{ items[], total, page, pageSize }</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Параметры запроса</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Параметр</th><th>Тип и ограничения</th><th>Семантика</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">subjectType</td><td>строка, не длиннее 255</td><td>Точное равенство. Один из шести типов субъекта</td></tr>
+      <tr><td class="mono">subjectId</td><td>строка, не длиннее 255</td><td>Точное равенство. История конкретного предмета</td></tr>
+      <tr><td class="mono">actorId</td><td>uuid</td><td>Точное равенство. Что делал конкретный человек</td></tr>
+      <tr><td class="mono">kind</td><td>список через запятую, каждый элемент не длиннее 255</td><td>Матчится через <code>IN</code>. Валидируется как свободный текст, <b>а не</b> против централизованного справочника — виды принадлежат производителям</td></tr>
+      <tr><td class="mono">actorEmail</td><td>строка, не длиннее 255</td><td>Регистронезависимый подстрочный поиск по замороженному снимку адреса; метасимволы LIKE экранируются</td></tr>
+      <tr><td class="mono">filter</td><td>JSON-строка, не длиннее 4096 символов</td><td>Дерево конструктора запросов; валидируется против схемы из шести полей, не более 50 узлов, глубина не более 3. Складывается с остальными по <code>AND</code></td></tr>
+      <tr><td class="mono">from</td><td>ISO 8601</td><td>Включающая нижняя граница по <code>at</code></td></tr>
+      <tr><td class="mono">to</td><td>ISO 8601</td><td>Включающая верхняя граница по <code>at</code></td></tr>
+      <tr><td class="mono">page</td><td>целое не меньше 1, по умолчанию 1</td><td>Нумерация с единицы; смещение считает сервис</td></tr>
+      <tr><td class="mono">pageSize</td><td>целое от 1 до 100, по умолчанию 25</td><td>Потолок — <code>MAX_PAGE_SIZE = 100</code>; превышение даёт 400</td></tr>
+      <tr><td class="mono">sort</td><td><code>at</code> либо <code>kind</code>, по умолчанию <code>at</code></td><td>Белый список колонок. <b>Ни один контрол интерфейса его не выставляет</b> — поле существует под будущий сортируемый заголовок</td></tr>
+      <tr><td class="mono">order</td><td><code>asc</code> либо <code>desc</code>, по умолчанию <code>desc</code></td><td>Тоже никем из UI не выставляется</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Форма элемента</h3>
+  <p>Ровно строка таблицы <b>минус <code>created_at</code></b>: <code>id</code>, <code>kind</code>, <code>subjectType</code>, <code>subjectId</code>, <code>actorId</code>, <code>actorEmail</code>, <code>meta</code>, <code>at</code>. Актор отдаётся двумя плоскими полями; схлопывание в объект <code>actor</code> (или в <code>null</code> для системного события) делает уже админский маппер.</p>
+
+  <details>
+    <summary>Коды ответов, которые стоит ожидать</summary>
+    <ul>
+      <li><code>200</code> — страница событий; при пустом результате пустой массив и нулевой <code>total</code>, это не ошибка.</li>
+      <li><code>400</code> — не прошла валидация DTO (например <code>pageSize=500</code>, неизвестное значение <code>sort</code>, нецелый <code>page</code>) или не разобралось дерево <code>?filter=</code>.</li>
+      <li><code>401</code> — нет живой сессии (работа глобального <code>AuthGuard</code>, не этого пакета).</li>
+      <li><code>403</code> — сессия есть, права <code>activity:read</code> нет.</li>
+    </ul>
+  </details>
+
+  <p class="sub small">Маршрут описан в OpenAPI полностью — у каждого параметра DTO есть <code>@ApiPropertyOptional</code> с примером и описанием, так что на запущенном сервере он читается в Scalar-справочнике на <code>/reference</code>.</p>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">09</span>Админка</h2>
+
+  <p>Пакет отдаёт <b>один маршрут</b> и <b>два вклада в слоты</b>; третья поверхность — вкладка в чужом пакете, живущая на экспортированном отсюда хуке.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поверхность</th><th>Где</th><th>Что показывает</th><th>Гейт</th></tr></thead>
+    <tbody>
+      <tr><td>Страница журнала</td><td class="mono">/activity</td><td>Таблица «Когда · Актор · Действие · Субъект» с раскрываемыми строками, поиск, конструктор фильтров, пагинация</td><td><code>useHasPermission</code>, иначе <code>ActivityNoAccess</code></td></tr>
+      <tr><td>Пункт бокового меню</td><td class="mono">SIDEBAR_NAV_SLOT</td><td>Группа <code>overview</code>, порядок 20, иконка <code>Activity</code></td><td><code>permission: 'activity:read'</code> в описании слота</td></tr>
+      <tr><td>Панель на главной</td><td class="mono">HOME_SECTION_SLOT</td><td><code>RecentActivityPanel</code>: 6 последних событий, регион <code>panel</code>, порядок 20, ссылка «View all»</td><td>без права рендерит <code>null</code>, а не пустую карточку</td></tr>
+      <tr><td>Вкладка участника</td><td class="mono">users-admin</td><td>Личный журнал: события про человека либо совершённые им</td><td>рейл скрывает вкладку без права</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Состояния страницы</h3>
+  <div class="states">
+    <span class="state pending">скелет</span>
+    <span class="arrow">→</span>
+    <span class="state active">таблица</span>
+    <span class="arrow">·</span>
+    <span class="state">пусто</span>
+    <span class="arrow">·</span>
+    <span class="state">пусто по фильтру</span>
+    <span class="arrow">·</span>
+    <span class="state disabled">ошибка и «Повторить»</span>
+    <span class="arrow">·</span>
+    <span class="state disabled">нет доступа</span>
+  </div>
+  <p>Скелет один и тот же для запасного варианта ленивого маршрута и для состояния загрузки — иначе переход на страницу давал бы две разные заглушки подряд. Пустое состояние различает «фильтр ничего не нашёл» (предлагает сбросить) и «журнал действительно пуст» (объясняет, что записи появятся по мере действий).</p>
+
+  <h3>Доступность — что здесь неочевидно</h3>
+  <ul>
+    <li><b>Живой регион несёт диапазон, а не только счётчик.</b> Счётчик инвариантен между страницами: нажатие «Следующая» меняло все 25 строк, а текст региона оставался прежним — то есть объявления не происходило вовсе. Поэтому в текст добавлены «показано N–M, страница X из Y».</li>
+    <li><b>Пустой заголовок колонки-раскрывашки назван.</b> Иначе в режиме заголовков колонок скринридер читает «blank» первой ячейкой каждой строки.</li>
+    <li><b>Фокус не теряется при исчезновении контрола.</b> Сброс фильтров размонтирует ту самую кнопку «Сбросить», по которой только что кликнули; фокус явно переводится в поле поиска. Свёртывание панели фильтров возвращает фокус на кнопку-переключатель.</li>
+    <li><b>Тип субъекта локализуется, а не капитализируется средствами CSS.</b> Иначе <code>media_asset</code> превращался в «Media_asset», а значение оставалось непереводимым.</li>
+    <li><b>Аватар актора декоративен</b> (<code>aria-hidden</code>) — смысл несёт адрес рядом.</li>
+    <li><b>Заголовки не помечены <code>aria-sort</code></b>, и это правильно: сортируемых колонок нет ни одной.</li>
+  </ul>
+
+  <h3>Как «Действие» превращается в человеческий текст</h3>
+  <p><code>ACTION_MESSAGES</code> типизирован как запись, ключами которой является тип <code>ActivityKind</code>, поэтому строка, добавленная в <code>ACTIVITY_KINDS</code> без ярлыка, — <b>ошибка компиляции</b>. Внутри пакета две половины каталога разъехаться не могут. Межпакетную половину должен пинить e2e-набор <code>activity-kinds.spec.ts</code> — и сегодня он её пинит не полностью (см. раздел 15).</p>
+  <p>Строка «Details» читает <b>одно</b> описательное поле на вид, а не общую форму: у медиа нагрузки разные по замыслу, а полная запись всё равно видна в развёрнутой строке. Три вида (<code>media.asset.updated</code>, <code>media.asset.moved</code>, <code>media.folder.deleted</code>) краткой сводки не имеют вовсе — только развёрнутую панель.</p>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">10</span>Конфигурация</h2>
+
+  <p><b>У плагина нет ни одного параметра.</b> <code>ActivityPlugin()</code> вызывается без аргументов, <code>ActivityModule.forRoot()</code> — тоже. Ни переменных окружения, ни флага включения, ни настройки хранения. Это следствие того, что пакет не владеет ни соединением, ни политикой, ни расписанием.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что</th><th>Значение</th><th>Откуда берётся</th></tr></thead>
+    <tbody>
+      <tr><td>Соединение с БД</td><td>—</td><td>Внедряется из <code>@orthacms/database</code> через <code>@InjectDatabase()</code></td></tr>
+      <tr><td>Право</td><td class="mono">activity:read</td><td>Константа <code>PERMISSIONS</code> из <code>@orthacms/identity-server</code></td></tr>
+      <tr><td>Таблица журнала миграций</td><td class="mono">__drizzle_migrations_activity</td><td>Дескриптор <code>migrations</code> в <code>ActivityPlugin()</code></td></tr>
+      <tr><td>Параметры доставки</td><td>батч 100, опрос 5 секунд, 15 попыток</td><td>Константы <code>OutboxDispatcher</code> в <code>@orthacms/database</code> — не настраиваются</td></tr>
+      <tr><td>Реестр инструментов</td><td>опционально</td><td><code>@Optional() ToolRegistry</code> из <code>@orthacms/tools-server</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Порядок регистрации важен</h3>
+  <p>В <code>apps/server/src/plugins.ts</code> порядок такой: <code>DatabasePlugin</code>, <code>IdentityPlugin</code>, <code>WorkspacesPlugin</code>, <b><code>ActivityPlugin()</code></b>, <code>UsersPlugin</code>, затем контент и остальные. Причина не в DI (все модули глобальные, а <code>onPluginInit</code> отрабатывает до создания приложения), а в <b>миграциях</b>: они применяются в порядке этого списка.</p>
+
+  <p><code>ActivityModule.forRoot()</code> помечен <code>global: true</code> и экспортирует <code>ActivityService</code> плюс привязку <code>ACTIVITY_RECORDER</code>. Привязка сохранена ради стабильности публичной поверхности и помечена <code>@deprecated</code> — через неё не пишет никто. Обратный поиск по репозиторию это подтверждает: единственные упоминания <code>ACTIVITY_RECORDER</code> — объявление порта, привязка и комментарии.</p>
+
+  <div class="note warn">
+    <span class="label">Плагин можно снять — и это ничего не сломает</span>
+    <p>Спецификация состава хоста (<code>apps/server/src/plugins.spec.ts</code>) фиксирует измеренный факт: убрать <code>ActivityPlugin</code> из массива — приложение стартует чисто, в лог ничего не пишется, и просто перестают появляться строки аудита. Все зависящие порты внедряются <code>@Optional()</code>. Для эксплуатации это значит, что «журнал пуст» и «журнал отключён» с виду неразличимы.</p>
+  </div>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">11</span>Безопасность и надёжность</h2>
+
+  <h3>Что защищает</h3>
+  <ul>
+    <li><b>Только чтение по одному праву.</b> Ни один маршрут пакета не пишет; писать в журнал через HTTP нельзя вообще. Подделать строку можно только доступом к базе.</li>
+    <li><b>Право есть только у администратора.</b> Строка журнала содержит адреса участников и идентификаторы предметов — это данные о людях и о работе организации, а не справочник.</li>
+    <li><b>Секреты в журнал не попадают конструктивно.</b> Ни один маппер не переносит ни пароль, ни хэш, ни токен: у <code>apiTokenSubject</code> набор полей <code>meta</code> зафиксирован явным перечислением, а не переносом нагрузки целиком — как раз чтобы новое поле нагрузки не «приехало» в журнал молча.</li>
+    <li><b>Экранирование поиска.</b> Метасимволы LIKE в игле экранируются — и ради корректности, и чтобы символ процента в поле поиска не превращался в сканирование по маске.</li>
+    <li><b>Белый список сортировки.</b> Колонка сортировки выбирается из объекта-словаря, а не подставляется в SQL.</li>
+    <li><b>Фильтруемая поверхность уже таблицы.</b> Открытый <code>meta</code> в неё не входит: фильтрация по неиндексированному jsonb — это и производительность, и утечка формы данных, которую пакет не контролирует.</li>
+    <li><b><code>meta</code> для модели огорожена.</b> Часть содержимого написана пользователями; в копайлот оно уходит внутри забора недоверенного содержимого движка прогонов.</li>
+  </ul>
+
+  <h3>Чего не защищает</h3>
+  <ul>
+    <li><b>Неизменяемость на уровне БД не обеспечена.</b> Нет ни триггера на <code>UPDATE</code>/<code>DELETE</code>, ни отзыва прав у роли приложения, ни цепочки хэшей. «Append-only» — это свойство кода, а не таблицы: приложение просто не имеет кода, который бы изменял или удалял строку.</li>
+    <li><b>Нет обнаружения пропусков.</b> Дыра в аудите (событие без маппера) не порождает ни метрики, ни лога, ни оповещения.</li>
+    <li><b>Нет ретенции — и нет ограничения роста.</b> См. раздел 5.</li>
+    <li><b>Нет выгрузки.</b> Ни CSV, ни архивации; журнал существует только внутри системы.</li>
+  </ul>
+
+  <h3>Надёжность: где может разойтись</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Ситуация</th><th>Что происходит</th><th>Чем спасает</th></tr></thead>
+    <tbody>
+      <tr><td>Мутация закоммитилась, процесс упал до слива</td><td>Строки журнала ещё нет</td><td>Пятисекундный опрос при следующем старте; событие в outbox не потеряно</td></tr>
+      <tr><td>Вставка журнала прошла, штамп <code>dispatched_at</code> откатился</td><td>Событие доставят повторно</td><td><code>ON CONFLICT DO NOTHING</code> по идентификатору события</td></tr>
+      <tr><td>Подписчик бросает исключение</td><td>Счётчик попыток растёт, задержка удваивается</td><td>Потолок 15 попыток; очередь за строкой продолжает двигаться</td></tr>
+      <tr><td>Событие вида, которого нет в <code>FACET_MAPPERS</code></td><td>Строка outbox штампуется доставленной, аудита нет</td><td>Ничем. Только дисциплиной и e2e-набором покрытия</td></tr>
+      <tr><td>Плагин снят из состава хоста</td><td>Журнал перестаёт наполняться</td><td>Ничем — старт остаётся чистым</td></tr>
+      <tr><td><code>at</code> на проводе не парсится</td><td>В интерфейсе <code>Invalid Date</code></td><td>Тотальные <code>activityDateTime</code> и <code>intl.formatDate</code>; подмены значения нет намеренно</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">12</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Журнал строго append-only: в пакете нет кода, изменяющего или удаляющего строку <code>activity_events</code>, и нет ни одного пишущего HTTP-маршрута.</span></li>
+    <li><span class="id">И-02</span><span>Единственный живой писатель — <code>AuditEventSubscriber</code>. <code>ActivityService.record</code> и токен <code>ACTIVITY_RECORDER</code> сохранены, помечены <code>@deprecated</code>, и через них не пишет никто.</span></li>
+    <li><span class="id">И-03</span><span>Первичный ключ строки журнала равен идентификатору исходного события, а вставка идёт <code>ON CONFLICT DO NOTHING</code> — повторная доставка никогда не даёт дубля и никогда не переписывает уже записанную строку.</span></li>
+    <li><span class="id">И-04</span><span><code>at</code> строки равно <code>occurredAt</code> события, то есть логическому времени факта, а не времени доставки. <code>created_at</code> никогда не выбирается в чтении.</span></li>
+    <li><span class="id">И-05</span><span><code>toAuditRow</code> — чистая функция без обращений к БД; возврат <code>null</code> означает «не наш вид», исключение — «наш вид, но субъекта назвать нечем». Эти два исхода никогда не смешиваются.</span></li>
+    <li><span class="id">И-06</span><span>Строка с пустым <code>subject_id</code> не пишется никогда: маппер членства отказывает вместо подстановки значения по умолчанию.</span></li>
+    <li><span class="id">И-07</span><span>Актор снимается с <code>payload.actor</code> в колонки <code>actor_id</code> и <code>actor_email</code> и никогда не дублируется внутри <code>meta</code>.</span></li>
+    <li><span class="id">И-08</span><span>Ни один маппер не переносит в <code>meta</code> секрет: ни пароль, ни хэш, ни значение токена, ни хэш токена. Для API-токена набор полей задан перечислением, а не переносом нагрузки целиком.</span></li>
+    <li><span class="id">И-09</span><span>Подписчик принимает ровно те виды, что перечислены в <code>FACET_MAPPERS</code>: <code>AUDITED_EVENT_KINDS</code> — это его <code>kinds</code>, вычисляемые из той же таблицы.</span></li>
+    <li><span class="id">И-10</span><span>Событие вида, отсутствующего в <code>FACET_MAPPERS</code>, не порождает ошибки нигде: оно штампуется доставленным и в журнал не попадает.</span></li>
+    <li><span class="id">И-11</span><span>Каждый вид аудита отображается ровно из одного вида события; коллизий имён среди 40 отображений нет.</span></li>
+    <li><span class="id">И-12</span><span>Вид переименовывается только там, где два каталога исторически разошлись: <code>member.*</code> в <code>user.*</code>, <code>auth.signed_in</code>/<code>auth.signed_out</code> в <code>user.signed_in</code>/<code>user.signed_out</code>, <code>api_token.*</code> в <code>token.*</code>. Остальные проходят насквозь.</span></li>
+    <li><span class="id">И-13</span><span>Субъектом события членства в воркспейсе является <b>пользователь</b>, а не воркспейс; идентификатор воркспейса едет в <code>meta.workspaceId</code>.</span></li>
+    <li><span class="id">И-14</span><span><code>GET /api/activity</code> достижим только по сессии и только с правом <code>activity:read</code>; bearer-токеном внешнего API он не достижим.</span></li>
+    <li><span class="id">И-15</span><span>Все фильтры пересекаются по <code>AND</code>, включая дерево <code>?filter=</code>; отсутствие фильтров даёт полный набор, а не пустой.</span></li>
+    <li><span class="id">И-16</span><span>Фильтруемая поверхность — шесть колонок; <code>meta</code> и <code>created_at</code> в неё не входят ни при каких параметрах.</span></li>
+    <li><span class="id">И-17</span><span>Колонка сортировки выбирается из белого списка (<code>at</code>, <code>kind</code>), к сортировке всегда добавляется добивка по <code>id desc</code>, поэтому пагинация детерминирована при равных отметках времени.</span></li>
+    <li><span class="id">И-18</span><span><code>pageSize</code> больше <code>MAX_PAGE_SIZE = 100</code> отвергается сервером как <code>400</code>; страница журнала зажимает значение до отправки, чтобы такой отказ не был неисправимым из интерфейса.</span></li>
+    <li><span class="id">И-19</span><span>Поиск по адресу актора регистронезависим и экранирует метасимволы LIKE.</span></li>
+    <li><span class="id">И-20</span><span><code>created_at</code> не появляется в ответе API ни при каких параметрах.</span></li>
+    <li><span class="id">И-21</span><span>Инструмент копайлота помечен <code>readOnly</code>, <code>effect: 'read'</code>, <code>surfaces: ['copilot']</code> и требует того же права, что и маршрут; MCP-поверхности он не предлагается.</span></li>
+    <li><span class="id">И-22</span><span>Реестр инструментов внедряется <code>@Optional()</code>: отсутствие копайлота и MCP — рабочая конфигурация, а не ошибка старта.</span></li>
+    <li><span class="id">И-23</span><span>Пакет не открывает соединения к БД и не владеет никакой схемой, кроме <code>activity_events</code>.</span></li>
+    <li><span class="id">И-24</span><span>Плагин не принимает конфигурации: <code>ActivityPlugin()</code> и <code>forRoot()</code> вызываются без аргументов.</span></li>
+    <li><span class="id">И-25</span><span>Админский маппер не подменяет непарсящуюся отметку времени; каждый атрибут <code>datetime</code> идёт через <code>activityDateTime</code>, каждая видимая дата — через <code>intl.formatDate</code>.</span></li>
+    <li><span class="id">И-26</span><span>Внутри админского пакета каталог видов и каталог ярлыков не могут разойтись: <code>ACTION_MESSAGES</code> типизирован записью по ключу <code>ActivityKind</code>.</span></li>
+    <li><span class="id">И-27</span><span>Свёрнутая панель деталей полностью убрана из дерева доступности (<code>aria-hidden</code> и <code>inert</code>), поэтому число объявляемых строк таблицы равно числу событий.</span></li>
+    <li><span class="id">И-28</span><span>Без права <code>activity:read</code> админка не делает запрос вовсе: у хука включённость равна наличию права, а панель на главной возвращает <code>null</code>.</span></li>
+    <li><span class="id">И-29</span><span>Страница не остаётся за пределами последней страницы после сужения фильтра, но и не сбрасывает глубокую ссылку <code>?page=N</code> до прихода первого ответа.</span></li>
+    <li><span class="id">И-30</span><span>Строка адреса — единственный источник истины для всех фильтров и страницы; любое отфильтрованное состояние воспроизводится по ссылке.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">13</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки «действие → ожидаемый результат», чтобы брать в тест-кейс без переписывания. Серверная часть проверяется <code>curl</code> и <code>psql</code>, админская — браузером. Существующие наборы: <code>packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.spec.ts</code> (юнит, без БД), <code>apps/server-e2e/src/server/activity/</code> — <code>activity.spec.ts</code>, <code>activity-filter.spec.ts</code>, <code>activity-coverage.spec.ts</code>; <code>apps/admin-e2e/src/activity/</code> — <code>audit-log.spec.ts</code>, <code>activity-filter.spec.ts</code>, <code>activity-kinds.spec.ts</code>.</p>
+
+  <h3>Покрытие путей записи — главное</h3>
+  <ul class="check">
+    <li><b>Для каждого из 40 видов: выполнить действие и посмотреть в базу</b> → <span class="exp">в <code>outbox_events</code> появилась строка нужного вида <b>и</b> в <code>activity_events</code> появилась строка. Проверять надо обе половины: любая по отдельности проходит при пустом журнале.</span></li>
+    <li><b>Сравнить <code>select distinct kind from outbox_events</code> с <code>AUDITED_EVENT_KINDS</code></b> → <span class="exp">разность пуста. Это и есть однозапросная проверка на тихие потери.</span></li>
+    <li><b>Загрузить, переименовать, перетегировать, перенести и удалить файл; создать, переименовать и удалить папку</b> → <span class="exp">восемь действий, восемь строк журнала с субъектами <code>media_asset</code> и <code>media_folder</code>.</span></li>
+    <li><b>Сохранить запись, ничего в ней не изменив</b> → <span class="exp">события нет и строки журнала нет — это ожидаемое поведение, а не пропуск.</span></li>
+    <li><b>Опубликовать уже опубликованную запись</b> → <span class="exp">второй строки <code>entry.published</code> не появляется.</span></li>
+    <li><b>Принять приглашение</b> → <span class="exp">две строки: <code>user.activated</code> и <code>user.signed_in</code>, обе с актором — приглашённым.</span></li>
+    <li><b>Войти через SSO-провайдера</b> → <span class="exp"><code>user.signed_in</code> с <code>meta</code>, содержащей способ и провайдера; при первом входе дополнительно <code>user.sso_provisioned</code> и/или <code>user.sso_linked</code>.</span></li>
+    <li><b>Выпустить и отозвать API-токен</b> → <span class="exp">строки <code>token.created</code> и <code>token.revoked</code> с <code>lookupPrefix</code> и <b>без</b> секрета и хэша в <code>meta</code>.</span></li>
+  </ul>
+
+  <h3>Идемпотентность и отказы доставки</h3>
+  <ul class="check">
+    <li><b>Обнулить <code>dispatched_at</code> у доставленной строки outbox и дождаться слива</b> → <span class="exp">в <code>activity_events</code> по-прежнему одна строка с тем же идентификатором; содержимое не изменилось.</span></li>
+    <li><b>Подсунуть событие <code>workspace.member_added</code> без <code>payload.userId</code></b> → <span class="exp">строка журнала не создана; счётчик попыток растёт, <code>next_attempt_at</code> сдвигается, в логе ошибка со стеком.</span></li>
+    <li><b>Довести число попыток до 15</b> → <span class="exp">строка больше не захватывается, попадает в выборку <code>dispatched_at IS NULL AND attempts &gt;= 15</code>; события, вставшие за ней в очередь, доставляются нормально.</span></li>
+    <li><b>Обнулить <code>attempts</code> у припаркованной строки</b> → <span class="exp">доставка возобновляется.</span></li>
+    <li><b>Положить в outbox событие вымышленного вида</b> → <span class="exp"><code>dispatched_at</code> проставлен, строки журнала нет, в логе ничего.</span></li>
+  </ul>
+
+  <h3>Чтение и фильтры</h3>
+  <ul class="check">
+    <li><b><code>GET /api/activity</code> без параметров</b> → <span class="exp">200, свежие сверху, размер страницы 25, в элементах нет поля <code>createdAt</code>.</span></li>
+    <li><b>Фильтр по двум видам через запятую</b> → <span class="exp">только эти два вида; пробелы вокруг запятых допускаются, пустые элементы отбрасываются.</span></li>
+    <li><b>Поиск по актору со значением из одного символа процента</b> → <span class="exp">трактуется буквально: находит только адреса, содержащие символ процента.</span></li>
+    <li><b><code>from</code> и <code>to</code> с одинаковым значением</b> → <span class="exp">границы включающие — событие ровно в эту секунду попадает в выборку.</span></li>
+    <li><b><code>pageSize=101</code></b> → <span class="exp">400.</span> <b><code>pageSize=100</code></b> → <span class="exp">200.</span></li>
+    <li><b>Сортировка по <code>kind</code> по возрастанию</b> → <span class="exp">при равных видах порядок стабилен между запросами благодаря добивке по идентификатору.</span></li>
+    <li><b>Две страницы подряд при одинаковых <code>at</code> у 30 событий</b> → <span class="exp">ни одно событие не повторилось и ни одно не пропало.</span></li>
+    <li><b>Кривой <code>?filter=</code>: не JSON, неизвестное поле, глубина 4, 51 узел, длина больше 4096</b> → <span class="exp">во всех случаях 400, а не 500 и не молчаливое игнорирование.</span></li>
+    <li><b><code>?filter=</code> с дизъюнкцией по субъекту и актору плюс отдельный поиск по адресу</b> → <span class="exp">условия складываются по <code>AND</code>, а не заменяют друг друга.</span></li>
+    <li><b>Запрос без сессии, затем с сессией контрибьютора</b> → <span class="exp">401 и 403 соответственно.</span></li>
+    <li><b>Тот же маршрут по bearer-токену внешнего API</b> → <span class="exp">отказ.</span></li>
+  </ul>
+
+  <h3>Админка</h3>
+  <ul class="check">
+    <li><b>Войти контрибьютором</b> → <span class="exp">пункта «Activity» в боковом меню нет, панели на главной нет, прямой переход на <code>/activity</code> даёт экран «нет доступа» и <b>ни одного запроса в сети</b>.</span></li>
+    <li><b>Открыть <code>/activity?pageSize=500</code></b> → <span class="exp">запрос уходит с размером страницы 100, таблица рендерится; 400 не показывается.</span></li>
+    <li><b>Применить фильтр, сужающий выдачу до одной страницы, находясь на третьей</b> → <span class="exp">адрес и таблица перескакивают на первую страницу, пустого экрана не возникает.</span></li>
+    <li><b>Открыть глубокую ссылку с третьей страницей и фильтром по актору в новой вкладке</b> → <span class="exp">открывается ровно третья страница отфильтрованного вида, а не первая.</span></li>
+    <li><b>Нажать «Следующая страница» со скринридером</b> → <span class="exp">объявляется новый диапазон и номер страницы, а не один и тот же счётчик.</span></li>
+    <li><b>Развернуть строку и посчитать строки таблицы в режиме навигации по таблице</b> → <span class="exp">свёрнутые панели деталей в подсчёт не попадают.</span></li>
+    <li><b>Выделить идентификатор в строке мышью и отпустить кнопку</b> → <span class="exp">строка не сворачивается, выделение сохраняется.</span></li>
+    <li><b>Сбросить фильтры кнопкой в пустом состоянии</b> → <span class="exp">фокус оказывается в поле поиска, а не на теле документа.</span></li>
+    <li><b>Подсунуть в ответ неразбираемое значение <code>at</code></b> → <span class="exp">строка рендерится, у элемента времени нет атрибута <code>datetime</code>, приложение не падает в белый экран.</span></li>
+    <li><b>Показать по одной строке каждого из 40 видов при размере страницы 100</b> → <span class="exp">ни в одной ячейке «Action» нет точки, то есть ни один сырой токен не просочился. <b>Сегодня эта проверка на трёх SSO-видах не проходит</b> — см. раздел 15.</span></li>
+    <li><b>Открыть вкладку «Activity» в карточке участника</b> → <span class="exp">видны и события про него, и совершённые им; ярлыки действий те же, что на общей странице.</span></li>
+  </ul>
+
+  <h3>Эксплуатация</h3>
+  <ul class="check">
+    <li><b>Убрать <code>ActivityPlugin</code> из состава хоста и стартовать</b> → <span class="exp">старт чистый, лог пуст, строки аудита не появляются. Проверить, что мониторинг это заметит, — сегодня заметить нечем.</span></li>
+    <li><b>Измерить размер отношения <code>activity_events</code> после 10 000 входов</b> → <span class="exp">рост линейный и ничем не ограничен; механизма усечения нет.</span></li>
+    <li><b>Прогнать <code>npx nx run server:db:migrate</code> дважды</b> → <span class="exp">вторая попытка ничего не делает; журнал применения — <code>__drizzle_migrations_activity</code>.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">14</span>Границы ответственности</h2>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто отвечает</th><th>Что это значит на практике</th></tr></thead>
+    <tbody>
+      <tr><td>Транзакционный outbox, диспетчер, контракт <code>DomainEvent</code>, <code>attachActor</code></td><td class="mono">@orthacms/database</td><td>Параметры доставки, ретраи, мёртвые письма и рост <code>outbox_events</code> — не зона Activity</td></tr>
+      <tr><td>Право <code>activity:read</code>, <code>PermissionsGuard</code>, порт <code>ACTIVITY_RECORDER</code>, каталог <code>IDENTITY_ACTIVITY_KINDS</code></td><td class="mono">@orthacms/identity-server</td><td>Activity импортирует константы и охранник, но ничего из этого не определяет</td></tr>
+      <tr><td>Виды событий и форма их нагрузки</td><td>каждый плагин-производитель</td><td>identity, users, workspaces, content, media. Приёмник форму не диктует и не валидирует</td></tr>
+      <tr><td>Разбор и трансляция дерева <code>?filter=</code></td><td class="mono">@orthacms/utils-server</td><td>Activity задаёт только схему из шести полей</td></tr>
+      <tr><td>Конструктор фильтров в интерфейсе</td><td class="mono">@orthacms/query-builder-admin</td><td>Activity задаёт список полей и их подписи</td></tr>
+      <tr><td>Слоты бокового меню и главной, оболочка</td><td class="mono">@orthacms/shell-admin</td><td>Скрытие пункта по праву делает <code>SidebarNavButton</code></td></tr>
+      <tr><td>Реестр инструментов, авторизация вызова, забор недоверенного содержимого</td><td class="mono">@orthacms/tools-server, @orthacms/copilot-server</td><td>Activity только объявляет один инструмент</td></tr>
+      <tr><td>Вкладка «Activity» в карточке участника</td><td class="mono">@orthacms/users-admin</td><td>Живёт там, но на хуке отсюда — поэтому сигнатура хука заморожена</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего в пакете нет</h3>
+  <ul>
+    <li><b>Ретенции, архивации и выгрузки.</b> Ни задания, ни маршрута, ни настройки.</li>
+    <li><b>Разреза по воркспейсам.</b> И это не «пока нет», а решение: колонки нет, и добавлять фильтр запрещено соглашениями пакета.</li>
+    <li><b>Сортируемых заголовков.</b> Сервер умеет <code>sort</code> и <code>order</code>, но ни один контрол их не выставляет — поэтому и <code>aria-sort</code> в таблице справедливо отсутствует.</li>
+    <li><b>Постраничной навигации по курсору.</b> Только <code>LIMIT/OFFSET</code>.</li>
+    <li><b>Ссылок из журнала на предметы.</b> Субъект показывается идентификатором; перейти из строки в запись, файл или воркспейс нельзя.</li>
+    <li><b>Уведомлений и правил.</b> Журнал ничего не инициирует.</li>
+    <li><b>Собственного доменного слоя.</b> И это соответствие ADR-0003, а не упущение.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">15</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Часть — устаревшие формулировки, часть — реальные дыры в каталоге, которые дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">activity/admin/src/lib/types/activityKinds/index.ts</td>
+        <td>Список <code>ACTIVITY_KINDS</code> объявлен как каталог, который «обязан идти в ногу с <code>FACET_MAPPERS</code>»</td>
+        <td><b>Отстаёт на три вида.</b> Сервер пишет <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>, админка о них не знает, и в колонке «Action» появится сырой токен. Тот же пробел в сиде <code>ALL_KINDS_ACTIVITY</code> в <code>apps/admin-e2e/src/support/api/activity.ts</code> — то есть тест, специально написанный ловить именно это, промахивается</td>
+      </tr>
+      <tr>
+        <td class="mono">activity/server/.../audit-event-mapping.ts</td>
+        <td>JSDoc-таблица «событие → вид аудита» над <code>FACET_MAPPERS</code></td>
+        <td>Содержит <b>37</b> строк из <b>40</b>: три SSO-вида, которые в самой таблице отображений есть, в документирующей таблице отсутствуют. Ровно те же три, которых не хватает админке</td>
+      </tr>
+      <tr>
+        <td class="mono">CONTEXT-MAP.md, глоссарий</td>
+        <td>«Activity event — an append-only audit row, written <i>in the same transaction</i> as the mutation it records»</td>
+        <td>Устарело. В той же транзакции пишется <b>событие в outbox</b>, а строка аудита появляется после коммита, из подписчика, через корневой клиент. <code>ARCHITECTURE.md</code> §5 описывает это уже правильно — то есть два корневых документа противоречат друг другу</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/server/AGENTS.md</td>
+        <td>«Registered by <code>copilotToolsRegistrar('activity', …)</code> in <code>ActivityModule.forRoot</code>»</td>
+        <td>Такого вызова в коде нет. Инструмент регистрируется провайдером <code>ActivityCopilotToolProvider</code> в его собственном <code>onModuleInit</code> через <code>@Optional() ToolRegistry</code>; в модуле он просто перечислен среди провайдеров</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/server/package.json</td>
+        <td>Зависимости <code>@orthacms/copilot-domain</code> и <code>@orthacms/copilot-server</code></td>
+        <td>В <code>src/</code> не импортируется ни то, ни другое — остаток от прежнего способа регистрации инструмента. Лишние рёбра в графе пакетов</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/server/AGENTS.md</td>
+        <td>Описание маршрута перечисляет фильтры: субъект, актор, вид, поиск по адресу, диапазон дат, пагинация, сортировка</td>
+        <td>Не упомянут <b>структурный фильтр <code>?filter=</code></b> — вторая полноценная поверхность фильтрации, на которой держится вкладка участника в <code>users-admin</code>. Не упомянуты и её ограничения (4096 символов, схема из шести полей, потолки узлов и глубины)</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/admin/AGENTS.md</td>
+        <td>«a filter toolbar (action/kind select + actor-email search)»</td>
+        <td>Выпадающего списка видов на странице нет. Есть поиск по адресу актора и <b>конструктор запросов</b> <code>QueryBuilderPanel</code> с шестью полями плюс сводка-чипы</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/admin/AGENTS.md</td>
+        <td>Компоненты верхнего уровня перечислены как <code>ActivityTable</code>, <code>ActivityToolbar</code>, <code>ActivityPagination</code>, <code>ActivityEmpty</code>, <code>ActivityNoAccess</code>, <code>ActivityLogSkeleton</code></td>
+        <td>Не назван <code>RecentActivityPanel</code> — компонент верхнего уровня, который потребляет не страница, а слот главной. Раскладка описана верно, состав — нет</td>
+      </tr>
+      <tr>
+        <td class="mono">activity/admin/.../activityPlugin/index.tsx</td>
+        <td>JSDoc: «its toolbar nav entry, contributed to the shell's <code>NAVBAR_START_SLOT</code> at <code>order: 35</code> (after Members)»</td>
+        <td>Код кладёт пункт в <code>SIDEBAR_NAV_SLOT</code>, группа <code>overview</code>, <code>order: 20</code>. Комментарий описывает предыдущее устройство навигации. Про вклад в <code>HOME_SECTION_SLOT</code> JSDoc не говорит вовсе</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/server/AGENTS.md</td>
+        <td>«That failure is completely silent, and it has happened three times (API tokens, entry publishes, and the whole media library)»</td>
+        <td>Верно по сути, но неполно: тем же способом молчали <code>user.password_changed</code> и <code>user.activated</code>, а весь обычный редакторский цикл (<code>entry.created</code>, <code>entry.updated</code>, <code>entry.deleted</code>, <code>entry.restored</code>, <code>entry.purged</code>) вообще не поднимал событий, пока записи не переехали на единицу работы. Это разные болезни с одинаковым симптомом, и обе стоит называть</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/activity/server/AGENTS.md, раздел Schema</td>
+        <td>Перечисляет колонки и индексы</td>
+        <td>Ни слова о том, что <b>ретенции нет</b> и таблица растёт неограниченно, — при том что для <code>outbox_events</code> это в документации соседнего пакета зафиксировано явно</td>
+      </tr>
+      <tr>
+        <td class="mono">Каталог видов, <code>auth.signed_out</code></td>
+        <td>Симметрия с <code>auth.signed_in</code>, где способ входа записывается в <code>meta</code></td>
+        <td>Маппер <code>auth.signed_out</code> ставит <code>meta: null</code> безусловно, хотя back-channel-выход кладёт в событие способ и провайдера. Инициированный провайдером выход неотличим в журнале от обычного; кроме того, актору там подставляется пустая строка вместо снимка адреса</td>
+      </tr>
+      <tr>
+        <td class="mono">identity/server/.../identity-events.ts</td>
+        <td><code>USER_DISABLED</code> и <code>USER_ENABLED</code> объявлены как виды событий контекста identity</td>
+        <td>Поднимаются только методами <code>UserAccount.disable()</code> и <code>enable()</code>, у которых нет ни одного вызывающего в продуктовом коде, и мапперов для них нет. Если вызывающий когда-нибудь появится, действие уйдёт в тишину по сценарию 7.5</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/testing/activity-server.md</td>
+        <td>Раздел «Potential Bugs» содержит BUG-03 (нет маппера у <code>user.password_changed</code>), BUG-04 (нет потолка попыток и мёртвых писем), BUG-05 (пустой <code>subject_id</code> вместо отказа)</td>
+        <td>Все три исправлены в коде: маппер есть, потолок в 15 попыток с экспоненциальной задержкой есть, <code>UnmappableAuditEventError</code> есть. Артефакт тестирования отстал от реализации и вводит в заблуждение при повторной проверке</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Паспорт группы <code>packages/activity</code>.</b> Сделан по тому же каркасу, что и паспорт Identity: бизнес-описание, состав, каталог видов событий, права, данные, жизненный цикл, сценарии, API, админка, конфигурация, безопасность, инварианты, чек-лист, границы, расхождения. Раздел «Каталог видов событий» добавлен именно для этого пакета: он единственный в репозитории собирает все 40 видов в одном месте.</p>
+  <p>Источник — исходный код: <code>audit-event-mapping.ts</code>, <code>audit-event.subscriber.ts</code>, <code>activity.service.ts</code>, DTO и контроллер, схема Drizzle и миграция, файлы событий пяти плагинов-производителей, диспетчер outbox в <code>@orthacms/database</code>, страницы, компоненты и хуки админки. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 15.</p>
+</footer>
+
+</main>
+</div>

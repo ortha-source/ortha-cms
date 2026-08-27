@@ -1,0 +1,1139 @@
+<title>Паспорт плагина WYSIWYG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакет · packages/wysiwyg/admin</p>
+    <h1 class="title">WYSIWYG
+      <small>Не место в приложении, а поведение одного типа поля</small>
+    </h1>
+    <p class="lede">WYSIWYG — это <strong>редактор форматированного текста</strong> для админки OrthaCMS. У него нет ни маршрута, ни пункта навигации, ни собственного экрана: весь его внешний контур — одна контрибьюция в слот <code>ENTRY_FIELD_CONTROL_SLOT</code> плагина <code>content-admin</code>. В форме записи поле типа <code>richtext</code> показывает содержимое <strong>так, как оно читается</strong>, а нажатие разворачивает редактор TipTap в рабочую область записи — не диалогом поверх формы, а подменой контента вкладок, так что шапка записи, кнопки Save/Publish и правая панель свойств остаются живыми.</p>
+    <ul class="facts">
+      <li><b>0</b> маршрутов и пунктов меню</li>
+      <li><b>1</b> слот заполняет, <b>1</b> объявляет</li>
+      <li><b>16</b> расширений TipTap</li>
+      <li><b>20</b> типов узлов документа</li>
+      <li><b>9</b> типов марок</li>
+      <li><b>14</b> контролов в тулбаре</li>
+      <li><b>7</b> правил структурной проверки</li>
+      <li><b>0</b> таблиц БД и серверных пакетов</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#place">Состав и место в системе</a></li>
+    <li><a href="#document">Формат документа</a></li>
+    <li><a href="#toolbar">Инвентарь возможностей редактора</a></li>
+    <li><a href="#flows">Сценарии по шагам</a></li>
+    <li><a href="#seam">Стык с media и content</a></li>
+    <li><a href="#states">Состояния</a></li>
+    <li><a href="#a11y">Доступность и клавиатура</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы ответственности</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Пакет <code>@orthacms/wysiwyg-admin</code> отвечает на один вопрос: <b>как редактор пишет тело записи</b>. Всё остальное в CMS — типы контента, права, публикация, публичный API — уже существует и без него; без него поле <code>richtext</code> просто рендерится обычной текстовой областью с HTML-разметкой внутри. Именно этот вариант плагин и заменяет.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Текст вместо тегов.</b> Тело статьи в <code>&lt;textarea&gt;</code> — это стена разметки, которую невозможно вычитать. Свёрнутое поле показывает <em>содержимое</em>: заголовки заголовками, списки списками, картинки картинками — а сама поверхность письма спрятана за осознанным нажатием.</li>
+    <li><b>Редактирование не выкидывает автора из записи.</b> Развёрнутый редактор — это <b>вид</b>, а не модальное окно. Он занимает рабочую область вместо полосы вкладок, а вокруг всё остаётся на месте: боковое меню приложения, заголовок записи, кнопки сохранения и публикации, панель свойств справа, у которой индикатор готовности к публикации пересчитывается прямо по мере набора текста.</li>
+    <li><b>Доступность как часть авторского инструмента, а не как аудит после.</b> Под документом живёт список структурных замечаний (пропущенный уровень заголовка, таблица без шапки, ссылка «подробнее», непарсибельный языковой тег). Правила берутся из общего ядра — те же самые, что откажут в сохранении на сервере, — поэтому список не «второе мнение», а ровно то, что произойдёт при Save.</li>
+    <li><b>Содержимое остаётся переносимым.</b> Свои узлы сериализуются в семантический HTML с <code>data-</code>-атрибутами (<code>&lt;aside data-callout data-tone="warning"&gt;</code>, <code>&lt;div data-columns="3"&gt;</code>), без единого имени класса из админки. Оформление на публичном сайте — дело сайта.</li>
+    <li><b>Ноль связанности с медиатекой.</b> Редактор умеет <em>держать</em> картинку и видео, но ничего не знает про библиотеку файлов. Кто умеет — тот и заполняет объявленный слот.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Автор / редактор</h4>
+      <p class="small sub">Видит поле с готовым текстом и чипом «Edit». Нажимает — попадает в редактор с курсором в конце документа. Пишет, форматирует, вставляет картинку из медиатеки, возвращается кнопкой «Back to fields» или «Done». Своего сохранения у редактора нет — Save у записи один.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Читатель без прав на изменение</h4>
+      <p class="small sub">Видит тот же чип, но «View» и с иконкой глаза. Разворачивание сохраняется — это единственное поле, которое свёрнутая строка формы физически не может показать целиком, — но открывается оно без тулбара, без каретки и без автофокуса.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Автор схемы контента</h4>
+      <p class="small sub">Не делает ничего: редактор берёт каждое поле <code>richtext</code> по умолчанию. Отказаться можно точечно — <code>admin: { widget: 'textarea' }</code> для тела, которое правят <em>как разметку</em> нарочно (шаблон письма, вручную поддерживаемый фрагмент).</p>
+    </div>
+  </div>
+
+  <h3>Чем плагин не является</h3>
+  <ul>
+    <li><b>Это не страница.</b> Ни <code>routes</code>, ни <code>nav</code>, ни <code>layout</code> в фабрике <code>WysiwygPlugin()</code> нет — только <code>slots</code>. Его нельзя «открыть», к нему нельзя дать ссылку.</li>
+    <li><b>Это не серверный плагин.</b> В группе <code>packages/wysiwyg</code> ровно один пакет — <code>admin</code>. Ни таблиц, ни миграций, ни маршрутов API, ни изменений в проводном формате.</li>
+    <li><b>Это не тип поля.</b> <code>richtext</code> существует в <code>@orthacms/content-domain</code> и <code>@orthacms/content-server</code> независимо; плагин меняет <em>контрол</em>, а не схему, не валидацию и не колонку.</li>
+    <li><b>Это не медиатека.</b> Просмотр папок, фильтрация по типу и загрузка — целиком работа <code>@orthacms/media-admin</code>, которая приходит в объявленный слот снаружи.</li>
+    <li><b>Это не правила доступности.</b> Правила (<code>inspectRichText</code>, <code>isWellFormedLanguageTag</code>, <code>isEmptyRichText</code>) живут в ядре <code>content-domain</code>; плагин их только показывает и им подчиняется.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Значение поля — <b>документ</b> (дерево узлов ProseMirror/TipTap), а не строка HTML (<a href="#document">ADR-0011</a>). Из этого следует всё остальное: <code>maxLength</code> считает слова, а не теги; порядок заголовков и шапки таблиц становятся проверяемыми фактами; предпросмотр в админке безопасен, потому что его собирают <em>заново из схемы редактора</em>, а не вставляют чужую разметку в DOM.</p>
+  </div>
+</section>
+
+<section id="place">
+  <h2 class="sec"><span class="num">02</span>Состав и место в системе</h2>
+
+  <p>Один пакет, разложенный по слоям с самого начала (ADR-0003 — тактический DDD внутри плагина): <code>domain/</code> не знает ни React, ни TipTap; <code>infrastructure/</code> — это слой TipTap; <code>presentation/</code> — React.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Модуль</th><th>Слой</th><th>Что там</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">domain/constants</td><td>domain</td><td>Чистый словарь: <code>WYSIWYG_WIDGET</code>, <code>WYSIWYG_MEDIA_KIND</code>, <code>MEDIA_ALIGN</code>, <code>CALLOUT_TONE</code>, <code>COLUMN_COUNTS</code>, палитры <code>TEXT_COLORS</code>/<code>HIGHLIGHT_COLORS</code>/<code>FONT_SIZES</code>, класс <code>ortha-wysiwyg</code>, пороги <code>MEDIA_MIN_WIDTH = 64</code> и <code>MEDIA_RESIZE_STEP = 16</code></td></tr>
+      <tr><td class="mono">domain/mediaSrc</td><td>domain</td><td><code>isSafeMediaSrc</code> / <code>safeMediaSrc</code> — что вообще может стать <code>src</code> у картинки или видео</td></tr>
+      <tr><td class="mono">domain/richTextValue</td><td>domain</td><td><code>asEditorContent</code> (чем засеять TipTap), <code>normalizeRichText</code> (что отдать форме), реэкспорт ядрового <code>isEmptyRichText</code></td></tr>
+      <tr><td class="mono">infrastructure/editorExtensions</td><td>infra</td><td>Единственное место, решающее, <b>что автор вообще может написать</b> — 16 расширений</td></tr>
+      <tr><td class="mono">infrastructure/extensions/callout</td><td>infra</td><td>Узел <code>callout</code> → <code>&lt;aside data-callout data-tone&gt;</code>, команды <code>setCallout</code>/<code>unsetCallout</code></td></tr>
+      <tr><td class="mono">infrastructure/extensions/columns</td><td>infra</td><td>Узлы <code>columnBlock</code>/<code>column</code>, команды <code>setColumns</code>/<code>unsetColumns</code></td></tr>
+      <tr><td class="mono">infrastructure/extensions/language</td><td>infra</td><td>Марка <code>language</code> — BCP-47 на фрагменте текста (WCAG 3.1.2)</td></tr>
+      <tr><td class="mono">infrastructure/extensions/media</td><td>infra</td><td>Узлы <code>image</code> и <code>video</code> плюс их React-node-view (<code>MediaNodeView</code>, <code>AltTextPopover</code>) — рядом с узлом, а не в <code>presentation/</code>, иначе слой импортировал бы вверх</td></tr>
+      <tr><td class="mono">infrastructure/extensions/tableTab</td><td>infra</td><td>Расширение <code>orthaTableTab</code> (<code>priority: 200</code>) — ограничивает Tab в конце таблицы</td></tr>
+      <tr><td class="mono">infrastructure/renderRichText</td><td>infra</td><td>Граница доверия: значение → безопасный HTML предпросмотра</td></tr>
+      <tr><td class="mono">infrastructure/transformPastedHTML</td><td>infra</td><td>Срезает <code>color</code>, <code>font-size</code>, <code>background-color</code> из вставляемого HTML</td></tr>
+      <tr><td class="mono">presentation/wysiwygPlugin</td><td>presentation</td><td>Фабрика <code>AdminPlugin</code>: одна контрибьюция, обе половины — через <code>React.lazy</code></td></tr>
+      <tr><td class="mono">presentation/slots/wysiwygSlots</td><td>presentation</td><td>Объявление <code>WYSIWYG_MEDIA_SLOT</code> и типов <code>WysiwygMediaEmbed</code> / <code>…SourceContext</code> / <code>…SourceItem</code></td></tr>
+      <tr><td class="mono">presentation/components/WysiwygFieldControl</td><td>presentation</td><td>Свёрнутое поле: предпросмотр + прозрачная кнопка поверх + чип Edit/View</td></tr>
+      <tr><td class="mono">presentation/components/WysiwygFieldFullView</td><td>presentation</td><td>Развёрнутый вид: «Back to fields», заголовок поля, ошибка, панель редактора</td></tr>
+      <tr><td class="mono">presentation/components/WysiwygEditorPanel</td><td>presentation</td><td>Сам <code>useEditor</code>: тулбар, документ, список замечаний, футер со счётчиком и кнопкой выхода</td></tr>
+      <tr><td class="mono">presentation/components/WysiwygPreview</td><td>presentation</td><td><code>dangerouslySetInnerHTML</code> над результатом <code>renderRichText</code>, мемо по сырому значению</td></tr>
+      <tr><td class="mono">presentation/components/WysiwygIssueList</td><td>presentation</td><td>Структурные замечания под документом, <code>aria-live="polite"</code></td></tr>
+      <tr><td class="mono">presentation/components/WysiwygToolbar</td><td>presentation</td><td>Панель + 11 подпапок (у <code>InsertMenu</code> ещё четыре вложенные): меню, попроверы, диалоги, две общие формы кнопок</td></tr>
+      <tr><td class="mono">presentation/hooks/useLiveEditorState</td><td>presentation</td><td>Обёртка над <code>useEditorState</code>, безопасная к уничтоженному редактору</td></tr>
+      <tr><td class="mono">src/styles.css</td><td>—</td><td>429 строк, всё висит на <code>.ortha-wysiwyg</code>; хост импортирует один раз после дизайн-системы</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>2.1 Куда он подключается</h3>
+  <p>В <code>apps/admin/src/plugins.ts</code> <code>WysiwygPlugin()</code> стоит <b>после</b> <code>ContentPlugin()</code>, чей слот он заполняет. Порядок здесь — выражение намерения, а не требование: слоты — модульные синглтоны, и <code>createAdmin</code> регистрирует контрибьюции всех плагинов до первого рендера. Что от позиции действительно зависит — порядок элементов <em>внутри</em> слота: <code>ENTRY_FIELD_CONTROL_SLOT</code> резолвится через <code>find</code>, то есть <b>первый подошедший элемент выигрывает</b> в порядке регистрации.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Направление</th><th>Что в нём</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">content.entry.fieldControl<br><span class="sub small">ENTRY_FIELD_CONTROL_SLOT</span></td>
+        <td><span class="pill pill-pub">заполняет</span></td>
+        <td>Один элемент <code>wysiwyg.entry.richtext</code>: <code>appliesTo</code> = <code>isWysiwygField</code>, <code>Component</code> = свёрнутое поле, <code>FullView</code> = развёрнутый редактор. Обе половины ленивые, каждая под своим <code>Suspense</code> со скелетоном</td>
+      </tr>
+      <tr>
+        <td class="mono">wysiwyg.media.sources<br><span class="sub small">WYSIWYG_MEDIA_SLOT</span></td>
+        <td><span class="pill pill-perm">объявляет</span></td>
+        <td>Источники медиа. <code>@orthacms/media-admin</code> кладёт два: <code>media.wysiwyg.library</code> («Media Library…», <code>order: 10</code>) и <code>media.wysiwyg.upload</code> («Upload files…», <code>order: 20</code>). Без единой контрибьюции редактор всё равно вставляет медиа — остаются только встроенные пункты «по URL»</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>2.2 Какие поля он забирает</h3>
+  <p>Предикат <code>isWysiwygField</code> буквально в две строки:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>function isWysiwygField(field: ContentField): boolean {
+    if (field.type !== CONTENT_FIELD_TYPE.RichText) return false;
+    return field.admin['widget'] !== WYSIWYG_WIDGET.Textarea;
+}</code></pre></div>
+  <p>То есть <b>каждое</b> поле <code>richtext</code> — по умолчанию, без opt-in. Обоснование прямое: opt-in оставил бы сырой textarea на всех схемах, написанных до появления плагина. Отказ — по полю, в схеме контента: <code>field.richtext({ admin: { widget: 'textarea' } })</code>. Значение <code>'wysiwyg'</code> тоже принимается — чтобы схема могла заявить намерение, а не полагаться на умолчание. <code>widget</code> в <code>AdminProps</code> типизирован как свободная строка, так что оба значения — конвенция этого плагина, а не enum на сервере.</p>
+
+  <div class="note">
+    <span class="label">Бандл: TipTap не должен попасть в entry-чанк</span>
+    <p>Фабрика плагина выполняется <b>на старте</b> — иначе её контрибьюция не успеет зарегистрироваться до первого рендера, — поэтому всё, что она импортирует <em>статически</em>, оказывается в стартовом чанке приложения. TipTap и ProseMirror — это ~460 кБ ради контрола, который живёт только внутри редактора записи. Отсюда два правила: обе половины берутся через <code>React.lazy</code>, а <code>src/index.ts</code> не реэкспортирует ни предпросмотр, ни редактор. Документация называет контрольную цифру: entry-чанк админки ~255 кБ (было ~254 кБ до плагина), TipTap отдельно в <code>editorExtensions-*.js</code> ~420 кБ, разворачивание поля докачивает ~39 кБ. Сдвинулось первое число — граница ленивости сломана.</p>
+  </div>
+</section>
+
+<section id="document">
+  <h2 class="sec"><span class="num">03</span>Формат документа: почему дерево, а не HTML</h2>
+
+  <p>ADR-0011 («Rich text is a structured document, not an opaque string», статус <b>Proposed</b>, 19.08.2026) описывает решение, которое в коде уже реализовано целиком. До него значение <code>richtext</code> было строкой HTML в колонке <code>text</code>, а ядро валидировало его как <code>typeof === 'string'</code> плюс длина и <code>pattern</code>. Это делало семантику тела <b>немоделируемой и потому непроверяемой</b>: вот это проходило валидацию начисто —</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>validateFieldValue('body', { type: 'richtext', required: true },
+  '&lt;h4&gt;Intro&lt;/h4&gt;&lt;h1&gt;Title&lt;/h1&gt;&lt;table&gt;&lt;tr&gt;&lt;td&gt;a&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;')
+// → []</code></pre></div>
+
+  <p>Пропущенный уровень заголовка, перевёрнутая структура и таблица без шапки — три вещи, которые пользователь скринридера встречает как сломанный документ, и платформа не могла назвать ни одну из них ошибкой (WCAG 1.3.1, 2.4.6, Section 508 504.2). Плюс два следствия той же категориальной ошибки: <code>maxLength</code> считал разметку (выделение слова жирным тратило <code>&lt;strong&gt;&lt;/strong&gt;</code> из бюджета автора), и <b>язык фрагмента</b> (3.1.2) негде было выразить.</p>
+
+  <h3>3.1 Что теперь считается значением</h3>
+  <ul>
+    <li><b>Документ</b> — дерево <code>{ type: 'doc', content: [...] }</code>, то самое, что отдаёт <code>editor.getJSON()</code>. Хранится в <code>jsonb</code>-колонке (<code>table-builder.ts</code>: <code>case CONTENT_FIELD_TYPE.RichText: builder = jsonb(col)</code>).</li>
+    <li><b>Строка HTML</b> — тоже валидное значение. Миграция была <code>USING to_jsonb(col)</code>, то есть старое тело стало JSON-<em>строкой</em> в той же колонке. Ничего не парсилось — значит, ничего не могло потеряться.</li>
+    <li><b><code>null</code></b> — отсутствие тела. Именно в это схлопывается пустой документ на выходе из редактора (<code>normalizeRichText</code>).</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Апгрейд по мере редактирования, а не пакетной миграцией</span>
+    <p>Старое HTML-тело превращается в документ ровно тогда, когда запись в следующий раз сохранят из редактора: <code>asEditorContent</code> отдаёт строку TipTap, тот парсит её <b>своей собственной схемой</b>, и первый же <code>onUpdate</code> кладёт в форму дерево. Пакетная миграция отвергнута сознательно: конвертация HTML требует решить, что означал каждый неизвестный тег, а единственный парсер, который знает, что эта инсталляция умеет представлять, — схема самого редактора.</p>
+  </div>
+
+  <h3>3.2 Словарь: что редактор умеет записать</h3>
+  <p>Словарь ядра (<code>RICH_TEXT_NODE</code>, <code>RICH_TEXT_MARK</code>) <b>открыт</b>: он называет то, о чём ядро <em>рассуждает</em>, а не то, что документу разрешено содержать. Расширение редактора (коллаут, колонки, встраивание) проезжает сквозь него нетронутым — закрытый словарь сделал бы ядро привратником каждого плагинного набора расширений. Набор, который производит именно этот редактор, складывается из StarterKit, TableKit и четырёх собственных расширений:</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Узел</th><th>Откуда</th><th>Сериализуется в</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">doc</td><td>StarterKit</td><td>корень, тега нет</td></tr>
+      <tr><td class="mono">text</td><td>StarterKit</td><td>символы (плюс марки)</td></tr>
+      <tr><td class="mono">paragraph</td><td>StarterKit</td><td><code>&lt;p&gt;</code></td></tr>
+      <tr><td class="mono">heading</td><td>StarterKit, <code>levels: [1,2,3,4]</code></td><td><code>&lt;h1&gt;…&lt;h4&gt;</code>; глубже h4 в теле CMS смысла не имеет</td></tr>
+      <tr><td class="mono">bulletList / orderedList / listItem</td><td>StarterKit</td><td><code>&lt;ul&gt;</code> / <code>&lt;ol&gt;</code> / <code>&lt;li&gt;</code></td></tr>
+      <tr><td class="mono">blockquote</td><td>StarterKit</td><td><code>&lt;blockquote&gt;</code></td></tr>
+      <tr><td class="mono">codeBlock</td><td>StarterKit</td><td><code>&lt;pre&gt;&lt;code&gt;</code></td></tr>
+      <tr><td class="mono">horizontalRule</td><td>StarterKit</td><td><code>&lt;hr&gt;</code></td></tr>
+      <tr><td class="mono">hardBreak</td><td>StarterKit</td><td><code>&lt;br&gt;</code></td></tr>
+      <tr><td class="mono">table / tableRow / tableHeader / tableCell</td><td>TableKit</td><td><code>&lt;table&gt;</code>, <code>&lt;tr&gt;</code>, <code>&lt;th scope="col"&gt;</code>, <code>&lt;td&gt;</code></td></tr>
+      <tr><td class="mono">callout</td><td>своё</td><td><code>&lt;aside data-callout data-tone="warning"&gt;</code>, содержимое <code>block+</code></td></tr>
+      <tr><td class="mono">columnBlock / column</td><td>своё</td><td><code>&lt;div data-columns="3"&gt;</code> / <code>&lt;div data-column&gt;</code>, содержимое <code>column{2,4}</code></td></tr>
+      <tr><td class="mono">image</td><td>своё</td><td><code>&lt;img src alt [width] [data-align] [data-decorative]&gt;</code>, <code>atom</code>, <code>draggable</code></td></tr>
+      <tr><td class="mono">video</td><td>своё</td><td><code>&lt;video src controls [width] [data-align]&gt;</code>, <code>atom</code>, <code>draggable</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Марка</th><th>Откуда</th><th>Сериализуется в</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">bold / italic / strike / code</td><td>StarterKit</td><td><code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>, <code>&lt;s&gt;</code>, <code>&lt;code&gt;</code></td></tr>
+      <tr><td class="mono">underline</td><td>StarterKit</td><td><code>&lt;u&gt;</code></td></tr>
+      <tr><td class="mono">link</td><td>StarterKit, настроена</td><td><code>&lt;a href rel="noopener noreferrer nofollow"&gt;</code>; <code>openOnClick: false</code>, <code>autolink: true</code></td></tr>
+      <tr><td class="mono">textStyle (+ color, fontSize)</td><td><code>@tiptap/extension-text-style</code></td><td><code>&lt;span style="color:…;font-size:…"&gt;</code></td></tr>
+      <tr><td class="mono">highlight</td><td><code>extension-highlight</code>, <code>multicolor</code></td><td><code>&lt;mark style="background-color:…"&gt;</code></td></tr>
+      <tr><td class="mono">language</td><td>своё</td><td><code>&lt;span lang="fr"&gt;</code>; имя марки берётся из ядра — <code>RICH_TEXT_MARK.Language</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="sub small">Плюс два расширения без узлов и марок: <code>TextAlign</code> (пишет <code>text-align</code> в атрибуты <code>heading</code> и <code>paragraph</code> — и только их), <code>Placeholder</code> и <code>CharacterCount</code> (счётчик в футере, он же теперь та единица, в которой измеряется <code>maxLength</code> поля).</p>
+
+  <h3>3.3 Что валидно и кто это решает</h3>
+  <p>Валидатор ядра (<code>validate-entry-values.ts</code>) для <code>richtext</code> делает ровно четыре вещи:</p>
+  <ol class="flow">
+    <li><b>Пустота считается по документу, а не по JSON.</b> <code>isEmptyRichText</code>, а не общий <code>isEmpty</code>: <code>{ doc: [paragraph] }</code> — это то, что оставляет опустошённый редактор, и <code>required</code> обязано на этом упасть.<span class="meta">пусто — значит: doc, paragraph, hardBreak, text (только пробелы), container. Всё прочее — содержимое</span></li>
+    <li><b>Форма значения.</b> Не строка и не документ → <code>must be a rich-text document</code>.</li>
+    <li><b>Длина и <code>pattern</code> — по тексту.</b> <code>richTextPlainText(value)</code>: границы блоков дают перевод строки, разметка не даёт ничего. Длина считается в <em>воспринимаемых человеком символах</em>, а не в кодовых единицах UTF-16.</li>
+    <li><b>Структурная проверка</b> — <code>inspectRichText</code>, если поле не отключило её через <code>validation: { structure: 'off' }</code>. Валидацию валит <b>только severity <code>error</code></b>.</li>
+  </ol>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Правило</th><th>Severity</th><th>WCAG</th><th>Что именно</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">headingEmpty</td><td><b>error</b></td><td>2.4.6</td><td>Заголовок без текста — ориентир, который ничего не называет</td></tr>
+      <tr><td class="mono">headingLevelSkipped</td><td><b>error</b></td><td>1.3.1</td><td>Уровень больше предыдущего более чем на 1 — выдуманный раздел</td></tr>
+      <tr><td class="mono">headingLevelInverted</td><td>warning</td><td>1.3.1</td><td>Заголовок выше того уровня, с которого тело начинается</td></tr>
+      <tr><td class="mono">tableMissingHeader</td><td><b>error</b></td><td>1.3.1</td><td>У таблицы нет ни ячеек <code>tableHeader</code>, ни <code>tableCaption</code></td></tr>
+      <tr><td class="mono">linkTextEmpty</td><td><b>error</b></td><td>2.4.4</td><td>Ссылка, которую нечем озвучить</td></tr>
+      <tr><td class="mono">linkTextNotDescriptive</td><td>warning</td><td>2.4.4</td><td>Текст из списка («click here», «read more», «подробнее»-подобные 14 фраз) либо голый URL</td></tr>
+      <tr><td class="mono">invalidLanguageTag</td><td><b>error</b></td><td>3.1.2</td><td>Любой <code>lang</code> (на узле или на марке), который не парсится как BCP-47</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.4 Что из этого следует наружу</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Публичный API и GraphQL</h4>
+      <p class="small sub">REST отдаёт дерево как есть; в OpenAPI поле описано как <code>oneOf</code> из <code>RichTextDocument</code> и строки. В GraphQL тип поля — <code>JSON</code>, а не <code>String</code>: <b>ломающее изменение</b> для потребителя, который рассчитывал на строку. Зато потребитель получает дерево, которое рендерит как хочет, вместо разметки, которую обязан санировать.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Фильтрация, сортировка, поиск</h4>
+      <p class="small sub"><code>richtext</code> <b>не фильтруется и не сортируется</b> (<code>scalarTypeFor</code> возвращает <code>null</code>): <code>equals</code> над документом сравнивал бы сериализации деревьев, а не прозу. Свободный <code>?search=</code> до тела доходит — колонка кастуется <code>::text</code> и ищется по сериализованному дереву; цена в том, что запрос со словом <code>paragraph</code> может попасть в тело, которое его не произносит. В списке записей richtext-колонка по умолчанию выключена (<code>HEAVY_TYPES</code>).</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Перенос (export / import)</h4>
+      <p class="small sub">В JSON/NDJSON дерево едет как есть. В <b>CSV</b> ячейка — это <code>richTextPlainText</code>, то есть текст без разметки: то, с чем работает переводчик. Обратно каждая строка ячейки становится абзацем (<code>htmlToRichTextDocument</code> над <code>&lt;p&gt;…&lt;/p&gt;</code>) — то есть CSV-круг <b>лоссиный по форматированию</b> и это осознанно.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Контрол-запасной вариант</h4>
+      <p class="small sub">Поле с <code>widget: 'textarea'</code> рендерится обычной областью, и <code>content-admin</code> сериализует документ в HTML на входе в неё (<code>asRichTextSource</code> → <code>richTextToHtml</code>), а обратно отдаёт строку — которая остаётся валидным значением. То есть переключение виджета не ломает данные, но <b>обратный путь лоссиный</b>: сохранение из textarea превращает документ в строку.</p>
+    </div>
+  </div>
+</section>
+
+<section id="toolbar">
+  <h2 class="sec"><span class="num">04</span>Инвентарь возможностей редактора</h2>
+
+  <p>Панель — это <code>role="group"</code> с именем «Formatting», а <b>не</b> <code>role="toolbar"</code>. Паттерн ARIA toolbar обещает навигацию стрелками с одной точкой табуляции; пообещать и не реализовать — значит завести пользователя скринридера в пустоту. Как группа, каждый контрол — обычная точка табуляции.</p>
+
+  <p>Панель обязана помещаться <b>в одну строку</b>. Это ограничение, а не случайность: рабочая область уже, чем окно (примерно <b>620px</b> при вьюпорте 1280px — слева меню приложения, справа панель свойств), а перенос на вторую строку сдвигает документ вниз и превращает всё, что уехало, в приписку. Отсюда состав: впереди остаётся то, до чего тянутся посреди фразы, остальное свёрнуто в меню, сгруппированные по <em>роду действия</em>. Бюджет — <b>около 40px</b>: добавить контрол на панель значит снять другой. <code>flex-wrap</code> оставлен запасным вариантом на действительно узкое окно — переносить плохо, обрезать хуже.</p>
+
+  <h3>4.1 Панель по порядку</h3>
+  <p class="sub small">14 контролов и 5 разделителей. У разделителей нет горизонтальных отступов: пять пар полей были теми последними ~20px, что роняли панель на вторую строку; теперь они опираются на общий <code>gap</code> панели.</p>
+
+  <div class="states">
+    <span class="state">Undo</span><span class="state">Redo</span>
+    <span class="arrow">│</span>
+    <span class="state">Text style ▾</span><span class="state">Text size ▾</span>
+    <span class="arrow">│</span>
+    <span class="state">Bold</span><span class="state">Italic</span><span class="state">More formatting ▾</span>
+    <span class="arrow">│</span>
+    <span class="state">Text color ▾</span><span class="state">Highlight ▾</span>
+    <span class="arrow">│</span>
+    <span class="state">Bulleted list</span><span class="state">Numbered list</span><span class="state">Alignment ▾</span>
+    <span class="arrow">│</span>
+    <span class="state">Link ▾</span><span class="state">Insert ▾</span>
+  </div>
+
+  <h3>4.2 Полный инвентарь</h3>
+  <p class="sub small">Собственных клавиатурных биндингов пакет объявляет ровно <b>один</b> — <code>Ctrl+M</code> — и переопределяет <b>один</b> — <code>Tab</code> внутри таблицы. Всё прочее в колонке «Клавиши» приходит из штатных биндингов подключённых расширений TipTap (StarterKit, TableKit, TextAlign) и в исходниках этого пакета не объявлено — на приёмке это проверяется на стенде, а не по коду. «Что кладёт в документ» — это то, что попадёт в сохранённое значение и уедет наружу.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Возможность</th><th>Как вызывается</th><th>Что кладёт в документ</th><th>Клавиши</th></tr></thead>
+    <tbody>
+      <tr><td><b>Отменить / повторить</b></td><td>Кнопки Undo / Redo; неактивны, когда история пуста (<code>can().undo()</code>)</td><td>Ничего — история ProseMirror</td><td class="mono">Ctrl/⌘+Z, Ctrl/⌘+Shift+Z</td></tr>
+      <tr><td><b>Стиль текста</b> (абзац, H1–H4, блок кода)</td><td>Меню «Text style», радиогруппа; на триггере — короткая форма («Text», «H2», «Code»)</td><td><code>paragraph</code>, <code>heading level=1..4</code>, <code>codeBlock</code></td><td class="mono">Ctrl/⌘+Alt+1..4</td></tr>
+      <tr><td><b>Размер текста</b> (Default, Small, Normal, Medium, Large, Extra large)</td><td>Меню «Text size», радиогруппа; пункты показаны своим же кеглем</td><td><code>fontSize</code> на марке <code>textStyle</code>: <code>0.875rem</code> / <code>1rem</code> / <code>1.25rem</code> / <code>1.5rem</code> / <code>2rem</code>. «Default» <b>снимает</b> марку, а не ставит <code>1rem</code></td><td class="no">—</td></tr>
+      <tr><td><b>Жирный</b></td><td>Кнопка Bold</td><td>Марка <code>bold</code> → <code>&lt;strong&gt;</code></td><td class="mono">Ctrl/⌘+B</td></tr>
+      <tr><td><b>Курсив</b></td><td>Кнопка Italic</td><td>Марка <code>italic</code> → <code>&lt;em&gt;</code></td><td class="mono">Ctrl/⌘+I</td></tr>
+      <tr><td><b>Подчёркивание</b></td><td>More formatting ▸ Underline (пункт-чекбокс)</td><td>Марка <code>underline</code> → <code>&lt;u&gt;</code></td><td class="mono">Ctrl/⌘+U</td></tr>
+      <tr><td><b>Зачёркивание</b></td><td>More formatting ▸ Strikethrough</td><td>Марка <code>strike</code> → <code>&lt;s&gt;</code></td><td class="mono">Ctrl/⌘+Shift+S</td></tr>
+      <tr><td><b>Код в строке</b></td><td>More formatting ▸ Inline code</td><td>Марка <code>code</code> → <code>&lt;code&gt;</code></td><td class="mono">Ctrl/⌘+E</td></tr>
+      <tr><td><b>Цитата</b></td><td>More formatting ▸ Quote</td><td>Узел <code>blockquote</code></td><td class="mono">Ctrl/⌘+Shift+B</td></tr>
+      <tr><td><b>Сбросить форматирование</b></td><td>More formatting ▸ Clear formatting</td><td><code>unsetAllMarks()</code> + <code>clearNodes()</code>. Марку <code>language</code> <b>не трогает</b> — она отдельная марка, а не <code>textStyle</code></td><td class="no">—</td></tr>
+      <tr><td><b>Язык фрагмента</b></td><td>More formatting ▸ «Language of this passage…» → диалог, смонтированный тулбаром. Активный тег показан прямо в пункте меню</td><td>Марка <code>language</code> с <code>attrs.lang</code> → <code>&lt;span lang="fr"&gt;</code>. Тег проверяется ядровым <code>isWellFormedLanguageTag</code></td><td class="no">—</td></tr>
+      <tr><td><b>Цвет текста</b></td><td>Меню «Text color»: сетка 5×2 из 10 образцов + «Default color»</td><td><code>color</code> на <code>textStyle</code>, hex-значением (<code>#334155</code>, <code>#dc2626</code>, … — цвета <em>содержимого</em>, а не темы админки)</td><td class="no">—</td></tr>
+      <tr><td><b>Подсветка</b></td><td>Меню «Highlight»: 8 бледных образцов + «No highlight»</td><td>Марка <code>highlight</code> с <code>color</code> → <code>&lt;mark style="background-color:#fef08a"&gt;</code></td><td class="no">—</td></tr>
+      <tr><td><b>Маркированный список</b></td><td>Кнопка Bulleted list</td><td><code>bulletList</code> + <code>listItem</code></td><td class="mono">Ctrl/⌘+Shift+8</td></tr>
+      <tr><td><b>Нумерованный список</b></td><td>Кнопка Numbered list</td><td><code>orderedList</code> + <code>listItem</code></td><td class="mono">Ctrl/⌘+Shift+7</td></tr>
+      <tr><td><b>Выравнивание</b> (left / center / right / justify)</td><td>Меню «Alignment», радиогруппа; иконка триггера показывает текущее</td><td>Для текста — <code>textAlign</code> в атрибутах <code>heading</code>/<code>paragraph</code>. Для выделенного медиа — <b>другая команда</b>: <code>setMediaAlign</code> → <code>data-align</code>, и пункт «Justify» из списка пропадает</td><td class="mono">Ctrl/⌘+Shift+L/E/R/J</td></tr>
+      <tr><td><b>Ссылка</b></td><td>Попровер «Link» с полем URL; открывается предзаполненным href под кареткой. Кнопка «Remove link» появляется, только когда ссылка есть</td><td>Марка <code>link</code>, <code>rel="noopener noreferrer nofollow"</code> вшит. Три случая: выделение есть — размечается; каретка внутри ссылки — <code>extendMarkRange</code> и правка целиком; ничего не выделено — URL вставляется <b>текстом со ссылкой на себя</b></td><td class="no">— <span class="sub">(⌘K намеренно отдан палитре и в теле подавлен, см. §8)</span></td></tr>
+      <tr><td><b>Разделитель</b></td><td>Insert ▸ Divider</td><td><code>horizontalRule</code> → <code>&lt;hr&gt;</code></td><td class="no">—</td></tr>
+      <tr><td><b>Коллаут</b> (Note / Success / Warning / Danger)</td><td>Insert ▸ Callout ▸ тон. «Remove callout» показывается, только когда каретка внутри</td><td><code>callout</code> с <code>tone</code> → <code>&lt;aside data-callout data-tone="warning"&gt;</code>. Второй выбор тона <b>перекрашивает</b>, а не вкладывает коллаут в коллаут</td><td class="no">—</td></tr>
+      <tr><td><b>Таблица</b></td><td>Insert ▸ Table ▸ «Insert table»</td><td>3×3 <b>со строкой шапки</b>; каждая <code>&lt;th&gt;</code> несёт <code>scope="col"</code> — задано через <code>HTMLAttributes</code>, поэтому атрибут едет и в предпросмотр, и в опубликованное тело</td><td class="no">—</td></tr>
+      <tr><td><b>Правка таблицы</b></td><td>Те же подменю, но пункты <b>скрыты</b>, пока каретка вне таблицы: строка выше/ниже/удалить, столбец слева/справа/удалить, переключить шапку, объединить/разбить ячейки, удалить таблицу</td><td>Изменения <code>tableRow</code>/<code>tableHeader</code>/<code>tableCell</code>. Ширины столбцов — <code>resizable: true</code></td><td class="mono">Tab / Shift+Tab — по ячейкам</td></tr>
+      <tr><td><b>Колоночная раскладка</b> (2, 3, 4)</td><td>Insert ▸ Columns ▸ число; там же «Merge back to one column», когда каретка внутри</td><td><code>columnBlock count=N</code> + N узлов <code>column</code>, каждый засеян пустым абзацем → <code>&lt;div data-columns="3"&gt;&lt;div data-column&gt;</code>. Уменьшение числа колонок <b>не удаляет</b> написанное: блоки отброшенных колонок сворачиваются в последнюю оставшуюся</td><td class="no">—</td></tr>
+      <tr><td><b>Изображение</b></td><td>Insert ▸ Media ▸ (контрибьюции медиатеки) либо «Image from a URL…»</td><td>Узел <code>image</code>: <code>src</code>, <code>alt</code>, необязательные <code>width</code>, <code>align</code>, <code>decorative</code></td><td class="no">—</td></tr>
+      <tr><td><b>Видео</b></td><td>Insert ▸ Media ▸ … либо «Video from a URL…»</td><td>Узел <code>video</code>: <code>src</code>, необязательные <code>width</code>, <code>align</code>; <code>controls</code> вшит в сериализацию — видео без органов управления невозможно проиграть там, куда тело уедет</td><td class="no">—</td></tr>
+      <tr><td><b>Размер медиа</b></td><td>Ручка в правом нижнем углу блока — настоящая <code>&lt;button&gt;</code>: тянуть мышью или стрелками</td><td>Атрибут <code>width</code> (не инлайновый стиль и <b>никогда</b> не высота). Минимум 64px</td><td class="mono">← / → шаг 16px, Shift ×4, Backspace/Delete — вернуть натуральную ширину</td></tr>
+      <tr><td><b>Alt-текст изображения</b></td><td>Чип на самой картинке в редакторе: «Alt text», либо предупреждающий «Add alt text», если ни alt, ни отметки «декоративное» нет</td><td><code>alt</code>, плюс <code>decorative</code> → <code>data-decorative</code>. Галочка «декоративное» <b>очищает</b> alt: иначе скринридер озвучил бы текст, стоящий за отмеченной галочкой</td><td class="no">—</td></tr>
+      <tr><td><b>Выход из документа фокусом</b></td><td>Единственный собственный биндинг плагина</td><td>Ничего — переносит фокус на кнопку выхода в футере</td><td class="mono">Ctrl+M</td></tr>
+      <tr><td><b>Tab в конце таблицы</b></td><td>Переопределение поведения TableKit (<code>orthaTableTab</code>, <code>priority: 200</code>)</td><td>Одна новая строка — <b>однократно</b>. Второй Tab сквозь только что созданную пустую строку проваливается дальше, и фокус уходит из документа</td><td class="mono">Tab</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему Tab в таблице пришлось ограничивать</span>
+    <p>Штатный биндинг <code>@tiptap/extension-table</code> в редактируемой таблице <b>никогда не возвращает <code>false</code></b>: в последней ячейке он добавляет строку и переходит в неё. Это поведение Word и Google Docs, и автору, который таблицу строит, оно нужно. Но автор, который просто пытается <b>уйти</b>, растит таблицу по строке на нажатие — измерено: 3 строки превратились в 9 за 27 нажатий, фокус так и не вышел (ORT-165). Конвенция сохранена, разгон убран: одно нажатие добавляет строку, следующее — уходит, потому что пустая последняя строка и есть та, которую только что создали. Автор, которому строка была нужна, в ней печатает — строка перестаёт быть пустой, и добавление снова взводится.</p>
+  </div>
+
+  <h3>4.3 Две общие формы контролов</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0"><code>ToolbarButton</code></h4>
+      <p class="small sub">Иконка декоративна, имя несёт <code>aria-label</code>, он же текст тултипа — так кнопка не может читаться одним, а озвучиваться другим. Переключатель передаёт <code>active</code>, что даёт <b>и</b> <code>aria-pressed</code>, <b>и</b> заливку: состояние не должно передаваться одним лишь цветом. Простое действие (undo, вставить таблицу) <code>active</code> не передаёт вовсе — «нажато» было бы враньём.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>ToolbarMenuTrigger</code></h4>
+      <p class="small sub">Иконка, необязательное текущее значение, шеврон. Рендерится через <code>asChild</code> из <code>DropdownMenuTrigger</code>/<code>PopoverTrigger</code>, поэтому пробрасывает ref и все пропсы Radix.</p>
+    </div>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Правило, которое ломается тише всего</span>
+    <p>Обе формы кнопок обязаны делать <code>preventDefault</code> на <code>mousedown</code>. Иначе нажатие на контрол уносит фокус из редактора и схлопывает выделение, над которым команда собиралась работать, — та самая классика «выделил слово, нажал Bold, ничего не произошло». Клик при этом происходит; подавляется только перенос фокуса. То же самое делает чип alt-текста на картинке — без этого <code>mousedown</code> снимает выделение с узла и уносит сам чип раньше, чем долетит клик.</p>
+  </div>
+
+  <h3>4.4 Как подписываются на состояние редактора</h3>
+  <p>Каждое меню читает <b>свой</b> срез через <code>useLiveEditorState</code>, а не общий селектор панели, — иначе панель стала бы единственным местом, через которое перерисовывается всё. Обёртка существует из-за <code>StrictMode</code>: каждый <code>useEditor</code> монтируется, разрушается и монтируется снова, а подписка мёртвого экземпляра успевает выполнить селектор последний раз. <code>can().undo()</code> или <code>storage.characterCount.words()</code> на уничтоженном редакторе бросают исключение <em>во время рендера</em>, React разматывает всё поддерево — и тулбар, до которого автор тянулся, просто исчезает. Обёртка возвращает переданное значение <code>whenGone</code> ровно на этот кадр («ничего не активно, ничего невозможно» — правда про несуществующий редактор).</p>
+
+  <h3>4.5 Вставка из буфера</h3>
+  <p><code>transformPastedHTML</code> вырезает из вставляемого HTML три свойства — <code>color</code>, <code>font-size</code>, <code>background-color</code>. Обоснование в самом файле: инлайновый цвет, выбранный <em>из палитры тулбара</em>, — это содержимое и остаётся. <b>Вставка — не выбор</b>: никто не открывал меню цвета и обычно даже не заметил. Измерено на живом стенде (ORT-164): Word отдаёт <code>&lt;span style="color: rgb(192,0,0); font-size: 14pt;"&gt;</code>, Google Docs штампует <code>color: rgb(0,0,0); font-size: 11pt</code> практически на каждый прогон текста — то есть тело, вставленное из Docs, теряло собственную типографику сайта на всю запись. Обрабатывается только путь буфера обмена; команды тулбара идут мимо. Разбор через <code>DOMParser</code>, а не регуляркой по <code>style="…"</code>: там бывают кавычки, запятые в <code>url()</code> и экранирование, и ошибка здесь портит авторский текст, а не просто промахивается. Элемент, у которого <code>style</code> опустел, теряет атрибут целиком.</p>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">05</span>Сценарии по шагам</h2>
+
+  <h3>5.1 Как редактор открывается</h3>
+  <p class="sub small">Ключевой переход всего плагина: из строки формы — в вид, занимающий рабочую область. Ни одного сетевого запроса на этом пути нет.</p>
+  <ol class="flow">
+    <li><b>Форма рисует строку поля.</b> <code>EntryFieldInput</code> <em>до</em> switch по типу поля спрашивает <code>ENTRY_FIELD_CONTROL_SLOT</code>: есть ли элемент, чей <code>appliesTo</code> берёт это поле. Метка, обязательность, значок «Changed», описание и сообщение об ошибке остаются за <code>content-admin</code> — контрибьютор рисует только саму поверхность ввода.<span class="meta">первый подошедший элемент выигрывает, в порядке регистрации</span></li>
+    <li><b>Грузится чанк контрола.</b> <code>LazyWysiwygFieldControl</code> под <code>Suspense</code>; заглушка — <code>Skeleton</code> высотой <code>h-24</code>, специально соразмерная свёрнутому предпросмотру, чтобы форма не прыгнула вверх и обратно.</li>
+    <li><b>Значение превращается в HTML предпросмотра.</b> <code>WysiwygPreview</code> → <code>renderRichText(value)</code>, мемо по <b>сырому значению</b>: перерисовка формы на каждое нажатие в любом другом поле не должна заново разбирать неизменившийся документ.</li>
+    <li><b>Карточка собирается из трёх слоёв.</b> Содержимое (<code>min-h-40</code>, при непустом теле — <code>max-h-72</code> с градиентной затухающей полосой понизу, чтобы обрез читался как продолжение, а не как обрыв фразы); прозрачная кнопка <code>absolute inset-0</code>; чип «Edit» с карандашом в правом верхнем углу (<code>aria-hidden</code>, чисто визуальный).<span class="meta">кольцо фокуса рисует не кнопка, а карточка — <code>has-[button:focus-visible]:ring-2</code></span></li>
+    <li><b>Автор нажимает — куда угодно по карточке.</b> Единственное, что делает контрол: <code>setExpanded(true)</code>. Своего состояния у него нет.</li>
+    <li><b><code>EntryEditor</code> подменяет содержимое рабочей области.</b> Он держит <code>expandedFieldName</code>, находит поле среди <code>generalFields</code>, находит в слоте элемент с <code>FullView</code> — и рендерит его <b>вместо полосы вкладок</b>. Заголовок записи остаётся сверху, боковое меню, кнопки Save/Publish в верхней панели и панель свойств справа не трогаются вовсе: развёрнутый вид находится внутри той же формы записи. Одновременно развёрнутым может быть <b>одно</b> поле; разворачивание второго сворачивает первое.<span class="meta">если после смены локали поле исчезло из схемы, имя сбрасывается, и вкладки возвращаются сами</span></li>
+    <li><b>Собирается контекст развёрнутого вида.</b> Тот же <code>EntryFieldControlContext</code>, но <b>без</b> <code>describedBy</code>: <code>&lt;FieldError&gt;</code>, на который он бы указывал, принадлежит строке формы, а её на экране нет. Зато передаётся <code>contentLocale</code> — строка формы наследовала <code>lang</code> от обёртки группы Translated, а развёрнутый вид рендерится <em>вне</em> неё.</li>
+    <li><b>Монтируется панель редактора.</b> <code>useEditor</code> с расширениями, засеянный <code>asEditorContent(value)</code> <b>один раз</b>: вид смонтирован только пока поле развёрнуто, поэтому редактор владеет своим состоянием и никакой синхронизации управляемого содержимого нет — а значит, нет и прыжков каретки, которые с ней приходят.</li>
+    <li><b>Фокус ставится в конец документа</b> (<code>autofocus: 'end'</code>). Автор нажал поле, чтобы продолжать писать; оставлять фокус на кнопке, которая только что исчезла, — потерять его.</li>
+  </ol>
+
+  <h3>5.2 Как правки попадают в запись</h3>
+  <ol class="flow">
+    <li><b>Каждая транзакция вызывает <code>onUpdate</code>.</b> Первым делом — <code>if (readOnly) return</code>: <code>editable: false</code> и так отвергает транзакции, но это единственная строка, которая пишет в запись.</li>
+    <li><b>Берётся <code>getJSON()</code>, а не <code>getHTML()</code>.</b> Хранимое значение — документ; именно это делает порядок заголовков, шапки таблиц и языковые маркеры проверяемыми, а не символами в непрозрачной строке.</li>
+    <li><b>Нормализация.</b> <code>normalizeRichText</code>: пустой документ схлопывается в <code>null</code>, содержательный отдаётся <b>дословно</b> — эта функция никогда не переписывает настоящий документ.</li>
+    <li><b>Запись в форму через <code>onChange</code> слота</b> — ровно так же, как набор в любом другом поле. Поле помечается «изменённым», индикатор публикации в панели свойств пересчитывается на лету.<span class="meta"><code>onChange</code> держится в ref: форма отдаёт новый колбэк на каждый рендер, а TipTap захватывает опции при создании редактора</span></li>
+    <li><b>Своего Save у редактора нет.</b> Единственная граница коммита — Save самой записи, вместе со сторожем несохранённых изменений. Поэтому выход из вида <b>любым</b> способом не может потерять работу.</li>
+  </ol>
+
+  <h3>5.3 Как редактор закрывается</h3>
+  <ol class="flow">
+    <li><b>Два явных выхода:</b> «Back to fields» вверху вида и «Done» в футере панели. Оба зовут один и тот же <code>collapse</code>.</li>
+    <li><b>Escape намеренно не назначен.</b> Меню и попроверы тулбара отвечают на Escape сами; второй обработчик на виде гонялся бы с ними и закрывал бы весь редактор из-под открытого меню.</li>
+    <li><b><code>setExpanded(false)</code></b> — <code>EntryEditor</code> возвращает полосу вкладок.</li>
+    <li><b><code>onBlur?.()</code></b> — форме это значит «поле тронуто», то есть с этого момента обязательное поле имеет право пожаловаться.</li>
+    <li><b>Фокус возвращается на кнопку поля.</b> Фокус не следует за удалённым элементом — браузер роняет его на <code>&lt;body&gt;</code>, и автор, нажавший «Done» с клавиатуры, оказывается нигде. Поэтому <code>requestAnimationFrame</code> и <code>getElementById(id)?.focus()</code>: кнопка несёт <code>id</code> поля, а строка формы появится лишь кадром позже (WCAG 2.4.3).</li>
+  </ol>
+
+  <h3>5.4 Как вставляется изображение или видео</h3>
+  <ol class="flow">
+    <li><b>Insert ▸ Media.</b> Подменю перечисляет сначала контрибьюции слота (в порядке <code>order</code>), затем разделитель, затем два встроенных пункта — «Image from a URL…» и «Video from a URL…». Пункты меню только <em>открывают</em>; ничего не рисуют.</li>
+    <li><b>Источник открывается там, где смонтирован.</b> Все <code>Source</code> и оба диалога смонтированы <b>тулбаром</b>, а не пунктом меню: <code>DropdownMenuContent</code> размонтируется ровно в тот момент, когда пикер должен появиться, и диалог открылся бы в разбираемое дерево. Источник живёт всё время жизни редактора и получает <code>open</code>.</li>
+    <li><b>Источник отдаёт <code>WysiwygMediaEmbed[]</code></b> — <em>URL плюс метаданные показа</em> (<code>kind</code>, <code>src</code>, необязательные <code>alt</code> и <code>width</code>), а не ассет библиотеки. Именно это позволяет одному типу узла обслуживать и выбор из библиотеки, и загрузку, и напечатанную вручную ссылку. Вызов <code>onInsert</code> <b>не закрывает</b> источник — сценарий «вставил и продолжил листать» остаётся возможным.</li>
+    <li><b>Команда <code>insertMedia</code> фильтрует.</b> Всё, чей <code>src</code> не проходит <code>isSafeMediaSrc</code>, <b>пропускается</b>, а не сохраняется сломанным узлом. Затем отсекается тип, которого нет в схеме этого редактора (иначе вставка упала бы на неизвестном имени узла). Пусто на выходе — команда возвращает <code>false</code>.</li>
+    <li><b>Узел появляется у каретки</b> с <code>width</code>, если источник знал натуральную ширину и она не меньше 64px, иначе <code>width: null</code>.</li>
+    <li><b>Дальше правится на месте:</b> ручка размера, чип alt-текста, меню Alignment (которое само переключилось на <code>setMediaAlign</code>, потому что выделен медиа-узел).</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему «по URL» встроено, а библиотека — нет</span>
+    <p>Диалогу «from a URL» не нужно ничего: ни библиотеки, ни эндпоинта загрузки, ни плагина. Он — то, что позволяет инсталляции <b>без медиа-плагина</b> вообще положить картинку в тело, и честный ответ для ассета, который действительно живёт в другом месте (CDN, сайт партнёра). Его текст это и говорит: «The file stays where it is — nothing is copied into the Media Library». URL проверяется <b>дважды</b>: диалогом — чтобы объяснить, <em>почему</em> ничего не произошло, и узлом при вставке и при разборе — и вот это уже защита сохранённого содержимого.</p>
+  </div>
+
+  <h3>5.5 Как вставляется таблица и колонки</h3>
+  <ol class="flow">
+    <li><b>Insert ▸ Table ▸ Insert table</b> — сразу 3×3 со строкой шапки. Это единственный способ создать таблицу в этом редакторе, и он всегда строит строку-шапку — потому <code>scope="col"</code> и корректен для каждой <code>&lt;th&gt;</code>, которую редактор способен произвести (шапка-<em>столбец</em> потребовала бы переключателя, которого нет, и <code>scope="row"</code> вместе с ним).</li>
+    <li><b>Пока каретка вне таблицы</b>, подменю показывает <b>один</b> живой пункт. Десять серых строк читать труднее, чем одну живую, поэтому пункты правки скрыты, а не заблокированы.</li>
+    <li><b>Insert ▸ Columns ▸ 2/3/4.</b> Вне раскладки — вставляется новый <code>columnBlock</code>, каждая колонка засеяна пустым абзацем (схема <code>column{2,4}</code> отвергает пустой блок).</li>
+    <li><b>Внутри раскладки то же меню её перестраивает.</b> Рост — добавляются пустые колонки; сжатие — блоки отбрасываемых колонок <b>переезжают</b> в последнюю оставшуюся. <code>data-columns</code>, прочитанный из чужой разметки, зажимается в диапазон 2..4: рукописное <code>data-columns="wide"</code> иначе стало бы <code>NaN</code> и утащило бы за собой <code>grid-template-columns</code>.</li>
+    <li><b>«Merge back to one column»</b> разворачивает раскладку, выкладывая блоки всех колонок в порядке чтения. Это не <code>lift</code>: тот снял бы один уровень, а здесь их два.</li>
+    <li><b>Внутри колонки Backspace не сливает соседей</b> — узел <code>column</code> объявлен <code>isolating</code>. Без этого Backspace в начале колонки утягивал бы её в последний абзац предыдущей, и раскладка тихо разваливалась.</li>
+  </ol>
+
+  <h3>5.6 Как открывается тело, написанное до перехода на документ</h3>
+  <ol class="flow">
+    <li><b>В колонке лежит JSON-строка</b> — старое HTML-тело, которое миграция перенесла как есть.</li>
+    <li><b>Свёрнутое поле его уже показывает:</b> <code>renderRichText</code> для строки идёт «строчным путём» — <code>DOMParser</code> в <b>инертный</b> документ, разбор схемой ProseMirror, повторная сериализация.</li>
+    <li><b>При разворачивании <code>asEditorContent</code> отдаёт строку TipTap</b>, и тот парсит её собственной схемой — сохраняя всё, что этот редактор умеет представить, и ничего, чего не умеет.</li>
+    <li><b>Первый же <code>onUpdate</code> кладёт в форму дерево.</b> Конверсия фиксируется при следующем сохранении записи: контент апгрейдится по мере редактирования.</li>
+    <li><b>Марка <code>language</code> при этом переживает круг:</b> её <code>parseHTML</code> заявляет <code>span[lang]</code> — но только тот span, который <em>действительно</em> называет язык, иначе безусловное правило проглотило бы каждый <code>textStyle</code>-span и превратило цвета в пустые языковые марки.</li>
+  </ol>
+</section>
+
+<section id="seam">
+  <h2 class="sec"><span class="num">06</span>Стык с media и с content</h2>
+
+  <h3>6.1 Инверсия зависимости: media → wysiwyg</h3>
+  <p>Редактор умеет <b>держать</b> картинку и видео и знает <b>один</b> способ их назвать — вставить URL. Про медиатеку он не знает ничего, и это решение: импорт <code>media-admin</code> сделал бы форматированный текст неработоспособным в инсталляции без медиа-плагина и навсегда прибил бы редактор к форме одной конкретной библиотеки. Поэтому редактор <em>объявляет</em> <code>WYSIWYG_MEDIA_SLOT</code>, а <code>@orthacms/media-admin</code> его заполняет — та же инверсия, которой <code>content-admin</code> пользуется для собственных слотов, и причина, по которой зависимость идёт media → wysiwyg, а не наоборот.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Контракт</th><th>Поле</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4" class="mono">WysiwygMediaEmbed</td><td class="mono">kind</td><td><code>'image'</code> или <code>'video'</code> — каким узлом это станет</td></tr>
+      <tr><td class="mono">src</td><td>Где лежат байты. Обязан быть <code>http(s)</code> или своим путём</td></tr>
+      <tr><td class="mono">alt?</td><td>Альтернативный текст. Только изображения — и причина, по которой пикер должен его передавать</td></tr>
+      <tr><td class="mono">width?</td><td>Натуральная ширина, если источник её знает. Засевает узел и даёт ручке размера разумную отправную точку</td></tr>
+      <tr><td rowspan="4" class="mono">WysiwygMediaSourceContext</td><td class="mono">open</td><td>Открыт ли UI источника (редактор решает, какой именно открыт)</td></tr>
+      <tr><td class="mono">onOpenChange</td><td>Закрыть или снова открыть</td></tr>
+      <tr><td class="mono">accept</td><td>Типы, которые этот редактор примет. Источник не должен возвращать ничего другого — узла для этого нет, и оно молча исчезнет</td></tr>
+      <tr><td class="mono">onInsert</td><td>Положить выбранное у каретки, одним вызовом, в нужном порядке. Источник не закрывает</td></tr>
+      <tr><td rowspan="5" class="mono">WysiwygMediaSourceItem</td><td class="mono">id</td><td>Ключ React и то, по чему меню Insert открывает источник</td></tr>
+      <tr><td class="mono">label</td><td><code>MessageDescriptor</code> — пункт подменю Insert ▸ Media</td></tr>
+      <tr><td class="mono">icon?</td><td>Ведущая иконка пункта</td></tr>
+      <tr><td class="mono">order</td><td>Сортировка среди источников. Встроенный пункт «по URL» стоит на 100</td></tr>
+      <tr><td class="mono">Source</td><td>Собственно UI. Монтируется <b>тулбаром</b> на всё время жизни редактора</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.2 Что кладёт media-admin</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Media Library… <span class="pill pill-ses">order 10</span></h4>
+      <p class="small sub">Тот же <code>MediaPickerDialog</code>, который открывает медиа-<em>поле</em>, — и это смысл: просмотр, поиск и навигация по папкам реализованы один раз, а автор, переходящий между медиа-полем и телом, встречает один и тот же пикер. Включён <code>multiple</code>: положить три картинки подряд — нормальное дело. <code>accept</code> редактора передаётся пикеру как его собственное ограничение, так что аудиофайл или PDF отфильтровываются из сетки, а не оказываются выбираемыми и потом молча отброшенными.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Upload files… <span class="pill pill-ses">order 20</span></h4>
+      <p class="small sub">Файлы уходят <b>в медиатеку</b>, а потом ставятся в текст — не data-URI и не «вложение записи». Загружает <b>сразу</b>, в отличие от медиа-поля, которое откладывает загрузку до сохранения записи: поле держит id, а тело держит <b>URL</b>, и URL не существует, пока не существуют байты. Размен односторонний и осознанный — брошенная правка оставляет ассет в библиотеке, где он виден и удаляем, а не тело, указывающее в никуда. Каждый файл — свой запрос: одна неудача стоит одного файла, тост называет именно его.</p>
+    </div>
+  </div>
+
+  <p><code>toWysiwygEmbed</code> — единственное место, где media-admin переводит свою модель в модель редактора. Для изображения берётся <code>previewUrl</code> (производная ~1280px), а не оригинал: телу на странице 12-мегапиксельный JPEG не нужен, и производная именно для этого и сделана; запасной вариант — <code>url</code>, он покрывает SVG и мелкие картинки без производных. Видео всегда идёт по <code>url</code> — производных для видео нет. Собственный <code>alt</code> ассета едет вместе с ним, чтобы автор, написавший его один раз в библиотеке, не писал заново в каждом теле. Для чего у редактора нет узла (аудио, PDF, архив) — возвращается <code>null</code>: пикер такое и так отфильтровал, но это вторые ворота.</p>
+
+  <h3>6.3 Проверка <code>src</code>: что вообще может попасть в тело</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
+
+export function isSafeMediaSrc(src: unknown): src is string {
+    if (typeof src !== 'string') return false;
+    const value = src.trim();
+    if (value === '' || value.startsWith('//')) return false;
+    // Корневой или относительный путь — схемы нет, проверять нечего.
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) return true;
+    try {
+        return ALLOWED_PROTOCOLS.has(new URL(value).protocol);
+    } catch {
+        return false;
+    }
+}</code></pre></div>
+  <ul>
+    <li><b>Свой путь разрешён и это не любезность, а основной случай:</b> медиатека отдаёт ассеты с <code>/api/media/assets/…</code>, и сохранённый абсолютный URL прибил бы содержимое к тому хосту, на котором в тот момент был автор.</li>
+    <li><b>Протокол-относительный <code>//host/…</code> отвергается:</b> он наследует схему <em>потребителя</em>, а за неё этот редактор поручиться не может.</li>
+    <li><b>Разбор при вставке в узел строже, чем при вводе:</b> <code>parseHTML</code> у <code>image</code> и <code>video</code> отказывает узлу целиком, а не импортирует его с обнулённым <code>src</code>, — картинка без источника в теле выглядит как потеря данных.</li>
+  </ul>
+
+  <h3>6.4 Граница доверия предпросмотра</h3>
+  <p>Значение <code>richtext</code> — это то, что напечатал, вставил или записал прямо через API <em>какой-то другой</em> пользователь CMS, а предпросмотр рендерит его как <b>разметку</b>. Отдать такую строку в <code>dangerouslySetInnerHTML</code> без проверки — сделать каждое поле форматированного текста вектором хранимого XSS против любого, кто откроет запись: <code>&lt;script&gt;</code> через <code>innerHTML</code> не выполняется, а <code>&lt;img src=x onerror=…&gt;</code> выполняется, и контрибьютор мог бы нацелить его на администратора.</p>
+  <ol class="flow">
+    <li><b>Документ пересобирается из JSON</b> схемой самого редактора (<code>ProseMirrorNode.fromJSON</code>). Схема строится один раз и кэшируется — она зависит только от набора узлов и марок, но не от плейсхолдера поля.</li>
+    <li><b>Легаси-строка разбирается из инертного документа</b> <code>DOMParser</code>: он не грузит ресурсов и не выполняет скриптов — именно это делает безопасным само прикосновение к входным данным.</li>
+    <li><b>Результат сериализуется заново из полученных узлов.</b> Выживает только то, что объявлено схемой: обработчики событий отброшены, а расширение Link обнуляет любой href вне своего списка протоколов (<code>javascript:</code>). Список разрешённого — это <b>то же самое определение</b>, что «что этот редактор умеет написать», поэтому предпросмотр в точности равен тому, что автор увидит, развернув поле. Рукописный список тегов был бы вторым определением, свободным разъехаться.</li>
+    <li><b>Документ с узлом, которого у этой инсталляции нет</b> (написан через API или другим развёртыванием с лишним расширением), пересобрать нельзя. Тогда — откат на ядровый <code>richTextToHtml</code> и строчный путь: то, что редактор <em>понимает</em>, всё равно отрендерится, вместо пустой карточки.</li>
+    <li><b>Ссылки уплощаются в <code>&lt;span data-link&gt;</code>.</b> Единственное намеренное отличие от редактора — и условие, при котором кнопку вообще можно класть поверх: в предпросмотре не остаётся <b>ни одного фокусируемого элемента</b>.</li>
+  </ol>
+  <div class="note crit">
+    <span class="label">Правило для любого нового места</span>
+    <p>Добавили узел или марку в <code>editorExtensions</code> — предпросмотр поддерживает их в тот же день. Понадобилось отрендерить форматированный текст где-то ещё — только через <code>renderRichText</code>, и <b>никогда</b> <code>innerHTML</code> по сырому значению. И не «чините» уплощение ссылок: живая <code>&lt;a&gt;</code> под кнопкой — это точка табуляции, в которую читатель провалится по дороге к ней, а нажатие уведёт его из записи.</p>
+  </div>
+
+  <h3>6.5 Стиль: одна область видимости на редактор и предпросмотр</h3>
+  <p><code>src/styles.css</code> (429 строк) целиком висит на <code>.ortha-wysiwyg</code>, который несут и поверхность редактора, и каждый предпросмотр. Хост импортирует его один раз, после дизайн-системы. Почему таблица стилей, а не Tailwind-классы на компонентах — две причины. Большинство этих элементов производит ProseMirror из сохранённого содержимого, и <b>JSX, на который можно повесить <code>className</code>, просто нет</b>; альтернатива — вшить имена классов админки в <code>renderHTML</code>, то есть записать оформление этого приложения в содержимое, которое публикуется в другом месте. И редактор с предпросмотром <b>обязаны</b> рендериться одинаково — общая область видимости делает это структурным свойством, а не тем, что надо поддерживать в согласии.</p>
+  <p>Цвета берутся из <code>--color-*</code> темы приложения, поэтому редактор следует светлой и тёмной. Цвета, выбранные <em>автором</em> (цвет текста, подсветка), лежат инлайново на содержимом и остаются как есть — это содержимое, а не оформление. Тот же принцип в своих узлах: коллаут сериализуется в <code>&lt;aside data-callout data-tone&gt;</code>, раскладка — в <code>&lt;div data-columns&gt;</code>, а потребляющий сайт оформляет структуру как хочет. Две вещи в стилях есть только у редактируемой поверхности (обе через селектор <code>[contenteditable]</code>): минимальная высота пустой колонки и пунктирный контур вокруг раскладки — предпросмотр должен показывать раскладку, а не строительные леса вокруг неё.</p>
+
+  <h3>6.6 Почему медиа не выравнивается через <code>text-align</code></h3>
+  <p><code>@tiptap/extension-text-align</code> настроен на <code>heading</code> и <code>paragraph</code> — и добавить в этот список медиа-узлы <b>не сработало бы</b>: <code>text-align</code> позиционирует <em>строчных детей</em> блока, а изображение <b>и есть</b> блок. Свойство садится на <code>&lt;img&gt;</code> и не двигает ничего — так и выглядело «выравнивание по центру ничего не делает с выделенной картинкой». Поэтому медиа несёт собственный атрибут <code>align</code>, хранится как <code>data-align</code> и двигается <b>отступами</b> в таблице стилей. Именно <code>data-</code>, а не давно устаревший <code>align="center"</code> и не инлайновый <code>style</code>, — по той же причине, что и <code>width</code>: атрибут переживает санитайзер шаблона или почтового клиента. <code>left</code> не записывается никогда — это и так место, где блок стоит.</p>
+  <p><code>AlignMenu</code> при этом остаётся <b>одним</b> контролом, потому что для автора это одно решение: он переключается на <code>setMediaAlign</code>, как только выделение стоит на медиа-узле, и на это время убирает из списка «Justify» (выключка растягивает слова строки, а у картинки слов нет). Фигура, которую рисует node view, имеет <code>width: fit-content</code>, пока автор не выбрал ширину (<code>data-sized</code>): иначе неразмеченная картинка растягивалась бы на всю меру в редакторе, а предпросмотр показывал бы её натуральный размер — и центрировать было бы нечего, блок и так занимает строку.</p>
+</section>
+
+<section id="states">
+  <h2 class="sec"><span class="num">07</span>Состояния</h2>
+
+  <p>У плагина <b>нет собственных сетевых запросов</b> — ни хука данных, ни ключа кэша, ни клиента API. Поэтому и «загрузка» здесь означает только загрузку кода, а «ошибка» — валидацию формы, а не отказ сервера. Единственные сетевые операции на его территории принадлежат контрибьюциям медиа-плагина.</p>
+
+  <div class="states">
+    <span class="state">свёрнуто, пусто</span>
+    <span class="arrow">→</span>
+    <span class="state">свёрнуто, предпросмотр</span>
+    <span class="arrow">→</span>
+    <span class="state pending">чанк грузится</span>
+    <span class="arrow">→</span>
+    <span class="state active">развёрнуто, редактируется</span>
+    <span class="arrow">→</span>
+    <span class="state">свёрнуто, изменено</span>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Что видно</th><th>Чем определяется</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Загрузка кода</b></td>
+        <td>Скелетон: <code>h-24 w-full rounded-lg</code> для свёрнутого поля, <code>min-h-0 w-full flex-1</code> для развёрнутого вида</td>
+        <td><code>Suspense</code> вокруг <code>React.lazy</code>. Высота свёрнутого скелетона подобрана под предпросмотр, чтобы форма не прыгала</td>
+      </tr>
+      <tr>
+        <td><b>Пусто</b></td>
+        <td>Одна строка приглушённым текстом. Приоритет: <code>admin.placeholder</code> поля → умолчание «Nothing written yet — press Edit to start.»</td>
+        <td><code>isEmptyRichText(value)</code> — ядровое определение пустоты, то же, что у <code>required</code> и у ворот публикации</td>
+      </tr>
+      <tr>
+        <td><b>Пусто, только чтение</b></td>
+        <td>«Nothing written yet.» — <b>не</b> плейсхолдер и <b>не</b> умолчание</td>
+        <td>Плейсхолдер написан <em>в адрес автора</em> («Расскажите историю…»), а умолчание называет действие, которого у читателя нет</td>
+      </tr>
+      <tr>
+        <td><b>Есть содержимое</b></td>
+        <td>Предпросмотр под клампом <code>max-h-72</code> с градиентной полосой понизу</td>
+        <td><code>renderRichText</code>, мемо по сырому значению</td>
+      </tr>
+      <tr>
+        <td><b>Ошибка валидации</b></td>
+        <td>Свёрнутое: красная рамка карточки + сообщение <code>&lt;FieldError&gt;</code> ниже, на которое кнопка указывает через <code>aria-describedby</code>. Развёрнутое: <code>&lt;p role="alert"&gt;</code> над панелью редактора</td>
+        <td>У кнопки <b>нет</b> ни <code>aria-invalid</code>, ни <code>aria-required</code> — к кнопке они неприменимы, у ARIA нет для неё состояния «невалидна». В развёрнутом виде <code>&lt;FieldError&gt;</code> нет на экране вовсе, поэтому ошибку показывает сам вид</td>
+      </tr>
+      <tr>
+        <td><b>Только чтение</b></td>
+        <td>Чип «View» с глазом, подпись кнопки «View {label}». Разворачивание сохраняется</td>
+        <td><code>EntryFieldControlContext.readOnly</code>: у читателя нет <code>content:update</code> — или нет <code>content:create</code> на форме создания</td>
+      </tr>
+      <tr>
+        <td><b>Только чтение, развёрнуто</b></td>
+        <td>Тулбар <b>отсутствует целиком</b>; документ инертен; фокус не ставится; вместо <code>role="textbox"</code> + <code>aria-multiline</code> + <code>aria-required</code> — <code>role="region"</code>; кнопка в футере называется «Back to fields», а не «Done»; список замечаний остаётся</td>
+        <td><code>WysiwygEditorPanel readOnly</code> → <code>editable: false</code>, <code>autofocus: false</code>. Тулбар не монтируется вовсе — он весь состоит из команд, которые пишут, поэтому дешевле убрать его целиком, чем выкатить двадцать мёртвых контролов</td>
+      </tr>
+      <tr>
+        <td><b>Редактор уничтожен (кадр StrictMode)</b></td>
+        <td>Все переключатели выключены, undo/redo недоступны, счётчик 0/0, список замечаний пуст</td>
+        <td><code>useLiveEditorState</code> отдаёт <code>whenGone</code> вместо того, чтобы бросить исключение в рендере и снести поддерево</td>
+      </tr>
+      <tr>
+        <td><b>Нет источников медиа</b></td>
+        <td>В подменю Insert ▸ Media остаются только два встроенных пункта «по URL», разделитель не рисуется</td>
+        <td>Слот пуст — медиа-плагин не зарегистрирован. Редактор при этом продолжает вставлять медиа</td>
+      </tr>
+      <tr>
+        <td><b>Нет прав на изменение</b></td>
+        <td>См. «только чтение». Отдельного «нет прав» состояния у плагина нет</td>
+        <td>Решение принимает <code>content-admin</code> (<code>useEntryReadOnly</code>), контрол обязан его чтить; сервер откажет в записи в любом случае, но контрол, продолжающий принимать набор, позволил бы сделать работу, которую выбросят на Save</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему read-only не «просто заблокировать поле»</span>
+    <p>Каждое другое поле записи в режиме чтения просто становится инертным на месте. Тело не может: свёрнутый предпросмотр обрезан по высоте, с затуханием на срезе, — и читатель, которому <em>разрешено</em> читать запись, оказался бы не в состоянии прочитать самую важную её часть. Поэтому контрол сохраняется и только переименовывается.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Счётчик слов в режиме чтения считается иначе</span>
+    <p><code>useEditorState</code> обновляет снимок только по событиям <code>transaction</code>/<code>update</code>, а <b>первый</b> снимок берётся до того, как начальное содержимое устоялось. При редактировании это невидимо: <code>autofocus: 'end'</code> даёт транзакцию на монтировании, дальше их даёт каждое нажатие. У read-only редактора нет ни того, ни другого — <code>editable: false</code> отвергает все транзакции, — и подписка навсегда осталась бы на первом пустом снимке, а футер показывал бы «0 words · 0 characters» над полным документом. Поэтому в этом режиме счётчики читаются прямо с редактора, а не ждут события, которое не придёт.</p>
+  </div>
+</section>
+
+<section id="a11y">
+  <h2 class="sec"><span class="num">08</span>Доступность и клавиатура</h2>
+
+  <p>Section 508, критерий 504.2, спрашивает не о том, доступен ли сам инструмент, а о том, <b>позволяет ли авторский инструмент производить соответствующее требованиям содержимое</b>. Это объясняет половину решений в этом пакете: список структурных замечаний под документом, чип «Add alt text» на картинке, диалог языка фрагмента, <code>scope="col"</code> на каждой <code>&lt;th&gt;</code>.</p>
+
+  <h3>8.1 Свёрнутое поле</h3>
+  <ul>
+    <li><b>Кнопка стоит <em>рядом</em> с предпросмотром, а не оборачивает его.</b> Обернуть форматированное содержимое в <code>&lt;button&gt;</code> — значит положить внутрь контрола заголовки, списки и таблицы (невалидно) и сплющить всё тело в доступное имя кнопки. Вместо этого предпросмотр рендерится обычным содержимым, а прозрачная кнопка кладётся поверх: вспомогательные технологии читают содержимое, потом получают одно ясно названное действие, а указателем по-прежнему можно нажать куда угодно по карточке.</li>
+    <li><b>Имя задаётся <code>aria-label</code>, а не скрытым текстом.</b> Кнопка несёт <code>id</code> поля — на неё указывает <code>&lt;label for&gt;</code> из <code>content-admin</code>, — а нативная метка перебивает собственное содержимое кнопки, из-за чего та объявлялась просто «Body», без намёка, что нажатие что-то открывает. <code>aria-label</code> перебивает метку в свою очередь и <b>содержит видимый текст метки</b>, так что имя совпадает с тем, что произнесёт пользователь голосового ввода (2.5.3).</li>
+    <li><b>Нет <code>aria-haspopup</code>:</b> нажатие переводит рабочую область на редактор, а не открывает всплывающее окно поверх неё.</li>
+    <li><b>В предпросмотре нет фокусируемых элементов</b> — иначе они были бы точками табуляции, спрятанными под кнопкой.</li>
+  </ul>
+
+  <h3>8.2 Развёрнутый редактор</h3>
+  <ul>
+    <li><b>Секция названа заголовком поля</b> (<code>&lt;section aria-labelledby&gt;</code> + <code>&lt;h2&gt;</code> с меткой и словом «Required», если поле обязательное).</li>
+    <li><b>Язык строки, если поле локализовано:</b> <code>lang={field.localized ? contentLocale : undefined}</code>. Свёрнутый предпросмотр наследовал <code>lang</code> от обёртки группы Translated; развёрнутый вид рендерится вне неё, и цепочка обрывалась бы здесь — немецкое или арабское тело озвучивалось бы по английским правилам под захардкоженным <code>&lt;html lang="en"&gt;</code> (3.1.2). Для <b>общего</b> (нелокализованного) поля язык не заявляется вовсе: одно значение на все локали, и заявить локаль строки было бы худшим утверждением, чем не заявлять ничего.</li>
+    <li><b><code>dir="auto"</code>, а не направление локали</b> — как и в форме: порядок берётся по первому сильному символу тела, что верно для RTL-локали и остаётся верным для RTL-цитаты внутри LTR-текста.</li>
+    <li><b>Поверхность документа —</b> <code>role="textbox"</code>, <code>aria-multiline="true"</code>, <code>aria-required</code>, <code>aria-label</code> вида «{поле} content». Голый <code>contenteditable</code>-div не имеет роли вообще, и вспомогательным технологиям остаётся догадываться, что он редактируемый.</li>
+    <li><b>Замечания объявляются вежливо.</b> <code>aria-live="polite"</code>, <code>aria-atomic="false"</code> — и это не лог: находки меняются почти на каждое нажатие, пока заголовок перепечатывают, и читать каждое промежуточное состояние вслух значило бы говорить поверх автора непрерывно. Заголовок блока несёт <b>число</b>, поэтому изменение, которое действительно важно («проблем стало две, была одна»), объявляется первым.</li>
+    <li><b>Счётчик слов не объявляется:</b> <code>aria-live="off"</code>.</li>
+    <li><b>Список замечаний виден и в режиме чтения.</b> Тело, которое читатель не может починить, — всё равно тело, о проблемах которого стоит знать, и это единственная поверхность, которая о них говорит.</li>
+  </ul>
+
+  <h3>8.3 Клавиатура</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Клавиша</th><th>Где</th><th>Что делает и почему так</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Tab</td><td>Тулбар</td><td>Каждый контрол — обычная точка табуляции (панель объявлена <code>role="group"</code>, а не <code>toolbar</code>)</td></tr>
+      <tr><td class="mono">Ctrl+M</td><td>Документ</td><td>Единственный собственный биндинг: переносит фокус на кнопку выхода в футере. <code>Ctrl</code>, а не <code>Mod</code>: на macOS <code>Mod</code> — это ⌘, а ⌘M — «свернуть окно», то есть отнимать её у ОС нельзя. Ctrl+M свободен везде и именно его называют практики ARIA для этого паттерна редактора</td></tr>
+      <tr><td class="mono">Tab</td><td>Документ</td><td>Из обычного абзаца выводит наружу; внутри вложенного списка перехватывается (<code>sinkListItem</code>); внутри таблицы — переход по ячейкам, в последней ячейке одна новая строка, следующее нажатие уходит</td></tr>
+      <tr><td class="mono">Shift+Tab</td><td>Документ</td><td>Выводит назад</td></tr>
+      <tr><td class="mono">Escape</td><td>Меню, попроверы, диалоги</td><td>Закрывает <b>только своё</b> всплывающее окно. На виде редактора Escape намеренно не назначен</td></tr>
+      <tr><td class="mono">← / →</td><td>Ручка размера медиа</td><td>Шаг 16px; с Shift — ×4. Ручка — настоящая <code>&lt;button&gt;</code> с именем, потому что ширина <b>публикуется</b>: решение о содержимом не должно быть недоступно тому, кто не пользуется мышью</td></tr>
+      <tr><td class="mono">Backspace / Delete</td><td>Ручка размера медиа</td><td>Сброс к натуральной ширине — выход из неудачного ресайза</td></tr>
+      <tr><td class="mono">Enter</td><td>Формы всплывающих окон</td><td>Работает благодаря настоящему <code>&lt;form&gt;</code> в alt-попровере, попровере ссылки и диалогах</td></tr>
+      <tr><td class="mono">⌘K / Ctrl+K</td><td>Документ</td><td><b>Подавлена</b>, пока каретка в теле — но не этим пакетом: общий помощник <code>isComposingText</code> из <code>@orthacms/utils-admin</code> закрывает глобальные аккорды над <code>input</code>, <code>textarea</code>, <code>select</code> и любым <code>contenteditable</code>. Открывать палитру из-под каретки — смена контекста в ответ на ввод в <em>другой</em> контрол (3.2.2), а ⌘K во всяком редакторе означает «вставить ссылку»</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Каждый <code>&lt;form&gt;</code> во всплывающем окне обязан гасить свой submit</span>
+    <p>Alt-попровер, попровер ссылки, диалог «from a URL» и диалог языка рендерят <code>&lt;form&gt;</code>, чтобы работал Enter. Все они <b>портированы</b> — перенесены в DOM, но <b>не</b> в дереве React, а React пузырит синтетические события именно по дереву. Поэтому submit каждого долетал до <code>&lt;form&gt;</code> редактора записи и <b>сохранял-и-публиковал</b> запись. Теперь каждый зовёт <code>stopPropagation()</code>, а форма <code>content-admin</code> дополнительно игнорирует submit, который подняла не она (<code>if (event.target !== event.currentTarget) return</code>). Закреплено e2e-случаем «never saves the record from an overlay's own form», который до исправления давал <b>три</b> сохранения — по одному на всплывающее окно. Любое новое всплывающее окно с формой в этом пакете обязано делать тот же вызов.</p>
+  </div>
+
+  <h3>8.4 Alt-текст: почему «декоративное» — это галочка</h3>
+  <p><code>alt=""</code> — это то, как HTML говорит «изображение не несёт информации», но само по себе оно неотличимо от «никто ещё не написал», а этим двум нужно противоположное обращение: одно закончено, другое — дефект, на который редактор должен продолжать показывать. Поэтому ответ записывается атрибутом <code>decorative</code> (<code>data-decorative</code> в сохранённом HTML — инертный для любого потребителя, который его игнорирует), и приглашение опирается на него. Галочка также <b>очищает</b> alt: иначе скринридер озвучил бы текст, оставшийся за отмеченной галочкой. Поле ввода при этом <em>отключается</em>, а не прячется, — чтобы два выбора оставались видны как одно решение.</p>
+  <p>Одна намеренная асимметрия: <b>внутри редактора</b> картинка без alt всё равно получает запасное доступное имя («Embedded image»), иначе она читалась бы как безымянная графика собственному скринридеру <em>автора</em>, пока он работает. В сохранённый HTML уходит настоящее значение — пустое, если оно пустое: выдумывать alt для публикуемого содержимого хуже, чем не иметь его вовсе.</p>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">09</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Плагин не контрибьютит ни одного маршрута, пункта навигации и <code>layout</code>: в объекте, который возвращает <code>WysiwygPlugin()</code>, есть только <code>name</code> и <code>slots</code>.</span></li>
+    <li><span class="id">И-02</span><span>Редактор claim'ит <b>каждое</b> поле <code>richtext</code>, кроме тех, где <code>admin.widget === 'textarea'</code>. Никакого другого условия в <code>isWysiwygField</code> нет.</span></li>
+    <li><span class="id">И-03</span><span><code>src/index.ts</code> не экспортирует ни предпросмотр, ни редактор, ни что-либо, что статически тянет TipTap; обе половины контрибьюции берутся через <code>React.lazy</code>.</span></li>
+    <li><span class="id">И-04</span><span>Предпросмотр <b>никогда</b> не рендерит сохранённую разметку как есть: значение всегда прогоняется через схему ProseMirror самого редактора (<code>renderRichText</code>), легаси-строка — через инертный <code>DOMParser</code>.</span></li>
+    <li><span class="id">И-05</span><span>В предпросмотре не остаётся <b>ни одного</b> фокусируемого элемента: ссылки уплощаются в <code>&lt;span data-link&gt;</code>. Это условие корректности кнопки, лежащей поверх.</span></li>
+    <li><span class="id">И-06</span><span>Кнопка свёрнутого поля несёт <code>id</code> поля и <code>aria-describedby</code>, но <b>не</b> <code>aria-invalid</code> и <b>не</b> <code>aria-required</code>.</span></li>
+    <li><span class="id">И-07</span><span>Разворачивание — это подмена содержимого рабочей области, а не диалог: боковое меню, заголовок записи, кнопки Save/Publish и панель свойств остаются смонтированы и работоспособны.</span></li>
+    <li><span class="id">И-08</span><span>Одновременно развёрнуто не более <b>одного</b> поля; состояние держит <code>EntryEditor</code>, контрол только просит.</span></li>
+    <li><span class="id">И-09</span><span>Панель редактора монтируется <b>только</b> пока поле развёрнуто, и засевается из значения <b>один раз</b> при монтировании; управляемой синхронизации содержимого нет.</span></li>
+    <li><span class="id">И-10</span><span>У редактора нет собственных Save и Cancel: каждая правка пишется в форму записи через <code>onChange</code>, и единственная граница коммита — Save записи.</span></li>
+    <li><span class="id">И-11</span><span>Пустой документ сохраняется как <code>null</code>, а не как документ с пустым абзацем; содержательный документ отдаётся форме <b>дословно</b>.</span></li>
+    <li><span class="id">И-12</span><span>Пустота определяется <b>ядром</b> (<code>isEmptyRichText</code>) как перечень того, чем пустота <em>является</em> (doc, paragraph, hardBreak, пробельный text, container), а не как отрицание списка «содержательных» узлов.</span></li>
+    <li><span class="id">И-13</span><span>Список замечаний под документом строится <b>ядровым</b> <code>inspectRichText</code>: <code>error</code> здесь — ровно то, что откажет в сохранении, <code>warning</code> — ровно то, что не откажет.</span></li>
+    <li><span class="id">И-14</span><span>Языковой тег проверяется <b>ядровым</b> <code>isWellFormedLanguageTag</code>, поэтому редактор не может принять тег, который потом отвергнет сохранение.</span></li>
+    <li><span class="id">И-15</span><span>Марка <code>language</code> — <b>не</b> <code>textStyle</code>: «Clear formatting» её не снимает.</span></li>
+    <li><span class="id">И-16</span><span>Каждая <code>&lt;th&gt;</code>, которую способен произвести этот редактор, несёт <code>scope="col"</code>, и атрибут едет и в предпросмотр, и в опубликованное тело (задан через <code>HTMLAttributes</code>, а не переопределением <code>renderHTML</code>).</span></li>
+    <li><span class="id">И-17</span><span>Tab в последней ячейке таблицы добавляет строку <b>однократно</b>; повторное нажатие в оставшейся пустой строке проваливается дальше и выпускает фокус.</span></li>
+    <li><span class="id">И-18</span><span>Уменьшение числа колонок никогда не удаляет содержимое: блоки отброшенных колонок переносятся в последнюю оставшуюся.</span></li>
+    <li><span class="id">И-19</span><span>Число колонок всегда в диапазоне 2..4 — и при вставке, и при разборе чужой разметки (<code>clampCount</code> обрабатывает <code>NaN</code>).</span></li>
+    <li><span class="id">И-20</span><span>Второй выбор тона коллаута <b>перекрашивает</b> текущий, а не вкладывает коллаут в коллаут.</span></li>
+    <li><span class="id">И-21</span><span><code>src</code> медиа-узла проверяется <b>дважды</b> — в диалоге (объяснить автору) и в узле, при вставке и при разборе (защитить сохранённое содержимое). Разрешены только <code>http(s)</code> и свои пути; протокол-относительный <code>//host/…</code> отвергается.</span></li>
+    <li><span class="id">И-22</span><span>Небезопасный embed <b>пропускается</b>, а не сохраняется сломанным узлом; <code>&lt;img&gt;</code> с недопустимым <code>src</code> не импортируется вовсе, а не импортируется с пустым <code>src</code>.</span></li>
+    <li><span class="id">И-23</span><span>Размер медиа хранится атрибутом <code>width</code>; высота не хранится <b>никогда</b>; ширина меньше 64px читается как «ширина не выбрана», а не зажимается вверх.</span></li>
+    <li><span class="id">И-24</span><span>Выравнивание медиа хранится в <code>data-align</code> и применяется отступами; значение <code>left</code> не записывается; в меню выравнивания для медиа нет пункта «Justify».</span></li>
+    <li><span class="id">И-25</span><span>Отметка «декоративное» очищает <code>alt</code>: одновременно непустой alt и <code>data-decorative</code> в сохранённом HTML невозможны.</span></li>
+    <li><span class="id">И-26</span><span>Внутри редактора картинка без alt получает запасное доступное имя; в сохранённый HTML уходит настоящее значение, в том числе пустое.</span></li>
+    <li><span class="id">И-27</span><span>Каждый <code>&lt;form&gt;</code> во всплывающем окне этого пакета вызывает <code>stopPropagation()</code> на своём submit; запись не сохраняется из всплывающего окна ни при каких условиях.</span></li>
+    <li><span class="id">И-28</span><span>Всякое всплывающее окно, которое открывается из выпадающего меню (источники медиа, диалог языка, диалоги «по URL»), монтируется <b>тулбаром</b>, а не пунктом меню.</span></li>
+    <li><span class="id">И-29</span><span>Каждый контрол тулбара делает <code>preventDefault</code> на <code>mousedown</code>, то есть нажатие никогда не схлопывает выделение, над которым команда работает.</span></li>
+    <li><span class="id">И-30</span><span>Ни один селектор состояния редактора не вызывается напрямую через <code>useEditorState</code>: все идут через <code>useLiveEditorState</code>, который на уничтоженном редакторе возвращает <code>whenGone</code>.</span></li>
+    <li><span class="id">И-31</span><span>В режиме <code>readOnly</code> тулбар не монтируется вовсе, <code>onUpdate</code> не пишет в форму, фокус не ставится, роль поверхности — <code>region</code>.</span></li>
+    <li><span class="id">И-32</span><span>Вставка из буфера теряет <code>color</code>, <code>font-size</code> и <code>background-color</code>; цвет, применённый командой тулбара, — не теряет.</span></li>
+    <li><span class="id">И-33</span><span>Слой <code>domain/</code> не импортирует ни React, ни TipTap; node view медиа лежит рядом со своим расширением, чтобы <code>infrastructure/</code> не импортировал вверх, в <code>presentation/</code>.</span></li>
+    <li><span class="id">И-34</span><span>Все правила стилей пакета висят на <code>.ortha-wysiwyg</code>: ни одно не может дотянуться до остальной админки, и поверхность редактора и предпросмотр рендерят одну и ту же разметку одинаково.</span></li>
+    <li><span class="id">И-35</span><span>В сохранённое содержимое не попадает ни одно имя класса админки: свои узлы сериализуются в <code>data-</code>-атрибуты.</span></li>
+    <li><span class="id">И-36</span><span>Развёрнутый вид заявляет <code>lang</code> только для поля, помеченного <code>localized</code>, и никогда — для общего.</span></li>
+    <li><span class="id">И-37</span><span>Выход из развёрнутого вида возвращает фокус на кнопку поля (через <code>requestAnimationFrame</code>), а не роняет его на <code>&lt;body&gt;</code>.</span></li>
+    <li><span class="id">И-38</span><span>В <code>editorExtensions</code> нет второй копии расширения, которое уже принесено StarterKit (Link, Underline, TrailingNode): дубликат имени заставляет TipTap предупреждать и разрешать набор расширений непредсказуемо.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">10</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат». Серверной части у пакета нет, поэтому проверка целиком браузерная; существующий набор — <code>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</code> (987 строк, 38 случаев в пяти группах, включая два скана axe). Отдельно важно: <b>видимый редактор — только половина фичи</b>, вторая половина — что именно уходит в тело запроса на сохранение, и это видно только по запросу. Запуск: <code>npx nx e2e admin-e2e -- --project=chromium wysiwyg-fields</code>.</p>
+
+  <h3>Свёрнутое поле</h3>
+  <ul class="check">
+    <li><b>Открыть запись с непустым телом</b> → <span class="exp">видно форматированное содержимое (заголовки заголовками, списки списками), а не текст с тегами.</span></li>
+    <li><b>Тело содержит ссылку</b> → <span class="exp">в предпросмотре нет ни одного элемента, на который можно встать табом; Tab с предыдущего поля попадает сразу на кнопку поля.</span></li>
+    <li><b>Тело пустое, у поля есть <code>admin.placeholder</code></b> → <span class="exp">показан плейсхолдер, а не умолчание.</span></li>
+    <li><b>Тело пустое, плейсхолдера нет</b> → <span class="exp">«Nothing written yet — press Edit to start.»</span></li>
+    <li><b>Поле объявлено с <code>widget: 'textarea'</code></b> → <span class="exp">рендерится обычная textarea <code>content-admin</code>, чипа Edit нет.</span></li>
+    <li><b>Тело длиннее клампа</b> → <span class="exp">карточка обрезана по <code>max-h-72</code>, снизу градиент; страница формы не растёт.</span></li>
+    <li><b>Тело содержит <code>&lt;img src=x onerror=alert(1)&gt;</code>, записанное через API</b> → <span class="exp">ничего не выполняется; в DOM предпросмотра нет ни <code>onerror</code>, ни любого другого обработчика.</span></li>
+    <li><b>Тело — документ с узлом неизвестного типа</b> → <span class="exp">карточка не пустая: понятные редактору части отрендерены.</span></li>
+    <li><b>Нажать в любое место карточки</b> → <span class="exp">открывается развёрнутый редактор.</span></li>
+  </ul>
+
+  <h3>Разворачивание и возврат</h3>
+  <ul class="check">
+    <li><b>Развернуть поле</b> → <span class="exp">рабочую область занимает редактор, полосы вкладок нет, каретка уже в конце текста.</span></li>
+    <li><b>Осмотреть окружение развёрнутого редактора</b> → <span class="exp">боковое меню, заголовок записи, кнопки Save/Publish и панель свойств на месте и живые.</span></li>
+    <li><b>Измерить положения детей тулбара при вьюпорте 1280px</b> → <span class="exp">все контролы в одной строке; группировка по вертикальному <b>центру</b>, а не по <code>top</code> (панель <code>items-center</code>, и 32px-кнопка рядом с 20px-разделителем иначе читается как две строки).</span></li>
+    <li><b>Выйти кнопкой «Back to fields», затем повторить и выйти «Done»</b> → <span class="exp">оба возвращают форму; правки на месте в обоих случаях.</span></li>
+    <li><b>Нажать «Done» с клавиатуры</b> → <span class="exp">фокус на кнопке поля, а не на <code>&lt;body&gt;</code>.</span></li>
+    <li><b>Нажать Escape при открытом меню тулбара</b> → <span class="exp">закрывается меню; редактор остаётся развёрнутым.</span></li>
+    <li><b>Развернуть второе richtext-поле на той же записи</b> → <span class="exp">первое сворачивается.</span></li>
+  </ul>
+
+  <h3>Что уходит в сохранение</h3>
+  <ul class="check">
+    <li><b>Набрать текст, применить bold/italic/цвет/размер, сохранить</b> → <span class="exp">в теле запроса — документ (<code>{ type: 'doc', … }</code>), марки с ожидаемыми атрибутами.</span></li>
+    <li><b>Вставить коллаут тона Warning, сохранить</b> → <span class="exp">узел <code>callout</code> с <code>attrs.tone === 'warning'</code>.</span></li>
+    <li><b>Вставить таблицу, сохранить</b> → <span class="exp">в документе есть строка с <code>tableHeader</code>-ячейками.</span></li>
+    <li><b>Выровнять абзац по центру, сохранить</b> → <span class="exp"><code>textAlign</code> на самом блоке, не на его детях.</span></li>
+    <li><b>Вставить раскладку из трёх колонок, сохранить</b> → <span class="exp"><code>columnBlock count=3</code> с тремя вложенными <code>column</code>.</span></li>
+    <li><b>Вставить раскладку и НЕ печатать в неё, сохранить</b> → <span class="exp">раскладка сохранена, а не выброшена как «пусто».</span></li>
+    <li><b>Стереть всё содержимое, сохранить</b> → <span class="exp">в запросе <code>null</code>, а не документ с пустым абзацем.</span></li>
+    <li><b>То же на <code>required</code>-поле</b> → <span class="exp">валидация падает.</span></li>
+    <li><b>Открыть запись с легаси-HTML-телом, тронуть, сохранить</b> → <span class="exp">в теле запроса — документ; открыть заново — содержимое то же на вид.</span></li>
+    <li><b>Уменьшить раскладку с 4 колонок до 2, сохранить</b> → <span class="exp">ничего из написанного не потеряно, блоки бывших 3-й и 4-й в последней колонке.</span></li>
+  </ul>
+
+  <h3>Структура и язык</h3>
+  <ul class="check">
+    <li><b>Сделать H2, потом сразу H4</b> → <span class="exp">под документом появляется замечание «пропущен уровень», помеченное «Blocks saving», с указанием WCAG 1.3.1.</span></li>
+    <li><b>Попытаться сохранить такую запись</b> → <span class="exp">сохранение отклонено; текст серверной ошибки о том же самом.</span></li>
+    <li><b>Сделать ссылку с текстом «click here»</b> → <span class="exp">появляется <b>предупреждение</b> «Worth fixing»; сохранение проходит.</span></li>
+    <li><b>Выключить у таблицы строку шапки</b> → <span class="exp">появляется блокирующее замечание про таблицу без шапки. (Альтернативы «добавить caption» у редактора нет — узла <code>tableCaption</code> в наборе расширений нет.)</span></li>
+    <li><b>Выделить фрагмент, More formatting ▸ Language of this passage…, ввести <code>fr</code>, сохранить</b> → <span class="exp">в документе марка <code>language</code> с <code>lang: 'fr'</code> на этом прогоне текста.</span></li>
+    <li><b>Ввести <code>fr_FR</code> или <code>French</code></b> → <span class="exp">диалог отвечает ошибкой и не даёт применить; сохранение никогда не встречает этот тег.</span></li>
+    <li><b>Открыть диалог языка без выделения</b> → <span class="exp">объяснение «выделите фрагмент», кнопка Apply заблокирована.</span></li>
+    <li><b>Открыть диалог языка на уже размеченном фрагменте</b> → <span class="exp">поле предзаполнено текущим тегом, появилась кнопка «Remove».</span></li>
+    <li><b>Применить «Clear formatting» к фрагменту с языковой маркой</b> → <span class="exp">марка <code>language</code> сохранилась.</span></li>
+    <li><b>Открыть локализованную запись в немецкой локали, развернуть тело</b> → <span class="exp">на секции стоит <code>lang="de"</code>; на общем (shared) поле — не стоит.</span></li>
+  </ul>
+
+  <h3>Медиа</h3>
+  <ul class="check">
+    <li><b>Открыть Insert ▸ Media</b> → <span class="exp">сначала «Media Library…» и «Upload files…», затем разделитель, затем два пункта «по URL».</span></li>
+    <li><b>Отключить медиа-плагин из списка плагинов</b> → <span class="exp">остаются только пункты «по URL», редактор продолжает вставлять медиа.</span></li>
+    <li><b>Вставить картинку по URL, сохранить</b> → <span class="exp"><code>&lt;img&gt;</code>-узел с этим <code>src</code>; alt из диалога, если он был введён.</span></li>
+    <li><b>Ввести <code>javascript:alert(1)</code> или <code>//evil.host/x.png</code></b> → <span class="exp">диалог показывает ошибку «Enter an http(s) address or a path beginning with “/”», ничего не вставляется.</span></li>
+    <li><b>Выбрать ассет из медиатеки</b> → <span class="exp">вставлен <code>previewUrl</code>, а не оригинал; alt ассета уехал в узел; ширина засеяна размерами ассета.</span></li>
+    <li><b>Загрузить файл через Upload files…</b> → <span class="exp">файл появился в медиатеке <b>и</b> в теле; кэш библиотеки инвалидирован.</span></li>
+    <li><b>Загрузить PDF через Upload files…</b> → <span class="exp">тост «isn’t an image or a video», запрос не отправлен.</span></li>
+    <li><b>Встать на ручку размера табом и нажать →×5, сохранить</b> → <span class="exp">ширина выросла на 80px и записана в атрибут <code>width</code>; <code>height</code> в теле нет.</span></li>
+    <li><b>Нажать Backspace на ручке</b> → <span class="exp">ширина сброшена, <code>width</code> из узла исчез.</span></li>
+    <li><b>Выделить картинку, Alignment ▸ Center, сохранить</b> → <span class="exp"><code>data-align="center"</code>; пункта «Justify» в меню не было.</span></li>
+    <li><b>Выбрать Alignment ▸ Left на выровненной картинке</b> → <span class="exp">атрибут <code>data-align</code> из сохранённого тела исчезает целиком.</span></li>
+    <li><b>Вставить картинку без alt</b> → <span class="exp">на ней предупреждающий чип «Add alt text».</span></li>
+    <li><b>Написать alt и сохранить</b> → <span class="exp">чип стал нейтральным «Alt text»; <code>alt</code> в теле.</span></li>
+    <li><b>Отметить «Decorative»</b> → <span class="exp">поле alt заблокировано; в теле <code>alt=""</code> и <code>data-decorative</code>; чип больше не предупреждает.</span></li>
+    <li><b>Нажать Save/Enter внутри alt-попровера, попровера ссылки, диалога URL и диалога языка</b> → <span class="exp">запись <b>не</b> сохраняется и <b>не</b> публикуется ни в одном из четырёх случаев.</span></li>
+  </ul>
+
+  <h3>Вставка из буфера</h3>
+  <ul class="check">
+    <li><b>Вставить абзац, скопированный из Google Docs</b> → <span class="exp">текст и структура на месте; <code>color</code> и <code>font-size</code> исчезли; пустой <code>style=""</code> не остался.</span></li>
+    <li><b>Вставить фрагмент из Word с красным текстом 14pt</b> → <span class="exp">то же самое.</span></li>
+    <li><b>Применить цвет из палитры тулбара</b> → <span class="exp">цвет сохранён — это выбор, а не вставка.</span></li>
+    <li><b>Вставить фрагмент с <code>&lt;span lang="fr"&gt;</code></b> → <span class="exp">языковая марка сохранилась.</span></li>
+  </ul>
+
+  <h3>Права, состояния, доступность</h3>
+  <ul class="check">
+    <li><b>Открыть запись пользователем без <code>content:update</code></b> → <span class="exp">чип «View» с глазом; кнопка называется «View {label}».</span></li>
+    <li><b>Развернуть в этом режиме</b> → <span class="exp">тулбара нет вовсе; каретка не появляется; в футере «Back to fields»; счётчик слов показывает реальные числа, а не 0/0.</span></li>
+    <li><b>Пустое тело в этом режиме</b> → <span class="exp">«Nothing written yet.» — без упоминания кнопки Edit.</span></li>
+    <li><b>Скан axe на свёрнутом поле и на развёрнутом редакторе</b> → <span class="exp">нарушений нет.</span></li>
+    <li><b>Дойти до поля табом и открыть Enter/Space</b> → <span class="exp">редактор открывается; имя кнопки содержит видимую метку поля.</span></li>
+    <li><b>Нажать Ctrl+M в документе</b> → <span class="exp">фокус на кнопке выхода в футере.</span></li>
+    <li><b>Нажать ⌘K с кареткой в теле</b> → <span class="exp">палитра контента <b>не</b> открывается, фокус остаётся в документе; ⌘K вне тела палитру открывает.</span></li>
+    <li><b>Нажать Tab в последней ячейке таблицы дважды</b> → <span class="exp">первое нажатие добавило одну строку, второе вывело фокус из документа; строк стало на одну больше, не на две.</span></li>
+    <li><b>Выделить слово мышью и нажать Bold мышью</b> → <span class="exp">выделение не схлопнулось, слово стало жирным.</span></li>
+    <li><b>Открыть поле, закрыть и открыть снова (StrictMode в dev-сборке)</b> → <span class="exp">тулбар на месте, в консоли нет «Cannot read properties of null».</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">11</span>Границы ответственности</h2>
+
+  <p>Пакет маленький, но окружён плотно. Ниже — кто за что отвечает на его границах; это же список того, куда идти, когда «редактор сломался», а виноват не он.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вопрос</th><th>Отвечает</th><th>Роль wysiwyg</th></tr></thead>
+    <tbody>
+      <tr><td>Что такое поле <code>richtext</code>, какая у него колонка, как оно валидируется</td><td class="mono">content-domain, content-server</td><td>Никакой — плагин меняет контрол, а не схему, не проводной формат и не API</td></tr>
+      <tr><td>Правила структуры (порядок заголовков, шапки таблиц, текст ссылок, BCP-47)</td><td class="mono">content-domain <span class="sub">inspectRichText, isWellFormedLanguageTag</span></td><td>Показывает их живьём и подчиняется им; не имеет собственного мнения</td></tr>
+      <tr><td>Что считать пустым телом</td><td class="mono">content-domain <span class="sub">isEmptyRichText</span></td><td>Реэкспортирует и применяет — к пустому состоянию поля и к нормализации на выходе</td></tr>
+      <tr><td>Метка поля, обязательность, значок «Changed», описание, <code>&lt;FieldError&gt;</code></td><td class="mono">content-admin <span class="sub">EntryFieldInput</span></td><td>Рисует <b>только</b> поверхность ввода</td></tr>
+      <tr><td>Подмена рабочей области, состояние «какое поле развёрнуто», Save/Publish, сторож несохранённых изменений</td><td class="mono">content-admin <span class="sub">EntryEditor</span></td><td>Просит через <code>setExpanded</code>; своего состояния разворачивания не держит</td></tr>
+      <tr><td>Права: можно ли этому пользователю менять запись</td><td class="mono">content-admin + identity</td><td>Получает готовый <code>readOnly</code> и обязан его чтить</td></tr>
+      <tr><td>Просмотр папок, поиск, загрузка файлов, инвалидация кэша библиотеки</td><td class="mono">media-admin</td><td>Объявляет слот и вставляет то, что ему отдали; про библиотеку не знает ничего</td></tr>
+      <tr><td>Глобальные аккорды (⌘K палитра, ⌘B меню, ⌘J копайлот) и их подавление в тексте</td><td class="mono">utils-admin <span class="sub">isComposingText</span> + сами владельцы аккордов</td><td>Ничего не делает; пользуется тем, что поверхность — <code>contenteditable</code></td></tr>
+      <tr><td>Локали записи, группы Translated/Shared</td><td class="mono">i18n-admin, content-admin</td><td>Получает <code>contentLocale</code> и ставит <code>lang</code> на развёрнутый вид локализованного поля</td></tr>
+      <tr><td>Токены темы <code>--color-*</code>, компоненты меню, диалогов, попроверов, чекбоксов</td><td class="mono">design-system</td><td>Потребляет; своих примитивов не заводит</td></tr>
+      <tr><td>Порядок регистрации плагинов, единственность <code>layout</code></td><td class="mono">apps/admin/src/plugins.ts, bootstrap-admin</td><td>Регистрируется после <code>ContentPlugin()</code>; <code>layout</code> не контрибьютит</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>11.1 Чего в пакете нет — и это осознанно</h3>
+  <ul>
+    <li><b>Ни одного собственного HTTP-запроса и ни одного ключа TanStack Query.</b> Всё, что он умеет, — синхронные операции над документом в памяти формы.</li>
+    <li><b>Никакой конфигурации.</b> <code>WysiwygPlugin()</code> не принимает аргументов; тип <code>WysiwygAdminPlugin</code> — тонкий алиас <code>AdminPlugin</code>, названный отдельно, чтобы у будущей конфигурации (урезанный тулбар, своя палитра) было место.</li>
+    <li><b>Ни одной пользовательской настройки.</b> Палитры, шаги размеров, тона коллаутов и число колонок зашиты в <code>domain/constants</code>.</li>
+    <li><b>Никакого автосохранения, черновиков и совместного редактирования.</b> Единственная граница коммита — Save записи.</li>
+    <li><b>Ни загрузки картинок перетаскиванием в документ, ни вставки картинки из буфера.</b> Медиа попадает в тело только через Insert ▸ Media.</li>
+    <li><b>Ни подписи к таблице (<code>tableCaption</code>), ни шапки-столбца.</b> Ядро о подписи знает и принимает её как альтернативу шапке, но редактор её не производит.</li>
+    <li><b>Ни сносок, ни оглавления, ни якорей, ни встраивания записей CMS.</b></li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">12</span>Расхождения кода и документации</h2>
+  <p class="sub small"><code>AGENTS.md</code> пакета читался как каркас, но каждое утверждение сверялось с реализацией. Найденное ниже — не ошибки в работе, а места, где документ (или комментарий) отстал от кода и способен ввести в заблуждение следующего, кто сюда придёт.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Что в коде</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>«Which fields it claims»</td>
+        <td>«Both live in <code>WYSIWYG_WIDGET</code> (the plugin's <b>only other export</b>)»</td>
+        <td><code>src/index.ts</code> экспортирует ещё четыре рантайм-значения и три типа: <code>WYSIWYG_MEDIA_KIND</code>, <code>WYSIWYG_MEDIA_KINDS</code>, <code>WysiwygMediaKind</code>, <code>WYSIWYG_MEDIA_SLOT</code>, <code>WysiwygMediaEmbed</code>, <code>WysiwygMediaSourceContext</code>, <code>WysiwygMediaSourceItem</code>. Без них <code>media-admin</code> не смог бы заполнить слот</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>«Bundle»</td>
+        <td>«<code>src/index.ts</code> exports <b>nothing but</b> <code>WysiwygPlugin</code> and <code>WYSIWYG_WIDGET</code>»</td>
+        <td>То же расхождение, повторённое второй раз. Смысл утверждения (не реэкспортировать ничего, что тянет TipTap) верен и соблюдается — экспорты медиа-шва почти целиком типовые, — но буква неверна</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>«Layout — layered»</td>
+        <td>Перечень <code>infrastructure/</code>: <code>editorExtensions</code>, <code>extensions/callout</code>, <code>extensions/columns</code>, <code>extensions/language</code>, <code>extensions/media</code>, <code>renderRichText</code></td>
+        <td>В слое есть ещё два модуля, оба со своей ролью: <code>extensions/tableTab</code> (ограничение Tab, ORT-165) и <code>transformPastedHTML</code> (чистка вставки, ORT-164). Первый вдобавок упомянут в разделе про доступность, но не в раскладке</td>
+      </tr>
+      <tr>
+        <td class="mono">extensions/media/index.ts,<br>шапка файла</td>
+        <td>«What they <em>do</em> share is the attribute set and the node view (see <code>presentation/components/MediaNodeView</code>)»</td>
+        <td>Node view лежит по адресу <code>infrastructure/extensions/media/MediaNodeView</code>. Собственная документация node view и <code>AGENTS.md</code> объясняют, <b>почему</b> он там (иначе <code>infrastructure/</code> импортировал бы вверх) — то есть ошибка именно в этой ссылке</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>«The toolbar fits on one row»</td>
+        <td>«Twenty flat controls wrapped onto a second line», «мы свернули остальное в <b>три</b> меню»</td>
+        <td>Историческая формулировка. Сейчас на панели <b>14</b> контролов, из которых <b>8</b> — раскрывающиеся (Text style, Text size, More formatting, два цвета, Alignment, Link, Insert), то есть «три меню» описывает только последний этап сворачивания, а не итоговый состав</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0011-…md</td>
+        <td>Статус <b>Proposed</b>, дата 19.08.2026</td>
+        <td>Решение реализовано целиком и в нескольких пакетах: <code>jsonb</code>-колонка в <code>table-builder</code>, модуль <code>richtext/</code> в ядре, ветка <code>RichText</code> в валидаторе, <code>GraphQLJSON</code> в схеме GraphQL, каст <code>::text</code> в поиске, <code>scalarTypeFor → null</code> для фильтров, и весь этот редактор. Статус ADR отстал от кода</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>«Bundle»</td>
+        <td>Числа-ориентиры: entry-чанк ~255 кБ, <code>editorExtensions-*.js</code> ~420 кБ, разворачивание ~39 кБ</td>
+        <td>Из исходников не проверяемо — это результат сборки. Не расхождение, а <b>обязательство</b>: перед приёмкой числа нужно перемерить, иначе «граница ленивости сломана» останется утверждением без измерения</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md,<br>шапка</td>
+        <td>«Its entire surface is <b>one</b> contribution to content-admin's <code>ENTRY_FIELD_CONTROL_SLOT</code>»</td>
+        <td>Как контрибьютор — верно, ровно один элемент. Но пакет <b>объявляет</b> собственный слот <code>WYSIWYG_MEDIA_SLOT</code>, то есть его контур наружу шире, чем одна контрибьюция: это ещё и точка расширения для чужих плагинов. В самом документе раздел «Media comes from a slot» это описывает — противоречие внутри одного файла</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>12.1 Наблюдения, не являющиеся расхождениями</h3>
+  <ul>
+    <li><b>Таблица без шапки — блокирующая ошибка, а обойти её можно только шапкой.</b> Ядро принимает <code>tableCaption</code> как альтернативу, но редактор узла подписи не производит; значит, единственный доступный автору выход — «Toggle header row». Это работает, но объединяет два разных решения в одно.</li>
+    <li><b><code>widget</code> — свободная строка.</b> В <code>AdminProps</code> это <code>widget?: string</code> с комментарием «render hint, e.g. 'textarea', 'slug', 'color'». Ни сервер, ни ядро не знают о значениях <code>'wysiwyg'</code>/<code>'textarea'</code> — это конвенция плагина, и опечатка в схеме тихо вернёт поле к WYSIWYG (потому что «не равно <code>'textarea'</code>»).</li>
+    <li><b>Обратный путь через textarea лоссиный.</b> Переключение поля на <code>widget: 'textarea'</code> не ломает данные (документ сериализуется в HTML для показа), но первое же сохранение из textarea запишет в колонку строку вместо дерева — то есть тело «разапгрейдится» обратно.</li>
+    <li><b>Ключ элемента списка замечаний — индекс.</b> Осознанно и объяснено в коде: два одинаковых замечания различает только позиция, а список каждый раз выводится из документа заново и своего состояния не держит.</li>
+  </ul>
+</section>
+
+<footer class="end">
+  <p><b>Артефакт по UI-плагину.</b> Каркас серии адаптирован под пакет, у которого нет ни маршрутов, ни API, ни таблиц: бизнес-описание → состав и место → формат документа → инвентарь возможностей → сценарии → стыки → состояния → доступность → инварианты → чек-лист → границы → расхождения. Разделы «HTTP API», «Модель данных» и «Конфигурация» выпали за отсутствием предмета; их место занял главный здесь раздел — полный инвентарь того, что автор может написать, и того, что от этого окажется в сохранённом документе.</p>
+  <p>Источник — исходный код <code>packages/wysiwyg/admin/**</code> целиком, плюс <code>docs/adr/0011-richtext-as-a-structured-document.md</code>, модуль <code>richtext/</code> и валидатор из <code>packages/content/domain</code>, контракт слота из <code>packages/content/admin</code>, контрибьюции из <code>packages/media/admin</code> и набор <code>apps/admin-e2e/src/content/wysiwyg-fields.spec.ts</code>. Файл <code>AGENTS.md</code> использован как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 12.</p>
+</footer>
+
+</main>
+</div>

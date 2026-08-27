@@ -1,0 +1,1168 @@
+<title>Паспорт скаффолдера create-ortha-app</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакет · packages/create-ortha-app</p>
+    <h1 class="title">create-ortha-app
+      <small>Первые девяносто секунд знакомства с продуктом — одна команда, работающая CMS</small>
+    </h1>
+    <p class="lede">Скаффолдер — это <strong>единственная точка входа в продукт для нового пользователя</strong>. <code>npx create-ortha-app my-cms</code> задаёт несколько вопросов и оставляет на диске приложение, которое собирается, мигрирует и запускается без единой правки. Технически это генератор из одного шаблона; продуктово — витрина: он решает, каким OrthaCMS увидят в первый раз, и что человек получит по умолчанию, ничего не выбирая.</p>
+    <ul class="facts">
+      <li><b>55</b> пакетов в классификации</li>
+      <li><b>40</b> в ядре приложения</li>
+      <li><b>4</b> выбора в мастере</li>
+      <li><b>31</b> файл в шаблоне</li>
+      <li><b>42</b> пакета в приложении по умолчанию</li>
+      <li><b>4</b> приложения на выходе</li>
+      <li><b>0</b> рантайм-зависимостей</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#place">Место в системе</a></li>
+    <li><a href="#wizard">Мастер и его выборы</a></li>
+    <li><a href="#features">Классификация пакетов</a></li>
+    <li><a href="#output">Что получается на выходе</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#lockstep">Версии и релиз</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>OrthaCMS поставляется как набор npm-пакетов, а не как готовое приложение. Само по себе это правильно — приложение собирается из плагинов, и состав решает владелец. Но у такой поставки есть цена: чтобы <em>увидеть</em> продукт, нужно сначала собрать его. Скаффолдер снимает эту цену полностью.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Убирает нулевой день.</b> Между «услышал про CMS» и «вижу админку у себя на ноутбуке» — одна команда, три коротких ответа и <code>npm run dev</code>. Никакого «сначала прочитайте, как устроен композиционный корень».</li>
+    <li><b>Даёт согласованный набор версий.</b> Все <code>@orthacms/*</code> пакеты выпускаются в lockstep, и скаффолдер вписывает в манифест <b>свою собственную версию</b> в каждую зависимость. Приложение согласовано по построению, а не потому, что кто-то следил.</li>
+    <li><b>Показывает эталонную композицию.</b> Сгенерированный <code>plugins.ts</code> — это не «пример», а рабочий композиционный корень с комментариями, объясняющими, почему порядок именно такой. Он же — учебник по добавлению своего плагина.</li>
+    <li><b>Делает выбор явным там, где он есть, и убирает его там, где его нет.</b> Хранилище файлов, бэкенды копайлота, протоколы контент-API, вход через внешнего провайдера — четыре настоящих решения. Всё остальное — включая сам копайлот — ставится безусловно, потому что предлагать выбор там, где правильный ответ один, значит просить пользователя угадывать.</li>
+    <li><b>Ничего не включает молча.</b> Оба «дорогих» решения — отправка контента внешней модели и открытие нового эндпоинта — по умолчанию выключены. Копайлот установлен, но <code>COPILOT_ENABLED=false</code>; MCP, если выбран, — <code>MCP_ENABLED=false</code>.</li>
+  </ul>
+
+  <h3>Первое впечатление, спроектированное намеренно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Оценивающий продукт</h4>
+      <p class="small sub">Хочет посмотреть, стоит ли смотреть дальше. Получает работающую админку с контент-библиотекой, медиа, пользователями и журналом — и <b>ноль</b> демонстрационных типов контента, то есть чистый лист, а не чужой блог, который придётся вычищать.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик, который будет это вести</h4>
+      <p class="small sub">Получает ту же раскладку из четырёх приложений, что и сам монорепозиторий OrthaCMS: <code>server</code>, <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>. Всё, что он прочитает в исходниках CMS, лежит у него на том же месте.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">CI и автоматизация</h4>
+      <p class="small sub">Скаффолдер не блокируется на вопросе, которого некому услышать: нет TTY или передан <code>--yes</code> — берутся значения по умолчанию. Каждый вопрос дублирован флагом.</p>
+    </div>
+  </div>
+
+  <h3>Чем скаффолдер не является</h3>
+  <ul>
+    <li><b>Это не установщик и не апгрейдер.</b> Он пишет файлы один раз. Обновление версий — задача владельца приложения (и делается целиком, а не по частям).</li>
+    <li><b>Это не набор шаблонов «блог / магазин / лендинг».</b> Шаблон ровно один. Типов контента в нём нет вообще — <code>ContentPlugin({ types: [] })</code> валиден и не владеет ни одной таблицей, поэтому приложение мигрирует и стартует до того, как появится первый тип.</li>
+    <li><b>Это не конфигуратор всего.</b> Он не спрашивает про роли, локали, лимиты и почту: это либо продуктовые константы в <code>ortha.config.ts</code>, либо решения, принимаемые уже внутри админки.</li>
+    <li><b>Это не рантайм.</b> После генерации пакет из жизни приложения исчезает: он не попадает в зависимости сгенерированного проекта.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея</span>
+    <p>Скаффолдер <b>не хранит список версий</b> и <b>не ходит в реестр за <code>latest</code></b>. Он читает свою версию из собственного <code>package.json</code> и подставляет её в каждую <code>@orthacms/*</code> зависимость точным значением, без каретки. Отсюда два следствия: релиз не требует правки шаблона, а <code>npx create-ortha-app@0.3.0</code> воспроизводимо генерирует приложение 0.3.0, а не «то, что успело выйти с тех пор».</p>
+  </div>
+</section>
+
+<section id="place">
+  <h2 class="sec"><span class="num">02</span>Место в системе и почему пакет вне scope</h2>
+
+  <p>В монорепозитории <b>56</b> публикуемых пакетов. Пятьдесят пять из них — <code>@orthacms/*</code>. Пятьдесят шестой — <code>create-ortha-app</code>, единственный вне scope.</p>
+
+  <h3>Почему имя без scope</h3>
+  <p>Это не стилистика, а требование двух точек входа npm. Обе формы работают только с таким именем:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>npx create-ortha-app my-cms
+npm create ortha-app my-cms</code></pre></div>
+  <p><code>npm create &lt;name&gt;</code> разворачивается в <code>npx create-&lt;name&gt;</code>, то есть имя пакета обязано начинаться с <code>create-</code> и лежать в корневом пространстве имён. Пакет <code>@orthacms/create-app</code> был бы доступен только как <code>npm create @orthacms/app</code> — форма, которую никто не набирает.</p>
+  <p>Цена этого решения одна и она видна в <code>nx.json</code>: список релизных проектов не может быть просто глобом.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>"release": {
+    "projects": [
+        "@orthacms/*",
+        "create-ortha-app",
+        "!@orthacms/nx",
+        "!@orthacms/copilot-provider-fake"
+    ],
+    "projectsRelationship": "fixed"
+}</code></pre></div>
+  <p><code>projectsRelationship: "fixed"</code> — это и есть lockstep: у всех перечисленных проектов одна версия и один тег. <code>@orthacms/nx</code> (внутренний Nx-плагин) и <code>@orthacms/copilot-provider-fake</code> (приватная тестовая фикстура) исключены явно.</p>
+
+  <h3>Единственный пакет без рантайм-зависимостей</h3>
+  <p>В <code>package.json</code> поле <code>dependencies</code> пустое, и это осознанно: <code>npx</code> скачивает этот пакет <em>раньше всего остального</em>, и каждая зависимость — это секунды ожидания в самой первой команде, которую человек вводит. Поэтому терминальный интерфейс — рамки, цвет, стрелочные и чекбоксовые пикеры — написан вручную в <code>src/lib/ui.ts</code>, вместо <code>prompts</code>/<code>clack</code>/<code>chalk</code>.</p>
+
+  <h3>Как пакет относится к остальному монорепозиторию</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Сосед</th><th>Отношение</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">@orthacms/cli</td><td>Единственная <code>devDependency</code>, которую скаффолдер вписывает в приложение. Скрипты <code>dev/build/start/migrate/generate/studio</code> — это команда <code>ortha</code>. Её константы <code>LAYOUT</code> описывают ровно ту раскладку, которую пишет шаблон: <code>apps/server/tsconfig.json</code>, <code>apps/admin/vite.config.mts</code>, <code>dist/server/src/main.js</code>, <code>dist/admin</code></td></tr>
+      <tr><td class="mono">@orthacms/nx</td><td>Не попадает в приложение вовсе: миграционные и релизные таргеты нужны монорепозиторию, а сгенерированному приложению их даёт CLI</td></tr>
+      <tr><td class="mono">tools/release/pack.mjs</td><td>Кладёт каталог <code>templates/</code> в staging как есть и добавляет его в <code>files</code> — тем же способом, каким обрабатывает каталоги <code>migrations/</code> у плагинов. Ещё он переписывает <code>bin</code> с исходника на скомпилированный файл</td></tr>
+      <tr><td class="mono">packages/*/…</td><td>Каждый публикуемый пакет обязан быть классифицирован в <code>src/lib/features.ts</code> — см. раздел 4</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Шаблон — это данные, а не исходный код</h3>
+  <p>Файлы под <code>templates/default</code> имеют форму приложения: там свои <code>tsconfig.json</code>, свой <code>package.json.tmpl</code>, свой <code>ortha.config.ts</code>. Инструменты монорепозитория обязаны об этом знать, и сказать им приходится в <b>четырёх</b> местах — каждое из них однажды сломалось.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что было бы без этого</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">.nxignore</td><td>Самое дорогое. Nx обходит все каталоги; <code>@orthacms/nx</code> вывел бы таргет <code>db:migrate</code> на каталог без имени проекта, и <b>граф проектов перестал бы строиться целиком</b> — то есть в репозитории умерла бы любая команда <code>nx</code>. Выбрано именно <code>.nxignore</code>, а не <code>exclude</code> у своего плагина: та же проблема есть у любого инференс-плагина, например <code>@nx/js/typescript</code> вывел бы <code>typecheck</code> из шаблонных tsconfig</td></tr>
+      <tr><td class="mono">tsconfig.lib.json → exclude</td><td><code>tsc --build</code> компилировал бы файлы приложения против настройки монорепозитория «резолвить из исходников»</td></tr>
+      <tr><td class="mono">eslint.config.mjs → ignores</td><td>То же самое для линта</td></tr>
+      <tr><td class="mono">.prettierignore</td><td>В JSON-файлах шаблона лежат токены вида <code>__APP_NAME__</code>; форматировать их бессмысленно</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="wizard">
+  <h2 class="sec"><span class="num">03</span>Мастер и его выборы</h2>
+
+  <p>Мастер состоит из двух частей. Сначала три текстовых вопроса о проекте, затем — блок функциональных выборов, перед которым печатается строка, задающая тон: <em>«Everything else is installed for you. These are the choices.»</em> Всё остальное поставлено за вас; вот то, что действительно нужно решить.</p>
+
+  <div class="note warn">
+    <span class="label">Число выборов: код против документации</span>
+    <p>И корневой <code>AGENTS.md</code>, и <code>AGENTS.md</code> самого пакета говорят о <b>трёх</b> вопросах (хранилище, бэкенды копайлота, протоколы). В коде групп <b>четыре</b>: <code>MEDIA_PROVIDERS</code>, <code>COPILOT_PROVIDERS</code>, <code>SSO_PROVIDERS</code>, <code>PROTOCOLS</code>, и <code>resolveAnswers()</code> задаёт все четыре подряд; комментарий в <code>ui.ts</code> прямо говорит «мастер задаёт четыре таких подряд», а <code>USAGE</code> перечисляет флаг <code>--sso</code>. Ниже описаны все четыре — по коду. Расхождение вынесено в раздел 11.</p>
+  </div>
+
+  <h3>3.0 Три текстовых вопроса</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вопрос</th><th>По умолчанию</th><th>Проверка</th><th>Куда попадает</th></tr></thead>
+    <tbody>
+      <tr><td>App name</td><td>имя целевого каталога</td><td><code>validateAppName</code>: не пусто, ≤ 214 символов, не начинается с <code>.</code> или <code>_</code>, только строчные буквы, цифры, точки, дефисы и подчёркивания</td><td><code>package.json → name</code>, заголовок админки, имя MCP-коннектора</td></tr>
+      <tr><td>Database URL</td><td><code>postgresql://ortha:ortha@localhost:5432/&lt;имя&gt;</code></td><td><code>validateDatabaseUrl</code>: парсится как URL, протокол <code>postgresql:</code> или <code>postgres:</code>, путь содержит имя базы</td><td><code>.env → DATABASE_URL</code>; имя базы отдельно уезжает в <code>docker-compose.yml</code></td></tr>
+      <tr><td>Admin email</td><td><code>admin@example.com</code></td><td>нет</td><td><code>.env → ORTHA_ROOT_ADMIN_EMAIL</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Вопрос на неверный ответ переспрашивается, а не падает: <code>askText</code> крутит цикл, печатая причину отказа. Имя приложения проверяется потому, что оно попадает в манифест дословно, и npm отказывается ставить проект с недопустимым именем — сообщением про приложение, а не про то имя, которое человек только что набрал.</p>
+
+  <div class="note">
+    <span class="label">Пароль администратора не спрашивается</span>
+    <p>Он <b>генерируется</b>: <code>randomBytes(12).toString('base64url')</code>. Пароль, набранный в приглашении, эхом уходит в терминал и оседает в истории шелла. Этот пишется только в <code>.env</code> (который в <code>.gitignore</code>) и один раз печатается в итоговой рамке.</p>
+  </div>
+
+  <h3>3.1 Выбор первый — где хранить загруженные файлы</h3>
+  <p class="sub small">Группа <code>MEDIA_PROVIDERS</code>, одиночный выбор (радио). Флаг <code>--media &lt;id&gt;</code>.</p>
+  <p>Медиа-плагин работает всегда; вопрос только в том, какой адаптер за ним стоит. Ровно один — deployment держит одно хранилище, и это правило самого медиа-плагина, а не скаффолдера.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>Что это</th><th>Пакет</th><th>Ключи в <code>.env</code></th></tr></thead>
+    <tbody>
+      <tr><td class="mono">media-local</td><td>Локальная файловая система. <b>Ответ по умолчанию</b></td><td class="mono">media-provider-local</td><td><code>MEDIA_LOCAL_ROOT</code> (по умолчанию <code>./.storage/media</code>)</td></tr>
+      <tr><td class="mono">media-s3</td><td>S3-совместимое: AWS S3, Cloudflare R2, MinIO, Spaces, B2, Wasabi</td><td class="mono">media-provider-s3</td><td><code>MEDIA_S3_BUCKET</code>, <code>MEDIA_S3_ENDPOINT</code>, <code>MEDIA_S3_REGION</code>, <code>MEDIA_S3_FORCE_PATH_STYLE</code>, пара ключей доступа</td></tr>
+      <tr><td class="mono">media-azure</td><td>Azure Blob Storage</td><td class="mono">media-provider-azure</td><td><code>MEDIA_AZURE_CONTAINER</code>, <code>MEDIA_AZURE_CONNECTION_STRING</code></td></tr>
+      <tr><td class="mono">media-gcs</td><td>Google Cloud Storage с родной аутентификацией</td><td class="mono">media-provider-gcs</td><td><code>MEDIA_GCS_BUCKET</code>, <code>MEDIA_GCS_PROJECT_ID</code>, <code>MEDIA_GCS_KEY_FILE</code>, <code>MEDIA_GCS_SIGN_WITH_IAM</code></td></tr>
+      <tr><td class="mono">media-vercel-blob</td><td>Vercel Blob</td><td class="mono">media-provider-vercel-blob</td><td><code>BLOB_READ_WRITE_TOKEN</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Что меняется в сгенерированном приложении</h4>
+  <ol class="flow">
+    <li><b>Манифест.</b> В <code>dependencies</code> появляется ровно один <code>@orthacms/media-provider-*</code>.<span class="meta">остальные четыре не ставятся вовсе</span></li>
+    <li><b>Импорт фабрики</b> в <code>apps/server/src/plugins.ts</code>: один <code>createLocalStorageProvider</code> / <code>createS3StorageProvider</code> / …</li>
+    <li><b>Одно выражение внутри <code>MediaServerPlugin({ … })</code>.</b> В шаблоне это пять взаимоисключающих <code>ortha:if</code>-блоков вокруг поля <code>provider</code>; в сгенерированном файле остаётся одна строка. Комментарий рядом говорит прямо: сменить бэкенд — это изменить это выражение.</li>
+    <li><b>Тип конфигурации.</b> В <code>ortha.config.ts</code> поле <code>plugins.media.storage</code> типизируется типом выбранной фабрики (<code>LocalStorageConfig</code> / <code>S3StorageConfig</code> / …), то есть тип и фабрика двигаются вместе, и несовпадение ловится компилятором.</li>
+    <li><b>Блок в <code>.env</code></b> — только ключи выбранного адаптера, с комментариями про их подводные камни (постоянный публичный URL у Vercel Blob; пустые ключи у S3, которые нельзя заполнять пустыми строками, иначе они затенят instance role).</li>
+  </ol>
+
+  <div class="note warn">
+    <span class="label">Вопрос может не появиться</span>
+    <p>Мастер спрашивает только тогда, когда доступных ответов больше одного: <code>MEDIA_PROVIDERS.filter(p =&gt; p.available).length &gt; 1</code>. Механизм существует, чтобы не задавать «вопрос» с единственным возможным ответом. <b>Сегодня все пять адаптеров помечены <code>available: true</code></b>, и тест <code>features.spec.ts</code> отдельно проверяет, что S3 предлагается («now that it is implemented»), — значит вопрос задаётся. Недоступный адаптер не прячется, а рисуется серым с пометкой <code>(unavailable)</code> и пропускается курсором: пикер говорит правду о том, что готовится.</p>
+  </div>
+
+  <h3>3.2 Выбор второй — бэкенды AI-копайлота</h3>
+  <p class="sub small">Группа <code>COPILOT_PROVIDERS</code>, множественный выбор. Флаг <code>--copilot &lt;ids|none&gt;</code>.</p>
+
+  <div class="note crit">
+    <span class="label">Это не вопрос «нужен ли копайлот»</span>
+    <p>Сам копайлот — <b>ядро</b>: <code>copilot-server</code> и <code>copilot-admin</code> лежат в <code>CORE_PACKAGES</code>, а <code>CopilotPlugin</code> регистрируется на обеих сторонах любого сгенерированного приложения. Причина техническая и неустранимая: пять ядровых плагинов (<code>content</code>, <code>activity</code>, <code>i18n</code>, <code>media</code>, <code>users</code>) зависят от <code>copilot-server</code>, чтобы отдать туда свои инструменты. Код всё равно окажется на диске — не объявив его, мы купили бы себе только пропавшую панель чата. Спрашивается <b>какие модельные бэкенды добавить</b>.</p>
+  </div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>Что это</th><th>Пакет</th><th>Что регистрирует бэкенд</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">copilot-anthropic</td><td>Claude (Anthropic), родной протокол</td><td class="mono">copilot-provider-anthropic</td><td>непустой <code>ANTHROPIC_API_KEY</code>; модели — <code>COPILOT_ANTHROPIC_MODELS</code>, по умолчанию <code>claude-sonnet-5</code></td></tr>
+      <tr><td class="mono">copilot-openai</td><td>Любая точка с OpenAI-совместимым протоколом: Ollama, vLLM, LiteLLM, Azure, OpenAI</td><td class="mono">copilot-provider-openai</td><td>непустой <code>COPILOT_OPENAI_BASE_URL</code>; <code>COPILOT_OPENAI_MODELS</code>, <code>COPILOT_OPENAI_API_KEY</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>По умолчанию не выбрано ничего, и это содержательный ответ.</b> Включение хостируемого провайдера означает отправку контента воркспейса третьей стороне — решение, которое ADR-0005 §10 требует принимать явно, а не получать по умолчанию.</p>
+
+  <h4>Что меняется в сгенерированном приложении</h4>
+  <ol class="flow">
+    <li><b>Манифест</b> получает выбранные пакеты провайдеров — ноль, один или два.</li>
+    <li><b>Функция <code>copilotProviders(config)</code></b> в <code>plugins.ts</code> собирается из <code>ortha:if</code>-блоков: в ней остаются ветки только выбранных провайдеров. Каждая ветка добавляет провайдера <b>только если его настройки присутствуют</b> в конфигурации.<span class="meta">порядок массива — это и есть настройка: первый зарегистрированный обслуживает запуск, не назвавший провайдера; поля defaultProvider нет</span></li>
+    <li><b>Типы в <code>ortha.config.ts</code>:</b> <code>AppCopilotConfig.providers</code> получает поля <code>claude?</code> и/или <code>openai?</code>, и чтение переменных окружения — тоже под условными блоками.</li>
+    <li><b>Ключи в <code>.env</code></b> — только выбранных провайдеров.</li>
+    <li><b><code>COPILOT_ENABLED=false</code> пишется всегда</b>, независимо от выбора. Флаг снимает регистрацию маршрутов <code>/api/copilot</code>, поэтому приложение выходит с <b>отсутствующими</b> поверхностями чата, а не с присутствующими и отказывающими.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему «ничего» — законный ответ</span>
+    <p>Приложение без бэкендов имеет плагин установленным и ни одного провайдера зарегистрированным. Оффлайн-заглушки, на которую можно было бы упасть, <b>нет</b>: <code>copilot-provider-fake</code> — приватная тестовая фикстура репозитория CMS, не публикуемая никуда. Раньше она регистрировалась последней в каждом сгенерированном приложении, и установка без ключей отвечала на любой вопрос заготовленной фразой вместо честного отказа. Теперь <code>COPILOT_ENABLED=true</code> с пустым списком провайдеров <b>не даёт приложению стартовать</b>.</p>
+  </div>
+
+  <h3>3.3 Выбор третий — вход через внешнего провайдера (SSO)</h3>
+  <p class="sub small">Группа <code>SSO_PROVIDERS</code>, множественный выбор, по умолчанию пусто. Флаг <code>--sso &lt;ids|none&gt;</code>.</p>
+  <p>Приложение без SSO входит по email и паролю — это тот самый режим «только по приглашению», который у Ortha был всегда. SSO выключено по умолчанию не из осторожности, а потому что скаффолдер физически не может его угадать: нужны issuer, client id и callback URL, зарегистрированный <em>на той стороне</em>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>Что это</th><th>Пакет</th><th>Почему отдельный пакет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">sso-oidc</td><td>Универсальный OpenID Connect: Okta, Auth0, Keycloak, Google, Entra ID, Authentik, Zitadel, JumpCloud, Ping, GitLab</td><td class="mono">identity-provider-oidc</td><td>Одна запись закрывает почти всё поле — названные вендоры внутри пакета являются фабриками-пресетами, а не отдельными пакетами. Тянет <code>jose</code></td></tr>
+      <tr><td class="mono">sso-github</td><td>GitHub и GitHub Enterprise Server</td><td class="mono">identity-provider-github</td><td>OAuth2 <b>без</b> identity token — провод действительно другой</td></tr>
+      <tr><td class="mono">sso-saml</td><td>SAML 2.0</td><td class="mono">identity-provider-saml</td><td>POST-binding с XML-подписями. Тянет <code>@node-saml/node-saml</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Что меняется в сгенерированном приложении</h4>
+  <p>Здесь есть важная асимметрия между тем, что предлагается, и тем, что подключено в шаблоне.</p>
+  <ol class="flow">
+    <li><b>Выбран <code>sso-oidc</code>.</b> В манифест добавляется пакет; в <code>plugins.ts</code> появляются импорт <code>createOidcProvider</code>, тип <code>SsoRegistration</code> и функция <code>ssoProviders(config)</code>; <code>IdentityPlugin</code> вызывается с <b>вторым аргументом</b> <code>{ sso: { providers: ssoProviders(config) } }</code> вместо одноаргументной формы; в <code>ortha.config.ts</code> появляются тип <code>AppIdentityConfig.ssoProviders.oidc</code> и чтение шести переменных; в <code>.env</code> — блок <code>SSO_OIDC_*</code>.<span class="meta">провайдер регистрируется только когда заданы и SSO_OIDC_ISSUER, и SSO_OIDC_CLIENT_ID — кнопка входа, которая может только упасть, хуже отсутствия кнопки</span></li>
+    <li><b>Выбраны <code>sso-github</code> или <code>sso-saml</code>.</b> В манифест добавляется пакет — и <b>больше ничего</b>. Маркеров <code>ortha:if sso-github</code> и <code>ortha:if sso-saml</code> в шаблоне нет ни в одном файле: ни импорта, ни регистрации, ни переменных окружения. Подключать адаптер придётся руками.<span class="meta">это подтверждается и текстом USAGE, где у флага в скобках назван только sso-oidc</span></li>
+    <li><b>Не выбрано ничего.</b> <code>IdentityPlugin(config.plugins.identity)</code> в одноаргументной форме. Общие настройки рукопожатия (<code>SSO_PUBLIC_BASE_URL</code>, <code>SSO_REQUEST_TTL_SECONDS</code>) пишутся в <code>.env</code> всё равно — они безусловны.</li>
+  </ol>
+
+  <h3>3.4 Выбор четвёртый — на каких протоколах говорит контент-API</h3>
+  <p class="sub small">Группа <code>PROTOCOLS</code>, множественный выбор. Флаг <code>--protocols &lt;ids|none&gt;</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>id</th><th>Состояние</th><th>Пакет</th><th>Что даёт</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">rest</td><td><b>locked</b> — отмечен, приглушён, пропускается курсором</td><td>нет</td><td><code>/api/v1/…</code> — API, который адаптируют все остальные</td></tr>
+      <tr><td class="mono">graphql</td><td>по умолчанию выключен</td><td class="mono">content-graphql</td><td><code>POST /api/v1/graphql</code>: те же bearer-токены, те же scope, те же правила видимости</td></tr>
+      <tr><td class="mono">mcp</td><td>по умолчанию выключен</td><td class="mono">mcp-server</td><td><code>POST /api/v1/mcp</code> — внешний агент делает CRUD контента по API-токену</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><b>Почему REST показан, а не спрятан.</b> «На каких протоколах говорит это приложение?» — более полезный вопрос, чем «нужны ли вам эти два дополнения», и ответ читается как полный набор только если то, что вы получаете всегда, находится в нём. <code>--protocols none</code> всё равно даёт REST: <code>lockedOf()</code> добавляет заблокированные id к любому ответу, флагом это не выключается. В пикере такая строка рисуется как <code>[x] REST (always on)</code> и не принимает пробел.</p>
+  <p>Ни одно из двух дополнений не приносит собственных учётных данных: GraphQL — протокольный адаптер над сервисами того же REST-API (ADR-0008), MCP переиспользует те же API-токены и scope. Они опциональны просто потому, что эндпоинт, о котором никто не просил, — всё равно эндпоинт.</p>
+
+  <h4>Что меняется в сгенерированном приложении</h4>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">GraphQL выбран</h4>
+      <p class="small sub">Пакет в манифесте; импорт <code>ContentGraphqlPlugin</code>; запись в массиве плагинов <b>сразу после</b> <code>ContentViewsPlugin</code>, получающая <code>content</code> по значению и <code>playground: config.docs.enabled === true</code>; раздел «GraphQL» в README. Передача плагина целиком, а не только типов, — то, что позволяет упасть на старте из-за двух типов контента, чьи имена столкнулись бы в GraphQL, а не на первом запросе от воркспейса, которому выданы оба.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">MCP выбран</h4>
+      <p class="small sub">Пакет в манифесте; импорт <code>McpPlugin</code>; запись <b>последней</b> в массиве плагинов, потому что MCP отдаёт наружу то, что вложили плагины выше; тип <code>McpPluginConfig</code> и блок <code>plugins.mcp</code> в конфигурации (имя коннектора, <code>callTimeoutMs</code>, <code>maxResultBytes</code>); блок <code>MCP_ENABLED=false</code> в <code>.env</code>; раздел «MCP» в README.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="label">Опционально значит «не зарегистрирован», а не «не установлен»</span>
+    <p><code>content-server</code> зависит от <code>mcp-server</code>, поэтому пакет физически лежит в <code>node_modules</code> любого сгенерированного приложения, что бы ни выбрал пользователь. Разница в том, что плагина нет в <code>plugins.ts</code>, а его блока — в <code>ortha.config.ts</code>. Именно поэтому приложение по умолчанию отвечает на <code>/api/v1/mcp</code> честным <code>404</code>, а не падает на неразрешённом импорте.</p>
+  </div>
+
+  <h3>3.5 Как устроен сам пикер</h3>
+  <ul>
+    <li><b>Без единой зависимости.</b> <code>ui.ts</code> — рамки, SGR-цвет, перерисовка на месте через <code>CSI nA</code> + <code>CSI 2K</code>.</li>
+    <li><b>Стрелки и <code>j</code>/<code>k</code></b> двигают курсор, пробел переключает чекбокс, Enter подтверждает, Escape и Ctrl-C отменяют. Отмена в мультиселекте означает «взять значения по умолчанию», а не «выбрано пусто».</li>
+    <li><b>Курсор пропускает</b> строки <code>disabled</code> и <code>locked</code> — обойти их нельзя ни в одну сторону, включая заворот списка.</li>
+    <li><b>Мультиселект, в котором нечего трогать</b> (все строки locked или unavailable), не рисуется вовсе: он сразу возвращает уже отмеченное.</li>
+    <li><b>Цвет отключается сам</b> при <code>NO_COLOR</code>, <code>TERM=dumb</code> или отсутствии TTY.</li>
+    <li><b>Опасность одна, и она обработана:</b> пикер переводит stdin в raw mode, а процесс, вышедший в raw mode, оставляет терминал без эха — пользователю приходится вслепую набирать <code>reset</code>. Восстановление лежит в <code>finally</code>.</li>
+    <li><b>Слушатели, а не <code>for await</code>.</b> Итератор Node-потока уничтожает поток при досрочном выходе из цикла: первый пикер ответил бы нормально и увёл stdin за собой, а следующий отрисовал бы строки и упал с <code>AbortError</code> до первого нажатия. Вопросов подряд четыре, поэтому stdin обязан остаться читаемым.</li>
+  </ul>
+
+  <h3>3.6 Неинтерактивный режим</h3>
+  <p>Мастер спрашивает, только если <code>!--yes && process.stdin.isTTY && process.stdout.isTTY</code>. Иначе берутся значения по умолчанию, а флаги переопределяют их по группам. Это не аварийный режим, а CI, конвейер и <code>--yes</code>: скаффолдер, зависший на приглашении, которое некому увидеть, вешает джобу до таймаута — отказ куда худший, чем взять умолчание.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>npx create-ortha-app my-cms [опции]
+
+  --yes             Принять все значения по умолчанию, ничего не спрашивая
+  --media &lt;id&gt;      Адаптер хранилища (по умолчанию media-local)
+  --copilot &lt;ids&gt;   Провайдеры копайлота через запятую, либо "none"
+  --sso &lt;ids&gt;       Провайдеры входа через запятую (sso-oidc), либо "none"
+  --protocols &lt;ids&gt; Протоколы помимо REST (graphql, mcp), либо "none"
+  --no-install      Не ставить зависимости
+  --no-git          Не инициализировать git-репозиторий
+  -h, --help        Показать справку</code></pre></div>
+  <p>Флаги читаются в двух формах — <code>--name=value</code> и <code>--name value</code>. Значение <code>none</code> означает пустой выбор; для протоколов «пусто» всё равно даёт REST.</p>
+</section>
+
+<section id="features">
+  <h2 class="sec"><span class="num">04</span>Классификация пакетов в features.ts</h2>
+
+  <p>Файл <code>src/lib/features.ts</code> его собственный заголовок называет <b>контрактом между релизом и скаффолдером</b>. Каждый публикуемый пакет <code>@orthacms/*</code> учтён здесь ровно один раз, и тест валит сборку, когда это не так.</p>
+
+  <h3>Четыре корзины, и третьего не дано</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Корзина</th><th>Смысл</th><th>Сколько сейчас</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">CORE_PACKAGES</td><td>Получает каждое приложение, что бы оно ни выбрало</td><td class="num-col">40</td></tr>
+      <tr><td class="mono">CORE_DEV_PACKAGES</td><td>Нужен, чтобы приложение собиралось и запускалось; уходит в <code>devDependencies</code></td><td class="num-col">1</td></tr>
+      <tr><td class="mono">Feature.packages</td><td>Ставится, когда выбрана соответствующая возможность</td><td class="num-col">12</td></tr>
+      <tr><td class="mono">TRANSITIVE_PACKAGES</td><td>Внутренняя деталь другого пакета; объявлять намеренно не нужно</td><td class="num-col">2</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Итого <b>55</b> — ровно столько пакетов <code>@orthacms/*</code> публикует монорепозиторий. Пятьдесят шестой публикуемый пакет — сам <code>create-ortha-app</code>, и он себя не классифицирует.</p>
+
+  <h3>Механизм, который заставляет принять решение</h3>
+  <p>Правил ухода за шаблоном два, и оба держатся тестами, а не памятью.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Релиз правки шаблона не требует</h4>
+      <p class="small sub">Ни одной версии в <code>features.ts</code> нет. Каждая зависимость пишется как <code>__ORTHA_VERSION__</code> и штампуется версией скаффолдера в момент рендера. Списка версий, который мог бы отстать, попросту не существует.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Добавление пакета — требует</h4>
+      <p class="small sub"><code>features.spec.ts</code> перечисляет каталог <code>packages/</code> на диске и падает на любом непроклассифицированном имени. Новый пакет не может слиться в основную ветку, пока кто-то не решил, получает ли его новое приложение.</p>
+    </div>
+  </div>
+
+  <p>Ценность защиты — в том, чего <em>не</em> происходит без неё. Без неё шаблон просто отстаёт на релиз: пакет опубликован, на него ничто не ссылается, и никто этого не замечает, пока пользователь не спросит, почему у него нет функции, про которую он прочитал.</p>
+
+  <h4>Как устроена сама проверка</h4>
+  <ol class="flow">
+    <li><b>Перечисление реальности.</b> <code>publishedPackages()</code> обходит <code>packages/*</code> и <code>packages/*/*</code>, читает каждый <code>package.json</code> и берёт имена, начинающиеся с <code>@orthacms/</code> и не помеченные <code>private</code>. Это источник истины — диск, а не список.<span class="meta">каталог без манифеста молча пропускается</span></li>
+    <li><b>Перечисление намерения.</b> Множество <code>classified</code> — объединение <code>CORE_PACKAGES</code>, <code>CORE_DEV_PACKAGES</code>, <code>TRANSITIVE_PACKAGES</code> и всех <code>Feature.packages</code>.</li>
+    <li><b>Каждый пакет классифицирован.</b> <code>it.each(publishedPackages())('%s is classified')</code> — по одному тесту на пакет, поэтому в отчёте видно <em>какой именно</em> пакет забыли. В комментарии прямо написано, что делать.</li>
+    <li><b>Ничего лишнего.</b> Обратная проверка: в классификации нет имён, которых нет на диске (исключение — <code>@orthacms/cli</code>, попадающий в приложение как dev-зависимость).</li>
+    <li><b>Никакой пакет не в двух корзинах сразу.</b> Длина конкатенации сравнивается с размером множества.</li>
+    <li><b>Список «чего не получает приложение по умолчанию» зафиксирован целиком.</b> Отдельный тест сравнивает разницу между опубликованным и установленным с явным списком — так «что мне стоит ничего не выбирать?» имеет письменный ответ, который нельзя изменить молча.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Всё достижимое — объявлено</span>
+    <p>Точки расширения (<code>content-domain</code>, <code>copilot-domain</code>, <code>tools-server</code>, <code>query-builder-admin</code>, <code>identity-domain</code>) и общий инструментарий (<code>design-system</code>, <code>utils-admin</code>, <code>utils-server</code>) лежат в ядре, хотя приходят транзитивно и без объявления. Объявление — это то, что делает разрешение импорта <b>собственностью приложения</b>, а не одолжением: необъявленный импорт работает ровно до первого конфликта версий, который вложит вторую копию, и не работает под pnpm никогда. Это и называется фантомной зависимостью.</p>
+  </div>
+
+  <h3>Полная классификация — 55 пакетов</h3>
+  <p class="sub small">Строится из <code>features.ts</code> дословно. Колонка «в приложении по умолчанию» — ответ на <code>npx create-ortha-app my-cms --yes</code>.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет (<code>@orthacms/</code>…)</th><th>Корзина</th><th>Что это</th><th>По умолчанию</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">activity-admin</td><td class="mono">CORE_PACKAGES</td><td>Экран журнала действий</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">activity-server</td><td class="mono">CORE_PACKAGES</td><td>Журнал действий: подписчик outbox и его таблица</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">alarms-admin</td><td class="mono">CORE_PACKAGES</td><td>Страница алармов, редактор правил, три вклада в слоты контент-библиотеки</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">alarms-server</td><td class="mono">CORE_PACKAGES</td><td>Правила и находки алармов, вычислитель, периодический обход</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">api-tokens-admin</td><td class="mono">CORE_PACKAGES</td><td>Экран выпуска и отзыва внешних API-токенов</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">bootstrap-admin</td><td class="mono">CORE_PACKAGES</td><td>Хост админки: createAdmin({ plugins })</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">bootstrap-server</td><td class="mono">CORE_PACKAGES</td><td>Хост API: createServer({ plugins })</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">cli</td><td class="mono">CORE_DEV_PACKAGES</td><td>Команда ortha: dev / build / start / migrate / generate / studio</td><td><span class="yes">да</span>, как devDependency</td></tr>
+      <tr><td class="mono">content-admin</td><td class="mono">CORE_PACKAGES</td><td>Контент-библиотека: списки записей, редактор, слоты</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">content-domain</td><td class="mono">CORE_PACKAGES</td><td>Точка расширения: типы контент-ядра без фреймворка</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">content-graphql</td><td class="mono">PROTOCOLS · graphql</td><td>Тот же контент-API по GraphQL</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">content-server</td><td class="mono">CORE_PACKAGES</td><td>Контент: реестр типов, публичный REST-API, инструменты агента</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">copilot-admin</td><td class="mono">CORE_PACKAGES</td><td>Док-панель чата и полностраничный вид Agents</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">copilot-domain</td><td class="mono">CORE_PACKAGES</td><td>Точка расширения: порт ModelProvider и контракты предложений</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">copilot-provider-anthropic</td><td class="mono">COPILOT_PROVIDERS · copilot-anthropic</td><td>Адаптер Claude (единственный, кому разрешён вендорский SDK)</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">copilot-provider-openai</td><td class="mono">COPILOT_PROVIDERS · copilot-openai</td><td>Адаптер OpenAI-совместимой точки</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">copilot-server</td><td class="mono">CORE_PACKAGES</td><td>Плагин копайлота: SSE-маршрут запуска, движок, путь записи</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">database</td><td class="mono">CORE_PACKAGES</td><td>Единственное соединение Drizzle/pg, UnitOfWork, транзакционный outbox</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">design-system</td><td class="mono">CORE_PACKAGES</td><td>Библиотека UI-примитивов на shadcn/ui</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">i18n-admin</td><td class="mono">CORE_PACKAGES</td><td>Локали в редакторе записи</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">i18n-server</td><td class="mono">CORE_PACKAGES</td><td>Локали контента и их расширения</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">identity-admin</td><td class="mono">CORE_PACKAGES</td><td>Экраны входа и одноразовых ссылок, AuthProvider, RequireAuth</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">identity-domain</td><td class="mono">CORE_PACKAGES</td><td>Точка расширения: порт SsoProvider</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">identity-provider-fake</td><td class="mono">CORE_PACKAGES</td><td>Скриптованный провайдер входа: ни арендатора, ни сети — для офлайн-проверки</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">identity-provider-github</td><td class="mono">SSO_PROVIDERS · sso-github</td><td>GitHub / GitHub Enterprise</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">identity-provider-oidc</td><td class="mono">SSO_PROVIDERS · sso-oidc</td><td>OpenID Connect + пресеты вендоров</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">identity-provider-saml</td><td class="mono">SSO_PROVIDERS · sso-saml</td><td>SAML 2.0</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">identity-server</td><td class="mono">CORE_PACKAGES</td><td>Аутентификация, RBAC, сессии, API-токены, ядро SSO</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">insights-admin</td><td class="mono">CORE_PACKAGES</td><td>Дашборд и его секции по умолчанию</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">mcp-server</td><td class="mono">PROTOCOLS · mcp</td><td>Эндпоинт Model Context Protocol</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-admin</td><td class="mono">CORE_PACKAGES</td><td>Медиатека и выбор файла из редактора</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">media-provider-azure</td><td class="mono">MEDIA_PROVIDERS · media-azure</td><td>Azure Blob Storage</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-provider-gcs</td><td class="mono">MEDIA_PROVIDERS · media-gcs</td><td>Google Cloud Storage</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-provider-local</td><td class="mono">MEDIA_PROVIDERS · media-local</td><td>Локальная файловая система</td><td><span class="yes">да</span>, если не сменили адаптер</td></tr>
+      <tr><td class="mono">media-provider-memory</td><td class="mono">TRANSITIVE_PACKAGES</td><td>Хранилище в памяти — тест и офлайн-разработка, никогда не деплой</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-provider-s3</td><td class="mono">MEDIA_PROVIDERS · media-s3</td><td>S3-совместимое хранилище</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-provider-testkit</td><td class="mono">TRANSITIVE_PACKAGES</td><td>Контрактный набор проверок, против которого гоняют адаптеры хранилища</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-provider-vercel-blob</td><td class="mono">MEDIA_PROVIDERS · media-vercel-blob</td><td>Vercel Blob</td><td><span class="no">нет</span></td></tr>
+      <tr><td class="mono">media-server</td><td class="mono">CORE_PACKAGES</td><td>Медиа: загрузки, отдача, порт хранилища</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">query-builder-admin</td><td class="mono">CORE_PACKAGES</td><td>Точка расширения: конструктор фильтров</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">segments-admin</td><td class="mono">CORE_PACKAGES</td><td>Справочник аудиторий и вкладка Access у записи</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">segments-domain</td><td class="mono">CORE_PACKAGES</td><td>Ядро сегментов: canRead и правила допуска</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">segments-server</td><td class="mono">CORE_PACKAGES</td><td>Две таблицы сегментов и предикат чтения через CONTENT_READ_SCOPE</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">shell-admin</td><td class="mono">CORE_PACKAGES</td><td>Оболочка админки: сайдбар, единственный layout, шлюз авторизации</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">tools-server</td><td class="mono">CORE_PACKAGES</td><td>Точка расширения: общий реестр инструментов агента</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">transfer-admin</td><td class="mono">CORE_PACKAGES</td><td>Диалоги экспорта и импорта, три вклада в слоты</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">transfer-domain</td><td class="mono">CORE_PACKAGES</td><td>Ядро переноса: документ обмена, четыре формата, натуральные ключи</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">transfer-server</td><td class="mono">CORE_PACKAGES</td><td>Маршруты экспорта/импорта, обход графа, ZIP-контейнер</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">users-admin</td><td class="mono">CORE_PACKAGES</td><td>Участники: приглашения, отключение, ссылки сброса</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">users-server</td><td class="mono">CORE_PACKAGES</td><td>Серверная часть управления участниками</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">utils-admin</td><td class="mono">CORE_PACKAGES</td><td>Общий инструментарий админки: apiClient, слоты, состояние таблиц в URL</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">utils-server</td><td class="mono">CORE_PACKAGES</td><td>Общий серверный инструментарий: разбор фильтров и прочее</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">workspaces-admin</td><td class="mono">CORE_PACKAGES</td><td>Воркспейсы и переключатель в сайдбаре</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">workspaces-server</td><td class="mono">CORE_PACKAGES</td><td>Воркспейсы и членство</td><td><span class="yes">да</span></td></tr>
+      <tr><td class="mono">wysiwyg-admin</td><td class="mono">CORE_PACKAGES</td><td>Редактор форматированного текста и его стили</td><td><span class="yes">да</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что остаётся за бортом приложения по умолчанию</h3>
+  <p>Ровно <b>одиннадцать</b> пакетов, и этот список зафиксирован тестом целиком: <code>content-graphql</code>, <code>copilot-provider-anthropic</code>, <code>copilot-provider-openai</code>, <code>identity-provider-github</code>, <code>identity-provider-oidc</code>, <code>identity-provider-saml</code>, <code>mcp-server</code>, <code>media-provider-azure</code>, <code>media-provider-gcs</code>, <code>media-provider-s3</code>, <code>media-provider-vercel-blob</code>. Плюс двое из <code>TRANSITIVE_PACKAGES</code>, которые не ставятся никогда.</p>
+
+  <div class="note warn">
+    <span class="label">Почему media-provider-memory намеренно не предлагается</span>
+    <p>Оба транзитивных пакета — инструменты <em>для написания</em> провайдера хранилища, а не для его эксплуатации. <code>StorageProviderCheck</code> отказывается поднимать базу, чьи строки писал более не сконфигурированный провайдер, поэтому хранилище в памяти — это тест и офлайн-разработка, но никогда не деплой: предложить его в скаффолдере значило бы предложить приложение, теряющее все загрузки при перезапуске. Положить пакет в эту корзину — решение, которое защита принимает; забыть его вовсе — нет.</p>
+  </div>
+
+  <h3>Из чего складывается манифест</h3>
+  <p><code>resolvePackages(selection)</code> — это множество <code>CORE_PACKAGES</code> плюс пакеты каждой включённой возможности, отсортированное. <code>resolveFlags(selection)</code> — просто набор выбранных id, без выводимых значений: то, против чего проверяются <code>ortha:if</code>-блоки.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>--yes  →  40 (ядро) + 1 (media-provider-local)  = 41 в dependencies
+       →  1 (@orthacms/cli)                      =  1 в devDependencies
+итого 42 пакета @orthacms — ровно это число печатает итоговая рамка мастера</code></pre></div>
+  <p>Важно, что зависимости собираются <b>в коде</b>, а не условными блоками внутри <code>package.json.tmpl</code>. Выбрасывание строк из JSON — это способ получить висящую запятую и приложение, которое невозможно даже установить, причём ошибка обвинит шаблон, а не ту возможность, которую выключили.</p>
+</section>
+
+<section id="output">
+  <h2 class="sec"><span class="num">05</span>Что получается на выходе</h2>
+
+  <p>Шаблон один — <code>templates/default</code>, <b>31</b> файл. Это работающая CMS <b>без единого типа контента</b>: пользователь описывает свои. <code>ContentPlugin({ types: [] })</code> валиден и не владеет таблицами, поэтому приложение мигрирует и стартует до того, как появится первый тип.</p>
+
+  <h3>Структура</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>my-cms/
+├── package.json            один пакет, НЕ npm workspaces
+├── tsconfig.json           ссылки на четыре проекта
+├── docker-compose.yml      Postgres 17-alpine с нужным именем базы
+├── .env                    единственный файл с секретами, он же в .gitignore
+├── .gitignore
+├── README.md
+└── apps/
+    ├── server/             ortha.config.ts, src/{main,plugins}.ts,
+    │                       plugins.spec.ts, jest.config.js, jest.setup.js
+    ├── admin/              index.html, vite.config.mts,
+    │                       src/{main.tsx,plugins.ts,plugins.spec.ts,styles.css}
+    ├── server-e2e/         jest.config.js, src/{api.spec,global-setup,
+    │                       jest.setup,support/{db,test-app}}
+    └── admin-e2e/          playwright.config.ts, src/{auth.spec,support/seed}</code></pre></div>
+
+  <p><b>Те же четыре приложения, из которых собран сам монорепозиторий.</b> Кто читал исходники Ortha — находит у себя ту же форму, а константам <code>LAYOUT</code> в <code>@orthacms/cli</code> достаётся описывать одно дерево, а не два.</p>
+
+  <div class="note">
+    <span class="label">Один package.json, намеренно</span>
+    <p>Не npm workspaces. Workspaces позволили бы двум половинам разрешить <b>разные копии</b> общего пакета, а <code>pack.mjs</code> пинует внутренние зависимости под релиз — то есть разделение рискует двумя экземплярами <code>@orthacms/design-system</code>: два React-контекста и интерфейс, который молча перестаёт разговаривать сам с собой.</p>
+  </div>
+
+  <h3>Скрипты приложения</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Скрипт</th><th>Команда</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">dev</td><td class="mono">ortha dev</td><td>Компилятор в watch, <code>node --watch</code> и dev-сервер Vite вместе</td></tr>
+      <tr><td class="mono">build</td><td class="mono">ortha build</td><td>Компилирует сервер и собирает бандл админки</td></tr>
+      <tr><td class="mono">start</td><td class="mono">ortha start</td><td>Один процесс: API <b>и</b> админка, один origin</td></tr>
+      <tr><td class="mono">migrate</td><td class="mono">ortha migrate</td><td>Применяет ожидающие миграции каждого плагина</td></tr>
+      <tr><td class="mono">generate</td><td class="mono">ortha generate</td><td>Генерирует миграцию для собственных таблиц контента</td></tr>
+      <tr><td class="mono">studio</td><td class="mono">ortha studio</td><td>Drizzle Studio на базе этого приложения</td></tr>
+      <tr><td class="mono">test</td><td class="mono">jest + vitest</td><td>Юнит-тесты обеих половин</td></tr>
+      <tr><td class="mono">e2e</td><td class="mono">jest + playwright</td><td>Оба сквозных набора</td></tr>
+      <tr><td class="mono">typecheck</td><td class="mono">tsc --build</td><td>Оба TypeScript-проекта</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Три отличия от <code>apps/*</code> монорепозитория</h3>
+  <p>Каждое — следствие того, что приложение потребляет пакеты из npm, а не из исходников.</p>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Никакого webpack</h4>
+      <p class="small sub">Только <code>tsc</code>, поэтому <code>node_modules</code> остаётся на диске и вызовы вида <code>join(__dirname, '../../../migrations')</code> внутри каждого плагина продолжают разрешаться.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>@source</code> для Tailwind</h4>
+      <p class="small sub">Tailwind исключает <code>node_modules</code> из автоопределения контента. Без строки <code>@source "../../../node_modules/@orthacms";</code> вся админка рендерится <b>без стилей</b>, и ничто не падает.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>staticDir</code></h4>
+      <p class="small sub">Один процесс отдаёт и API, и админку с одного origin. В монорепозитории их разносит Vite; у деплоя dev-прокси нет, а сессионной куке identity с <code>SameSite=lax</code> нужен тот же origin.</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему <code>@source</code> обязан быть голым каталогом</span>
+    <p><code>@source</code> с глобом внутри всё равно проходит через правила игнорирования, среди которых <code>node_modules</code>. Шаблон вида <code>@orthacms/*/dist/**/*.js</code> не совпадёт ни с чем, и на выходе получится таблица стилей из одного блока темы — около 15 КБ, без утилит компонентов. Только буквальный путь к каталогу регистрируется как явный корень контента, обходящий эти правила. Тест проверяет и точную строку, и отсутствие звёздочки.</p>
+  </div>
+
+  <h3>Композиционный корень сервера</h3>
+  <p><code>apps/server/src/plugins.ts</code> — самый содержательный файл приложения. Его комментарий формулирует правило: <b>порядок массива — это порядок миграций</b>. Миграции применяются обходом массива, транзакция между плагинами не натягивается, поэтому плагин, чьи таблицы ссылаются на чужие, обязан идти позже. <code>WorkspacesPlugin</code> следует за <code>IdentityPlugin</code>, потому что его <code>memberships</code> ссылается на <code>users</code>: поставьте наоборот — и <b>свежая</b> миграция упадёт с <code>relation "users" does not exist</code>, а уже мигрированная база пройдёт как ни в чём не бывало. То есть ошибка уедет в релиз и укусит следующую чистую установку, а не автора.</p>
+  <p>Порядок при этом <b>не</b> решает вопросов внедрения зависимостей: модуль каждого плагина глобален, а все <code>onPluginInit</code> отрабатывают до создания приложения Nest.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>database → identity → workspaces → activity → users
+        → content → content-views [→ content-graphql]
+        → i18n → alarms → media → copilot [→ mcp]</code></pre></div>
+  <p>Первым идёт <code>DatabasePlugin</code> — единственный плагин, открывающий ресурс в <code>onPluginInit</code>. Последним, если выбран, — <code>McpPlugin</code>: он отдаёт наружу то, что вложили плагины выше.</p>
+
+  <h3>Композиционный корень админки</h3>
+  <p>В <code>apps/admin/src/plugins.ts</code> значимы ровно две позиции. <code>IdentityPlugin</code> первый — он приносит единственные <b>публичные</b> маршруты (вход и приём приглашения), которые обязаны рендериться вне закрытого layout. <code>ShellPlugin</code> второй — он единственный поставляет <code>layout</code>, а хост монтирует <b>первый найденный</b>; layout оболочки — это то, что композирует шлюз авторизации identity. Плагин, зарегистрировавший свой layout раньше, отрендерил бы все приватные маршруты <b>без охраны</b>, и баг авторизации выглядел бы как поломка вёрстки.</p>
+  <p>Остальное — порядок ради читаемости: слоты являются синглтонами уровня модуля и заполняются до первого рендера.</p>
+
+  <h3>Конфигурация: единственный читатель <code>process.env</code></h3>
+  <p><code>apps/server/ortha.config.ts</code> — единственное место, читающее окружение. Всё ниже по течению получает типизированные значения, поэтому у вопроса «откуда взялась эта настройка» ровно один ответ. Файл вводит три аккуратных считывателя:</p>
+  <ul>
+    <li><code>requireEnv(name)</code> — падает при загрузке, а не через несколько секунд после старта. Отсутствующий <code>DATABASE_URL</code>, разрешённый в <code>''</code>, дошёл бы до <code>pg</code> как «используй умолчания libpq», и первый запрос упал бы с сообщением, где не названа ни одна незаданная переменная.</li>
+    <li><code>readPositiveInt(name, fallback)</code> — намеренно <b>не</b> <code>Number(x) || fallback</code>, который неверен сразу в трёх направлениях и молчалив во всех: <code>0</code> ложен и подменяется умолчанием, отрицательное истинно и принимается (отрицательный TTL сессии выдаёт сессии уже просроченными), а <code>1e9</code> парсится.</li>
+    <li><code>readTrustProxy()</code> — число хопов (рекомендуемая форма, которую клиент не может подделать), булево или строка-пресет.</li>
+  </ul>
+  <p>Отдельно проверяется <code>NODE_ENV</code>: одно это сравнение управляет двумя защитами сразу — публикуется ли справочник API и несёт ли сессионная кука флаг <code>Secure</code>, — поэтому опечатка молча выключила бы обе и была бы неотличима от корректной настройки. Значение вне списка <code>development / test / production</code> валит старт.</p>
+
+  <h3>Тесты, которые едут вместе с приложением</h3>
+  <p>Стартовый набор, который нельзя протестировать, учит людей не тестировать. Поэтому в приложении четыре набора и <b>два</b> раннера — честный ответ, а не компромисс: у каждой половины свой тулчейн, и ни одна трансформация не обслуживает обе.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Набор</th><th>Раннер</th><th>Почему именно он</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">apps/server/**/*.spec.ts</td><td>Jest + <code>@swc/jest</code></td><td>DI в NestJS читает <code>emitDecoratorMetadata</code>; esbuild-трансформация Vitest его не эмитит, и провайдеры разрешаются в <code>undefined</code> без единой ошибки, называющей причину</td></tr>
+      <tr><td class="mono">apps/admin/src/**/*.spec.{ts,tsx}</td><td>Vitest + jsdom, конфигурация внутри <code>vite.config.mts</code></td><td>Это Vite-приложение; общая конфигурация — единственный способ, которым тесты и приложение одинаково разрешают модули</td></tr>
+      <tr><td class="mono">apps/server-e2e</td><td>Jest + supertest, настоящий Postgres</td><td>Поднимает <b>это</b> приложение через <code>createServer</code>: стенд, повторяющий бутстрап, не может упасть на дефекте бутстрапа</td></tr>
+      <tr><td class="mono">apps/admin-e2e</td><td>Playwright, dev-сервер Vite, <code>/api</code> замокан</td><td>Гоняет интерфейс без бэкенда: быстро, герметично, и падение означает, что неправ интерфейс</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Поставляемые спеки проверяют то, что ломается тихо, — <b>списки плагинов и их порядок</b>. Они feature-aware: ожидаемый серверный список сам несёт <code>ortha:if</code>-блоки для <code>content-graphql</code> и <code>mcp</code>, поэтому остаётся верным при любом ответе мастера.</p>
+
+  <details>
+    <summary>База данных серверного e2e — четыре вещи, которые дались не с первого раза</summary>
+    <p>Набор управляет своей базой: <code>&lt;database&gt;_e2e</code> создаётся и мигрируется на первом запуске через <code>applyPluginMigrations</code> — ту же функцию, которую вызывает <code>ortha migrate</code>, поэтому под тестом настоящая схема, а не её ручная копия.</p>
+    <ul>
+      <li><b>Вывод имени идемпотентен.</b> <code>global-setup</code> выполняется в главном процессе Jest и переставляет <code>DATABASE_URL</code>; воркеры форкаются от него и наследуют значение — наивное дописывание суффикса дало бы в воркере <code>app_e2e_e2e</code>, и все тесты упали бы против базы, которую никто не создавал.</li>
+      <li><b><code>global-setup</code> импортирует конфигурацию динамически.</b> Статический импорт всплывает выше любого оператора, то есть выполнился бы до загрузки <code>.env</code> и до переадресации URL — и набор упал бы на переменной, лежащей в файле двумя строками ниже.</li>
+      <li><b><code>transformIgnorePatterns</code> разыгнорирует <code>@scalar</code>.</b> <code>createServer</code> тянет рендерер справочника API, опубликованный только как ESM, а Jest — CommonJS: без этого запуск умирает на <code>Unexpected token 'export'</code> в файле, которого никто в приложении не писал.</li>
+      <li><b><code>assertDisposable</code> отказывается от базы разработки.</b> Набор делает <code>TRUNCATE</code> каждой таблицы, а <code>E2E_DATABASE_URL</code> можно выставить куда угодно. Проверка идёт <em>до</em> первого <code>TRUNCATE</code>.</li>
+    </ul>
+    <p>Ещё три детали: <code>jest.setup.js</code> подставляет плейсхолдеры, потому что спеки импортируют <code>ortha.config.ts</code>, который намеренно отказывается загружаться без <code>DATABASE_URL</code> (ничего при этом не соединяется — список плагинов есть чистая функция конфигурации, так что <code>npm test</code> работает в CI без <code>.env</code>); <code>apps/server/tsconfig.json</code> исключает <code>**/*.spec.ts</code>, иначе <code>ortha build</code> компилирует тесты в <code>dist/server</code> и поставляет их; конфигурация Vite названа <code>.mts</code>, потому что приложение объявлено <code>"type": "commonjs"</code>, и Vite ругается на ESM-синтаксис в CJS-конфигурации. И серверные e2e-спеки читают <code>ALLOWED_ORIGIN</code> из конфигурации, потому что вход защищён списком разрешённых origin, следующим за <code>ADMIN_PORT</code>: жёстко зашитый <code>:4200</code> упал бы на любом приложении с другим портом админки — как невнятный <code>403</code>, а не как «не тот origin».</p>
+  </details>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">06</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>6.1 Создать приложение</h3>
+  <ol class="flow">
+    <li><b>Запуск.</b> <code>npx create-ortha-app my-cms</code>. Целевой путь — первый позиционный аргумент, иначе текущий каталог. Печатается рамка с путём.<span class="meta">длинный путь обрезается с начала: хвост — то, что его опознаёт</span></li>
+    <li><b>Проверка каталога.</b> <code>isNonEmptyDirectory(target)</code> — существующий непустой каталог означает отказ с текстом, что делать. Скаффолдер никогда не пишет поверх чужих файлов.</li>
+    <li><b>Разрешение ответов.</b> Есть TTY и нет <code>--yes</code> — задаются три текстовых вопроса и четыре пикера. Иначе берутся умолчания, переопределённые флагами. Заблокированные id (<code>rest</code>) добавляются к любому ответу.</li>
+    <li><b>Генерация пароля администратора.</b> <code>randomBytes(12).toString('base64url')</code>. В приглашении он не спрашивается никогда.</li>
+    <li><b>Итоговая рамка.</b> Имя, база, хранилище, протоколы, копайлот, вход, число пакетов <code>@orthacms</code>. Пустой мультивыбор печатается приглушённым <code>none</code> / <code>no backend</code> — то есть отсутствие выбора показано, а не скрыто.</li>
+    <li><b>Рендер шаблона.</b> <code>renderTemplate(templates/default, target, values)</code>: обход всех файлов, применение <code>ortha:if</code>, подстановка <code>__PLACEHOLDER__</code>, переименования. Манифест идёт другим путём — через <code>renderManifest</code>.<span class="meta">файлы вне списка текстовых расширений копируются побайтово: прогон фавикона через строковую замену испортил бы его так, что видно только в браузере</span></li>
+    <li><b><code>git init --quiet</code></b>, если каталог <code>.git</code> ещё не существует и не передан <code>--no-git</code>.</li>
+    <li><b><code>npm install --no-audit --no-fund</code></b>, если не передан <code>--no-install</code>. Провал установки не притворяется успехом: печатается ошибка и выставляется <code>process.exitCode = 1</code>, но файлы остаются на месте — доустановить можно руками.</li>
+    <li><b>Рамка с учётной записью</b> — email, пароль и напоминание, что он записан в <code>.env</code>.</li>
+    <li><b>Следующие шаги:</b> <code>cd my-cms</code>, <code>docker compose up -d</code>, <code>npm run migrate</code>, <code>npm run dev</code>.</li>
+  </ol>
+
+  <h4>Что именно делает рендер с каждым файлом</h4>
+  <ol class="flow">
+    <li><b>Условные блоки.</b> <code>applyConditionals(raw, flags, file)</code>: строки-маркеры удаляются всегда, тело остаётся только если условие выполняется. Блоки вкладываются, и внутренний блок внутри выброшенного остаётся выброшенным.</li>
+    <li><b>Схлопывание пустых строк.</b> Снятый блок почти всегда оставляет за собой пустую строку рядом с той, что шла после. Без <code>collapseBlankRuns</code> каждый сгенерированный файл нёс бы шрам на месте выключенной возможности — а это первое, что человек открывает.</li>
+    <li><b>Подстановка.</b> Семь токенов: <code>__APP_NAME__</code>, <code>__APP_TITLE__</code>, <code>__DATABASE_URL__</code>, <code>__DATABASE_NAME__</code>, <code>__ADMIN_EMAIL__</code>, <code>__ADMIN_PASSWORD__</code>, <code>__ORTHA_VERSION__</code>. Заменяются <b>все</b> вхождения, не первое.</li>
+    <li><b>Переименования.</b> <code>_gitignore → .gitignore</code>, <code>env.tmpl → .env</code>, <code>package.json.tmpl → package.json</code>, <code>README.md.tmpl → README.md</code>.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Два переименования, за каждым — молчаливый провал</span>
+    <p><b><code>_gitignore</code>.</b> npm <em>молча</em> отказывается публиковать файл с именем <code>.gitignore</code>. Шаблон, несущий такой файл, уезжает в тарболл без него, и каждое сгенерированное приложение начинается с предложения закоммитить <code>node_modules</code>. При этом в тарболле ничто не выглядит неправильным. Тот же обходной приём применяют create-vite и create-next-app.</p>
+    <p><b><code>*.tmpl</code>.</b> Держит <code>package.json</code> вне глобов <code>workspaces</code> корневого манифеста, которые иначе прочли бы каталог шаблона как отдельный пакет.</p>
+  </div>
+
+  <h3>6.2 Первый запуск</h3>
+  <ol class="flow">
+    <li><b>Поднять Postgres.</b> <code>docker compose up -d</code> — образ <code>postgres:17-alpine</code>, пользователь и пароль <code>ortha</code>, имя базы взято из введённого URL, healthcheck через <code>pg_isready</code>, том <code>postgres-data</code>.</li>
+    <li><b>Применить миграции.</b> <code>npm run migrate</code> → <code>ortha migrate</code>: обход массива плагинов, у каждого своя таблица учёта миграций. На этом шаге и проявился бы неправильный порядок плагинов.</li>
+    <li><b>Запустить.</b> <code>npm run dev</code>: watch-компиляция сервера, <code>node --watch</code> и dev-сервер Vite. Админка на <code>:4200</code>, API на <code>:3000</code>, <code>/api</code> проксируется на API — браузер видит один origin, и сессионная кука первосторонняя без CORS.<span class="meta">ключ прокси — регулярное выражение ^/api/, а не строка: строковый префикс проглотил бы и SPA-маршрут /api-tokens</span></li>
+    <li><b>Войти.</b> Email и пароль из <code>.env</code>. Учётная запись поднимается на старте идемпотентно и недеструктивно — существующий аккаунт не трогается. README советует очистить обе переменные, как только вход получен.</li>
+    <li><b>Что видно сразу.</b> Дашборд, контент-библиотека с пустым реестром типов, медиатека, воркспейсы, участники, журнал действий, API-токены, алармы. Чата нет — <code>COPILOT_ENABLED=false</code> снимает регистрацию маршрутов, и поверхности отсутствуют, а не отказывают.</li>
+    <li><b>Справочник API.</b> <code>http://localhost:3000/reference</code> — включён вне production по умолчанию.</li>
+  </ol>
+
+  <h4>Добавить свои типы контента</h4>
+  <ol class="flow">
+    <li>Описать типы и экспортировать массив <code>contentTypes</code>.</li>
+    <li>Передать их в <code>ContentPlugin({ types: contentTypes, migrations: … })</code> — точная форма дескриптора лежит комментарием в самом <code>plugins.ts</code>.</li>
+    <li>Добавить <code>drizzle.config.ts</code>, указывающий <code>schema</code> на файл типов и <code>out</code> на каталог миграций.</li>
+    <li><code>npm run generate -- --name=add_content_types &amp;&amp; npm run migrate</code>.</li>
+  </ol>
+
+  <h3>6.3 Добавить новый пакет в монорепозиторий и провести его через features.ts</h3>
+  <p class="sub small">Это тот сценарий, ради которого существует защита из раздела 4. Он всегда начинается с падающего теста.</p>
+  <ol class="flow">
+    <li><b>Пакет создан</b> в <code>packages/&lt;группа&gt;/&lt;имя&gt;</code> с манифестом <code>@orthacms/&lt;группа&gt;-&lt;имя&gt;</code> и без <code>"private": true</code>.</li>
+    <li><b><code>npx nx test create-ortha-app</code> падает.</b> Один именной кейс: <code>@orthacms/&lt;имя&gt; is classified</code>. В комментарии рядом написано, что делать.<span class="meta">пакет с "private": true перечислением не подхватывается — приватность есть тоже решение, просто уже принятое</span></li>
+    <li><b>Принять решение.</b> Три возможных ответа, и правильный ровно один: получает ли <em>каждое</em> новое приложение этот пакет; ставится ли он вместе с какой-то возможностью; или это внутренняя деталь другого пакета, которую объявлять не нужно.</li>
+    <li><b>Ядро.</b> Добавить имя в <code>CORE_PACKAGES</code>, соблюдая алфавит. Если у пакета есть плагин, который надо зарегистрировать, — дописать его в <code>templates/default/apps/server/src/plugins.ts</code> или <code>apps/admin/src/plugins.ts</code> <b>и в ожидаемый список в соответствующем <code>plugins.spec.ts</code></b>, иначе тесты сгенерированного приложения перестанут проходить.</li>
+    <li><b>Возможность.</b> Добавить объект <code>Feature</code> в нужную группу — <code>id</code>, <code>label</code>, <code>hint</code>, <code>packages</code>, <code>enabledByDefault</code>, <code>available</code>. Новая группа означает ещё и вопрос в <code>resolveAnswers()</code>, флаг в <code>USAGE</code> и строку в <code>describeSelection()</code>.</li>
+    <li><b>Обвязать шаблон.</b> Импорт и регистрация — под <code>ortha:if &lt;id&gt;</code>; переменные окружения — под тем же маркером в <code>env.tmpl</code>; типы и чтение окружения — в <code>ortha.config.ts</code>; раздел в <code>README.md.tmpl</code> под HTML-комментарием <code>&lt;!-- ortha:if &lt;id&gt; --&gt;</code>.</li>
+    <li><b>Транзитивный.</b> Добавить в <code>TRANSITIVE_PACKAGES</code> и написать в докблоке, <em>почему</em> приложению незачем его импортировать. Забыть вовсе защита не позволит; положить сюда — позволит.</li>
+    <li><b>Обновить зафиксированный список.</b> Тест «leaves exactly the choosable packages out of a default app» перечисляет исключения дословно; новый опциональный пакет надо в него дописать. Это не формальность: список — письменный ответ на вопрос «что мне стоит ничего не выбирать».</li>
+    <li><b>Прогнать тесты.</b> <code>npx nx test create-ortha-app</code> — покрытие пакетов, процессор условных блоков и сгенерированный вывод для нескольких комбинаций.</li>
+  </ol>
+
+  <h3>6.4 Как устроены условные блоки</h3>
+  <p>Один шаблон обслуживает все комбинации через три директивы — <code>ortha:if</code>, <code>ortha:ifnot</code>, <code>ortha:end</code> — в любом синтаксисе комментариев, поэтому одно и то же работает в TypeScript, YAML, <code>.env</code>, CSS, HTML и Markdown.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// ortha:if copilot-anthropic
+import { createAnthropicProvider } from '@orthacms/copilot-provider-anthropic';
+// ortha:end
+
+# ortha:ifnot graphql
+# (Только REST — GraphQL-эндпоинт не смонтирован.)
+# ortha:end
+
+&lt;!-- ortha:if mcp --&gt;
+### MCP
+&lt;!-- ortha:end --&gt;</code></pre></div>
+  <p>Механизм намеренно построчный, а не выразительный язык: шаблоны читают куда чаще, чем пишут, и открывающий <code>plugins.ts</code> должен увидеть настоящий файл с несколькими комментариями, а не диалект шаблонизатора. Любое нужное здесь условие — это «включена ли эта возможность».</p>
+  <div class="note crit">
+    <span class="label">Незакрытый блок бросает исключение</span>
+    <p>И это единственно верное поведение. Пропущенный <code>ortha:end</code> в <code>plugins.ts</code> молча съел бы остаток файла — то есть все плагины ниже, — и приложение <b>загрузилось бы без API</b> вместо того, чтобы не собраться. Симметрично: <code>ortha:end</code> без открывающего блока тоже бросает.</p>
+  </div>
+</section>
+
+<section id="lockstep">
+  <h2 class="sec"><span class="num">07</span>Lockstep-версионирование и релиз</h2>
+
+  <h3>Механизм в одном абзаце</h3>
+  <p>Скаффолдер читает свою версию из собственного манифеста (<code>ownVersion()</code>) и подставляет её в каждую <code>@orthacms/*</code> зависимость сгенерированного приложения. Поскольку релиз lockstep, его версия <b>и есть</b> совместимый набор. Отсюда <code>npx create-ortha-app@0.4.0</code> генерирует приложение 0.4.0.</p>
+
+  <h3>Три свойства, которые из этого следуют</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Точный пин, без каретки</h4>
+      <p class="small sub"><code>"@orthacms/content-server": "0.4.2"</code>, а не <code>"^0.4.2"</code>. Частичное обновление может оставить в <code>node_modules</code> две копии общего пакета: два экземпляра React-контекста, и сайдбар админки молча перестаёт разговаривать со своим провайдером.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Воспроизводимость</h4>
+      <p class="small sub">Чтение версии из манифеста, а не разрешение <code>latest</code> из реестра, — это то, что делает старую версию скаффолдера воспроизводимой. Иначе <code>@0.3.0</code> генерировал бы приложение из сегодняшних пакетов.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Релиз не трогает шаблон</h4>
+      <p class="small sub">Списка версий нет ни в одном файле шаблона, поэтому отставать нечему. Единственное, что требует правки при релизе, — ничего.</p>
+    </div>
+  </div>
+
+  <h3>Как манифест собирается на самом деле</h3>
+  <p><code>renderManifest()</code> <b>пересобирает</b> карту зависимостей, а не патчит её: шаблон везёт манифест с не-Ortha зависимостями и пустым набором <code>@orthacms</code>, выбранные пакеты вливаются и вся карта пересортировывается.</p>
+  <ol class="flow">
+    <li>Подстановка плейсхолдеров в текст, затем <code>JSON.parse</code>.</li>
+    <li><code>dependencies</code> = существующие + <code>pin(resolvePackages(selection))</code>, отсортированные.</li>
+    <li><code>devDependencies</code> = существующие + <code>pin(resolveDevPackages())</code>, отсортированные.</li>
+    <li><code>JSON.stringify(manifest, null, 4)</code> плюс перевод строки.</li>
+  </ol>
+
+  <h3>Что делает <code>pack.mjs</code></h3>
+  <p>Тарболл пакета — это не его закоммиченный манифест. Рабочая область резолвит пакеты из исходников, а потребитель так не может, поэтому <code>build</code> компилирует, а <code>pack</code> раскладывает в <code>dist/pack/</code> переписанный манифест. Для скаффолдера здесь два специфических шага:</p>
+  <ul>
+    <li><b>Каталог <code>templates/</code> копируется дословно</b> и добавляется в <code>files</code> — тем же способом, каким пакуются каталоги <code>migrations/</code> у плагинов. Это данные, а не исходник, и компилировать там нечего.</li>
+    <li><b><code>bin</code> перенаправляется</b> с исходного <code>./src/cli.ts</code> на скомпилированный файл. <code>bin</code>, указывающий на файл, которого сборка не выпустила, — худший вид поломки: он проявляется только у пользователя.</li>
+  </ul>
+
+  <h3>Релиз</h3>
+  <p><code>npm run release</code> из чистой копии <code>main</code>: версионирование по conventional commits, тег <code>v{version}</code>, публикация и GitHub Release. Публикации <b>дросселируются и переповторяются</b> — npm лимитирует запись в аккаунт, а за один прогон уезжает несколько десятков тарболлов, поэтому они сериализуются с паузой, и <code>429</code> отступает, а не валит релиз.</p>
+  <p>Для сгенерированного приложения обновление — это одновременный подъём всех <code>@orthacms/*</code> до одной версии. README говорит это прямо, и по той же причине: частичное обновление вкладывает вторую копию общего пакета.</p>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">08</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Каждый публикуемый пакет <code>@orthacms/*</code> из <code>packages/</code> классифицирован в <code>features.ts</code> <b>ровно один раз</b>: ядро, dev-ядро, пакеты возможности или транзитивный. Непроклассифицированный пакет валит тест.</span></li>
+    <li><span class="id">И-02</span><span>В классификации нет имён, которых нет на диске (единственное допущенное исключение — <code>@orthacms/cli</code>).</span></li>
+    <li><span class="id">И-03</span><span>Каждая <code>@orthacms/*</code> зависимость сгенерированного приложения пинуется <b>точной</b> версией скаффолдера — без каретки, без диапазона, без <code>latest</code>.</span></li>
+    <li><span class="id">И-04</span><span>Ни в одном файле <code>features.ts</code> и ни в одном файле шаблона нет захардкоженного номера версии.</span></li>
+    <li><span class="id">И-05</span><span>В отрендеренном приложении не остаётся ни одного токена <code>__PLACEHOLDER__</code> и ни одной директивы <code>ortha:if|ifnot|end</code>.</span></li>
+    <li><span class="id">И-06</span><span>Файл <code>package.json</code> никогда не проходит через условные блоки: его набор зависимостей собирается кодом.</span></li>
+    <li><span class="id">И-07</span><span>Незакрытый <code>ortha:if</code> и <code>ortha:end</code> без пары <b>бросают исключение</b> с именем файла, а не отдают усечённый файл.</span></li>
+    <li><span class="id">И-08</span><span>Вложенный блок внутри выброшенного остаётся выброшенным, что бы ни говорило его собственное условие.</span></li>
+    <li><span class="id">И-09</span><span>Строки-маркеры удаляются всегда — и когда блок сохранён, и когда выброшен.</span></li>
+    <li><span class="id">И-10</span><span>REST невозможно выключить: <code>lockedOf(PROTOCOLS)</code> добавляется к любому ответу, включая <code>--protocols none</code>; курсор пикера не встаёт на заблокированную строку, и пробел её не переключает.</span></li>
+    <li><span class="id">И-11</span><span>Ровно один адаптер хранилища установлен и ровно один сконструирован в <code>MediaServerPlugin</code>; ровно один тип назначен полю <code>plugins.media.storage</code>.</span></li>
+    <li><span class="id">И-12</span><span>Ровно один адаптер хранилища помечен <code>enabledByDefault && available</code>.</span></li>
+    <li><span class="id">И-13</span><span>Каждая опциональная возможность (бэкенды копайлота, все SSO, незаблокированные протоколы) стартует <b>выключенной</b>.</span></li>
+    <li><span class="id">И-14</span><span><code>copilot-server</code> и <code>copilot-admin</code> присутствуют в любом приложении, а <code>copilot-provider-fake</code> — <b>ни в одном</b>: это приватная фикстура, не публикуемый пакет.</span></li>
+    <li><span class="id">И-15</span><span><code>COPILOT_ENABLED=false</code> и <code>MCP_ENABLED=false</code> пишутся в <code>.env</code> всегда, независимо от выбранного.</span></li>
+    <li><span class="id">И-16</span><span>Бэкенд копайлота и SSO-провайдер регистрируются <b>только если их настройки присутствуют</b>: пустой ключ означает отсутствие пункта в списке, а не пункт, падающий на первом сообщении.</span></li>
+    <li><span class="id">И-17</span><span>В сгенерированном <code>.env</code> нет ни <code>SESSION_SECRET</code>, ни <code>TOKEN_SECRET</code>: сессии и одноразовые токены — непрозрачные случайные значения, проверяемые по строке БД, подписывать нечем.</span></li>
+    <li><span class="id">И-18</span><span>Пароль администратора генерируется, а не спрашивается, и существует ровно в двух местах: в <code>.env</code> (который в <code>.gitignore</code>) и в одной печатной строке.</span></li>
+    <li><span class="id">И-19</span><span>Существующий непустой каталог не перезаписывается никогда — отказ до первой записи.</span></li>
+    <li><span class="id">И-20</span><span>Скаффолдер не блокируется на приглашении: отсутствие TTY или <code>--yes</code> означает умолчания, и у каждого вопроса есть флаг.</span></li>
+    <li><span class="id">И-21</span><span>stdin возвращается из raw mode в исходное состояние при любом исходе — ответ, отмена, исключение.</span></li>
+    <li><span class="id">И-22</span><span><code>_gitignore</code> приезжает как <code>.gitignore</code>, и ни один файл <code>*.tmpl</code> не остаётся в сгенерированном приложении.</span></li>
+    <li><span class="id">И-23</span><span>Корневой <code>tsconfig.json</code> ссылается ровно на четыре проекта, в порядке <code>server</code>, <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>.</span></li>
+    <li><span class="id">И-24</span><span><code>apps/server/tsconfig.json</code> исключает <code>**/*.spec.ts</code>, иначе тесты уезжают в <code>dist/server</code>.</span></li>
+    <li><span class="id">И-25</span><span>В <code>styles.css</code> присутствует точная строка <code>@source "../../../node_modules/@orthacms";</code> и <b>отсутствует</b> любой <code>@source</code> с глобом внутри пути <code>node_modules</code>.</span></li>
+    <li><span class="id">И-26</span><span>Конфигурация Vite названа <code>vite.config.mts</code>, а не <code>.ts</code>.</span></li>
+    <li><span class="id">И-27</span><span><code>DatabasePlugin</code> первый в серверном списке; <code>identity</code> предшествует <code>workspaces</code> среди мигрирующих плагинов; <code>McpPlugin</code>, если есть, последний.</span></li>
+    <li><span class="id">И-28</span><span>В админке ровно один плагин поставляет <code>layout</code>, и это <code>shell</code>; <code>identity</code> стоит первым.</span></li>
+    <li><span class="id">И-29</span><span>Список ожидаемых плагинов в <code>plugins.spec.ts</code> сгенерированного приложения совпадает с фактическим для <b>любой</b> комбинации возможностей.</span></li>
+    <li><span class="id">И-30</span><span>Файл шаблона, не подпадающий под список текстовых расширений, копируется побайтово, без подстановок.</span></li>
+    <li><span class="id">И-31</span><span>Каталог <code>templates/</code> исключён из инференса Nx, сборки TypeScript, линта и форматирования — во всех четырёх местах одновременно.</span></li>
+    <li><span class="id">И-32</span><span>Рантайм-зависимостей у пакета ноль.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">09</span>Чек-лист тестирования</h2>
+  <p>Скаффолдер тестируется в двух слоях: юнит-тесты пакета (пять спек-файлов — покрытие классификации, процессор условных блоков, рендер шаблона, терминальный интерфейс, валидаторы) и ручной сквозной прогон, который пока не автоматизирован.</p>
+
+  <h3>9.1 Классификация и покрытие</h3>
+  <ul class="check">
+    <li><b>Добавить в <code>packages/</code> фиктивный публикуемый пакет</b> → <span class="exp">тест падает именным кейсом с именем этого пакета, а не общим «список не совпал».</span></li>
+    <li><b>Пометить его <code>"private": true</code></b> → <span class="exp">тест зелёный: приватность есть уже принятое решение.</span></li>
+    <li><b>Положить пакет в две корзины сразу</b> → <span class="exp">падает проверка на дубликаты.</span></li>
+    <li><b>Вписать имя, которого нет на диске</b> → <span class="exp">падает проверка «classifies nothing that does not exist».</span></li>
+    <li><b>Добавить опциональный пакет, не обновив зафиксированный список исключений</b> → <span class="exp">падает «leaves exactly the choosable packages out of a default app».</span></li>
+  </ul>
+
+  <h3>9.2 Мастер и флаги</h3>
+  <ul class="check">
+    <li><b><code>--protocols none</code></b> → <span class="exp">REST всё равно в наборе; ни <code>content-graphql</code>, ни <code>mcp-server</code> не установлены.</span></li>
+    <li><b><code>--copilot none</code></b> → <span class="exp">копайлот установлен и зарегистрирован, ни одного провайдера не установлено, <code>COPILOT_ENABLED=false</code>.</span></li>
+    <li><b><code>--copilot copilot-anthropic,copilot-openai</code></b> → <span class="exp">оба пакета в манифесте, обе ветки в <code>copilotProviders()</code>, оба блока ключей в <code>.env</code>.</span></li>
+    <li><b><code>--media media-s3</code></b> → <span class="exp">установлен только S3-адаптер; в <code>plugins.ts</code> один <code>createS3StorageProvider</code>; в <code>ortha.config.ts</code> тип <code>S3StorageConfig</code>; в <code>.env</code> только <code>MEDIA_S3_*</code>.</span></li>
+    <li><b>Несуществующий id во флаге</b> → <span class="exp">поведение задокументировать: сегодня id просто не совпадает ни с одной возможностью и молча игнорируется.</span></li>
+    <li><b>Запуск без TTY (<code>| cat</code>)</b> → <span class="exp">ни одного приглашения, умолчания, нулевой код возврата.</span></li>
+    <li><b>Ctrl-C посреди пикера</b> → <span class="exp">терминал сохраняет эхо; повторный <code>echo test</code> печатается нормально.</span></li>
+    <li><b>Escape в мультиселекте</b> → <span class="exp">берутся значения по умолчанию группы, а не пустой выбор.</span></li>
+    <li><b>Пробел на строке REST и на недоступной строке</b> → <span class="exp">состояние не меняется; курсор на них не встаёт.</span></li>
+    <li><b><code>NO_COLOR=1</code> и <code>TERM=dumb</code></b> → <span class="exp">ни одной ANSI-последовательности в выводе, рамки не разъезжаются.</span></li>
+    <li><b>Очень длинный целевой путь</b> → <span class="exp">обрезается с начала, рамка держит ширину.</span></li>
+  </ul>
+
+  <h3>9.3 Валидация ввода</h3>
+  <ul class="check">
+    <li><b>Имя приложения <code>My CMS</code>, <code>_x</code>, <code>.x</code>, строка длиннее 214 символов</b> → <span class="exp">каждое отвергается со своим текстом, вопрос задаётся заново.</span></li>
+    <li><b>URL <code>mysql://…</code>, <code>не-URL</code>, <code>postgresql://host:5432</code> без имени базы</b> → <span class="exp">три разных сообщения; ни одно не пропускается.</span></li>
+    <li><b>Имя базы из URL</b> → <span class="exp">попадает и в <code>DATABASE_URL</code>, и в <code>POSTGRES_DB</code> в <code>docker-compose.yml</code> — одно и то же значение.</span></li>
+  </ul>
+
+  <h3>9.4 Целостность сгенерированного приложения</h3>
+  <ul class="check">
+    <li><b>Grep по <code>__[A-Z_]+__</code> и по <code>ortha:</code> во всех файлах</b> → <span class="exp">ноль совпадений при любой комбинации возможностей.</span></li>
+    <li><b><code>.gitignore</code> существует, <code>_gitignore</code> — нет, ни одного <code>*.tmpl</code></b> → <span class="exp">и в первом строка <code>node_modules</code>.</span></li>
+    <li><b><code>JSON.parse</code> сгенерированного <code>package.json</code></b> → <span class="exp">валиден при любой комбинации; ключи зависимостей отсортированы; ни одной каретки в <code>@orthacms/*</code>.</span></li>
+    <li><b>Нет пробелов-шрамов</b> → <span class="exp">в файлах, где сняли блоки, нет тройных пустых строк.</span></li>
+    <li><b><code>npm install</code> в сгенерированном каталоге</b> → <span class="exp">проходит; в <code>node_modules</code> одна копия <code>@orthacms/design-system</code>.</span></li>
+    <li><b><code>npm run typecheck</code></b> → <span class="exp">оба проекта чисты при каждой комбинации, включая обе крайние (ничего опционального / всё опциональное).</span></li>
+    <li><b><code>npm test</code></b> → <span class="exp">обе половины зелёные без <code>.env</code>; см. расхождение Р-07 в разделе 11.</span></li>
+    <li><b><code>npm run migrate</code> на чистой базе</b> → <span class="exp">проходит; повторный запуск идемпотентен.</span></li>
+    <li><b><code>npm run build &amp;&amp; npm start</code></b> → <span class="exp">один процесс отдаёт API и админку; <code>dist/server</code> не содержит скомпилированных <code>*.spec.js</code>.</span></li>
+    <li><b>Админка в браузере после <code>npm start</code></b> → <span class="exp">стили на месте (проверка <code>@source</code>): размер CSS заметно больше ~15 КБ, у компонентов есть утилитарные классы.</span></li>
+    <li><b><code>GET /api/v1/graphql</code> и <code>POST /api/v1/mcp</code> в приложении по умолчанию</b> → <span class="exp">честный <code>404</code>, а не ошибка разрешения модуля.</span></li>
+    <li><b>Вход по учётным данным из <code>.env</code></b> → <span class="exp">удаётся с первого раза; после очистки обеих переменных существующая учётка продолжает работать.</span></li>
+  </ul>
+
+  <h3>9.5 Упаковка и релиз</h3>
+  <ul class="check">
+    <li><b><code>npm pack</code> и распаковка тарболла</b> → <span class="exp">каталог <code>templates/</code> внутри целиком, включая <code>_gitignore</code>; <code>bin</code> указывает на существующий скомпилированный файл.</span></li>
+    <li><b>Установка с локального реестра и генерация из неё</b> → <span class="exp">версия в зависимостях сгенерированного приложения совпадает с версией установленного скаффолдера.</span></li>
+    <li><b>Старая версия: <code>npx create-ortha-app@&lt;прошлая&gt;</code></b> → <span class="exp">приложение той версии, а не сегодняшней.</span></li>
+    <li><b><code>npx nx graph</code> после любых правок в <code>templates/</code></b> → <span class="exp">граф строится; если каталог случайно стал видимым для инференса, ломается вся команда <code>nx</code>.</span></li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Что пока не автоматизировано</span>
+    <p>Сквозной путь целиком — опубликовать в локальный реестр, сгенерировать, установить, мигрировать, собрать, поднять — <b>не автоматизирован</b>. Прогон описан вручную в PR, вводившем пакет. Пункты 9.4 (последние шесть) и 9.5 сегодня выполняются руками.</p>
+  </div>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">10</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает скаффолдер</th></tr></thead>
+    <tbody>
+      <tr><td>Сборка, запуск, миграции сгенерированного приложения</td><td><code>@orthacms/cli</code></td><td>Вписывает шесть скриптов и <code>@orthacms/cli</code> в <code>devDependencies</code>; раскладку файлов держит совместимой с <code>LAYOUT</code></td></tr>
+      <tr><td>Миграционные и релизные таргеты монорепозитория</td><td><code>@orthacms/nx</code></td><td>Ничего; пакет в приложение не попадает вовсе</td></tr>
+      <tr><td>Номера версий и публикация</td><td>Nx Release + <code>tools/release/*</code></td><td>Только <b>читает</b> свою версию и штампует её в зависимости</td></tr>
+      <tr><td>Содержимое админки, API и правила доступа</td><td>плагины <code>@orthacms/*</code></td><td>Только композирует: список плагинов и их порядок</td></tr>
+      <tr><td>Типы контента</td><td>владелец приложения</td><td>Не поставляет ни одного; оставляет комментарий с точной формой дескриптора миграций</td></tr>
+      <tr><td>Значения секретов и ключей</td><td>оператор</td><td>Пишет пустые ключи с комментариями; единственное сгенерированное значение — пароль первого администратора</td></tr>
+      <tr><td>Установка зависимостей</td><td>npm</td><td>Запускает <code>npm install</code> и честно сообщает о провале, оставляя файлы на месте</td></tr>
+      <tr><td>Обновление уже созданного приложения</td><td>владелец приложения</td><td>Ничего: пакет одноразовый и в зависимости приложения не попадает</td></tr>
+      <tr><td>Регистрация SSO-адаптеров кроме OIDC</td><td>владелец приложения</td><td>Только устанавливает пакет — см. Р-06</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего нет намеренно</h3>
+  <ul>
+    <li><b>Второго шаблона.</b> Ни «блога», ни «магазина»: демонстрационный контент пришлось бы вычищать, а раскладка у всех вариантов была бы одна.</li>
+    <li><b>Вопросов про локали, роли, лимиты и почту.</b> Это либо продуктовые константы в <code>ortha.config.ts</code>, либо решения внутри уже работающей админки.</li>
+    <li><b>Оффлайн-заглушки копайлота.</b> Установка без ключей должна не иметь копайлота, а не иметь копайлот, отвечающий заготовленной фразой.</li>
+    <li><b>Хранилища в памяти среди вариантов.</b> Приложение, теряющее загрузки при перезапуске, — не то, что стоит предлагать.</li>
+    <li><b>Выбора «нужен ли копайлот».</b> Его серверная половина приезжает транзитивно в любом случае; вопрос был бы иллюзией.</li>
+    <li><b>Автоматизированного сквозного прогона.</b> Признано и записано, а не забыто.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">11</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе это не баги продукта — кроме Р-07, — но они дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>№</th><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">Р-01</td>
+        <td class="mono">AGENTS.md (корневой и пакета)</td>
+        <td>«Мастер задаёт <b>три</b> вопроса»; корневой перечисляет их как «адаптер хранилища, хостируемые бэкенды копайлота, протоколы контент-API»</td>
+        <td>Групп в <code>features.ts</code> <b>четыре</b>: <code>MEDIA_PROVIDERS</code>, <code>COPILOT_PROVIDERS</code>, <code>SSO_PROVIDERS</code>, <code>PROTOCOLS</code>. <code>resolveAnswers()</code> задаёт четыре пикера подряд, <code>USAGE</code> содержит флаг <code>--sso</code>, <code>describeSelection()</code> печатает строку «Sign-in», а докблок <code>readKeys</code> в <code>ui.ts</code> прямо говорит «мастер задаёт четыре таких подряд». <b>Вопрос про SSO не описан ни в одном AGENTS.md</b></td>
+      </tr>
+      <tr>
+        <td class="mono">Р-02</td>
+        <td class="mono">create-ortha-app/AGENTS.md, «Feature selection»</td>
+        <td>«S3 указан в реестре и помечен <code>available: false</code>, потому что пакет никогда не выпускался»; «вопрос о хранилище пропускается, пока доступен только один адаптер»; «он появится в момент выхода S3»</td>
+        <td>Все пять адаптеров помечены <code>available: true</code>, и в <code>features.spec.ts</code> есть тест <b>«offers the S3 adapter, now that it is implemented»</b>. Условие <code>selectable.length &gt; 1</code> выполняется, значит вопрос <b>задаётся</b>. Абзац описывает прошлое состояние</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-03</td>
+        <td class="mono">create-ortha-app/AGENTS.md, таблица корзин</td>
+        <td>«<code>TRANSITIVE_PACKAGES</code> — внутренняя деталь другого пакета; <b>сейчас пусто</b>»</td>
+        <td>Корзина содержит два пакета: <code>@orthacms/media-provider-memory</code> и <code>@orthacms/media-provider-testkit</code>, с развёрнутым обоснованием прямо в <code>features.ts</code></td>
+      </tr>
+      <tr>
+        <td class="mono">Р-04</td>
+        <td class="mono">create-ortha-app/AGENTS.md</td>
+        <td>«Это оставляет за бортом приложения по умолчанию <b>ровно пять</b> пакетов, и <code>features.spec.ts</code> перечисляет их полностью: два хостируемых бэкенда копайлота, <code>content-graphql</code>, <code>mcp-server</code> и невыпущенный S3-адаптер»</td>
+        <td>Тест перечисляет <b>одиннадцать</b>: плюс три SSO-адаптера и плюс <code>media-provider-azure</code>, <code>media-provider-gcs</code>, <code>media-provider-vercel-blob</code>; S3 при этом выпущен</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-05</td>
+        <td class="mono">create-ortha-app/AGENTS.md</td>
+        <td>«У каждого вопроса есть флаг (<code>--media</code>, <code>--copilot</code>, <code>--protocols</code>)»</td>
+        <td>Флагов четыре — есть ещё <code>--sso</code>, и он документирован в <code>USAGE</code> самой команды</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-06</td>
+        <td class="mono">features.ts, <code>SSO_PROVIDERS</code> ↔ шаблон</td>
+        <td>Пикер предлагает три равноправных варианта: <code>sso-oidc</code>, <code>sso-github</code>, <code>sso-saml</code></td>
+        <td>Маркеров <code>ortha:if sso-github</code> / <code>ortha:if sso-saml</code> в шаблоне <b>нет ни в одном файле</b>. Выбор этих двух добавляет пакет в манифест и не меняет больше ничего: ни импорта, ни регистрации в <code>plugins.ts</code>, ни типа в <code>ortha.config.ts</code>, ни ключей в <code>.env</code>. Косвенно это признано в <code>USAGE</code>, где у флага в скобках назван только <code>sso-oidc</code></td>
+      </tr>
+      <tr>
+        <td class="mono">Р-07</td>
+        <td class="mono">templates/default/apps/server/src/plugins.spec.ts</td>
+        <td><code>EXPECTED_PLUGINS</code> = <code>database, identity, workspaces, activity, users, content, [content-graphql], i18n, alarms, media, copilot, [mcp]</code></td>
+        <td><b>Отсутствует <code>content-views</code>.</b> Шаблонный <code>plugins.ts</code> регистрирует <code>ContentViewsPlugin({ content })</code> сразу после <code>content</code>, и его <code>name</code> равен <code>'content-views'</code>. Значит первый же тест сгенерированного приложения — «registers exactly the plugins this app ships» — <b>падает</b>, и <code>npm test</code> в свежесозданном приложении красный. Собственные тесты скаффолдера этого не ловят: <code>template.spec.ts</code> проверяет наличие имён фабрик в тексте файла, но не исполняет спеки шаблона</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-08</td>
+        <td class="mono">features.ts, <code>CORE_PACKAGES</code> ↔ шаблон</td>
+        <td>В ядре объявлены <code>transfer-server</code>, <code>transfer-admin</code>, <code>transfer-domain</code>, <code>segments-server</code>, <code>segments-admin</code>, <code>segments-domain</code></td>
+        <td>Ни <code>TransferPlugin</code>, ни <code>SegmentsPlugin</code> не зарегистрированы ни в серверном, ни в админском <code>plugins.ts</code> шаблона (grep по <code>templates/</code> даёт ноль совпадений). Пакеты ставятся, но функциональность в сгенерированном приложении не появляется: ни маршрутов экспорта/импорта, ни вкладки Access. Для <code>*-domain</code> это нормально (точки расширения), для четырёх остальных — нет</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-09</td>
+        <td class="mono">features.ts, докблок <code>SSO_PROVIDERS</code></td>
+        <td>«<code>identity-provider-fake</code> … это то, как страница входа сгенерированного приложения проверяется офлайн»</td>
+        <td>Пакет действительно установлен безусловно, но в шаблоне на него нет ни одной ссылки. Тут же честно оговорено, что установка ничего не регистрирует, — то есть «как проверяется» требует ручной правки композиционного корня, которой нигде не показано</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-10</td>
+        <td class="mono">templates/default/README.md.tmpl, «Writing your own plugin»</td>
+        <td>«добавленный в массив в <code>src/server/plugins.ts</code>»; «<code>AdminPlugin</code> … добавленный в <code>src/admin/plugins.ts</code>»</td>
+        <td>Реальные пути — <code>apps/server/src/plugins.ts</code> и <code>apps/admin/src/plugins.ts</code>. Соседний раздел того же README («What you own») называет их верно, то есть документ противоречит сам себе. Та же старая раскладка мелькает в комментарии шаблонного <code>plugins.ts</code>: «Define some in <code>src/server/content/</code>» против «<code>apps/server/src/content/</code>» в README</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-11</td>
+        <td class="mono">AGENTS.md и комментарий в <code>apps/server/jest.config.js</code></td>
+        <td>Ссылаются на файл <code>tsconfig.server.json</code></td>
+        <td>Такого файла в шаблоне нет; настройки компилятора сервера лежат в <code>apps/server/tsconfig.json</code>. Название пережило переезд на раскладку <code>apps/*</code></td>
+      </tr>
+      <tr>
+        <td class="mono">Р-12</td>
+        <td class="mono">templates/default/env.tmpl</td>
+        <td>Блок «single sign-on» с <code>SSO_PUBLIC_BASE_URL</code> и <code>SSO_REQUEST_TTL_SECONDS</code> печатается безусловно</td>
+        <td>В приложении, сгенерированном без SSO, это две настройки рукопожатия, которого не бывает. Не ошибка, но шум в первом файле, который открывает оператор — в отличие от всех остальных блоков <code>.env</code>, аккуратно закрытых маркерами</td>
+      </tr>
+      <tr>
+        <td class="mono">Р-13</td>
+        <td class="mono">create-ortha-app/AGENTS.md, «The generated app»</td>
+        <td>Дерево показывает <code>apps/server/</code> с <code>ortha.config.ts, src/{main,plugins}.ts, jest.config.js</code></td>
+        <td>Перечисление неполное: в шаблоне есть ещё <code>apps/server/jest.setup.js</code> и <code>apps/server/src/plugins.spec.ts</code>, а в <code>apps/admin/src</code> — <code>plugins.spec.ts</code> и <code>styles.css</code>. Мелочь, но список выглядит исчерпывающим</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что из этого стоит чинить в первую очередь</h3>
+  <ol>
+    <li><b>Р-07</b> — единственное, что ломает продукт: <code>npm test</code> в свежесозданном приложении красный, и первое, что новый пользователь узнаёт про поставляемые тесты, — что они не проходят.</li>
+    <li><b>Р-06</b> и <b>Р-08</b> — выбор и объявление, не приводящие к результату: пользователь получает установленный пакет и отсутствующую функциональность.</li>
+    <li><b>Р-01…Р-05</b> — документация, отставшая от кода; лечится одной правкой <code>AGENTS.md</code> обоих уровней.</li>
+  </ol>
+</section>
+
+<footer class="end">
+  <p><b>Артефакт серии.</b> Сделан по пакету <code>packages/create-ortha-app</code> по тому же каркасу, что и паспорт группы <code>identity</code>: бизнес-описание → место в системе → мастер и выборы → классификация пакетов → выход → сценарии → версии и релиз → инварианты → чек-лист → границы → расхождения.</p>
+  <p>Источник — исходный код: <code>src/cli.ts</code>, <code>src/lib/{features,template,conditionals,ui,validate}.ts</code> и пять соответствующих спек-файлов, все 31 файл <code>templates/default</code>, а также <code>nx.json</code>, <code>.nxignore</code>, <code>.prettierignore</code>, <code>eslint.config.mjs</code>, <code>tsconfig.lib.json</code> и <code>tools/release/pack.mjs</code>. Число пакетов в классификации сверено перечислением манифестов на диске. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение проверено по реализации — расхождения вынесены в раздел 11.</p>
+</footer>
+
+</main>
+</div>

@@ -1,0 +1,1340 @@
+<title>Паспорт плагина Media</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/media</p>
+    <h1 class="title">Media
+      <small>Медиатека, шов хранилища и всё, что живёт вне базы</small>
+    </h1>
+    <p class="lede">Media — единственное место в OrthaCMS, где система работает с <strong>байтами</strong>, а не со строками. Он владеет папками и активами медиатеки, отдаёт файлы браузеру, генерирует превью и — главное — держит <strong>порт хранилища</strong>: адаптеров у порта шесть, а в одном развёртывании работает ровно один, и его имя записано в каждую строку таблицы активов.</p>
+    <ul class="facts">
+      <li><b>9</b> пакетов в группе</li>
+      <li><b>6</b> адаптеров хранилища</li>
+      <li><b>15</b> HTTP-маршрутов</li>
+      <li><b>2</b> таблицы БД</li>
+      <li><b>3</b> миграции</li>
+      <li><b>4</b> ключа прав</li>
+      <li><b>6</b> слотов админки</li>
+      <li><b>5</b> агентских инструментов</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл файла</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация и адаптеры</a></li>
+    <li><a href="#security">Безопасность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Медиатека — это общий склад файлов организации внутри воркспейса: изображения, видео, аудио, документы, архивы. Всё, что редактор прикрепляет к записи, вставляет в текст или отдаёт наружу через публичный API, сначала становится <b>активом</b> — строкой в <code>media_asset</code> с указателем на байты.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>База не хранит байты.</b> В строке лежат только метаданные и пара <code>storage_key</code> + <code>storage_provider</code>. Дамп базы остаётся дампом базы, а не терабайтом видео; резервные копии, реплики и миграции не растут вместе с медиатекой.</li>
+    <li><b>Один порт — шесть бэкендов.</b> Локальный диск, любое S3-совместимое хранилище (R2, AWS, MinIO, Spaces, B2, Wasabi), Azure Blob, Google Cloud Storage, Vercel Blob и in-memory для тестов. Переезд между ними — <b>одна строка</b> в композиционном корне, а не переписывание плагина.</li>
+    <li><b>Медиатека приватна по умолчанию.</b> Публичной ссылки на файл не существует: каждый байт проходит через маршрут приложения, который проверяет либо членство в воркспейсе, либо область bearer-токена. Отдельного «публичного бакета» нет и быть не должно.</li>
+    <li><b>Превью вместо оригиналов.</b> Растровые изображения при загрузке получают два WebP-деривата — <code>thumb</code> (≤320px) и <code>preview</code> (≤1280px). Сетка медиатеки, плитки медиаполей и тела статей тянут дериват, а не 12-мегапиксельный исходник.</li>
+    <li><b>Доступность как часть модели.</b> Альтернативный текст — колонка на активе, задаваемая <b>прямо при загрузке</b> (и по сессии, и по токену), а не только вторым PATCH, который никто не делает. Плюс дорожки таймированного текста (субтитры, титры, описания, главы) как отдельные ассеты-указатели.</li>
+    <li><b>Агенты работают с медиатекой так же, как люди.</b> Пять инструментов в общем реестре: три чтения (поиск активов, список папок, чтение текстового файла) отдаются и копайлоту, и MCP; два «предложения» (альт-текст и создание файла) — только копайлоту.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Редактор</h4>
+      <p class="small sub">Заходит в «Медиатеку» внутри воркспейса, раскладывает файлы по папкам, ищет, фильтрует по типу, прикрепляет к записи через вкладку «Медиа» или вставляет в текст. Загружает пачками — с прогрессом, отменой и повтором по каждому файлу.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Администратор / оператор</h4>
+      <p class="small sub">Выбирает бэкенд хранилища и его настройки в <code>plugins.ts</code>, ставит потолок загрузки, решает, идут ли байты через приложение или редиректом. Ошибка конфигурации — отказ старта с внятным сообщением, а не 500 на первой загрузке.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Интеграция / внешний агент</h4>
+      <p class="small sub">По bearer-токену умеет ровно две вещи: загрузить файл и скачать его. Переименование, перемещение и удаление — только по сессии: прикрепить картинку к записи это авторство контента, а курировать библиотеку — администрирование.</p>
+    </div>
+  </div>
+
+  <h3>Чем Media не является</h3>
+  <ul>
+    <li><b>Это не CDN и не публичный файловый хостинг.</b> URL актива — это маршрут приложения <code>/api/media/assets/:id/raw</code>, он требует аутентификации при каждом запросе. Прямая раздача из бакета включается отдельно (<code>directServe: 'signed-url'</code>) и только на бэкенде, умеющем подписывать URL с закреплённым типом и disposition.</li>
+    <li><b>Это не дедупликация.</b> sha256 считается и сохраняется в <code>checksum</code>, но <b>нигде не используется для поиска</b>: загрузка одного и того же файла дважды даёт два актива и два блоба. Колонка заведена «на будущее» — так и написано в порту.</li>
+    <li><b>Это не транскодирование.</b> Обрабатываются только растровые изображения (Sharp). Видео не режется, не перекодируется, длительность не измеряется — колонка <code>duration</code> есть, но её никто не заполняет.</li>
+    <li><b>Это не проверка содержимого.</b> MIME-тип — это то, что <em>заявил</em> загружающий в multipart-части. Байты не нюхаются, антивируса нет, белого списка типов при загрузке нет. Отсюда вся политика выдачи: файл считается враждебным по умолчанию.</li>
+    <li><b>Это не связь с контентом.</b> Media не знает, кто на неё ссылается. Проверку «такой актив существует и подходит по <code>accept</code>» делает <code>content-server</code> на сохранении записи, через порт <code>MEDIA_ASSET_RESOLVER</code>, который Media <em>реализует</em>.</li>
+    <li><b>Это не аудит.</b> Плагин пишет доменные события <code>media.*</code> в транзакционный outbox; строки журнала складывает <code>activity</code>.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры · ADR-0012</span>
+    <p><b>Одно развёртывание — один провайдер хранилища, переданный одним объектом.</b> Никакого реестра, резолвера и <code>defaultProvider</code>: байты уходят в одно место, значит выбирать не из чего. Объект <b>описывает себя сам</b> — <code>id</code> (пишется в каждую строку актива) и <code>capabilities</code>. Плата за это названа открыто: <b>смена бэкенда осиротит уже загруженные файлы</b>, поэтому <code>StorageProviderCheck</code> отказывается стартовать, если в таблице есть строки чужого провайдера — и называет его имя и количество строк.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Девять пакетов. Разделение не косметическое: адаптер обязан уметь зависеть от порта, <em>не</em> утаскивая за собой NestJS, Drizzle и React. Каждый адаптер — отдельный npm-пакет со своим вендорским SDK, и приложение ставит только тот, который выбрало.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/media-server</td><td>Плагин NestJS: маршруты, use-case&#39;ы, схема, миграции, агентские инструменты</td><td>2 таблицы, 15 маршрутов, порт <code>StorageProvider</code>, порт <code>ImageProcessor</code>, слой доменных ошибок</td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/media-admin</td><td>Плагин админки: страница медиатеки + шесть контрибуций в чужие слоты</td><td><code>/workspaces/:id/media</code>, вкладка «Медиа» редактора, источники для WYSIWYG, четыре виджета Insights, отложенные загрузки</td></tr>
+      <tr><td class="mono">provider-local</td><td class="mono">@orthacms/media-provider-local</td><td><b>Провайдер по умолчанию</b> — файловая система</td><td>Ключи <code>&lt;workspaceId&gt;/&lt;assetId&gt;/&lt;имя&gt;</code>, атомарная запись через <code>.part</code> + <code>rename</code>, защита от выхода за корень</td></tr>
+      <tr><td class="mono">provider-s3</td><td class="mono">@orthacms/media-provider-s3</td><td>Любое S3-совместимое хранилище — написан «от endpoint», а не «от AWS»</td><td><b>Единственный</b>, кто безусловно объявляет <code>directUrl: true</code>; multipart с <code>abort()</code> при сбое</td></tr>
+      <tr><td class="mono">provider-gcs</td><td class="mono">@orthacms/media-provider-gcs</td><td>Google Cloud Storage нативно</td><td>Существует ради тех, кому HMAC-ключи запрещены политикой; <code>directUrl</code> <b>вычисляется</b> из наличия ключа подписи</td></tr>
+      <tr><td class="mono">provider-azure</td><td class="mono">@orthacms/media-provider-azure</td><td>Azure Blob Storage</td><td>Единственное крупное хранилище <b>без S3-совместимости вообще</b>; SAS только при shared key</td></tr>
+      <tr><td class="mono">provider-vercel-blob</td><td class="mono">@orthacms/media-provider-vercel-blob</td><td>Vercel Blob — самая короткая настройка на Vercel</td><td><b>Каждый блоб получает постоянный публичный URL</b> — предупреждение вынесено в доку, в комментарий и в подсказку генератора</td></tr>
+      <tr><td class="mono">provider-memory</td><td class="mono">@orthacms/media-provider-memory</td><td>Хранилище в <code>Map</code> — для e2e и офлайн-разработки</td><td><b>Опубликован, но не предлагается генератором</b>: приложение, теряющее все загрузки при рестарте, — не развёртывание</td></tr>
+      <tr><td class="mono">provider-testkit</td><td class="mono">@orthacms/media-provider-testkit</td><td>Контракт порта как запускаемый набор тестов</td><td>Один экспорт — <code>describeStorageProvider(name, harness)</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Зачем testkit опубликован</h3>
+  <p>Инварианты порта раньше жили только в прозе, в <code>provider-local/AGENTS.md</code>. Каждый из них — утверждение, на которое ядро <em>опирается</em> и которое проверить само не может: оно освобождает блобы по ключу, отдаёт результат <code>get</code> прямо в HTTP-ответ и кладёт деривативы рядом с оригиналами. Провайдер, написанный вне этого репозитория, не имел никакого способа узнать, что нарушил один из них. Поэтому набор — <b>публичный npm-пакет</b>, а не внутренний файл: он адресован автору стороннего адаптера.</p>
+  <p>Что он проверяет: непустой <code>id</code> и полный <code>capabilities</code>; наличие <code>directUrl()</code> ровно тогда, когда так сказано в <code>capabilities</code>; честные размер и sha256; круговорот байтов через <code>get</code>; разные ключи для двух активов с одинаковым именем файла; невозможность деривату затереть оригинал с именем <code>thumb.webp</code>; <b>отсутствие следов после оборвавшегося <code>put</code></b>; отказ <code>get</code> <em>до</em> открытия потока; идемпотентность <code>remove</code>; и то, что всё отклоняется промисом, а не синхронным броском (синхронный бросок улетает мимо <code>try</code>, который должен был освободить блобы).</p>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/content-server</code></b> объявляет порт <code>MEDIA_ASSET_RESOLVER</code>, а Media его <em>реализует</em> — инверсия «открытого хоста»: контент не зависит от медиа, зависимость идёт в обратную сторону. <b><code>@orthacms/wysiwyg-admin</code></b> объявляет слот <code>WYSIWYG_MEDIA_SLOT</code>, а Media его заполняет — редактор обязан оставаться работоспособным без медиаплагина. <b><code>@orthacms/insights-admin</code></b> рисует страницу Insights, но карточки про хранилище принадлежат Media, потому что Media владеет таблицей. <b><code>@orthacms/transfer-server</code></b> переносит файлы при экспорте/импорте — через обычный путь загрузки Media, а не мимо него.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+
+  <p>Четыре ключа прав, все выданы ролям в <code>identity-server</code>. Модель плоская: право проверяется guard&#39;ом по константе (<code>@RequirePermissions(PERMISSIONS.MEDIA_*)</code>), никаких прав на отдельную папку или отдельный актив нет.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th><th class="center">токен read</th><th class="center">токен full</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">media:read</td><td>список папок и активов, скачивание байтов, три виджета Insights, три агентских инструмента чтения</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">media:create</td><td>загрузка файла, создание папки, дублирование актива, предложение файла копайлотом</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">media:update</td><td>переименование актива и папки, перемещение, теги, альт-текст, дорожки субтитров</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">media:delete</td><td>массовое удаление активов, <b>каскадное</b> удаление папки со всем содержимым</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td><td class="center no">—</td><td class="center no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему у токена нет update и delete</span>
+    <p><code>scopePermissions</code> в <code>identity-server</code> намеренно не выдаёт bearer-токену ни <code>media:update</code>, ни <code>media:delete</code> — ни в области <code>read</code>, ни в <code>full</code>. Прикрепить картинку к записи — это авторство контента, и без загрузки токен <b>вообще не смог бы заполнить медиаполе</b> (писатель контента отвергает id актива, которым воркспейс не владеет). А переименовывать, двигать и удалять чужие файлы в библиотеке — это администрирование, и для него есть сессия администратора.</p>
+  </div>
+
+  <h3>Три независимых контура проверки</h3>
+  <ul>
+    <li><b>Право.</b> <code>PermissionsGuard</code> + константа. На каждом маршруте, без исключений — включая маршрут выдачи байтов.</li>
+    <li><b>Воркспейс.</b> <code>WorkspaceGuard</code> читает заголовок <code>X-Workspace-Id</code> и кладёт его в <code>@CurrentWorkspace()</code>. Все запросы, кроме одного, ходят через него.</li>
+    <li><b>Origin.</b> <code>OriginGuard</code> на каждом изменяющем состояние маршруте сессионной половины (POST/PATCH/DELETE). На токенных маршрутах его нет: у не-браузерного клиента нет <code>Origin</code>, и защищать нечего.</li>
+  </ul>
+
+  <div class="note crit">
+    <span class="label">Единственное исключение из WorkspaceGuard — и почему оно безопасно</span>
+    <p><code>GET /media/assets/:id/raw</code> <b>не</b> несёт <code>WorkspaceGuard</code>. Этот URL грузит сам браузер — <code>&lt;img src&gt;</code> в плитках и в панели деталей, ссылки на скачивание — а такие запросы отправляют куки, но <b>не могут</b> отправить произвольный заголовок, поэтому guard отвечал 400 на каждое превью. Область не отброшена, а <b>выведена</b>: <code>DownloadAssetQuery.locate</code> читает воркспейс-владельца из строки актива, контроллер требует членства вызывающего <em>в этом</em> воркспейсе (через экспортируемый <code>MembershipCheckQuery</code>), и только потом трогает хранилище. Не-участник получает <b>тот же 404</b>, что и несуществующий актив, — иначе id активов можно было бы перебирать. Любой новый маршрут, чей URL грузит браузер, нуждается в такой же обработке, а не в заголовочном guard&#39;е.</p>
+  </div>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">04</span>Модель данных</h2>
+  <p>Две таблицы, три миграции, собственный журнал <code>__drizzle_migrations_media</code>. Соединение плагин не открывает — клиент внедряется из <code>@orthacms/database</code>; миграции применяет хост через <code>nx run server:db:migrate</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th><th>Ключевые поля и ограничения</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">media_folder</td><td>Папка внутри воркспейса</td>
+        <td><code>id</code> uuid PK · <code>workspace_id</code> uuid <b>без FK</b> (таблица воркспейсов принадлежит другому плагину) · <code>parent_id</code> uuid nullable — <code>null</code> означает верхний уровень, <b>синтетической корневой строки нет</b> · <code>name</code> text.<br>Индекс <code>media_folder_ws_parent_idx</code> на <code>(workspace_id, parent_id)</code>.<br><b>Уникальности имён среди соседей нет</b> — ни индекса, ни проверки в use-case: две папки могут называться одинаково под одним родителем и различаются по id.</td>
+      </tr>
+      <tr>
+        <td class="mono">media_asset</td><td>Один загруженный файл</td>
+        <td><code>id</code> uuid PK · <code>workspace_id</code> uuid без FK · <code>folder_id</code> uuid nullable (<code>null</code> = корень воркспейса) · <code>name</code> · <code>kind</code> — enum <code>media_kind</code> (<code>image|video|audio|document|archive</code>) · <code>mime_type</code> — <b>заявление загружающего</b> · <code>size</code> bigint · <code>storage_key</code> + <code>storage_provider</code> — указатель на байты · <code>checksum</code> sha256 nullable (<b>только хранится</b>) · <code>width</code>/<code>height</code> — заполняются для растровых изображений · <code>duration</code> — <b>всегда null</b>, зондирование видео не реализовано · <code>tags</code> jsonb · <code>variants</code> jsonb · <code>alt</code> text nullable · <code>tracks</code> jsonb · <code>uploaded_by</code> uuid <b>NOT NULL</b> · <code>created_at</code>/<code>updated_at</code>.<br>Индекс <code>media_asset_ws_folder_idx</code> на <code>(workspace_id, folder_id)</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Три jsonb-колонки, и что в них лежит</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0"><code>variants</code></h4>
+      <p class="small sub">Словарь <code>имя → { key, width, height, size }</code>. Сегодня в нём бывают <code>thumb</code> и <code>preview</code>. Каждый дериват — <b>собственный блоб</b> у того же провайдера, в зарезервированном пространстве ключей <code>variants/</code>. Добавлено миграцией <code>0001_asset_variants</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>tracks</code></h4>
+      <p class="small sub">Список указателей <code>{ kind, srclang, label, assetId, default? }</code>. <code>kind</code> — один из <code>captions | subtitles | descriptions | chapters</code>: титры и субтитры разведены намеренно, как в HTML и в WCAG. Сам файл WebVTT — <b>обычный актив библиотеки</b> со своими правами и своим ключом, поэтому его можно заменить, не трогая видео. Миграция <code>0002_asset_tracks</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>tags</code></h4>
+      <p class="small sub">Плоский список строк, до 50 штук по 64 символа. Заменяется целиком при PATCH. Участвует в поиске: <code>?search=</code> ищет и по имени, и по тегам через <code>jsonb_array_elements_text</code>.</p>
+    </div>
+  </div>
+
+  <h3>Что здесь <em>не</em> хранится</h3>
+  <ul>
+    <li><b>Байты.</b> Никогда. Ни в <code>bytea</code>, ни в large object.</li>
+    <li><b>Обратные ссылки на контент.</b> Media не знает, какая запись на неё ссылается, — и не узнаёт при удалении (см. раздел 5).</li>
+    <li><b>Публичный URL.</b> <code>AssetView.url</code> собирается на лету как <code>/api/media/assets/&lt;id&gt;/raw</code>, в колонке его нет. Ни один URL хранилища не попадает в базу и в ответы API.</li>
+    <li><b>Индекса по <code>checksum</code>.</b> Дедупликации нет; см. раздел 1.</li>
+  </ul>
+
+  <details>
+    <summary>Доменные события — семь видов, все через транзакционный outbox</summary>
+    <p><code>media.asset.uploaded</code>, <code>media.asset.updated</code>, <code>media.asset.moved</code>, <code>media.asset.deleted</code>, <code>media.folder.created</code>, <code>media.folder.renamed</code>, <code>media.folder.deleted</code>. Каждое изменение состояния идёт внутри <code>UnitOfWork.run</code> над репозиториями и <code>OutboxWriter</code>, так что строка и событие фиксируются атомарно: журнал не может показать загрузку, которой не было, и не может пропустить ту, что была.</p>
+    <p><b>Исключение — очистка воркспейса.</b> <code>MediaWorkspacePurger</code> работает <em>множествами и без событий</em>: один <code>delete … where workspace_id = …</code> на таблицу, без загрузки агрегатов и без <code>media.asset.deleted</code> на каждый файл. В воркспейсе могут быть десятки тысяч активов, и их поштучные удаления отдельно не значимы — событием, которое произошло, является <code>workspace.deleted</code>. <code>returning</code> отдаёт ровно колонки хранилища, что и нужно освобождению блобов; оно идёт <b>после коммита</b>.</p>
+  </details>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">05</span>Жизненный цикл файла</h2>
+
+  <div class="states">
+    <span class="state pending">выбран в браузере</span>
+    <span class="arrow">— multipart →</span>
+    <span class="state active">актив + блоб(ы)</span>
+    <span class="arrow">⇄ правки, перемещение, копия ⇄</span>
+    <span class="state active">используется</span>
+    <span class="arrow">— удаление →</span>
+    <span class="state disabled">строки нет, блобы освобождены</span>
+  </div>
+
+  <p>У актива <b>нет колонки статуса</b> и нет черновиков: он либо есть, либо нет. Состояния, через которые он проходит, — это состояния его <em>байтов</em> и указателя на них.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Этап</th><th>Что происходит с байтами</th><th>Что происходит со строкой</th></tr></thead>
+    <tbody>
+      <tr><td><b>Загрузка</b></td><td><code>provider.put</code> <b>до</b> транзакции — ключ нужен, чтобы вообще создать строку. Для изображений следом пишутся деривативы, каждый своим <code>put</code></td><td>Создаётся внутри <code>UnitOfWork</code> вместе с событием. Если транзакция откатилась, <b>все</b> записанные блобы освобождаются в <code>catch</code></td></tr>
+      <tr><td><b>Хранение</b></td><td>Ключ непрозрачен для ядра: его формат знает только провайдер, который его выдал. Ядро <b>сравнивает</b> <code>storage_provider</code> при каждом чтении, а не ищет бэкенд по имени</td><td><code>storage_provider</code> зафиксирован навсегда. Строка чужого провайдера — это байты, до которых этот процесс не дотянется</td></tr>
+      <tr><td><b>Использование</b></td><td>Либо поток через приложение, либо 302 на подписанный URL — решается <em>после</em> авторизации</td><td>Не меняется. Счётчика обращений нет, <code>last_used_at</code> нет</td></tr>
+      <tr><td><b>Правки</b></td><td>Не трогаются. Переименование меняет отображаемое имя, но <b>не ключ</b> — ключ остаётся тем, что выдал провайдер при загрузке</td><td><code>name</code>, <code>folder_id</code>, <code>tags</code>, <code>alt</code>, <code>tracks</code> — любая комбинация одним PATCH</td></tr>
+      <tr><td><b>Дублирование</b></td><td>Читается через <code>get</code>, пишется новым <code>put</code> — включая <b>каждый дериват</b>. Источник у чужого провайдера отвергается, а не копируется наполовину</td><td>Новая строка, имя с суффиксом « copy» перед расширением; альт-текст переносится</td></tr>
+      <tr><td><b>Удаление</b></td><td>Освобождение <b>после коммита</b>, с ограниченным параллелизмом (16), по <code>Asset.storageKeys</code> — оригинал <em>и</em> все деривативы. Ошибка освобождения проглатывается: блоб остаётся сиротой, но строка уже удалена честно</td><td>Удаляется в транзакции вместе с событием <code>media.asset.deleted</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Что происходит с записями, которые ссылались на удалённый файл</span>
+    <p><b>Ничего не мешает удалить актив, на который ссылается опубликованная запись.</b> Обратных ссылок Media не хранит, счётчика использований нет, предупреждения при удалении нет, и <code>content</code> об удалении не уведомляется. Последствия расходятся по трём поверхностям:</p>
+    <ul>
+      <li><b>В редакторе</b> плитка медиаполя превращается в явную <b>предупреждающую карточку с «мёртвым» id</b> — чтобы её можно было найти и убрать. Это не ошибка сохранения, а маркер.</li>
+      <li><b>При следующем сохранении записи</b> <code>EntryWriterService.assertMediaTargets</code> отвергнет её с <code>422 must reference an existing asset</code>. То есть запись «застревает»: она уже опубликована со сломанной ссылкой, но отредактировать её нельзя, пока ссылку не уберут.</li>
+      <li><b>В публичном API</b> резолвер просто <em>опускает</em> ненайденный id — ответ приходит без этого медиа, без ошибки и без указания, что чего-то не хватает. Пропущенный и чужой актив неразличимы намеренно: иначе это был бы оракул по id.</li>
+    </ul>
+    <p>Каскад папки делает то же самое разом и без отката: удаляется всё поддерево, блобы освобождаются после коммита, отмены нет. Единственный предохранитель — <b>подтверждение в интерфейсе</b>, которое называет числа («…также удалит 3 файла и 1 подпапку»); сервер спорить не умеет и намеренно не умеет.</p>
+  </div>
+
+  <h3>Привязка к воркспейсу</h3>
+  <p><code>workspace_id</code> — обычный uuid без внешнего ключа: таблица воркспейсов принадлежит другому плагину, и связывать плагины схемой здесь не принято. Из этого следуют две вещи.</p>
+  <ul>
+    <li><b>Область проверяется в приложении</b>, а не базой: каждый запрос несёт <code>workspace_id</code> в <code>WHERE</code>. Рекурсивный обход поддерева при каскаде фильтрует по воркспейсу <b>в обеих ветвях CTE</b> — каскад, сбежавший из своего тенанта, был бы худшей возможной ошибкой здесь, и это закреплено e2e-тестом.</li>
+    <li><b>Удаление воркспейса нужно было закрывать отдельно.</b> Раньше строки переживали свой воркспейс <em>и</em> запирали свои блобы: оба пути удаления идут через живой воркспейс, так что после его исчезновения ни один запрос не мог добраться до байтов. Теперь <code>MediaWorkspacePurger</code> реализует порт <code>WorkspacePurger</code> и <b>сам регистрируется</b> в <code>WorkspacePurgeRegistry</code> из <code>onModuleInit</code> — плагин воркспейсов так и не узнаёт, что медиа существует. Инъекция <code>@Optional()</code>, поэтому медиа поднимается и без него.</li>
+  </ul>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">06</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>6.1 Загрузка файла по сессии</h3>
+  <p class="sub small">Прямая multipart-загрузка на сервер приложения. <b>Presigned-URL для загрузки не существует</b> — байты всегда идут через Nest. Подписанный URL в этой системе бывает только на <em>выдачу</em>, и только если оператор его включил.</p>
+  <ol class="flow">
+    <li><b>Браузер отправляет</b> <code>POST /api/media/assets</code> — <code>multipart/form-data</code> с частью <code>file</code> и текстовыми полями <code>folderId</code> и <code>alt</code>.<span class="meta">OriginGuard + PermissionsGuard(media:create) + WorkspaceGuard</span></li>
+    <li><b>Multer режет по потолку.</b> <code>FileInterceptor('file')</code> вызывается <b>без локальных опций</b> — намеренно: так он наследует лимит из <code>MulterModule.register</code>, который <code>MediaModule.forRoot</code> собрал из <code>config.plugins.media.maxUploadBytes</code>. Раньше потолок читался из <code>process.env</code> на уровне модуля, и настройка хоста была мертва.<span class="meta">регистрируется cap+1, потому что busboy срабатывает при fileSize === limit — так «максимум» становится включительным</span></li>
+    <li><b>Превышение — 413 с человеческим текстом.</b> <code>MulterUploadFilter</code> ловит <em>две</em> формы одной ошибки: сырой код <code>LIMIT_FILE_SIZE</code> и уже преобразованное Nest&#39;ом <code>PayloadTooLargeException('File too large')</code>. Фильтр, смотревший только на код, не срабатывал никогда, и его дружелюбное сообщение было недостижимо.</li>
+    <li><b>Имя проходит через value object.</b> <code>FileName.create</code> отвергает пустое, длиннее 255, содержащее <code>/</code>, <code>\</code> или управляющие символы. Имя — это <b>лист, а не путь</b>: иначе оно протащило бы обход каталогов в ключ хранилища.</li>
+    <li><b>Тип классифицируется, но не проверяется.</b> <code>MediaKind.fromMime</code> раскладывает по префиксу: <code>image/</code>, <code>video/</code>, <code>audio/</code>, известные архивные типы → <code>archive</code>, <b>всё остальное</b> → <code>document</code>. Белого списка типов нет: загрузить можно что угодно, включая <code>.html</code> и <code>.svg</code>. Вся защита перенесена на выдачу (см. 6.4).</li>
+    <li><b>Изображение буферизуется один раз.</b> Поток одноразовый, а прочитать его нужно и записи оригинала, и процессору. Оговорка в самом коде: сегодня <em>любая</em> загрузка и так целиком в памяти, потому что оба маршрута используют <code>memoryStorage</code> multer&#39;а; сквозной стриминг требует ухода от него и является отдельной работой. Границей памяти служит <code>maxUploadBytes</code>.</li>
+    <li><b>Оригинал уходит в хранилище</b> — <code>provider.put</code> <b>до</b> открытия транзакции: строке нужен <code>storage_key</code>, а он существует только внутри возврата <code>put</code>. Каждый записанный ключ складывается в локальный список <code>written</code>.</li>
+    <li><b>Деривативы — «по возможности».</b> Sharp читает размеры (пишутся в <code>width</code>/<code>height</code>) и делает WebP <code>thumb</code> (≤320px) и <code>preview</code> (≤1280px), <b>без апскейла</b>. Каждый — свой <code>put</code> с <code>isVariant: true</code>, то есть в пространство <code>variants/</code>: иначе файл, буквально названный <code>thumb.webp</code>, затёр бы собственный дериват. Источник, который процессор не декодирует (SVG, битые байты), просто не даёт деривативов и <b>никогда не валит загрузку</b>.</li>
+    <li><b>Транзакция.</b> Если указана папка — <code>FOR SHARE</code> на ней: это сериализует загрузку против одновременного удаления папки, чтобы новый актив не осиротел в удаляемой папке. Затем <code>Asset.create</code>, <code>save</code> и событие <code>media.asset.uploaded</code> в outbox — строка и событие фиксируются вместе.</li>
+    <li><b>Любой сбой освобождает всё.</b> <code>catch</code> проходит по <code>written</code> и удаляет <b>каждый</b> блоб, а не только оригинал. Неудачная загрузка не оставляет за собой ничего.</li>
+    <li><b>Ответ — полный <code>AssetView</code></b>, включая <code>url</code>, список имён деривативов, размеры, теги и имя загрузившего (резолвится из id).</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему put обязан быть «всё или ничего»</span>
+    <p>Ключ существует только в <em>возвращаемом значении</em> <code>put</code>. Отклонившийся <code>put</code> никому имени не отдал — значит, всё, что он оставил, это мусор, который никакой вызывающий уже не назовёт и не уберёт. Отсюда контракт порта, и отсюда реализации: локальный пишет в <code>.hex.part</code> и делает один <code>rename</code>; S3 при сбое вызывает <code>upload.abort()</code>, иначе части multipart остаются оплачиваемыми, невидимыми для <code>ListObjects</code> и недостижимыми.</p>
+  </div>
+
+  <h3>6.2 Загрузка по bearer-токену</h3>
+  <p class="sub small"><code>POST /api/v1/media/assets</code> — вторая половина API, рядом с публичным контент-API и под теми же двумя guard&#39;ами (<code>ApiTokenGuard</code> + <code>ApiTokenWorkspaceGuard</code>, которые экспортирует <code>content-server</code>; зависимость на него уже есть ради порта резолвера, так что нового ребра между пакетами не появилось).</p>
+  <ol class="flow">
+    <li><b>Область — из токена, не из членства.</b> Воркспейс определяется разрешённым воркспейсом токена. Заголовок <code>X-Workspace-Id</code> обязателен, когда токен покрывает больше одного воркспейса, и необязателен, когда ровно один; воркспейс вне «корзины» токена — 403.</li>
+    <li><b>Параметры — в query, а не в теле.</b> <code>?folderId=</code> и <code>?alt=</code>. Альт-текст здесь особенно важен: неприсмотренный импорт второго PATCH никогда не делает, и без этого поля он производил бы библиотеку навсегда неописанных изображений.</li>
+    <li><b>Авторство приписывается человеку.</b> <code>uploaded_by</code> — NOT NULL, а токен человеком не является, поэтому загрузка записывается на того, кто <b>выпустил</b> токен: это ответственное лицо, и это сохраняет осмысленность колонки «кто загрузил» в библиотеке. Токен без <code>createdBy</code> получает 400. Это <b>не</b> шаг авторизации: роль того пользователя не спрашивается вообще — решение уже принято областью токена.</li>
+    <li><b>Дальше — тот же use-case.</b> <code>UploadAssetUseCase</code> принимает <code>EventActor</code> (<code>{ id, email }</code>), а не <code>PublicUser</code> — это всё, что он когда-либо читал. Сессионный маршрут от этого не изменился, а токенный получил доступ, не выдумывая пользователя ради удовлетворения более широкого типа.</li>
+  </ol>
+
+  <h3>6.3 Просмотр библиотеки</h3>
+  <ol class="flow">
+    <li><b>Дерево папок одним запросом.</b> <code>GET /media/folders</code> отдаёт все папки воркспейса плоско, с <code>parentId</code>, и число активов в корне. Дерево собирает клиент.</li>
+    <li><b>Страница активов.</b> <code>GET /media/assets?folderId=&amp;search=&amp;kind=&amp;sort=&amp;page=&amp;pageSize=</code>. По умолчанию 24 на странице, максимум 100. Сортировки — закрытый список: <code>newest</code> (по умолчанию), <code>oldest</code>, <code>name-asc</code>, <code>name-desc</code>, <code>largest</code>, <code>smallest</code>; тай-брейк всегда по <code>id</code>, чтобы страницы не «плавали».</li>
+    <li><b>Фильтры валидируются до Postgres.</b> <code>folderId</code> — колонка uuid, <code>kind</code> — enum, поэтому непарсящееся значение раньше доезжало до драйвера и возвращалось как <b>500</b> (<code>invalid input syntax</code>). Теперь <code>ListAssetsQuery</code> бросает <code>InvalidAssetFilterError</code> → 400. Проверка живёт <b>в запросе, а не в контроллере</b>, потому что у запроса есть второй вызывающий — агентский инструмент <code>media_assets_search</code>.</li>
+    <li><b>Поиск экранирует метасимволы.</b> <code>%</code> и <code>_</code> в терме матчат сами себя, а сам обратный слэш экранируется первым. Без этого <code>?search=_</code> находил каждый файл с именем хотя бы в один символ, а <code>?search=%</code> — всю библиотеку. Ищет и по <code>name</code>, и по элементам <code>tags</code>.</li>
+    <li><b>Имена загрузивших резолвятся пакетно</b> (<code>uploader-names.ts</code>), с запасным значением для удалённого пользователя — колонка «кто загрузил» не должна показывать uuid.</li>
+  </ol>
+
+  <h3>6.4 Выдача файла — самая нагруженная решениями часть</h3>
+  <p><b>Скачивание считается враждебными байтами.</b> <code>media_asset.mime_type</code> — это то, что заявил загружающий; ничего не нюхает тело. При этом <code>/api/media/...</code> — тот же origin, что и админка (за dev-прокси и в любом развёртывании, которое фронтит оба с одного хоста). Без обработки загруженный <code>.html</code> становился <b>хранимой XSS на собственном origin приложения</b>.</p>
+  <ol class="flow">
+    <li><b>Актив находится и авторизуется.</b> Сессионный маршрут — по членству в воркспейсе-владельце; токенный — по совпадению с воркспейсом запроса. В обоих случаях любой отказ (нет такого id, не участник, чужой воркспейс) — <b>один и тот же 404</b>.<span class="meta">и это верно даже для другого воркспейса ВНУТРИ корзины токена — иначе X-Workspace-Id был бы рекомендательным</span></li>
+    <li><b>Выбирается дериват.</b> <code>?variant=thumb|preview</code>. Поиск через <code>Object.hasOwn</code>, а не голым индексом: <code>variants</code> — обычный JSON-объект, и <code>?variant=toString</code> иначе резолвился бы в член прототипа, вошёл бы в ветку без ключа и уронил бы провайдера. Отсутствующий дериват — не ошибка, отдаётся оригинал.</li>
+    <li><b>Решается способ доставки.</b> Если <code>directServe: 'signed-url'</code> и провайдер умеет подписывать — <code>302</code> на короткоживущий URL. Это происходит <b>после</b> авторизации, никогда вместо неё; редирект лишь решает, как поедут уже разрешённые байты.<span class="meta">Cache-Control: private, no-store — URL истекает, и общий кэш отдал бы мёртвую ссылку следующему зрителю</span></li>
+    <li><b>Disposition закрепляется на самом URL.</b> Редирект <em>выбрасывает</em> <code>Content-Disposition</code>, <code>X-Content-Type-Options</code> и CSP этого ответа, поэтому провайдер обязан вшить тип и disposition в подпись (у S3 — <code>ResponseContentDisposition</code>/<code>ResponseContentType</code>, у Azure — <code>rscd</code>/<code>rsct</code>). Провайдер, который не может, объявляет <code>capabilities.directUrl: false</code> — это и есть весь смысл этой возможности.</li>
+    <li><b>Иначе — поток через приложение</b> (<code>StreamableFile</code>), с тремя слоями защиты на <b>каждом</b> ответе обоих сырых маршрутов:
+      <ul>
+        <li><code>X-Content-Type-Options: nosniff</code> — браузер не «дообнюхает» <code>text/plain</code> до <code>text/html</code>;</li>
+        <li><code>Content-Security-Policy: default-src 'none'; sandbox; base-uri 'none'; form-action 'none'</code> — документ, который всё-таки отрисовался, сидит в непрозрачном origin, не выполняет скриптов и не грузит подресурсов;</li>
+        <li><code>Content-Disposition: inline</code> <b>только для белого списка</b>: PDF, <code>text/plain</code>, растровые изображения (apng, avif, bmp, gif, jpeg, png, webp, x-icon) и всё с префиксом <code>audio/</code> или <code>video/</code>. Остальное — <code>attachment</code>. Имя файла процентно кодируется, чтобы кавычка или управляющий символ в <code>name</code> не сломали заголовок.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">SVG исключён из inline намеренно</span>
+    <p><code>MediaKind</code> относит SVG к изображениям, но при прямой навигации это <b>скриптуемый документ</b>. Поэтому он приходит как <code>attachment</code>. На плитки библиотеки это не влияет: <code>&lt;img src&gt;</code> игнорирует <code>Content-Disposition</code> — disposition действует только на навигацию.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Три способа провалить скачивание, и только один из них 500</span>
+    <p><b>Нет такого id или вызывающий не участник</b> → <code>404</code>, намеренно один и тот же код, чтобы id нельзя было перебирать. <b>Строка есть, а блоба нет</b> (база восстановлена на пустой том, блоб освободили руками, миграция оборвалась) → тоже <code>404</code>: раньше это был 500, что и неверно (со стороны вызывающего неотличимо от отсутствующего актива), и является сигналом (сообщает, что строка настоящая). Порт требует от <code>get</code> отклоняться с <code>ObjectNotFoundError</code> — его поднимают <code>provider-local</code> на <code>ENOENT</code>/<code>ENOTDIR</code> и <code>provider-s3</code> на <code>NoSuchKey</code>, — а <code>to-http.ts</code> превращает его в <b>голый 404 без тела</b>: собственное сообщение утекло бы ключом хранилища. <b>Ключ резолвится вне корня хранилища</b> → <code>500</code>, специально: это испорченная колонка <code>storage_key</code>, а не ошибка вызывающего, и назвать её «не найдено» значило бы похоронить проблему оператора под правдоподобным ответом. <code>to-http</code> перебрасывает всё нераспознанное именно ради этого. Только <code>ENOENT</code>/<code>ENOTDIR</code> становятся «не найдено»: отказ по правам или исчерпанная таблица дескрипторов — это авария, и рядить её в 404 нельзя.</p>
+  </div>
+
+  <h3>6.5 Правки: переименование, перемещение, теги, альт, дорожки</h3>
+  <ol class="flow">
+    <li><b>Один <code>PATCH /media/assets/:id</code></b> принимает любое подмножество полей. <code>folderId: null</code> двигает в корень, отсутствие поля оставляет как есть — разница между «null» и «не передано» здесь несущая.</li>
+    <li><b>Перемещение берёт <code>FOR SHARE</code> на целевой папке</b> — та же сериализация против каскадного удаления, что и при загрузке.</li>
+    <li><b>Теги и дорожки заменяются целиком</b>, а не патчатся поштучно: редактор показывает список и сохраняет список, а у дорожки нет естественного ключа, кроме пары <code>(kind, srclang)</code>, к которому мог бы адресоваться частичный мутатор.</li>
+    <li><b>Альт нормализуется одинаково на всех путях</b> — обрезка пробелов, пустое → <code>null</code>. Иначе пробел маскировался бы под покрытие в отчёте доступности.</li>
+    <li><b>Переименование папки — отдельный маршрут</b> и умеет <b>только имя</b>. Сменить родителя папки нельзя ни одним маршрутом, поэтому цикла в дереве возникнуть не может — проверка на цикл не нужна и её нет.</li>
+  </ol>
+
+  <h3>6.6 Удаление: массовое и каскадное</h3>
+  <ol class="flow">
+    <li><b>Массовое удаление активов</b> — <code>DELETE /media/assets</code> с телом <code>{ ids }</code>: непустой список, не длиннее 100. Строки и события уходят в одной транзакции, ответ — <code>{ deleted: N }</code>, где N — сколько нашлось <em>в этом воркспейсе</em>.</li>
+    <li><b>Блобы освобождаются после коммита</b>, веером с ограничением в 16 одновременных вызовов: 100 id — это 300+ блобов, и открывать столько провайдерских вызовов в один тик ради работы, которую никто не ждёт, не нужно. Освобождение сверяет <code>storageProvider</code> и молча пропускает чужие.</li>
+    <li><b>Удаление папки каскадное и безусловное.</b> Раньше непустая папка отвечала <code>409</code>, и населённое дерево нельзя было удалить, не разобрав его руками по уровням. Предохранитель принадлежит подтверждению в интерфейсе, которое называет, что исчезнет, а не серверу, с которым нельзя поспорить. <code>FolderNotEmptyError</code> удалён.</li>
+    <li><b>Обход поддерева — рекурсивный CTE по <code>parent_id</code></b> с фильтром по воркспейсу <b>в обеих ветвях</b>, затем перечитывание строк <code>FOR UPDATE</code> и возврат <b>самых глубоких первыми</b>: ни один родитель не удаляется раньше своих детей, а параллельная загрузка/перемещение/создание подпапки сериализуется против удаления вместо того, чтобы осиротеть. (<code>FOR UPDATE</code> нельзя навесить на SELECT самого рекурсивного CTE — Postgres запрещает, — отсюда два оператора.)</li>
+    <li><b>Обход повторяется в цикле</b>, пока поддерево не перестанет меняться: CTE не берёт блокировок, поэтому подпапка, созданная под <em>потомком</em> между двумя операторами, иначе пережила бы собственного родителя. Когда все известные id заблокированы, повторный обход либо соглашается, либо показывает нового ребёнка — а дальнейшие вставки под ним уже блокируются на нас. Сходимость ограничена <code>SUBTREE_WALK_ROUNDS</code>.</li>
+    <li><b><code>reclaimAssetBlobs</code> общий</b> с массовым удалением активов, чтобы ни один путь не мог забыть про деривативы.</li>
+  </ol>
+
+  <h3>6.7 Дублирование актива</h3>
+  <ol class="flow">
+    <li><code>POST /media/assets/:id/duplicate</code> — право <code>media:create</code>, потому что это создание нового актива, а не правка старого.</li>
+    <li><b>Имя копии строится <em>до</em> обращения к хранилищу.</b> « copy» вставляется перед расширением и может перевалить 255 символов; сказать об этом умеет только value object. Оставленное до транзакции, слишком длинное имя доезжало до провайдера и взрывалось немаппленным <code>ENAMETOOLONG</code> — 500 вместо 400.</li>
+    <li><b>Источник у чужого провайдера отвергается</b>, а не копируется наполовину: <code>get</code> получил бы ключ, который здесь ничего не значит. В здоровом развёртывании это недостижимо благодаря загрузочной проверке.</li>
+    <li><b>Деривативы копируются тоже</b>, и все записанные ключи учитываются, чтобы откат освободил их все.</li>
+  </ol>
+
+  <h3>6.8 Агентские инструменты</h3>
+  <p>Пять инструментов в общем реестре <code>@orthacms/tools-server</code>. Каждый регистратор внедряет <code>ToolRegistry</code> <b><code>@Optional()</code></b>: развёртывание без копайлота и без MCP — нормальное, и медиа обязано в нём подниматься.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Инструмент</th><th>Эффект</th><th>Право</th><th>Поверхность</th><th>Оборачивает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">media_assets_search</td><td>read</td><td class="mono">media:read</td><td><b>обе</b></td><td><code>ListAssetsQuery</code></td></tr>
+      <tr><td class="mono">media_folders_list</td><td>read</td><td class="mono">media:read</td><td><b>обе</b></td><td><code>ListFoldersQuery</code></td></tr>
+      <tr><td class="mono">media_asset_read</td><td>read</td><td class="mono">media:read</td><td><b>обе</b></td><td><code>DownloadAssetQuery</code></td></tr>
+      <tr><td class="mono">media_propose_alt_text</td><td>propose</td><td class="mono">media:update</td><td>только копайлот</td><td>→ <code>UpdateAssetUseCase</code></td></tr>
+      <tr><td class="mono">media_propose_file</td><td>propose</td><td class="mono">media:create</td><td>только копайлот</td><td>→ <code>UploadAssetUseCase</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><b>Поиск охватывает все папки.</b> У <code>folderId</code> три состояния: <em>отсутствующий ключ</em> — весь воркспейс, <code>null</code> — корневая папка, строка — одна папка. Админка листает по одной папке, поэтому <code>null</code> обязан был сохранить значение «корень»; модель, спрошенная «есть ли у нас логотип?», не знает, где искать, и получила бы «нет» на существующий файл. Проверка через <code>in</code>, а не на истинность, — именно чтобы эти два состояния остались различимы.</li>
+    <li><b>Проекция сужена.</b> Отдаются id, имя, вид, MIME, размер, альт, теги, папка, дата и <code>downloadPath</code>; <code>variants</code> и размеры в пикселях выброшены, как и полный <code>url</code> — это маршрут, который <em>модель</em> всё равно не выберет, он стоит токенов и ни на что не отвечает. <b>Путь</b> оставлен для другого читателя: человека, попросившего «перечисли файлы», интересуют ссылки, по которым можно кликнуть.</li>
+    <li><b><code>downloadPath</code> — единственное поле каталога, зависящее от поверхности.</b> Копайлот получает <code>/media/assets/:id/raw</code> (выводит область из членства, поэтому браузер загрузит его напрямую); MCP получает <code>/api/v1/media/assets/:id/raw</code> (гейт <code>media:read</code>, скачивается тем же bearer-токеном, которым сделан вызов). Сессионный маршрут ответил бы внешнему агенту 401, а ссылка, гарантированно неработающая, хуже её отсутствия. Это <b>только представление</b>: оба маршрута проверяют одну и ту же область и одно и то же право.</li>
+    <li><b>Чтение байтов — четыре ограничения.</b> <em>Белый список</em> MIME-типов, никогда чёрный: <code>MediaKind</code> кладёт PDF, Word и Markdown в один <code>document</code>, так что грубый вид фильтром быть не может, а перечисление того, что мы <em>умеем</em>, отказывает новому бинарному формату по умолчанию. <em>Потолок применяется на лету</em> (256 КБ): буферизовать актив целиком и потом резать — значит держать 50 МБ в памяти ради 256 КБ, и это давление на память может вызвать любой, у кого есть право загрузки; поток уничтожается сразу за потолком. <em>Ошибка декодирования фатальна</em>: MIME — это заявление, а не факт, и ошибка, называющая проблему, лучше страницы замещающих символов, которую модель добросовестно перескажет. Исключение — усечённое чтение, где <code>stream: true</code> придерживает неполную хвостовую последовательность: потолок падает на произвольный байт, и разрезанный трёхбайтовый кодпойнт не должен ронять годный файл. И, наконец, <code>DownloadAssetQuery.locate</code> <b>намеренно не привязан к воркспейсу</b> (маршрут выводит его из строки), поэтому инструмент сверяет <code>location.workspaceId</code> сам — и о несовпадении сообщает <b>тем же</b> «нет такого актива», иначе это был бы оракул по id.</li>
+    <li><b>Создание файла: формат из закрытого перечисления, а не MIME.</b> Пять форматов — <code>md</code>, <code>csv</code>, <code>html</code>, <code>json</code>, <code>txt</code>; получив свободный <code>contentType</code>, модель рано или поздно выдаст что-нибудь вроде <code>application/x-msdownload</code>, и <code>MediaKind</code> без возражений отнесёт это к документам. Расширение <b>следует из формата</b>, заменяя то, которым модуль владеет (<code>summary.txt</code> в формате <code>md</code> становится <code>summary.md</code>, а не <code>summary.txt.md</code>), и оставляя чужое (<code>2026.q3</code> сохраняет <code>.q3</code>). Путь <b>отвергается, а не сплющивается</b>: модель охотно предложит <code>reports/2026/q3.md</code>, и тихо выбросить каталоги значило бы положить отчёт в корень, пока модель говорит пользователю другое; сообщение об ошибке называет <code>folderId</code>. Потолок <code>MAX_AUTHORED_BYTES</code> — 1 МБ, намного ниже <code>maxUploadBytes</code>: контент пришёл аргументом инструмента, сгенерированным токен за токеном, и мегабайт такого — сбой, а не отчёт. Применитель зовёт <b>тот же</b> <code>UploadAssetUseCase</code>, наследуя атомарность, блокировку папки, освобождение блобов и маршрутизацию в провайдер.</li>
+    <li><b>Удаления не предлагается — намеренно.</b> Каскад папки уносит всё поддерево с необратимым освобождением блобов, и у запроса на подтверждение нет способа отрисовать «это удалит 4 папки и 213 файлов». Отдать такое недетерминированному подборщику инструментов нужно через отдельный ADR, а не через провайдер.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Чтение файла расширяет поверхность prompt-injection</span>
+    <p>До этого инструмента копайлот читал контент, написанный командой; теперь он читает файл, который в библиотеку положил кто угодно с правом <code>media:create</code>, а <code>.md</code> — прекрасный носитель для «забудь предыдущие инструкции». Защита — та, что получает результат любого инструмента: движок прогона оборачивает вывод в <code>fenceUntrusted</code>. <b>По MCP этой защиты нет</b> — там нет движка прогона, и от MCP-хоста ожидается, что он сам относится к результатам как к недоверенным данным. Что переносится через границу, так это потолок, и он-то и важен: область токена решает, что он может сделать с прочитанным, и токен <code>read</code>, проглотивший инструкцию, всё равно не имеет инструмента записи.</p>
+  </div>
+
+  <h3>6.9 Отложенные загрузки на медиаполе записи</h3>
+  <p class="sub small">Самый неочевидный сценарий во всей группе — и он объясняет, почему медиаполе и тело статьи ведут себя по-разному.</p>
+  <ol class="flow">
+    <li><b>Пользователь выбирает файл на медиаполе.</b> Ничего не отправляется. Файлу выдаётся <b>настоящий uuid-плейсхолдер</b>, и именно он ложится в значение формы — настоящий именно потому, что общее ядро валидирует значение медиаполя как uuid, и подготовленный файл проходит клиентскую валидацию, бейдж «изменено» и гейт публикации ровно как прикреплённый актив.</li>
+    <li><b>Хук живёт выше вкладки.</b> Вкладки редактора — это маршруты, и панель «Медиа» размонтируется, стоит переключить вкладку; поэтому <code>usePendingMediaUploads</code> монтирует <code>ContentEntryView</code>, а панель дотягивается до него обратно через непрозрачный <code>EntryTabContext.presave[id]</code>.</li>
+    <li><b><code>commit</code> выполняется внутри сохранения</b>, до записи и под индикатором занятости: загружает каждый подготовленный файл, на который значения всё ещё ссылаются (по три за раз, по одному запросу на файл), и возвращает значения с плейсхолдерами, заменёнными на настоящие id.</li>
+    <li><b>Упавший файл отменяет сохранение</b> с тостом, который его называет. Ничего не записано, форма сохраняет плейсхолдеры. Те файлы, что <em>успели</em> загрузиться, помнят свой id актива, поэтому повтор их прикрепляет, а не загружает второй раз.</li>
+    <li><b><code>settle</code> после успешной записи</b> отзывает object URL и сбрасывает подготовку — переинициализированная форма уже держит настоящие id сохранённой записи.</li>
+    <li><b>Тело статьи ведёт себя противоположно — и это осознанно.</b> Поле держит <em>id</em>, а тело держит <em>URL</em>, и URL не существует, пока не существуют байты, — значит, загрузка обязана произойти в момент выбора файла. Размен односторонний: брошенная правка оставляет актив в библиотеке, где он виден и удаляем, вместо тела, указывающего в никуда.</li>
+    <li><b>Выбор существующего актива не откладывается</b> — он уже загружен; прикрепление id это обычная правка формы, едущая на «Сохранить», как всякая другая.</li>
+  </ol>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">07</span>HTTP API</h2>
+  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост. Легенда доступа: <span class="pill pill-ses">session</span> — нужна валидная сессия, <span class="pill pill-perm">право</span> — нужна сессия и указанное право, <span class="pill pill-pub">token</span> — bearer-токен вместо сессии. Если не оговорено иное, маршрут несёт <code>WorkspaceGuard</code>, а изменяющий состояние — ещё и <code>OriginGuard</code>.</p>
+
+  <h3>Сессионная половина — <code>/api/media</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /media/folders</td>
+        <td><span class="pill pill-perm">media:read</span> Workspace</td>
+        <td>—</td>
+        <td><code>{ folders[], rootAssetCount }</code> — плоский список с <code>parentId</code></td>
+        <td><code>401</code>; <code>403</code> нет права; <code>400</code> нет/чужой <code>X-Workspace-Id</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /media/folders</td>
+        <td><span class="pill pill-perm">media:create</span> Origin, Workspace</td>
+        <td><code>{ name, parentId? }</code> — имя 1…120</td>
+        <td><code>{ id }</code></td>
+        <td><code>400</code> имя/DTO; <code>404</code> нет родителя; <code>403</code> чужой Origin или нет права</td>
+      </tr>
+      <tr>
+        <td class="mono">PATCH /media/folders/:id</td>
+        <td><span class="pill pill-perm">media:update</span> Origin, Workspace</td>
+        <td><code>{ name }</code>. <b>Родителя сменить нельзя</b></td>
+        <td><code>{ id }</code></td>
+        <td><code>400</code> не-uuid или пустое имя; <code>404</code> нет папки</td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /media/folders/:id</td>
+        <td><span class="pill pill-perm">media:delete</span> Origin, Workspace</td>
+        <td>uuid в пути</td>
+        <td><code>204</code>. <b>Каскадом всё поддерево</b></td>
+        <td><code>404</code> нет самой папки. Непустота отказом <b>не</b> является</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /media/assets</td>
+        <td><span class="pill pill-perm">media:create</span> Origin, Workspace</td>
+        <td><code>multipart/form-data</code>: часть <code>file</code> + поля <code>folderId?</code>, <code>alt?</code></td>
+        <td><code>AssetView</code> целиком</td>
+        <td><code>400</code> нет части <code>file</code>, плохое имя, лишнее поле DTO; <code>413</code> больше <code>maxUploadBytes</code>; <code>404</code> нет папки</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /media/assets</td>
+        <td><span class="pill pill-perm">media:read</span> Workspace</td>
+        <td><code>?folderId=&amp;search=&amp;kind=&amp;sort=&amp;page=&amp;pageSize=</code> (24 по умолчанию, максимум 100)</td>
+        <td><code>{ items, total, page, pageSize }</code></td>
+        <td><code>400</code> непарсящийся <code>folderId</code> или неизвестный <code>kind</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /media/assets/:id/raw</td>
+        <td><span class="pill pill-perm">media:read</span> <b>Workspace НЕТ</b> — область выводится из строки + членство</td>
+        <td>uuid в пути, <code>?variant=thumb|preview</code></td>
+        <td>поток байтов, либо <code>302</code> на подписанный URL при <code>directServe</code></td>
+        <td><code>404</code> — нет актива / не участник / блоба нет в хранилище (одна форма); <code>500</code> — ключ вне корня хранилища; <code>400</code> не-uuid</td>
+      </tr>
+      <tr>
+        <td class="mono">PATCH /media/assets/:id</td>
+        <td><span class="pill pill-perm">media:update</span> Origin, Workspace</td>
+        <td>любое подмножество <code>{ name?, folderId?|null, tags?, alt?, tracks? }</code></td>
+        <td>обновлённый <code>AssetView</code></td>
+        <td><code>400</code> имя/теги/дорожки; <code>404</code> нет актива или нет целевой папки</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /media/assets/:id/duplicate</td>
+        <td><span class="pill pill-perm">media:create</span> Origin, Workspace</td>
+        <td>uuid в пути</td>
+        <td><code>AssetView</code> копии (имя с « copy»)</td>
+        <td><code>404</code> нет источника; <code>400</code> имя копии длиннее 255; <code>500</code> источник у чужого провайдера</td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /media/assets</td>
+        <td><span class="pill pill-perm">media:delete</span> Origin, Workspace</td>
+        <td><code>{ ids: uuid[] }</code> — непустой, максимум 100</td>
+        <td><code>{ deleted: N }</code></td>
+        <td><code>400</code> пустой список, &gt;100, не-uuid. Несуществующий id <b>не</b> ошибка — просто не считается</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Read-model Insights — <code>/api/insights/media</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">GET /insights/media/storage</td>
+        <td><span class="pill pill-perm">media:read</span> Workspace</td>
+        <td>—</td>
+        <td>количество и байты по каждому виду + итоги</td>
+        <td><code>401</code>; <code>403</code>; <code>400</code> воркспейс</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /insights/media/uploads</td>
+        <td><span class="pill pill-perm">media:read</span> Workspace</td>
+        <td><code>?days=</code> — 30 по умолчанию, максимум 365, невалидное молча → 30</td>
+        <td>активы по временным корзинам</td>
+        <td>то же</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /insights/media/alt</td>
+        <td><span class="pill pill-perm">media:read</span> Workspace</td>
+        <td>— <b>окна нет намеренно</b></td>
+        <td>покрытие альт-текстом по изображениям воркспейса</td>
+        <td>то же</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub">Собраны в <b>один</b> контроллер, в отличие от пяти у контента: это три проекции одной таблицы с одной зависимостью и одним правом — читающая сторона одного ресурса, а не три отдельных use-case&#39;а. Маршрут у каждой всё же свой, чтобы каждый виджет владел собственным запросом и одна медленная агрегация не гасила остальные.</p>
+
+  <h3>Токенная половина — <code>/api/v1/media</code></h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">POST /v1/media/assets</td>
+        <td><span class="pill pill-pub">token</span> <span class="pill pill-perm">media:create</span> — то есть <b>только область <code>full</code></b></td>
+        <td>multipart <code>file</code> + <code>?folderId=</code>, <code>?alt=</code>; <code>X-Workspace-Id</code> обязателен при нескольких воркспейсах</td>
+        <td><code>AssetView</code> — его <code>id</code> идёт прямо в <code>field.media</code> записи</td>
+        <td><code>400</code> нет файла или у токена нет создателя; <code>403</code> воркспейс вне корзины токена; <code>413</code> потолок</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /v1/media/assets/:id/raw</td>
+        <td><span class="pill pill-pub">token</span> <span class="pill pill-perm">media:read</span> — <b>обе</b> области</td>
+        <td>uuid, <code>?variant=</code></td>
+        <td>поток байтов или <code>302</code></td>
+        <td><code>404</code> — нет актива, либо он вне воркспейса запроса (в том числе <b>внутри</b> корзины токена)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Зачем токену вообще нужен сырой маршрут</span>
+    <p>Сессионный <code>raw</code> выводит область из <b>членства</b>, которого у токена нет вовсе, поэтому bearer получал 404 ровно на тех URL, которые ему раздают публичные чтения контента. Этот маршрут выводит ту же область из разрешённого воркспейса токена — эквивалентная граница для учётных данных, не являющихся человеком. Причём актив в <em>другом</em> воркспейсе того же токена тоже 404: запрос назвал воркспейс, и чтение через эту черту сделало бы <code>X-Workspace-Id</code> рекомендательным.</p>
+  </div>
+
+  <p class="small sub">Живой сервер отдаёт сгенерированный OpenAPI на <code>/reference</code>. Токенные маршруты объявлены схемой безопасности <code>apiToken</code> и снабжены описаниями; сессионные документируются через DTO с <code>@ApiProperty</code>.</p>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">08</span>Админка: маршруты, экраны, состояния</h2>
+
+  <p>Плагин админки <b>не даёт ни одного маршрута верхнего уровня и ни одного пункта верхней панели</b>. Он живёт строго внутри воркспейса и внутри чужих экранов — шесть контрибуций в шесть слотов.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Что вносит</th><th>Где видно</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">WORKSPACE_NAV_SLOT</td><td>кнопка «Медиатека», иконка <code>Image</code>, <code>order: 20</code></td><td>боковая навигация воркспейса</td></tr>
+      <tr><td class="mono">WORKSPACE_ROUTE_SLOT</td><td>маршрут <code>media/*</code>, страница загружается лениво под <code>Suspense</code> со скелетоном</td><td><code>/workspaces/:id/media</code></td></tr>
+      <tr><td class="mono">ENTRY_TAB_SLOT</td><td>вкладка «Медиа» редактора записи, <code>appliesTo</code> проверяет наличие поля типа <code>Media</code></td><td>редактор записи — только у типов с медиаполем</td></tr>
+      <tr><td class="mono">ENTRY_PRESAVE_SLOT</td><td><code>usePendingMediaUploads</code> — отложенные загрузки, монтируется выше вкладки</td><td>невидимо; работает внутри «Сохранить»</td></tr>
+      <tr><td class="mono">WYSIWYG_MEDIA_SLOT</td><td>два источника: «Медиатека…» (тот же <code>MediaPickerDialog</code>) и «Загрузить файлы…» (тот же <code>UploadDialog</code>)</td><td>меню «Вставить ▸ Медиа» текстового редактора</td></tr>
+      <tr><td class="mono">INSIGHTS_WIDGET_SLOT</td><td>4 карточки: плитка «Хранилище» в Overview + «Что занимает хранилище», «Загрузки», «Изображения без альт-текста» в Reach; все под <code>permission: media:read</code></td><td>страница Insights</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Страница медиатеки</h3>
+  <p>Один маршрут, две панели без «острова»: обе рисуются прямо на фоне страницы (никакой приглушённой доски, рамок и теней), разделённые волосяной линией <code>lg:border-r</code>, и каждая скроллится независимо. Страница берёт размер через <code>flex-1</code> от колонки оболочки воркспейса, а не собственным <code>svh</code>-расчётом — одно измерение вьюпорта в цепочке, чтобы на масштабе не 100% не появлялся фантомный скроллбар. Карточками остаются только компоненты (плитки, панель выделения), но не хром страницы.</p>
+  <ul>
+    <li><b>Шапка</b> — липкий <code>MediaTopBar</code> на обе панели: бирюзовая плитка <code>Image</code>, совпадающая с записью в навигации, и хлебные крошки «Медиатека › предки › открытая папка». В отличие от контентной, она <b>не выводится из маршрута</b>: навигация по папкам здесь — состояние компонента, а не сегмент URL, поэтому крошки берутся из стора и рисуются как <b><code>&lt;button&gt;</code></b> — элемент, меняющий вид без смены адреса, это кнопка, а не ссылка.</li>
+    <li><b>Левая панель</b> — дерево папок под заголовком «Все медиа», создание папки и счётчик занятого места.</li>
+    <li><b>Правая панель</b> — заголовок с числом, тулбар (поиск, фильтр типа, сортировка), сетка плиток и пейджер. <b>Списочного вида нет</b>: переключатель grid/list и таблица удалены, константы <code>MEDIA_VIEW</code> не существует, состояния <code>view</code> в сторе нет. Вместе с таблицей ушёл и «выбрать всё» — он жил в её шапке; выделение теперь по плитке плюс «Очистить» в панели выделения.</li>
+    <li><b>Выделение и массовые действия</b> — <code>MediaSelectionBar</code>: скачать, дублировать, переместить, удалить, очистить.</li>
+    <li><b>Меню на активе</b> — один <code>AssetActionsMenu</code>: скачать, скопировать ссылку, дублировать, переименовать, переместить, удалить. Пункта «Открыть» в нём <b>нет</b>: в панели деталей он открывал бы панель, уже стоящую на экране, а на плитке дублировал бы миниатюру и имя файла — оба уже кнопки, отправляющие то же действие. Само действие <code>'open'</code> осталось, исчез только пункт меню.</li>
+    <li><b>Панель деталей</b> — превью (дериват <code>preview</code>), действия, метаданные, редактируемый альт-текст, теги.</li>
+  </ul>
+
+  <h3>Пагинация — серверная</h3>
+  <p>Стор гоняет на сервер <code>search</code>, <code>kind</code>, <code>sort</code>, <code>page</code> и <code>pageSize</code> (24 / 48 / 96) и рисует ровно то, что пришло. Раньше это был <code>filter</code> + <code>sort</code> поверх одной фиксированной страницы в 100 элементов — то есть поиск мог не найти файл, который заведомо есть. Четыре сопутствующих правила, каждое исправляет свой класс бага:</p>
+  <ul>
+    <li><b><code>placeholderData</code> удерживает предыдущую страницу</b> — иначе сетка гасла между страницами.</li>
+    <li><b>Смена страницы сбрасывает выделение.</b> Выделение, пережившее свою страницу, было бы невидимым: панель выделения выводит имена из загруженной страницы, поэтому id, оставленные на первой, исчезали бы из счётчика на второй и молча возвращались позже — а «Удалить» их бы захватил.</li>
+    <li><b>Сужение списка возвращает на первую страницу.</b> Страница 4 при новом поиске бессмысленна, и пользователь оказывался бы на пустой сетке сразу после ввода запроса, который что-то находит.</li>
+    <li><b>Страница подтягивается в диапазон, когда результат сжался</b> — удалили последние три файла на пятой странице, и пейджер иначе остался бы на странице, которую сервер отдаёт пустой.</li>
+  </ul>
+
+  <h3>Состояния экрана</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Когда</th><th>Что показывается</th></tr></thead>
+    <tbody>
+      <tr><td><b>Нет прав</b></td><td><code>useHasPermission('media:read')</code> ложно</td><td>Текстовая карточка «нет доступа». Запросы <b>вообще не запускаются</b> (<code>enabled: canRead</code>), а не запускаются и получают 403</td></tr>
+      <tr><td><b>Загрузка</b></td><td>первая выборка папок/активов</td><td>Скелетон (<code>MediaLibrarySkeleton</code>), он же fallback у <code>Suspense</code> ленивого маршрута</td></tr>
+      <tr><td><b>Ошибка</b></td><td><code>store.isError</code></td><td><b>Собственное</b> состояние с <code>role="alert"</code> и кнопкой «Повторить». <b>Никогда не пустое состояние</b>: «здесь ничего нет» вместо сбоя сервера отправляет человека искать файлы, которые существуют</td></tr>
+      <tr><td><b>Пусто</b></td><td>ноль папок и <code>total === 0</code></td><td><code>MediaEmptyState</code>, приглашение загрузить — только если есть <code>media:create</code></td></tr>
+      <tr><td><b>Ничего не найдено</b></td><td>фильтры сузили до нуля</td><td>Пустое состояние с «Сбросить фильтры» — отличается от «библиотека пуста»</td></tr>
+      <tr><td><b>Загрузка файлов идёт</b></td><td>очередь непуста</td><td><code>MediaUploadBanner</code> над браузером: общий взвешенный по размеру прогресс + строка на файл с процентами, повтором и отменой</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Очередь загрузки</h3>
+  <ul>
+    <li><b>Один запрос на файл, не более трёх сразу.</b> Прежний <code>Promise.all</code> терял всю пачку из-за одного отказа.</li>
+    <li><b>Тост об успехе загрузки не показывается вообще.</b> Диалог закрывается на подтверждении, так что тост заявлял бы результат, которого ещё нет; поверхностью статуса служит баннер, а кэш инвалидируется один раз на осевшую пачку.</li>
+    <li><b>Все остальные действия дают тост — на успехе, а не на отправке.</b> Каждое действие стора возвращает <code>Promise&lt;boolean&gt;</code>, и страница цепляет свою фразу за него. Раньше рядом появлялись «Переименовано в “a/b.png”» и «Request failed with status code 400».</li>
+    <li><b>Отказы говорят словами API.</b> <code>toApiError</code> кладёт описание транспорта в <code>message</code>, а разобранное тело в <code>details</code>, поэтому всё пользовательское идёт через <code>apiMessage</code>, который читает тело и падает на локальную формулировку — иначе вместо «File exceeds the maximum upload size.» показывался бы код статуса.</li>
+    <li><b>Файлы и учёт бегунка живут в <code>ref</code>, а не в состоянии</b>, чтобы тик прогресса перерисовывал только маленькую строку, а не весь экран.</li>
+    <li><b>Размер в подсказке не называется.</b> Потолок живёт в конфигурации сервера и <b>ни один маршрут его админке не сообщает</b>, поэтому прежнее «до 250 МБ» было числом, которое ничто не проверяло: 52-мегабайтный файл спокойно готовился и получал 413, передавшись целиком. Пока потолок нечитаем, подсказка говорит о принимаемых типах и молчит о размере.</li>
+  </ul>
+
+  <h3>Доступность</h3>
+  <ul>
+    <li><b>Медиаполе названо как группа</b> (<code>aria-labelledby</code> → его <code>&lt;h3&gt;</code>), а не через <code>&lt;label for&gt;</code> на кнопку: медиаполе — <em>составной</em> контрол (выбрать / загрузить / убрать / переставить), и label <b>заместил</b> бы собственное имя триггера — дерево доступности читало «Обложка, кнопка» вместо «Выбрать из библиотеки». Как группа оно читается «Обложка, группа», а затем каждое действие своим именем.</li>
+    <li><b>Подтверждённое удаление отдаёт фокус сетке.</b> И меню ⋯, и диалог подтверждения возвращают фокус каждый на свой триггер, а оба сидят на плитке, которую удаление только что убрало, — фокус оказывался на <code>&lt;body&gt;</code>. Страница перехватывает <code>onCloseAutoFocus</code> и наводит на озаглавленную секцию «Активы» с <code>tabIndex={-1}</code>, отвоёвывая фокус ещё несколько кадров, если чужой слой восстановит его позже. Отмена не тронута — её триггер всё ещё существует.</li>
+    <li><b>Триггер действий папки назван по папке</b> («Действия для Изображений»), иначе сетка папок была бы рядом одинаковых кнопок «Действия с папкой».</li>
+    <li><b>Подтверждение удаления папки называет содержимое.</b> Числа считаются из уже загруженного дерева — лишнего запроса нет, свежесть та же, что у последнего чтения папок. Пустая папка получает простую формулировку: перечислять опись из ничего — шум.</li>
+    <li><b>Object URL отзываются при размонтировании.</b> Подготовленное видео на 200 МБ иначе висело бы в памяти всю жизнь вкладки.</li>
+  </ul>
+
+  <h3>Кэш</h3>
+  <p>Ключи строятся фабрикой <code>mediaKeys</code> и <b>всегда включают <code>workspaceId</code></b>: <code>['media', ws]</code> → <code>['media', ws, 'folders']</code> → <code>['media', ws, 'assets', folderId, {search, kind, sort, page, pageSize}]</code>. Мутации инвалидируют корень <code>mediaKeys.all(workspaceId)</code> — грубо, но безопасно: после загрузки меняются и счётчики папок, и страница, и виджеты. Виджеты Insights ходят по собственным ключам с <code>retry: 1</code>. Загрузки из тела статьи инвалидируют медиа-кэш, как только что-то осело, <b>даже если запись потом не сохранится</b> — актив-то уже в библиотеке.</p>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">09</span>Конфигурация и матрица адаптеров</h2>
+
+  <p>Конфигурация течёт из <code>apps/server/ortha.config.ts</code> (секция <code>plugins.media</code>) в фабрику <code>MediaServerPlugin({ provider, config })</code>. Плагин <b>не называет ни одного бэкенда</b>: какой запущен, решает то, какую фабрику вызвал композиционный корень.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Тип / по умолчанию</th><th>Переменная окружения</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">maxUploadBytes</td><td><code>number</code>, 52 428 800 (50 МБ)</td><td class="mono">MEDIA_MAX_UPLOAD_BYTES</td><td>Потолок одной загрузки, <b>включительный</b>. Доезжает до multer через <code>MulterModule.register</code>; регистрируется как <code>cap + 1</code>. Ограничивает и память, которую multer буферизует на запрос</td></tr>
+      <tr><td class="mono">directServe</td><td><code>'off' | 'signed-url'</code>, по умолчанию <code>off</code></td><td class="mono">MEDIA_DIRECT_SERVE</td><td><code>off</code> — каждый байт течёт через приложение. <code>signed-url</code> — <code>302</code> на подписанный URL. <b>Плагин откажется стартовать</b> с <code>signed-url</code> на провайдере с <code>capabilities.directUrl: false</code></td></tr>
+      <tr><td class="mono">directServeTtlSeconds</td><td><code>number</code>, 300</td><td class="mono">MEDIA_DIRECT_SERVE_TTL_SECONDS</td><td>Срок жизни подписанного URL: достаточно для страницы миниатюр, мало, чтобы утечка стоила дорого. Неположительное значение — ошибка старта: такой URL уже истёк в момент выпуска</td></tr>
+      <tr><td class="mono">storage</td><td>тип задаёт <b>фабрика</b>, которую импортирует хост</td><td class="mono">MEDIA_LOCAL_ROOT (для local)</td><td>Настройки выбранного бэкенда. Живут в конфиге <em>хоста</em>, а не в <code>MediaPluginConfig</code> — та же схема, что у провайдеров копайлота</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Переменной «какой бэкенд» не существует — и это решение</span>
+    <p>В <code>.env.example</code> это написано прямым текстом: <em>«Which storage backend runs is NOT an environment variable»</em>. Значение переменной могло бы указывать на адаптер, которого никто не подключил; выражение в <code>plugins.ts</code> — не может. Прежняя схема (карта именованных провайдеров + резолвер + <code>defaultProvider</code> + переменная <code>MEDIA_PROVIDER</code>) давала <b>два способа ошибиться</b> и была вторым диалектом рядом с конвенцией копайлота; ADR-0012 убрал её целиком.</p>
+  </div>
+
+  <h3>Пять проверок при сборке приложения</h3>
+  <p><code>assertOptions</code> валидирует шов <b>рано</b>, там же, где он собран. Измерено на реальном приложении до её появления: указание конфига на бэкенд, который никто не подключил, поднималось <b>без единого предупреждения</b>, а каждая загрузка отвечала голым <code>500 Internal server error</code> — сообщением, не называющим ни провайдера, ни настройку, которая его выбрала.</p>
+  <ol class="flow">
+    <li><b>Провайдер вообще передан</b> — иначе текст ошибки содержит пример строки, которую надо написать.</li>
+    <li><b><code>id</code> непустая строка</b> — он пишется в каждую строку актива и является тем, с чем загрузочная проверка сравнивает существующие.</li>
+    <li><b><code>capabilities</code> объявлены</b> — ядру нечем их определить, и угаданная возможность — это либо молча неиспользованная функция, либо ответ, отданный без защиты.</li>
+    <li><b><code>directUrl: true</code> подтверждён методом</b> — объявить возможность без реализации нельзя.</li>
+    <li><b><code>directServe: 'signed-url'</code> согласован с провайдером</b>, и <b><code>maxUploadBytes</code> положителен</b> — неположительный потолок отверг бы каждую загрузку.</li>
+  </ol>
+  <p>Шестая проверка — уже во время старта: <code>StorageProviderCheck</code> (<code>OnApplicationBootstrap</code>) зовёт <code>provider.verify?.()</code> и группирует <code>media_asset</code> по <code>storage_provider</code>. Чужие значения роняют старт с перечислением имён и количеств строк. <b>Отсутствие таблицы отказом не считается</b>: миграции — отдельный шаг, и свежая база обязана подняться.</p>
+
+  <h3>Матрица адаптеров хранилища</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Адаптер</th><th>npm-имя / <code>id</code></th><th>Для чего</th><th>Требует в конфигурации</th><th class="center">directUrl</th><th class="center">verify()</th><th>Особенности и ограничения</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">local</td>
+        <td class="mono">@orthacms/media-provider-local<br><code>id: 'local'</code></td>
+        <td><b>По умолчанию.</b> Одиночный сервер, разработка, развёртывание с постоянным томом</td>
+        <td><code>{ rootDir }</code> — <code>MEDIA_LOCAL_ROOT</code>, по умолчанию <code>./.storage/media</code></td>
+        <td class="center no">нет</td><td class="center no">нет</td>
+        <td>Ключи <code>&lt;ws&gt;/&lt;asset&gt;/&lt;имя&gt;</code>. Запись через <code>.hex.part</code> + <code>rename</code>. <code>contentTypeMetadata: false</code> — файловой системе некуда его положить. <b>Проверка выхода за корень</b> через <code>resolve</code>, а не <code>join</code>: <code>join(root, '/etc/passwd')</code> тихо пере-базирует абсолютный ключ под корень и прячет его от наивной проверки префикса. Сегменты чистятся и обрезаются до 255 байт (<code>ENAMETOOLONG</code> иначе становится немаппленным 500). Пустые каталоги подчищаются, иначе миллион загрузок и удалений оставит миллион inode. <b>Не масштабируется горизонтально</b> — два инстанса не увидят файлов друг друга</td>
+      </tr>
+      <tr>
+        <td class="mono">s3</td>
+        <td class="mono">@orthacms/media-provider-s3<br><code>id: 's3'</code></td>
+        <td>Cloudflare R2, AWS S3, MinIO, DigitalOcean Spaces, Backblaze B2, Wasabi, Scaleway, Hetzner, Supabase Storage, Tigris — и GCS через XML API</td>
+        <td><code>{ bucket, region?, endpoint?, forcePathStyle?, credentials?, keyPrefix?, client? }</code></td>
+        <td class="center yes">да</td><td class="center yes">да</td>
+        <td><b>Единственный, кто объявляет <code>directUrl</code> безусловно.</b> <code>region</code> по умолчанию <code>auto</code> (этого ждёт R2). <b>Не передавайте <code>credentials</code></b> на хосте с instance role или IRSA: отсутствие означает «используй цепочку провайдеров SDK», а объект из пустых строк заслонит её ключами, которые не могут подписать. Размер и sha256 меряются <em>здесь</em>: <code>ETag</code> — не sha256 и для multipart даже не MD5. Сбой multipart вызывает <code>abort()</code>, иначе части остаются оплачиваемыми и невидимыми. <code>verify</code> — один <code>HeadBucket</code> на старте</td>
+      </tr>
+      <tr>
+        <td class="mono">gcs</td>
+        <td class="mono">@orthacms/media-provider-gcs<br><code>id: 'gcs'</code></td>
+        <td>Google Cloud Storage <b>нативно</b> — там, где HMAC-ключи запрещены политикой или используется Workload Identity</td>
+        <td><code>{ bucket, projectId?, keyFilename?, credentials?, keyPrefix?, signWithIam?, bucketClient? }</code></td>
+        <td class="center">вычисляется</td><td class="center yes">да</td>
+        <td><b>Возможно, вам он не нужен:</b> GCS говорит по S3 XML API, и адаптер <code>-s3</code> достаёт его через <code>endpoint: 'https://storage.googleapis.com'</code> — на один пакет меньше. Подпись требует приватного ключа (<code>keyFilename</code>/<code>credentials</code>) либо явного <code>signWithIam</code>; <b>голый ADC не имеет ни того, ни другого</b>, объявляет <code>directUrl: false</code>, и его скачивания проксируются. <code>signWithIam</code> именно opt-in: он требует права <code>iam.serviceAccounts.signBlob</code>, и предположить его — значит выпускать URL, падающие в момент запроса</td>
+      </tr>
+      <tr>
+        <td class="mono">azure</td>
+        <td class="mono">@orthacms/media-provider-azure<br><code>id: 'azure'</code></td>
+        <td>Azure Blob Storage — <b>единственное крупное хранилище без S3-совместимости вообще</b>. Пробел, из-за которого Microsoft-магазин не мог запустить Ortha</td>
+        <td><code>{ container, connectionString? | (accountName + accountKey) | containerClient?, keyPrefix? }</code></td>
+        <td class="center">вычисляется</td><td class="center yes">да</td>
+        <td>Три способа подключиться, в порядке востребованности: строка подключения (её выдаёт портал и печатает Azurite), пара имя+ключ, готовый <code>containerClient</code>. Последний — <b>лазейка для managed identity</b>: собрать клиент с <code>DefaultAzureCredential</code> и передать, оставив пакет свободным от этой зависимости. SAS требует shared key, поэтому на managed identity <code>directUrl: false</code>. Подписывая, SAS закрепляет <code>rscd</code> и <code>rsct</code>. User-delegation SAS — следующий шаг, не молчаливое предположение</td>
+      </tr>
+      <tr>
+        <td class="mono">vercel-blob</td>
+        <td class="mono">@orthacms/media-provider-vercel-blob<br><code>id: 'vercel-blob'</code></td>
+        <td>Самая короткая настройка на Vercel</td>
+        <td><code>{ token?, keyPrefix?, api? }</code> — <code>token</code> можно опустить на самой Vercel (<code>BLOB_READ_WRITE_TOKEN</code>)</td>
+        <td class="center no">нет</td><td class="center yes">да</td>
+        <td><b>Каждый блоб — мир-читаемый.</b> У хранилища один режим доступа, <code>public</code>: URL постоянный, неугадываемый и неаутентифицированный. Кто его получил — скопированный <code>&lt;img src&gt;</code>, расширение браузера, лог прокси, пересланное письмо — читает файл вечно. Приложение продолжает соблюдать свои правила (API отдаёт <code>/media/assets/:id/raw</code>, никогда URL блоба), но <b>вторая, публичная копия байтов существует и отзывается только удалением блоба</b>. Годится для картинок маркетингового сайта, <b>не годится</b> для конфиденциальной медиатеки. <code>directUrl: false</code> честно: URL не истекает и не несёт disposition. <code>addRandomSuffix: false</code> обязателен — иначе блоб ляжет туда, где адаптер его не назовёт</td>
+      </tr>
+      <tr>
+        <td class="mono">memory</td>
+        <td class="mono">@orthacms/media-provider-memory<br><code>id: 'memory'</code></td>
+        <td>e2e-испытательный стенд и офлайн-разработка</td>
+        <td><code>{ maxTotalBytes? }</code> — по умолчанию 256 МБ</td>
+        <td class="center no">нет</td><td class="center no">нет</td>
+        <td><b>Опубликован намеренно, но генератором не предлагается</b> — приложение, теряющее каждую загрузку при рестарте, не является развёртыванием. До него <code>apps/server-e2e</code> держал свой <code>Map</code>-провайдер прямо в коде — вторую реализацию порта, которую ничто не удерживало от дрейфа, и она дрейфовала: отсутствующий ключ отклонялся голым <code>Error</code>, так что маршрут, маппящий <code>ObjectNotFoundError</code> в 404, стендом вообще не проверялся. <code>streamingPut: false</code> — <code>put</code> буферизует; <code>contentTypeMetadata: true</code> — в отличие от файловой системы, <code>Map</code> есть куда его положить. Переполнение даёт <code>MemoryStoreFullError</code>, чтобы тест падал как тест, а не как OOM, уносящий весь прогон</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Генератор <code>create-ortha-app</code> предлагает выбор из пяти (local по умолчанию, плюс azure, gcs, vercel-blob, s3) — это единственный выбор группы в мастере; <code>-memory</code> и <code>-testkit</code> перечислены как транзитивные и ставятся всегда.</p>
+
+  <details>
+    <summary>Порядок регистрации плагина</summary>
+    <p><code>MediaServerPlugin</code> регистрируется <b>после</b> <code>WorkspacesPlugin</code> (маршруты используют <code>WorkspaceGuard</code>) и <code>IdentityPlugin</code> (<code>PermissionsGuard</code>), и <b>до</b> <code>TransferPlugin</code>, который читает через него байты и воссоздаёт файлы его же путём загрузки. Модуль объявлен <code>global: true</code>, поэтому привязка <code>MEDIA_ASSET_RESOLVER</code> видна <code>EntryWriterService</code> независимо от порядка регистрации. Миграции описаны лениво (<code>dir: () =&gt; join(__dirname, '../../../migrations')</code>) — путь вычисляется только в момент миграции.</p>
+  </details>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">10</span>Безопасность и устойчивость</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Скачивание — это враждебные байты</h4>
+      <p class="small sub">MIME — заявление загружающего, приложение с медиа на одном origin. Отсюда три слоя на <b>каждом</b> ответе обоих сырых маршрутов: <code>nosniff</code>, CSP без единой возможности, и <code>inline</code> только по белому списку. Без этого загруженный <code>.html</code> был хранимой XSS на собственном origin.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Нет перечисления активов</h4>
+      <p class="small sub">Несуществующий id, чужой воркспейс, не-участник и <b>потерянный блоб</b> — один и тот же 404. То же правило у резолвера копайлотских вложений: чужой актив приходит <em>отсутствующим</em>, неотличимо от удалённого, а движок сворачивает недостачу в одну ошибку с числом.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Redirect не отменяет авторизацию</h4>
+      <p class="small sub"><code>directUrlFor</code> вызывается <em>после</em> резолва актива и проверки членства (или воркспейса токена) — он решает только, как поедут уже разрешённые байты. Внутри есть и вторая страховка: если провайдер подменили под нами, функция возвращает <code>null</code>, и байты пойдут потоком, а не исключением.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Disposition вшивается в подпись</h4>
+      <p class="small sub">302 выбрасывает <code>Content-Disposition</code>, <code>nosniff</code> и CSP этого ответа, поэтому решение принимает та же <code>isInlineSafe</code>, а провайдер закрепляет его на URL. Не умеющий этого объявляет <code>directUrl: false</code>. Плюс <code>Cache-Control: private, no-store</code>: кэшированный редирект пережил бы URL, на который указывает.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Имя файла — лист, а не путь</h4>
+      <p class="small sub"><code>FileName</code> отвергает <code>/</code>, <code>\</code> и управляющие символы, а провайдер дополнительно чистит сегмент. Локальный проверяет, что ключ резолвится <b>внутри</b> корня: без этого <code>remove('../../x')</code> удалял бы произвольный файл, доступный пользователю сервера. Ключи из <code>storage_key</code> заслуживают этой проверки, потому что колонку может записать миграция, импорт или будущий провайдер.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Никакая ошибка не сплющивается в 4xx</h4>
+      <p class="small sub"><code>to-http</code> маппит ровно семь доменных ошибок и <b>перебрасывает</b> всё остальное. Испорченный <code>storage_key</code> обязан остаться громким 500 со стеком в логе — именно это нужно оператору; «не найдено» похоронило бы его проблему под правдоподобным ответом.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Потолок загрузки — единственная граница памяти</h4>
+      <p class="small sub">Оба маршрута используют <code>memoryStorage</code>, то есть файл целиком в куче. <code>maxUploadBytes</code> — это то, что не даёт её исчерпать, и потому он обязан быть конфигурацией хоста, а не константой. Сквозной стриминг — отдельная работа.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Каскад не выходит за тенант</h4>
+      <p class="small sub">Рекурсивный CTE фильтрует по воркспейсу <b>в обеих ветвях</b>, а не только в якорной. Каскад, сбежавший из своего тенанта, — худшая возможная ошибка здесь, поэтому это закреплено e2e-тестом, а не только ревью.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Блоки блобов и транзакция не расходятся</h4>
+      <p class="small sub">Запись блобов — <b>до</b> транзакции (нужен ключ), освобождение при удалении — <b>после</b> коммита. Первое требует компенсации в <code>catch</code>, второе гарантирует, что откатившееся удаление не уничтожит байты, на которые указывает уцелевшая строка. Обе стороны одинаково несущие.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Фильтры не доезжают до драйвера</h4>
+      <p class="small sub">Значения, идущие в <code>WHERE</code> по типизированным колонкам, валидируются в самом запросе — потому что вызывающих у него двое, и контроллер прикрыл бы только одного. Метасимволы <code>LIKE</code> экранируются, иначе <code>?search=%</code> отдаёт всю библиотеку.</p>
+    </div>
+  </div>
+
+  <h3>Отложено сознательно</h3>
+  <ul>
+    <li><b>Дедупликации нет</b> — sha256 считается и хранится, но не ищется.</li>
+    <li><b>Сборщика мусора для блобов нет.</b> Подписчик на <code>media.asset.deleted</code> назван в планах, но не написан; освобождение остаётся встроенным в use-case и «по возможности». Осиротевший блоб (провайдер отказал в момент освобождения) сегодня никто не подберёт.</li>
+    <li><b>Зондирование длительности видео не сделано</b> — колонка <code>duration</code> всегда пуста.</li>
+    <li><b>Проверки содержимого нет</b> — ни sniffing, ни антивирус, ни белый список типов при загрузке.</li>
+    <li><b>Инструмента переноса блобов между бэкендами нет.</b> Смена провайдера — отказ старта; перенос делается вне системы.</li>
+    <li><b>Rate limit на загрузку отдельно не настраивается</b> — общий лимитер плагина identity покрывает публичные маршруты аутентификации, а не медиа.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Байты никогда не лежат в базе: строка актива содержит только <code>storage_key</code> + <code>storage_provider</code>.</span></li>
+    <li><span class="id">И-02</span><span>В развёртывании работает <b>ровно один</b> провайдер хранилища, переданный одним объектом; реестра, резолвера и <code>defaultProvider</code> не существует.</span></li>
+    <li><span class="id">И-03</span><span><code>provider.id</code> — факт самого адаптера, записанный в каждую строку; приложение <b>сравнивает</b> его при чтении, удалении и очистке, а не ищет бэкенд по имени.</span></li>
+    <li><span class="id">И-04</span><span>Старт прерывается, если в <code>media_asset</code> есть строки чужого провайдера; сообщение называет имя и количество. Отсутствие таблицы отказом не является.</span></li>
+    <li><span class="id">И-05</span><span><code>capabilities.directUrl: true</code> невозможно объявить без реализации <code>directUrl()</code>, а <code>directServe: 'signed-url'</code> — на провайдере, который не подписывает. Обе проверки — при сборке приложения.</span></li>
+    <li><span class="id">И-06</span><span><code>put</code> — «всё или ничего»: отклонившийся вызов не оставляет за собой блоба и не отдаёт ключа.</span></li>
+    <li><span class="id">И-07</span><span><code>get</code> отклоняется <b>до</b> открытия потока и именно с <code>ObjectNotFoundError</code>, когда ключа нет; <code>remove</code> идемпотентен.</span></li>
+    <li><span class="id">И-08</span><span>Все методы порта отклоняются промисом, а не бросают синхронно — синхронный бросок минует <code>try</code>, освобождающий блобы.</span></li>
+    <li><span class="id">И-09</span><span>Дериват никогда не может затереть оригинал: он пишется в зарезервированное пространство ключей <code>variants/</code> через <code>PutObject.isVariant</code>.</span></li>
+    <li><span class="id">И-10</span><span>Генерация деривативов «по возможности»: источник, который процессор не декодирует, даёт ноль деривативов и <b>никогда</b> не валит загрузку.</span></li>
+    <li><span class="id">И-11</span><span>Неудачная загрузка (сбой хранилища или отката транзакции) освобождает <b>все</b> записанные блобы, включая деривативы.</span></li>
+    <li><span class="id">И-12</span><span>Удаление освобождает блобы <b>после коммита</b>, по <code>Asset.storageKeys</code> — оригинал и все деривативы; откатившееся удаление байты не уничтожает.</span></li>
+    <li><span class="id">И-13</span><span>Загрузка, перемещение и создание подпапки берут <code>FOR SHARE</code> на целевой папке и потому сериализуются против её каскадного удаления.</span></li>
+    <li><span class="id">И-14</span><span>Каскад удаления папки фильтрует по воркспейсу в <b>обеих</b> ветвях рекурсивного CTE, блокирует поддерево <code>FOR UPDATE</code>, возвращает глубочайшие первыми и повторяет обход до стабилизации.</span></li>
+    <li><span class="id">И-15</span><span>Каждый маршрут гейтится правом по константе <code>PERMISSIONS.MEDIA_*</code>; изменяющие состояние сессионные маршруты дополнительно несут <code>OriginGuard</code>.</span></li>
+    <li><span class="id">И-16</span><span>Каждый маршрут, кроме <code>GET /media/assets/:id/raw</code>, несёт <code>WorkspaceGuard</code>; этот один выводит область из строки актива и требует членства в воркспейсе-владельце.</span></li>
+    <li><span class="id">И-17</span><span>Несуществующий актив, чужой воркспейс, отсутствие членства и отсутствующий в хранилище блоб дают <b>один и тот же 404</b>; ключ хранилища в тело ответа не попадает.</span></li>
+    <li><span class="id">И-18</span><span>Ключ, резолвящийся вне корня хранилища, остаётся <b>500</b>: это испорченные данные, а не ошибка вызывающего.</span></li>
+    <li><span class="id">И-19</span><span>Оба сырых маршрута всегда ставят <code>X-Content-Type-Options: nosniff</code> и CSP без возможностей; <code>inline</code> выдаётся только типам из белого списка, SVG в него не входит.</span></li>
+    <li><span class="id">И-20</span><span>Редирект прямой раздачи выполняется <b>после</b> авторизации, несёт закреплённые тип и disposition и сопровождается <code>Cache-Control: private, no-store</code>.</span></li>
+    <li><span class="id">И-21</span><span>Потолок загрузки включительный: ровно <code>maxUploadBytes</code> принимается, на байт больше — 413. Локальных <code>limits</code> у <code>FileInterceptor</code> нет ни на одном маршруте.</span></li>
+    <li><span class="id">И-22</span><span>Имя файла — лист: <code>/</code>, <code>\</code>, управляющие символы, пустое и длиннее 255 отвергаются <code>FileName</code>, а не чистятся молча.</span></li>
+    <li><span class="id">И-23</span><span><code>?variant=</code> резолвится через <code>Object.hasOwn</code>; отсутствующий дериват — не ошибка, а откат к оригиналу.</span></li>
+    <li><span class="id">И-24</span><span>Непарсящийся <code>folderId</code> и неизвестный <code>kind</code> дают 400 из самого запроса, а не 500 от драйвера; <code>%</code> и <code>_</code> в поиске матчат сами себя.</span></li>
+    <li><span class="id">И-25</span><span>Альт-текст нормализуется одинаково на всех путях (обрезка, пустое → <code>null</code>), поэтому пробел никогда не считается покрытием.</span></li>
+    <li><span class="id">И-26</span><span>Токенная половина умеет только загрузку и чтение байтов; <code>media:update</code> и <code>media:delete</code> не выдаются ни одной области токена.</span></li>
+    <li><span class="id">И-27</span><span>Загрузка по токену приписывается пользователю, выпустившему токен; его роль при этом <b>не</b> проверяется — решение уже принято областью токена.</span></li>
+    <li><span class="id">И-28</span><span>Актив в другом воркспейсе <em>внутри</em> корзины токена — тоже 404, иначе <code>X-Workspace-Id</code> был бы рекомендательным.</span></li>
+    <li><span class="id">И-29</span><span>Регистрация в реестре инструментов и в реестре очистки воркспейсов — <code>@Optional()</code>: медиа поднимается без копайлота, без MCP и без плагина воркспейсов.</span></li>
+    <li><span class="id">И-30</span><span>Три инструмента чтения видны обеим поверхностям, два «предложения» — только копайлоту; <code>downloadPath</code> — единственное поле, зависящее от поверхности, и это только представление.</span></li>
+    <li><span class="id">И-31</span><span><code>media_asset_read</code> ограничен белым списком MIME и потолком 256 КБ, применяемым <b>во время</b> чтения; ошибка декодирования фатальна, кроме усечённого хвоста.</span></li>
+    <li><span class="id">И-32</span><span><code>media_propose_file</code> принимает формат из закрытого перечисления, отвергает путь в имени и ограничен 1 МБ; применитель зовёт тот же <code>UploadAssetUseCase</code>, что и HTTP-маршрут.</span></li>
+    <li><span class="id">И-33</span><span>Слой <code>domain/</code> не импортирует ни <code>@nestjs/*</code>, ни <code>drizzle-orm</code>, ни <code>class-validator</code>, ни <code>infrastructure/</code>.</span></li>
+    <li><span class="id">И-34</span><span>Провайдер зависит только от <b>типа</b> порта (стирается при компиляции) и своего вендорского SDK; ни один адаптер не тянет NestJS.</span></li>
+    <li><span class="id">И-35</span><span>Удаление воркспейса удаляет строки медиа и освобождает их блобы — <b>без</b> поштучных доменных событий, одним <code>delete</code> на таблицу.</span></li>
+    <li><span class="id">И-36</span><span>В админке отсутствие <code>media:read</code> не запускает запросы вовсе; сбой чтения даёт собственное состояние ошибки с повтором, а не пустое состояние.</span></li>
+    <li><span class="id">И-37</span><span>Смена страницы, поиска, фильтра или сортировки сбрасывает выделение; страница подтягивается в диапазон, когда результат сжался.</span></li>
+    <li><span class="id">И-38</span><span>Файл, выбранный на медиаполе записи, не загружается до сохранения записи; упавшая загрузка отменяет сохранение целиком, а уже загруженные файлы при повторе не загружаются второй раз.</span></li>
+    <li><span class="id">И-39</span><span>Файл, вставленный в тело статьи, загружается <b>сразу</b> — тело держит URL, а URL не существует без байтов.</span></li>
+    <li><span class="id">И-40</span><span>Ключи кэша админки всегда содержат <code>workspaceId</code>.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Серверная часть проверяется <code>curl</code> + <code>psql</code> (плюс просмотр каталога хранилища), админская — браузером. Существующие наборы: <code>apps/server-e2e/src/server/media/*</code> (8 файлов: активы, папки, прямая раздача, харденинг, локальное хранилище, проверка провайдера, область токена, потолок загрузки), <code>apps/server-e2e/src/server/insights/media-insights.spec.ts</code>, <code>apps/server-e2e/src/server/content/content-media-fields.spec.ts</code>, <code>apps/server-e2e/src/server/copilot/copilot-media-files.spec.ts</code>, <code>apps/admin-e2e/src/media/*</code> (3 файла) и <code>apps/admin-e2e/src/content/media-fields.spec.ts</code>.</p>
+
+  <h3>Загрузка</h3>
+  <ul class="check">
+    <li><b>Загрузить PNG</b> → <span class="exp">200 с <code>AssetView</code>; строка в <code>media_asset</code>; в хранилище три блоба — оригинал и два под <code>variants/</code>; <code>width</code>/<code>height</code> заполнены.</span></li>
+    <li><b>Загрузить SVG</b> → <span class="exp">200; <code>kind = image</code>; <b>деривативов нет</b>, <code>variants = {}</code>; загрузка не упала.</span></li>
+    <li><b>Загрузить ZIP</b> → <span class="exp"><code>kind = archive</code>; блоб один.</span></li>
+    <li><b>Загрузить файл с неизвестным MIME</b> → <span class="exp"><code>kind = document</code>, отказа нет — белого списка типов не существует.</span></li>
+    <li><b>Файл ровно в <code>maxUploadBytes</code></b> → <span class="exp">200. <b>На байт больше</b> → 413 с текстом «File exceeds the maximum upload size.», а не «File too large».</span></li>
+    <li><b>Запрос без части <code>file</code></b> → <span class="exp">400 «file is required».</span></li>
+    <li><b>Имя <code>a/b.png</code></b> → <span class="exp">400, актив не создан, блоб не записан.</span></li>
+    <li><b>Имя из 300 символов</b> → <span class="exp">400.</span></li>
+    <li><b><code>folderId</code> несуществующей папки</b> → <span class="exp">404; блобы, записанные до транзакции, <b>освобождены</b> — каталог хранилища чист.</span></li>
+    <li><b>Оборвать соединение в середине загрузки</b> → <span class="exp">в хранилище не остаётся ни <code>.part</code>-файла, ни частичного объекта.</span></li>
+    <li><b>Загрузить один и тот же файл дважды</b> → <span class="exp">два актива и два блоба — дедупликации нет; <code>checksum</code> у них совпадает.</span></li>
+    <li><b>Загрузить с <code>alt</code> из одних пробелов</b> → <span class="exp">в базе <code>alt IS NULL</code>; в отчёте покрытия файл считается непокрытым.</span></li>
+    <li><b>Лишнее поле в теле</b> → <span class="exp">400 от глобального <code>ValidationPipe</code>.</span></li>
+    <li><b>Загрузка под ролью viewer</b> → <span class="exp">403.</span></li>
+  </ul>
+
+  <h3>Выдача файла</h3>
+  <ul class="check">
+    <li><b>Скачать PNG</b> → <span class="exp">200; <code>Content-Disposition: inline</code>; <code>X-Content-Type-Options: nosniff</code>; CSP <code>default-src 'none'; sandbox; …</code>.</span></li>
+    <li><b>Скачать загруженный <code>.html</code></b> → <span class="exp"><code>attachment</code>, <b>не</b> inline; те же nosniff и CSP.</span></li>
+    <li><b>Скачать SVG</b> → <span class="exp"><code>attachment</code>. При этом плитка в сетке рисуется — <code>&lt;img&gt;</code> игнорирует disposition.</span></li>
+    <li><b>Имя файла с кавычкой или управляющим символом</b> → <span class="exp">заголовок не ломается (имя процентно кодируется).</span></li>
+    <li><b><code>?variant=thumb</code> на изображении с деривативами</b> → <span class="exp">WebP, размер меньше оригинала.</span></li>
+    <li><b><code>?variant=thumb</code> на SVG</b> → <span class="exp">оригинал, 200, не ошибка.</span></li>
+    <li><b><code>?variant=toString</code></b> → <span class="exp">оригинал; провайдер не получает <code>undefined</code> и не падает.</span></li>
+    <li><b>Актив чужого воркспейса (пользователь не участник)</b> → <span class="exp">404, идентичный несуществующему id.</span></li>
+    <li><b>Удалить блоб из хранилища руками, оставив строку</b> → <span class="exp">404 <b>с пустым телом</b>, не 500; ключ хранилища в ответе отсутствует.</span></li>
+    <li><b>Подменить в базе <code>storage_key</code> на <code>../../etc/passwd</code></b> → <span class="exp">500 со стеком в логе, а не 404 и не отданный файл.</span></li>
+    <li><b>Подменить в базе <code>storage_provider</code> на чужое значение и перезапустить</b> → <span class="exp">приложение <b>не стартует</b>; сообщение называет чужое имя и количество строк.</span></li>
+    <li><b>То же без перезапуска, запросить байты</b> → <span class="exp">500 с сообщением, называющим оба провайдера.</span></li>
+    <li><b>Не-uuid в пути</b> → <span class="exp">400 от <code>ParseUUIDPipe</code>.</span></li>
+  </ul>
+
+  <h3>Прямая раздача (<code>directServe: 'signed-url'</code>)</h3>
+  <ul class="check">
+    <li><b>Старт с <code>signed-url</code> на локальном провайдере</b> → <span class="exp">приложение не стартует; сообщение называет провайдера и предлагает либо убрать настройку, либо сменить бэкенд.</span></li>
+    <li><b>Скачивание на подписывающем провайдере</b> → <span class="exp">302; <code>Cache-Control: private, no-store</code>; в URL закреплены тип и disposition.</span></li>
+    <li><b>Не-участник на том же маршруте</b> → <span class="exp">404, редиректа <b>нет</b> — авторизация идёт первой.</span></li>
+    <li><b>Загруженный <code>.html</code> при включённой прямой раздаче</b> → <span class="exp">в подписанном URL disposition = <code>attachment</code>.</span></li>
+    <li><b><code>directServeTtlSeconds = 0</code></b> → <span class="exp">приложение не стартует.</span></li>
+  </ul>
+
+  <h3>Папки и удаление</h3>
+  <ul class="check">
+    <li><b>Создать две папки с одинаковым именем под одним родителем</b> → <span class="exp">обе создаются — уникальности имён нет.</span></li>
+    <li><b>Создать папку с несуществующим <code>parentId</code></b> → <span class="exp">404.</span></li>
+    <li><b>Удалить папку с подпапками и файлами</b> → <span class="exp">204; исчезает <b>всё поддерево</b>; блобы всех активов (включая деривативы) освобождены; 409 не бывает никогда.</span></li>
+    <li><b>Удалить папку чужого воркспейса</b> → <span class="exp">404; ни одна строка чужого воркспейса не тронута.</span></li>
+    <li><b>Создать подпапку под удаляемым поддеревом параллельно с удалением</b> → <span class="exp">по завершении осиротевших строк нет: либо подпапка удалена вместе с деревом, либо её создание отвергнуто.</span></li>
+    <li><b>Массовое удаление 100 активов</b> → <span class="exp"><code>{ deleted: 100 }</code>; все блобы и деривативы исчезли из хранилища.</span></li>
+    <li><b>Массовое удаление 101 id</b> → <span class="exp">400.</span></li>
+    <li><b>Пустой список id</b> → <span class="exp">400.</span></li>
+    <li><b>В списке id чужого воркспейса</b> → <span class="exp">он не считается в <code>deleted</code> и не удаляется.</span></li>
+    <li><b>Удалить актив, на который ссылается опубликованная запись</b> → <span class="exp">удаление проходит без предупреждения; следующее сохранение записи даёт 422 «must reference an existing asset»; публичное чтение просто опускает это медиа.</span></li>
+    <li><b>Удалить воркспейс целиком</b> → <span class="exp">строки <code>media_asset</code>/<code>media_folder</code> исчезли, каталог хранилища этого воркспейса пуст, поштучных событий <code>media.asset.deleted</code> в outbox нет.</span></li>
+  </ul>
+
+  <h3>Список, фильтры, правки</h3>
+  <ul class="check">
+    <li><b><code>?folderId=не-uuid</code></b> → <span class="exp">400, не 500.</span></li>
+    <li><b><code>?kind=picture</code></b> → <span class="exp">400 с перечислением допустимых значений.</span></li>
+    <li><b><code>?search=%</code></b> → <span class="exp">находит только активы, в имени или теге которых есть литеральный <code>%</code>.</span></li>
+    <li><b><code>?search=_</code></b> → <span class="exp">то же для символа подчёркивания, а не вся библиотека.</span></li>
+    <li><b><code>?pageSize=1000</code></b> → <span class="exp">отдаётся 100.</span></li>
+    <li><b><code>?page=0</code> или <code>?page=abc</code></b> → <span class="exp">трактуется как 1.</span></li>
+    <li><b>Две страницы подряд при одинаковых значениях сортировки</b> → <span class="exp">дубликатов между страницами нет (тай-брейк по <code>id</code>).</span></li>
+    <li><b>PATCH только <code>{ tags: [] }</code></b> → <span class="exp">теги очищены, имя и папка не тронуты.</span></li>
+    <li><b>PATCH <code>{ folderId: null }</code></b> → <span class="exp">актив в корне.</span></li>
+    <li><b>PATCH <code>{ folderId }</code> несуществующей папки</b> → <span class="exp">404, актив не перемещён.</span></li>
+    <li><b>PATCH с 51 тегом или тегом в 65 символов</b> → <span class="exp">400.</span></li>
+    <li><b>PATCH <code>{ tracks }</code> с <code>kind: 'lyrics'</code></b> → <span class="exp">400 — <code>kind</code> ограничен четырьмя значениями.</span></li>
+    <li><b>PATCH под ролью viewer</b> → <span class="exp">403.</span></li>
+    <li><b>Дублировать актив с именем в 254 символа</b> → <span class="exp">400 (« copy» переполняет предел), блоб копии не записан.</span></li>
+    <li><b>Дублировать изображение с деривативами</b> → <span class="exp">у копии свои блобы деривативов, альт-текст перенесён.</span></li>
+  </ul>
+
+  <h3>Токенная половина</h3>
+  <ul class="check">
+    <li><b>Загрузка токеном области <code>read</code></b> → <span class="exp">403 — <code>media:create</code> есть только у <code>full</code>.</span></li>
+    <li><b>Загрузка токеном <code>full</code></b> → <span class="exp">200; <code>uploaded_by</code> = пользователь, выпустивший токен; в библиотеке колонка «кто загрузил» показывает его имя.</span></li>
+    <li><b>Скачивание токеном <code>read</code></b> → <span class="exp">200 — <code>media:read</code> есть у обеих областей.</span></li>
+    <li><b>Скачивание актива другого воркспейса той же корзины токена</b> → <span class="exp">404.</span></li>
+    <li><b>Токен на два воркспейса без <code>X-Workspace-Id</code></b> → <span class="exp">отказ; с одним воркспейсом заголовок необязателен.</span></li>
+    <li><b>PATCH или DELETE по токену</b> → <span class="exp">маршрутов не существует; сессионные отвечают отказом аутентификации.</span></li>
+    <li><b>Загрузка сессионного пользователя по токенному маршруту</b> → <span class="exp">отказ — маршрут гейтится <code>ApiTokenGuard</code>.</span></li>
+  </ul>
+
+  <h3>Агентские инструменты</h3>
+  <ul class="check">
+    <li><b><code>media_assets_search</code> без <code>folderId</code></b> → <span class="exp">ищет по всему воркспейсу, включая вложенные папки.</span></li>
+    <li><b>То же с <code>folderId: null</code></b> → <span class="exp">только корень — два состояния различимы.</span></li>
+    <li><b>Результат поиска</b> → <span class="exp">содержит <code>downloadPath</code> и не содержит <code>variants</code>, размеров в пикселях и полного <code>url</code>.</span></li>
+    <li><b>Тот же инструмент через MCP и через копайлот</b> → <span class="exp"><code>downloadPath</code> различается (<code>/api/v1/…</code> против <code>/media/…</code>), всё остальное одинаково.</span></li>
+    <li><b><code>media_asset_read</code> на PDF</b> → <span class="exp">отказ по белому списку MIME, а не мусорный текст.</span></li>
+    <li><b><code>media_asset_read</code> на файле в 1 МБ</b> → <span class="exp">возвращается не более 256 КБ, с признаком усечения; полный файл в память не читается.</span></li>
+    <li><b>Файл, объявленный <code>text/plain</code>, но содержащий бинарь</b> → <span class="exp">ошибка декодирования, а не страница замещающих символов.</span></li>
+    <li><b>Усечение попало в середину многобайтового символа</b> → <span class="exp">файл читается, хвост отброшен, ошибки нет.</span></li>
+    <li><b><code>media_asset_read</code> на активе чужого воркспейса</b> → <span class="exp">«нет такого актива» — то же, что для несуществующего.</span></li>
+    <li><b><code>media_propose_file</code> с именем <code>reports/q3.md</code></b> → <span class="exp">ошибка инструмента, называющая <code>folderId</code>; модель может исправиться и предложить снова.</span></li>
+    <li><b><code>media_propose_file</code> с <code>summary.txt</code> и форматом <code>md</code></b> → <span class="exp">файл называется <code>summary.md</code>, а не <code>summary.txt.md</code>.</span></li>
+    <li><b><code>media_propose_file</code> на 2 МБ содержимого</b> → <span class="exp">отказ (потолок 1 МБ), несмотря на больший <code>maxUploadBytes</code>.</span></li>
+    <li><b>Инструмент удаления</b> → <span class="exp">в каталоге отсутствует — ни копайлоту, ни MCP.</span></li>
+    <li><b>Приложение без копайлота и без MCP</b> → <span class="exp">стартует; регистрация инструментов молча пропускается.</span></li>
+  </ul>
+
+  <h3>Контракт провайдера (testkit)</h3>
+  <ul class="check">
+    <li><b><code>npx nx test</code> любого пакета адаптера</b> → <span class="exp">набор <code>describeStorageProvider</code> проходит целиком.</span></li>
+    <li><b>Два актива с одинаковым именем файла</b> → <span class="exp">разные ключи.</span></li>
+    <li><b>Дериват с именем <code>thumb.webp</code> рядом с оригиналом того же имени</b> → <span class="exp">ключи не совпадают, оригинал цел.</span></li>
+    <li><b>Поток, падающий в середине <code>put</code></b> → <span class="exp">промис отклонён <b>и</b> в хранилище ничего не осталось.</span></li>
+    <li><b><code>get</code> по никогда не записанному ключу и по удалённому</b> → <span class="exp"><code>ObjectNotFoundError</code> в обоих случаях, до открытия потока.</span></li>
+    <li><b><code>remove</code> дважды и по несуществующему ключу</b> → <span class="exp">успех, без исключения.</span></li>
+    <li><b>Провайдер с <code>directUrl: false</code> и реализованным методом (или наоборот)</b> → <span class="exp">набор падает.</span></li>
+  </ul>
+
+  <h3>Админка</h3>
+  <ul class="check">
+    <li><b>Открыть медиатеку под viewer</b> → <span class="exp">библиотека видна; кнопки загрузки, создания папки, переименования и удаления отсутствуют.</span></li>
+    <li><b>Отозвать <code>media:read</code> и открыть страницу</b> → <span class="exp">карточка «нет доступа»; сетевых запросов к <code>/media/*</code> нет вовсе.</span></li>
+    <li><b>API отвечает 500 на список активов</b> → <span class="exp">состояние ошибки с <code>role="alert"</code> и кнопкой «Повторить», <b>не</b> «здесь пусто».</span></li>
+    <li><b>Пустая библиотека</b> → <span class="exp">пустое состояние с приглашением загрузить (и без приглашения, если нет <code>media:create</code>).</span></li>
+    <li><b>Фильтр, не давший совпадений</b> → <span class="exp">формулировка отличается от «библиотека пуста» и предлагает сбросить фильтры.</span></li>
+    <li><b>Перетащить пять файлов в диалог загрузки</b> → <span class="exp">все пять в списке подготовки; у изображений локальные миниатюры; одновременно летят не более трёх.</span></li>
+    <li><b>Один файл из пачки падает</b> → <span class="exp">остальные доезжают; у упавшего есть «Повторить»; вся пачка не теряется.</span></li>
+    <li><b>Отменить загрузку в полёте</b> → <span class="exp">строка помечается отменённой; запрос действительно прерван.</span></li>
+    <li><b>Подтвердить диалог загрузки</b> → <span class="exp">тоста об успехе <b>нет</b>; статус показывает баннер.</span></li>
+    <li><b>Переименование с ошибкой сервера</b> → <span class="exp">на экране только сообщение сервера, без параллельного «Переименовано в …».</span></li>
+    <li><b>Удалить непустую папку</b> → <span class="exp">подтверждение называет числа файлов и подпапок; у пустой — простая формулировка.</span></li>
+    <li><b>Подтвердить удаление актива</b> → <span class="exp">фокус уходит на секцию «Активы», а не на <code>&lt;body&gt;</code>.</span></li>
+    <li><b>Отменить удаление</b> → <span class="exp">фокус возвращается на триггер меню.</span></li>
+    <li><b>Выделить активы, перейти на вторую страницу</b> → <span class="exp">выделение сброшено; счётчик не «мигает» и не возвращает старые id позже.</span></li>
+    <li><b>Удалить последние активы на последней странице</b> → <span class="exp">пейджер подтягивается на существующую страницу, пустая сетка не показывается.</span></li>
+    <li><b>Ввести поиск, находясь на 4-й странице</b> → <span class="exp">переход на 1-ю.</span></li>
+    <li><b>Сетка с изображениями</b> → <span class="exp">запрашиваются <code>?variant=thumb</code>, а не полные оригиналы; панель деталей — <code>preview</code>.</span></li>
+    <li><b>Разрыв дерева фокуса при закрытии диалога переноса</b> → <span class="exp">фокус остаётся внутри страницы.</span></li>
+  </ul>
+
+  <h3>Медиаполе записи и тело статьи</h3>
+  <ul class="check">
+    <li><b>Выбрать файл на медиаполе и не сохранять запись</b> → <span class="exp">в библиотеке файла нет — ни одного запроса загрузки не отправлено.</span></li>
+    <li><b>Выбрать файл и сохранить</b> → <span class="exp">загрузка происходит внутри сохранения; в значении записи реальный id, плейсхолдера нет.</span></li>
+    <li><b>Файл падает при сохранении</b> → <span class="exp">запись не сохранена, тост называет файл, форма сохраняет плейсхолдеры.</span></li>
+    <li><b>Повторить сохранение после частичного успеха</b> → <span class="exp">уже загруженные файлы не загружаются второй раз.</span></li>
+    <li><b>Убрать подготовленный файл до сохранения</b> → <span class="exp">object URL отозван, файл не загружается.</span></li>
+    <li><b>Переключить вкладку редактора и вернуться</b> → <span class="exp">подготовленные файлы на месте — хук живёт выше вкладки.</span></li>
+    <li><b>Выбрать существующий актив библиотеки</b> → <span class="exp">никакой загрузки; обычная правка формы.</span></li>
+    <li><b>Файл, не проходящий по <code>accept</code> поля</b> → <span class="exp">отвергается в момент выбора, в значение не попадает; сервер перепроверяет при сохранении.</span></li>
+    <li><b>Запись без <code>content:update</code></b> → <span class="exp">плитки видны, всё остальное (выбрать, загрузить, убрать, переставить, зона перетаскивания) отсутствует; диалог загрузки не смонтирован.</span></li>
+    <li><b>Пользователь с полным набором <code>media:*</code>, но без права на эту запись</b> → <span class="exp">то же самое — это <em>контентное</em> право, а не медийное.</span></li>
+    <li><b>Медиаполе ссылается на удалённый актив</b> → <span class="exp">предупреждающая плитка с «мёртвым» id, а не пустое место и не бесконечное ожидание.</span></li>
+    <li><b>Открыть редактор до прихода ссылок на медиа</b> → <span class="exp">плитка-заглушка «резолвится»; полноразмерные оригиналы не запрашиваются; после осевшего чтения без ссылки — откат на оригинал, а не вечное ожидание.</span></li>
+    <li><b>Вставить изображение в тело статьи из библиотеки</b> → <span class="exp">в узел уходит <code>previewUrl</code> и ширина; ничего не загружается.</span></li>
+    <li><b>Загрузить изображение прямо из тела статьи</b> → <span class="exp">загрузка происходит <b>немедленно</b>, файл появляется в корне библиотеки, кэш инвалидируется.</span></li>
+    <li><b>Выбрать в теле статьи PDF или аудио</b> → <span class="exp">вставка не происходит — у редактора нет такого узла.</span></li>
+  </ul>
+
+  <h3>Insights</h3>
+  <ul class="check">
+    <li><b>Виджет «Что занимает хранилище»</b> → <span class="exp">длина полос — байты, и только байты; количество показано отдельно.</span></li>
+    <li><b>Воркспейс с несколькими крупными видео и тысячами картинок</b> → <span class="exp">по количеству лидируют изображения, по байтам — видео; обе цифры видны.</span></li>
+    <li><b>Изображение с <code>alt = '   '</code></b> → <span class="exp">считается непокрытым.</span></li>
+    <li><b>Виджет альт-текста</b> → <span class="exp">заголовок — <b>число недостающих</b>, а не процент покрытия; окна дат нет.</span></li>
+    <li><b><code>?days=9999</code></b> → <span class="exp">обрезается до 365; <code>?days=abc</code> → 30.</span></li>
+    <li><b>Сумма байтов у большого воркспейса</b> → <span class="exp">приходит числом без потери точности (<code>sum(size)::bigint</code>).</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Media</th></tr></thead>
+    <tbody>
+      <tr><td>Соединение с БД и запуск миграций</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Владеет <b>файлами</b> схемы и миграций, но не соединением и не шагом применения</td></tr>
+      <tr><td>Аутентификация, роли, права, bearer-токены</td><td><code>identity-server</code></td><td>Только объявляет требуемые константы прав на своих маршрутах</td></tr>
+      <tr><td>Существование воркспейса и членство в нём</td><td><code>workspaces-server</code></td><td>Использует <code>WorkspaceGuard</code> и <code>MembershipCheckQuery</code>; своих FK на воркспейсы не держит</td></tr>
+      <tr><td>Удаление воркспейса</td><td><code>workspaces-server</code></td><td>Реализует порт <code>WorkspacePurger</code> и <b>сам</b> подписывается в реестр очистки</td></tr>
+      <tr><td>Валидация медиаполя при сохранении записи</td><td><code>content-server</code></td><td>Реализует порт <code>MEDIA_ASSET_RESOLVER</code>, который контент объявил; про записи ничего не знает</td></tr>
+      <tr><td>Guard&#39;ы публичного API по токену</td><td><code>content-server</code></td><td>Импортирует его <code>ApiTokenGuard</code> и <code>ApiTokenWorkspaceGuard</code> вместо собственных</td></tr>
+      <tr><td>Вставка изображения в текст</td><td><code>wysiwyg-admin</code></td><td>Заполняет объявленный им слот; редактор обязан работать без медиаплагина</td></tr>
+      <tr><td>Страница Insights</td><td><code>insights-admin</code></td><td>Поставляет четыре карточки и три read-модели за ними, потому что владеет таблицей</td></tr>
+      <tr><td>Экспорт и импорт файлов</td><td><code>transfer-server</code></td><td>Отдаёт байты и принимает их обратно через обычный <code>UploadAssetUseCase</code></td></tr>
+      <tr><td>Журнал действий</td><td><code>activity</code></td><td>Порождает события <code>media.*</code> в транзакционном outbox</td></tr>
+      <tr><td>Диспетчеризация инструментов и авторизация вызова</td><td><code>tools-server</code></td><td>Регистрирует пять инструментов и объявляет их поверхности</td></tr>
+      <tr><td>Ограждение недоверенного вывода инструмента</td><td><code>copilot-server</code> (движок прогона)</td><td>По MCP этой защиты нет вовсе — там за неё отвечает клиент</td></tr>
+      <tr><td>Байты в бэкенде</td><td>адаптер провайдера</td><td>Знает только порт; формат ключа не парсит никогда</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Presigned-загрузки.</b> Файл всегда идёт через приложение; подписанный URL бывает только на выдачу.</li>
+    <li><b>Дедупликации, GC осиротевших блобов, зондирования длительности видео.</b></li>
+    <li><b>Проверки использования при удалении</b> — Media не знает, кто на неё ссылается.</li>
+    <li><b>Списочного вида и «выбрать всё»</b> в сетке — удалены вместе с таблицей.</li>
+    <li><b>Редактирования тегов и дорожек субтитров в админке.</b> Сервер это принимает (<code>PATCH</code> с <code>tags</code> и <code>tracks</code>), но интерфейс теги только показывает, а дорожки не показывает вовсе — экрана для них нет.</li>
+    <li><b>Смены родителя папки</b> — папку можно только переименовать.</li>
+    <li><b>Чтения потолка загрузки клиентом</b> — ни один маршрут его не сообщает, поэтому подсказка не называет размер.</li>
+    <li><b>Клавиатурного набора e2e</b> для поля и библиотеки.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">media/server/AGENTS.md, «Not yet (follow-ups)»</td>
+        <td>«wiring <code>directUrl</code> into the download route (the S3 adapter implements it; <b>nothing calls it yet</b>)»</td>
+        <td>Прямая раздача <b>реализована и работает</b>: <code>http/direct-serve.ts</code>, поле конфигурации <code>directServe</code>, переменные <code>MEDIA_DIRECT_SERVE</code>/<code>MEDIA_DIRECT_SERVE_TTL_SECONDS</code>, вызов <code>directUrlFor</code> в <b>обоих</b> сырых контроллерах, проверка при сборке и набор <code>media-direct-serve.spec.ts</code>. Соседний раздел того же файла («Direct serve: a redirect instead of a stream») описывает это верно — документ противоречит сам себе</td>
+      </tr>
+      <tr>
+        <td class="mono">media/server/AGENTS.md, «HTTP surface»</td>
+        <td>Перечисляет маршруты: папки (4) + <code>GET/POST /media/assets</code>, <code>GET …/raw</code>, <code>PATCH …/:id</code>, <code>DELETE /media/assets</code></td>
+        <td>Маршрут <code>POST /media/assets/:id/duplicate</code> (<code>DuplicateAssetController</code>, право <code>media:create</code>) в списке <b>отсутствует</b>, хотя существует, зарегистрирован и используется админкой. Итого маршрутов не 8, а 10 в сессионной половине</td>
+      </tr>
+      <tr>
+        <td class="mono">media/server/AGENTS.md, последний абзац</td>
+        <td>«Video captions have no representation at all: ORT-92» и «any <b>per-usage</b> override — a <code>field.media</code> value is a bare uuid… That is ORT-83 / ORT-91»</td>
+        <td>Оба уже сделаны. Колонка <code>tracks</code> добавлена миграцией <code>0002_asset_tracks</code>, принимается <code>UpdateAssetDto.tracks</code>, отдаётся резолвером с готовыми <code>src</code>. А значение медиаполя — уже не голый uuid: ядро <code>content-domain</code> знает форму <code>{ id, alt?, decorative? }</code> (<code>mediaValueIds</code>, <code>hasTextAlternative</code>), и <code>MediaFieldItem</code> в админке рисует и per-usage альт, и флажок «декоративное»</td>
+      </tr>
+      <tr>
+        <td class="mono">media/admin/AGENTS.md, «Data layer»</td>
+        <td>«search/kind/sort are applied <b>client-side</b> over that page (a large <code>pageSize</code>) — true server-side pagination is a follow-up», и то же повторено в «Not yet (follow-ups)»</td>
+        <td>Пагинация <b>серверная</b>: <code>useMediaLibrary</code> гоняет <code>search</code>, <code>kind</code>, <code>sort</code>, <code>page</code>, <code>pageSize</code> на сервер, есть компонент <code>MediaPagination</code>, константы <code>DEFAULT_ASSETS_PAGE_SIZE = 24</code> и <code>ASSETS_PAGE_SIZE_OPTIONS = [24, 48, 96]</code>, зажим страницы в диапазон и сброс выделения при смене страницы. Комментарий в самом хуке прямо говорит, что прежний клиентский <code>filter</code> + <code>sort</code> заменён</td>
+      </tr>
+      <tr>
+        <td class="mono">media/admin/AGENTS.md, «Not yet (follow-ups)»</td>
+        <td>«alt/tag editing in the drawer (<b>read-only today</b>)»</td>
+        <td>Альт-текст в панели деталей <b>редактируется</b> — <code>InputField</code> + кнопка «Сохранить альт-текст», гейт <code>canUpdate</code>, только для <code>kind === image</code>; и раздел «Alt text is writable in two places» в том же файле это описывает. Верна лишь половина утверждения: <b>теги</b> действительно только отображаются</td>
+      </tr>
+      <tr>
+        <td class="mono">media/admin/AGENTS.md, «End-to-end cover»</td>
+        <td>«The Media Library page still has <b>only</b> <code>media-library.spec.ts</code>»</td>
+        <td>В <code>apps/admin-e2e/src/media/</code> три файла: <code>media-library.spec.ts</code>, <code>media-alt-text.spec.ts</code>, <code>media-feedback.spec.ts</code></td>
+      </tr>
+      <tr>
+        <td class="mono">media/provider-testkit/AGENTS.md</td>
+        <td>«Its real consumers are <code>@orthacms/media-provider-local</code> and <code>@orthacms/media-provider-memory</code>»</td>
+        <td>Набор вызывают <b>все шесть</b> адаптеров: local, memory, s3, gcs, azure, vercel-blob — и каждый держит testkit в <code>devDependencies</code></td>
+      </tr>
+      <tr>
+        <td class="mono">create-ortha-app/src/lib/features.ts, JSDoc над <code>MEDIA_PROVIDERS</code></td>
+        <td>«S3 is <b>listed and disabled</b> — the package exists but has never been released, and offering it would generate an app that cannot install»</td>
+        <td>Прямо под этим комментарием у записи <code>media-s3</code> стоит <code>available: true</code>, то есть вариант в мастере доступен. Комментарий описывает состояние, которого уже нет</td>
+      </tr>
+      <tr>
+        <td class="mono">media/admin/src/lib/constants/index.ts</td>
+        <td>JSDoc у прав: «Mirrors the <b>(future)</b> server matrix»</td>
+        <td>Матрица давно существует: <code>PERMISSIONS.MEDIA_*</code> в <code>identity-server</code>, выданы трём системным ролям и двум областям токена</td>
+      </tr>
+      <tr>
+        <td class="mono">media/server/AGENTS.md, слой <code>domain/</code></td>
+        <td>«Self-enforce it (the layer-boundary lint <b>isn&#39;t wired yet</b>)»</td>
+        <td>Утверждение верно, но стоит отметить: соблюдение правила «domain ничего не импортирует из фреймворков» держится только на ревью — автоматической проверки нет ни одной</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Не расхождение, но заметная асимметрия</span>
+    <p>Сервер принимает <code>tracks</code> (дорожки субтитров) через <code>PATCH /media/assets/:id</code>, отдаёт их в <code>AssetView</code> и резолвит для контента с готовыми <code>src</code>. <b>В админке нет ни одного экрана, который бы их редактировал</b> — поиск по <code>packages/media/admin/src</code> не находит слова <code>tracks</code> вовсе. То есть возможность существует только для API-клиента и агентов; редактор, работающий через интерфейс, добраться до неё не может.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Второй артефакт серии.</b> Сделан по группе <code>packages/media</code> в той же структуре, что и паспорт Identity: бизнес-описание → состав → права → данные → жизненный цикл → сценарии → API → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Раздел «Матрица адаптеров хранилища» добавлен как специфичный для этой группы — у Identity аналога нет.</p>
+  <p>Источник — исходный код: контроллеры, DTO, guard&#39;ы, use-case&#39;ы, схема Drizzle и три файла миграций, порт <code>StorageProvider</code> и шесть его реализаций, набор контрактных тестов, страницы и хуки админки, а также конфигурация хоста (<code>ortha.config.ts</code>, <code>plugins.ts</code>, <code>.env.example</code>) и <code>docs/adr/0012-one-storage-provider-per-deployment.md</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+</footer>
+
+</main>
+</div>

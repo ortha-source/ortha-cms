@@ -1,0 +1,1654 @@
+<title>Паспорт библиотек Utils</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/utils</p>
+    <h1 class="title">Utils
+      <small>Две листовые библиотеки: общий HTTP-слой админки и движок фильтров сервера</small>
+    </h1>
+    <p class="lede">Utils — единственная группа в монорепозитории, которая <strong>ничего не делает сама</strong>. Она не поднимает приложение, не регистрирует маршруты, не владеет таблицами и не показывает ни одного экрана. Её содержимое — общие клиентские синглтоны админки (один axios, один кэш запросов, одна система слотов) и серверный переводчик пользовательского фильтра в SQL. Ценность здесь измеряется не функциями, а тем, что шестнадцать плагинов админки и семь серверных плагинов принимают одни и те же решения одинаково.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>59</b> публичных экспортов</li>
+      <li><b>16</b> плагинов-потребителей (admin)</li>
+      <li><b>7</b> плагинов-потребителей (server)</li>
+      <li><b>13</b> операторов фильтра</li>
+      <li><b>14</b> кодов ошибок фильтра</li>
+      <li><b>245</b> юнит-тестов</li>
+      <li><b>0</b> таблиц и <b>0</b> маршрутов</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#admin">Инвентарь экспортов admin</a></li>
+    <li><a href="#seams">Несущие швы админки</a></li>
+    <li><a href="#server">Инвентарь экспортов server</a></li>
+    <li><a href="#grammar">Грамматика фильтров</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#rules">Правила для авторов</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>В монорепозитории две категории кода, которые легко спутать. Есть <b>хост</b> — композиционный корень, который знает про все плагины и собирает из них приложение (<code>@orthacms/bootstrap-admin</code>, <code>@orthacms/bootstrap-server</code>). И есть <b>плагины</b> — самостоятельные куски продукта, которые приносят маршруты, экраны, таблицы и права. Utils — ни то, ни другое. Это <b>лист дерева зависимостей</b>: пакет, который импортируют все и который не импортирует никого из своих потребителей.</p>
+
+  <h3>Зачем понадобился отдельный лист</h3>
+  <p>Формулировка задачи звучит так: <em>плагину нужен общий axios, чтобы сделать запрос. Куда его положить?</em> Есть три варианта, и два из них плохие.</p>
+  <ul>
+    <li><b>В хост.</b> Тогда каждый плагин, чтобы сделать запрос, зависит от композиционного корня — то есть от списка всех остальных плагинов. Дерево зависимостей замыкается в кольцо, сборка тянет в бандл страницы, которые не нужны, а плагин перестаёт быть отчуждаемым: его нельзя вынести и переиспользовать, не забрав с собой всё приложение.</li>
+    <li><b>В каждый плагин свой.</b> Тогда «один axios» превращается в шестнадцать, у каждого свой базовый URL и свои перехватчики. Заголовок воркспейса будет прикреплён в тринадцати из шестнадцати, а глобальная реакция на <code>401</code> — в одном.</li>
+    <li><b>В лист.</b> Один пакет, от которого зависят и хост, и плагины, и который не зависит ни от кого из них. Это и есть <code>utils</code>.</li>
+  </ul>
+
+  <p>Серверная половина решает ту же задачу с другой стороны: пять плагинов должны уметь принять от клиента строку <code>?filter=…</code> и превратить её в <code>WHERE</code>. Написанный пять раз, такой переводчик пять раз даст 500 на <code>ilike</code> по дате и пять раз потеряет строки с <code>NULL</code> на отрицании. Написанный один раз, он один раз это чинит — и все чинятся вместе.</p>
+
+  <div class="note">
+    <span class="label">Ключевая идея</span>
+    <p>Дефект в этой группе — это дефект во всём продукте сразу. Отсюда несоразмерно высокая плотность тестов на строку кода (245 юнит-тестов на 15 + 13 модулей) и отсюда же почти каждый комментарий в исходниках, который объясняет не «что делает код», а <b>какой инцидент случился, когда он делал иначе</b>.</p>
+  </div>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик плагина админки</h4>
+      <p class="small sub">Пишет <code>apiClient.get('/entries')</code> и получает бесплатно: правильный базовый URL, куки сессии, заголовок текущего воркспейса, отсутствие бессмысленных ретраев на 4xx и корректный выход из системы при мёртвой сессии.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик серверного плагина</h4>
+      <p class="small sub">Объявляет <code>FilterSchema</code> — какие колонки и какие связи разрешены — и получает разбор, валидацию, приведение типов, защиту от раздувания payload и параметризованный SQL. Схема и есть граница безопасности.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Конечный пользователь</h4>
+      <p class="small sub">Не видит ничего и не должен. Но именно здесь живут: подсказка «у вас несохранённые изменения», заголовок вкладки, по которому он находит нужное окно, и счётчик непрочитанных в этом заголовке.</p>
+    </div>
+  </div>
+
+  <h3>Чем Utils не является</h3>
+  <ul>
+    <li><b>Это не место для смысла.</b> Транспорт знает, что пришёл код 401. Что он <em>означает</em> — «вас разлогинили» или «пароль неверный» — решает потребитель. Отсюда <code>setUnauthorizedHandler</code>: шов есть, решения нет.</li>
+    <li><b>Это не место для пользовательских строк.</b> В пакете нет ни одного текста, который увидит человек, и нет <code>react-intl</code>. Диалог «несохранённые изменения» описан типом <code>UnsavedChangesDialog</code>, а сам диалог с текстами приносит хост.</li>
+    <li><b>Это не «разное».</b> Название <code>utils</code> провоцирует свалку. Фактический критерий жёстче: сюда попадает только то, что нужно <em>нескольким</em> плагинам и что <em>не несёт доменного знания</em>. Состояние аутентификации, например, живёт в <code>identity-admin</code>, хотя технически «общее».</li>
+    <li><b>Это не парная группа.</b> <code>utils-admin</code> и <code>utils-server</code> не зеркалят друг друга и не имеют ни одного общего типа. Совпадает только слово в имени: сервер не ходит в собственный API, поэтому у клиентского HTTP-слоя серверного двойника нет и быть не может.</li>
+  </ul>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы</h2>
+
+  <p>Два пакета, никакой общей кодовой базы между ними, разные среды исполнения и разные зависимости. Оба — <code>0.4.2</code> и релизятся в общем локстепе со всем остальным.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Пакет</th><th>npm-имя</th><th>Среда</th><th>Зависимости</th><th class="center num-col">Модулей</th><th class="center num-col">Экспортов</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">packages/utils/admin</td>
+        <td class="mono">@orthacms/utils-admin</td>
+        <td>Браузер (React 19)</td>
+        <td><code>axios</code> ^1.6, <code>@tanstack/react-query</code> ^5, <code>react</code> ^19, <code>@orthacms/design-system</code>; peer — <code>react-router-dom</code> ^6</td>
+        <td class="center num-col">15</td>
+        <td class="center num-col">31</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/utils/server</td>
+        <td class="mono">@orthacms/utils-server</td>
+        <td>Node (NestJS)</td>
+        <td><code>@nestjs/common</code> ^11, <code>drizzle-orm</code> ^0.45</td>
+        <td class="center num-col">13</td>
+        <td class="center num-col">28</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Кто их потребляет</h3>
+  <p>Зависимость объявлена в <code>package.json</code> у 16 пакетов админки и 7 серверных (сами <code>utils</code> в счёт не идут). В исходниках — 127 мест импорта <code>@orthacms/utils-admin</code> и 25 мест импорта <code>@orthacms/utils-server</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Сторона</th><th>Потребители</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>admin</b> (16)</td>
+        <td class="small"><code>activity</code>, <code>alarms</code>, <code>api-tokens</code>, <code>bootstrap</code>, <code>content</code>, <code>copilot</code>, <code>i18n</code>, <code>identity</code>, <code>insights</code>, <code>media</code>, <code>segments</code>, <code>shell</code>, <code>transfer</code>, <code>users</code>, <code>workspaces</code>, <code>wysiwyg</code></td>
+      </tr>
+      <tr>
+        <td><b>server</b> (7)</td>
+        <td class="small"><code>activity</code>, <code>alarms</code>, <code>content</code>, <code>i18n</code>, <code>segments</code>, <code>transfer</code>, <code>users</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Заметьте, кого в списках нет. <code>query-builder/admin</code> строит те самые фильтры, которые разбирает <code>utils-server</code>, но не зависит от него: он повторяет словарь операторов у себя (<code>wireOp.ts</code>) — иначе браузерный бандл потянул бы NestJS и Drizzle. Это осознанное дублирование, единственное в группе, и о нём стоит помнить при добавлении оператора.</p>
+
+  <h3>Как это резолвится</h3>
+  <p>Оба пакета потребляются <b>из исходников</b>: <code>exports</code> указывают на <code>./src/index.ts</code>, а <code>tsconfig.base.json</code> задаёт <code>customConditions: ["@orthacms/source"]</code>. Шага сборки для потребления нет — Vite админки транспилирует TypeScript листа напрямую. Практическое следствие: правка в <code>utils-admin</code> видна в дев-стеке мгновенно, а ошибка типов в нём ломает <code>typecheck</code> у всех шестнадцати потребителей сразу.</p>
+
+  <div class="note warn">
+    <span class="label">Оба пакета — CORE_PACKAGES скаффолдера</span>
+    <p>В <code>packages/create-ortha-app/src/lib/features.ts</code> оба перечислены в безусловном ядре, хотя шаблон почти их не использует. Причина названа там же: это первое, за чем тянется автор своей страницы или своего плагина, а расчёт на всплытие npm — фантомная зависимость, которая работает до первого конфликта версий и не работает под pnpm никогда.</p>
+  </div>
+
+  <h3>Раскладка файлов</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>packages/utils/admin/src/          packages/utils/server/src/
+  index.ts        (барель)          index.ts        (барель)
+  lib/apiClient/                    lib/clamp-int.ts
+  lib/apiError/                     lib/pg-errors.ts
+  lib/avatarColor/                  lib/filters/
+  lib/byOrder/                        types.ts
+  lib/documentTitle/                  parse-filter-tree.ts
+  lib/httpStatus/                     resolve-leaf.ts
+  lib/initials/                       operator-support.ts
+  lib/isComposingText/                tree-to-drizzle.ts
+  lib/queryClient/                    relation-exists.ts
+  lib/slot/                           scalar-op.ts
+  lib/slugify/                        negation.ts
+  lib/staleTime/                      table-helpers.ts
+  lib/unsavedChanges/                 own-property.ts
+  lib/useDebouncedValue/              filter-exceptions.ts
+  lib/useTableUrlState/</code></pre></div>
+
+  <p class="small sub">Соглашение админки: одна забота — одна папка <code>camelCase</code> с <code>index.ts</code>, спека лежит рядом (<code>index.spec.ts(x)</code>). Соглашение сервера: плоские файлы, тесты в <code>__test__/</code>. Оба соглашения зафиксированы в своих <code>AGENTS.md</code> и расходятся между собой намеренно — это разные пакеты, а не два лица одного.</p>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">03</span>Инвентарь экспортов: <code>@orthacms/utils-admin</code></h2>
+
+  <p>Барель <code>src/index.ts</code> отдаёт <b>31 символ</b>: 25 значений и 6 типов. Ниже — полный список, без исключений; колонка «мест импорта» посчитана по файлам, которые импортируют символ из <code>@orthacms/utils-admin</code> (сами <code>utils</code> и спеки не в счёт).</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Символ</th><th>Вид</th><th>Что делает</th><th>Кто использует</th><th class="center num-col">Мест</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">apiClient</td><td><span class="pill pill-pub">синглтон</span></td>
+        <td>Общий экземпляр axios: <code>baseURL: '/api'</code>, <code>withCredentials: true</code>, два перехватчика (заголовок воркспейса и глобальный 401)</td>
+        <td>Все плагины с данными: <code>content</code>, <code>media</code>, <code>users</code>, <code>identity</code>, <code>workspaces</code>, <code>activity</code>, <code>alarms</code>, <code>segments</code>, <code>transfer</code>, <code>copilot</code>, <code>i18n</code>, <code>api-tokens</code>, <code>insights</code>, <code>wysiwyg</code></td>
+        <td class="center num-col">30</td>
+      </tr>
+      <tr>
+        <td class="mono">setActiveWorkspaceId</td><td><span class="pill pill-ses">сеттер</span></td>
+        <td>Кладёт (или снимает, при <code>null</code>) id воркспейса, который перехватчик прикрепляет как <code>X-Workspace-Id</code> к каждому запросу</td>
+        <td><code>workspaces-admin</code>, <code>CurrentWorkspaceProvider</code> — единственный вызов</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">setUnauthorizedHandler</td><td><span class="pill pill-ses">шов</span></td>
+        <td>Регистрирует колбэк, который перехватчик дёргает на «неожиданном» 401. Смысла не несёт: что делать — решает тот, кто регистрирует</td>
+        <td><code>identity-admin</code>, <code>AuthProvider</code> — единственный вызов</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">queryClient</td><td><span class="pill pill-pub">синглтон</span></td>
+        <td>Единственный <code>QueryClient</code> приложения. Одна прикладная настройка по умолчанию: <b>4xx не ретраится</b></td>
+        <td>Только хост — <code>bootstrap-admin</code> монтирует его в <code>QueryClientProvider</code>; плагины достают его хуком <code>useQueryClient()</code></td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">STALE_TIME</td><td><span class="pill pill-ses">константы</span></td>
+        <td>Именованные пресеты свежести: <code>None</code> 0, <code>Short</code> 30 000, <code>Standard</code> 60 000, <code>Forever</code> <code>Infinity</code> мс</td>
+        <td>Хуки данных во всех плагинах — вместо голых <code>60_000</code></td>
+        <td class="center num-col">17</td>
+      </tr>
+      <tr>
+        <td class="mono">HTTP_STATUS</td><td><span class="pill pill-ses">константы</span></td>
+        <td>Шесть кодов, на которые UI реально ветвится: 400, 401, 403, 404, 409, 429</td>
+        <td>Обработчики ошибок форм и страниц; сам <code>apiClient</code> сравнивает с <code>UNAUTHORIZED</code></td>
+        <td class="center num-col">9</td>
+      </tr>
+      <tr>
+        <td class="mono">ApiError</td><td><span class="pill pill-pub">класс</span></td>
+        <td>Нормализованная транспортная ошибка: <code>status: number | null</code> (<code>null</code> — сети не было) и <code>details: unknown</code> (тело ответа как есть)</td>
+        <td>Везде, где ошибку показывают: <code>instanceof</code>, чтение <code>status</code>, разбор <code>details.issues</code></td>
+        <td class="center num-col">23</td>
+      </tr>
+      <tr>
+        <td class="mono">toApiError</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Разворачивает произвольное брошенное значение (обычно ошибку axios) в <code>ApiError</code>, чтобы вызывающий не трогал внутренности axios</td>
+        <td>Каждая функция запроса в <code>catch</code>; внутри — предикат ретрая <code>queryClient</code></td>
+        <td class="center num-col">18</td>
+      </tr>
+      <tr>
+        <td class="mono">createSlot&lt;T&gt;</td><td><span class="pill pill-pub">фабрика</span></td>
+        <td>Создаёт именованную точку расширения: <code>name</code>, <code>getItems()</code> (возвращает <b>копию</b>), служебные <code>_register</code> / <code>_reset</code></td>
+        <td>25 слотов в 6 плагинах: <code>content</code> (14), <code>shell</code> (4), <code>workspaces</code> (3), <code>insights</code> (2), <code>copilot</code> (1), <code>wysiwyg</code> (1)</td>
+        <td class="center num-col">8</td>
+      </tr>
+      <tr>
+        <td class="mono">wireSlotContributions</td><td><span class="pill pill-perm">только хост</span></td>
+        <td>Регистрирует все вклады плагинов <b>с нуля</b>: сначала отдельным проходом чистит целевые слоты, потом наполняет</td>
+        <td><code>bootstrap-admin</code>, <code>createAdmin</code> — единственный вызов</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">Slot&lt;T&gt;</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Контракт слота. Экспортируется для сигнатур плагинов, объявляющих свои слоты</td>
+        <td>Выводится из <code>createSlot</code>, явных импортов нет</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">SlotContribution&lt;T&gt;</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>{ slot, items }</code> — то, что плагин кладёт в поле <code>slots</code> своего дескриптора</td>
+        <td><code>bootstrap-admin</code> (тип поля <code>AdminPlugin.slots</code>)</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">byOrder</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Сортировка по возрастанию <code>order</code> <b>в новый массив</b> (<code>slice()</code> перед <code>sort()</code>)</td>
+        <td>Потребители слотов: сайдбар, тулбар записей, вкладки редактора, виджеты</td>
+        <td class="center num-col">6</td>
+      </tr>
+      <tr>
+        <td class="mono">slugify</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Строка → слаг <code>^[a-z0-9-]+$</code>: NFKD, снятие диакритики, нижний регистр, схлопывание не-алфанумерики в дефис, обрезка краевых дефисов</td>
+        <td>Формы, где слаг подставляется из названия: типы контента, воркспейсы, аудитории</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">useDebouncedValue</td><td><span class="pill pill-pub">хук</span></td>
+        <td>Возвращает значение с задержкой; переустанавливает таймер на каждое изменение</td>
+        <td>Проверки занятости слага, поиск в справочниках; внутри — <code>useTableUrlState</code></td>
+        <td class="center num-col">5</td>
+      </tr>
+      <tr>
+        <td class="mono">isComposingText</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Находится ли цель события там, где набирают текст (<code>input</code>, <code>textarea</code>, <code>select</code>, любой <code>contenteditable</code>). Типизирована структурно, а не через <code>Element</code></td>
+        <td>Глобальные сочетания клавиш: <code>shell</code> (⌘K), <code>content</code> (палитра), <code>copilot</code> (⌘J)</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">useTableUrlState</td><td><span class="pill pill-pub">хук</span></td>
+        <td>URL как источник истины для списков: <code>search</code>/<code>filter</code>/<code>page</code>/<code>pageSize</code>, двусторонний дебаунс поиска (300 мс), редьюсер <code>updateParams</code></td>
+        <td>Страницы-списки: участники, журнал активности и др.</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">TableUrlState</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Возврат хука: включая <code>searchPending</code> — «в поле есть то, до чего список ещё не дошёл»</td>
+        <td>Выводится из хука, явных импортов нет</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">TableUrlStateOptions</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>{ searchKey, defaultPageSize }</code></td>
+        <td>Выводится из хука, явных импортов нет</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">asAvatarColor</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Сужает произвольную строку до цвета палитры дизайн-системы, иначе <code>slate</code></td>
+        <td>Там, где цвет пришёл из API и мог устареть</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">avatarColorForId</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Детерминированный цвет из id: FNV-1a по код-поинтам, остаток от длины палитры</td>
+        <td>Аватары там, где цвет не хранится: журнал активности, списки участников</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">initialsOf</td><td><span class="pill pill-pub">функция</span></td>
+        <td>До двух заглавных инициалов из имени; разбиение по пробельным сериям, первый <b>код-поинт</b> каждой части</td>
+        <td>Аватары во всех плагинах</td>
+        <td class="center num-col">16</td>
+      </tr>
+      <tr>
+        <td class="mono">initialsFromEmail</td><td><span class="pill pill-pub">функция</span></td>
+        <td>То же из локальной части e-mail; разбиение по <code>.</code> <code>-</code> <code>_</code> <code>+</code></td>
+        <td><code>activity-admin</code>, ячейка актора (когда имени нет, а почта есть)</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">UnsavedChangesProvider</td><td><span class="pill pill-perm">только хост</span></td>
+        <td>Общеприложенческий страж несохранённых правок: перехват кликов по ссылкам в фазе захвата, <code>beforeunload</code>, программная навигация</td>
+        <td><code>bootstrap-admin</code>, <code>UnsavedChangesGuard</code> — подставляет диалог и тексты</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">useUnsavedChanges</td><td><span class="pill pill-pub">хук</span></td>
+        <td>Регистрирует «грязность» формы под своим ключом; снимает регистрацию при размонтировании</td>
+        <td><code>content-admin</code> (редактор записи), <code>users-admin</code> (несписанная ссылка приглашения)</td>
+        <td class="center num-col">2</td>
+      </tr>
+      <tr>
+        <td class="mono">useUnsavedChangesApi</td><td><span class="pill pill-pub">хук</span></td>
+        <td>Доступ к API стража или <code>null</code> вне провайдера — для программной навигации через <code>confirmNavigation</code></td>
+        <td><code>i18n-admin</code>, переключатель локали</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">UnsavedChangesCopy</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Форма текстов подтверждения (заголовок, описание, две кнопки) — контракт для хоста</td>
+        <td>Никем не импортируется</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">UnsavedChangesDialog</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Функция-рендерер диалога, которую хост передаёт пропом <code>dialog</code></td>
+        <td>Выводится из пропа, явных импортов нет</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">useDocumentTitle</td><td><span class="pill pill-pub">хук</span></td>
+        <td>Ставит заголовок вкладки на время жизни маршрута и возвращает голое имя приложения при размонтировании</td>
+        <td>Практически каждая страница во всех плагинах</td>
+        <td class="center num-col">19</td>
+      </tr>
+      <tr>
+        <td class="mono">setDocumentTitle</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Императивный вариант того же: <code>{страница} · {приложение}</code>, <code>null</code> — только имя приложения</td>
+        <td>Никем не импортируется — используется только изнутри <code>useDocumentTitle</code></td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">setTitleDecorator</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Ставит (или снимает) <b>преобразование</b> над собранным заголовком — не запись, а функция</td>
+        <td><code>copilot-admin</code>, <code>useTabBadge</code> — префикс <code>(3)</code> непрочитанных</td>
+        <td class="center num-col">1</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Нулевая колонка «мест» у типов — норма: они выводятся из значений. Нулевая у <code>setDocumentTitle</code> — нет: это значение, которое экспортировано, но не востребовано (см. раздел 12).</p>
+</section>
+
+<section id="seams">
+  <h2 class="sec"><span class="num">04</span>Несущие швы админки</h2>
+
+  <p>Шесть модулей из пятнадцати держат на себе поведение всего приложения. Каждый из них — про одно неочевидное решение, за которым стоит либо инцидент, либо требование доступности.</p>
+
+  <h3>apiClient: два перехватчика и один список исключений</h3>
+  <p>Перехватчик запроса прикрепляет <code>X-Workspace-Id</code>, если активный воркспейс задан, и не прикрепляет ничего, если нет (страница входа, сетка воркспейсов). Перехватчик ответа — единственное место в продукте, где 401 обрабатывается глобально.</p>
+  <p>Само правило простое: <em>если сервер ответил 401 на запрос, который рассчитывал на живую сессию, — дёрнуть зарегистрированный обработчик и всё равно пробросить ошибку дальше</em>. Сложность в слове «рассчитывал».</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Путь</th><th>Почему 401 здесь — это ответ, а не потеря сессии</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">/auth/login</td><td>Отклонённые учётные данные. Разлогинивать человека за опечатку в пароле — абсурд</td></tr>
+      <tr><td class="mono">/auth/logout</td><td>Выход при уже мёртвой сессии</td></tr>
+      <tr><td class="mono">/auth/me</td><td>Проба «кто я»; «никто» — законный ответ, на нём строится маршрутный гейт</td></tr>
+      <tr><td class="mono">/auth/invite</td><td>Публичные эндпоинты приглашения, включая <code>/auth/invite/:token</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Сравнение идёт <b>по целым сегментам пути</b>, а не префиксом строки, которую передал вызывающий. Обе стороны наивного сравнения ошибочны, и в разные стороны:</p>
+  <ul>
+    <li><code>apiClient.post('auth/login', …)</code> — без ведущего слэша; axios разрешит это относительно <code>baseURL</code> корректно, а голый <code>startsWith('/auth/login')</code> — нет. Человека выкинуло бы из системы за неверный пароль.</li>
+    <li>Гипотетический <code>/auth/logins-report</code> — обычный защищённый маршрут; префиксная проверка сочла бы его исключением, и настоящая смерть сессии осталась бы незамеченной. Это отказ в «открытую» сторону, что хуже.</li>
+  </ul>
+  <p><code>requestPath()</code> поэтому нормализует то, что передал вызывающий: срезает <code>?query</code> и <code>#hash</code>, у абсолютного URL берёт <code>pathname</code> и снимает префикс <code>/api</code>, дописывает ведущий слэш. Дальше — совпадение либо точное, либо по границе сегмента (<code>path === exempt || path.startsWith(exempt + '/')</code>).</p>
+
+  <div class="note">
+    <span class="label">Обработчик зовётся в try, и это не перестраховка</span>
+    <p>Брошенное из обработчика исключение <b>заменило бы</b> исходный отказ: вызывающий поймал бы в <code>catch</code> ошибку обработчика вместо своего 401 и рассказал бы пользователю не о том. Поэтому исключение логируется, а наружу уходит <code>Promise.reject(error)</code> с оригиналом.</p>
+  </div>
+
+  <h3>queryClient: 4xx не ретраится</h3>
+  <p>Единственная прикладная настройка по умолчанию — предикат ретрая. Логика: <b>4xx — это обдуманный ответ сервера</b> (404 на удалённую запись, 400 на страницу за пределами диапазона, 403 на отсутствующее право), и повторение того же запроса его не изменит. По умолчанию TanStack Query сделал бы три попытки с нарастающей паузой — около 12 секунд скелетона загрузки перед тем, как показать состояние, которое было известно с первой попытки.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Класс ошибки</th><th>Ретраится</th><th>Почему</th></tr></thead>
+    <tbody>
+      <tr><td>Нет ответа (<code>status === null</code>)</td><td class="yes">да</td><td>Транспортный сбой — канонический случай для повтора</td></tr>
+      <tr><td><code>408 Request Timeout</code></td><td class="yes">да</td><td>Временное состояние, а не ответ по существу</td></tr>
+      <tr><td><code>429 Too Many Requests</code></td><td class="yes">да</td><td>Клиенту прямо сказано подождать, а не сдаться</td></tr>
+      <tr><td>Остальные <code>4xx</code></td><td class="no">нет</td><td>Ответ по существу; повтор ничего не изменит</td></tr>
+      <tr><td><code>5xx</code></td><td class="yes">да</td><td>Сервер сломался — возможно, временно</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub">Максимум — 3 попытки. Хук, которому нужно иначе, переопределяет <code>retry</code> у себя. Предикат читает статус через <code>toApiError</code>, то есть работает и с ошибкой axios, и с уже нормализованной <code>ApiError</code>.</p>
+
+  <h3>Слоты: копия на чтение, регистрация с нуля на запись</h3>
+  <p>Слот — именованный общий список. Потребитель создаёт его и читает <code>getItems()</code>, плагины кладут вклады через дескриптор, хост один раз при старте всё связывает. Механизм здесь — только <em>общий</em>; конкретные слоты (например, <code>shell.sidebar.nav</code>) объявляет владеющий ими плагин. Реализация — чистые данные, без React, поэтому она и лежит в листе, а не в хосте.</p>
+  <ol class="flow">
+    <li><b><code>getItems()</code> возвращает копию.</b><span class="meta">items.slice()</span>Один слот читают несколько плагинов. Выдай внутренний массив — и чей-то <code>sort()</code> на месте перепишет общее состояние для всех остальных. По той же причине сортировка вынесена в <code>byOrder</code>, которая тоже копирует.</li>
+    <li><b><code>_reset()</code> обнуляет длину, а не пересоздаёт массив.</b><span class="meta">items.length = 0</span><code>getItems</code> и <code>_register</code> замкнуты на этот конкретный массив; переприсваивание оставило бы их писать и читать из массива, которого никто больше не видит.</li>
+    <li><b><code>wireSlotContributions</code> регистрирует с нуля.</b><span class="meta">сначала reset по множеству слотов, потом push</span>Слот замкнут на массив, живущий столько же, сколько модуль, а <code>_register</code> — это голый <code>push</code>. Всё, что запустит связывание второй раз, удвоит каждый вклад. Горячее обновление Vite делает ровно это: сайдбар в деве заполнялся дублями, множившимися с каждым сохранением.</li>
+    <li><b>Сброс — отдельный проход.</b><span class="meta">new Set(contributions.map(c =&gt; c.slot))</span>В один слот вкладываются несколько плагинов. Чисти внутри цикла регистрации — и вклад плагина, отработавшего раньше в том же прогоне, будет стёрт.</li>
+  </ol>
+
+  <h3>UnsavedChanges: страж, который не знает ни одного слова</h3>
+  <p>Форма регистрирует свою «грязность» под ключом, и с этого момента <b>любой</b> уход спрашивает подтверждение. Три канала ухода — три механизма:</p>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Ссылки внутри приложения</h4>
+      <p class="small sub">Перехват клика на уровне документа <b>в фазе захвата</b>, до обработки React Router. Покрывает каждый <code>&lt;Link&gt;</code> где угодно, не трогая ни одного места вызова.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Программная навигация</h4>
+      <p class="small sub"><code>confirmNavigation(proceed)</code> — DOM-события нет, перехватывать нечего, поэтому вызов явный.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Уход со страницы</h4>
+      <p class="small sub">Родной <code>beforeunload</code> — единственное, что браузеры разрешают при перезагрузке, закрытии и внешнем URL. Свой текст там не показать by design.</p>
+    </div>
+  </div>
+  <p>Что клик <b>не</b> перехватывает: модифицированные клики (новая вкладка или окно), <code>download</code>, <code>target</code> кроме <code>_self</code>, якоря <code>#…</code>, чужой origin и переход на тот же путь с тем же запросом. Ничего из этого не теряет правки.</p>
+
+  <div class="note crit">
+    <span class="label">Три ошибки, зафиксированные в коде как «так нельзя»</span>
+    <p><b>1. Не очищать множество ключей при подтверждении.</b> Ответ пользователя относится к той форме, о которой спросили; свой ключ она снимет сама при размонтировании. Очистка всех ключей разоружила бы любую другую смонтированную форму (пристыкованный композер, форму в диалоге) на весь сеанс — <code>useUnsavedChanges</code> перерегистрируется только при изменении своих входов.</p>
+    <p><b>2. Подтверждённая навигация идёт через роутер</b> (<code>useNavigate</code>), поэтому провайдер обязан быть смонтирован внутри роутера. Эквивалентный на вид <code>history.pushState({}, '', url)</code> плюс синтетический <code>popstate</code> затирает состояние, в котором React Router держит индекс истории: индекс читается как <code>undefined</code>, каждый следующий переход пишет <code>NaN</code>, и дельты Back/Forward неверны до конца сеанса.</p>
+    <p><b>3. Никакого <code>stopPropagation()</code>.</b> Слушатель в фазе захвата: остановка события прятала клик от всех остальных перехватчиков страницы (закрытие выпадашки по клику вовне, аналитика) — и только пока форма грязная, из-за чего последствия были плавающими и неотслеживаемыми (<code>ORT-136</code>). Навигацию останавливает <code>preventDefault()</code>; подавление события для всех прочих в это не входило.</p>
+  </div>
+  <p class="small sub">Там же — <code>ORT-136</code> про ссылки в SVG: <code>closest('a')</code> находит и <code>SVGAElement</code>, у которого нет разобранных <code>origin</code>/<code>pathname</code>/<code>search</code>, поэтому проверка origin выходила раньше и ссылка уводила без предупреждения. Теперь href берётся как <code>getAttribute('href')</code> либо <code>href.baseVal</code> и разрешается относительно документа.</p>
+
+  <h3>useTableUrlState: двусторонний поиск</h3>
+  <p>URL — источник истины для списков. Поле поиска пишет в URL с задержкой 300 мс и <b>читает из него обратно</b>, когда URL изменился по любой другой причине — Back/Forward, ссылка на голый список, сохранённое представление. Односторонний вариант выглядит рабочим ровно до первого Back: эффект тут же вернёт фильтр на место.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// на входе (URL → поле): пересинхронизируемся, только если URL уехал
+// НЕ на то значение, которое мы сами только что зафиксировали
+if (lastSearchParam !== searchParam) {
+    setLastSearchParam(searchParam);
+    if (searchParam !== debouncedSearch) setSearchInput(searchParam);
+}
+
+// на выходе (поле → URL): пишем, только когда дебаунс догнал поле
+useEffect(() =&gt; {
+    if (debouncedSearch !== searchInput) return;   // ещё печатают
+    if (debouncedSearch === searchParam) return;   // уже записано
+    updateParams({ [searchKey]: debouncedSearch || undefined });
+}, [...]);</code></pre></div>
+  <p>Два охранника — по одному на каждое направление — и есть весь механизм: без первого круг замкнётся в цикл, без второго затрутся символы, набранные внутри окна дебаунса. <code>searchPending</code> (<code>searchInput !== searchParam</code>) существует потому, что <code>isFetching</code> списка — плохой индикатор «ищем»: он включается уже <em>после</em> фиксации дебаунса, а сам запрос на быстрой сети занимает миллисекунды, и видимо не происходит ничего.</p>
+  <p class="small sub"><code>updateParams</code> сливает патч в существующие параметры, выбрасывает пустые значения и по умолчанию сбрасывает <code>page</code> (сузили выборку — страниц стало меньше); запись всегда <code>{ replace: true }</code>, чтобы каждый символ не оседал в истории.</p>
+
+  <h3>documentTitle: заголовок собирается, а не пишется</h3>
+  <p>Модуль держит три вещи: <b>имя приложения</b>, снятое один раз при загрузке модуля из <code>&lt;title&gt;</code> хост-разметки (<code>apps/admin/index.html</code>) — лист не владеет названием продукта; <b>заголовок текущей страницы</b> (или <code>null</code>); и <b>декоратор</b> — преобразование над собранной строкой.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>compose() = page ? `${page} · ${APP_NAME}` : APP_NAME
+render()  = document.title = decorate(compose())</code></pre></div>
+  <p>Декоратор — <em>преобразование</em>, а не запись, и это принципиально: смена заголовка страницы и смена бейджа непрочитанных не могут затереть друг друга, потому что тот, кто сходил последним, пересобирает строку с той же чистой базы, а не с того, что оказалось в <code>document.title</code>. Если бы копайлот записывал заголовок напрямую, счётчики накапливались бы друг на друге, а первый открытый чат навсегда пришпилил бы вкладку к той странице, которая была открыта в момент старта.</p>
+  <p class="small sub">Мотив — не косметика: заголовок вкладки это основной ориентир при переключении окон и подпись для записей истории и закладок. Один статический заголовок делает все маршруты продукта неразличимыми (WCAG 2.4.2 Page Titled).</p>
+
+  <h3>Что именно хранится в модулях</h3>
+  <p>Пакет намеренно состоит из синглтонов. Для SPA без SSR это нормально (изоляции по запросу не требуется), но знать, что переживает навигацию, обязательно.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Модуль</th><th>Состояние</th><th>Кто меняет</th><th>Когда сбрасывается</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">apiClient</td><td><code>activeWorkspaceId: string | null</code></td><td><code>workspaces-admin</code> при входе в воркспейс</td><td>Никогда автоматически — <b>очистки на размонтировании нет намеренно</b> (см. ниже)</td></tr>
+      <tr><td class="mono">apiClient</td><td><code>unauthorizedHandler</code></td><td><code>identity-admin</code> в эффекте</td><td><code>setUnauthorizedHandler(null)</code> при размонтировании <code>AuthProvider</code></td></tr>
+      <tr><td class="mono">documentTitle</td><td><code>APP_NAME</code>, <code>page</code>, <code>decorate</code></td><td>Маршруты и копайлот</td><td><code>page</code> — при размонтировании маршрута; <code>decorate</code> — при снятии бейджа</td></tr>
+      <tr><td class="mono">slot</td><td>Массив вкладов на слот</td><td>Только хост, через <code>wireSlotContributions</code></td><td>При каждом связывании (первым проходом)</td></tr>
+      <tr><td class="mono">queryClient</td><td>Весь кэш серверного состояния</td><td>Хуки плагинов</td><td>Сборкой мусора кэша; выход из системы обнуляет ключ текущего пользователя</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <span class="label">Почему id воркспейса не снимается при уходе</span>
+    <p><code>CurrentWorkspaceProvider</code> ставит его <b>во время рендера</b> (родитель рендерится раньше детей, иначе первый запрос дочернего хука ушёл бы без заголовка) и переставляет в эффекте при смене воркспейса. Очистки при размонтировании нет сознательно: обнуление гонялось бы с фоновыми перезапросами (например, перезапрос списка контента по возврату фокуса уже после ухода на сетку воркспейсов), которые ушли бы без <code>X-Workspace-Id</code> и получили 400 на guard. Задержавшийся id безвреден: заголовок читают только маршруты, привязанные к воркспейсу, а они всегда живут внутри шелла, который переставляет его на входе.</p>
+  </div>
+</section>
+
+<section id="server">
+  <h2 class="sec"><span class="num">05</span>Инвентарь экспортов: <code>@orthacms/utils-server</code></h2>
+
+  <p>Барель отдаёт <b>28 символов</b>: 15 значений и 13 типов. Пять из значений — пары «константный объект + одноимённый тип» (<code>FilterOperator</code>, <code>ScalarFieldType</code>, <code>RelationKind</code>, <code>WithinLastUnit</code>, <code>FilterErrorCode</code>): в коде их используют и как значение в <code>switch</code>, и как тип в сигнатуре. Модуля NestJS у пакета нет — это чистая библиотека, которую импортирует кто хочет.</p>
+
+  <h3>Движок фильтров</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Символ</th><th>Вид</th><th>Что делает</th><th>Кто использует</th><th class="center num-col">Мест</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">parseFilterTree</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Разбирает payload (<code>string</code> с JSON или уже разобранный объект) в дерево <code>ParsedNode</code>, сверяясь со схемой. <code>null</code> — фильтра нет</td>
+        <td><code>content</code> (записи, публичный API, инструменты копайлота), <code>users</code>, <code>activity</code>, <code>alarms</code></td>
+        <td class="center num-col">6</td>
+      </tr>
+      <tr>
+        <td class="mono">applyFilterTree</td><td><span class="pill pill-pub">async-функция</span></td>
+        <td>Переводит дерево в единый фрагмент Drizzle <code>SQL</code>. <code>undefined</code> — переводить нечего. Асинхронна из-за расширений</td>
+        <td>Те же, кроме <code>alarms</code> (правила там валидируются, а исполняются через <code>EntryMatchQuery</code> контента)</td>
+        <td class="center num-col">6</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterSchema</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Публичная поверхность фильтра одного эндпоинта: <code>fields</code>, <code>relations</code>, <code>extensionFields</code> и четыре предела</td>
+        <td><code>users</code>, <code>activity</code>, <code>content</code> (в контенте схема собирается динамически на каждый тип)</td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">FieldSchema</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>Record&lt;string, ScalarFieldSchema&gt;</code> — колонки, открытые на одной таблице</td>
+        <td><code>content</code> (поверхность фильтра записи, расширения), <code>segments</code>, <code>i18n</code></td>
+        <td class="center num-col">6</td>
+      </tr>
+      <tr>
+        <td class="mono">ScalarFieldSchema</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>{ type, enumValues? }</code> — правила приведения одной колонки</td>
+        <td><code>content</code></td>
+        <td class="center num-col">2</td>
+      </tr>
+      <tr>
+        <td class="mono">ScalarFieldType</td><td><span class="pill pill-pub">константы + тип</span></td>
+        <td>Шесть типов: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>uuid</code>, <code>date</code>, <code>enum</code></td>
+        <td>Самый востребованный символ пакета — им объявляют каждую фильтруемую колонку</td>
+        <td class="center num-col">8</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterOperator</td><td><span class="pill pill-pub">константы + тип</span></td>
+        <td>Тринадцать операторов словаря</td>
+        <td><code>content</code>, <code>segments</code> — там, где предикат собирают вручную</td>
+        <td class="center num-col">2</td>
+      </tr>
+      <tr>
+        <td class="mono">RelationKind</td><td><span class="pill pill-pub">константы + тип</span></td>
+        <td>Пять видов связи, дискриминант формы подзапроса</td>
+        <td><code>content</code>, поверхность фильтра записи</td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">RelationSchema</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Размеченное объединение из пяти вариантов — описание одной проходимой связи</td>
+        <td><code>content</code></td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">RelationScope</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>(target) =&gt; SQL | undefined</code> — предикат, приклеиваемый <b>внутрь</b> EXISTS: граница воркспейса и мягкое удаление</td>
+        <td><code>content</code></td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">WithinLastUnit</td><td><span class="pill pill-pub">константы + тип</span></td>
+        <td>Три единицы окна: <code>minutes</code>, <code>hours</code>, <code>days</code></td>
+        <td>Внутри пакета; наружу не импортируется</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">WithinLastValue</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>{ n, unit }</code> — единственное значение-объект во всей грамматике</td>
+        <td>Внутри пакета</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">ParsedRule</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Лист дерева: <code>{ kind:'rule', path, op, value }</code></td>
+        <td><code>content</code> — сигнатура <code>resolveExtension</code> у расширений</td>
+        <td class="center num-col">4</td>
+      </tr>
+      <tr>
+        <td class="mono">ParsedGroup</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Узел-группа: <code>{ kind:'group', combinator, children }</code></td>
+        <td>Внутри пакета</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">ParsedNode</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Объединение узла и листа — то, чем обмениваются парсер и переводчик</td>
+        <td>Выводится из <code>parseFilterTree</code></td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">ApplyFilterTreeOptions</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Опции переводчика; на сегодня одна — <code>resolveExtension</code></td>
+        <td>Выводится из вызова</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterExtensionResolver</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>(rule) =&gt; Promise&lt;SQL&gt;</code> — хост отвечает за «виртуальное» поле</td>
+        <td>Выводится из опций</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">DbLike</td><td><span class="pill pill-ses">тип</span></td>
+        <td>Минимальная форма БД: только <code>select().from().where()</code> и <code>innerJoin</code></td>
+        <td>Выводится из вызова</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">TableLike</td><td><span class="pill pill-ses">тип</span></td>
+        <td><code>object</code>. Намеренно не <code>Table</code> из drizzle: защищённое поле в дженериках drizzle ломает структурное присваивание между пакетами под <code>nodenext</code></td>
+        <td>Выводится из вызова</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">OPERATORS_BY_TYPE</td><td><span class="pill pill-ses">таблица</span></td>
+        <td>Какие операторы допустимы для каждого типа колонки</td>
+        <td>Внутри пакета; наружу не импортируется</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">operatorsFor</td><td><span class="pill pill-pub">функция</span></td>
+        <td>Читает таблицу через <code>Object.hasOwn</code>; <code>undefined</code> — тип неизвестен (это баг схемы, не клиента)</td>
+        <td>Внутри пакета</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterException</td><td><span class="pill pill-perm">400</span></td>
+        <td><code>BadRequestException</code> с машиночитаемым <code>code</code> и структурным <code>context</code></td>
+        <td>Ловится (<code>instanceof</code>) в <code>alarms</code> и контроллерах контента; <b>никто снаружи её не бросает</b></td>
+        <td class="center num-col">2</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterErrorCode</td><td><span class="pill pill-ses">константы + тип</span></td>
+        <td>Четырнадцать категорий ошибки разбора</td>
+        <td>Не импортируется: код читают из тела HTTP-ответа</td>
+        <td class="center num-col">0</td>
+      </tr>
+      <tr>
+        <td class="mono">FilterSchemaException</td><td><span class="pill pill-perm">500</span></td>
+        <td><code>InternalServerErrorException</code>, код <code>FILTER_SCHEMA_INVALID</code>: запрос корректен, сломана схема, которую написал автор плагина</td>
+        <td><code>content</code>, сборка поверхности фильтра записи</td>
+        <td class="center num-col">1</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Вне фильтров</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Символ</th><th>Что делает</th><th>Кто использует</th><th class="center num-col">Мест</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">clampInt</td>
+        <td><code>(raw, fallback, min, max)</code>: нечисловое — <code>fallback</code>, числовое — усечение до целого и зажим в границы. Для параметров пагинации</td>
+        <td><code>content</code> — контроллеры записи и ревизий</td>
+        <td class="center num-col">2</td>
+      </tr>
+      <tr>
+        <td class="mono">isUniqueViolation</td>
+        <td>Является ли ошибка (или её <code>cause</code>, до 5 уровней) нарушением уникальности Postgres <code>23505</code></td>
+        <td><code>users</code>, <code>workspaces</code>, <code>content</code> (сохранённые представления), <code>alarms</code></td>
+        <td class="center num-col">3</td>
+      </tr>
+      <tr>
+        <td class="mono">violatedConstraint</td>
+        <td><b>Имя</b> сработавшего индекса, <code>''</code> — драйвер имя не дал, <code>undefined</code> — это не 23505</td>
+        <td><code>content</code>, <code>EntryWriterService</code></td>
+        <td class="center num-col">1</td>
+      </tr>
+      <tr>
+        <td class="mono">isForeignKeyViolation</td>
+        <td>Нарушение внешнего ключа <code>23503</code>. Специально булево, а не имя: в отличие от нескольких уникальных индексов на одной таблице, ответ здесь не зависит от того, какой FK сработал</td>
+        <td><code>content</code>, <code>EntryWriterService</code></td>
+        <td class="center num-col">1</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Почему имя индекса, а не просто «конфликт»</span>
+    <p>На одной таблице может висеть несколько уникальных индексов. У локализованной таблицы контента их два — пара <code>(locale_group_id, locale)</code> и индекс связи «один-к-одному» внутри локали. Сообщить об одном как о другом значит послать редактора чинить то, что не сломано. Возврат <code>''</code> для неатрибутированного нарушения нужен, чтобы вызывающий отличал «уникальность нарушена, но какая — неизвестно» от «это вообще не про уникальность», не делая второго вызова.</p>
+  </div>
+
+  <h3>Как выглядит объявление схемы</h3>
+  <p>Схема — это и есть граница безопасности: в SQL попадают только перечисленные в ней поля, операторы и связи. Ниже — реальная схема фильтра участников из <code>users-server</code>, целиком:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export const MEMBER_FILTER_SCHEMA: FilterSchema = {
+    fields: {
+        email:     { type: ScalarFieldType.String },
+        name:      { type: ScalarFieldType.String },
+        status:    { type: ScalarFieldType.Enum,
+                     enumValues: ['pending', 'active', 'disabled'] },
+        createdAt: { type: ScalarFieldType.Date }
+    },
+    relations: {
+        role: {
+            kind: 'many-to-one',
+            table: roles,
+            fk: users.roleId,
+            fields: {
+                key:  { type: ScalarFieldType.String },
+                name: { type: ScalarFieldType.String }
+            }
+        }
+    }
+};</code></pre></div>
+  <p class="small sub">Всё, чего здесь нет, не отфильтруется никогда — включая <code>passwordHash</code>. Пределы не указаны, значит действуют умолчания (глубина 3, узлов 50, вложенность групп 5, длина списка <code>in</code> — 100).</p>
+</section>
+
+<section id="grammar">
+  <h2 class="sec"><span class="num">06</span>Грамматика фильтров и её пределы</h2>
+
+  <p>Клиент присылает <code>?filter=&lt;json&gt;</code>. Пайплайн из двух шагов превращает это в кусок <code>WHERE</code>, который вызывающий сам склеивает со своими условиями — движок никогда не владеет всем <code>WHERE</code> целиком.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>parseFilterTree(raw, schema)                   → ParsedNode | null
+applyFilterTree(node, schema, table, db, opts) → SQL | undefined
+
+// у вызывающего:
+const where = and(mySearch, myStatusGuard, filterFragment);</code></pre></div>
+
+  <h3>Форма узлов</h3>
+  <p>Принимаются две формы входа: строка с JSON (контроллер может передать <code>?filter=</code> как есть) и уже разобранный объект. Внутри — три вида узла:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "and": [ узел, узел, … ] }          // группа И
+{ "or":  [ узел, узел, … ] }          // группа ИЛИ
+{ "field": "author.name", "op": "ilike", "value": "%ада%" }   // правило</code></pre></div>
+  <ul>
+    <li>Узел, объявивший <b>и</b> <code>and</code>, <b>и</b> <code>or</code>, — ошибка (<code>FILTER_INVALID_NODE</code>): комбинатор должен быть ровно один.</li>
+    <li>Пустой массив детей — ошибка: группа обязана содержать хотя бы одного ребёнка.</li>
+    <li>Наличие ключей проверяется через <code>Object.hasOwn</code>, а не через <code>in</code>: на вход может прийти уже разобранный объект, чей прототип несёт эти имена. Форма узла — то, что заявил сам payload.</li>
+    <li>Пустой вход (<code>undefined</code>, <code>null</code>, пустая строка, <code>{}</code>) — это <code>null</code>, а не ошибка: вызывающий просто пропускает <code>WHERE</code>.</li>
+  </ul>
+
+  <h3>Тринадцать операторов и что каждому разрешено</h3>
+  <div class="tablewrap">
+  <table>
+    <thead>
+      <tr><th>Оператор</th><th>SQL</th><th class="center">string / enum</th><th class="center">number</th><th class="center">boolean</th><th class="center">uuid</th><th class="center">date</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">eq</td><td><code>=</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">ne</td><td><code>&lt;&gt; OR IS NULL</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">gt / gte</td><td><code>&gt;</code> / <code>&gt;=</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">lt / lte</td><td><code>&lt;</code> / <code>&lt;=</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">in</td><td><code>IN (…)</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">nin</td><td><code>NOT IN (…) OR IS NULL</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">null</td><td><code>IS NULL</code> / <code>IS NOT NULL</code></td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td><td class="center yes">да</td></tr>
+      <tr><td class="mono">like</td><td><code>~~</code></td><td class="center yes">да</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td></tr>
+      <tr><td class="mono">ilike</td><td><code>~~*</code></td><td class="center yes">да</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td></tr>
+      <tr><td class="mono">nilike</td><td><code>!~~* OR IS NULL</code></td><td class="center yes">да</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td></tr>
+      <tr><td class="mono">within_last</td><td><code>&gt;= now() - make_interval(…)</code></td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td><td class="center no">нет</td><td class="center yes">да</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Третья ось проверки появилась после реального инцидента</span>
+    <p>У листа три оси — поле, оператор, значение — а белый список закрывал две. <code>?filter={"field":"embargoUntil","op":"ilike","value":"%2020%"}</code> называл существующее поле, нёс приемлемое значение и доезжал до Postgres как <code>"embargo_until" ilike $3</code>, что даёт <code>operator does not exist: timestamp with time zone ~~* unknown</code>. Это был <b>500, вызываемый пользователем по расшариваемой ссылке</b>, на каждом фильтруемом эндпоинте. Теперь — <code>FILTER_OPERATOR_NOT_ALLOWED</code> (400) с <code>path</code>, <code>op</code>, <code>fieldType</code> и списком <code>allowed</code>.</p>
+    <p>Таблица описывает, <b>на что способна колонка</b>, а не то, что предлагает интерфейс. Она шире, чем <code>OPS_FOR_TYPE</code> в конструкторе запросов админки (тот убирает <code>eq</code> у дат и всё кроме <code>eq</code> у булевых — это эргономика редактора, не легальность SQL). Здесь граница, которую пересекают и API-токен, и написанный руками URL, и GraphQL-адаптер: запретить законный <code>publishedAt eq &lt;момент&gt;</code> было бы регрессом, а не починкой.</p>
+  </div>
+  <p class="small sub">Проверка оператора выполняется <b>до</b> приведения значения — чтобы в ответе значилась настоящая причина («ilike недоступен на поле типа date»), а не производная («не дата: %2020%»). Неизвестный объявленный тип проверка пропускает: это баг схемы, и о нём отдельно кричит <code>FilterSchemaException</code> (500) — обвинять клиента 400-м значило бы спрятать его.</p>
+
+  <h3>Пределы</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Предел</th><th>Поле схемы</th><th class="num-col">По умолчанию</th><th>Что ограничивает</th><th>Код ошибки</th></tr></thead>
+    <tbody>
+      <tr><td>Глубина пути</td><td class="mono">maxDepth</td><td class="num-col">3</td><td>Число сегментов в <code>a.b.c</code> — то есть число переходов по связям</td><td class="mono">FILTER_DEPTH_EXCEEDED</td></tr>
+      <tr><td>Число узлов</td><td class="mono">maxNodes</td><td class="num-col">50</td><td>Правила + группы во всём дереве, считается на входе в каждый узел</td><td class="mono">FILTER_MAX_NODES_EXCEEDED</td></tr>
+      <tr><td>Вложенность групп</td><td class="mono">maxGroupDepth</td><td class="num-col">5</td><td>Глубина вложенных <code>and</code>/<code>or</code>; не зависит от <code>maxDepth</code></td><td class="mono">FILTER_GROUP_DEPTH_EXCEEDED</td></tr>
+      <tr><td>Длина списка</td><td class="mono">maxInListLength</td><td class="num-col">100</td><td>Элементы в одном <code>in</code>/<code>nin</code>: одно правило — один узел, но список внутри него не ограничен <code>maxNodes</code></td><td class="mono">FILTER_MAX_IN_LIST_EXCEEDED</td></tr>
+      <tr><td>Окно <code>within_last</code></td><td class="sub">не настраивается</td><td class="num-col">10 000 000</td><td>Верхняя граница <code>n</code>; ниже — почему она вообще есть</td><td class="mono">FILTER_INVALID_VALUE</td></tr>
+      <tr><td><b>Длина строки фильтра</b></td><td class="sub">нет в пакете</td><td class="num-col">—</td><td>Ограничивает <b>вызывающий</b> в своём DTO: 4096 символов в <code>content</code>, <code>users</code> и <code>activity</code>, 8192 в <code>alarms</code></td><td class="sub">400 от <code>ValidationPipe</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <span class="label">Ограничения длины у движка нет</span>
+    <p><code>parseFilterTree</code> примет строку любого размера и разберёт её <code>JSON.parse</code> до того, как сработает хоть один счётчик узлов. Обрезание входа — обязанность вызывающего, и на сегодня константа <code>FILTER_MAX_LENGTH</code> объявлена в четырёх местах независимо друг от друга, с разными значениями (см. раздел 12). Новый эндпоинт, забывший <code>@MaxLength</code>, получит эту защиту не автоматически.</p>
+  </div>
+
+  <h3>Значения</h3>
+  <ul>
+    <li><b>Скаляр или ничего.</b> Принимаются <code>string</code>, <code>number</code>, <code>boolean</code> (JSON-клиент вправе прислать любой из трёх для URL-подобного API). <code>null</code>, отсутствующий ключ <code>value</code>, объекты и массивы — <code>FILTER_INVALID_VALUE</code>.</li>
+    <li><b>Почему это важнее, чем кажется.</b> Раньше значение прогонялось через <code>String(v)</code> и <em>сопоставлялось</em>: <code>null</code> → <code>"null"</code>, нет ключа → <code>"undefined"</code>, <code>{}</code> → <code>"[object Object]"</code>, <code>[]</code> → <code>""</code> → <code>0</code> для числового поля. Ответ 200 с неверной, обычно пустой, выборкой — единственный тихий режим отказа в библиотеке, которая на всё остальное отвечает 400. «Пусто ли поле» — это оператор <code>null</code>, а не значение <code>null</code>.</li>
+    <li><b>Приведение по объявленному типу</b>: <code>number</code> — <code>Number.isFinite</code>; <code>boolean</code> — только строки <code>'true'</code>/<code>'false'</code>; <code>uuid</code> — каноническая форма 8-4-4-4-12 (свободный <code>[0-9a-f-]{36}</code> пропустил бы 36 дефисов и уронил бы каст Postgres в 500 вместо честного 400); <code>date</code> — <code>new Date</code> с проверкой на <code>NaN</code>; <code>enum</code> — точное членство в <code>enumValues</code>.</li>
+    <li><b>Списки</b> для <code>in</code>/<code>nin</code>: массив либо строка, разбиваемая по запятой. Пустой список отвергается — <code>IN ()</code> Drizzle отдаёт как <code>false</code>, а <code>NOT IN ()</code> как <code>true</code>, то есть фильтр молча превращается либо в «ничего», либо в «всё».</li>
+    <li><b><code>null</code></b> принимает только <code>true</code>/<code>false</code> (в том числе строками).</li>
+  </ul>
+
+  <h3>within_last: окно считает Postgres, а не вызывающий</h3>
+  <p>Значение — единственный объект в грамматике: <code>{ n, unit }</code>, где <code>unit</code> — одна из трёх единиц. Эмитируется <code>col &gt;= now() - make_interval(…)</code>, то есть отсечка вычисляется <b>в момент запроса</b>.</p>
+  <ol class="flow">
+    <li><b>В URL разница невидима.</b><span class="meta">query-builder/admin, treeToJsonFilter</span>Конструктор запросов админки при сериализации фильтра в ссылку <em>замораживает</em> собственный «за последние N дней» в конкретную отсечку <code>gte</code>: расшаренная глубокая ссылка должна показывать те же строки, что и у отправителя.</li>
+    <li><b>В сохранённом фильтре разница решает всё.</b><span class="meta">флаг relativeDates</span>Тот же конструктор передаёт <code>relativeDates: true</code>, когда фильтр уходит на хранение и последующее воспроизведение. Правило алярма «не обновлялось 90 дней» иначе навсегда означало бы «не обновлялось с того дня, когда правило написали».</li>
+    <li><b>Единица не интерполируется в SQL.</b><span class="meta">scalar-op.ts, withinLast()</span>Имена аргументов <code>make_interval</code> нельзя параметризовать, поэтому сборка фрагмента из переменной означала бы <code>sql.raw</code> над значением, пришедшим по проводу. Вместо этого — <code>switch</code> по трём единицам: пути, на котором проводное значение доберётся до <code>raw</code>, просто не существует.</li>
+    <li><b>Верхняя граница n не декоративна.</b><span class="meta">MAX_WITHIN_LAST_N = 10 000 000</span><code>now() - make_interval(days =&gt; 1e9)</code> выходит за диапазон timestamp и даёт Postgres-ошибку <code>22008</code>, которую вызывающий увидит как 500. Клиент, просящий такое окно, имеет в виду «всё», и сказать ему об этом надо 400-м. Десять миллионов минут — заведомо больше любого реального окна и заведомо внутри диапазона.</li>
+  </ol>
+
+  <h3>Пять видов связи и форма подзапроса</h3>
+  <p>Любой путь длиннее одного сегмента переводится в <code>EXISTS(...)</code>. Форму подзапроса выбирает дискриминант <code>kind</code>.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вид</th><th>Что где лежит</th><th>Форма</th><th>Тонкость</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">one-to-one<br>one-to-many</td>
+        <td>FK на целевой таблице ссылается на родителя</td>
+        <td><code>EXISTS(SELECT 1 FROM target WHERE fk = parentKey AND scope AND …)</code></td>
+        <td><code>parentKey</code> по умолчанию — <code>parent.id</code>; сам FK <b>никогда</b> не перепривязывается, он живёт на целевой стороне</td>
+      </tr>
+      <tr>
+        <td class="mono">many-to-one</td>
+        <td>FK на родителе ссылается на цель</td>
+        <td><code>EXISTS(SELECT 1 FROM target WHERE targetKey = parent.fk AND …)</code></td>
+        <td><code>fk</code> — родительская колонка, поэтому проходит через <code>rebind</code></td>
+      </tr>
+      <tr>
+        <td class="mono">many-to-many</td>
+        <td>Стыковочная таблица <code>through</code> с двумя FK</td>
+        <td><code>EXISTS(SELECT 1 FROM through [INNER JOIN target] WHERE …)</code></td>
+        <td>Быстрый путь «только по <code>id</code>» читает целевой FK прямо со стыковочной строки — и <b>обязан уступить</b>, если задан <code>scope</code></td>
+      </tr>
+      <tr>
+        <td class="mono">self-referential</td>
+        <td>Родитель ссылается на другую строку той же таблицы</td>
+        <td><code>EXISTS(SELECT 1 FROM t AS alias WHERE alias.id = parent.fk AND …)</code></td>
+        <td>Алиас обязателен и должен быть уникален <b>на вхождение в дерево</b>, а не на связь: два правила по одной само-связи иначе столкнутся именами корреляции</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Две ловушки корреляции, каждая из которых даёт валидный SQL и неверные строки</span>
+    <p><b>Неалиасованный само-джойн.</b> Родитель и цель — физически одна таблица, поэтому подзапрос без алиаса связал бы обе стороны корреляции с внутренней областью и выродился бы в «строка, которая является родителем самой себе».</p>
+    <p><b>Родительские колонки, собранные заранее.</b> <code>fk</code> у <code>many-to-one</code>/<code>self-referential</code> и любой <code>parentKey</code> построены против <b>физической</b> таблицы. Как только родитель становится алиасом — а это происходит для всего, что вложено под само-связь, — неалиасованное <code>t.col</code> внутри подзапроса всё равно разрешается из внешнего <code>FROM t</code>. Postgres не ошибётся: <code>parent.author.name</code> отфильтрует автора <em>корневой</em> строки, а <code>parent.parent.name</code> схлопнется до <code>parent.name</code>. Лечит <code>rebind()</code> — перерезолв по собственному имени колонки в БД против той таблицы, которую переводчик запрашивает на самом деле; на неалиасованной цепочке это no-op.</p>
+  </div>
+
+  <p><code>RelationScope</code> — это <em>функция</em> <code>(target) =&gt; SQL | undefined</code>, а не готовый <code>SQL</code>, ровно по той же причине: у само-связи предикат должен привязываться к алиасу, а не к физической таблице. Приклеивается он <b>внутри</b> EXISTS, поэтому фильтр по связи не может пройти по строкам, которые сам корневой запрос исключает (мягко удалённая или чужая по воркспейсу цель).</p>
+
+  <h3>Отрицание: два правила, оба неочевидные</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">На пути по связи — <code>NOT EXISTS(… положительное …)</code></h4>
+      <p class="small">Отрицающий лист (<code>ne</code>, <code>nin</code>, <code>nilike</code> и <code>null: true</code>) переписывается: отрицание оборачивает <b>внешний</b> переход, поэтому многошаговый путь отрицается целиком.</p>
+      <p class="small sub">Наивное <code>EXISTS(… отрицание …)</code> утверждает <em>противоположное</em>, как только связь может держать больше одной строки: <code>tags.name nin ['x']</code> означало бы «есть хоть один тег, не равный x» и совпало бы с записью, помеченной <code>[x, y]</code>. Оно же делает <code>relation.id null:true</code> («связь пуста») мёртвым фильтром — <code>id</code> цели это NOT NULL первичный ключ.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">На обычной колонке — отрицание <b>включает NULL</b></h4>
+      <p class="small"><code>col &lt;&gt; v OR col IS NULL</code>. Трёхзначная логика SQL иначе выбросила бы строки с NULL.</p>
+      <p class="small sub">У публикуемого типа обязательные поля остаются nullable (они обязательны только для публикации), поэтому «Заголовок не содержит foo» не должно прятать черновики без заголовка. Пустое значение — не то значение, которое исключают, значит ему место в выборке. Побочный приятный эффект переписывания на связях: «автор не Ада» теперь включает записи вообще без автора, то есть ведёт себя так же, как то же правило на колонке.</p>
+    </div>
+  </div>
+
+  <h3>own(): почему белый список читается через Object.hasOwn</h3>
+  <p>Каждый белый список в пакете — <code>fields</code>, <code>relations</code>, вложенные карты <code>RelationSchema</code>, собственная карта колонок drizzle — это обычный объектный литерал. Значит <code>map[name]</code> разрешает <code>constructor</code>, <code>toString</code>, <code>valueOf</code>, <code>hasOwnProperty</code> и остальной <code>Object.prototype</code> в истинные значения, и проверка <code>if (!map[name])</code> пропускает имя, которого никто не объявлял.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Запрос</th><th>Что было</th><th>Итог</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">?filter={"field":"constructor",…}</td>
+        <td>Скалярный путь доходил до <code>columnOf</code>, тот доставал тот же унаследованный член из карты колонок и передавал drizzle <code>Function</code> под видом <code>Column</code>. Фрагмент выходил как <code>$1 = </code></td>
+        <td><b>500, вызываемый пользователем</b>, на любом фильтруемом эндпоинте</td>
+      </tr>
+      <tr>
+        <td class="mono">?filter={"field":"toString.constructor",…}</td>
+        <td>Путь, похожий на связь, выпадал из <code>switch (rel.kind)</code> как <code>undefined</code></td>
+        <td>Предикат <b>молча отбрасывался</b> — 200 без фильтрации</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub">Оба зафиксированы в <code>__test__/own-property-whitelist.spec.ts</code> и сквозным тестом <code>apps/server-e2e/src/server/users/list-users-filter.spec.ts</code>. Та же защита продублирована в <code>columnOf</code> и <code>primaryKey</code>: белый список парсера — основной барьер, но именно здесь просочившееся имя превращается в кривой SQL, а не в ошибку, поэтому место сторожит себя само.</p>
+
+  <h3>Четырнадцать кодов ошибок</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Код</th><th>Когда</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">FILTER_INVALID_JSON</td><td>Строка не разобралась как JSON</td></tr>
+      <tr><td class="mono">FILTER_INVALID_SHAPE</td><td>Верхний уровень — не объект (строка, массив)</td></tr>
+      <tr><td class="mono">FILTER_INVALID_NODE</td><td>Узел не группа и не правило; два комбинатора сразу; пустой массив детей; <code>field</code>/<code>op</code> не строки; расширение без резолвера</td></tr>
+      <tr><td class="mono">FILTER_EMPTY_PATH</td><td>Лист без сегментов пути</td></tr>
+      <tr><td class="mono">FILTER_DEPTH_EXCEEDED</td><td>Точечный путь длиннее <code>maxDepth</code></td></tr>
+      <tr><td class="mono">FILTER_GROUP_DEPTH_EXCEEDED</td><td>Вложенность групп больше <code>maxGroupDepth</code></td></tr>
+      <tr><td class="mono">FILTER_MAX_NODES_EXCEEDED</td><td>Узлов больше <code>maxNodes</code></td></tr>
+      <tr><td class="mono">FILTER_UNKNOWN_OPERATOR</td><td>Оператора нет в словаре из тринадцати</td></tr>
+      <tr><td class="mono">FILTER_OPERATOR_NOT_ALLOWED</td><td>Оператор настоящий, но тип колонки на него не отвечает</td></tr>
+      <tr><td class="mono">FILTER_UNKNOWN_FIELD</td><td>Последний сегмент не объявлен в <code>fields</code></td></tr>
+      <tr><td class="mono">FILTER_UNKNOWN_RELATION</td><td>Промежуточный сегмент не объявлен в <code>relations</code></td></tr>
+      <tr><td class="mono">FILTER_INVALID_VALUE</td><td>Значение не скаляр, не привелось к типу, вне enum, кривой <code>within_last</code></td></tr>
+      <tr><td class="mono">FILTER_EMPTY_IN_LIST</td><td>Пустой список у <code>in</code>/<code>nin</code></td></tr>
+      <tr><td class="mono">FILTER_MAX_IN_LIST_EXCEEDED</td><td>Список длиннее <code>maxInListLength</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Конверт ответа: 400 клиенту, 500 автору схемы</h3>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// FilterException — виноват клиент
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "code": "FILTER_UNKNOWN_FIELD",
+  "message": "filter: unknown field \"secretField\"",
+  "path": "secretField"          // ← поля context поднимаются в корень
+}
+
+// FilterSchemaException — виноват автор плагина
+{
+  "statusCode": 500,
+  "error": "Internal Server Error",
+  "code": "FILTER_SCHEMA_INVALID",
+  "message": "filter schema: many-to-many filter on target field requires `table`"
+}</code></pre></div>
+  <p><code>context</code> расстилается <b>первым</b>, а четыре служебных ключа пишутся после него. Весь контракт класса в том, что клиент может ветвиться на <code>code</code> и на статус; поле контекста с именем <code>message</code> или <code>code</code> не должно иметь возможности переписать конверт, ради которого класс и существует.</p>
+  <p>Разделение 400/500 — тоже контракт. <code>FilterSchemaException</code> бросается там, где запрос корректен и белый список его принял, но <b>объявленную схему нельзя перевести</b>: <code>many-to-many</code> с полями цели, но без <code>table</code>; <code>fields</code>, называющий отсутствующую колонку; вложенные <code>fields</code> без соответствующей записи в <code>relations</code>; таблица без <code>id</code> и без явного ключа; нераспознанный скалярный <code>type</code> или <code>kind</code> связи. Ответить 400 значило бы обвинить клиента, спрятать поломку от алертинга (4xx — ошибка клиента) и оставить баг схемы жить. Раньше эти места бросали голый <code>Error</code>, который доезжал до транспорта непрозрачным 500, а через MCP — нетипизированной внутренней ошибкой JSON-RPC.</p>
+
+  <h3>Расширения: виртуальные поля</h3>
+  <p><code>extensionFields</code> — множество имён, которые переводчик не переводит сам, а передаёт хостовому хуку <code>resolveExtension(rule) =&gt; Promise&lt;SQL&gt;</code>. Фрагмент вставляется на место листа, поэтому расширение композируется с обычными правилами внутри <code>and</code>/<code>or</code>. Каждое такое имя <b>обязано</b> быть объявлено и в <code>fields</code> — иначе парсеру нечем проверить значение (множество расширений он не читает вовсе, это дело переводчика). Ссылка на расширение без переданного резолвера — 400, а не тихое игнорирование.</p>
+  <p class="small sub">Единственный сегодняшний потребитель — <code>content-server</code>: провайдеры фильтра (например, вклад сегментов) добавляют свои поля в поверхность фильтра записи. Хуки вызываются последовательно во время обхода, поэтому расширение, ходящее в БД, добавляет свою задержку линейно на каждый лист — данные надо готовить один раз на запрос и захватывать в замыкание.</p>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">07</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>Сценарий A. Запрос уходит и возвращается</h3>
+  <p>Страница списка записей внутри воркспейса делает обычный <code>useQuery</code>.</p>
+  <ol class="flow">
+    <li><b>Хук плагина зовёт свою функцию запроса.</b><span class="meta">content-admin → apiClient.get('/entries', { params })</span>Плагин не знает ни базового URL, ни того, что нужны куки. Он знает путь.</li>
+    <li><b>Перехватчик запроса добавляет заголовок воркспейса.</b><span class="meta">X-Workspace-Id: &lt;activeWorkspaceId&gt;</span>Значение положил <code>CurrentWorkspaceProvider</code> ещё во время рендера шелла — раньше, чем сработал первый дочерний хук. Вне воркспейса заголовка нет вовсе.</li>
+    <li><b>Запрос уходит с <code>withCredentials</code>.</b><span class="meta">baseURL '/api' + путь</span>httpOnly-кука сессии едет вместе с запросом; в деве Vite проксирует <code>/api</code> на <code>:3000</code>.</li>
+    <li><b>Сервер отвечает.</b><span class="meta">WorkspaceGuard читает заголовок на маршрутах, привязанных к воркспейсу</span>На остальных маршрутах заголовок просто игнорируется.</li>
+    <li><b>Успех — данные уходят в кэш.</b><span class="meta">queryClient</span>Свежесть задана вызывающим через <code>STALE_TIME.*</code>, а не числом.</li>
+    <li><b>Ошибка — перехватчик ответа смотрит статус.</b><span class="meta">401 и не исключение → unauthorizedHandler()</span>Обработчик зовётся внутри <code>try</code>, и в любом случае дальше идёт <code>Promise.reject(error)</code> — глобальный выход это побочный эффект, а не замена обработке ошибки у вызывающего.</li>
+    <li><b>Функция запроса нормализует брошенное.</b><span class="meta">catch (e) { throw toApiError(e) }</span>Дальше по приложению живёт только <code>ApiError</code> со <code>status</code> и <code>details</code>.</li>
+    <li><b>TanStack Query решает, повторять ли.</b><span class="meta">retry: failureCount &lt; 3 &amp;&amp; isWorthRetrying(error)</span>404 и 403 не повторяются — страница показывает своё состояние сразу, а не через 12 секунд скелетона. 429, 408, 5xx и «ответа не было» повторяются.</li>
+    <li><b>Страница разбирает <code>details</code> под свой эндпоинт.</b><span class="meta">например, 422 → details.issues → ошибки полей</span>Транспорт не знает, что там внутри, и не должен: смысл живёт у потребителя.</li>
+  </ol>
+
+  <h3>Сценарий B. Сессия умерла — кто решает, что это значит</h3>
+  <p>Администратор отключил сотрудника, пока у того открыта вкладка. Фоновый перезапрос списка получает 401.</p>
+  <ol class="flow">
+    <li><b>Перехватчик нормализует путь запроса.</b><span class="meta">срезает query и hash, у абсолютного URL берёт pathname и снимает /api</span>Сравнивать сырую строку нельзя: axios принимает несколько написаний одного и того же эндпоинта.</li>
+    <li><b>Проверяет исключения по границе сегмента.</b><span class="meta">path === exempt || path.startsWith(exempt + '/')</span><code>/entries</code> не входит в список, значит 401 здесь означает потерю сессии, а не ответ эндпоинта.</li>
+    <li><b>Дёргает зарегистрированный обработчик.</b><span class="meta">utils-admin: unauthorizedHandler?.()</span>И на этом роль листа заканчивается. Он не знает слов «сессия завершена», у него нет ни <code>react-intl</code>, ни доступа к состоянию аутентификации.</li>
+    <li><b>identity-admin решает, что произошло.</b><span class="meta">AuthProvider</span>Сначала читает, был ли кто-то залогинен <em>до</em> записи: наличие пользователя в кэше отличает «ваша сессия закончилась» от обычного разлогиненного состояния, которое тоже может дать фоновый запрос.</li>
+    <li><b>Отвечает на пробу «никем», а не инвалидирует её.</b><span class="meta">queryClient.setQueryData(currentUserKey, null)</span>Сессии нет, перезапрос снова получил бы 401. И намеренно не <code>removeQueries</code>: выселение запросов с живыми наблюдателями заставит их перезапроситься, и каждый перезапрос вернётся в этот же обработчик.</li>
+    <li><b>Объявляет факт двум аудиториям.</b><span class="meta">toast в live-region хоста + флаг для страницы входа</span>Тост живёт в области вне роутера и переживает замену вида; флаг нужен, чтобы объяснение осталось на экране после того, как тост истёк (WCAG 4.1.3, 2.4.3).</li>
+    <li><b>Маршрутный гейт видит «не аутентифицирован» и уводит на вход.</b><span class="meta">приватное дерево размонтируется</span>Данные остаются неактивными и достаются сборщику мусора кэша.</li>
+    <li><b>Исходный 401 всё равно доезжает до вызывающего.</b><span class="meta">Promise.reject(error)</span>Мутация, которая была в полёте, увидит свой отказ и покажет свой тост — глобальный выход её обработку не съел.</li>
+  </ol>
+  <div class="note">
+    <span class="label">Зачем такая инверсия</span>
+    <p>Если бы транспорт сам знал, что делать с 401, <code>utils-admin</code> зависел бы от <code>identity-admin</code>, а тот — от <code>utils-admin</code>. Лист перестал бы быть листом. Регистрация колбэка — минимальная цена за то, чтобы дерево зависимостей осталось деревом.</p>
+  </div>
+
+  <h3>Сценарий C. Заголовок вкладки складывается из трёх источников</h3>
+  <ol class="flow">
+    <li><b>Имя приложения снимается один раз при загрузке модуля.</b><span class="meta">document.title.trim() || 'Admin'</span>Источник — <code>&lt;title&gt;</code> в <code>apps/admin/index.html</code>. Лист не хардкодит название продукта: снимок делается до того, как кто-либо успел что-то декорировать.</li>
+    <li><b>Маршрут ставит свой заголовок.</b><span class="meta">useDocumentTitle('Записи')</span>Хук пишет в модульную ячейку и перерисовывает; при размонтировании возвращает <code>null</code>, то есть голое имя приложения.</li>
+    <li><b>Собирается строка.</b><span class="meta">`${page} · ${APP_NAME}`</span>Именно собирается, а не дописывается к тому, что сейчас в <code>document.title</code>.</li>
+    <li><b>Копайлот вешает декоратор.</b><span class="meta">setTitleDecorator(title =&gt; badgedTitle(title, count))</span>Преобразование, а не запись. Пользователь ушёл на другую страницу — заголовок пересобрался, бейдж остался. Счётчик изменился — заголовок пересобрался с той же чистой базы, счётчики не наслаиваются.</li>
+    <li><b>Пишется результат.</b><span class="meta">document.title = decorate(compose())</span>Любой из трёх источников может измениться независимо, и порядок изменений значения не имеет.</li>
+    <li><b>Бейдж снимается.</b><span class="meta">setTitleDecorator(null)</span>Декоратор возвращается к тождественному; иконку вкладки копайлот восстанавливает отдельно и best-effort.</li>
+  </ol>
+
+  <h3>Сценарий D. Фильтр из ссылки становится SQL</h3>
+  <p>Редактор прислал коллеге ссылку на список записей с фильтром «автор — не Ада, обновлено за последние 7 дней».</p>
+  <ol class="flow">
+    <li><b>Контроллер валидирует длину строки.</b><span class="meta">@MaxLength(FILTER_MAX_LENGTH) — 4096 у content</span>Это единственный предел, которого <b>нет</b> в самом движке.</li>
+    <li><b>parseFilterTree разбирает JSON.</b><span class="meta">невалидный JSON → FILTER_INVALID_JSON</span>Пустой вход — <code>null</code>, и вызывающий просто не добавляет условий.</li>
+    <li><b>Обход считает узлы и глубину групп.</b><span class="meta">maxNodes 50, maxGroupDepth 5</span>Счётчик узлов инкрементируется на входе в каждый узел, включая группы.</li>
+    <li><b>Каждый лист идёт через resolveLeaf.</b><span class="meta">путь → белый список → оператор → значение</span>Сегменты пути ищутся <code>own()</code>-ом; промежуточные — в <code>relations</code>, последний — в <code>fields</code>.</li>
+    <li><b>Оператор сверяется с типом колонки.</b><span class="meta">operatorsFor(field.type)</span><code>within_last</code> легален на дате; был бы <code>ilike</code> — 400 со списком допустимых, а не 500 из драйвера.</li>
+    <li><b>Значение приводится.</b><span class="meta">{ n: 7, unit: 'days' } — единственный объект в грамматике</span>Скаляры проверяются на «это вообще скаляр» до всякого приведения.</li>
+    <li><b>applyFilterTree обходит дерево.</b><span class="meta">group → and()/or(), rule → scalar()/relationExists()</span>Группа, все дети которой схлопнулись в <code>undefined</code>, сама становится <code>undefined</code>; один ребёнок отдаётся как есть.</li>
+    <li><b>Отрицание на связи переписывается.</b><span class="meta">author.name ne 'Ада' → NOT EXISTS(… name = 'Ада' …)</span>А не <code>EXISTS(… name &lt;&gt; 'Ада' …)</code>, которое означало бы «есть какой-нибудь автор, кроме Ады».</li>
+    <li><b>Внутрь EXISTS приклеивается scope.</b><span class="meta">граница воркспейса + мягкое удаление</span>Фильтр по связи не проходит по строкам, которые исключает сам корневой запрос.</li>
+    <li><b>Дата уходит в Postgres относительной.</b><span class="meta">updatedAt &gt;= now() - make_interval(days =&gt; 7)</span>В ссылке админка заморозила бы окно в конкретную отсечку; здесь показан вариант хранения (правило алярма), где относительность обязана дожить до сервера.</li>
+    <li><b>Вызывающий склеивает фрагмент со своими условиями.</b><span class="meta">and(поиск, статус, фрагмент)</span>Движок никогда не владеет всем <code>WHERE</code>.</li>
+    <li><b>Значения параметризованы.</b><span class="meta">ни одно проводное значение не попадает в sql.raw</span>Единица интервала выбирается <code>switch</code>-ем по трём вариантам именно поэтому.</li>
+  </ol>
+
+  <h3>Сценарий E. Хост собирает слоты при старте</h3>
+  <ol class="flow">
+    <li><b>Плагины объявляют свои слоты на уровне модуля.</b><span class="meta">createSlot&lt;SidebarItem&gt;('shell.sidebar.nav')</span>25 слотов в шести плагинах; массив внутри слота живёт столько же, сколько модуль.</li>
+    <li><b>Каждый плагин перечисляет вклады в дескрипторе.</b><span class="meta">plugin.slots = [{ slot, items }]</span>Плагин-вкладчик не обязан знать плагин-владелец в рантайме — только его слот.</li>
+    <li><b>createAdmin собирает все вклады в один список.</b><span class="meta">plugins.flatMap(p =&gt; p.slots ?? [])</span>До монтирования React, чтобы потребители увидели полный набор с первого рендера.</li>
+    <li><b>wireSlotContributions чистит целевые слоты.</b><span class="meta">по множеству различных слотов, отдельным проходом</span>Отдельным — потому что в один слот вкладываются несколько плагинов.</li>
+    <li><b>Затем регистрирует всё заново.</b><span class="meta">slot._register(items)</span>Повторный запуск даёт тот же результат, а не удвоенный — это и защищает дев от горячих перезагрузок Vite.</li>
+    <li><b>Потребитель читает и сортирует копию.</b><span class="meta">byOrder(SLOT.getItems())</span>Оба шага копируют. Держать массив между регистрациями нельзя — читать надо заново.</li>
+  </ol>
+</section>
+
+<section id="rules">
+  <h2 class="sec"><span class="num">08</span>Правила для авторов: что сюда можно и чего нельзя</h2>
+
+  <p>Пакет с именем <code>utils</code> — естественный кандидат в свалку. Критерии ниже выведены из того, что в нём уже лежит, и из того, что осознанно лежит не в нём.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Сюда — да</h4>
+      <ul class="small">
+        <li>Клиентский синглтон, который обязан быть <b>ровно один</b> на приложение (HTTP-клиент, кэш запросов).</li>
+        <li>Универсальный хук уровня фреймворка, без доменного знания (<code>useDebouncedValue</code>).</li>
+        <li>Чистая функция, нужная нескольким плагинам (<code>slugify</code>, <code>initialsOf</code>, <code>clampInt</code>).</li>
+        <li>Механизм расширения, который должны видеть и хост, и плагины (<code>slot</code>).</li>
+        <li>Общий контракт ошибки транспорта или БД (<code>ApiError</code>, <code>pg-errors</code>).</li>
+        <li>Именованные константы вместо магических чисел (<code>HTTP_STATUS</code>, <code>STALE_TIME</code>).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Сюда — нет</h4>
+      <ul class="small">
+        <li><b>Любая строка, которую увидит человек.</b> В пакете нет <code>react-intl</code> и не должно появиться.</li>
+        <li><b>Смысл кода ответа.</b> Транспорт сообщает статус; «что это значит» — у потребителя.</li>
+        <li><b>Состояние фичи.</b> Аутентификация, текущий воркспейс как данные, права — в своих плагинах.</li>
+        <li><b>Компонент.</b> Здесь нет ни одного JSX-элемента, кроме провайдера контекста без разметки.</li>
+        <li><b>Вещь, нужная одному потребителю.</b> Одиночная утилита живёт у себя, пока не появится второй.</li>
+        <li><b>Импорт плагина.</b> Лист, который импортирует потребителя, перестаёт быть листом.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Единственное исключение из «лист ничего не импортирует»</span>
+    <p><code>avatarColor</code> импортирует <code>AVATAR_COLORS</code> из <code>@orthacms/design-system</code>, поэтому <code>utils-admin</code> зависит от дизайн-системы. Это не нарушение — дизайн-система тоже лист, и цикла не возникает, — но это единственная зависимость пакета на другой пакет монорепозитория, и добавлять вторую надо осознанно.</p>
+  </div>
+
+  <h3>Как добавить экспорт правильно</h3>
+  <ol class="flow">
+    <li><b>Убедиться, что потребителей больше одного.</b><span class="meta">иначе — в свой пакет</span>Общий код без второго потребителя — это преждевременная общность.</li>
+    <li><b>Проверить, что в нём нет доменного знания.</b><span class="meta">тест: можно ли объяснить, что он делает, не называя ни одной фичи продукта</span>Если нельзя — это не сюда.</li>
+    <li><b>Завести папку camelCase с index.ts.</b><span class="meta">admin: src/lib/&lt;name&gt;/index.ts; server: плоский файл в src/lib</span>Соглашения у двух пакетов разные, и смешивать их не надо.</li>
+    <li><b>Написать JSDoc на каждый экспорт.</b><span class="meta">оба AGENTS.md требуют этого явно</span>Здесь принято документировать не «что делает», а «почему не иначе»: ссылка на инцидент ценнее пересказа сигнатуры.</li>
+    <li><b>Положить спеку рядом.</b><span class="meta">admin: index.spec.ts(x); server: __test__/&lt;name&gt;.spec.ts</span>Дефект в листе — дефект во всех потребителях сразу.</li>
+    <li><b>Добавить в барель.</b><span class="meta">src/index.ts</span>Экспорт из глубины пути невозможен: <code>exports</code> отдают только корень и <code>package.json</code>.</li>
+    <li><b>Прогнать typecheck у потребителей.</b><span class="meta">npx nx sync при изменении зависимостей проектов</span>Пакет резолвится из исходников, поэтому ошибка типов ломает 16 проектов сразу.</li>
+  </ol>
+
+  <h3>Типографика соглашений</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Соглашение</th><th>admin</th><th>server</th></tr></thead>
+    <tbody>
+      <tr><td>Объявление типов</td><td><code>type</code> вместо <code>interface</code></td><td><code>interface</code> для контрактов</td></tr>
+      <tr><td>Раскладка</td><td>папка <code>camelCase</code> + <code>index.ts</code></td><td>плоский файл в <code>src/lib</code>, фильтры — в <code>src/lib/filters</code></td></tr>
+      <tr><td>Тесты</td><td>рядом с модулем, vitest + jsdom</td><td>в <code>__test__/</code>, jest</td></tr>
+      <tr><td>Импорт типов</td><td><code>import type</code></td><td><code>import type</code>, без расширений <code>.js</code></td></tr>
+      <tr><td>Общее</td><td colspan="2">JSDoc на каждом экспорте; 4 пробела и одинарные кавычки (Prettier корня)</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">09</span>Инварианты</h2>
+
+  <p>Утверждения, нарушение любого из которых — дефект, а не изменение поведения. Почти каждое подпёрто тестом (раздел 10) и почти каждое появилось после того, как обратное однажды оказалось в проде.</p>
+
+  <h4>Общие</h4>
+  <ul class="inv">
+    <li><span class="id">И-01</span><div><b>Лист не импортирует потребителей.</b> Ни <code>utils-admin</code>, ни <code>utils-server</code> не зависят ни от одного плагина и ни от одного хоста. Единственная внутренняя зависимость — <code>@orthacms/design-system</code> у admin.</div></li>
+    <li><span class="id">И-02</span><div><b>В пакетах нет пользовательских строк.</b> Ни одного текста, который увидит человек, и никакого <code>react-intl</code>. Тексты приносит тот, кто монтирует.</div></li>
+    <li><span class="id">И-03</span><div><b>Ни один пакет не владеет таблицами, маршрутами и правами.</b> Ноль миграций, ноль контроллеров, ноль ключей прав.</div></li>
+  </ul>
+
+  <h4>Транспорт админки</h4>
+  <ul class="inv">
+    <li><span class="id">И-04</span><div><b>Один axios на приложение.</b> Плагин не создаёт свой экземпляр и не импортирует <code>axios</code> напрямую для запросов к своему же API.</div></li>
+    <li><span class="id">И-05</span><div><b><code>X-Workspace-Id</code> ставится, только когда воркспейс задан.</b> Вне воркспейса заголовка нет вовсе, а не пустая строка.</div></li>
+    <li><span class="id">И-06</span><div><b>Исключения 401 сопоставляются по целым сегментам пути</b> нормализованного запроса — никогда голым <code>startsWith</code> по строке, которую передал вызывающий.</div></li>
+    <li><span class="id">И-07</span><div><b>Перехватчик всегда пробрасывает исходную ошибку.</b> Обработчик — побочный эффект; его исключение логируется и не подменяет отказ, который увидит вызывающий.</div></li>
+    <li><span class="id">И-08</span><div><b>Транспорт не решает, что значит статус.</b> В пакете нет ни одной ветки вида «401 значит неверный пароль».</div></li>
+    <li><span class="id">И-09</span><div><b><code>ApiError.status === null</code> означает «ответа не было».</b> Это единственный способ отличить сетевой сбой от ответа сервера, и предикат ретрая опирается именно на него.</div></li>
+    <li><span class="id">И-10</span><div><b>4xx не ретраится</b>, кроме 408 и 429. Сетевые сбои и 5xx ретраятся, максимум три раза.</div></li>
+  </ul>
+
+  <h4>Слоты</h4>
+  <ul class="inv">
+    <li><span class="id">И-11</span><div><b><code>getItems()</code> отдаёт копию.</b> Внутренний массив наружу не выходит никогда.</div></li>
+    <li><span class="id">И-12</span><div><b><code>_reset()</code> обнуляет длину, а не пересоздаёт массив</b> — иначе замыкания <code>getItems</code>/<code>_register</code> останутся на старом.</div></li>
+    <li><span class="id">И-13</span><div><b>Связывание идемпотентно.</b> Повторный вызов <code>wireSlotContributions</code> с тем же входом даёт тот же результат, а не удвоенный.</div></li>
+    <li><span class="id">И-14</span><div><b>Сброс — отдельный проход по различным слотам</b>, до цикла регистрации.</div></li>
+    <li><span class="id">И-15</span><div><b><code>byOrder</code> не сортирует на месте.</b></div></li>
+  </ul>
+
+  <h4>Формы, навигация, заголовок</h4>
+  <ul class="inv">
+    <li><span class="id">И-16</span><div><b>Подтверждение ухода не очищает чужие ключи.</b> Каждая форма снимает свой при размонтировании.</div></li>
+    <li><span class="id">И-17</span><div><b>Подтверждённая навигация идёт через роутер</b> (<code>useNavigate</code>), а не через <code>history.pushState</code> плюс синтетический <code>popstate</code>.</div></li>
+    <li><span class="id">И-18</span><div><b>Перехват клика не вызывает <code>stopPropagation()</code></b> — только <code>preventDefault()</code>.</div></li>
+    <li><span class="id">И-19</span><div><b>Страж деградирует до «нет стража» вне провайдера</b>, а не бросает: <code>useUnsavedChangesApi()</code> возвращает <code>null</code>.</div></li>
+    <li><span class="id">И-20</span><div><b>Заголовок вкладки собирается, а не дописывается.</b> Декоратор — преобразование над свежесобранной строкой; в <code>document.title</code> никто не пишет мимо <code>render()</code>.</div></li>
+  </ul>
+
+  <h4>Движок фильтров</h4>
+  <ul class="inv">
+    <li><span class="id">И-21</span><div><b>Схема — граница безопасности.</b> В SQL попадает только то, что перечислено в <code>fields</code>/<code>relations</code>; всё остальное — 400.</div></li>
+    <li><span class="id">И-22</span><div><b>Любой поиск пользовательского имени в карте идёт через <code>own()</code></b> (или прямой <code>Object.hasOwn</code>), никогда голой скобочной нотацией.</div></li>
+    <li><span class="id">И-23</span><div><b>Значение листа — скаляр.</b> <code>null</code>, отсутствующий ключ, объект и массив дают 400; <code>String(v)</code> над ними не выполняется никогда.</div></li>
+    <li><span class="id">И-24</span><div><b>Оператор проверяется против типа поля</b>, а не только против словаря — и до приведения значения.</div></li>
+    <li><span class="id">И-25</span><div><b>Отрицание на пути по связи — это <code>NOT EXISTS(… положительное …)</code></b>, обёрнутое вокруг внешнего перехода.</div></li>
+    <li><span class="id">И-26</span><div><b>Отрицание на обычной колонке включает NULL.</b></div></li>
+    <li><span class="id">И-27</span><div><b><code>scope</code> приклеивается внутрь EXISTS</b>, и при его наличии быстрый путь <code>many-to-many</code> по <code>id</code> отключается.</div></li>
+    <li><span class="id">И-28</span><div><b>Родительские колонки перепривязываются <code>rebind</code>-ом</b> к той таблице, которую переводчик запрашивает; целевой <code>fk</code> у <code>one-to-many</code> — никогда.</div></li>
+    <li><span class="id">И-29</span><div><b>Ни одно пришедшее по проводу значение не доходит до <code>sql.raw</code>.</b> Единица интервала выбирается <code>switch</code>-ем по трём константам.</div></li>
+    <li><span class="id">И-30</span><div><b>Непереводимая схема — это 500</b> (<code>FilterSchemaException</code>), а не 400. Каждый <code>default:</code> в <code>switch</code> бросает, а не возвращает <code>undefined</code>: <code>undefined</code>-предикат молча выпадает из <code>and()</code>/<code>or()</code> и расширяет выборку.</div></li>
+    <li><span class="id">И-31</span><div><b>Пустой <code>in</code>/<code>nin</code> отвергается</b> — иначе фильтр молча означает «ничего» или «всё».</div></li>
+    <li><span class="id">И-32</span><div><b><code>context</code> не переписывает конверт ошибки</b>: служебные ключи пишутся после расстилания контекста.</div></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">10</span>Чек-лист тестирования</h2>
+
+  <p>Сегодня в группе <b>27 файлов спек и 245 тестов</b>: 13 файлов / 103 теста в admin (vitest + jsdom) и 14 файлов / 142 теста в server (jest). Ниже — что проверено и на что смотреть при ручной проверке. Поведение компонентов сюда не входит: оно живёт в <code>admin-e2e</code>, а сквозной путь фильтра — в <code>apps/server-e2e</code>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Файл спеки</th><th class="center num-col">Тестов</th><th>Что закрывает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">admin · unsavedChanges</td><td class="center num-col">17</td><td>Страж против настоящего <code>BrowserRouter</code>: перехват ссылок, исключения, <code>beforeunload</code>, ключи</td></tr>
+      <tr><td class="mono">admin · slot</td><td class="center num-col">12</td><td>Копия на чтение, идемпотентность связывания, поведение <code>_reset</code></td></tr>
+      <tr><td class="mono">admin · apiClient</td><td class="center num-col">11</td><td>401 через реальный стек перехватчиков, список исключений, заголовок воркспейса</td></tr>
+      <tr><td class="mono">admin · useTableUrlState</td><td class="center num-col">11</td><td>Круговорот URL и поля поиска, <code>searchPending</code>, сброс страницы</td></tr>
+      <tr><td class="mono">admin · apiError / queryClient</td><td class="center num-col">8 + 8</td><td>Нормализация ошибок; предикат ретрая, прочитанный с поставляемого клиента</td></tr>
+      <tr><td class="mono">admin · avatarColor / documentTitle / initials</td><td class="center num-col">8 + 7 + 6</td><td>Детерминизм и распределение хэша; композиция заголовка и декоратор; код-поинты</td></tr>
+      <tr><td class="mono">admin · slugify / byOrder / httpStatus / useDebouncedValue</td><td class="center num-col">5 + 4 + 2 + 4</td><td>Мелочи, которые ломаются тихо</td></tr>
+      <tr><td class="mono">server · parse-filter-tree</td><td class="center num-col">32</td><td>Формы узлов, пределы, ошибки разбора</td></tr>
+      <tr><td class="mono">server · resolve-leaf-coercion</td><td class="center num-col">21</td><td>Приведение шести типов, отказ на нескалярах, списки</td></tr>
+      <tr><td class="mono">server · negation</td><td class="center num-col">14</td><td>Оба правила отрицания</td></tr>
+      <tr><td class="mono">server · operator-support / pg-errors</td><td class="center num-col">11 + 11</td><td>Таблица «тип × оператор»; обход <code>cause</code> и имена индексов</td></tr>
+      <tr><td class="mono">server · tree-to-drizzle / within-last</td><td class="center num-col">10 + 8</td><td>Перевод дерева; относительное окно и его границы</td></tr>
+      <tr><td class="mono">server · own-property-whitelist</td><td class="center num-col">7</td><td>Наследованные имена не проходят белый список</td></tr>
+      <tr><td class="mono">server · relation-nesting / schema-misconfiguration / filter-exceptions / relation-scope / clamp-int / extension-fields</td><td class="center num-col">6 + 6 + 5 + 4 + 4 + 3</td><td>Алиасы и перепривязка; 500 на кривой схеме; конверт ошибки; scope внутри EXISTS</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Транспорт админки</h4>
+  <ul class="check">
+    <li><b>401 на <code>/auth/login</code> не разлогинивает</b> <span class="exp">— неверный пароль оставляет форму на месте и её собственное сообщение</span></li>
+    <li><b>401 на том же пути без ведущего слэша тоже не разлогинивает</b> <span class="exp">— <code>apiClient.post('auth/login', …)</code></span></li>
+    <li><b>401 на <code>/auth/invite/&lt;токен&gt;</code> не разлогинивает</b> <span class="exp">— исключение по границе сегмента, а не по точному совпадению</span></li>
+    <li><b>401 на обычном маршруте уводит на вход</b> <span class="exp">— и показывает объяснение, если человек был залогинен</span></li>
+    <li><b>Тот же 401 всё равно виден вызывающему</b> <span class="exp">— мутация в полёте показывает свой тост</span></li>
+    <li><b>Исключение из обработчика не подменяет ошибку</b> <span class="exp">— в <code>catch</code> у вызывающего лежит 401, в консоли — след обработчика</span></li>
+    <li><b>Запрос вне воркспейса уходит без заголовка</b> <span class="exp">— страница входа, сетка воркспейсов</span></li>
+    <li><b>Первый запрос дочернего хука уже несёт заголовок</b> <span class="exp">— проверить сетевую панель при входе в воркспейс</span></li>
+    <li><b>Смена воркспейса перескопирует последующие запросы</b> <span class="exp">— без перезагрузки страницы</span></li>
+    <li><b>404 не ретраится</b> <span class="exp">— пустое состояние показывается сразу, а не через ~12 секунд</span></li>
+    <li><b>429 ретраится</b> <span class="exp">— запрос повторяется с задержкой, максимум три раза</span></li>
+    <li><b>Выключенная сеть даёт <code>status: null</code> и ретрай</b> <span class="exp">— офлайн в devtools</span></li>
+  </ul>
+
+  <h4>Слоты и хост</h4>
+  <ul class="check">
+    <li><b>Сайдбар не удваивается после правки файла в деве</b> <span class="exp">— главный симптом неидемпотентного связывания</span></li>
+    <li><b>Сортировка у одного потребителя не меняет порядок у другого</b> <span class="exp">— копия из <code>getItems()</code></span></li>
+    <li><b>Вклады нескольких плагинов в один слот сохраняются все</b> <span class="exp">— сброс отдельным проходом</span></li>
+    <li><b>Плагин без поля <code>slots</code> ничего не ломает</b> <span class="exp">— <code>?? []</code> в хосте</span></li>
+  </ul>
+
+  <h4>Несохранённые изменения</h4>
+  <ul class="check">
+    <li><b>Клик по любой внутренней ссылке из грязной формы спрашивает</b> <span class="exp">— сайдбар, хлебные крошки, строка таблицы</span></li>
+    <li><b>Ctrl/Cmd-клик открывает в новой вкладке без вопроса</b> <span class="exp">— ничего не теряется</span></li>
+    <li><b>Ссылка внутри SVG тоже перехватывается</b> <span class="exp">— регресс <code>ORT-136</code></span></li>
+    <li><b>Подтверждение уводит по маршруту, а Back/Forward потом работают верно</b> <span class="exp">— индекс истории роутера не затёрт</span></li>
+    <li><b>После подтверждения второй грязной формы вопрос снова задаётся</b> <span class="exp">— чужие ключи не очищены</span></li>
+    <li><b>Выпадашка закрывается по клику вовне и при грязной форме</b> <span class="exp">— нет <code>stopPropagation</code></span></li>
+    <li><b>Перезагрузка страницы даёт браузерное предупреждение</b> <span class="exp">— <code>beforeunload</code>, только пока грязно</span></li>
+    <li><b>Размонтированная форма снимает свой ключ</b> <span class="exp">— страж не залипает</span></li>
+  </ul>
+
+  <h4>Заголовок вкладки</h4>
+  <ul class="check">
+    <li><b>Каждый маршрут даёт свой заголовок</b> <span class="exp">— WCAG 2.4.2; проверяется по списку вкладок и истории</span></li>
+    <li><b>Уход с маршрута возвращает голое имя приложения</b></li>
+    <li><b>Счётчик копайлота не наслаивается сам на себя</b> <span class="exp">— <code>(1)</code>, <code>(2)</code>, но не <code>(1) (2)</code></span></li>
+    <li><b>Смена страницы при активном счётчике сохраняет и то, и другое</b></li>
+  </ul>
+
+  <h4>Фильтры</h4>
+  <ul class="check">
+    <li><b><code>ilike</code> по дате даёт 400 со списком допустимых операторов</b> <span class="exp">— а не 500 из драйвера</span></li>
+    <li><b><code>?filter={"field":"constructor",…}</code> даёт <code>FILTER_UNKNOWN_FIELD</code></b> <span class="exp">— не 500 и не 200</span></li>
+    <li><b><code>toString.constructor</code> даёт <code>FILTER_UNKNOWN_RELATION</code></b> <span class="exp">— предикат не должен молча исчезать</span></li>
+    <li><b><code>value: null</code> даёт 400</b> <span class="exp">— «пусто ли поле» это оператор <code>null</code></span></li>
+    <li><b>Пропущенный ключ <code>value</code> даёт «value is required»</b></li>
+    <li><b>Пустой <code>in</code> даёт 400</b> <span class="exp">— а не «ничего не найдено»</span></li>
+    <li><b>Список из 101 элемента даёт 400 при умолчании</b></li>
+    <li><b>Путь из четырёх сегментов даёт 400 при умолчании</b></li>
+    <li><b>«Заголовок не содержит foo» показывает черновики без заголовка</b> <span class="exp">— NULL-инклюзивное отрицание</span></li>
+    <li><b>«Нет тега x» не находит запись с тегами <code>[x, y]</code></b> <span class="exp">— <code>NOT EXISTS</code>, а не <code>EXISTS(NOT …)</code></span></li>
+    <li><b>«Связь пуста» находит записи без связанных строк</b> <span class="exp">— <code>relation.id null:true</code> не должно быть мёртвым фильтром</span></li>
+    <li><b>Фильтр по связи не видит мягко удалённые и чужие по воркспейсу цели</b> <span class="exp">— <code>scope</code> внутри EXISTS</span></li>
+    <li><b><code>relation.id in […]</code> при заданном scope тоже уважает границы</b> <span class="exp">— быстрый путь уступил</span></li>
+    <li><b><code>parent.parent.name</code> фильтрует деда, а не отца</b> <span class="exp">— <code>rebind</code> на алиасе</span></li>
+    <li><b>Два правила по одной само-связи не конфликтуют</b> <span class="exp">— уникальный алиас на вхождение</span></li>
+    <li><b>Правило алярма «не обновлялось 90 дней» через месяц означает то же самое</b> <span class="exp">— <code>within_last</code> дожил до сервера</span></li>
+    <li><b>Ссылка с «за последние 7 дней» показывает те же строки завтра</b> <span class="exp">— админка заморозила окно в <code>gte</code></span></li>
+    <li><b><code>within_last</code> с <code>n = 1e9</code> даёт 400</b> <span class="exp">— а не <code>22008</code> и 500</span></li>
+    <li><b>Кривая схема плагина даёт 500 с кодом <code>FILTER_SCHEMA_INVALID</code></b> <span class="exp">— видимо для алертинга, не свалено на клиента</span></li>
+    <li><b>Строка фильтра длиннее лимита DTO отбивается до парсера</b> <span class="exp">— проверить на каждом новом фильтруемом эндпоинте отдельно</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">11</span>Границы ответственности</h2>
+
+  <p>Быстрый ответ на вопрос «почему этого нет в utils» — и куда идти вместо него.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Задача</th><th>Utils делает</th><th>Utils не делает</th><th>Кто делает</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>HTTP-запрос из админки</td>
+        <td>Базовый URL, куки, заголовок воркспейса, глобальный 401, нормализация ошибки</td>
+        <td>Не знает ни одного эндпоинта продукта</td>
+        <td>Плагин — свой хук, свой ключ запроса, своя функция запроса</td>
+      </tr>
+      <tr>
+        <td>Аутентификация</td>
+        <td>Шов <code>setUnauthorizedHandler</code></td>
+        <td>Не хранит пользователя, не знает про <code>/auth/me</code>, не показывает сообщений</td>
+        <td><code>identity-admin</code> (контекст, гейт), <code>identity-server</code> (сессии)</td>
+      </tr>
+      <tr>
+        <td>Текущий воркспейс</td>
+        <td>Ячейку с id и заголовок запроса</td>
+        <td>Не резолвит воркспейс, не хранит его данные, не проверяет доступ</td>
+        <td><code>workspaces-admin</code> / <code>workspaces-server</code></td>
+      </tr>
+      <tr>
+        <td>Кэш серверного состояния</td>
+        <td>Один <code>QueryClient</code> и правило ретрая</td>
+        <td>Не объявляет ключей запросов и не инвалидирует чужое</td>
+        <td>Хуки плагинов</td>
+      </tr>
+      <tr>
+        <td>Точки расширения UI</td>
+        <td>Механизм слота и его идемпотентное связывание</td>
+        <td>Не объявляет ни одного конкретного слота</td>
+        <td>Владеющий плагин (<code>shell</code>, <code>content</code>, <code>workspaces</code>, <code>insights</code>, <code>copilot</code>, <code>wysiwyg</code>)</td>
+      </tr>
+      <tr>
+        <td>Диалог «несохранённые изменения»</td>
+        <td>Всю механику: перехват, ключи, <code>beforeunload</code></td>
+        <td>Не содержит ни диалога, ни текста</td>
+        <td><code>bootstrap-admin</code> (<code>UnsavedChangesGuard</code>) + дизайн-система</td>
+      </tr>
+      <tr>
+        <td>Заголовок вкладки</td>
+        <td>Композицию «страница · приложение» и декоратор</td>
+        <td>Не владеет названием продукта — снимает его из хост-разметки</td>
+        <td><code>apps/admin/index.html</code>, маршруты плагинов, <code>copilot-admin</code></td>
+      </tr>
+      <tr>
+        <td>Фильтрация списка</td>
+        <td>Разбор, валидацию, приведение и перевод в SQL</td>
+        <td>Не владеет <code>WHERE</code>, не знает про воркспейсы, права и мягкое удаление</td>
+        <td>Вызывающий: склейка предикатов и <code>scope</code> в схеме</td>
+      </tr>
+      <tr>
+        <td>Ограничение размера запроса</td>
+        <td>Пределы узлов, глубины и списков</td>
+        <td>Не ограничивает длину входной строки</td>
+        <td>DTO вызывающего (<code>@MaxLength</code>)</td>
+      </tr>
+      <tr>
+        <td>Интерфейс конструктора фильтров</td>
+        <td>Ничего</td>
+        <td>Не имеет клиентской половины — она не может зависеть от NestJS</td>
+        <td><code>query-builder-admin</code>, повторяющий словарь у себя</td>
+      </tr>
+      <tr>
+        <td>Ошибки БД</td>
+        <td>Опознание <code>23505</code>/<code>23503</code> и имя индекса</td>
+        <td>Не решает, каким HTTP-кодом это стало и что написать пользователю</td>
+        <td>Сервис плагина (409 на гонку, 400 на «сначала отвяжите»)</td>
+      </tr>
+      <tr>
+        <td>Сборка приложения</td>
+        <td>Ничего</td>
+        <td>Не поднимает React, не создаёт модуль Nest, не применяет миграции</td>
+        <td><code>bootstrap-admin</code> / <code>bootstrap-server</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Практическое правило</span>
+    <p>Если в описании изменения встречается название фичи продукта — оно, скорее всего, не в <code>utils</code>. Если встречается слово «все» («все запросы», «все списки», «все формы») — скорее всего, в <code>utils</code>.</p>
+  </div>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">12</span>Расхождения кода и документации</h2>
+
+  <p>Каждое утверждение обоих <code>AGENTS.md</code> сверено с реализацией. Ниже — то, что разошлось, плюс наблюдения по самому коду. Ничего из этого не ломает поведение сегодня, но каждое способно ввести в заблуждение автора следующего изменения.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Сказано</th><th>На самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">admin/AGENTS.md · Layout</td>
+        <td>«Одна забота — одна папка: <code>apiClient/</code>, <code>queryClient/</code>, <code>staleTime/</code>, <code>apiError/</code>, <code>httpStatus/</code>, <code>slot/</code>»</td>
+        <td>Папок пятнадцать. Не перечислены <code>avatarColor</code>, <code>byOrder</code>, <code>documentTitle</code>, <code>initials</code>, <code>isComposingText</code>, <code>slugify</code>, <code>unsavedChanges</code>, <code>useDebouncedValue</code>, <code>useTableUrlState</code></td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md · Key exports</td>
+        <td>Раздел описывает 12 символов</td>
+        <td>Барель отдаёт 31. Вне описания остались <code>setActiveWorkspaceId</code>, <code>byOrder</code>, <code>isComposingText</code>, <code>asAvatarColor</code>, <code>initialsOf</code>, <code>initialsFromEmail</code> и вся тройка заголовка вкладки (<code>useDocumentTitle</code>, <code>setDocumentTitle</code>, <code>setTitleDecorator</code>) — при том что <code>useDocumentTitle</code> третий по востребованности символ пакета</td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md · HTTP_STATUS</td>
+        <td>«именованные коды (<code>UNAUTHORIZED</code>, <code>FORBIDDEN</code>, <code>TOO_MANY_REQUESTS</code>)»</td>
+        <td>Кодов шесть: добавлены <code>BAD_REQUEST</code>, <code>NOT_FOUND</code>, <code>CONFLICT</code></td>
+      </tr>
+      <tr>
+        <td class="mono">admin/AGENTS.md · зависимости</td>
+        <td>«это и есть причина, по которой пакет берёт зависимость <code>react</code> (рядом с уже имеющимся <code>@tanstack/react-query</code>)»</td>
+        <td>Зависимостей четыре, и две не названы: <code>@orthacms/design-system</code> (нужна <code>avatarColor</code>) и peer-зависимость <code>react-router-dom</code> ^6 (нужна <code>useTableUrlState</code> и <code>unsavedChanges</code>). Вторая важна: она задаёт требование «провайдер монтируется внутри роутера»</td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md · Filter pipeline</td>
+        <td>«<code>applyFilterTree(…)</code> → <code>SQL | undefined</code>»</td>
+        <td>Функция асинхронная: <code>Promise&lt;SQL | undefined&gt;</code>. Ниже по документу это упомянуто, в схеме пайплайна — нет</td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md · FilterSchema</td>
+        <td>«…и гарды <code>maxDepth</code> / <code>maxNodes</code> / <code>maxGroupDepth</code>»</td>
+        <td>Гардов четыре: не назван <code>maxInListLength</code> (по умолчанию 100), хотя оба его кода ошибки в пакете есть</td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md · pg-errors</td>
+        <td>«две функции — <code>isUniqueViolation</code> и <code>violatedConstraint</code>»</td>
+        <td>Три: экспортируется ещё <code>isForeignKeyViolation</code> (<code>23503</code>), и его использует <code>EntryWriterService</code></td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md · extensionFields</td>
+        <td>«…например, фильтр <code>role</code>»</td>
+        <td>В <code>MEMBER_FILTER_SCHEMA</code> сегодня <code>role</code> — обычная связь <code>many-to-one</code> на таблицу ролей, а не расширение. Единственный потребитель механизма расширений — <code>content-server</code></td>
+      </tr>
+      <tr>
+        <td class="mono">server/AGENTS.md · Internal files</td>
+        <td>«Внутренние файлы (не экспортируются): … <code>table-helpers.ts</code> …»</td>
+        <td>Из него экспортируются типы <code>DbLike</code> и <code>TableLike</code> — они в барели. Экспортируется именно файл частично, что список не отражает</td>
+      </tr>
+      <tr>
+        <td class="mono">Код · длина фильтра</td>
+        <td>Документация о длине входа не говорит ничего</td>
+        <td>Предела длины в движке нет; <code>FILTER_MAX_LENGTH</code> объявлена независимо в четырёх пакетах — 4096 в <code>content</code>, <code>users</code>, <code>activity</code> и 8192 в <code>alarms</code>. Новый фильтруемый эндпоинт не получит защиту автоматически</td>
+      </tr>
+      <tr>
+        <td class="mono">Код · setDocumentTitle</td>
+        <td>Экспортируется из барели как публичный API</td>
+        <td>Ни одного места импорта: используется только изнутри <code>useDocumentTitle</code>. Либо документировать как императивную альтернативу для не-React-кода, либо убрать из барели</td>
+      </tr>
+      <tr>
+        <td class="mono">Код · UnsavedChangesCopy</td>
+        <td>Экспортируемый тип «тексты подтверждения, поставляемые хостом»</td>
+        <td>Никем не импортируется: хост передаёт готовый рендерер <code>dialog</code> и держит тексты внутри него, так что тип описывает контракт, которым никто не пользуется</td>
+      </tr>
+      <tr>
+        <td class="mono">Код · покрытие</td>
+        <td>«спека рядом с каждым модулем»</td>
+        <td>Спек 13 на 15 модулей: у <code>isComposingText</code> и <code>staleTime</code> их нет. Второй — таблица констант, первый — предикат с нетривиальной структурной типизацией, и он охраняет глобальные сочетания клавиш в трёх плагинах</td>
+      </tr>
+      <tr>
+        <td class="mono">Код · словарь операторов</td>
+        <td>—</td>
+        <td>Словарь операторов существует в двух независимых экземплярах: <code>FilterOperator</code> в <code>utils-server</code> и его проводной двойник в <code>query-builder-admin/src/lib/utils/wireOp.ts</code>. Дублирование вынужденное (браузер не может тянуть NestJS и Drizzle), но ничем не связано: добавление оператора требует правки в обоих местах, и ни один тест этого не заметит</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Что проверено и расхождений не дало</summary>
+    <p class="small">Список исключений 401 и способ их сопоставления; предикат ретрая и его набор кодов; значения <code>STALE_TIME</code>; идемпотентность и порядок проходов в <code>wireSlotContributions</code>; копирование в <code>getItems</code> и <code>byOrder</code>; отсутствие <code>stopPropagation</code> и переход через роутер в страже; композиция заголовка через декоратор; тринадцать операторов и их сопоставление с типами; оба правила отрицания; поведение <code>own()</code>; порядок расстилания <code>context</code>; разделение 400/500 между <code>FilterException</code> и <code>FilterSchemaException</code>; отказ на нескалярном значении; границы <code>within_last</code>; отсутствие таблиц, маршрутов и модуля Nest; перечисление обоих пакетов в <code>CORE_PACKAGES</code> скаффолдера.</p>
+  </details>
+</section>
+
+<footer class="end">
+  <p><b>Паспорт группы <code>packages/utils</code>.</b> Каркас тот же, что у пилотного артефакта по <code>identity</code>: бизнес-описание → состав → инвентарь → механика → сценарии → правила → инварианты → чек-лист → границы → расхождения. Разделов про таблицы БД, права и HTTP-маршруты здесь нет, потому что у группы нет ни того, ни другого, ни третьего.</p>
+  <p>Источник — исходный код: <code>packages/utils/admin/src/**</code> и <code>packages/utils/server/src/**</code> целиком, плюс места потребления в шестнадцати плагинах админки, семи серверных плагинах и обоих хостах. Числа получены подсчётом по репозиторию: 31 и 28 экспортов в барелях, 127 и 25 мест импорта, 25 слотов, 27 файлов спек и 245 тестов. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — разошедшееся вынесено в раздел 12.</p>
+</footer>
+
+</main>
+</div>

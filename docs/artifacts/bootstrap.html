@@ -1,0 +1,1370 @@
+<title>Паспорт хоста Bootstrap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/bootstrap</p>
+    <h1 class="title">Bootstrap
+      <small>Два хоста, которые превращают список плагинов в работающее приложение</small>
+    </h1>
+    <p class="lede">Bootstrap — единственная часть OrthaCMS, в которой <strong>нет ни одной функции продукта</strong>. Ни авторизации, ни контента, ни таблиц, ни бизнес-маршрутов. Это два композиционных корня — <code>createServer</code> для NestJS-API и <code>createAdmin</code> для React-админки, — которые берут массив плагинов и собирают из него приложение, попутно один раз задавая сквозные правила: префикс, валидацию, доверие прокси, потолок тела запроса, генерацию OpenAPI, корень React, роутер, провайдеры, границу ошибок и озвучивание навигации.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>5</b> полей контракта ServerPlugin</li>
+      <li><b>4</b> поля контракта AdminPlugin</li>
+      <li><b>10</b> шагов старта сервера</li>
+      <li><b>9</b> шагов старта админки</li>
+      <li><b>15 + 15</b> плагинов в сборке</li>
+      <li><b>26</b> слотов расширения</li>
+      <li><b>0</b> собственных таблиц и маршрутов API</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#server-contract">Контракт ServerPlugin</a></li>
+    <li><a href="#admin-contract">Контракт AdminPlugin</a></li>
+    <li><a href="#server-boot">Запуск сервера по шагам</a></li>
+    <li><a href="#admin-boot">Запуск админки по шагам</a></li>
+    <li><a href="#slots">Система слотов</a></li>
+    <li><a href="#order">Порядок регистрации и коллизии</a></li>
+    <li><a href="#config">Конфигурация и окружение</a></li>
+    <li><a href="#security">Безопасность и сквозная обвязка</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист тестирования</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>OrthaCMS — не монолит, к которому приделали функции. Это маленький и намеренно глупый <b>хост</b>, который превращает <em>список плагинов</em> в приложение. Хост не знает ни одной предметной области: ни что такое пользователь, ни что такое запись контента, ни что такое воркспейс. Всё это живёт в плагинах. Решение зафиксировано в ADR-0002 «Plugin-based architecture» и является определяющим для всей архитектуры.</p>
+
+  <h3>Зачем это продукту</h3>
+  <ul>
+    <li><b>Установка собирается под клиента, а не подрезается.</b> Развёртывание, которому не нужен ни ИИ-копайлот, ни MCP, ни GraphQL, просто не регистрирует эти плагины. Ничего не «выключается флагом», ничего не висит мёртвым кодом в бандле — соответствующие маршруты, таблицы и экраны в этой сборке физически отсутствуют.</li>
+    <li><b>Продукт можно отдать наружу.</b> Именно потому, что приложение — это список плагинов, существует <code>npx create-ortha-app</code>: сгенерированное приложение это тот же <code>createServer</code> и тот же <code>createAdmin</code>, только с другим списком. Хост не различает «плагин из монорепозитория» и «плагин, установленный из npm»: и тот и другой предъявляют один интерфейс.</li>
+    <li><b>Новая возможность не трогает существующий код.</b> Добавить функцию — это добавить пакет и одну строку в <code>apps/server/src/plugins.ts</code> или <code>apps/admin/src/plugins.ts</code>. Файлы хоста при этом не открываются вообще. Это не эстетика: это причина, по которой пятнадцатая по счёту функция стоит столько же, сколько вторая.</li>
+    <li><b>Сквозные правила действуют один раз и на всех.</b> Строгая валидация тела, потолок его размера, глобальный префикс, доверие прокси, корректное завершение по SIGTERM — заданы в одном месте. Плагин не может «забыть» их применить, потому что ему нечего применять.</li>
+  </ul>
+
+  <h3>Зачем это команде</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Разработчик функции</h4>
+      <p class="small sub">Пишет пакет и экспортирует фабрику плагина. Ему не нужно знать, как поднимается Nest, где живёт пул соединений, кто монтирует React-корень и как устроен роутер. Контракт — пять полей на сервере и четыре в админке.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Ревьюер</h4>
+      <p class="small sub">Видит границу: если правка трогает <code>packages/bootstrap</code>, она по определению сквозная и касается всех. Всё остальное локально по построению — плагины не имеют права лезть друг в друга, только через явные контракты и слоты.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Тестировщик</h4>
+      <p class="small sub">Знает, что состав приложения — это два читаемых файла-списка, и что для них есть модульные тесты (<code>plugins.spec.ts</code>), фиксирующие и набор, и порядок. Пропавший плагин — это не «страница исчезла», а красный тест.</p>
+    </div>
+  </div>
+
+  <h3>Чем Bootstrap не является</h3>
+  <p>Это тот случай, когда список отсутствующего важнее списка присутствующего: он объясняет, почему в хосте нельзя «просто починить» большинство вещей.</p>
+  <ul>
+    <li><b>Это не авторизация.</b> Серверный хост не содержит ни одного guard&#39;а. Админский хост не знает слов <code>RequireAuth</code>, <code>signInPath</code> и «текущий пользователь». Аутентификация целиком в <code>identity</code>, а сборка её в приложение — в <code>shell</code>.</li>
+    <li><b>Это не реестр плагинов.</b> Нет ни discovery, ни манифестов, ни загрузки по имени. Список плагинов — это массив в коде приложения, и это осознанный минимализм: массив можно прочитать, отсортировать и покрыть тестом.</li>
+    <li><b>Это не слой данных.</b> Соединение с БД открывает плагин <code>@orthacms/database</code> в своём хуке; хост лишь вызывает хуки по порядку. Клиент TanStack Query и axios-клиент живут в <code>@orthacms/utils-admin</code>, хост только монтирует провайдер.</li>
+    <li><b>Это не набор слотов.</b> Хост умеет <em>подключать</em> вклады в слоты, но не определяет ни одного слота и не читает ни одного. Все 26 слотов принадлежат плагинам.</li>
+    <li><b>Это не миграции.</b> Хост переносит дескриптор <code>migrations</code> из плагина в инструментарий; сам он ничего не применяет и в момент загрузки даже не разрешает путь.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Хост владеет <b>только тем, что обязано существовать ровно один раз</b>. Всё, чего может быть ноль или много, принадлежит плагинам. Отсюда все решения: почему <code>ValidationPipe</code> здесь, а guard&#39;ы нет; почему <code>IntlProvider</code> здесь, а строки нет; почему слоты подключаются здесь, а определяются в плагинах.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/bootstrap</code> — ровно два пакета, по одному на среду выполнения. Они не зависят друг от друга и не имеют общего кода: единственное, что их роднит, — роль композиционного корня.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Точка входа</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/bootstrap-server</td><td class="mono">createServer(options)</td><td>Сборка Nest-приложения, глобальный префикс, <code>ValidationPipe</code>, доверие прокси, потолок тела, OpenAPI + Scalar, отдача бандла админки, хуки завершения</td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/bootstrap-admin</td><td class="mono">createAdmin(options)</td><td>Монтирование React-корня, роутер, провайдеры (оформление, запросы, i18n, подсказки), граница ошибок, озвучивание навигации, диалог несохранённых изменений, подключение слотов</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Публичная поверхность</h3>
+  <p>Серверный пакет экспортирует <b>3 значения и 7 типов</b>, админский — <b>1 значение и 3 типа</b>. Это вся поверхность, на которую опираются двадцать с лишним плагинов.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Экспорт</th><th>Пакет</th><th>Что это</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">createServer</td><td>server</td><td>Загрузка приложения; <b>возвращает слушающее приложение</b>, чтобы встраивающий хост или тест мог его закрыть</td></tr>
+      <tr><td class="mono">ServerModule</td><td>server</td><td>Динамический корневой модуль; <code>forRoot(plugins)</code> импортирует модуль каждого плагина</td></tr>
+      <tr><td class="mono">setupApiDocs</td><td>server</td><td>Обвязка OpenAPI + Scalar отдельно — для хоста, который строит <code>INestApplication</code> сам</td></tr>
+      <tr><td class="mono">ServerPlugin</td><td>server</td><td>Контракт плагина: <code>name</code>, <code>module</code>, <code>onPluginInit?</code>, <code>migrations?</code>, <code>docs?</code></td></tr>
+      <tr><td class="mono">CreateServerOptions</td><td>server</td><td><code>plugins</code>, <code>port?</code>, <code>globalPrefix?</code>, <code>trustProxy?</code>, <code>bodyLimit?</code>, <code>docs?</code>, <code>staticDir?</code></td></tr>
+      <tr><td class="mono">TrustProxySetting</td><td>server</td><td><code>boolean | number | string</code> — значение Express <code>trust proxy</code></td></tr>
+      <tr><td class="mono">ApiDocsOptions</td><td>server</td><td>Настройки документа и справочника: <code>enabled</code>, <code>path</code>, <code>jsonPath</code>, <code>title</code>, <code>description</code>, <code>version</code>, <code>cdn</code></td></tr>
+      <tr><td class="mono">PluginApiDocs</td><td>server</td><td>Вклад плагина в документ: <code>securitySchemes</code>, <code>defaultSecurity</code>, <code>decorate</code></td></tr>
+      <tr><td class="mono">ApiSecurityScheme</td><td>server</td><td>Схема аутентификации в терминах OpenAPI 3, пересказанная структурно</td></tr>
+      <tr><td class="mono">OpenApiDocument</td><td>server</td><td>Структурный вид документа для прохода <code>decorate</code></td></tr>
+      <tr><td class="mono">createAdmin</td><td>admin</td><td>Монтирование SPA целиком</td></tr>
+      <tr><td class="mono">AdminPlugin</td><td>admin</td><td>Контракт плагина: <code>name</code>, <code>routes?</code>, <code>layout?</code>, <code>slots?</code></td></tr>
+      <tr><td class="mono">RouteItem</td><td>admin</td><td>Вклад-маршрут: <code>path</code>, <code>element</code>, <code>public?</code></td></tr>
+      <tr><td class="mono">CreateAdminOptions</td><td>admin</td><td><code>plugins</code>, <code>rootElement?</code>, <code>locale?</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Зависимости — и то, чего в них нет</h3>
+  <p>Серверный пакет зависит от <code>@nestjs/common</code>, <code>@nestjs/core</code>, <code>@nestjs/platform-express</code>, <code>@nestjs/swagger</code> и <code>@scalar/nestjs-api-reference</code> — и <b>не зависит от <code>express</code> напрямую</b>. Типы запроса и ответа в отдаче статики объявлены структурно, а не импортированы: импорт сделал бы <code>express</code> фантомной зависимостью — разрешимой в монорепозитории за счёт подъёма в корень и отсутствующей у потребителя. Проверка <code>verifyDependenciesAreDeclared</code> в <code>pack.mjs</code> такую сборку не публикует.</p>
+  <p>Админский пакет зависит от <code>@orthacms/design-system</code>, <code>@orthacms/utils-admin</code>, <code>@tanstack/react-query</code> и <code>react-intl</code>; React, ReactDOM и <code>react-router-dom</code> объявлены как peer-зависимости. Обратите внимание, чего здесь нет: <code>@orthacms/identity-admin</code>. Хост физически не может импортировать авторизацию.</p>
+
+  <div class="note warn">
+    <span class="label">Соседи, которых легко перепутать</span>
+    <p><b><code>@orthacms/shell-admin</code></b> — это <em>не</em> хост. Shell — обычный плагин, который просто оказался тем единственным, кто вкладывает <code>layout</code>: внутри него собраны <code>AuthProvider</code> + <code>RequireAuth</code> + чрома приложения. <b><code>@orthacms/utils-admin</code></b> — общая листовая библиотека: примитив <code>createSlot</code>, <code>queryClient</code>, <code>apiClient</code>. Хост берёт оттуда <code>queryClient</code> и <code>wireSlotContributions</code>, но плагины ходят туда напрямую, минуя хост. <b><code>@orthacms/cli</code></b> и <b><code>@orthacms/nx</code></b> — потребители дескриптора <code>migrations</code>: именно они, а не хост, применяют миграции.</p>
+  </div>
+</section>
+
+<section id="server-contract">
+  <h2 class="sec"><span class="num">03</span>Контракт <code>ServerPlugin</code></h2>
+
+  <p>Это главный интерфейс всей системы: всё, что серверная часть OrthaCMS умеет, приходит в приложение через него. Полей ровно <b>пять</b>, из них обязательных — <b>два</b>. Такая узость намеренна: чем меньше хост знает о плагине, тем меньше поводов у плагина зависеть от хоста.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export interface ServerPlugin {
+    name: string;
+    module: Type | DynamicModule;
+    onPluginInit?(): void | Promise&lt;void&gt;;
+    migrations?: {
+        dir: () =&gt; string;
+        table: string;
+    };
+    docs?: PluginApiDocs;
+}</code></pre></div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Обяз.</th><th>Что делает хост</th><th>Что будет, если ошибиться</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">name</td><td class="center yes">да</td>
+        <td>Не влияет на поведение приложения. Используется в логах, в сообщении об упавшем <code>onPluginInit</code>, в сообщении об упавшем <code>decorate</code>, в строке применения миграций и в тестах состава</td>
+        <td>Дублирующееся имя ничем не проверяется: два плагина с именем <code>content</code> соберутся и запустятся. Цена — нечитаемая диагностика: сообщение «Plugin &quot;content&quot; failed» не скажет, какой из двух</td>
+      </tr>
+      <tr>
+        <td class="mono">module</td><td class="center yes">да</td>
+        <td>Единственное, что реально попадает в Nest: <code>ServerModule.forRoot</code> кладёт значение в <code>imports</code> корневого модуля. Принимает и класс, и динамический модуль — второе и есть штатный способ протащить конфигурацию плагина</td>
+        <td>Модуль, чей провайдер требует недоступной зависимости, роняет сборку графа внутри <code>NestFactory.create</code> — уже <b>после</b> всех <code>onPluginInit</code>, поэтому открытые ресурсы к этому моменту существуют</td>
+      </tr>
+      <tr>
+        <td class="mono">onPluginInit</td><td class="center no">нет</td>
+        <td>Вызывается <b>до</b> создания Nest-приложения, по порядку массива, с <code>await</code>. Это место для одноразовой подготовки, которая обязана завершиться раньше, чем будет инстанцирован первый провайдер</td>
+        <td>Бросок обёрнут: хост логирует <code>Plugin &quot;X&quot; failed in onPluginInit; the server cannot start.</code> и пробрасывает ошибку дальше. <code>main.ts</code> ловит её и выходит с кодом 1. Раньше это был голый unhandled rejection без имени плагина</td>
+      </tr>
+      <tr>
+        <td class="mono">migrations</td><td class="center no">нет</td>
+        <td>Хост <b>ничего с ним не делает при старте</b>. Дескриптор читают инструменты: <code>applyPluginMigrations</code> в <code>@orthacms/cli</code> и исполнитель <code>db:migrate</code> из <code>@orthacms/nx</code>, идущие по тому же массиву плагинов</td>
+        <td><code>table</code>, совпавший у двух плагинов, склеит их истории миграций в одну таблицу учёта — и второй плагин решит, что его миграции уже применены. Тест <code>plugins.spec.ts</code> проверяет уникальность таблиц именно поэтому</td>
+      </tr>
+      <tr>
+        <td class="mono">docs</td><td class="center no">нет</td>
+        <td>Вклад в общий OpenAPI-документ: схемы аутентификации, документ-уровневые требования и финальный проход <code>decorate</code>. Собирается в <code>setupApiDocs</code> в порядке регистрации</td>
+        <td>Бросок в <code>decorate</code> перехватывается <b>по каждому плагину отдельно</b>: теряется только его вклад, логируется ошибка, сервер продолжает подниматься. До этой защиты один плохой <code>decorate</code> обрушивал весь <code>createServer</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.1 <code>name</code> — идентификатор для человека, не для машины</h3>
+  <p>Важно понимать, чего <code>name</code> <b>не</b> делает: по нему ничего не ищется, ничего не разрешается и ничего не связывается. В системе нет реестра «дай мне плагин по имени». Это метка для лога и для теста состава, и её ценность целиком диагностическая — что подтверждается тем, ради чего она была задействована: три разных сценария отказа (плохой хук, плохой <code>decorate</code>, занятый порт) раньше выглядели одинаково безлико.</p>
+
+  <h3>3.2 <code>module</code> — вся интеграция с Nest в одном поле</h3>
+  <p>Корневой модуль хоста тривиален настолько, насколько это возможно:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>@Module({})
+export class ServerModule {
+    static forRoot(plugins: ServerPlugin[]): DynamicModule {
+        return {
+            module: ServerModule,
+            imports: plugins.map((plugin) =&gt; plugin.module)
+        };
+    }
+}</code></pre></div>
+
+  <p>Здесь нет ни фильтрации, ни сортировки, ни проверки дубликатов. Именно поэтому <b>позиция плагина в массиве почти ничего не решает для DI</b>: модули плагинов в OrthaCMS глобальные, а Nest собирает граф целиком до инстанцирования. Измерено: перенос <code>IdentityPlugin</code> выше <code>DatabasePlugin</code> даёт полностью работающий сервер.</p>
+
+  <p>Штатная форма — фабрика, возвращающая динамический модуль с конфигурацией внутри:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function DatabasePlugin(
+    config: DatabasePluginConfig
+): DatabaseServerPlugin {
+    return {
+        name: 'database',
+        module: DatabaseModule.forRoot(),
+        databaseConfig: config,
+        onPluginInit() {
+            initDatabase(config);
+        },
+        migrations: {
+            dir: () =&gt; join(__dirname, '../../../migrations'),
+            table: '__drizzle_migrations_database'
+        }
+    };
+}</code></pre></div>
+
+  <div class="note">
+    <span class="label">Контракт — минимум, а не потолок</span>
+    <p>Обратите внимание на поле <code>databaseConfig</code> в примере: его в контракте нет. Плагин волен расширить интерфейс своими полями — <code>DatabaseServerPlugin extends ServerPlugin</code>, <code>ContentServerPlugin extends ServerPlugin</code> с полем <code>registry</code>. Хост такие поля игнорирует, а вот <em>другие плагины</em> ими пользуются: <code>ContentViewsPlugin({ content })</code> и <code>ContentGraphqlPlugin({ content })</code> принимают объект контент-плагина <b>по значению</b>, чтобы разделить с ним реестр типов. Это единственный санкционированный способ явной связи между плагинами на сервере, помимо DI-портов.</p>
+  </div>
+
+  <h3>3.3 <code>onPluginInit</code> — единственный хук до приложения</h3>
+  <p>Хост проходит массив и ждёт каждый хук:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>for (const plugin of plugins) {
+    try {
+        await plugin.onPluginInit?.();
+    } catch (error) {
+        Logger.error(
+            `Plugin "${plugin.name}" failed in onPluginInit; the server cannot start.`,
+            describeError(error)
+        );
+        throw error;
+    }
+}</code></pre></div>
+
+  <p>В сегодняшней сборке этот хук реализует <b>ровно один плагин из пятнадцати</b> — <code>database</code>, который открывает пул. Это и есть причина, по которой <code>DatabasePlugin</code> стоит первым, и одновременно причина, по которой позиция сейчас не критична: все хуки всё равно отработают раньше <code>NestFactory.create</code>. Комментарий в <code>plugins.ts</code> формулирует это честно — первое место у базы данных не потому, что иначе сломается, а потому что «в тот момент, когда ресурс начнёт открывать второй плагин, порядок хуков станет несущим, и поймать ошибку будет нечем».</p>
+
+  <p>Хук — это <b>не</b> место для работы, требующей DI: сидеры ролей в <code>identity</code> используют жизненный цикл Nest (<code>OnApplicationBootstrap</code>), потому что им нужен уже собранный клиент БД из контейнера.</p>
+
+  <h3>3.4 <code>migrations</code> — дескриптор, а не действие</h3>
+  <p>Две детали в этом поле стоят объяснения.</p>
+  <ul>
+    <li><b><code>dir</code> — это функция, а не строка.</b> Путь вычисляется только в момент миграции и никогда при обычной загрузке. Это то, что позволяет одному и тому же коду работать и когда пакет потребляется из исходников, и когда он установлен из npm: <code>__dirname</code> в этих двух случаях указывает в разные места, но вызывается он одинаково поздно.</li>
+    <li><b><code>table</code> — изоляция истории.</b> У каждого плагина своя таблица учёта (<code>__drizzle_migrations_identity</code>, <code>__drizzle_migrations_alarms</code> и т. д.), поэтому плагины версионируются независимо и добавление нового плагина не переписывает чужую историю.</li>
+  </ul>
+
+  <p>В сегодняшней сборке миграции везут <b>10 из 15</b> плагинов: <code>database</code> (одна таблица — транзакционный outbox), <code>identity</code>, <code>workspaces</code>, <code>activity</code>, <code>content</code> (дескриптор передаёт <em>хост</em>: сгенерированные таблицы коллекций принадлежат приложению, а не пакету), <code>content-views</code>, <code>media</code>, <code>alarms</code>, <code>segments</code>, <code>copilot</code>. Не везут: <code>users</code> и <code>i18n</code> (не владеют схемой вовсе), <code>content-graphql</code>, <code>transfer</code> и <code>mcp</code> (протокольные адаптеры и посредники).</p>
+
+  <div class="note crit">
+    <span class="label">Порядок массива несущий именно здесь</span>
+    <p><code>applyPluginMigrations</code> идёт по массиву, и <b>ни одна транзакция не охватывает два плагина</b>. Внешний ключ <code>memberships → users</code> означает, что <code>WorkspacesPlugin</code> обязан стоять после <code>IdentityPlugin</code>. Коварство в том, что ошибка проявляется асимметрично: на <em>уже мигрированной</em> базе перестановка проходит без единого замечания, а на <em>чистой</em> падает с <code>relation &quot;users&quot; does not exist</code>. То есть ошибка уезжает в релиз и кусает следующего, кто разворачивается с нуля. Поэтому сообщение об отказе прямо называет порядок первой версией причины и перечисляет, сколько плагинов уже закоммичено (откат не делается — каждый плагин коммитит по ходу). Порядок зафиксирован тестом в <code>apps/server/src/plugins.spec.ts</code>; задача ORT-131 — сделать зависимость декларацией, а не комментарием.</p>
+  </div>
+
+  <h3>3.5 <code>docs</code> — плагин описывает собственную аутентификацию</h3>
+  <p>Логика поля прямо следует из того, что у хоста нет guard&#39;ов: раз хост не проверяет ни одного удостоверения, он не имеет права придумывать схемы аутентификации в документе. Их объявляет тот, кто владеет проверкой.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Подполе</th><th>Назначение</th><th>Как обрабатывается</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">securitySchemes</td><td>Именованные схемы: cookie, bearer, OAuth2, OIDC</td><td>Каждая пара имя/схема добавляется в <code>DocumentBuilder.addSecurity</code>; при совпадении имён побеждает последний зарегистрированный плагин</td></tr>
+      <tr><td class="mono">defaultSecurity</td><td>Имена схем, предлагаемых на уровне документа</td><td>Каждое становится отдельным элементом массива <code>security</code>; OpenAPI читает список требований как <b>ИЛИ</b>, поэтому <code>['session', 'apiToken']</code> означает «подойдёт любое»</td></tr>
+      <tr><td class="mono">decorate</td><td>Финальный проход по готовому документу</td><td>Выполняется <b>последним</b> — после генерации и после расстановки тегов, — по порядку регистрации, в индивидуальном <code>try/catch</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Вклад <code>identity</code> — единственный источник схем аутентификации в системе:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>docs: {
+    securitySchemes: {
+        session: {
+            type: 'apiKey',
+            in: 'cookie',
+            name: SESSION_COOKIE,
+            description: 'Opaque session cookie issued by `POST /api/auth/login` …'
+        },
+        apiToken: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'orthacms_&lt;random&gt;',
+            description: 'External API token minted by `POST /api/api-tokens` …'
+        }
+    },
+    defaultSecurity: ['session', 'apiToken']
+}</code></pre></div>
+
+  <p>А <code>decorate</code> существует потому, что <code>@nestjs/swagger</code> видит только <b>статический TypeScript</b> — декорированные классы и их метаданные. Плагин, чей контракт есть <em>данные времени выполнения</em>, для сканера невидим. Ровно этот случай у контента: типы контента определяются кодом и лежат в реестре, а обслуживает их один набор универсальных контроллеров <code>/content/:typeName</code>. Поэтому контент описывает себя сам:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>docs: {
+    decorate: (document) =&gt;
+        describeContentApi(document, registry.serializeAll())
+}</code></pre></div>
+
+  <div class="note warn">
+    <span class="label">Документ общий — правьте только своё</span>
+    <p><code>decorate</code> получает <b>один и тот же изменяемый объект</b> для всех плагинов. Правило «дописывай только то, чем владеешь» ничем не проверяется технически. Плагин, снёсший чужие <code>components.schemas</code>, получит зелёные тесты и испорченный справочник — а поскольку это инструмент разработчика, заметят это не сразу.</p>
+  </div>
+</section>
+
+<section id="admin-contract">
+  <h2 class="sec"><span class="num">04</span>Контракт <code>AdminPlugin</code></h2>
+
+  <p>Зеркало серверного контракта на стороне SPA. Полей <b>четыре</b>, обязательное — <b>одно</b>. Как и на сервере, узость намеренна, но здесь у неё есть дополнительное следствие, которое надо понимать буквально: <b>хост не знает, что такое авторизация</b>, и не даёт по ней никаких гарантий.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export type RouteItem = {
+    path: string;
+    element: ReactNode;
+    public?: boolean;
+};
+
+export type AdminPlugin = {
+    name: string;
+    routes?: RouteItem[];
+    layout?: ReactNode;
+    slots?: SlotContribution[];
+};</code></pre></div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Поле</th><th>Обяз.</th><th>Что делает хост</th><th>Что будет, если ошибиться</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">name</td><td class="center yes">да</td>
+        <td>Как и на сервере — диагностика: имена перечисляются в предупреждениях о коллизии <code>layout</code> и о коллизии маршрутов, и фиксируются тестом состава</td>
+        <td>Дубликат имени ничем не проверяется. Цена — предупреждение вида «конфликтуют &quot;content&quot; и &quot;content&quot;», которое ничего не проясняет</td>
+      </tr>
+      <tr>
+        <td class="mono">routes</td><td class="center no">нет</td>
+        <td>Все <code>routes</code> всех плагинов сводятся в один плоский список и делятся по флагу <code>public</code>: публичные монтируются как соседи верхнего уровня, остальные — детьми одного безпутевого родителя</td>
+        <td>Два плагина на одном <code>path</code> — React Router выбирает по рангу, а не по объявлению, так что победитель формально не определён. Хост предупреждает и называет обоих (см. раздел 8)</td>
+      </tr>
+      <tr>
+        <td class="mono">layout</td><td class="center no">нет</td>
+        <td>Хост берёт <b>первый найденный</b> <code>layout</code> и делает его единственным родителем всех непубличных маршрутов. Содержимое для хоста непрозрачно — это просто <code>ReactNode</code>, который обязан отрисовать <code>&lt;Outlet/&gt;</code></td>
+        <td>Второй вкладчик <code>layout</code> проигрывает по порядку регистрации. И это не косметика: победивший чужой layout уносит с собой <code>RequireAuth</code>, сайдбар, ссылку пропуска и ориентир <code>&lt;main&gt;</code> — <b>все приватные маршруты рендерятся без проверки</b></td>
+      </tr>
+      <tr>
+        <td class="mono">slots</td><td class="center no">нет</td>
+        <td>Все вклады всех плагинов подключаются в целевые слоты <b>до первого рендера</b>, одним вызовом <code>wireSlotContributions</code>. Хост слот-агностичен: он только подключает, но никогда не определяет и не читает</td>
+        <td>Ошибиться сложно: слот — это объект-синглтон, а не имя, поэтому «промахнуться мимо слота» нельзя. Коллизии возможны только <em>внутри</em> слота, по правилам самого потребителя (см. раздел 7)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.1 Флаг <code>public</code> не значит «без авторизации»</h3>
+  <p>Это самое важное место всего контракта, и в коде оно прокомментировано ровно в этих словах: <em>«хост не придаёт этому никакого смысла в терминах авторизации»</em>. Флаг решает <b>один</b> вопрос: под <code>layout</code> монтировать маршрут или рядом с ним.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0"><code>public: true</code></h4>
+      <p class="small sub">Маршрут — сосед верхнего уровня, вне <code>layout</code>. Сегодня такой вклад в приложении ровно один: <code>/identity/*</code> от плагина identity — экраны входа и принятия приглашения, которые обязаны открываться, когда пользователь ещё не вошёл.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>public</code> опущен или <code>false</code></h4>
+      <p class="small sub">Маршрут — ребёнок единственного родителя с <code>layout</code>. Проверяет ли этот layout что-нибудь — дело layout&#39;а. Сегодня проверяет, потому что shell оборачивает чрому в <code>RequireAuth</code>. Хост этого не гарантирует.</p>
+    </div>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Отказ по умолчанию — открытый</span>
+    <p>Маршрут с <code>public: false</code> при отсутствии защищающего <code>layout</code> рендерится <b>без всякой проверки</b>. Это осознанный размен: хост остаётся полностью свободным от кода авторизации, а закрытие становится решением приложения (shell подключается сам), а не гарантией платформы. Отсюда же вытекает, что предупреждение о двух <code>layout</code> — это предупреждение об уязвимости, а не о вёрстке, и что <code>apps/admin/src/plugins.spec.ts</code> отдельным тестом фиксирует: вкладчик <code>layout</code> в приложении ровно один и это shell.</p>
+  </div>
+
+  <h3>4.2 Как выглядит вклад целиком</h3>
+  <p>Плагин identity — минимальный из возможных: одно поле сверх имени, один маршрут-джокер, вложенный роутер внутри.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function IdentityPlugin(): IdentityAdminPlugin {
+    return {
+        name: 'identity',
+        routes: [
+            { path: '/identity/*', element: &lt;IdentityRouter /&gt;, public: true }
+        ]
+    };
+}</code></pre></div>
+
+  <p>Плагин shell — единственный, кто пользуется всеми четырьмя полями сразу, и единственный, кто вкладывает <code>layout</code>:</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function ShellPlugin(): ShellAdminPlugin {
+    return {
+        name: 'shell',
+        layout: (
+            &lt;AuthProvider&gt;
+                &lt;RequireAuth&gt;
+                    &lt;AppShell /&gt;
+                &lt;/RequireAuth&gt;
+            &lt;/AuthProvider&gt;
+        ),
+        routes: [{ path: '/', element: &lt;HomePage /&gt; }],
+        slots: [
+            {
+                slot: SIDEBAR_NAV_SLOT,
+                items: [
+                    {
+                        labelId: 'shell.nav.home',
+                        defaultLabel: 'Home',
+                        to: '/',
+                        end: true,
+                        group: 'overview',
+                        order: 10,
+                        icon: HomeIcon,
+                        iconColor: 'text-nav-orange'
+                    }
+                ]
+            }
+        ]
+    };
+}</code></pre></div>
+
+  <p>Здесь видно и то, как именно авторизация оказывается в приложении, ни разу не попав в хост: shell импортирует <code>AuthProvider</code> и <code>RequireAuth</code> из <code>identity-admin</code> и складывает их <em>внутри</em> собственного <code>layout</code>. Для хоста это по-прежнему безымянный <code>ReactNode</code>.</p>
+
+  <h3>4.3 Чего в контракте нет — и почему</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Чего нет</th><th>Где это на самом деле</th><th>Почему не в контракте</th></tr></thead>
+    <tbody>
+      <tr><td>Пункта меню / навигации</td><td>Слот <code>SIDEBAR_NAV_SLOT</code>, принадлежащий shell</td><td>Хост не знает, что у приложения есть сайдбар. Меню — это данные, которые читает конкретный потребитель</td></tr>
+      <tr><td>Требуемого права</td><td><code>useHasPermission</code> из identity, внутри страницы</td><td>Хост не знает, что такое право. Гейт по правам — решение страницы, а не маршрута</td></tr>
+      <tr><td>Заголовка страницы</td><td><code>documentTitle</code> из utils-admin, внутри страницы</td><td>Хост не трогает <code>document.title</code> вообще</td></tr>
+      <tr><td>Ленивой загрузки</td><td><code>React.lazy</code> + <code>Suspense</code> внутри <code>element</code></td><td><code>element</code> — уже готовый узел; разделение бандла целиком на совести плагина</td></tr>
+      <tr><td>Порядка / приоритета маршрута</td><td>Порядок в массиве плагинов и ранжирование React Router</td><td>Приоритет между маршрутами разных плагинов — это коллизия, а её хост не разрешает, а объявляет</td></tr>
+      <tr><td>Хука инициализации</td><td>Обычный React: эффект в компоненте</td><td>Полного аналога <code>onPluginInit</code> в админке нет. Единственная «до-рендерная» фаза — подключение слотов</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <details>
+    <summary>Почему <code>CreateAdminOptions.locale</code> пока ничего не переводит</summary>
+    <p>Опция управляет тремя вещами: значением <code>&lt;html lang&gt;</code>, направлением письма <code>&lt;html dir&gt;</code> и форматированием <code>Intl</code> (даты, числа, множественные формы). Переводом — <b>нет</b>: в админке ровно один каталог сообщений — <code>defaultMessage</code> каждого дескриптора, — и в <code>IntlProvider</code> не передаётся никаких <code>messages</code>. Тип объявлен как <code>string</code>, а не объединение поддерживаемых локалей, именно потому, что перечислять пока нечего; сужение типа — часть задачи ORT-141, чтобы опция не обещала того, чего не делает.</p>
+  </details>
+</section>
+
+<section id="server-boot">
+  <h2 class="sec"><span class="num">05</span>Запуск сервера: десять шагов по порядку</h2>
+
+  <p>Весь <code>createServer</code> — это около сотни строк, но порядок в них выверен: почти каждый шаг объяснён тем, что случится, если поставить его раньше или позже. Ниже — фактическая последовательность.</p>
+
+  <ol class="flow">
+    <li><b>Разбор параметров и умолчания.</b> <code>port = 3000</code>, <code>globalPrefix = 'api'</code>, <code>bodyLimit = '1mb'</code>. <code>trustProxy</code>, <code>docs</code> и <code>staticDir</code> умолчаний не имеют — их отсутствие само по себе означает режим.<span class="meta">1 МБ выписан явно, чтобы не наследовать 100 кБ от express</span></li>
+    <li><b>Хуки <code>onPluginInit</code>, по порядку массива, с ожиданием.</b> Каждый в <code>try/catch</code>, называющем плагин. Именно здесь <code>@orthacms/database</code> открывает пул, поэтому к следующему шагу соединение уже живое.<span class="meta">падение здесь = сервер не стартует, выход с кодом 1</span></li>
+    <li><b><code>NestFactory.create(ServerModule.forRoot(plugins))</code>.</b> Строится весь граф модулей и провайдеров. Приложение создано, но ещё ничего не слушает.<span class="meta">типизировано как NestExpressApplication — дальше нужны методы адаптера</span></li>
+    <li><b><code>app.set('trust proxy', trustProxy)</code> — только если значение задано.</b> Обязательно <b>до</b> всего, что читает <code>req.ip</code>: от этой настройки зависит, по какому адресу <code>identity</code> считает лимит попыток входа и какой адрес попадает в строку сессии.<span class="meta">невалидное значение роняет boot прямо здесь — proxy-addr бросает</span></li>
+    <li><b>Перерегистрация парсеров тела</b> с явным потолком: <code>json</code> и <code>urlencoded</code> (<code>extended: true</code>). Заменяет установленные Nest парсеры с умолчаниями express.<span class="meta">413 отдаёт парсер — выше любого контроллера, guard&#39;а и протокольного слоя</span></li>
+    <li><b><code>app.setGlobalPrefix('api')</code>.</b> Все маршруты плагинов уезжают под общий префикс. Ровно один раз, поэтому ни один плагин не пишет <code>api</code> в своём пути.</li>
+    <li><b>Глобальный <code>ValidationPipe</code></b> с тремя включёнными флагами: <code>whitelist</code> (незадекларированные поля вырезаются), <code>forbidNonWhitelisted</code> (и вдобавок дают 400), <code>transform</code> (тело превращается в экземпляр DTO с приведением типов).<span class="meta">это и есть причина, по которой лишнее поле в теле — 400 у любого плагина</span></li>
+    <li><b><code>setupApiDocs(app, plugins, docs, globalPrefix)</code>.</b> После префикса и pipe — чтобы документ описывал настоящие URL; до <code>listen</code> — чтобы справочник был доступен с первой же секунды открытого порта.<span class="meta">возвращает пути монтирования или null, если документация выключена</span></li>
+    <li><b><code>serveAdmin(app, staticDir, globalPrefix)</code> — только если <code>staticDir</code> задан.</b> Строго последним из монтирований: к этому моменту роутер Nest уже держит все маршруты контроллеров и оба маршрута справочника, поэтому SPA-заглушка физически не может перехватить чужое.<span class="meta">отсутствующий бандл — предупреждение, а не отказ: API поднимается без UI</span></li>
+    <li><b><code>app.enableShutdownHooks()</code>, затем <code>await app.listen(port)</code>.</b> Ошибка <code>listen</code> тоже логируется с указанием порта и пробрасывается. Успех печатает адрес; функция <b>возвращает приложение</b>.<span class="meta">возврат нужен не main.ts, а тестам и встраивающим хостам — иначе бутстрап невозможно закрыть, а значит и протестировать</span></li>
+  </ol>
+
+  <h3>5.1 Почему <code>trust proxy</code> стоит именно там и почему это вопрос безопасности</h3>
+  <p>Express по умолчанию игнорирует <code>X-Forwarded-For</code> целиком. За балансировщиком это означает, что <b>каждый запрос сообщает адрес прокси</b>, все клиенты сливаются в одну корзину лимитов, и десяти запросов одного злоумышленника в минуту достаточно, чтобы отказать во входе всем. Обратная ошибка симметрична: слишком доверчивая настройка позволяет любому клиенту подделать заголовок и выписать себе бесконечное число корзин.</p>
+
+  <p>Измерено на живом сервере с подделанным <code>X-Forwarded-For: 1.1.1.1, 2.2.2.2, 3.3.3.3</code> от локального пира:</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th><code>TRUST_PROXY</code></th><th><code>req.ip</code></th><th>Комментарий</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">не задан / 0 / false</td><td>адрес пира</td><td>заголовок игнорируется полностью — режим прямого доступа</td></tr>
+      <tr><td class="mono">1</td><td class="mono">3.3.3.3</td><td>один хоп <b>справа</b>; дальше счётчика клиент подделать не может — рекомендуемая форма</td></tr>
+      <tr><td class="mono">2</td><td class="mono">2.2.2.2</td><td>два хопа справа</td></tr>
+      <tr><td class="mono">true</td><td class="mono">1.1.1.1</td><td><b>самый левый</b> элемент — полностью под контролем клиента; только в закрытой сети</td></tr>
+      <tr><td class="mono">loopback, ::1</td><td class="mono">3.3.3.3</td><td>идёт справа налево мимо доверенных адресов</td></tr>
+      <tr><td>подсеть, в которую пир не входит</td><td>адрес пира</td><td>отказ <b>в закрытую</b> — несовпавший список ведёт себя ровно как «не задан»</td></tr>
+      <tr><td>нечто неразбираемое</td><td>—</td><td><code>proxy-addr</code> бросает на <code>app.set</code>: загрузка падает с кодом 1 (громкий отказ)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Строка, за которой стоит следить</span>
+    <p>Предпоследняя: правильная по форме, но неверная по содержанию подсеть деградирует до «игнорировать заголовок» <b>без единого слова</b>. Направление безопасное, но от корректной конфигурации это неотличимо ровно до того момента, когда вы откроете строку сессии и увидите там адрес балансировщика.</p>
+  </div>
+
+  <h3>5.2 Потолок тела запроса: почему цифра выписана, а не унаследована</h3>
+  <p>Собственное умолчание <code>express.json()</code> — 100 кБ, измерено ровно 102 400 байт. Длинная статья со встроенным форматированным текстом его превышает, и парсер отвечает <code>413</code> <b>выше любого контроллера, guard&#39;а и протокольного слоя</b>: MCP-клиент получил бы REST-ошибку вместо JSON-RPC-кадра. То есть потолок «сколько контента принимает эта CMS» был бы случайностью в умолчании зависимости. 1 МБ покрывает любую реалистичную запись и при этом ограничивает, сколько неаутентифицированный вызывающий может заставить парсер выделить. Загрузки файлов сюда не попадают: они multipart и ограничиваются отдельно, через <code>MEDIA_MAX_UPLOAD_BYTES</code> плагина медиа.</p>
+
+  <h3>5.3 Сборка OpenAPI: что происходит внутри восьмого шага</h3>
+  <ol class="flow">
+    <li><b>Проверка выключателя.</b> <code>enabled</code> по умолчанию — <code>NODE_ENV !== 'production'</code>. Выключено — функция возвращает <code>null</code> и не монтирует <b>ничего</b>: оба маршрута едут на одном флаге, поэтому JSON недоступен, когда недоступен UI.</li>
+    <li><b>Сбор схем аутентификации.</b> Проход по плагинам: <code>securitySchemes</code> и <code>defaultSecurity</code> уходят в <code>DocumentBuilder</code>. Порядок регистрации решает, кто побеждает при совпадении имён.</li>
+    <li><b>Генерация документа.</b> <code>SwaggerModule.createDocument</code> с <code>autoTagControllers: false</code>. Глобальный префикс сохраняется в путях, поэтому документ описывает те URL, которые клиент действительно вызывает.</li>
+    <li><b>Теги по ресурсу, а не по контроллеру.</b> <code>tagByResource</code> берёт первый сегмент после префикса (<code>/api/content/post</code> → <code>content</code>). Альтернатива — тег по имени класса контроллера, но в кодовой базе намеренно один контроллер на сценарий, и это дало бы около полусотни групп по одной операции.<span class="meta">перебираются только 8 ключей-операций: у path-item бывают ещё parameters/$ref/summary, и запись tags в массив parameters сделала бы документ невалидным</span></li>
+    <li><b>Проходы <code>decorate</code>.</b> Последними и по одному, каждый в своём <code>try/catch</code>. Плагин видит уже готовый, уже размеченный тегами документ.</li>
+    <li><b>Монтирование на HTTP-адаптер.</b> Сначала JSON-маршрут — чтобы он выиграл у UI-монтирования в случае (умолчательном), когда лежит под ним. Затем сам Scalar.<span class="meta">регистрация на адаптере, а не в роутере Nest: маршруты оказываются вне префикса, вне guard&#39;ов и вне ValidationPipe</span></li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Вызов после app.init() бессмыслен и молчалив</span>
+    <p><code>setupApiDocs</code> экспортирован отдельно — для хоста, собирающего <code>INestApplication</code> самостоятельно. Его обязательно вызывать <b>до</b> <code>app.init()</code>/<code>listen()</code>, как это делает <code>createServer</code>: он регистрируется на HTTP-адаптере, и вызов после монтирования роутера Nest добавляет слой, который роутер уже перекрыл. Функция вернёт пути и не будет обслуживать ничего — без ошибки. Префикс к этому моменту тоже должен быть установлен, иначе документ опишет URL, которых никто не обслуживает.</p>
+  </div>
+
+  <h3>5.4 Отдача бандла админки: одна происхождение вместо двух</h3>
+  <p><code>staticDir</code> — это не удобство, а требование безопасности cookie. Identity выдаёт сессию как <code>httpOnly</code>, <code>SameSite=lax</code> cookie, и UI, отданный с <em>другого</em> происхождения, просто не отправит её при вызовах API. Развёртывание, разделившее эти половины, обязано либо вернуть прокси, либо включить CORS вместе с <code>SameSite=none</code> — и содержать обе конструкции вечно. В монорепозитории <code>apps/server</code> опция не задана (админку отдаёт Vite, который проксирует <code>/api</code> ровно по этой причине), а сгенерированное приложение её задаёт — в проде дев-прокси нет.</p>
+
+  <p>SPA-заглушка отказывается отвечать в четырёх случаях, и каждый отказ отражает конкретную аварию:</p>
+  <ul>
+    <li><b>Путь под API-префиксом или под <code>/reference</code>.</b> Иначе опечатка в эндпоинте перестала бы возвращать JSON-<code>404</code> и начала возвращать <code>200</code> со страницей HTML. Это самый запутывающий отказ, который эта функция способна породить: каждый клиент видит успех и ошибку разбора JSON, и ничто не говорит, что маршрута не существует.</li>
+    <li><b>Метод не <code>GET</code> и не <code>HEAD</code>.</b></li>
+    <li><b>У пути есть расширение файла.</b> Это и есть основной фильтр. Устаревший <code>index.html</code>, ссылающийся на удалённый хешированный чанк, должен продолжать давать 404, иначе браузер сообщит об ошибке MIME-типа, и плохой деплой прочитается как баг сборщика. Измерено на настоящей сборке: <code>GET /assets/deleted-chunk.js</code> возвращал 200 и страницу.</li>
+    <li><b>Клиент не принимает HTML.</b> Вторичный фильтр — для того, кто <em>явно</em> просит JSON. Сам по себе он не работает: браузер запрашивает скрипты и стили с <code>Accept: */*</code>, а <code>accepts('html')</code> отвечает на <code>*/*</code> утвердительно.</li>
+  </ul>
+
+  <h3>5.5 Завершение по SIGTERM</h3>
+  <p><code>enableShutdownHooks()</code> вызывается до <code>listen</code>. Без него SIGTERM — способ, которым любой оркестратор гасит под — попадает в обработчик Node по умолчанию, и процесс умирает на месте. Измерено: шесть одновременных запросов входа завершились сбросом соединения; с включёнными хуками все шесть завершились нормально. С ними Nest закрывает HTTP-сервер, дожидается уже принятых запросов, вызывает <code>onModuleDestroy</code> у каждого модуля и только затем перевыбрасывает сигнал.</p>
+</section>
+
+<section id="admin-boot">
+  <h2 class="sec"><span class="num">06</span>Запуск админки: девять шагов по порядку</h2>
+
+  <p><code>createAdmin</code> ничего не возвращает — в браузере жизнью приложения владеет документ. Всё, что делает функция, укладывается в девять шагов, из которых первые семь происходят <b>до</b> первого рендера.</p>
+
+  <ol class="flow">
+    <li><b>Разбор параметров.</b> <code>rootElement = 'root'</code>, <code>locale = 'en'</code>.</li>
+    <li><b>Язык и направление письма документа.</b> <code>document.documentElement.lang = locale</code> и <code>dir = directionOf(locale)</code>. До рендера — чтобы вспомогательные технологии увидели это с первой отрисовкой, а не после согласования.<span class="meta">WCAG 3.1.1: раньше немецкий контент озвучивался английским синтезатором</span></li>
+    <li><b>Предупреждение о коллизии <code>layout</code>.</b> Если вкладчиков больше одного — <code>console.warn</code> с именами победителя и проигравших и прямым указанием, что приватные маршруты могут оказаться незащищёнными.</li>
+    <li><b>Предупреждение о коллизии маршрутов.</b> Строится карта «путь → плагины», и каждый путь с двумя и более владельцами даёт именное предупреждение.</li>
+    <li><b>Сведение и разделение маршрутов.</b> <code>flatMap</code> по всем плагинам, затем фильтр на <code>public</code> — два списка.</li>
+    <li><b>Подключение слотов.</b> <code>wireSlotContributions</code> получает все вклады всех плагинов разом и регистрирует их <b>от пустого состояния</b>, а не дописыванием.<span class="meta">идемпотентность нужна из-за горячей замены Vite, которая переисполняет модуль входа</span></li>
+    <li><b>Выбор layout.</b> <code>plugins.map(p =&gt; p.layout).find(Boolean)</code>, а при отсутствии — голый <code>&lt;Outlet /&gt;</code>.</li>
+    <li><b>Поиск контейнера.</b> <code>getElementById(rootElement)</code> с явной проверкой и осмысленной ошибкой, называющей искомый id. Приведение типа было бы отказом внутри React с сообщением про «target container», не говорящим, какой именно id хост искал — а страница в обоих случаях пустая.</li>
+    <li><b>Рендер дерева провайдеров.</b> <code>createRoot(container).render(…)</code>.</li>
+  </ol>
+
+  <h3>6.1 Дерево провайдеров, слой за слоем</h3>
+  <p>Порядок вложенности не случаен: каждый слой находится там, где находится, из-за конкретного отказа.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>&lt;StrictMode&gt;
+  &lt;AppearanceProvider&gt;                     оформление: тема, плотность
+    &lt;QueryClientProvider client={queryClient}&gt;   единый клиент TanStack Query
+      &lt;IntlProvider locale defaultLocale onError&gt;  единственный IntlProvider
+        &lt;DesignSystemLabels&gt;                 перевод собственных строк библиотеки
+          &lt;TooltipProvider delayDuration={200}&gt;
+            &lt;AppErrorBoundary&gt;               граница ошибок — ВЫШЕ роутера
+              &lt;BrowserRouter&gt;
+                &lt;RouteAnnouncer /&gt;           живая область для озвучивания
+                &lt;UnsavedChangesGuard&gt;
+                  &lt;Routes&gt;
+                    {публичные маршруты — соседи верхнего уровня}
+                    &lt;Route element={layout}&gt;
+                      {приватные маршруты}
+                      &lt;Route path="*" element={&lt;Navigate to="/" replace /&gt;} /&gt;
+                    &lt;/Route&gt;
+                  &lt;/Routes&gt;
+                &lt;/UnsavedChangesGuard&gt;
+              &lt;/BrowserRouter&gt;
+            &lt;/AppErrorBoundary&gt;
+            &lt;Toaster /&gt;                      СНАРУЖИ границы ошибок
+          &lt;/TooltipProvider&gt;
+        &lt;/DesignSystemLabels&gt;
+      &lt;/IntlProvider&gt;
+    &lt;/QueryClientProvider&gt;
+  &lt;/AppearanceProvider&gt;
+&lt;/StrictMode&gt;</code></pre></div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слой</th><th>Что даёт плагинам</th><th>Почему именно здесь</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">AppearanceProvider</td><td>Тему и настройки внешнего вида</td><td>Снаружи всего: тему должны видеть в том числе экраны отказа</td></tr>
+      <tr><td class="mono">QueryClientProvider</td><td>Единый <code>queryClient</code> — <code>useQuery</code>/<code>useMutation</code> без собственного клиента</td><td>Сам клиент живёт в <code>utils-admin</code>, а не в хосте: плагин не должен зависеть от композиционного корня ради одного запроса</td></tr>
+      <tr><td class="mono">IntlProvider</td><td>Единственный источник форматирования; строки берутся из <code>defaultMessage</code></td><td>Выше всего, что рисует текст, включая карточку падения и подписи библиотеки</td></tr>
+      <tr><td class="mono">DesignSystemLabels</td><td>Переведённые собственные подписи дизайн-системы (например, «Закрыть»)</td><td>Библиотека намеренно не несёт i18n-рантайма — её потребляют и вне этого приложения. Иначе локализация кнопки закрытия означала бы передачу <code>closeLabel</code> в двадцати с лишним местах вызова</td></tr>
+      <tr><td class="mono">TooltipProvider</td><td>Общую задержку подсказок (200 мс)</td><td>Одна политика на всё приложение</td></tr>
+      <tr><td class="mono">AppErrorBoundary</td><td>Последний рубеж: карточка с заголовком и кнопкой перезагрузки</td><td><b>Выше</b> <code>BrowserRouter</code> — чтобы поймать бросок самого роутера</td></tr>
+      <tr><td class="mono">RouteAnnouncer</td><td>Озвучивание смены страницы</td><td>Внутри роутера (нужен <code>useLocation</code>), но вне <code>Routes</code> — живёт всё время жизни приложения</td></tr>
+      <tr><td class="mono">UnsavedChangesGuard</td><td>Общий диалог «уйти и потерять правки»</td><td>Сам механизм в <code>utils-admin</code> и не содержит строк; хост связывает его с диалогом дизайн-системы и с <code>IntlProvider</code></td></tr>
+      <tr><td class="mono">Toaster</td><td>Точку вывода уведомлений</td><td><b>Снаружи</b> границы ошибок: тост — это то, чем остальное приложение сообщает о беде, поэтому он обязан пережить ту беду, которую граница ловит. Угол задаётся в самой дизайн-системе; хост не передаёт <code>position</code> — раньше передавал, и эти двое расходились</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.2 Граница ошибок: почему она обязана быть классом и обязана быть здесь</h3>
+  <p>Когда бросок в фазе рендера доходит до корня, React размонтирует <b>всё дерево</b>, и в <code>#root</code> остаётся ноль детей: ни сайдбара, чтобы уйти, ни сообщения, ни того, на что поставить фокус, ни намёка, что помогает перезагрузка. Два реалистичных источника: <b>ленивый чанк, который не приехал</b> (деплой, пока вкладка была открыта; имена чанков содержат хеш содержимого, а <code>Suspense</code> умеет ждать, но не умеет падать, поэтому он перебрасывает) и страница, прочитавшая неожиданную форму ответа API.</p>
+  <p>Карточка отказа забирает фокус при монтировании: авария подменяет то, что человек читал, без навигации, о которой сообщил бы браузер. Без переноса фокус остаётся на исчезнувшем элементе, браузер сбрасывает его на <code>&lt;body&gt;</code> — и пользователь клавиатуры табает с начала страницы, о достижении которой ему никто не сказал, а скринридер продолжает читать буфер размонтированного содержимого. Заголовок несёт <code>tabIndex={-1}</code>, чтобы принять фокус, не попадая в порядок обхода.</p>
+  <p>Предлагается только перезагрузка, и это не лень: провалившийся ленивый чанк закеширован реестром модулей как провалившийся, а рендер, упавший на плохом состоянии, упадёт снова — повторный рендер не спасёт ни в одном из двух случаев.</p>
+
+  <div class="note">
+    <span class="label">Это пол, а не потолок</span>
+    <p>Граница на такой высоте способна предложить только перезагрузку. Плагин, умеющий деградировать одну область, обязан ловить у себя: <code>insights-admin</code> ставит границу на каждый виджет, <code>identity-admin</code> — вокруг экранов входа.</p>
+  </div>
+
+  <h3>6.3 Озвучивание навигации: почему это сложнее, чем кажется</h3>
+  <p>Переход внутри SPA меняет весь вид, не совершая навигации: <code>Routes</code> подменяет элемент, фокус остаётся на нажатой ссылке, заголовок вкладки не меняется. Скринридеру не сообщается ничего — архетипический провал SPA по WCAG 4.1.3.</p>
+  <p>Хост монтирует одну визуально скрытую вежливую живую область на всё время жизни приложения (существовать <em>до</em> появления сообщения — предусловие того, чтобы сообщение вообще было объявлено) и пишет в неё имя нового вида при каждой смене пути, <b>кроме первой</b>: первая загрузка — настоящая навигация, о которой браузер уже сообщил.</p>
+  <p>Тонкость в том, что наивное чтение <code>&lt;h1&gt;</code> сразу после смены пути объявляет страницу, <b>которую только что покинули</b>: входящий маршрут — ленивый чанк за скелетоном <code>Suspense</code>, и первые кадры единственный заголовок в DOM — уходящий. Измерено на живом стенде до появления защиты: переход <code>/workspaces</code> → <code>/activity</code> объявлял «Workspaces» — это хуже молчания, потому что человеку сообщают, что он там, откуда только что ушёл. Поэтому:</p>
+  <ul>
+    <li>Запоминается последний увиденный заголовок (<b>и элемент, и его текст</b> — страница, дозаполняющая свой заголовок асинхронно, выглядит как тот же элемент с другим текстом).</li>
+    <li>Опрос каждые 100 мс, потолок 5 секунд. Не нашли изменения — <b>молчим</b>, а не гадаем. Цена: два маршрута с одинаковым текстом заголовка не будут объявлены, и это правильная сторона размена.</li>
+    <li>Заголовок ищется внутри ориентира <code>&lt;main&gt;</code>, если layout его даёт, — чтобы чрома не была принята за страницу.</li>
+    <li>Пропускаются заголовки внутри <code>[aria-busy="true"]</code>: скелетон ленивого маршрута несёт собственный <code>sr-only</code> <code>&lt;h1&gt;</code> вида «Loading X», чтобы страница оставалась проходимой по заголовкам, — но это имя <em>состояния</em>, а не вида (ORT-167).</li>
+    <li>Состояние хранится в переменных <b>уровня модуля</b>, а не в <code>useRef</code>: <code>StrictMode</code> React 19 монтирует эффекты дважды, ref при этом пересоздаётся, и намеренно молчаливый первый рендер объявил бы стартовую страницу на втором проходе.</li>
+    <li>Фокус <b>не переносится</b>. Куда он должен попасть — решение прибывающей страницы (экраны входа фокусируют свой заголовок, редактор может захотеть первое поле), и перенос на уровне хоста воевал бы с ними. Клавиатурный обход сайдбара — это ссылка пропуска, принадлежащая shell.</li>
+  </ul>
+
+  <h3>6.4 Обработчик ошибок i18n</h3>
+  <p><code>IntlProvider</code> логирует каждый <code>MISSING_TRANSLATION</code> на уровне <code>error</code>, по разу на каждый рендер каждого дескриптора — 460 сообщений на одной загрузке <code>/activity</code> при <code>locale: 'de'</code> — и не даёт хосту никакого способа понизить уровень, проредить или собрать их. Это не претензия к стилю: такой объём хоронит всё настоящее в консоли, а консоль — единственное место, куда смотрит разработчик (ORT-141). Хост ставит свой обработчик с двумя правилами: локали, совпадающей с умолчательной, нечему недоставать — она молчит совсем; иначе каждый идентификатор сообщается <b>ровно один раз</b> и на уровне <code>warn</code>. Всё, что не является отсутствующим переводом, пропускается наружу нетронутым — это настоящие ошибки форматирования.</p>
+</section>
+
+<section id="slots">
+  <h2 class="sec"><span class="num">07</span>Система слотов</h2>
+
+  <p>Слот — это именованная точка расширения, в которую плагины кладут <b>чистые данные</b>. Примитив живёт в <code>@orthacms/utils-admin</code>, слоты определяют плагины-потребители, а хост делает ровно одно: подключает вклады перед первым рендером. В сегодняшней сборке определено <b>26 слотов в шести пакетах</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Владелец</th><th>Слотов</th><th>Что расширяется</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">content/admin</td><td class="center">14</td><td>Библиотека контента: панель и колонки списка записей, поля фильтра, меню и массовые действия, боковые виджеты и параметры записи, вкладки и меню записи, шапка, оверлеи, предсохранение, доп. блок ревизии, контрол поля</td></tr>
+      <tr><td class="mono">shell/admin</td><td class="center">5</td><td>Навигация сайдбара, секции сайдбара, подвал сайдбара, секции домашней страницы, командная палитра</td></tr>
+      <tr><td class="mono">workspaces/admin</td><td class="center">3</td><td>Навигация внутри воркспейса, секции, маршруты воркспейса</td></tr>
+      <tr><td class="mono">insights/admin</td><td class="center">2</td><td>Виджеты дашборда и секции-полосы</td></tr>
+      <tr><td class="mono">copilot/admin</td><td class="center">1</td><td>Отрисовка результата инструмента в переписке</td></tr>
+      <tr><td class="mono">wysiwyg/admin</td><td class="center">1</td><td>Источники медиа для редактора</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>7.1 Примитив целиком</h3>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function createSlot&lt;T&gt;(name: string): Slot&lt;T&gt; {
+    const items: T[] = [];
+    return {
+        name,
+        getItems: () =&gt; items.slice(),      // копия, а не живой массив
+        _register: (newItems: T[]) =&gt; items.push(...newItems),
+        _reset: () =&gt; { items.length = 0; } // длина, а не новый массив
+    };
+}
+
+export type SlotContribution&lt;T = unknown&gt; = {
+    slot: Slot&lt;T&gt;;
+    items: T[];
+};</code></pre></div>
+
+  <p>Две строчки здесь стоят по одному дефекту каждая.</p>
+  <ul>
+    <li><b><code>getItems</code> отдаёт копию.</b> Слот читают несколько плагинов, и выдача внутреннего списка превратила бы любой <code>sort()</code> или <code>push()</code> одного потребителя в изменение общего состояния плагинов.</li>
+    <li><b><code>_reset</code> обнуляет длину, а не переприсваивает массив.</b> <code>getItems</code> и <code>_register</code> замкнуты на этот конкретный массив; переприсваивание оставило бы их писать и читать массив, которого больше никто не видит.</li>
+  </ul>
+
+  <h3>7.2 Подключение: почему это функция, а не цикл в месте вызова</h3>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function wireSlotContributions(
+    contributions: readonly SlotContribution[]
+): void {
+    for (const slot of new Set(contributions.map((c) =&gt; c.slot))) {
+        slot._reset();
+    }
+    for (const contribution of contributions) {
+        contribution.slot._register(contribution.items);
+    }
+}</code></pre></div>
+
+  <p><b>Идемпотентность — несущее свойство</b>, и оно принадлежит механизму слотов, а не композиционному корню. Слот замкнут на один массив, живущий столько же, сколько его модуль, а <code>_register</code> — это голый <code>push</code>. Всё, что запускает обвязку второй раз против тех же замыканий, удваивает каждый вклад. Горячее обновление Vite делает ровно это — переисполняет модуль входа вместо перезагрузки страницы. Наблюдалось в разработке: каждый пункт навигации и каждый воркспейс перечислены дважды, с накоплением при каждом сохранении до жёсткой перезагрузки, причём симптом выглядит как баг в том, что вы прямо сейчас правите. В собранном приложении входной модуль не переисполняется, поэтому это никогда не было дефектом продукта — оно стоило времени разработки.</p>
+
+  <p>Сброс вынесен <b>отдельным проходом</b>, а не свёрнут в цикл регистрации: в один слот вкладываются несколько плагинов, и очистка «перед каждым вкладом» выбрасывала бы то, что зарегистрировал предыдущий плагин того же прогона.</p>
+
+  <h3>7.3 Что следует из «слот — это объект»</h3>
+  <p>Слот идентифицируется <b>ссылкой на объект</b>, а не строкой имени. Поле <code>name</code> у слота есть, но оно диагностическое. Отсюда три практических следствия:</p>
+  <ul>
+    <li><b>Промахнуться мимо слота нельзя.</b> Чтобы вложиться, надо импортировать сам слот, то есть иметь зависимость на пакет-владелец. Опечатка в имени слота невозможна как класс ошибок.</li>
+    <li><b>Порядок регистрации плагинов не влияет на попадание.</b> Слоты — синглтоны уровня модуля, и хост подключает <em>все</em> вклады до первого рендера. Плагин, зарегистрированный <em>раньше</em> того, кто определяет слот, всё равно попадает. Измерено на живом стенде: перенос <code>ContentPlugin</code> после <code>I18nPlugin</code> не меняет ничего, кроме порядка элементов внутри слота.</li>
+    <li><b>Слоты заморожены на момент загрузки.</b> Набор элементов после первого рендера не меняется — именно поэтому элемент слота может безопасно содержать хук, который место отрисовки вызывает в цикле.</li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Что на самом деле значит «коллизия слота»</span>
+    <p>Двух слотов с одним именем не бывает — это разные объекты и разные точки расширения. Столкнуться могут только <b>элементы внутри одного слота</b>, и правила разрешения принадлежат <em>потребителю</em>, а не хосту и не примитиву. Пример: секции дашборда Insights <b>сливаются по <code>id</code>, побеждает последний</b> — это сознательная возможность переименовать, переупорядочить или сменить иконку встроенной полосы, не форкая плагин. Отсюда и единственное место, где порядок в списке админских плагинов действительно решает: <code>InsightsPlugin()</code> стоит первым среди функций внутри воркспейса именно затем, чтобы тот, кто переопределяет полосу, шёл после него.</p>
+  </div>
+
+  <h3>7.4 Чего слот не умеет</h3>
+  <ul>
+    <li><b>Не умеет сортировать сам.</b> Порядок элементов — забота потребителя: типовое правило «сначала по полю <code>order</code>, при равенстве — по порядку регистрации» (сортировка стабильна, поэтому результат детерминирован).</li>
+    <li><b>Не умеет фильтровать по правам.</b> Проверку делает потребитель — например, Insights отсеивает виджеты по <code>permission</code> перед сборкой полос.</li>
+    <li><b>Не умеет сообщать о потерянном вкладе.</b> Это тоже на потребителе, и хорошая реализация об этом заботится: виджет, назвавший несуществующую секцию, попадает у Insights в замыкающую полосу-«всё остальное», потому что молча пропавшая карточка — худший из возможных отказов плагинной системы.</li>
+    <li><b>Не заменяет собой динамические области.</b> У сайдбара shell есть ещё и область, зависящая от маршрута (<code>useSidebarContent</code>), которую перехватывает оболочка воркспейса, — это переопределение времени выполнения рядом с загрузочными слотами, а не слот.</li>
+  </ul>
+</section>
+
+<section id="order">
+  <h2 class="sec"><span class="num">08</span>Порядок регистрации и коллизии</h2>
+
+  <p>Оба хоста получают <b>массив</b>, а не множество. Разобраться, что именно решает позиция в этом массиве, важнее, чем кажется: интуиция «раньше = важнее» здесь неверна почти везде, и это регулярный источник карго-культа в комментариях.</p>
+
+  <h3>8.1 Сервер: что решает порядок и что не решает</h3>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Аспект</th><th>Зависит от порядка?</th><th>Пояснение</th></tr></thead>
+    <tbody>
+      <tr><td>Внедрение зависимостей</td><td class="center no">нет</td><td>Модули плагинов глобальные, Nest собирает граф целиком. Измерено: <code>IdentityPlugin</code> выше <code>DatabasePlugin</code> — сервер поднимается и работает</td></tr>
+      <tr><td>Хуки <code>onPluginInit</code></td><td class="center yes">да</td><td>Выполняются строго по массиву. Сегодня хук ровно у одного плагина, поэтому эффект незаметен — и именно поэтому <code>database</code> держат первым: в момент появления второго ресурса ошибку ловить будет нечем</td></tr>
+      <tr><td><b>Миграции</b></td><td class="center yes">да</td><td>Единственное место, где неверный порядок ломает продукт. Транзакция не охватывает два плагина; внешние ключи между схемами плагинов ничем не объявлены</td></tr>
+      <tr><td>Схемы аутентификации в документе</td><td class="center yes">да</td><td>Совпадение имён — побеждает последний зарегистрировавший</td></tr>
+      <tr><td>Проходы <code>decorate</code></td><td class="center yes">да</td><td>Выполняются по порядку регистрации, документ общий, побеждает последний пишущий</td></tr>
+      <tr><td>Маршруты HTTP</td><td class="center no">нет</td><td>Маршрутизацией занимается Nest; дублирующийся путь у двух контроллеров — это конфликт внутри Nest, а не результат порядка в массиве хоста</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Реальный список <code>apps/server/src/plugins.ts</code> — 15 записей, и комментарии в нём формулируют каждую зависимость: <code>WorkspacesPlugin</code> после <code>IdentityPlugin</code> (внешний ключ <code>memberships → users</code>); <code>ContentViewsPlugin</code> после identity и workspaces (внешние ключи <code>saved_views</code>) и с передачей <code>content</code> по значению ради реестра; <code>MediaServerPlugin</code> после workspaces и identity (использует их guard&#39;ы); <code>TransferPlugin</code> после content и media; <code>AlarmsPlugin</code> и <code>SegmentsPlugin</code> после content; <code>McpPlugin</code> последним — но здесь порядок уже чистая читаемость, потому что инструменты регистрируются в <code>onModuleInit</code>, когда граф существует целиком.</p>
+
+  <div class="note crit">
+    <span class="label">Дублирующийся <code>migrations.table</code></span>
+    <p>Хост эту ситуацию не проверяет вообще. Два плагина с одной таблицей учёта склеят истории: второй увидит чужие записи и решит, что применять нечего. Тест <code>plugins.spec.ts</code> проверяет уникальность таблиц для сборки приложения — это единственная защита, и она находится в приложении, а не в хосте.</p>
+  </div>
+
+  <h3>8.2 Админка: две коллизии, о которых хост предупреждает</h3>
+
+  <p>Хост принципиально <b>не разрешает</b> коллизии, а объявляет их. Логика простая: выбрать за приложение он не может — у него нет информации, что имелось в виду; но и делать это молча он не обязан.</p>
+
+  <h4>Коллизия <code>layout</code></h4>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>[bootstrap-admin] 2 plugins contribute a layout; only the first is mounted.
+Using "custom-shell", ignoring "shell".
+Every non-public route renders inside the winner, so if it is not
+the app shell they are no longer gated.</code></pre></div>
+  <p>Проигравший определяется порядком регистрации — решением, которого никто не принимал. И проигрывает не чрома: layout от shell — это то, что собирает <code>RequireAuth</code>, поэтому вместе с ним уходят проверка входа, сайдбар, ссылка пропуска и ориентир <code>&lt;main&gt;</code>. <b>Все приватные маршруты рендерятся незащищёнными</b> — и выглядит это как сбой оформления, а не как дыра в доступе. Именно поэтому <code>apps/admin/src/plugins.spec.ts</code> отдельно фиксирует: вкладчик ровно один и это shell.</p>
+
+  <h4>Коллизия маршрута</h4>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>[bootstrap-admin] route "/media" is contributed by "media", "assets";
+only one of them will ever render.</code></pre></div>
+  <p>React Router сопоставляет по <b>рангу</b>, а не по порядку объявления, поэтому какой именно элемент отрисуется на дублированном пути — не специфицировано. React вдобавок логирует голое «two children with the same key», где назван путь, но не названы плагины за ним. Назвать их — разница между пятиминутной правкой и потерянным днём.</p>
+
+  <div class="note">
+    <span class="label">Что предупреждениями не покрыто</span>
+    <p>Хост сравнивает <code>path</code> <b>буквально</b>. Маршрут <code>/media</code> и маршрут <code>/media/*</code> — разные строки, коллизией не считаются и предупреждения не дадут, хотя пересекаются на практике. Дубликаты <code>name</code> у плагинов тоже не проверяются нигде, и именно они делают сами предупреждения бесполезными: сообщение «конфликтуют &quot;content&quot; и &quot;content&quot;» ничего не проясняет.</p>
+  </div>
+
+  <h3>8.3 Что решает порядок в админке</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Аспект</th><th>Зависит от порядка?</th><th>Пояснение</th></tr></thead>
+    <tbody>
+      <tr><td>Выбор <code>layout</code></td><td class="center yes">да</td><td>Берётся первый найденный — и это единственная позиционная зависимость с последствиями для безопасности</td></tr>
+      <tr><td>Попадание вклада в слот</td><td class="center no">нет</td><td>Слоты — синглтоны модулей, всё подключается до первого рендера</td></tr>
+      <tr><td>Порядок элементов внутри слота</td><td class="center yes">да</td><td>Как вторичный ключ после <code>order</code>: сортировка стабильна</td></tr>
+      <tr><td>Слияние по id (секции Insights)</td><td class="center yes">да</td><td>Побеждает последний писатель — поэтому Insights стоит первым среди функций внутри воркспейса</td></tr>
+      <tr><td>Разделение public / private</td><td class="center no">нет</td><td>Делится по флагу, а не по индексу: приватный маршрут плагина, зарегистрированного <em>до</em> shell, всё равно окажется под layout&#39;ом shell</td></tr>
+      <tr><td>Победитель коллизии маршрута</td><td class="center no">нет</td><td>Решает ранжирование React Router, а не позиция в массиве</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Порядок в <code>apps/admin/src/plugins.ts</code>: identity первым (единственный вкладчик публичных маршрутов), shell вторым (единственный вкладчик <code>layout</code>, и держать его вторым — это то, что делает случайное появление конкурента невозможным), workspaces, Insights (ради слияния секций), затем content и его наполнители слотов (i18n, wysiwyg, media, transfer, alarms, copilot, segments), затем глобальные страницы — users, activity, api-tokens. Всё, что после Insights, — намерение и читаемость, а не требование.</p>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">09</span>Конфигурация и окружение</h2>
+
+  <p>Оба хоста <b>не читают <code>process.env</code> ни разу</b> — за одним исключением, о котором ниже. Типизированную конфигурацию собирает приложение: <code>apps/server/ortha.config.ts</code> — единственное место, которое обращается к окружению, и оно передаёт <code>createServer</code> готовые значения.</p>
+
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// apps/server/src/main.ts
+createServer({
+    plugins: buildPlugins(config),
+    port: config.port,
+    globalPrefix: config.globalPrefix,
+    trustProxy: config.trustProxy,
+    bodyLimit: config.bodyLimit,
+    docs: config.docs
+}).catch((error: unknown) =&gt; {
+    // Хост владеет кодом выхода; пакет владеет тем, как назван отказ.
+    Logger.error('The server failed to start.', /* … */);
+    process.exit(1);
+});</code></pre></div>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Переменная</th><th>Читает</th><th>Во что превращается</th><th>Умолчание</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">PORT</td><td>ortha.config.ts</td><td><code>createServer.port</code></td><td>3000</td></tr>
+      <tr><td class="mono">TRUST_PROXY</td><td>ortha.config.ts</td><td><code>trustProxy</code>: число хопов → boolean → строка-пресет, в этом порядке проверки</td><td>не задана — заголовки прокси игнорируются</td></tr>
+      <tr><td class="mono">MAX_REQUEST_BODY</td><td>ortha.config.ts</td><td><code>bodyLimit</code></td><td><code>'1mb'</code></td></tr>
+      <tr><td class="mono">API_DOCS</td><td>ortha.config.ts</td><td><code>docs.enabled</code></td><td><code>NODE_ENV !== 'production'</code></td></tr>
+      <tr><td class="mono">NODE_ENV</td><td><b>сам хост</b>, в <code>setupApiDocs</code></td><td>умолчание для <code>docs.enabled</code>, если параметр не передан</td><td>—</td></tr>
+      <tr><td class="mono">DATABASE_URL</td><td>ortha.config.ts</td><td>конфигурация плагина <code>database</code>, не хоста</td><td>обязательна</td></tr>
+      <tr><td class="mono">ADMIN_PORT</td><td>ortha.config.ts</td><td>происхождение дев-админки для настроек плагинов; хоста не касается</td><td>4200</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Единственное чтение окружения внутри хоста</span>
+    <p>В <code>setupApiDocs</code> умолчание <code>enabled</code> вычисляется как <code>process.env['NODE_ENV'] !== 'production'</code>. Приложение передаёт <code>docs.enabled</code> явно, поэтому на практике эта ветка не используется, но она есть — и это <b>отказ в открытую, буквально</b>: сравнение строковое и точное, поэтому <code>NODE_ENV=Production</code> и <code>NODE_ENV=prod</code> публикуют справочник ровно так же, как незаданный <code>NODE_ENV</code>. Та же самая незаданная переменная оставляет сессионную cookie без <code>Secure</code> и включает песочницу GraphiQL — считайте «равен ли <code>NODE_ENV</code> в точности <code>production</code>» <b>одной</b> проверкой развёртывания, а не тремя.</p>
+  </div>
+
+  <p>Разбор <code>API_DOCS</code> тоже строгий: <code>API_DOCS === 'true'</code>. Значения <code>1</code> и <code>TRUE</code> справочник <b>не</b> публикуют. Оба маршрута — UI и JSON — едут на одном флаге, поэтому <code>/reference/json</code> недостижим ровно тогда, когда недостижим <code>/reference</code>.</p>
+
+  <h3>9.1 Конфигурация админского хоста</h3>
+  <p>Её почти нет — три поля, из которых значение по-настоящему имеет одно.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Опция</th><th>Умолчание</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">plugins</td><td>—</td><td>Вся композиция приложения</td></tr>
+      <tr><td class="mono">rootElement</td><td><code>'root'</code></td><td>id элемента для монтирования; отсутствие — исключение с понятным текстом, а не пустая страница</td></tr>
+      <tr><td class="mono">locale</td><td><code>'en'</code></td><td><code>&lt;html lang&gt;</code>, <code>&lt;html dir&gt;</code> и форматирование <code>Intl</code>. Перевода пока не даёт (см. 4.3)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Направление письма определяется по <code>Intl.Locale</code>, а при отсутствии этого API у браузера — по короткому списку из двенадцати языков с письмом справа налево (<code>ar</code>, <code>arc</code>, <code>ckb</code>, <code>dv</code>, <code>fa</code>, <code>he</code>, <code>ks</code>, <code>ps</code>, <code>sd</code>, <code>ug</code>, <code>ur</code>, <code>yi</code>). Список намеренно короткий: <b>неверный <code>dir</code> хуже отсутствующего</b>, и всё, чего в нём нет, получает тот самый <code>ltr</code>, который был раньше. Неразбираемый тег — это ошибка вызывающего, о ней сообщит <code>IntlProvider</code>, а не эта функция.</p>
+
+  <div class="note">
+    <span class="label">Это локаль интерфейса, а не контента</span>
+    <p>Арабская запись внутри немецкой админки — это два направления на одной странице. Их разрешает <code>dir</code>, который редактор записи расставляет по каждому полю; документ же объявляет, куда идёт <b>чрома</b>.</p>
+  </div>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">10</span>Безопасность и сквозная обвязка</h2>
+
+  <p>У хоста нет ни одного guard&#39;а, ни одной проверки удостоверений и ни одной строки про права. Тем не менее почти всё, что защищает приложение, проходит через него — в виде правил, применённых один раз ко всем.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Строгая валидация по умолчанию</h4>
+      <p class="small sub"><code>whitelist</code> + <code>forbidNonWhitelisted</code> + <code>transform</code>. Незадекларированное поле не просто игнорируется — оно даёт <code>400</code> раньше контроллера. Это то, что делает невозможным целый класс атак «протащить лишний ключ в тело»: попытка передать чужой <code>email</code> в теле принятия приглашения отвергается хостом, а не плагином.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Одно происхождение для UI и API</h4>
+      <p class="small sub"><code>staticDir</code> существует ради того, чтобы cookie <code>SameSite=lax</code> вообще отправлялась. Разделение половин потребовало бы CORS и <code>SameSite=none</code> — то есть ослабления защиты от CSRF в обмен на удобство раскладки.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Правильный <code>req.ip</code></h4>
+      <p class="small sub">Плагин, ограничивающий частоту или пишущий адрес в аудит, ровно настолько корректен, насколько корректна настройка <code>trust proxy</code>. Ошибка здесь не даёт ошибки нигде — она тихо превращает лимит входа в одну общую корзину либо, наоборот, в подделываемую заголовком.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Ограниченный аппетит парсера</h4>
+      <p class="small sub">Потолок тела — граница того, сколько памяти неаутентифицированный вызывающий может заставить выделить, ещё до любой проверки прав. 1 МБ выбран как компромисс между реальной длинной статьёй и этой границей.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Справочник выключен в проде по умолчанию</h4>
+      <p class="small sub">API внутренней CMS не обязан публиковать свою поверхность. Умолчание — «включено вне продакшена», переключатель один на оба маршрута, и он же — общий с cookie <code>Secure</code> и GraphiQL признак «настоящий ли это продакшен».</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Аккуратное завершение</h4>
+      <p class="small sub">Без хуков завершения любое выкатывание версии рвёт по одному запросу на соединение на реплику. Измерено: шесть одновременных входов — шесть сброшенных соединений до, ноль после.</p>
+    </div>
+  </div>
+
+  <h3>10.1 Отказ, который называет виновника</h3>
+  <p>Три разных аварии — бросок в <code>onPluginInit</code>, невалидный <code>TRUST_PROXY</code>, занятый порт — раньше выглядели одинаково: голый дамп необработанного отклонения без единой строки о том, что сервер не стартовал. Сейчас каждая логируется через <code>Logger.error</code> с указанием плагина или порта, а <code>main.ts</code> ловит отклонение, логирует его и выходит с кодом 1. Разделение обязанностей здесь буквальное: <b>пакет владеет тем, как назван отказ; приложение владеет кодом выхода</b>.</p>
+
+  <h3>10.2 Изоляция отказа документации</h3>
+  <p>Проход <code>decorate</code> обёрнут по каждому плагину отдельно, и обоснование ровно одно: справочник — это инструмент разработчика. Плагин, упавший при описании себя, обязан стоить своего вклада в документ и записи в логе, а не всего API. До этой защиты один плохой <code>decorate</code> прерывал сам <code>createServer</code>, и сервер не начинал слушать.</p>
+
+  <h3>10.3 Чего хост не защищает — и это надо знать</h3>
+  <ul>
+    <li><b>Гейта авторизации нет.</b> Приватный маршрут без защищающего <code>layout</code> открыт. Гарантию даёт приложение, а не платформа.</li>
+    <li><b>Уникальности имён плагинов нет.</b> Ни на сервере, ни в админке.</li>
+    <li><b>Уникальности таблиц миграций нет.</b> Проверяется тестом приложения.</li>
+    <li><b>Проверки, что <code>layout</code> действительно защищает, нет.</b> Хост видит непрозрачный <code>ReactNode</code> и не может знать, что внутри.</li>
+    <li><b>Санитизации вкладов в OpenAPI-документ нет.</b> <code>decorate</code> может переписать что угодно, включая чужое.</li>
+    <li><b>Дренажа пула соединений при завершении нет.</b> Хост включает хуки, но <code>@orthacms/database</code> не привязывает <code>onModuleDestroy</code>: пул не закрывается на выключении. Для процесса, который всё равно завершается, это безвредно, и это же — причина, по которой встраивающий хост, продолжающий жить, обязан вызвать <code>closeDatabase()</code> сам.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Хосты не содержат предметной логики: ни guard&#39;ов, ни таблиц, ни маршрутов API, ни экранов. Добавление возможности никогда не требует правки файлов <code>packages/bootstrap</code>.</span></li>
+    <li><span class="id">И-02</span><span>Все <code>onPluginInit</code> выполняются <b>до</b> <code>NestFactory.create</code>, строго по порядку массива, с ожиданием каждого.</span></li>
+    <li><span class="id">И-03</span><span>Бросок в <code>onPluginInit</code> прерывает старт, логируется с <b>именем плагина</b> и пробрасывается вызывающему.</span></li>
+    <li><span class="id">И-04</span><span><code>trust proxy</code> применяется <b>раньше</b> всего, что читает <code>req.ip</code>, и только если значение задано.</span></li>
+    <li><span class="id">И-05</span><span>Потолок тела задан явно и никогда не наследуется от <code>express.json()</code>; превышение — <code>413</code> от парсера, до контроллеров и guard&#39;ов.</span></li>
+    <li><span class="id">И-06</span><span>Глобальный <code>ValidationPipe</code> всегда несёт все три флага: <code>whitelist</code>, <code>forbidNonWhitelisted</code>, <code>transform</code>.</span></li>
+    <li><span class="id">И-07</span><span>Документация API генерируется <b>после</b> установки префикса и pipe и <b>до</b> <code>listen</code>.</span></li>
+    <li><span class="id">И-08</span><span>Маршруты справочника регистрируются на HTTP-адаптере, а не в роутере Nest: они вне глобального префикса, вне guard&#39;ов и вне <code>ValidationPipe</code>.</span></li>
+    <li><span class="id">И-09</span><span>JSON-маршрут регистрируется <b>раньше</b> UI, поэтому выигрывает коллизию, когда лежит под ним.</span></li>
+    <li><span class="id">И-10</span><span>Оба маршрута документации управляются одним флагом: JSON недостижим ровно тогда, когда недостижим UI. Выключено — <code>setupApiDocs</code> возвращает <code>null</code> и не монтирует ничего.</span></li>
+    <li><span class="id">И-11</span><span>Бросок в <code>decorate</code> одного плагина не мешает старту и не отменяет вкладов остальных.</span></li>
+    <li><span class="id">И-12</span><span>Теги операций ставятся только на восемь ключей-методов HTTP; ничто не пишет <code>tags</code> в <code>parameters</code> или <code>$ref</code> path-item&#39;а.</span></li>
+    <li><span class="id">И-13</span><span>SPA-заглушка никогда не отвечает на путь под API-префиксом, под <code>/reference</code>, на не-GET/HEAD, на путь с расширением файла и на запрос, не принимающий HTML.</span></li>
+    <li><span class="id">И-14</span><span>Отсутствующий бандл админки — предупреждение, а не отказ старта: API поднимается без UI.</span></li>
+    <li><span class="id">И-15</span><span>Отдача статики монтируется <b>последней</b>, после всех контроллеров и обоих маршрутов справочника.</span></li>
+    <li><span class="id">И-16</span><span><code>enableShutdownHooks</code> вызывается до <code>listen</code>; SIGTERM даёт слив запросов, а не разрыв соединений.</span></li>
+    <li><span class="id">И-17</span><span><code>createServer</code> <b>возвращает</b> слушающее приложение — иначе встраивающий хост и тест не могут его закрыть.</span></li>
+    <li><span class="id">И-18</span><span><code>migrations.dir</code> — это функция, вычисляемая только во время миграции и никогда при загрузке.</span></li>
+    <li><span class="id">И-19</span><span>У каждого плагина, везущего миграции, своя таблица учёта; истории плагинов не пересекаются.</span></li>
+    <li><span class="id">И-20</span><span>Миграции применяются в порядке массива плагинов, без транзакции, охватывающей два плагина; отказ называет плагин и число уже закоммиченных.</span></li>
+    <li><span class="id">И-21</span><span>Схемы аутентификации приходят <b>только</b> из <code>ServerPlugin.docs</code>; хост не изобретает ни одной.</span></li>
+    <li><span class="id">И-22</span><span>Все вклады в слоты подключаются <b>до первого рендера</b>, одним вызовом, <b>от пустого состояния</b> — повторный прогон не удваивает элементы.</span></li>
+    <li><span class="id">И-23</span><span><code>Slot.getItems()</code> возвращает копию: изменения одного потребителя не видны другому.</span></li>
+    <li><span class="id">И-24</span><span>Хост не определяет и не читает ни одного слота.</span></li>
+    <li><span class="id">И-25</span><span>Публичные маршруты монтируются соседями верхнего уровня, приватные — детьми ровно одного безпутевого родителя с первым найденным <code>layout</code>.</span></li>
+    <li><span class="id">И-26</span><span>Джокер <code>*</code> → <code>/</code> живёт <b>внутри</b> приватной группы, а не рядом с ней.</span></li>
+    <li><span class="id">И-27</span><span>Второй вкладчик <code>layout</code> и дублирующийся <code>path</code> дают <code>console.warn</code> с именами участвующих плагинов; хост не выбирает победителя молча.</span></li>
+    <li><span class="id">И-28</span><span>Отсутствующий элемент монтирования — исключение с указанием искомого id, а не приведение типа и отказ внутри React.</span></li>
+    <li><span class="id">И-29</span><span><code>&lt;html lang&gt;</code> и <code>&lt;html dir&gt;</code> выставляются <b>до</b> рендера.</span></li>
+    <li><span class="id">И-30</span><span>Граница ошибок лежит <b>выше</b> <code>BrowserRouter</code> (ловит бросок роутера) и <b>ниже</b> <code>Toaster</code> в смысле охвата — тосты переживают падение дерева.</span></li>
+    <li><span class="id">И-31</span><span>Живая область озвучивания смонтирована и пуста <b>до</b> первой навигации; первая загрузка страницы не озвучивается.</span></li>
+    <li><span class="id">И-32</span><span>Озвучивается только <b>изменившийся</b> заголовок; при отсутствии изменения за 5 секунд озвучивание не происходит вовсе.</span></li>
+    <li><span class="id">И-33</span><span>Озвучиватель <b>не переносит фокус</b> — это решение прибывающей страницы.</span></li>
+    <li><span class="id">И-34</span><span>Отсутствующий перевод сообщается не более одного раза на идентификатор и на уровне <code>warn</code>; при совпадении локали с умолчательной — не сообщается вовсе.</span></li>
+    <li><span class="id">И-35</span><span>Хост-админка не импортирует ни одного пакета авторизации: <code>identity-admin</code> отсутствует в её зависимостях.</span></li>
+    <li><span class="id">И-36</span><span>Серверный хост не зависит от <code>express</code> напрямую; типы запроса и ответа объявлены структурно.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. У самих пакетов <b>нет собственной цели <code>test</code></b>: хост осмыслен только с приложением вокруг, поэтому покрытие живёт в <code>apps/server-e2e/src/harness/create-server.spec.ts</code> (25 проверок, единственный файл, способный упасть на дефекте хоста), <code>apps/server-e2e/src/harness/production-parity.spec.ts</code>, <code>apps/server-e2e/src/server/auth/login-throttle-proxy.spec.ts</code>, <code>apps/admin-e2e/src/host/*</code> и модульных <code>plugins.spec.ts</code> обоих приложений.</p>
+
+  <h3>Потолок тела запроса</h3>
+  <ul class="check">
+    <li><b>POST на <code>/api/auth/login</code> телом 300 кБ</b> → <span class="exp">401 от проверки учётных данных, а не 413: запрос дошёл до контроллера. Это и есть смысл проверки.</span></li>
+    <li><b>Тот же запрос при <code>bodyLimit: '20kb'</code>, тело 30 кБ</b> → <span class="exp">413 от парсера.</span></li>
+    <li><b>Тело под настроенным потолком</b> → <span class="exp">запрос обрабатывается штатно.</span></li>
+    <li><b>Загрузка файла заметно больше <code>bodyLimit</code></b> → <span class="exp">проходит: multipart сюда не попадает и ограничен <code>MEDIA_MAX_UPLOAD_BYTES</code>.</span></li>
+  </ul>
+
+  <h3>Отказ при старте</h3>
+  <ul class="check">
+    <li><b>Плагин, чей <code>onPluginInit</code> бросает</b> → <span class="exp"><code>createServer</code> отклоняется, в логе <code>Logger.error</code> с именем этого плагина, процесс завершается кодом 1.</span></li>
+    <li><b><code>TRUST_PROXY</code> с неразбираемым значением</b> → <span class="exp">загрузка падает громко на <code>app.set</code>, а не тихо деградирует.</span></li>
+    <li><b>Порт уже занят</b> → <span class="exp">лог с указанием порта, затем то же завершение кодом 1.</span></li>
+    <li><b>Плагин, чей <code>decorate</code> бросает</b> → <span class="exp">ошибка залогирована с его именем, сервер поднялся, API отвечает, справочник обслуживается — без вклада этого плагина.</span></li>
+  </ul>
+
+  <h3>Доверие прокси</h3>
+  <ul class="check">
+    <li><b>Незаданный <code>TRUST_PROXY</code> + подделанный <code>X-Forwarded-For</code></b> → <span class="exp"><code>req.ip</code> — адрес пира; заголовок проигнорирован.</span></li>
+    <li><b><code>TRUST_PROXY=1</code>, цепочка из трёх адресов</b> → <span class="exp"><code>req.ip</code> — <b>третий</b> (один хоп справа).</span></li>
+    <li><b><code>TRUST_PROXY=true</code>, та же цепочка</b> → <span class="exp"><code>req.ip</code> — <b>первый</b>: полностью под контролем клиента.</span></li>
+    <li><b>Два разных пересланных клиента бьются в лимит входа</b> → <span class="exp">у каждого своя корзина; в строке сессии оказывается пересланный адрес, а не адрес прокси.</span></li>
+    <li><b>Подсеть, в которую пир не входит</b> → <span class="exp">адрес пира, без единого предупреждения — та самая тихая деградация, которую надо ловить глазами.</span></li>
+  </ul>
+
+  <h3>Документация API</h3>
+  <ul class="check">
+    <li><b><code>docs.enabled: false</code></b> → <span class="exp"><code>setupApiDocs</code> вернул <code>null</code>; <code>/reference</code> и <code>/reference/json</code> оба дают 404.</span></li>
+    <li><b>Умолчание при <code>NODE_ENV=production</code></b> → <span class="exp">оба маршрута недоступны.</span></li>
+    <li><b><code>NODE_ENV=Production</code> (с заглавной)</b> → <span class="exp">справочник <b>публикуется</b> — сравнение строгое; это ожидаемое поведение и повод для проверки развёртывания.</span></li>
+    <li><b><code>API_DOCS=true</code> при <code>NODE_ENV=production</code></b> → <span class="exp">оба маршрута доступны.</span></li>
+    <li><b><code>API_DOCS=1</code></b> → <span class="exp">справочник <b>не</b> публикуется.</span></li>
+    <li><b>Пути заданы без ведущей косой черты</b> → <span class="exp">оба нормализованы и обслуживаются.</span></li>
+    <li><b>JSON-путь лежит под UI-путём (умолчание)</b> → <span class="exp"><code>GET /reference/json</code> отдаёт документ, а не HTML: JSON зарегистрирован первым.</span></li>
+    <li><b>Открыть <code>/reference/json</code> без входа</b> → <span class="exp">документ отдаётся: маршрут вне guard&#39;ов, что и есть смысл флага.</span></li>
+    <li><b>Проверить теги в документе</b> → <span class="exp">операции сгруппированы по первому сегменту после префикса (<code>content</code>, <code>auth</code>, <code>media</code>), а не по именам классов контроллеров.</span></li>
+    <li><b>Найти в документе схему типа контента, определённого кодом</b> → <span class="exp">присутствует — её добавил <code>decorate</code> контент-плагина, а не сканер.</span></li>
+    <li><b>Панель авторизации справочника</b> → <span class="exp">предлагает и <code>session</code>, и <code>apiToken</code> как альтернативы.</span></li>
+  </ul>
+
+  <h3>Отдача бандла админки</h3>
+  <ul class="check">
+    <li><b>Настоящий файл из бандла</b> → <span class="exp">отдаётся как есть.</span></li>
+    <li><b>Глубокая ссылка вида <code>/workspaces/1/entries/2</code></b> → <span class="exp"><code>index.html</code>, роутер подхватывает на жёсткой перезагрузке.</span></li>
+    <li><b>Несуществующий путь под <code>/api</code></b> → <span class="exp">JSON-404, а не страница.</span></li>
+    <li><b>POST на путь, который заглушка иначе бы взяла</b> → <span class="exp">не перехвачен: только GET и HEAD.</span></li>
+    <li><b><code>GET /assets/deleted-chunk.js</code></b> → <span class="exp">404, а не 200 со страницей — иначе плохой деплой читается как ошибка MIME-типа.</span></li>
+    <li><b>Тот же запрос с <code>Accept: text/html</code></b> → <span class="exp">по-прежнему 404: решает расширение, а не заголовок.</span></li>
+    <li><b>Клиент с <code>Accept: application/json</code> на клиентском маршруте</b> → <span class="exp">404, который он может разобрать.</span></li>
+    <li><b><code>staticDir</code> указывает в пустую папку</b> → <span class="exp">предупреждение в лог, API работает.</span></li>
+    <li><b><code>staticDir</code> не задан</b> → <span class="exp">ничего лишнего не обслуживается.</span></li>
+  </ul>
+
+  <h3>Завершение работы</h3>
+  <ul class="check">
+    <li><b>Проверить слушателей сигналов после старта</b> → <span class="exp">обработчики установлены.</span></li>
+    <li><b>Шесть одновременных входов + SIGTERM</b> → <span class="exp">все шесть завершаются ответом, ни одного сброшенного соединения (проверялось вручную на собранном бандле: жёсткий тест невозможен — jest-воркер не может послать сигнал сам себе, не завершив прогон).</span></li>
+  </ul>
+
+  <h3>Состав приложения</h3>
+  <ul class="check">
+    <li><b>Сравнить <code>buildPlugins()</code> сервера с ожидаемым набором</b> → <span class="exp">15 плагинов, тот же набор.</span></li>
+    <li><b>Проверить порядок плагинов с миграциями</b> → <span class="exp">внешние ключи разрешаются на чистой базе.</span></li>
+    <li><b>Проверить таблицы учёта</b> → <span class="exp">у каждого плагина своя, дубликатов нет.</span></li>
+    <li><b>Сравнить <code>buildPlugins()</code> админки с ожидаемым набором</b> → <span class="exp">15 плагинов, тот же порядок.</span></li>
+    <li><b>Посчитать вкладчиков <code>layout</code></b> → <span class="exp">ровно один, и это <code>shell</code>.</span></li>
+    <li><b>Позиция shell</b> → <span class="exp">раньше любого плагина, вкладывающего приватный маршрут.</span></li>
+    <li><b>Мигрировать чистую базу, переставив workspaces выше identity</b> → <span class="exp">отказ с <code>relation "users" does not exist</code>, в сообщении названы плагин и число уже применённых.</span></li>
+    <li><b>То же на уже мигрированной базе</b> → <span class="exp">проходит без замечаний — ровно поэтому ошибка попадает в релиз.</span></li>
+  </ul>
+
+  <h3>Хост админки в браузере</h3>
+  <ul class="check">
+    <li><b>Приватный маршрут, чей чанк не загружается</b> → <span class="exp">карточка с заголовком и кнопкой перезагрузки вместо пустого приложения.</span></li>
+    <li><b>Проверить фокус после падения</b> → <span class="exp">фокус на заголовке карточки, заголовок вне порядка обхода (<code>tabIndex={-1}</code>).</span></li>
+    <li><b>Вызвать тост на сломанной странице</b> → <span class="exp">тост виден: <code>Toaster</code> снаружи границы ошибок.</span></li>
+    <li><b>Загрузить приложение и не переходить никуда</b> → <span class="exp">живая область смонтирована и <b>пуста</b>; первая загрузка не озвучена.</span></li>
+    <li><b>Перейти на другую страницу</b> → <span class="exp">озвучено имя новой страницы, а не покинутой.</span></li>
+    <li><b>Сделать вторую навигацию подряд</b> → <span class="exp">озвучена новая, не предыдущая.</span></li>
+    <li><b>Вернуться A → B → A</b> → <span class="exp">A озвучена снова (область очищается перед записью, иначе неизменившийся текст не читается).</span></li>
+    <li><b>Измерить размер живой области</b> → <span class="exp">не занимает места на экране.</span></li>
+    <li><b>Первый Tab на странице</b> → <span class="exp">видимая ссылка пропуска; активация переносит фокус внутрь <code>main</code>, минуя сайдбар (это вклад shell, но проверяется здесь же).</span></li>
+    <li><b>Указать несуществующий <code>rootElement</code></b> → <span class="exp">исключение с искомым id в тексте.</span></li>
+    <li><b>Зарегистрировать второй плагин с <code>layout</code></b> → <span class="exp">предупреждение в консоли с именами победителя и проигравших.</span></li>
+    <li><b>Зарегистрировать два плагина с одним <code>path</code></b> → <span class="exp">предупреждение с обоими именами.</span></li>
+    <li><b>Сохранить файл при работающем дев-сервере (горячая замена)</b> → <span class="exp">пункты навигации и воркспейсы <b>не</b> дублируются.</span></li>
+    <li><b>Запустить с <code>locale: 'de'</code></b> → <span class="exp"><code>&lt;html lang="de"&gt;</code>, форматирование дат немецкое, строки английские, в консоли не более одного предупреждения на идентификатор.</span></li>
+    <li><b>Запустить с <code>locale: 'ar'</code></b> → <span class="exp"><code>&lt;html dir="rtl"&gt;</code>.</span></li>
+    <li><b>Запустить с умолчательной локалью</b> → <span class="exp">о недостающих переводах не сообщается вовсе.</span></li>
+    <li><b>Открыть путь, которого нет</b> → <span class="exp">перенаправление на <code>/</code> — джокер внутри приватной группы.</span></li>
+  </ul>
+
+  <div class="note warn">
+    <span class="label">Две вещи покрыты намеренно слабо</span>
+    <p>Защита <code>tagByResource</code> от ключей, не являющихся операциями, <b>не имеет достижимого воспроизведения</b>: <code>@nestjs/swagger</code> не порождает path-уровневых <code>parameters</code>, а <code>decorate</code> выполняется <em>после</em> расстановки тегов, поэтому подставить такой ключ нечем. И эффект SIGTERM на запросы в полёте утверждается только как «слушатели установлены» — сам слив измерялся вручную.</p>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Почему <code>create-server.spec.ts</code> — особенный файл</span>
+    <p>Все остальные наборы серверных e2e идут через <code>createTestApp</code>, который <b>повторяет</b> бутстрап, но останавливается на <code>app.init()</code>. Именно это повторение делает дефекты хоста невидимыми: они по природе «развёрточные» — потолок тела, унаследованный из зависимости; отказ при старте, не называющий плагин; SIGTERM, роняющий запросы, — и гарнитура, переписавшая бутстрап, не может упасть ни на одном из них. Поэтому этот файл вызывает настоящий <code>createServer</code>, слушает эфемерный порт и закрывает приложение — и это единственная причина, по которой <code>createServer</code> вообще что-то возвращает.</p>
+  </div>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает хост</th></tr></thead>
+    <tbody>
+      <tr><td>Аутентификация и права</td><td><code>identity-server</code> / <code>identity-admin</code></td><td>Ничего. Guard&#39;ов нет; серверный хост даже схемы аутентификации для документа берёт из вклада плагина</td></tr>
+      <tr><td>Гейт приватных маршрутов админки</td><td><code>shell-admin</code> (собирает <code>AuthProvider</code> + <code>RequireAuth</code>)</td><td>Монтирует первый найденный <code>layout</code> как единственного родителя, не зная, что внутри</td></tr>
+      <tr><td>Соединение с БД</td><td><code>@orthacms/database</code></td><td>Вызывает <code>onPluginInit</code> по порядку — этого достаточно, чтобы пул открылся до сборки графа</td></tr>
+      <tr><td>Применение миграций</td><td><code>@orthacms/cli</code> и <code>@orthacms/nx</code></td><td>Переносит дескриптор <code>migrations</code> из плагина в инструментарий; сам ничего не применяет</td></tr>
+      <tr><td>Схема БД</td><td>каждый плагин свою</td><td>Ноль таблиц. Даже сгенерированные таблицы коллекций контента принадлежат <em>приложению</em>, а не хосту и не пакету</td></tr>
+      <tr><td>HTTP-клиент и клиент запросов</td><td><code>@orthacms/utils-admin</code></td><td>Импортирует <code>queryClient</code>, чтобы смонтировать провайдер; <code>apiClient</code> не трогает вовсе — плагины ходят туда напрямую</td></tr>
+      <tr><td>Примитив слота</td><td><code>@orthacms/utils-admin</code></td><td>Вызывает <code>wireSlotContributions</code>; ни одного слота не определяет и не читает</td></tr>
+      <tr><td>Конкретные слоты и пункты навигации</td><td><code>shell</code>, <code>content</code>, <code>workspaces</code>, <code>insights</code>, <code>copilot</code>, <code>wysiwyg</code></td><td>Не знает, что у приложения есть сайдбар</td></tr>
+      <tr><td>Строки интерфейса</td><td>каждый плагин свои, рядом с компонентом</td><td>Даёт единственный <code>IntlProvider</code> и обработчик отсутствующих переводов; собственных строк почти нет (карточка падения, диалог несохранённых изменений, подпись «Закрыть»)</td></tr>
+      <tr><td>Заголовок документа</td><td>страницы, через <code>documentTitle</code></td><td>Не трогает <code>document.title</code>; трогает только <code>lang</code> и <code>dir</code></td></tr>
+      <tr><td>Место фокуса после навигации</td><td>прибывающая страница</td><td>Только озвучивает смену вида, фокус не переносит</td></tr>
+      <tr><td>Угол вывода тостов</td><td><code>design-system</code>, внутри <code>Toaster</code></td><td>Монтирует <code>Toaster</code> без параметра <code>position</code> — раньше передавал, и эти двое расходились</td></tr>
+      <tr><td>Пер-операционная документация (описания, схемы ответов)</td><td>контроллеры плагинов</td><td>Генерирует документ, но <code>@ApiOperation</code>/<code>@ApiResponse</code> — не его дело</td></tr>
+      <tr><td>Код выхода процесса</td><td><code>apps/server/src/main.ts</code></td><td>Называет отказ и пробрасывает его; выход — за приложением</td></tr>
+      <tr><td>Закрытие пула при завершении</td><td>никто (не реализовано)</td><td>Включает хуки завершения; <code>database</code> к ним не привязывается — встраивающий хост зовёт <code>closeDatabase()</code> сам</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Реестра плагинов и discovery.</b> Список — массив в коде приложения. Плагин нельзя ни «найти по имени», ни подгрузить динамически.</li>
+    <li><b>Объявления зависимостей между плагинами.</b> Порядок миграций сегодня — комментарий и тест, а не декларация; ORT-131 отслеживает превращение этого в проверяемое утверждение.</li>
+    <li><b>Проверки уникальности имён</b> — ни на сервере, ни в админке.</li>
+    <li><b>Аналога <code>onPluginInit</code> в админке.</b> Единственная до-рендерная фаза — подключение слотов; всё остальное — обычные эффекты React.</li>
+    <li><b>Каталогов перевода.</b> Есть механизм, есть обработчик отсутствия, нет самих каталогов (ORT-141).</li>
+    <li><b>Собственной цели <code>test</code> у обоих пакетов.</b> Хост осмыслен только с приложением вокруг, поэтому его покрытие — это e2e-наборы.</li>
+    <li><b>Возможности выключить плагин без правки списка.</b> Флагов «включён/выключен» на уровне хоста нет; плагин, который умеет выключаться (<code>mcp</code>, <code>copilot</code>), делает это своей конфигурацией сам.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика — а в случае с контрактом плагина расхождение прямо скрывает существующую возможность.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">ARCHITECTURE.md, §2</td>
+        <td>Контракт <code>ServerPlugin</code> приведён как четыре поля: <code>name</code>, <code>module</code>, <code>onPluginInit?</code>, <code>migrations?</code></td>
+        <td>Полей <b>пять</b>: отсутствует <code>docs?: PluginApiDocs</code> — единственный способ описать аутентификацию и единственный способ для плагина с контрактом времени выполнения (контент) попасть в справочник. Читатель этого раздела не узнает, что механизм существует</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/bootstrap/server/AGENTS.md, «Key exports»</td>
+        <td>«<code>ServerPlugin</code> — the plugin contract: <code>{ name, module, onPluginInit? }</code>»</td>
+        <td>То же самое, только хуже: пропущены сразу <b>два</b> поля — <code>migrations</code> и <code>docs</code>, — при том что тот же документ подробно описывает оба ниже по тексту. Документ противоречит сам себе</td>
+      </tr>
+      <tr>
+        <td class="mono">ARCHITECTURE.md, §4</td>
+        <td>«<code>packages/database</code> … It owns <b>no schemas and no migrations</b>»</td>
+        <td>Владеет одной таблицей — транзакционным outbox&#39;ом <code>outbox_events</code> — и везёт собственные миграции под <code>__drizzle_migrations_database</code>. Это санкционированное исключение, и корневой <code>AGENTS.md</code> описывает его верно</td>
+      </tr>
+      <tr>
+        <td class="mono">docs/adr/0002-plugin-based-architecture.md</td>
+        <td>«the shared <code>@orthacms/database</code> plugin owns the single connection <b>but no schema</b>»</td>
+        <td>То же расхождение, что и выше. ADR помечен как «Accepted» и с тех пор не обновлялся</td>
+      </tr>
+      <tr>
+        <td class="mono">ARCHITECTURE.md, §6</td>
+        <td>«The Content Library defines <b>five</b> of its own (records toolbar/columns/filter-fields, entry sidebar/params)»</td>
+        <td>Слотов у <code>content/admin</code> сегодня <b>14</b>: к перечисленным добавились меню и массовые действия списка, вкладки, меню и шапка записи, оверлеи, предсохранение, доп. блок ревизии и контрол поля. Общее число слотов в системе — 26</td>
+      </tr>
+      <tr>
+        <td class="mono">ARCHITECTURE.md, §7 и §8</td>
+        <td>«Sessions: … <b>signed</b> token in an httpOnly cookie»; «there is <b>no content model</b> … no LLM integration»</td>
+        <td>Сессия — непрозрачные 256 бит случайности, проверяемые по строке в БД; подписи нет вовсе. А контент, медиа и копайлот давно поставляются — раздел «чего ещё не существует» устарел целиком и опасен именно тем, что читается как актуальный обзор</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/bootstrap/admin/AGENTS.md, «Architecture»</td>
+        <td>Дерево провайдеров описано как «<code>createRoot</code> + <code>&lt;StrictMode&gt;</code> + <code>&lt;QueryClientProvider&gt;</code> + <code>&lt;IntlProvider&gt;</code> + <code>&lt;TooltipProvider&gt;</code> + <code>&lt;BrowserRouter&gt;</code>»</td>
+        <td>В реальном дереве есть ещё <code>AppearanceProvider</code> (самый внешний) и <code>DesignSystemLabels</code>. Соседний раздел «Not owned here» упоминает <code>AppearanceProvider</code>, но также забывает <code>DesignSystemLabels</code>, хотя он и есть тот слой, что локализует подписи библиотеки</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/bootstrap/admin/src/lib/createAdmin/index.tsx, строки 24–36</td>
+        <td>Развёрнутый JSDoc, начинающийся словами «Warns when more than one plugin contributes a <code>layout</code>», стоит непосредственно перед <code>const DEFAULT_LOCALE = 'en'</code></td>
+        <td>Комментарий <b>оторван от своей функции</b>: <code>warnOnLayoutCollision</code> объявлена ниже (строка 96) и не имеет никакой документации, а константа получила чужую. Инструменты, читающие JSDoc, свяжут описание коллизии layout&#39;а с локалью. Это же нарушает конвенцию пакета «у всех экспортируемых символов есть JSDoc»</td>
+      </tr>
+      <tr>
+        <td class="mono">packages/bootstrap/admin/AGENTS.md, «Usage»</td>
+        <td>Пример показывает <code>createAdmin({ plugins: [ … ] })</code> с массивом-литералом прямо в <code>apps/admin/src/main.tsx</code></td>
+        <td><code>main.tsx</code> сегодня — пять строк, а список вынесен в <code>./plugins</code> и строится функцией <code>buildPlugins()</code>. Вынос сделан осознанно (чтобы состав можно было покрыть модульным тестом), и пример это скрывает</td>
+      </tr>
+      <tr>
+        <td class="mono">AGENTS.md (корень) и ARCHITECTURE.md §1</td>
+        <td>«<code>createServer({ plugins })</code> — runs each plugin&#39;s <code>onPluginInit</code>, imports its module, applies global prefix + <code>ValidationPipe</code>»</td>
+        <td>Формально верно, но перечисляет три шага из десяти: за кадром остались доверие прокси, потолок тела, генерация OpenAPI и Scalar, отдача бандла админки и хуки завершения — то есть ровно те, что определяют поведение развёртывания</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Общий узор этих расхождений</span>
+    <p>Все они — <b>усечения, а не ошибки</b>: документ описывает более раннюю и более бедную версию хоста. Опаснее всего это в контракте плагина: разработчик, читающий четырёхполевой <code>ServerPlugin</code>, не узнает про <code>docs</code> и напишет свои маршруты так, что они не попадут в справочник вообще, — а поскольку справочник это инструмент разработчика, отсутствие никем не будет замечено.</p>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Артефакт по группе <code>packages/bootstrap</code>.</b> Структура: бизнес-описание → состав → контракт <code>ServerPlugin</code> → контракт <code>AdminPlugin</code> → запуск сервера → запуск админки → слоты → порядок и коллизии → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Разделов «модель данных», «HTTP API» и «роли и права» здесь нет намеренно: у хостов нет ни таблиц, ни маршрутов, ни прав — и это главное, что о них надо знать.</p>
+  <p>Источник — исходный код: <code>packages/bootstrap/server/src/**</code> и <code>packages/bootstrap/admin/src/**</code> целиком, <code>packages/utils/admin/src/lib/slot</code>, композиционные корни <code>apps/server/src/{main.ts,plugins.ts}</code>, <code>apps/admin/src/{main.tsx,plugins.ts}</code>, <code>apps/server/ortha.config.ts</code>, потребитель дескриптора миграций <code>packages/cli/src/lib/migrate.ts</code>, вклады <code>docs</code> из <code>identity-server</code> и <code>content-server</code>, а также наборы <code>apps/server-e2e/src/harness/*</code> и <code>apps/admin-e2e/src/host/*</code>. Документы <code>AGENTS.md</code>, <code>ARCHITECTURE.md</code> и ADR-0002 использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+</footer>
+
+</main>
+</div>

@@ -1,0 +1,1322 @@
+<title>Паспорт плагина Workspaces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
+
+<style>
+:root{
+  --ground:#EDEFF2;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7F9;
+  --ink:#14181D;
+  --ink-muted:#59636F;
+  --hairline:#D9DEE4;
+  --hairline-soft:#E7EBEF;
+  --accent:#0E6F6B;
+  --accent-soft:#DCEDEB;
+  --brass:#8A5F1C;
+  --ok:#2E6F4E;
+  --ok-soft:#E0EFE6;
+  --warn:#8A5F1C;
+  --warn-soft:#F3E9D6;
+  --crit:#A33A34;
+  --crit-soft:#F6E3E1;
+  --shadow:0 1px 2px rgba(20,24,29,.05), 0 8px 24px -16px rgba(20,24,29,.25);
+
+  --f-display:"Source Serif 4","Georgia",serif;
+  --f-body:"Golos Text","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.4375rem;
+  --step-3:1.8125rem;
+  --step-4:2.375rem;
+  --step-5:3.125rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1317;
+    --surface:#161B21;
+    --surface-2:#1C222A;
+    --ink:#E7ECF2;
+    --ink-muted:#98A4B2;
+    --hairline:#28313A;
+    --hairline-soft:#212932;
+    --accent:#57C3B6;
+    --accent-soft:#122E2C;
+    --brass:#D6A85C;
+    --ok:#6FBF8E;
+    --ok-soft:#132920;
+    --warn:#D6A85C;
+    --warn-soft:#2A2214;
+    --crit:#E08078;
+    --crit-soft:#2C1917;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1317;
+  --surface:#161B21;
+  --surface-2:#1C222A;
+  --ink:#E7ECF2;
+  --ink-muted:#98A4B2;
+  --hairline:#28313A;
+  --hairline-soft:#212932;
+  --accent:#57C3B6;
+  --accent-soft:#122E2C;
+  --brass:#D6A85C;
+  --ok:#6FBF8E;
+  --ok-soft:#132920;
+  --warn:#D6A85C;
+  --warn-soft:#2A2214;
+  --crit:#E08078;
+  --crit-soft:#2C1917;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:.06em}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--hairline);background:var(--surface)}
+.masthead .wrap{padding-top:clamp(2.5rem,6vw,4.5rem);padding-bottom:clamp(2rem,4vw,3rem)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--brass);margin:0 0 1.1rem
+}
+h1.title{
+  font-family:var(--f-display);font-weight:700;font-size:clamp(2.6rem,7vw,var(--step-5));
+  line-height:1.04;margin:0 0 .6rem;letter-spacing:-.02em;text-wrap:balance
+}
+h1.title small{display:block;font-size:.34em;font-weight:400;color:var(--ink-muted);letter-spacing:0;margin-top:.9rem;font-family:var(--f-body)}
+.lede{max-width:66ch;font-size:var(--step-1);color:var(--ink-muted);margin:1.4rem 0 0}
+.lede strong{color:var(--ink);font-weight:600}
+
+.facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem;padding:0;list-style:none}
+.facts li{
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border:1px solid var(--hairline);border-radius:999px;padding:.3rem .8rem;
+  background:var(--surface-2);color:var(--ink-muted)
+}
+.facts li b{color:var(--ink);font-weight:500}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding-top:2.5rem;padding-bottom:5rem}
+@media (min-width:1080px){
+  .shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(2rem,4vw,4rem);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1080px){
+  nav.toc{display:block;position:sticky;top:2rem;max-height:calc(100vh - 4rem);overflow-y:auto}
+}
+nav.toc h2{font-family:var(--f-mono);font-size:var(--step--1);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);margin:0 0 .8rem;font-weight:500}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc}
+nav.toc a{
+  display:block;padding:.3rem .55rem;border-radius:4px;text-decoration:none;
+  color:var(--ink-muted);font-size:var(--step--1);line-height:1.35;border-left:2px solid transparent
+}
+nav.toc a::before{counter-increment:toc;content:counter(toc) ".";font-family:var(--f-mono);color:var(--brass);margin-right:.45rem}
+nav.toc a:hover{color:var(--ink);background:var(--surface);border-left-color:var(--accent)}
+
+main{min-width:0;display:flex;flex-direction:column;gap:clamp(2.5rem,5vw,4rem)}
+
+/* ---------- sections ---------- */
+section{scroll-margin-top:1.5rem}
+h2.sec{
+  font-family:var(--f-display);font-size:var(--step-3);font-weight:700;letter-spacing:-.015em;
+  margin:0 0 .35rem;text-wrap:balance;padding-bottom:.6rem;border-bottom:2px solid var(--ink)
+}
+h2.sec .num{font-family:var(--f-mono);font-size:.5em;font-weight:400;color:var(--brass);vertical-align:.45em;margin-right:.7rem}
+h3{font-family:var(--f-display);font-size:var(--step-2);font-weight:600;margin:2.4rem 0 .5rem;letter-spacing:-.01em;text-wrap:balance}
+h4{font-size:var(--step-0);font-weight:600;margin:1.7rem 0 .4rem}
+p{margin:.75rem 0;max-width:72ch}
+ul,ol{max-width:72ch;padding-left:1.25rem}
+li{margin:.32rem 0}
+code{font-family:var(--f-mono);font-size:.875em;background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:4px;padding:.08em .34em}
+.sub{color:var(--ink-muted)}
+.small{font-size:var(--step--1)}
+
+/* ---------- cards & tables ---------- */
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:1.15rem 1.35rem;box-shadow:var(--shadow)}
+.grid{display:grid;gap:1rem}
+@media (min-width:640px){.g2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px){.g3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);margin:1.2rem 0;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:var(--step--1);min-width:520px}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--hairline-soft);vertical-align:top}
+thead th{
+  background:var(--surface-2);font-family:var(--f-mono);font-weight:500;font-size:.8125rem;
+  letter-spacing:.03em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--hairline);
+  position:sticky;top:0
+}
+tbody tr:last-child td{border-bottom:0}
+td code{background:transparent;border:0;padding:0;color:var(--ink)}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.num-col{font-variant-numeric:tabular-nums}
+td.center,th.center{text-align:center}
+
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--ink-muted);opacity:.5}
+
+/* ---------- pills ---------- */
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.75rem;line-height:1.5;
+  padding:.06rem .45rem;border-radius:4px;border:1px solid transparent;white-space:nowrap
+}
+.pill-pub{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.pill-ses{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline)}
+.pill-perm{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
+.note.warn{border-left-color:var(--warn)}
+.note.crit{border-left-color:var(--crit)}
+.note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
+.note.warn .label{color:var(--warn)}
+.note.crit .label{color:var(--crit)}
+.note p{margin:.3rem 0}
+.note p:first-of-type{margin-top:0}
+
+/* ---------- flow steps ---------- */
+.flow{counter-reset:step;list-style:none;padding:0;margin:1rem 0;display:flex;flex-direction:column;gap:.1rem}
+.flow>li{
+  position:relative;padding:.55rem 0 .75rem 3rem;border-bottom:1px dashed var(--hairline-soft)
+}
+.flow>li:last-child{border-bottom:0}
+.flow>li::before{
+  counter-increment:step;content:counter(step);
+  position:absolute;left:0;top:.55rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--f-mono);font-size:.8125rem;
+  background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)
+}
+.flow b{font-weight:600}
+.flow .meta{display:block;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-muted);margin-top:.15rem}
+
+/* ---------- state machine ---------- */
+.states{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0;font-family:var(--f-mono);font-size:var(--step--1)}
+.state{padding:.4rem .85rem;border-radius:6px;border:1px solid var(--hairline);background:var(--surface)}
+.state.pending{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft);color:var(--warn)}
+.state.active{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:var(--ok-soft);color:var(--ok)}
+.state.disabled{border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft);color:var(--crit)}
+.arrow{color:var(--ink-muted)}
+
+/* ---------- invariants ---------- */
+.inv{list-style:none;padding:0;margin:1.2rem 0;display:flex;flex-direction:column;gap:.55rem}
+.inv li{display:grid;grid-template-columns:4.4rem minmax(0,1fr);gap:.9rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--hairline);border-radius:6px}
+.inv .id{font-family:var(--f-mono);font-size:.75rem;color:var(--brass);padding-top:.15rem}
+
+/* ---------- checklist ---------- */
+.check{list-style:none;padding:0;margin:.8rem 0;display:flex;flex-direction:column;gap:.35rem}
+.check li{position:relative;padding-left:1.8rem;font-size:var(--step--1)}
+.check li::before{
+  content:"";position:absolute;left:0;top:.35em;width:.95rem;height:.95rem;
+  border:1.5px solid var(--hairline);border-radius:3px;background:var(--surface)
+}
+.check li b{font-weight:600}
+.check .exp{color:var(--ink-muted)}
+
+details{border:1px solid var(--hairline);border-radius:6px;background:var(--surface);padding:.35rem .9rem;margin:.8rem 0}
+summary{cursor:pointer;font-weight:600;padding:.45rem 0}
+
+footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3rem;color:var(--ink-muted);font-size:var(--step--1)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Пакетная группа · packages/workspaces</p>
+    <h1 class="title">Workspaces
+      <small>Граница арендатора: где человек может работать — и эталон слоёной раскладки</small>
+    </h1>
+    <p class="lede">Workspaces отвечает на вопрос, который права не решают: <strong>где</strong> сотруднику разрешено действовать. Роль говорит «что можно» (править контент, удалять), членство говорит «в каком воркспейсе». Обе проверки обязаны пройти, и ни одна не заменяет другую. Плагин владеет самими воркспейсами, списками участников и грантами на типы контента, а также двумя guard'ами и декоратором, которыми <em>все остальные</em> плагины закрывают свои воркспейс-зависимые маршруты.</p>
+    <ul class="facts">
+      <li><b>2</b> пакета в группе</li>
+      <li><b>14</b> HTTP-маршрутов</li>
+      <li><b>3</b> таблицы БД</li>
+      <li><b>1</b> миграция</li>
+      <li><b>4</b> ключа прав</li>
+      <li><b>8</b> use-case'ов</li>
+      <li><b>9</b> доменных событий</li>
+      <li><b>4</b> маршрута админки</li>
+    </ul>
+  </div>
+</header>
+
+<div class="wrap shell">
+<nav class="toc" aria-label="Содержание">
+  <h2>Содержание</h2>
+  <ol>
+    <li><a href="#business">Бизнес-описание</a></li>
+    <li><a href="#packages">Состав группы</a></li>
+    <li><a href="#layers">Слоёная раскладка</a></li>
+    <li><a href="#roles">Роли и права</a></li>
+    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#lifecycle">Жизненный цикл</a></li>
+    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#api">HTTP API</a></li>
+    <li><a href="#admin">Админка</a></li>
+    <li><a href="#config">Конфигурация</a></li>
+    <li><a href="#security">Безопасность</a></li>
+    <li><a href="#invariants">Инварианты</a></li>
+    <li><a href="#qa">Чек-лист QA</a></li>
+    <li><a href="#bounds">Границы</a></li>
+    <li><a href="#gaps">Расхождения</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="business">
+  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+
+  <p>Воркспейс — это отдельное рабочее пространство внутри одной установки CMS: свой контент, свои участники, свой набор разрешённых типов записей. Одна компания может держать «Маркетинговый сайт», «Документацию» и «Витрину продукта» в одной инсталляции, не смешивая ни данные, ни людей.</p>
+
+  <h3>Какую задачу решает</h3>
+  <ul>
+    <li><b>Разделяет «что можно» и «где можно».</b> Право <code>content:update</code> у человека одно на всю систему — оно не говорит, в каком воркспейсе им пользоваться. Членство отвечает именно на этот вопрос. Проектное решение: <b>обе проверки обязательны</b>, и обладание правом никогда не открывает доступ в чужой воркспейс.</li>
+    <li><b>Не даёт перечислить чужие воркспейсы.</b> <code>GET /api/workspaces</code> отдаёт только то, где вызывающий состоит; попытка обратиться к чужому идентификатору даёт <b>ровно 403</b>, неотличимый от «такого воркспейса нет». Список нельзя использовать как каталог арендаторов.</li>
+    <li><b>Ограничивает, с какими типами контента работает воркспейс.</b> Грант (<code>workspace_content</code>) — это явная строка «этому воркспейсу разрешён тип <code>article</code>». Библиотека контента и публичный API читают именно её.</li>
+    <li><b>Даёт обратимое «убрать с глаз» и необратимое удаление.</b> Архивация ничего не удаляет и полностью обратима; удаление физическое — и потому обвешано проверками, чтобы ни одна запись не осталась висеть на несуществующем идентификаторе.</li>
+    <li><b>Поставляет примитивы остальным плагинам.</b> <code>WorkspaceGuard</code>, заголовок <code>X-Workspace-Id</code> и декоратор <code>@CurrentWorkspace()</code> — это то, чем контент, медиа, сегменты и i18n закрывают свои маршруты. Их использует <b>51</b> файл вне этой группы.</li>
+  </ul>
+
+  <h3>Кому это видно</h3>
+  <div class="grid g3">
+    <div class="card">
+      <h4 style="margin-top:0">Администратор</h4>
+      <p class="small sub">Создаёт воркспейсы мастером из трёх шагов, ведёт состав участников, выдаёт и отзывает гранты на типы контента, архивирует и удаляет. Единственная роль, у которой есть <code>workspaces:create/update/delete</code>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Участник (контрибьютор, наблюдатель)</h4>
+      <p class="small sub">Видит в переключателе и боковой панели ровно те воркспейсы, где состоит. Может зайти внутрь и работать с контентом; настройки видит только для чтения — кнопок редактирования у него нет.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Другой плагин</h4>
+      <p class="small sub">Вешает <code>@UseGuards(WorkspaceGuard)</code> и читает <code>@CurrentWorkspace()</code>. Ему не нужно знать ни таблицу членств, ни имя заголовка — контракт экспортируется из барреля.</p>
+    </div>
+  </div>
+
+  <h3>Чем Workspaces не является</h3>
+  <p>Границы объясняют, почему в интерфейсе нет вещей, которых от системы воркспейсов обычно ждут:</p>
+  <ul>
+    <li><b>Это не вторая система прав.</b> Внутри воркспейса нет ролей: членство — это <em>чистая связь</em> «пользователь ↔ воркспейс», без атрибутов. Права берутся из единственной глобальной роли пользователя.</li>
+    <li><b>У воркспейса нет владельца.</b> Создатель — просто первый участник. Он не защищён от удаления и не имеет привилегий перед остальными. Любой участник с <code>workspaces:update</code> может добавить или убрать любого другого, включая себя.</li>
+    <li><b>Это не хранилище контента.</b> Записи живут в <code>content-server</code>, файлы — в <code>media-server</code>. Воркспейс лишь задаёт область; считать записи он умеет только чужими руками, через порт.</li>
+    <li><b>Это не журнал действий.</b> Плагин порождает девять видов доменных событий и кладёт их в транзакционный outbox; строки журнала пишет подписчик из <code>activity/server</code>.</li>
+    <li><b>Это не изоляция на уровне БД.</b> Одна база, одна схема, один пул соединений. Изоляция — прикладная: guard плюс предикат <code>workspace_id</code> в запросах.</li>
+    <li><b>Это не квоты и не биллинг.</b> Ни лимита на число воркспейсов, ни на объём контента, ни тарифов.</li>
+    <li><b>Это не система приглашений.</b> Мастер создания умеет «пригласить по адресу», но это значит только одно: в <code>users</code> заводится аккаунт со статусом <code>pending</code> и ролью <code>viewer</code>. Токена приглашения не выписывается и письма не уходит — в коде на этом месте стоит <code>TODO(invites)</code>.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Ключевая идея архитектуры</span>
+    <p>Членство — это <b>единственная</b> граница арендатора, и решение о ней принимает <b>одна</b> функция: <code>authorizeWorkspaceAccess</code>. Оба guard'а — заголовочный и путевой — её вызывают, поэтому «иметь доступ» не может означать разного в разных местах. Всё остальное (списки, представления, гранты) строится поверх этого одного предиката.</p>
+  </div>
+</section>
+
+<section id="packages">
+  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
+  <p>Группа <code>packages/workspaces</code> — это <b>два</b> пакета, серверный и админский. Framework-free ядра отдельным пакетом здесь нет: доменный слой живёт внутри <code>server</code> (в отличие от <code>content</code> или <code>copilot</code>, где ядро вынесено в <code>domain</code>), потому что за пределы плагина его никто не потребляет — потребляют guard&#39;ы и порты.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">server</td><td class="mono">@orthacms/workspaces-server</td>
+        <td>Плагин NestJS: 13 контроллеров, 8 use-case&#39;ов, агрегат, схема БД, миграции, два guard&#39;а</td>
+        <td>3 таблицы, 14 маршрутов, <code>WorkspaceGuard</code> / <code>WorkspaceMemberGuard</code> / <code>@CurrentWorkspace()</code>, порты <code>CONTENT_CATALOG</code> / <code>CONTENT_ENTRY_COUNTER</code> / <code>MEMBER_PROVISIONER</code> / <code>WorkspacePurger</code>, реестр очистки, advisory-блокировки</td>
+      </tr>
+      <tr>
+        <td class="mono">admin</td><td class="mono">@orthacms/workspaces-admin</td>
+        <td>Плагин админки: список, мастер создания, оболочка воркспейса, страница настроек</td>
+        <td><code>/workspaces</code>, <code>/workspaces/new</code>, <code>/workspaces/:id/*</code>, <code>/workspaces/:id/settings/*</code>, три собственных слота, <code>useCurrentWorkspace()</code>, шлюз <code>WorkspaceGateway</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Что экспортируется наружу и кем потребляется</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Экспорт</th><th>Что это</th><th>Кто пользуется</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">WorkspaceGuard</td><td>Guard по заголовку <code>X-Workspace-Id</code></td><td>content, media, i18n, segments, insights — все воркспейс-зависимые маршруты</td></tr>
+      <tr><td class="mono">WORKSPACE_HEADER</td><td>Строка <code>'x-workspace-id'</code></td><td>Плагин, пишущий собственный guard (например, bearer-guard публичного контент-API), чтобы не переобъявлять имя заголовка</td></tr>
+      <tr><td class="mono">WORKSPACE_ID_PATTERN</td><td>Регулярка UUID</td><td>Тот же случай — единая форма идентификатора</td></tr>
+      <tr><td class="mono">WorkspaceMemberGuard</td><td>Guard по параметру пути <code>:id</code> / <code>:workspaceId</code></td><td>Собственные маршруты плагина; доступен и другим</td></tr>
+      <tr><td class="mono">CurrentWorkspace</td><td>Параметр-декоратор, отдающий проверенный id</td><td>Любой обработчик под <code>WorkspaceGuard</code></td></tr>
+      <tr><td class="mono">MembershipCheckQuery</td><td>Сама проверка членства</td><td>Редкий маршрут, выводящий воркспейс из ресурса, а не из заголовка — например, отдача байтов медиа, которую браузер запрашивает через <code>&lt;img src&gt;</code> и заголовок отправить не может</td></tr>
+      <tr><td class="mono">lockWorkspaceShared / lockWorkspaceExclusive</td><td>Пара advisory-блокировок</td><td><code>content-server</code> берёт <b>разделяемую</b> при записи записи; удаление и отзыв гранта берут <b>эксклюзивную</b></td></tr>
+      <tr><td class="mono">CONTENT_CATALOG / CONTENT_ENTRY_COUNTER</td><td>Порты, которыми <b>владеет этот пакет</b>, а связывает <code>content-server</code></td><td>Инверсия зависимости: контент зависит от воркспейсов ради guard&#39;ов, значит воркспейсы не смеют зависеть от контента</td></tr>
+      <tr><td class="mono">WorkspacePurgeRegistry / WorkspacePurger</td><td>Реестр и порт зачистки при удалении</td><td><code>media-server</code> регистрирует свой очиститель из <code>onModuleInit</code></td></tr>
+      <tr><td class="mono">схема (<code>workspaces</code>, <code>memberships</code>, <code>workspaceContent</code>)</td><td>Таблицы Drizzle</td><td>Плагины, которым нужен FK на <code>workspaces.id</code> (copilot, сохранённые представления)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Порт, направленный в другую сторону</span>
+    <p><code>WORKSPACE_DIRECTORY</code> объявляет <b>identity</b>, а связывает — этот пакет (адаптер <code>WorkspaceExistenceQuery</code>). Причина в направлении зависимостей: <code>workspaces-server</code> импортирует <code>identity-server</code>, значит identity импортировать обратно не может. Порт нужен, чтобы при выпуске API-токена отвергнуть область, называющую несуществующий воркспейс: у <code>api_token_workspaces</code> внешнего ключа намеренно нет, и эта проверка — всё, что стоит между опечаткой и токеном, выданным в пустоту. Проверяется <b>существование, а не статус</b>: архивный воркспейс — законная область.</p>
+  </div>
+</section>
+
+<section id="layers">
+  <h2 class="sec"><span class="num">03</span>Слоёная раскладка (ADR-0003)</h2>
+
+  <p>Этот пакет — <b>эталонная реализация</b> тактического DDD внутри плагина, первый контекст, переведённый на слои; остальные списывают раскладку с него. Слои живут под <code>src/lib/workspace/</code> и повторяются один в один на серверной и на админской стороне.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слой</th><th>Что лежит</th><th>Что <em>нельзя</em></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">domain/</td>
+        <td>Агрегат <code>Workspace</code>; дочерние сущности <code>Membership</code>, <code>ContentGrant</code>; value-объекты <code>Slug</code>, <code>WorkspaceId</code>, <code>WorkspaceColor</code>, <code>WorkspaceStatus</code>; порт <code>WorkspaceRepository</code> + символ <code>WORKSPACE_REPOSITORY</code>; доменный сервис <code>SlugUniquenessService</code>; фабрика событий; 12 транспорт-независимых ошибок</td>
+        <td><b>Ничего</b> из <code>@nestjs/*</code>, <code>drizzle-orm</code>, <code>class-validator</code> и из <code>infrastructure/</code>. Разрешены только framework-free <code>createDomainEvent</code>/<code>DomainEvent</code> из <code>@orthacms/database</code> и встроенные модули Node</td>
+      </tr>
+      <tr>
+        <td class="mono">application/</td>
+        <td>8 use-case&#39;ов (по одному на изменение состояния); типы представлений <code>WorkspaceView</code>; DTO с <code>class-validator</code>; вторичные порты (<code>CONTENT_CATALOG</code>, <code>CONTENT_ENTRY_COUNTER</code>, <code>MEMBER_PROVISIONER</code>, <code>WorkspacePurger</code>); читатели каталога и счётчика; чистый <code>resolveGrants</code>; реестр зачистки</td>
+        <td>Не трогает Drizzle напрямую и не знает HTTP. Знает Nest (<code>@Injectable</code>) — это осознанный компромисс: use-case есть узел DI</td>
+      </tr>
+      <tr>
+        <td class="mono">infrastructure/</td>
+        <td><code>DrizzleWorkspaceRepository</code>, <code>WorkspaceMapper</code>, <code>DrizzleMemberProvisioner</code>, advisory-блокировки, распознаватель unique-violation; пять read-моделей (<code>WorkspaceViewQuery</code>, <code>SlugAvailabilityQuery</code>, <code>MemberLookupQuery</code>, <code>MembershipCheckQuery</code>, <code>WorkspaceExistenceQuery</code>); схема Drizzle; заглушка внешних ссылок; очиститель грантов API-токенов; мок-каталог</td>
+        <td>Единственный слой, знающий Drizzle и <code>pg</code>. Не содержит бизнес-правил — только их исполнение</td>
+      </tr>
+      <tr>
+        <td class="mono">http/</td>
+        <td>13 тонких контроллеров; два guard&#39;а и общая функция <code>authorizeWorkspaceAccess</code>; декоратор <code>@CurrentWorkspace()</code></td>
+        <td>Не содержит логики: контроллер вызывает use-case, ловит доменную ошибку и превращает её в статус. Больше в нём ничего нет</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Правило, которое нерушимо</h3>
+  <div class="note crit">
+    <span class="label">Единственное жёсткое правило ADR-0003</span>
+    <p><code>domain/</code> <b>не импортирует ничего</b> из <code>@nestjs/*</code>, <code>drizzle-orm</code>, <code>class-validator</code> и из <code>infrastructure/</code>. Проверка границ слоёв в <code>@orthacms/nx</code> ещё не подключена — правило соблюдается вручную и на ревью. Чтобы его не нарушить в самом неочевидном месте, <code>SlugUniquenessService</code> — обычный класс без <code>@Injectable</code>, а модуль связывает его через <code>useFactory</code> с инъекцией порта репозитория. Это тот самый шов, где Nest мог бы просочиться в домен, и он закрыт явно.</p>
+  </div>
+
+  <h3>Что даёт агрегат</h3>
+  <ul>
+    <li><b>Единственная точка изменения.</b> Любое изменение состояния проходит через метод <code>Workspace</code>. Никакой use-case не пишет в дочерние таблицы напрямую.</li>
+    <li><b>Идемпотентность как контракт.</b> Каждый мутатор возвращает <code>boolean</code> — «действительно ли что-то изменилось». Повторное добавление участника, повторная выдача гранта, установка уже стоящего статуса возвращают <code>false</code>, и тогда не пишется ни строка, ни событие. Так журнал не засоряется «изменениями», которых не было.</li>
+    <li><b>Собственная идентичность.</b> <code>WorkspaceId.generate()</code> чеканит UUID в агрегате, а не читает его из <code>DEFAULT</code> базы, — именно поэтому событие <code>workspace.created</code> уже несёт идентификатор.</li>
+    <li><b>Дельта вместо полной перезаписи.</b> Агрегат копит <code>changes()</code> — какие поля профиля, статус, какие участники и гранты добавлены или убраны, — и репозиторий пишет минимальный, идемпотентный SQL: <code>onConflictDoNothing</code> на вставках связей.</li>
+    <li><b>Инварианты живут здесь, а не в контроллере.</b> «Нельзя удалить последнего участника», «нельзя отозвать грант непустого типа», «нельзя удалить воркспейс с записями» — это <code>removeMember</code>, <code>revokeContent</code> и <code>assertDeletable</code>. Ни один вызывающий их не обойдёт, потому что другого пути к состоянию нет.</li>
+  </ul>
+
+  <h3>Единица работы и outbox</h3>
+  <p>Каждый изменяющий use-case устроен одинаково: <code>UnitOfWork.run</code> открывает транзакцию → репозиторий по порту загружает агрегат → вызывается <b>один</b> метод агрегата → <code>save</code> → <code>outbox.append(attachActor(aggregate.pullEvents(), actor))</code>. Событие фиксируется той же транзакцией, что и изменение, — атомарность берётся отсюда, а не из повторных попыток.</p>
+  <p>Чтения (список, проверка slug, подсчёты, сборка представления) агрегат <b>обходят</b> — это тонкие CQRS-запросы. Read-модель читает базовое соединение, поэтому видит зафиксированное состояние после закрытия единицы работы; отсюда же порядок в контроллерах: сначала <code>await useCase.execute(...)</code>, потом <code>views.byId(id)</code>.</p>
+
+  <h3>То же самое на стороне админки</h3>
+  <div class="grid g2">
+    <div class="card"><h4 style="margin-top:0"><code>domain/</code></h4><p class="small sub">Чистый TypeScript без React: value-объект <code>Slug</code> (та же регулярка и та же длина 120, что на сервере), типы <code>Workspace</code>/<code>WorkspaceMember</code>, константы <code>NAME_MAX</code>/<code>DESCRIPTION_MAX</code>, предикат <code>isActiveWorkspace</code>, алгебра выбора ресурсов.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>application/</code></h4><p class="small sub">13 хуков TanStack Query — чтения и мутации. Каждый зовёт шлюз, <b>никогда</b> <code>apiClient</code>. Оркестрация отправки мастера — <code>useCreateWorkspaceFlow</code>.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>infrastructure/</code></h4><p class="small sub">Порт <code>WorkspaceGateway</code> и его HTTP-реализация — <b>единственное</b> место, где используется <code>apiClient</code>; маппер <code>toWorkspace</code> как антикоррупционный слой; <code>isConflict</code>; сборка тела запроса.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>presentation/</code></h4><p class="small sub">Страницы, компоненты, слоты, провайдер текущего воркспейса, UI-хуки. Видит только модели представления, никогда — форму провода.</p></div>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Где граница слоёв сознательно мягче</span>
+    <p>Строгое правило сформулировано <b>только про <code>domain/</code></b>. Выше слои проницаемы, и это видно в коде: <code>add-member.use-case.ts</code> и <code>remove-member.use-case.ts</code> импортируют конкретный <code>MemberLookupQuery</code> из <code>infrastructure/queries</code>, а контроллеры напрямую инжектят <code>WorkspaceViewQuery</code> и <code>SlugAvailabilityQuery</code>. Порта для этих чтений не заведено намеренно: read-модель — это проекция, а не правило, и заворачивать её в интерфейс значило бы платить абстракцией за то, что подменять никто не собирается. Читая пакет как эталон, важно не принять эту мягкость за инверсию — <b>инвертированы только записи и то, что уходит за пределы контекста</b>.</p>
+  </div>
+</section>
+
+<section id="roles">
+  <h2 class="sec"><span class="num">04</span>Роли и права</h2>
+
+  <p>У плагина <b>четыре</b> ключа прав — по одному на операцию CRUD. Ключи объявлены в <code>identity-server</code> (<code>PERMISSIONS.WORKSPACES_*</code>), а этот пакет только на них ссылается: строкового литерала в декораторе нет ни разу.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">workspaces:create</td><td>создать воркспейс; проверить доступность slug; увидеть каталог типов контента</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">workspaces:read</td><td>получить список своих воркспейсов</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">workspaces:update</td><td>править профиль; архивировать и разархивировать; состав участников; выдать и отозвать грант; подсчёт записей по типу; каталог типов</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">workspaces:delete</td><td>удалить воркспейс; общий подсчёт записей воркспейса</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Два независимых измерения, и оба обязательны</h3>
+  <p>Это центральная идея плагина, и её легко потерять при чтении отдельного контроллера:</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Право — <em>что</em></h4>
+      <p class="small sub"><code>PermissionsGuard</code> + <code>@RequirePermissions(...)</code>. Глобально для роли, к конкретному воркспейсу отношения не имеет. Администратор с <code>workspaces:update</code> имеет это право <b>везде</b>.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Членство — <em>где</em></h4>
+      <p class="small sub"><code>WorkspaceMemberGuard</code> (или <code>WorkspaceGuard</code>). Проверяет строку в <code>memberships</code>. Администратор, не состоящий в воркспейсе, получает <b>403</b> — право не переносит его через границу арендатора.</p>
+    </div>
+  </div>
+  <p>Отсюда следует неочевидное: <b>глобальный администратор не всесилен внутри чужого воркспейса.</b> Он может создать новый, но не может править тот, куда его не добавили. Это осознанный выбор: «привилегия читать всё» — отдельная функция, которой в системе нет.</p>
+
+  <h3>Как право доходит до кода</h3>
+  <ul>
+    <li><b>Порядок guard&#39;ов в декораторе значим по смыслу:</b> <code>@UseGuards(OriginGuard, PermissionsGuard, WorkspaceMemberGuard)</code>. Первый закрывает CSRF, второй — «что», третий — «где». Все три обязаны пройти.</li>
+    <li><b>Аутентификация уже позади.</b> Глобальный <code>AuthGuard</code> из identity зарегистрирован как <code>APP_GUARD</code>, поэтому в <code>authorizeWorkspaceAccess</code> отсутствие <code>request.user</code> означает <b>ошибку проводки</b> (маршрут по недосмотру помечен <code>@Public()</code>), а не анонимного посетителя, — и функция бросает <code>401</code>.</li>
+    <li><b>Каталог типов гейтится «любым из двух».</b> <code>GET /api/content-types</code> нужен и мастеру создания (<code>workspaces:create</code>), и вкладке контента в настройках (<code>workspaces:update</code>). Эти права держат разные аудитории, поэтому применён <code>@RequireAnyPermission(...)</code>: одиночное право отдало бы <code>403</code> той половине, которую оно не назвало.</li>
+    <li><b>Проверка slug закрыта правом создания.</b> Одной аутентификации было мало: эндпоинт отвечает «существует ли такой slug» кому угодно, а это перебираемый по одной догадке справочник арендаторов. Теперь ответ доступен ровно тем, кому он для чего-то нужен.</li>
+    <li><b>Предпросмотровые счётчики закрыты тем же правом, что и действие, которое они охраняют.</b> Подсчёт по типу — <code>workspaces:update</code> (как и отзыв гранта), общий подсчёт воркспейса — <code>workspaces:delete</code> (как и удаление). Иначе счётчик стал бы способом узнать объём чужого контента более слабым правом.</li>
+    <li><b>В админке:</b> <code>useHasPermission('workspaces:update')</code> и <code>('workspaces:delete')</code> прячут элементы управления. Это честность интерфейса, а не защита: настоящая проверка всегда на сервере.</li>
+  </ul>
+</section>
+
+<section id="data">
+  <h2 class="sec"><span class="num">05</span>Модель данных</h2>
+  <p>Плагин владеет <b>тремя</b> таблицами и везёт <b>одну</b> миграцию (<code>0000_init.sql</code>, журнал <code>__drizzle_migrations_workspaces</code>). Соединение к БД он не открывает — клиент внедряется из <code>@orthacms/database</code>. Генерация миграций (<code>nx run workspaces-server:db:generate</code>) к базе не подключается вовсе.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Таблица</th><th>Назначение</th><th>Ключевые поля и ограничения</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">workspaces</td><td>Сам воркспейс</td>
+        <td><code>id</code> uuid PK · <code>name</code> · <code>slug</code> <b>unique</b> (<code>workspaces_slug_unique</code>) · <code>description</code> <b>nullable</b> · <code>color</code> text, по умолчанию <code>slate</code> · <code>status</code> enum <code>workspace_status</code> = active&nbsp;|&nbsp;archived, по умолчанию <code>active</code> · <code>created_at</code> · <code>updated_at</code> с <code>$onUpdate</code>.<br>Цвет хранится обычным текстом, а не enum: палитра принадлежит дизайн-системе, и сервер зависеть от админского пакета не может; допустимость проверяет value-объект <code>WorkspaceColor</code> (7 ключей).</td>
+      </tr>
+      <tr>
+        <td class="mono">memberships</td><td>Связь пользователь ↔ воркспейс (M:N)</td>
+        <td><code>id</code> uuid PK · <code>user_id</code> → <code>users(id)</code> <b>каскадом</b> · <code>workspace_id</code> → <code>workspaces(id)</code> <b>каскадом</b> · <code>created_at</code>.<br><b>Роли здесь нет и не будет</b> — это чистая связь. Уникальность <code>(user_id, workspace_id)</code> и отдельный индекс по <code>workspace_id</code>: левый префикс уникального индекса уже покрывает «воркспейсы пользователя», а «участники воркспейса» — нет.</td>
+      </tr>
+      <tr>
+        <td class="mono">workspace_content</td><td>Грант на тип контента (M:N)</td>
+        <td><code>id</code> uuid PK · <code>workspace_id</code> каскадом · <code>kind</code> enum <code>content_kind</code> = collection&nbsp;|&nbsp;single · <code>slug</code> text · <code>created_at</code>.<br>Уникальность <code>(workspace_id, kind, slug)</code> + индекс по <code>workspace_id</code>. Сами коллекции и страницы <b>живут в коде</b>, не в БД; строка означает только явную выдачу. «Весь контент» разворачивается в отдельную строку на каждый известный slug при записи, поэтому наличие строки <b>всегда</b> значит явный грант.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Внешняя ссылка на identity</h3>
+  <p><code>memberships.user_id</code> несёт межконтекстный внешний ключ на <code>users(id)</code>. Чтобы <code>drizzle-kit generate</code> собрал <b>чисто-Drizzle</b> граф, схема ссылается на <code>users</code> через <b>заглушку только для ссылки</b> — <code>infrastructure/schema/external-refs.ts</code> с единственной колонкой <code>id</code>. Причина техническая и жёсткая: импорт рантайм-барреля identity затащил бы её NestJS-провайдеры в esbuild-проход drizzle-kit, у которого нет <code>experimentalDecorators</code>, и генерация упала бы на параметрических декораторах. Заглушка <b>не реэкспортируется</b> из <code>schema/index.ts</code>, поэтому drizzle-kit ссылается на неё только в FK и не выпускает второй <code>CREATE TABLE users</code>. В рантайме запросы идут по настоящей таблице identity; оба объекта резолвятся в одну физическую таблицу.</p>
+
+  <h3>Строки воркспейса в других плагинах</h3>
+  <p>Идентификатор воркспейса разбросан по всей базе, и способ уборки зависит от того, <em>чем строка является</em>, а не где она лежит:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Механизм</th><th>Таблицы</th><th>Почему так</th></tr></thead>
+    <tbody>
+      <tr><td><b>Каскад</b></td><td><code>memberships</code>, <code>workspace_content</code>, <code>copilot_conversations</code>, <code>copilot_proposals</code>, <code>copilot_skills</code>, <code>saved_views</code></td><td>У них уже есть внешний ключ — уборку делает база</td></tr>
+      <tr><td><b>Отказ (409)</b></td><td>все таблицы <code>content_*</code></td><td>Записи — <b>авторский труд</b>. Пользователь удаляет свой контент осознанно; система за него этого не делает, поэтому <code>assertDeletable</code> блокирует удаление, пока хоть что-то осталось</td></tr>
+      <tr><td><b>Зачистка</b></td><td><code>media_asset</code>, <code>media_folder</code>, <code>api_token_workspaces</code></td><td>Чистые <b>области видимости</b> без самостоятельного смысла: дерево папок, «корзина» токена. FK у них нет намеренно — межплагинный ключ связал бы схемы</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note crit">
+    <span class="label">Непокрытый остаток</span>
+    <p>Есть таблицы с колонкой <code>workspace_id</code>, которые <b>ни один</b> из трёх механизмов не покрывает: <code>alarm_rules</code> и <code>alarm_findings</code> (плагин alarms), <code>entry_access</code> и массив <code>segments.workspace_ids</code> (плагин segments). Внешнего ключа у них нет, очистителя они не регистрируют — на весь репозиторий <code>WorkspacePurger</code> реализуют только <code>media/server</code> и локальный <code>ApiTokenGrantsPurger</code>. После удаления воркспейса эти строки останутся указывать в никуда. Таблица в <code>AGENTS.md</code> перечисляет только три механизма и об этих таблицах молчит — см. раздел 15.</p>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <h2 class="sec"><span class="num">06</span>Жизненный цикл воркспейса</h2>
+
+  <div class="states">
+    <span class="arrow">POST /workspaces →</span>
+    <span class="state active">active</span>
+    <span class="arrow">⇄ archive / unarchive ⇄</span>
+    <span class="state pending">archived</span>
+    <span class="arrow">— DELETE, только если пуст →</span>
+    <span class="state disabled">удалён</span>
+  </div>
+
+  <p class="small sub">Состояний ровно два, третье — отсутствие строки. Переход в удалённое возможен из <b>любого</b> из двух: архивация не является ни предусловием удаления, ни его заменой.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Состояние</th><th>Что это значит</th><th>Кто видит</th><th>Что запрещено</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="state active">active</span></td>
+        <td>Рабочее состояние. Новый воркспейс всегда рождается здесь</td>
+        <td>Участники — везде: список, переключатель, боковая панель, палитра команд, плитки на главной</td>
+        <td>Ничего</td>
+      </tr>
+      <tr>
+        <td><span class="state pending">archived</span></td>
+        <td>«Убран с глаз». Полностью обратимо, ничего не удаляется</td>
+        <td>Участники — в таблице при фильтре «Все» или «Архивные» и в переключателе. <b>Скрыт</b> из быстрого списка сайдбара, из палитры команд и из панели на главной; в счётчик «активных воркспейсов» не входит</td>
+        <td><b>Ничего.</b> На сервере статус не проверяется нигде: запись и чтение контента, загрузка файлов, выпуск токена на этот воркспейс работают как обычно</td>
+      </tr>
+      <tr>
+        <td><span class="state disabled">удалён</span></td>
+        <td>Строки нет. Членства, гранты, разговоры копайлота и сохранённые представления ушли каскадом; медиа и области токенов — зачисткой</td>
+        <td>Никто</td>
+        <td>Необратимо. Восстановления нет</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Архивация — это состояние интерфейса, а не режим доступа</span>
+    <p>Проверено по коду: <code>SetWorkspaceStatusUseCase</code> только переключает поле, и <b>ни один</b> guard, ни один контроллер контента или медиа не смотрит на <code>workspaces.status</code>. Архивный воркспейс остаётся полностью работоспособным по API — он лишь уходит из витрин админки. Если ожидание было «архив = только чтение», его нужно реализовывать отдельно; сегодня это не так.</p>
+  </div>
+
+  <h3>Переходы на агрегате</h3>
+  <ul>
+    <li><code>Workspace.create(...)</code> — чеканит id, добавляет создателя первым участником (<code>dedupe</code> сохраняет порядок первого вхождения), разворачивает гранты, поднимает <code>workspace.created</code>.</li>
+    <li><code>setStatus(...)</code> — идемпотентен: установка уже стоящего статуса возвращает <code>false</code>, и в outbox ничего не уходит. Поднимает <code>workspace.archived</code> либо <code>workspace.unarchived</code>.</li>
+    <li><code>updateProfile(patch)</code> — пустой патч возвращает <code>false</code>; иначе <code>workspace.updated</code> с <b>перечнем изменённых полей</b> в нагрузке.</li>
+    <li><code>assertDeletable(entryCount)</code> — не удаляет, а <em>разрешает</em>: при ненулевом счётчике бросает <code>WorkspaceNotEmptyError</code>, иначе поднимает <code>workspace.deleted</code> с именем и slug. Само удаление — забота репозитория.</li>
+  </ul>
+
+  <h3>Девять доменных событий</h3>
+  <p>Строковые значения совпадают с видами записей журнала, поэтому переезд аудита из «встроенного» вызова в outbox не потребовал миграции данных: <code>workspace.created</code>, <code>.updated</code>, <code>.archived</code>, <code>.unarchived</code>, <code>.deleted</code>, <code>.member_added</code>, <code>.member_removed</code>, <code>.content_granted</code>, <code>.content_revoked</code>. Все несут <code>aggregateType: 'workspace'</code> и идентификатор воркспейса; актор приклеивается в use-case через <code>attachActor</code>.</p>
+</section>
+
+<section id="flows">
+  <h2 class="sec"><span class="num">07</span>Сценарии — как это работает по шагам</h2>
+
+  <h3>7.1 Создание воркспейса</h3>
+  <p class="sub small">Мастер из трёх шагов в админке и один <code>POST</code> в конце. Мастер — <b>полноэкранная страница</b>, а не диалог: три шага с состоянием, переживающим переходы, в модальном окне живут плохо.</p>
+  <ol class="flow">
+    <li><b>Вход на <code>/workspaces/new</code>.</b> Первое, что делает страница, — проверяет <code>useHasPermission('workspaces:create')</code>. Без права — <code>&lt;Navigate replace&gt;</code> обратно на список с router-state <code>{ redirectNotice: 'create-denied' }</code>.<span class="meta">маршрут объявлен внутри приватного layout&#39;а, поэтому право уже отражает реальные гранты, а не «ещё не загрузились»</span></li>
+    <li><b>Шаг 1 «Основное».</b> Имя, slug, описание, акцентный цвет. Slug автозаполняется из имени (<code>slugify</code>), пока пользователь не отредактировал его руками; после правки автоподстановка отключается (<code>slugEdited</code>), но есть кнопка «сгенерировать заново».</li>
+    <li><b>Живая проверка slug.</b> Ввод дебаунсится на 300 мс, затем идёт <code>GET /api/workspaces/slug-available?slug=</code>. Состояний <b>шесть</b>: <code>Empty</code>, <code>Invalid</code> (формат не прошёл через <code>Slug.isValid</code>), <code>Checking</code>, <code>Available</code>, <code>Taken</code>, <code>Unknown</code>.<span class="meta">кнопка «дальше» открывается только на Available</span></li>
+    <li><b>Отказ проверки — это не «свободно».</b> На ошибке запроса <code>query.data</code> равно <code>undefined</code>, и без явной ветки последняя строка хука отрапортовала бы сбой как положительный ответ. Поэтому есть <code>SlugStatus.Unknown</code>: иначе человек прошёл бы три шага ради <code>409</code> в конце.</li>
+    <li><b>Шаг 2 «Участники».</b> Тайпэхед по справочнику (<code>GET /api/users?search=</code>, дебаунс 250 мс, отключённые аккаунты отфильтровываются) плюс возможность вписать адрес, которого в справочнике нет. Роли на участнике нет — контрола роли в интерфейсе не существует. Создатель подразумевается и в список не входит.</li>
+    <li><b>Шаг 3 «Контент».</b> Два раздельных выбора — коллекции и страницы, каждый в режиме <code>specific</code> (явный список) либо <code>all</code> (всё, кроме исключений). Верхнее решение «весь контент» схлопывает оба.</li>
+    <li><b>Состояние живёт в <code>useWizard</code>, а не в компонентах шага.</b> Шаг размонтируется при переходе; если бы поля владели состоянием, возврат назад терял бы ввод. Активный шаг зеркалится в <code>?step=</code> и зажимается в 1..3.</li>
+    <li><b>Отправка.</b> <code>useCreateWorkspaceFlow</code>: сначала <code>Slug.create(...)</code> как последняя проверка формы, затем сборка тела, затем мутация с <b>оптимистичной вставкой</b> карточки в начало списка (со случайным <code>optimistic_*</code> id, чтобы два одноимённых создания не столкнулись React-ключами).</li>
+    <li><b>Сервер: один <code>UnitOfWork.run</code>.</b> <code>Slug.create</code> и <code>WorkspaceColor.create</code> вне транзакции (это чистая валидация) → <code>SlugUniquenessService.assertAvailable</code> → резолв участников через порт → <code>resolveGrants</code> разворачивает выбор в явные пары <code>(kind, slug)</code> → <code>Workspace.create</code> → <code>save</code> → событие в outbox.</li>
+    <li><b>Уникальность slug решает индекс, а не предпроверка.</b> Предварительная проверка гоночна по построению: два запроса читают «свободно» и оба идут дальше. Поэтому вставка обёрнута, и <code>unique_violation</code> по <code>workspaces_slug_unique</code> превращается обратно в <code>SlugTakenError</code> → <code>409</code>. Распознаватель <b>идёт по цепочке <code>cause</code></b>, потому что Drizzle оборачивает драйверную ошибку, а глубина вложенности — деталь реализации драйвера.<span class="meta">без этого проигравший обычную гонку получал бы 500 вместо 409</span></li>
+    <li><b>Резолв участников — множественный, а не поштучный.</b> Один запрос на все приглашённые адреса, один — на роль <code>viewer</code>, одна многострочная вставка. Раньше он шёл по массиву последовательно, до трёх round-trip на человека, <b>внутри транзакции записи</b>, — то есть длину транзакции задавал вызывающий.</li>
+    <li><b>Адрес нормализуется, id-призраки отбрасываются.</b> Приглашённые сопоставляются по <code>lower(trim(email))</code>, так что <code>Grace@…</code> и <code>GRACE@…</code> — один аккаунт. Не-приглашённый id, который не резолвится в реального пользователя, <b>молча выбрасывается</b>, чтобы устаревший идентификатор не рушил всё создание нарушением внешнего ключа.</li>
+    <li><b>Ответ — представление воркспейса.</b> Контроллер после use-case отдельно читает <code>views.byId(id)</code>. Этот вызов безопасен <b>не потому, что стоит guard</b> (на создании <code>WorkspaceMemberGuard</code> нет), а потому, что id только что отчеканен самим use-case и вызывающим не подавался.</li>
+    <li><b>Админка сообщает результат по-разному.</b> Успех — тост и переход на список. Ошибка разбирается на три случая: неверный формат slug, <code>409</code> «занят» (совет «повторите» здесь был бы прямо вредным — повтор не может удаться), всё остальное.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Почему в теле создания ограничен массив участников</span>
+    <p><code>@ArrayMaxSize(MAX_MEMBERS_PER_CREATE)</code> = 200. Ограничение историческое и сохранённое: даже после перехода на множественный резолв провизионинг остаётся внутри транзакции создания, а неограниченный массив позволял бы любому обладателю <code>workspaces:create</code> держать соединение занятым сколько угодно. Двести — щедро для реальности (воркспейс засевают командой, а не рассылкой) и далеко ниже точки, где обход становится самоаварией.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Почему <code>email</code> приглашённого валидируется как настоящий адрес</span>
+    <p><code>@IsEmail()</code>, а не просто «непусто»: приглашённый участник <b>заводится как аккаунт</b>, ключом которого служит это значение, — то есть что угодно, прошедшее сюда, становится постоянной строкой справочника. Значение из одних пробелов нормализовалось в <code>''</code>, создавало один аккаунт с пустым адресом, и каждое следующее пустое приглашение переиспользовало его — молча связывая несвязанные воркспейсы через одного пользователя-призрака.</p>
+  </div>
+
+  <h3>7.2 Проверка доступа: <code>WorkspaceGuard</code> и заголовок <code>X-Workspace-Id</code></h3>
+  <p>Это тот примитив, ради которого пакет вообще экспортируется наружу. Работает так:</p>
+  <ol class="flow">
+    <li><b>Глобальный <code>AuthGuard</code> уже отработал</b> и положил в запрос <code>request.user</code> либо ответил <code>401</code>.</li>
+    <li><b>Guard читает заголовок.</b> Значение может прийти массивом (заголовок продублирован) — берётся первый элемент, а не склейка.</li>
+    <li><b>Общая функция <code>authorizeWorkspaceAccess</code> решает всё остальное.</b> Нет пользователя → <code>401</code> (это ошибка проводки). Идентификатор отсутствует или не UUID → <code>400</code> с сообщением, специфичным для источника («заголовок» или «путь»). Не член → <code>403</code>.</li>
+    <li><b>Отказ плоский.</b> «Не член» и «нет такого воркспейса» отдают <b>один и тот же</b> <code>403</code> с одним текстом. Различимые ответы превратили бы любой защищённый маршрут в перечислитель идентификаторов.</li>
+    <li><b>Успех штампует запрос.</b> <code>request.workspaceId = workspaceId</code> — уже проверенное значение.</li>
+    <li><b>Обработчик читает его через <code>@CurrentWorkspace()</code>.</b> Декоратор <b>бросает <code>500</code></b>, если поля нет, вместо того чтобы вернуть <code>undefined</code>. Причина прямая: <code>undefined</code> в качестве области превратил бы запрос со скоупом в запрос без скоупа — то есть тихо снял бы изоляцию арендаторов. Лучше явная ошибка проводки.</li>
+  </ol>
+  <p><code>WorkspaceMemberGuard</code> — тот же самый механизм, отличающийся <b>ровно одной строкой</b>: идентификатор берётся из <code>params.id ?? params.workspaceId</code>, а не из заголовка. Оба вызывают одну функцию, поэтому смысл «имеет доступ» не может разойтись между ними.</p>
+
+  <div class="note">
+    <span class="label">Кто и как отправляет заголовок из админки</span>
+    <p><code>CurrentWorkspaceProvider</code> вызывает <code>setActiveWorkspaceId(workspace.id)</code> <b>прямо во время рендера</b>, а не в эффекте: родитель рендерится раньше детей, значит заголовок выставлен до первого запроса дочернего хука; эффект родителя сработал бы <em>после</em> эффектов детей и оставил бы первый запрос без области. Второй вызов — в <code>useEffect</code> на смену <code>workspace.id</code>. Очистки при размонтировании <b>намеренно нет</b>: обнуление гонялось бы с фоновыми перезапросами (например, refetch по фокусу окна после ухода на список), которые тогда ушли бы без заголовка и получили <code>400</code>. Задержавшийся идентификатор безвреден — заголовок учитывается только воркспейс-зависимыми маршрутами, а они всегда живут внутри оболочки, которая его переустанавливает на входе. Это заодно обходит окно «setup → cleanup → setup» в StrictMode.</p>
+  </div>
+
+  <h3>7.3 Список воркспейсов</h3>
+  <ol class="flow">
+    <li><code>GET /api/workspaces</code> с правом <code>workspaces:read</code>.</li>
+    <li><b>Запрос сам содержит границу.</b> <code>listForMember(actor.id)</code> — это <code>INNER JOIN memberships</code>. Неограниченного <code>listAll()</code> в read-модели <b>нет вообще</b>, и это специально: его отсутствие означает, что «забыть отфильтровать» нельзя.</li>
+    <li><b>Дедупликации не требуется:</b> уникальность <code>(user_id, workspace_id)</code> делает join «не больше строки на воркспейс».</li>
+    <li><b>Сборка представления — два запроса, не N+1.</b> Участники и гранты для всего набора идентификаторов подтягиваются двумя <code>IN</code>-запросами параллельно (<code>Promise.all</code>) и раскладываются по <code>Map</code>.</li>
+    <li><b>Порядок участников детерминирован</b> — по <code>created_at</code>, затем по <code>id</code>. Это чисто презентационное: роли у участника нет, и «первый» ничего не значит.</li>
+    <li><b>Одна витрина на всё.</b> Из этого ответа рисуются таблица, переключатель, быстрый список сайдбара, палитра команд, плитки и панель главной. Ограничив область здесь, ограничили сразу всё.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Опасный сосед: <code>WorkspaceViewQuery.byId</code></span>
+    <p>Второй метод read-модели <b>области не устанавливает</b>: он вернёт полный состав участников (id, имена, адреса) и все гранты для любого переданного идентификатора. Вызывающий, передавший туда чужой id без предварительной проверки членства, раскроет воркспейс другого арендатора целиком — второго рубежа обороны нет. Сегодня все пять мутационных контроллеров, которые его зовут, стоят за <code>WorkspaceMemberGuard</code>, а шестой — создание — безопасен по другой причине (id отчеканен только что). Разные причины у разных вызывающих — именно поэтому в JSDoc метода они выписаны поимённо: следующий вызывающий обязан осознать, к какому случаю он относится.</p>
+  </div>
+
+  <h3>7.4 Состав участников</h3>
+  <ol class="flow">
+    <li><b>Добавление.</b> <code>POST /api/workspaces/:id/members</code> с <code>{ userId }</code>. Внутри транзакции: загрузить агрегат → <code>MemberLookupQuery.findById</code> (неизвестный пользователь → <code>404</code>) → <code>workspace.addMember(userId)</code>.</li>
+    <li><b>Повторное добавление — не ошибка.</b> Агрегат вернёт <code>false</code>, use-case выйдет, ни строки, ни события. Вставка в репозитории всё равно идёт с <code>onConflictDoNothing</code> — на случай параллельного дубля.</li>
+    <li><b>Адрес участника подмешивается в событие в use-case, а не в агрегате.</b> Email — не забота воркспейса, агрегат его не носит. Но журналу он нужен, поэтому событие <code>member_added</code> достраивается снимком адреса перед отправкой в outbox.</li>
+    <li><b>Аудит записывается против <em>добавленного</em>, а не против актора</b> — чтобы событие всплывало в истории того человека, чей доступ изменился.</li>
+    <li><b>Удаление.</b> <code>DELETE /api/workspaces/:id/members/:userId</code> → <code>204</code>. Удаление не-участника и обращение к несуществующему воркспейсу — <b>тихий no-op</b>, тоже <code>204</code>: результат «этого человека здесь нет» уже достигнут.</li>
+    <li><b>Последнего участника убрать нельзя.</b> <code>removeMember</code> бросает <code>LastMemberError</code> → <code>409</code>. Причина не в вежливости: доступ ограничен членством, значит воркспейс без участников недостижим <b>для всех, включая глобального администратора</b>, и дороги обратно к нему не существует. Правило стоит на агрегате, поэтому его нельзя обойти ни одним путём.</li>
+    <li><b>Самоудаление разрешено</b> — если ты не последний. Это просто прекращение собственного доступа; специального статуса у создателя нет.</li>
+  </ol>
+
+  <h3>7.5 Гранты на типы контента</h3>
+  <ol class="flow">
+    <li><b>Каталог.</b> <code>GET /api/content-types</code> отдаёт всё, на что можно выдать грант. Источник истины — реестр в <code>content-server</code>, доступный через порт <code>CONTENT_CATALOG</code>; если контент-плагин не зарегистрирован, читается встроенный мок из восьми типов, чтобы поток создания воркспейса работал автономно.</li>
+    <li><b>Выдача.</b> <code>POST /api/workspaces/:id/content</code> с одним лишь <code>{ slug }</code>. Вид (<code>collection</code>/<code>single</code>) выводится сервером из каталога — клиент его не присылает и подменить не может. Неизвестный slug → <code>UnknownContentTypeError</code> → <code>400</code>.</li>
+    <li><b>Выдача идемпотентна</b> и блокировки не берёт: добавление гранта ничего не осиротит.</li>
+    <li><b>Отзыв — операция с предусловием.</b> <code>DELETE /api/workspaces/:id/content/:slug</code>. Агрегат загружается через <code>findByIdForContentMutation</code>, то есть <b>под эксклюзивной advisory-блокировкой</b> воркспейса.</li>
+    <li><b>Проверка «счётчик вообще привязан?» идёт до подсчёта.</b> Если <code>CONTENT_ENTRY_COUNTER</code> не связан, <code>isBound</code> ложен, и use-case бросает <code>EntryCountUnavailableError</code> → <code>503</code>.</li>
+    <li><b>Ненулевой счётчик → <code>ContentTypeNotEmptyError</code> → <code>409</code>.</b> Отзыв гранта у типа с записями оставил бы записи в базе, но вне досягаемости воркспейса.</li>
+    <li><b>Отзыв никогда не выданного гранта — no-op.</b> Агрегат вернёт <code>false</code>, событие не поднимется; контроллер отдаст текущее представление.</li>
+  </ol>
+
+  <div class="note crit">
+    <span class="label">Отказ «вслепую» вместо тихого разрешения</span>
+    <p>Отсутствие привязанного счётчика читается как <code>0</code>. Для <b>читающих</b> предпросмотровых эндпоинтов это приемлемо, для разрушающих — нет: это ровно тот случай, когда защита слепа, и трактовать слепоту как «пусто» значит пропускать именно то, ради чего защита существует. Рассуждение «плагина нет — значит и записей нет» неверно: таблицы <code>content_*</code> создаются миграциями и переживают любой конкретный список плагинов при старте. В комментарии к ошибке зафиксирован измеренный случай: воркспейс с пятью строками отдавал <code>{"count":0}</code>, удалялся с <code>204</code> и осиротил все пять. Поэтому разрушающие пути <b>падают закрыто</b>, а читающие счётчики продолжают отвечать.</p>
+  </div>
+
+  <h3>7.6 Архивация и разархивация</h3>
+  <ol class="flow">
+    <li><code>POST /api/workspaces/:id/archive</code> и <code>.../unarchive</code> — два обработчика в одном контроллере, оба сводятся к <code>apply(actor, id, status)</code>.</li>
+    <li><b>Оба требуют <code>workspaces:update</code>, а не <code>workspaces:delete</code></b>: архивация — мягкое, полностью обратимое изменение состояния, и гейтить её правом удаления значило бы приравнять «убрать с глаз» к уничтожению.</li>
+    <li><b>Оба идемпотентны.</b> Архивация уже архивного возвращает текущее представление и не пишет событие.</li>
+    <li><b>В админке асимметрия намеренная:</b> архивация спрашивает подтверждение (<code>ConfirmDialog</code>), разархивация применяется сразу — она низкорисковая.</li>
+  </ol>
+
+  <h3>7.7 Удаление воркспейса — самый нагруженный сценарий</h3>
+  <ol class="flow">
+    <li><b>Предпросмотр в диалоге.</b> Открытие <code>DeleteWorkspaceDialog</code> запускает <code>GET /api/workspaces/:id/entry-count</code> с <code>staleTime: 0</code> и <code>gcTime: 0</code> — результат не кэшируется между открытиями, чтобы только что удалённая запись отразилась.</li>
+    <li><b>Диалог блокирует кнопку, а не ловит ошибку.</b> Общий <code>BlockingConfirmDialog</code> включает разрушительную кнопку <b>только</b> при <code>count === 0</code>. Проверка идёт → спиннер; ошибка проверки → блокировка с «повторите»; счётчик больше нуля → предупреждение с числом. Смысл: человек узнаёт <em>почему</em> заранее, а не после нажатия.</li>
+    <li><b>Ошибка проверки тоже блокирует.</b> Не сумели узнать — не разрешаем: та же логика «падать закрыто», что на сервере.</li>
+    <li><b>Сервер: транзакция открывается, агрегат грузится под эксклюзивной блокировкой.</b> <code>pg_advisory_xact_lock(0x574b, hashtext(workspaceId))</code> — транзакционная, снимается сама при commit или rollback.</li>
+    <li><b>Проверка привязки счётчика</b> (иначе <code>503</code>), затем <code>countWorkspaceEntries</code>, затем <code>assertDeletable(entryCount)</code> → при ненулевом <code>409</code>.</li>
+    <li><b>Зачистка идёт <em>до</em> удаления строки воркспейса.</b> Так очиститель ещё может её прочитать, если ему нужно, а брошенное им исключение откатывает <b>весь</b> delete — «воркспейс удалён наполовину» это ровно то осиротение, ради предотвращения которого механизм и существует.</li>
+    <li><b>Очистители идут последовательно, не параллельно.</b> Они делят одну транзакцию, а транзакция <code>UnitOfWork</code> — одно соединение, которое не умеет чередовать операторы параллельных вызывающих.</li>
+    <li><b>Порядок очистителей — порядок регистрации, и полагаться на него нельзя.</b> Они убирают строки в <em>разных</em> плагинах, между которыми нет внешних ключей; если бы зависимость появилась, лечить её надо ключом внутри плагина, а не последовательностью здесь.</li>
+    <li><b>Дублирующее имя очистителя — исключение при регистрации.</b> Две регистрации одного и того же удвоили бы отчёт и запустили бы отложенную уборку дважды, поэтому реестр падает громко, а не разруливает молча.</li>
+    <li><b>Удаление строки, событие в outbox, commit.</b> Остальное уходит каскадом на уровне базы.</li>
+    <li><b>Нетранзакционное — после commit.</b> Байты в объектном хранилище в транзакцию не входят, поэтому очиститель возвращает не результат, а <b>thunk</b> <code>reclaim</code>, который use-case выполняет уже <em>после</em> фиксации. Откатившееся удаление не должно уничтожать байты строки, которая всё ещё существует.</li>
+    <li><b>Провал <code>reclaim</code> логируется и проглатывается.</b> Строки уже удалены и зафиксированы; бросив здесь, мы отрапортовали бы о неудаче удаления, которое удалось, и не дали бы вызывающему ничего, что имело бы смысл повторить. Остаётся неучтённый мусор в хранилище — это задача уборки, а не корректности, и лог-строка есть то, из чего эта уборка будет построена.</li>
+    <li><b>Админка не ждёт инвалидацию.</b> <code>useDeleteWorkspace</code> <em>намеренно не возвращает</em> промис <code>invalidateQueries</code> из <code>onSuccess</code>: ожидание задержало бы <code>mutateAsync</code> до перезагрузки списка уже без этого воркспейса, и оболочка успела бы мигнуть состоянием «нет доступа» до того, как вызывающий сделает <code>navigate('/workspaces')</code>.</li>
+    <li><b><code>409</code> на клиенте — предохранитель, а не основной путь.</b> Он показывается как <code>toast.warning</code> (отдельно от <code>toast.error</code>) и означает лишь одно: контент появился между проверкой и подтверждением.</li>
+  </ol>
+
+  <div class="note">
+    <span class="label">Гонка «сосчитал — записал» и почему блокировка именно такая</span>
+    <p>Проверка «пусто?» и последующее изменение — это две операции, между которыми может проскочить создание записи. Обычная блокировка строки здесь не помогает: записи лежат в <b>чужих</b> таблицах, и блокировать нужно не строку, а <em>понятие</em> «контент этого воркспейса». Взят транзакционный advisory-lock с фиксированным классом <code>0x574b</code> (чтобы хешированные ключи не столкнулись с любой другой advisory-блокировкой приложения) и семантикой «много читателей — один разрушитель»: <b>создание записи берёт разделяемую</b> блокировку (создания друг другу не мешают, параллельная запись сохраняется), <b>удаление и отзыв — эксклюзивную</b>, дожидаясь всех незавершённых созданий и блокируя новые на время проверки и мутации.</p>
+  </div>
+
+  <h3>7.8 Проверка существования воркспейса для области API-токена</h3>
+  <ol class="flow">
+    <li><b>Identity выпускает токен</b> с непустым списком <code>workspaceIds</code> и вызывает свой порт <code>WORKSPACE_DIRECTORY</code>.</li>
+    <li><b>Адаптером порта служит этот пакет</b> — <code>WorkspaceExistenceQuery.existing(ids)</code>: <b>один</b> запрос <code>IN</code> на весь набор, никогда не по одному на идентификатор (в области токена их бывает до сотни).</li>
+    <li><b>Проверяется существование, а не статус.</b> Архивный воркспейс — законная область токена; отвергается только идентификатор, не называющий ничего.</li>
+    <li><b>Порт необязателен.</b> Если плагина воркспейсов в сборке нет, identity проверку пропускает, а не падает.</li>
+    <li><b>Обратная сторона того же — при удалении.</b> <code>ApiTokenGrantsPurger</code> вычищает строки <code>api_token_workspaces</code> удалённого воркспейса. Он живёт <b>здесь</b>, а не в identity, ровно потому, что зависимость направлена сюда: identity не может зависеть обратно. Токен при этом <b>не отзывается</b> — токен на три воркспейса продолжает работать в оставшихся двух, а токен, оставшийся без областей, просто ни до чего не достаёт. Отзыв был бы политическим решением, на которое у очистителя нет полномочий.</li>
+  </ol>
+
+  <h3>7.9 Аудит</h3>
+  <p>Аудит идёт <b>целиком через outbox</b>. Встроенных вызовов <code>ACTIVITY_RECORDER</code>, которые описывал прежний раздел документации, в исходниках больше нет — поиск находит только комментарий. Каждый use-case добавляет <code>aggregate.pullEvents()</code> в той же транзакции, что и изменение; единственный потребитель — <code>audit-event.subscriber.ts</code> в <code>activity/server</code>. Атомарность берётся из того, что запись в outbox делит транзакцию с мутацией; <b>дополнительно вызывать рекордер нельзя</b> — это дало бы двойную запись.</p>
+</section>
+
+<section id="api">
+  <h2 class="sec"><span class="num">08</span>HTTP API</h2>
+  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост. Легенда доступа: <span class="pill pill-ses">session</span> — нужна валидная сессия, <span class="pill pill-perm">право</span> — нужны сессия и указанное право, <span class="pill pill-pub">member</span> — дополнительно требуется членство в воркспейсе <code>:id</code>. Публичных маршрутов у плагина <b>нет ни одного</b>.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">POST /workspaces</td>
+        <td><span class="pill pill-perm">workspaces:create</span> Origin</td>
+        <td><code>{ name, slug, description, color, members[], content }</code></td>
+        <td><code>201</code> + <code>WorkspaceView</code></td>
+        <td><code>409</code> slug занят; <code>400</code> формат slug, цвет вне палитры, более 200 участников, невалидный email; <code>403</code> нет права или чужой Origin; <code>401</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /workspaces</td>
+        <td><span class="pill pill-perm">workspaces:read</span></td>
+        <td>—</td>
+        <td><code>200</code> массив <code>WorkspaceView</code>, только свои; пустой массив — законный ответ</td>
+        <td><code>401</code>; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /workspaces/slug-available</td>
+        <td><span class="pill pill-perm">workspaces:create</span></td>
+        <td><code>?slug=</code> (1–120 символов)</td>
+        <td><code>200 { available: boolean }</code></td>
+        <td><code>400</code> пустой или слишком длинный slug; <code>403</code> у контрибьютора и наблюдателя</td>
+      </tr>
+      <tr>
+        <td class="mono">PATCH /workspaces/:id</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td><code>{ name?, description?, color? }</code> — <b>slug не редактируется</b></td>
+        <td><code>200</code> + обновлённое представление</td>
+        <td><code>404</code> нет воркспейса; <code>400</code> цвет вне палитры, пустое имя, более 120 / 2000 символов, <code>:id</code> не UUID; <code>403</code> не член; <code>401</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /workspaces/:id/archive</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td>—</td>
+        <td><code>201</code> + представление со <code>status: archived</code></td>
+        <td><code>404</code>; <code>400</code> не UUID; <code>403</code>. Повтор — успех без события</td>
+      </tr>
+      <tr>
+        <td class="mono">POST /workspaces/:id/unarchive</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td>—</td>
+        <td><code>201</code> + представление со <code>status: active</code></td>
+        <td>то же</td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /workspaces/:id</td>
+        <td><span class="pill pill-perm">workspaces:delete</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td>—</td>
+        <td><code>204</code></td>
+        <td><code>404</code>; <code>409</code> остались записи контента; <code>503</code> счётчик не привязан; <code>400</code> не UUID; <code>403</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /workspaces/:id/members</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td><code>{ userId }</code> (uuid)</td>
+        <td><code>201</code> + представление</td>
+        <td><code>404</code> нет воркспейса <b>или</b> нет пользователя; <code>400</code> не UUID; <code>403</code>. Повтор — успех, ничего не меняется</td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /workspaces/:id/members/:userId</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td>два uuid в пути</td>
+        <td><code>204</code></td>
+        <td><code>409</code> это последний участник; <code>400</code> не UUID; <code>403</code>. Не-участник и несуществующий воркспейс — тоже <code>204</code></td>
+      </tr>
+      <tr>
+        <td class="mono">POST /workspaces/:id/content</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td><code>{ slug }</code> (1–120 символов)</td>
+        <td><code>201</code> + представление с обновлённым <code>content[]</code></td>
+        <td><code>400</code> неизвестный тип контента; <code>404</code> нет воркспейса; <code>403</code>. Повтор — успех без события</td>
+      </tr>
+      <tr>
+        <td class="mono">DELETE /workspaces/:id/content/:slug</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span> Origin</td>
+        <td>slug в пути</td>
+        <td><code>200</code> + представление</td>
+        <td><code>409</code> у типа остались записи; <code>503</code> счётчик не привязан; <code>404</code>; <code>403</code>. Отзыв невыданного — успех-no-op</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /workspaces/:id/content/:slug/entry-count</td>
+        <td><span class="pill pill-perm">workspaces:update</span> <span class="pill pill-pub">member</span></td>
+        <td>slug в пути</td>
+        <td><code>200 { count }</code>; <code>0</code>, если контент-плагин не привязан</td>
+        <td><code>400</code> не UUID; <code>403</code>; <code>401</code>. <b>Origin не проверяется</b> — это чтение</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /workspaces/:id/entry-count</td>
+        <td><span class="pill pill-perm">workspaces:delete</span> <span class="pill pill-pub">member</span></td>
+        <td>—</td>
+        <td><code>200 { count }</code> по всем типам сразу</td>
+        <td><code>400</code>; <code>403</code>; <code>401</code></td>
+      </tr>
+      <tr>
+        <td class="mono">GET /content-types</td>
+        <td><span class="pill pill-perm">workspaces:create или workspaces:update</span></td>
+        <td>—</td>
+        <td><code>200</code> массив <code>{ name, kind, label?, description?, path? }</code></td>
+        <td><code>403</code> при отсутствии обоих прав; <code>401</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Все DTO проходят глобальный <code>ValidationPipe</code> хоста с <code>whitelist</code> и <code>forbidNonWhitelisted</code>: незадекларированное поле в теле — <code>400</code> ещё до контроллера. Все <code>:id</code> проходят <code>ParseUUIDPipe</code>; тот же формат независимо проверяет guard, поэтому неправильный идентификатор отсекается дважды и никогда не доходит до запроса в БД. Живой сервер отдаёт сгенерированный OpenAPI на <code>/reference</code>.</p>
+
+  <details>
+    <summary>Почему у части POST-маршрутов статус 201, а не 200</summary>
+    <p><code>@Post</code> в NestJS по умолчанию отвечает <code>201 Created</code>, и на <code>archive</code>, <code>unarchive</code>, <code>members</code> и <code>content</code> этот дефолт оставлен как есть — <code>@HttpCode</code> переопределён только там, где ответ пустой (<code>204</code> на удалениях). Семантически «архивировать» — не создание, но менять статус ради чистоты словаря значило бы ломать уже написанных клиентов ради косметики.</p>
+  </details>
+</section>
+
+<section id="admin">
+  <h2 class="sec"><span class="num">09</span>Админка: маршруты, экраны, состояния</h2>
+
+  <p>Плагин регистрируется <b>после</b> <code>ShellPlugin()</code>, потому что вкладывает свои маршруты в закрытый layout оболочки и свои пункты — в её слоты. Все страницы загружаются лениво (<code>React.lazy</code> + <code>Suspense</code> со скелетоном).</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Маршрут</th><th>Экран</th><th>Что делает</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">/workspaces</td><td><code>WorkspacesPage</code></td><td>Таблица воркспейсов: поиск по имени и описанию, фильтр-чипы по статусу (Все / Активные / Архивные) со счётчиками, кнопка создания под правом</td></tr>
+      <tr><td class="mono">/workspaces/new</td><td><code>CreateWorkspacePage</code></td><td>Полноэкранный мастер из трёх шагов; закрыт правом <code>workspaces:create</code> с редиректом-объяснением</td></tr>
+      <tr><td class="mono">/workspaces/:id/*</td><td><code>WorkspaceShell</code></td><td>Оболочка воркспейса: резолвит <code>:id</code>, публикует контекст, <b>вставляет свою навигацию в сайдбар приложения</b>, строит вложенные маршруты из слота</td></tr>
+      <tr><td class="mono">/workspaces/:id/settings/*</td><td><code>WorkspaceSettingsPage</code></td><td>Вкладки General · Members · Content · Danger zone, каждая — вложенный маршрут; индекс редиректит на <code>general</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="small sub">Маршрут <code>/workspaces/new</code> статически более специфичен, чем <code>/workspaces/:id/*</code>, поэтому React Router ранжирует его выше независимо от порядка объявления — воркспейсом с идентификатором <code>new</code> страницу не перехватить.</p>
+
+  <h3>Состояния списка — четыре, и их нельзя схлопывать</h3>
+  <div class="grid g2">
+    <div class="card"><h4 style="margin-top:0">Загрузка</h4><p class="small sub"><code>WorkspacesTableSkeleton</code> — форма будущей таблицы, а не спиннер.</p></div>
+    <div class="card"><h4 style="margin-top:0">Ошибка</h4><p class="small sub">Отдельный <code>Alert role="alert"</code> с кнопкой «повторить». <b>Никогда</b> текст «создайте первый воркспейс»: он убедил бы оператора, что у аккаунта их действительно нет.</p></div>
+    <div class="card"><h4 style="margin-top:0">Пусто по-настоящему</h4><p class="small sub">Список сервера пуст → «воркспейсов ещё нет» и кнопка создания, если право есть.</p></div>
+    <div class="card"><h4 style="margin-top:0">Пусто из-за фильтра</h4><p class="small sub">Воркспейсы есть, но текущий вид их скрыл → «ничего не нашлось» и «сбросить фильтры». Сброс уводит на <b>«Все»</b>, а не на дефолтные «Активные», — иначе в случае «все архивные» кнопка сброса была бы пустышкой, оставляя таблицу пустой.</p></div>
+  </div>
+
+  <h3>Оболочка воркспейса и состояние «нет доступа»</h3>
+  <ul>
+    <li><b>Резолв идёт по списку, а не отдельным запросом.</b> Список уже ограничен членством на сервере, поэтому <b>неразрешённый <code>:id</code> и есть</b> случай «нет доступа» — не важно, чужой воркспейс или несуществующий.</li>
+    <li><b>Различия между ними интерфейс не показывает</b> — зеркалит плоский <code>403</code> API. Экран: <code>role="alert"</code>, «У вас нет доступа к этому воркспейсу» и ссылка «Назад к воркспейсам»; навигация в сайдбар при этом не вставляется вовсе.</li>
+    <li><b>Сбой загрузки списка — отдельный экран</b>, не «нет доступа»: причина другая, и совет другой.</li>
+    <li><b>Навигация вставляется через <code>useSidebarContent</code>,</b> который хранит <em>отрисованный элемент</em>, а не функцию рендера. Поэтому в зависимостях перечислены <b>все поля, которые навигация рисует</b> — id, имя, цвет, статус, число участников. Ключ по одному лишь id приводил к тому, что переименование, смена цвета или архивация оставляли в переключателе (включая его <code>aria-label</code>) старые значения до конца сессии, тогда как страница настроек рядом показывала новые.</li>
+    <li><b>Приземление на базовый путь</b> редиректит на маршрут с наименьшим <code>order</code> — это Библиотека контента. Неизвестный подпуть ведёт туда же.</li>
+    <li><b>Высота — <code>h-full</code>, не <code>min-h-svh</code>:</b> вставка уже ограничена вьюпортом, и второй независимый расчёт <code>svh</code> может разойтись с первым на пиксель (заметно при масштабе браузера, отличном от 100%) и подарить вставке фантомную полосу прокрутки рядом с собственной.</li>
+  </ul>
+
+  <h3>Страница настроек</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Вкладка</th><th>Что внутри</th><th>Гейт</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>General</td>
+        <td>Имя, описание, акцентный цвет (<code>ColorSwatchRow</code>, общий с мастером). Slug показан <b>только для чтения</b> — он неизменяем. Отдельно — <b>копируемый идентификатор воркспейса</b> (<code>WorkspaceIdField</code>): это то, что принимает заголовок <code>X-Workspace-Id</code> публичного API, а иначе его можно было прочитать только из адресной строки</td>
+        <td><code>workspaces:update</code></td>
+      </tr>
+      <tr>
+        <td>Members</td>
+        <td>Тайпэхед по справочнику (только <b>существующие</b> аккаунты — эндпоинт добавления связывает реальный id, приглашений по адресу здесь нет) и ростер, где участник удаляется через <code>ConfirmDialog</code></td>
+        <td><code>workspaces:update</code></td>
+      </tr>
+      <tr>
+        <td>Content</td>
+        <td>Гранты двумя озаглавленными группами — «Коллекции» и «Страницы». Выдача — <b>отдельный поиск с мультивыбором на каждый вид</b> (два экземпляра <code>AddContentDialog</code>), каждый показывает только невыданные типы своего вида. Отзыв — через <code>RemoveContentDialog</code> с предпроверкой</td>
+        <td><code>workspaces:update</code></td>
+      </tr>
+      <tr>
+        <td>Danger zone</td>
+        <td>Архивация и разархивация плюс безвозвратное удаление через <code>DeleteWorkspaceDialog</code> с предпроверкой</td>
+        <td>Вкладка видна при <code>workspaces:update</code> <b>или</b> <code>workspaces:delete</code>; внутри каждая половина гейтится своим правом</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="label">Гейт стоит и на вкладке, и на маршруте</span>
+    <p>Danger zone исключается из панели вкладок <b>и</b> её вложенный маршрут редиректит на <code>general</code>, если права нет. Одного скрытия вкладки было бы мало: прямая ссылка обошла бы её. Редирект несёт <code>state.redirectNotice</code>, а <code>useRedirectNotice</code> на месте приземления делает три вещи — переводит фокус на <code>&lt;main&gt;</code> (он уже фокусируем ради skip-link), возвращает ключ сообщения <b>один раз</b> для отрисовки в <code>role="status"</code>, и стирает router-state, чтобы перезагрузка или «назад» не проигрывали объявление заново. Без этого <code>&lt;Navigate replace&gt;</code> — это SPA-аналог молчаливого редиректа: фокус падает на <code>&lt;body&gt;</code>, следующий Tab начинает с самого верха документа, а пользователь скринридера слышит тишину.</p>
+  </div>
+
+  <h3>Данные и кэш</h3>
+  <ul>
+    <li><b>Один ключ на всё:</b> <code>workspacesKey = ['workspaces']</code>. Все семь мутаций инвалидируют его — оболочка читает открытый воркспейс из этого же списка и потому пере-резолвится сама.</li>
+    <li><b>Создание — оптимистичное:</b> карточка вставляется в начало списка сразу, с откатом на ошибке и сверкой с сервером в <code>onSettled</code>. Гранты в оптимистичной карточке пустые — их разворачивает сервер.</li>
+    <li><b>Счётчики — принципиально некэшируемые:</b> <code>staleTime: 0</code>, <code>gcTime: 0</code>, <code>enabled</code> только пока диалог открыт. Кэшированный счётчик — это разрешение, выданное по вчерашним данным.</li>
+    <li><b>Каталог типов</b> кэшируется на 60 с, поиск по справочнику — на 30 с (плюс дебаунс 250 мс), проверка slug — на 30 с (плюс дебаунс 300 мс).</li>
+    <li><b>Форма General пере-ключуется</b> строкой <code>id:name:description:color</code>: внешнее изменение (правка другого администратора, приехавшая с перезапросом списка) заново базирует форму и состояние цвета вместо того, чтобы оставить устаревшие значения, которые «Сохранить» затем записал бы поверх.</li>
+  </ul>
+
+  <h3>Слоты</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Слот</th><th>Владелец</th><th>Что кладёт этот плагин</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">SIDEBAR_NAV_SLOT</td><td>shell</td><td>Пункт «Workspaces», иконка <code>Layers</code>, <code>group: 'directory'</code>, <code>order: 10</code></td></tr>
+      <tr><td class="mono">SIDEBAR_SECTION_SLOT</td><td>shell</td><td>Быстрый список воркспейсов (<code>WorkspacesNavSection</code>), только активные</td></tr>
+      <tr><td class="mono">COMMAND_SLOT</td><td>shell</td><td>Переход в любой <b>активный</b> воркспейс из палитры команд</td></tr>
+      <tr><td class="mono">HOME_SECTION_SLOT</td><td>shell</td><td>Три плитки (активные воркспейсы, уникальные участники, уникальные типы контента) и панель со списком</td></tr>
+      <tr><td class="mono">WORKSPACE_NAV_SLOT</td><td><b>этот плагин</b></td><td>Своя запись «Settings» с <code>order: 100</code> — последняя в секции «Workspace»</td></tr>
+      <tr><td class="mono">WORKSPACE_SECTION_SLOT</td><td><b>этот плагин</b></td><td>Ничего своего; сюда Библиотека контента кладёт список типов</td></tr>
+      <tr><td class="mono">WORKSPACE_ROUTE_SLOT</td><td><b>этот плагин</b></td><td>Маршрут <code>settings/*</code>; сюда же Content, Media и Insights кладут свои страницы</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>Три собственных слота — это и есть контракт «плагин живёт внутри воркспейса».</b> Функциональный плагин контрибьютит маршрут плюс запись навигации или секцию и <b>не</b> объявляет ни маршрута верхнего уровня, ни глобального пункта меню. <code>to</code> у записи навигации <b>относительный</b> (<code>'media'</code>), и идентификатор воркспейса подставляет владелец слота — контрибьютор его никогда не пишет. У записи есть необязательное поле <code>permission</code>: <code>WorkspaceNav</code> читает список прав один раз и скрывает записи, право на которые не выдано.</p>
+
+  <h3>Доступность</h3>
+  <ul>
+    <li><b>Фокус после удаления участника.</b> Radix возвращает фокус на триггер диалога, но мутация только что размонтировала его вместе со строкой, и фокус падал на <code>&lt;body&gt;</code>. Обработчик приземляет фокус на строку, занявшую место удалённой, или на заголовок ростера, если список опустел.</li>
+    <li><b>Поле идентификатора — <code>readOnly</code>, но не <code>disabled</code>.</b> Отключённое поле нельзя сфокусировать, значит нельзя ни выделить, ни скопировать с клавиатуры. То же и у поля slug.</li>
+    <li><b>Отказ буфера обмена</b> (небезопасный origin, запрет разрешения) деградирует в тост «выделите и скопируйте вручную», а не в тишину.</li>
+    <li><b>Смена шага мастера объявляется</b> в <code>role="status" aria-live="polite"</code>: «Шаг N из 3: …».</li>
+    <li><b>Анимация входа шага — только <code>transform</code></b> (прозрачность остаётся 1), отключается под <code>prefers-reduced-motion</code>, перезапускается через <code>key={step}</code>.</li>
+    <li><b>Строки навигации</b> используют <code>SidebarMenuButton</code>, активность выводят через <code>useMatch</code> и проставляют <code>aria-current="page"</code>.</li>
+    <li><b>Плитки главной не врут при сбое:</b> ошибка загрузки — отдельный <code>role="alert"</code>, а не три честно нарисованных нуля.</li>
+  </ul>
+</section>
+
+<section id="config">
+  <h2 class="sec"><span class="num">10</span>Конфигурация и порядок регистрации</h2>
+
+  <p><b>Собственной конфигурации у плагина нет.</b> Фабрика <code>WorkspacesPlugin()</code> вызывается без аргументов и является в точности стандартной формой <code>ServerPlugin</code>. Ни одной переменной окружения плагин не читает — ни таймаутов, ни лимитов, ни флагов. Всё, что настраивается, настраивается кодом: палитра цветов (7 ключей), потолок участников при создании (200), класс advisory-блокировки (<code>0x574b</code>), максимальные длины (120 / 2000 / 120).</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Что задаётся фабрикой</th><th>Значение</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">name</td><td><code>'workspaces'</code></td><td>Имя плагина в списке хоста</td></tr>
+      <tr><td class="mono">module</td><td><code>WorkspacesModule.forRoot()</code></td><td><b>Глобальный</b> динамический модуль: guard и проверка членства должны быть инжектируемы из инжектора любого плагина</td></tr>
+      <tr><td class="mono">migrations.dir</td><td>ленивая функция</td><td>Вызывается <b>только во время миграции</b>, никогда при загрузке</td></tr>
+      <tr><td class="mono">migrations.table</td><td><code>__drizzle_migrations_workspaces</code></td><td>Собственный журнал миграций, отдельный от журналов других плагинов</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <span class="label">Порядок в массиве <code>plugins</code> — не стилистика</span>
+    <p><code>WorkspacesPlugin()</code> регистрируется <b>после <code>IdentityPlugin</code></b> и <b>до <code>ContentPlugin</code></b>. После identity — потому что <code>memberships</code> несёт внешний ключ на <code>users</code>, и та таблица обязана быть смигрирована первой, а сервисы читают <code>users</code> и <code>roles</code>. До контента — потому что контент закрывает свои маршруты <code>WorkspaceGuard</code>&#39;ом отсюда и связывает отсюда же порты <code>CONTENT_CATALOG</code> и <code>CONTENT_ENTRY_COUNTER</code>.</p>
+  </div>
+
+  <details>
+    <summary>Что экспортирует модуль и почему именно это</summary>
+    <p>Экспортов пять, и каждый — ответ на конкретную нужду чужого инжектора. <code>MembershipCheckQuery</code> — чтобы <code>@UseGuards(WorkspaceGuard)</code>, инстанцируемый в модуле-потребителе, смог разрешить зависимость guard&#39;а. <code>WorkspacePurgeRegistry</code> — чтобы плагин со своими воркспейс-зависимыми строками мог инжектнуть реестр и зарегистрироваться. <code>WORKSPACE_DIRECTORY</code> — чтобы <code>ApiTokenService</code>, конструируемый в инжекторе identity, разрешил необязательный порт. И оба guard&#39;а.</p>
+  </details>
+</section>
+
+<section id="security">
+  <h2 class="sec"><span class="num">11</span>Безопасность и устойчивость</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0">Одно правило доступа, две точки входа</h4>
+      <p class="small sub">Заголовочный и путевой guard&#39;ы делегируют одной функции <code>authorizeWorkspaceAccess</code>. Разъехаться в трактовке «имеет доступ» они не могут физически. Правило целиком: аутентифицирован, идентификатор — UUID, строка в <code>memberships</code> существует.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Нет перечисления арендаторов</h4>
+      <p class="small sub">Не-член получает плоский <code>403</code> с тем же текстом, что и обращение к несуществующему воркспейсу. Guard срабатывает <b>до</b> обработчика, поэтому собственный <code>404</code> обработчика достижим теперь только для воркспейса, членом которого вызывающий <em>является</em>, то есть удалённого параллельно.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Область запечена в запрос</h4>
+      <p class="small sub"><code>listForMember</code> — это <code>INNER JOIN</code>, а неограниченного <code>listAll()</code> в read-модели нет. Фильтр, встроенный в запрос, невозможно забыть применить; фильтр, применяемый вызывающим, — можно.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Гонка «сосчитал — записал» закрыта блокировкой</h4>
+      <p class="small sub">Транзакционная advisory-блокировка с фиксированным классом: создание записи берёт разделяемую, удаление и отзыв гранта — эксклюзивную. Много созидателей, один разрушитель. Снимается автоматически на commit или rollback, поэтому «забытой» блокировки не бывает.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Проигравший гонку slug получает 409, а не 500</h4>
+      <p class="small sub">Предпроверка гоночна по построению; настоящий арбитр — уникальный индекс. Его отказ распознаётся обходом цепочки <code>cause</code> и переводится обратно в доменную ошибку. Обычная коллизия обязана выглядеть как обычная коллизия.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Разрушение падает закрыто</h4>
+      <p class="small sub">Не сумели измерить — не разрешаем: <code>EntryCountUnavailableError</code> → <code>503</code> для удаления и отзыва, тогда как читающие счётчики продолжают отвечать <code>0</code>. Слепота никогда не трактуется как «пусто».</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Зачистка — часть транзакции, возврат байтов — нет</h4>
+      <p class="small sub">Очистители работают внутри транзакции удаления и откатываются вместе с ней; всё нетранзакционное отдаётся thunk&#39;ом и выполняется <b>после</b> фиксации. Откатившееся удаление не должно уничтожать байты живой строки.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Последний участник несносим</h4>
+      <p class="small sub">Не забота о вежливости, а недостижимость: воркспейс без участников никому не виден, включая глобального администратора, и способа вернуться к нему нет. Правило стоит на агрегате.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">CSRF на всех мутациях</h4>
+      <p class="small sub"><code>OriginGuard</code> из identity висит на каждом изменяющем маршруте и <b>ни на одном</b> читающем — включая предпросмотровые счётчики, которые остаются обычными GET.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Клиент не выбирает вид типа контента</h4>
+      <p class="small sub">В теле выдачи гранта только <code>slug</code>; <code>kind</code> сервер выводит из каталога. Иначе клиент мог бы объявить страницу коллекцией и сдвинуть смысл строки в БД.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Отсутствие области — исключение, а не <code>undefined</code></h4>
+      <p class="small sub"><code>@CurrentWorkspace()</code> бросает <code>500</code> вместо возврата пустого значения. Пустая область в запросе — это тихо снятая изоляция арендаторов; лучше громкая ошибка проводки.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">Дубль очистителя — падение при старте</h4>
+      <p class="small sub">Повторная регистрация одного <code>purgeName</code> удвоила бы отчёт и запустила бы возврат ресурсов дважды, поэтому реестр бросает исключение при регистрации, а не разбирается молча.</p>
+    </div>
+  </div>
+
+  <h3>Осознанно отложено</h3>
+  <ul>
+    <li><b>Очистители для alarms и segments</b> — их воркспейс-зависимые строки сегодня переживают удаление (см. раздел 5).</li>
+    <li><b>Режим «только чтение» для архивного воркспейса</b> — статус не блокирует ничего.</li>
+    <li><b>Роли и владелец внутри воркспейса</b> — модель намеренно плоская.</li>
+    <li><b>Приглашение по адресу с реальным токеном</b> — сегодня заводится только <code>pending</code>-аккаунт; в коде <code>TODO(invites)</code>.</li>
+    <li><b>Изменение slug</b> — он объявлен стабильным URL-идентификатором и в <code>UpdateWorkspaceDto</code> отсутствует.</li>
+    <li><b>Порт для read-моделей</b> — представления инжектятся конкретными классами; инвертированы только записи.</li>
+    <li><b>Автоматическая проверка границ слоёв</b> — линт из <code>@orthacms/nx</code> ещё не подключён, правило держится на ревью.</li>
+  </ul>
+</section>
+
+<section id="invariants">
+  <h2 class="sec"><span class="num">12</span>Инварианты</h2>
+  <p>Утверждения, которые обязаны выполняться всегда. Одновременно список для ревью и заготовка утверждений для тестов.</p>
+
+  <ul class="inv">
+    <li><span class="id">И-01</span><span>Право и членство проверяются <b>независимо</b>, и обе проверки обязательны: обладание <code>workspaces:update</code> никогда не открывает доступ в воркспейс, где вызывающий не состоит.</span></li>
+    <li><span class="id">И-02</span><span>Оба guard&#39;а делегируют решение единственной функции <code>authorizeWorkspaceAccess</code>; иной реализации «имеет доступ» в кодовой базе нет.</span></li>
+    <li><span class="id">И-03</span><span>«Не член» и «нет такого воркспейса» неотличимы: один и тот же <code>403</code> с одним текстом, на всех маршрутах и на экране оболочки.</span></li>
+    <li><span class="id">И-04</span><span><code>GET /api/workspaces</code> отдаёт <b>только</b> воркспейсы вызывающего; неограниченного списка в read-модели не существует.</span></li>
+    <li><span class="id">И-05</span><span>Каждый маршрут вида <code>/workspaces/:id/…</code> несёт <code>WorkspaceMemberGuard</code> — включая оба предпросмотровых счётчика.</span></li>
+    <li><span class="id">И-06</span><span><code>@CurrentWorkspace()</code> либо возвращает проверенный идентификатор, либо бросает; <code>undefined</code> он не возвращает никогда.</span></li>
+    <li><span class="id">И-07</span><span>Членство не несёт роли; у воркспейса нет владельца, и создатель — просто первый участник без привилегий.</span></li>
+    <li><span class="id">И-08</span><span>Последнего участника удалить нельзя: <code>LastMemberError</code> → <code>409</code>. Правило стоит на агрегате и не обходится ни одним путём.</span></li>
+    <li><span class="id">И-09</span><span>Каждый мутатор агрегата идемпотентен и возвращает факт изменения; при <code>false</code> не пишется ни строка, ни доменное событие.</span></li>
+    <li><span class="id">И-10</span><span>Slug уникален системно; арбитр — уникальный индекс, а его нарушение переводится в <code>409</code>, а не в <code>500</code>.</span></li>
+    <li><span class="id">И-11</span><span>Формат slug (строчные латинские буквы, цифры, дефис; 1–120) проверяется value-объектом, а не декоратором DTO, и одинаково на сервере и в админке.</span></li>
+    <li><span class="id">И-12</span><span>Цвет воркспейса всегда принадлежит палитре из семи ключей; произвольное значение невозможно записать.</span></li>
+    <li><span class="id">И-13</span><span>Slug воркспейса неизменяем: в <code>UpdateWorkspaceDto</code> поля нет, и другого пути его сменить не существует.</span></li>
+    <li><span class="id">И-14</span><span>Воркспейс нельзя удалить, пока в нём есть записи контента (<code>409</code>); грант нельзя отозвать, пока у типа есть записи в этом воркспейсе (<code>409</code>).</span></li>
+    <li><span class="id">И-15</span><span>Если счётчик записей не привязан, разрушающие операции <b>отказывают</b> (<code>503</code>), а читающие счётчики продолжают отвечать <code>0</code>.</span></li>
+    <li><span class="id">И-16</span><span>Удаление и отзыв гранта загружают агрегат под <b>эксклюзивной</b> advisory-блокировкой воркспейса; запись записи берёт <b>разделяемую</b>.</span></li>
+    <li><span class="id">И-17</span><span>Все очистители выполняются <b>внутри</b> транзакции удаления и последовательно; брошенное исключение откатывает удаление целиком.</span></li>
+    <li><span class="id">И-18</span><span>Нетранзакционный возврат ресурсов выполняется <b>только после</b> фиксации, а его провал логируется и проглатывается.</span></li>
+    <li><span class="id">И-19</span><span>Повторная регистрация очистителя с тем же <code>purgeName</code> — исключение, а не тихая перезапись.</span></li>
+    <li><span class="id">И-20</span><span>Вид типа контента (<code>collection</code> или <code>single</code>) выводится сервером из каталога; клиент присылает только slug, и неизвестный slug даёт <code>400</code>.</span></li>
+    <li><span class="id">И-21</span><span>Грант «весь контент» разворачивается в явные строки на каждый известный slug: наличие строки всегда означает явную выдачу.</span></li>
+    <li><span class="id">И-22</span><span>Каждое изменение состояния кладёт своё доменное событие в outbox <b>той же транзакцией</b>; встроенных вызовов рекордера аудита нет.</span></li>
+    <li><span class="id">И-23</span><span><code>domain/</code> не импортирует ни <code>@nestjs/*</code>, ни <code>drizzle-orm</code>, ни <code>class-validator</code>, ни <code>infrastructure/</code>.</span></li>
+    <li><span class="id">И-24</span><span>Заглушка <code>users</code> из <code>external-refs.ts</code> не реэкспортируется из <code>schema/index.ts</code>, поэтому <code>drizzle-kit</code> не выпускает второй <code>CREATE TABLE users</code>.</span></li>
+    <li><span class="id">И-25</span><span>Приглашённые участники сопоставляются по нормализованному адресу; один адрес в разном регистре даёт один аккаунт, а не два.</span></li>
+    <li><span class="id">И-26</span><span>Идентификатор пользователя, который не резолвится в реальную строку <code>users</code>, отбрасывается и не роняет создание воркспейса.</span></li>
+    <li><span class="id">И-27</span><span><code>WORKSPACE_DIRECTORY</code> отвечает на вопрос о <b>существовании</b>, а не о статусе: архивный воркспейс — законная область API-токена.</span></li>
+    <li><span class="id">И-28</span><span>Зачистка областей токена не отзывает сам токен.</span></li>
+    <li><span class="id">И-29</span><span>Проверка доступности slug требует <code>workspaces:create</code>; аутентификации недостаточно.</span></li>
+    <li><span class="id">И-30</span><span>Каждый предпросмотровый счётчик закрыт тем же правом, что и охраняемое им действие.</span></li>
+    <li><span class="id">И-31</span><span>В админке отказ загрузки списка никогда не отображается как «воркспейсов нет».</span></li>
+    <li><span class="id">И-32</span><span>Разрушительная кнопка в диалоге включается <b>только</b> при известном нулевом счётчике; и «проверяем», и «ошибка проверки» блокируют её.</span></li>
+    <li><span class="id">И-33</span><span>Сбой проверки slug даёт состояние <code>Unknown</code> и не открывает переход к следующему шагу.</span></li>
+    <li><span class="id">И-34</span><span>Danger zone гейтится и на вкладке, и на маршруте: прямая ссылка без права редиректит на <code>general</code> с объяснением.</span></li>
+  </ul>
+</section>
+
+<section id="qa">
+  <h2 class="sec"><span class="num">13</span>Чек-лист тестирования</h2>
+  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Серверная часть проверяется <code>curl</code> + <code>psql</code>, админская — браузером. Существующие наборы: <code>apps/server-e2e/src/server/workspaces/*</code> (7 файлов: create, update, access, content, lifecycle, members, regressions) и <code>apps/admin-e2e/src/workspaces/*</code> (6 файлов: workspaces, settings, permissions, keyboard, a11y, regressions).</p>
+
+  <h3>Граница арендатора</h3>
+  <ul class="check">
+    <li><b>Администратор, не состоящий в воркспейсе, шлёт <code>PATCH /workspaces/:id</code></b> → <span class="exp">403 с текстом «You are not a member of this workspace.», данные не изменены.</span></li>
+    <li><b>Тот же запрос на заведомо несуществующий UUID</b> → <span class="exp">403 с тем же телом — ответы неразличимы.</span></li>
+    <li><b><code>GET /workspaces</code> под пользователем без членств</b> → <span class="exp">200 и пустой массив, не 403 и не 404.</span></li>
+    <li><b>Два пользователя в разных воркспейсах</b> → <span class="exp">каждый видит в списке только свой; чужого идентификатора в ответе нет.</span></li>
+    <li><b>Запрос с <code>X-Workspace-Id</code> чужого воркспейса на маршрут контента</b> → <span class="exp">403 от <code>WorkspaceGuard</code>, обработчик не вызван.</span></li>
+    <li><b>Запрос без заголовка <code>X-Workspace-Id</code> на маршрут под <code>WorkspaceGuard</code></b> → <span class="exp">400 «Missing or malformed X-Workspace-Id header.».</span></li>
+    <li><b>Заголовок с мусором вместо UUID</b> → <span class="exp">400, обращения к БД нет.</span></li>
+    <li><b>Заголовок продублирован дважды</b> → <span class="exp">берётся первое значение, поведение детерминировано.</span></li>
+    <li><b><code>:id</code> не UUID в пути</b> → <span class="exp">400 (сработает <code>ParseUUIDPipe</code> либо guard — в обоих случаях 400).</span></li>
+  </ul>
+
+  <h3>Создание</h3>
+  <ul class="check">
+    <li><b>Валидное создание</b> → <span class="exp">201, представление, в <code>memberships</code> строка на создателя, в <code>workspace_content</code> — по строке на каждый выданный slug, в журнале <code>workspace.created</code>.</span></li>
+    <li><b>Тот же slug вторым запросом</b> → <span class="exp">409 «Workspace slug already taken».</span></li>
+    <li><b>Два одновременных создания с одним slug</b> → <span class="exp">ровно одно 201, второе 409 (не 500), в БД один воркспейс.</span></li>
+    <li><b>Slug с заглавными буквами или подчёркиванием</b> → <span class="exp">400 с сообщением про строчные буквы, цифры и дефисы.</span></li>
+    <li><b>Slug длиной 121 символ</b> → <span class="exp">400.</span></li>
+    <li><b>Имя длиной 121 символ или описание 2001 символ</b> → <span class="exp">400 от <code>ValidationPipe</code>.</span></li>
+    <li><b>Цвет вне палитры</b> → <span class="exp">400.</span></li>
+    <li><b>201 участник в массиве</b> → <span class="exp">400 (<code>ArrayMaxSize</code>), воркспейс не создан.</span></li>
+    <li><b>Приглашённый участник с email из одних пробелов</b> → <span class="exp">400 (<code>@IsEmail</code>), аккаунта-призрака не появляется.</span></li>
+    <li><b>Один и тот же адрес приглашён дважды в одном запросе</b> → <span class="exp">создаётся один аккаунт <code>pending</code> с ролью <code>viewer</code>, членство одно.</span></li>
+    <li><b>Тот же адрес в другом регистре, аккаунт уже есть</b> → <span class="exp">переиспользуется существующий аккаунт, новый не создаётся.</span></li>
+    <li><b>Несуществующий uuid в не-приглашённом участнике</b> → <span class="exp">создание проходит, этот участник просто не добавлен, ошибки внешнего ключа нет.</span></li>
+    <li><b>Создатель дополнительно перечислен в <code>members</code></b> → <span class="exp">одна строка членства, не две.</span></li>
+    <li><b><code>content.mode = 'all'</code></b> → <span class="exp">по строке на каждый тип каталога, с правильным <code>kind</code>.</span></li>
+    <li><b><code>mode: 'all'</code> с <code>excludedIds</code></b> → <span class="exp">исключённые slug&#39;и не получили строк.</span></li>
+    <li><b><code>mode: 'specific'</code> со slug, которого нет в каталоге</b> → <span class="exp">он молча отбрасывается (пересечение с известными), а не создаёт грант в никуда.</span></li>
+    <li><b>Лишнее поле в теле</b> → <span class="exp">400 от <code>ValidationPipe</code>.</span></li>
+    <li><b>Контрибьютор пробует создать</b> → <span class="exp">403.</span></li>
+  </ul>
+
+  <h3>Участники</h3>
+  <ul class="check">
+    <li><b>Добавление существующего пользователя</b> → <span class="exp">201, представление содержит его, событие <code>member_added</code> с адресом в нагрузке.</span></li>
+    <li><b>Повторное добавление того же</b> → <span class="exp">успех, состав не изменился, второго события нет.</span></li>
+    <li><b>Добавление несуществующего пользователя</b> → <span class="exp">404.</span></li>
+    <li><b>Удаление участника при двух и более</b> → <span class="exp">204, строка ушла, событие <code>member_removed</code>.</span></li>
+    <li><b>Удаление последнего участника</b> → <span class="exp">409 с подсказкой «удалите воркспейс или добавьте другого участника», строка на месте.</span></li>
+    <li><b>Удаление не-участника</b> → <span class="exp">204, ничего не изменилось, события нет.</span></li>
+    <li><b>Удаление из несуществующего воркспейса</b> → <span class="exp">403 (guard срабатывает раньше — вызывающий не член).</span></li>
+    <li><b>Удаление самого себя при наличии второго участника</b> → <span class="exp">204; следующий <code>GET /workspaces</code> этого воркспейса уже не показывает.</span></li>
+    <li><b>Удалить пользователя из справочника identity</b> → <span class="exp">его членства уходят каскадом.</span></li>
+  </ul>
+
+  <h3>Гранты контента</h3>
+  <ul class="check">
+    <li><b>Выдача известного slug</b> → <span class="exp">201, slug появился в <code>content[]</code>, событие <code>content_granted</code> с видом.</span></li>
+    <li><b>Повторная выдача</b> → <span class="exp">успех, дубликата строки нет, второго события нет.</span></li>
+    <li><b>Выдача неизвестного slug</b> → <span class="exp">400.</span></li>
+    <li><b>Отзыв гранта у пустого типа</b> → <span class="exp">200, slug исчез из <code>content[]</code>, событие <code>content_revoked</code>.</span></li>
+    <li><b>Отзыв гранта у типа с записями</b> → <span class="exp">409, грант на месте.</span></li>
+    <li><b>Отзыв никогда не выданного гранта</b> → <span class="exp">200 с текущим представлением, события нет.</span></li>
+    <li><b>Отзыв при отсутствии контент-плагина</b> → <span class="exp">503, а не тихий успех.</span></li>
+    <li><b>Параллельно: создание записи и отзыв гранта того же типа</b> → <span class="exp">эксклюзивная блокировка сериализует их; либо запись создана и отзыв дал 409, либо отзыв прошёл и запись создалась после — осиротевших строк нет.</span></li>
+  </ul>
+
+  <h3>Жизненный цикл и удаление</h3>
+  <ul class="check">
+    <li><b>Архивация активного</b> → <span class="exp">статус <code>archived</code>, событие <code>workspace.archived</code>.</span></li>
+    <li><b>Повторная архивация</b> → <span class="exp">успех, второго события нет.</span></li>
+    <li><b>Разархивация</b> → <span class="exp">статус <code>active</code>, событие <code>workspace.unarchived</code>.</span></li>
+    <li><b>Запись контента в архивный воркспейс</b> → <span class="exp">проходит — статус ничего не блокирует. Если ожидается блокировка, это дефект требований, а не кода.</span></li>
+    <li><b>Удаление пустого воркспейса</b> → <span class="exp">204; ушли <code>memberships</code>, <code>workspace_content</code>, разговоры и предложения копайлота, навыки, сохранённые представления.</span></li>
+    <li><b>Удаление воркспейса с записями</b> → <span class="exp">409, ничего не удалено.</span></li>
+    <li><b>Удаление при отсутствии контент-плагина</b> → <span class="exp">503.</span></li>
+    <li><b>Удаление воркспейса с медиа</b> → <span class="exp">строки <code>media_asset</code> и <code>media_folder</code> ушли, байты возвращены после фиксации, отчёт покажет число строк.</span></li>
+    <li><b>Удаление воркспейса, входящего в область API-токена</b> → <span class="exp">строка <code>api_token_workspaces</code> ушла, <b>сам токен не отозван</b> и продолжает работать в остальных воркспейсах.</span></li>
+    <li><b>Удаление воркспейса, который был единственной областью токена</b> → <span class="exp">токен жив, но не достаёт ни до чего.</span></li>
+    <li><b>Очиститель бросает исключение</b> → <span class="exp">откат целиком: воркспейс на месте, ни одна чужая строка не удалена.</span></li>
+    <li><b>Возврат байтов проваливается</b> → <span class="exp">запрос всё равно успешен (204), в логе строка с именем очистителя и идентификатором воркспейса.</span></li>
+    <li><b>Параллельно: создание записи и удаление воркспейса</b> → <span class="exp">сериализовано блокировкой, осиротевших записей нет.</span></li>
+    <li><b>После удаления проверить <code>alarm_rules</code> и <code>entry_access</code></b> → <span class="exp">строки остаются — известный непокрытый остаток (раздел 5).</span></li>
+  </ul>
+
+  <h3>Права</h3>
+  <ul class="check">
+    <li><b>Наблюдатель: <code>GET /workspaces</code></b> → <span class="exp">200, свои воркспейсы.</span></li>
+    <li><b>Наблюдатель: <code>GET /workspaces/slug-available</code></b> → <span class="exp">403.</span></li>
+    <li><b>Наблюдатель: <code>GET /content-types</code></b> → <span class="exp">403 (нет ни create, ни update).</span></li>
+    <li><b>Администратор-член: <code>GET /content-types</code></b> → <span class="exp">200; тот же ответ и для обладателя только <code>workspaces:create</code>.</span></li>
+    <li><b>Обладатель <code>workspaces:update</code>, но не <code>workspaces:delete</code>: <code>GET /workspaces/:id/entry-count</code></b> → <span class="exp">403; при этом <code>/content/:slug/entry-count</code> ему доступен.</span></li>
+    <li><b>Мутация с посторонним <code>Origin</code></b> → <span class="exp">403 от <code>OriginGuard</code>.</span></li>
+    <li><b>Тот же <code>Origin</code> на GET-счётчике</b> → <span class="exp">проходит — читающие маршруты <code>OriginGuard</code> не несут.</span></li>
+  </ul>
+
+  <h3>Админка: список и мастер</h3>
+  <ul class="check">
+    <li><b>API отвечает 500 на списке</b> → <span class="exp">алерт с кнопкой «повторить», <b>не</b> «создайте первый воркспейс».</span></li>
+    <li><b>Список действительно пуст</b> → <span class="exp">состояние «ещё нет воркспейсов»; кнопка создания видна только с правом.</span></li>
+    <li><b>Все воркспейсы архивные, фильтр по умолчанию</b> → <span class="exp">состояние «ничего не найдено»; «сбросить» переводит на «Все» и показывает их.</span></li>
+    <li><b>Счётчики на чипах фильтра</b> → <span class="exp">считаются по полному списку, а не по текущему виду.</span></li>
+    <li><b>Наблюдатель открывает <code>/workspaces/new</code> прямой ссылкой</b> → <span class="exp">редирект на список, объявление в <code>role="status"</code>, фокус на <code>&lt;main&gt;</code>; перезагрузка объявление не повторяет.</span></li>
+    <li><b>Ввод занятого slug</b> → <span class="exp">состояние «занят», кнопка «дальше» заблокирована.</span></li>
+    <li><b>Проверка slug падает (500)</b> → <span class="exp">переход остаётся заблокированным, «свободно» не показывается.</span></li>
+    <li><b>Уйти на шаг 2 и вернуться на шаг 1</b> → <span class="exp">все поля сохранены.</span></li>
+    <li><b>Правка slug вручную, затем правка имени</b> → <span class="exp">slug не перезаписывается; кнопка «сгенерировать заново» возвращает автоподстановку.</span></li>
+    <li><b><code>?step=7</code> в адресе</b> → <span class="exp">зажимается до 3.</span></li>
+    <li><b>Отправка при занятом slug (гонка)</b> → <span class="exp">тост «slug занят, выберите другой на шаге Основное», а не общее «повторите».</span></li>
+    <li><b>Отправка при сетевой ошибке</b> → <span class="exp">оптимистичная карточка откатывается, список возвращается к прежнему.</span></li>
+    <li><b>«Пропустить и создать» на шаге контента</b> → <span class="exp">воркспейс создан без грантов, выбранное на шаге не потеряно при повторной попытке.</span></li>
+  </ul>
+
+  <h3>Админка: оболочка и настройки</h3>
+  <ul class="check">
+    <li><b>Прямая ссылка на чужой <code>/workspaces/:id</code></b> → <span class="exp">экран «нет доступа» с <code>role="alert"</code> и ссылкой назад; навигация в сайдбар не вставлена.</span></li>
+    <li><b>Ссылка на несуществующий воркспейс</b> → <span class="exp">тот же экран, ни слова о том, что его нет.</span></li>
+    <li><b>Список не загрузился</b> → <span class="exp">экран ошибки, <b>не</b> «нет доступа».</span></li>
+    <li><b>Переименовать воркспейс в настройках</b> → <span class="exp">переключатель в сайдбаре показывает новое имя сразу, включая <code>aria-label</code>.</span></li>
+    <li><b>Сменить цвет</b> → <span class="exp">аватар в переключателе перекрашивается сразу.</span></li>
+    <li><b>Архивировать из Danger zone</b> → <span class="exp">подтверждение, затем бейдж «Архивный» в шапке настроек и исчезновение из быстрого списка и палитры команд.</span></li>
+    <li><b>Разархивировать</b> → <span class="exp">применяется без подтверждения.</span></li>
+    <li><b>Открыть диалог удаления при непустом воркспейсе</b> → <span class="exp">предупреждение с числом записей, кнопка «Удалить» неактивна.</span></li>
+    <li><b>Тот же диалог при недоступном счётчике</b> → <span class="exp">блокировка с «не смогли проверить», кнопка неактивна.</span></li>
+    <li><b>Удалить пустой воркспейс</b> → <span class="exp">тост, переход на список, экран «нет доступа» по дороге <b>не</b> мигает.</span></li>
+    <li><b>Удалить запись и снова открыть диалог</b> → <span class="exp">счётчик пересчитан заново, не из кэша.</span></li>
+    <li><b>Отозвать грант у типа с записями через интерфейс</b> → <span class="exp">кнопка «Убрать» заблокирована с объяснением; серверный 409 не достигается.</span></li>
+    <li><b>Диалоги добавления контента</b> → <span class="exp">их два — «Добавить коллекции» и «Добавить страницы», каждый показывает только невыданные типы своего вида.</span></li>
+    <li><b>Удалить участника с клавиатуры</b> → <span class="exp">после закрытия диалога фокус на строке, занявшей место удалённой, либо на заголовке ростера.</span></li>
+    <li><b>Удалить последнего участника через интерфейс</b> → <span class="exp">сервер отвечает 409; сегодня показывается <b>общий</b> тост «не удалось удалить участника» — см. раздел 15.</span></li>
+    <li><b>Наблюдатель на странице настроек</b> → <span class="exp">поля только для чтения, вкладки Danger zone нет; прямая ссылка на <code>settings/danger</code> уводит на <code>general</code> с объявлением.</span></li>
+    <li><b>Скопировать идентификатор воркспейса</b> → <span class="exp">тост об успехе; на небезопасном origin — тост «выделите и скопируйте вручную», поле остаётся фокусируемым.</span></li>
+    <li><b>Полностью клавиатурный проход настроек</b> → <span class="exp">все вкладки и элементы достижимы, у каждого виден фокус.</span></li>
+  </ul>
+</section>
+
+<section id="bounds">
+  <h2 class="sec"><span class="num">14</span>Границы ответственности</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Workspaces</th></tr></thead>
+    <tbody>
+      <tr><td>Аутентификация, роли, права</td><td><code>identity-server</code></td><td>Ссылается на <code>PERMISSIONS.WORKSPACES_*</code> и вешает <code>PermissionsGuard</code>; своих прав не объявляет</td></tr>
+      <tr><td>Соединение с БД и запуск миграций</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Владеет файлами схемы и миграций, но ни соединением, ни шагом применения</td></tr>
+      <tr><td>Записи контента и каталог типов</td><td><code>content-server</code></td><td>Владеет <b>портами</b>, которые контент связывает; каталог и подсчёт делает чужими руками</td></tr>
+      <tr><td>Файлы и папки медиа</td><td><code>media-server</code></td><td>Даёт guard для маршрутов и реестр очистки; очиститель медиа живёт в медиа</td></tr>
+      <tr><td>Справочник пользователей, приглашения</td><td><code>users-server</code> / <code>identity-server</code></td><td>Читает <code>users</code> и <code>roles</code>; заводит <code>pending</code>-аккаунт при создании воркспейса, но токена приглашения не выписывает</td></tr>
+      <tr><td>Журнал действий</td><td><code>activity-server</code></td><td>Порождает 9 видов доменных событий в outbox; строк журнала не пишет</td></tr>
+      <tr><td>Область API-токена</td><td><code>identity-server</code></td><td>Связывает порт <code>WORKSPACE_DIRECTORY</code> и вычищает области при удалении; токенами не управляет и их не отзывает</td></tr>
+      <tr><td>Оболочка админки, сайдбар, палитра команд</td><td><code>shell-admin</code></td><td>Кладёт свои пункты в её слоты; сам оболочкой не является</td></tr>
+      <tr><td>Компоненты интерфейса</td><td><code>@orthacms/design-system</code></td><td>Собирает страницы только из готовых компонентов; собственной вёрстки-«самоделки» не заводит. Шасси мастера (<code>Stepper</code>, <code>WizardStepCard</code>, <code>WizardFooter</code>) — тоже оттуда</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Чего ещё нет</h3>
+  <ul>
+    <li><b>Ролей и владельца внутри воркспейса</b> — модель плоская намеренно.</li>
+    <li><b>Ограничений архивного состояния</b> — статус не блокирует ничего.</li>
+    <li><b>Переноса контента между воркспейсами</b> — этим занимается группа <code>transfer</code>.</li>
+    <li><b>Квот, лимитов и биллинга.</b></li>
+    <li><b>Массовых операций</b> — нельзя архивировать или удалить несколько воркспейсов разом.</li>
+    <li><b>Поиска и пагинации на сервере</b> — список отдаётся целиком, фильтрация и поиск целиком клиентские.</li>
+    <li><b>Реального приглашения по адресу</b> — <code>TODO(invites)</code> в провизионере.</li>
+    <li><b>Восстановления удалённого</b> — «корзины» нет.</li>
+  </ul>
+</section>
+
+<section id="gaps">
+  <h2 class="sec"><span class="num">15</span>Расхождения кода и документации</h2>
+  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">workspaces/server/AGENTS.md, «Deleting a workspace»</td>
+        <td>Таблица трёх механизмов подана как исчерпывающая: каскад, отказ, зачистка</td>
+        <td>Есть воркспейс-зависимые таблицы <b>вне</b> всех трёх: <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code> и массив <code>segments.workspace_ids</code>. Внешнего ключа у них нет, очистителя они не регистрируют (<code>WorkspacePurger</code> во всём репозитории реализуют только media и локальный <code>ApiTokenGrantsPurger</code>), поэтому после удаления их строки указывают в никуда — ровно тот класс осиротения, ради которого механизм зачистки и вводился</td>
+      </tr>
+      <tr>
+        <td class="mono">workspaces/server/AGENTS.md, строка «Cascade»</td>
+        <td>Перечислены <code>memberships</code>, <code>workspace_content</code>, <code>copilot_conversations</code> / <code>_proposals</code> / <code>_skills</code></td>
+        <td>Каскадный FK на <code>workspaces.id</code> несёт ещё и <code>saved_views</code> (<code>content/server</code>). Список неполон</td>
+      </tr>
+      <tr>
+        <td class="mono">workspaces/admin/AGENTS.md, «Architecture»</td>
+        <td><code>useUsersSearch</code> → <code>GET /api/users?q=</code></td>
+        <td>Шлюз шлёт <code>?search=</code> и <code>?pageSize=10</code>; DTO <code>ListMembersQueryDto</code> объявляет поле <code>search</code>. Параметра <code>q</code> не существует</td>
+      </tr>
+      <tr>
+        <td class="mono">workspaces/admin/AGENTS.md, «Settings page → Members»</td>
+        <td>«ростер, где <b>каждый</b> участник удаляем; ни один участник не особенный»</td>
+        <td>Последний участник <b>не</b> удаляем: сервер отвечает <code>409 LastMemberError</code>. Клиент этот случай не различает — <code>confirmRemoval</code> ловит любую ошибку одним <code>catch</code> и показывает общее «Couldn’t remove that member. Please try again.», хотя повтор заведомо не поможет. Соседние диалоги (удаление воркспейса, отзыв гранта) для того же <code>409</code> уже используют <code>isConflict</code> и отдельный текст</td>
+      </tr>
+      <tr>
+        <td class="mono">workspacesPlugin/index.tsx, JSDoc</td>
+        <td>«пункт <code>Layers</code>, контрибьютируемый в <code>NAVBAR_START_SLOT</code> при <code>order: 20</code>»</td>
+        <td>Пункт кладётся в <code>SIDEBAR_NAV_SLOT</code> с <code>order: 10</code>. Слота <code>NAVBAR_START_SLOT</code> плагин не использует вовсе. <code>AGENTS.md</code> при этом описывает всё верно — документ и код-комментарий противоречат друг другу</td>
+      </tr>
+      <tr>
+        <td class="mono">workspacesPlugin/index.tsx, JSDoc</td>
+        <td>Перечислены два владения: область управления и оболочка воркспейса</td>
+        <td>Плагин контрибьютит ещё и в <code>COMMAND_SLOT</code> (палитра команд) и в <code>HOME_SECTION_SLOT</code> (плитки и панель главной). <code>AGENTS.md</code> упоминает главную, но про палитру команд молчит и он</td>
+      </tr>
+      <tr>
+        <td class="mono">WorkspacesPage/index.tsx, JSDoc</td>
+        <td>«searchable, status-filterable <b>grid of workspace cards</b>»</td>
+        <td>Страница рендерит <code>WorkspacesTable</code> — таблицу, не сетку карточек. <code>AGENTS.md</code> говорит «table» правильно; устарел именно комментарий, и слово «grid» протекло дальше — в комментарий <code>useDeleteWorkspace</code> и в тексты пары состояний</td>
+      </tr>
+      <tr>
+        <td class="mono">workspaces/server/AGENTS.md, «The one hard rule»</td>
+        <td>Правило подано так, будто описывает раскладку целиком</td>
+        <td>Оно касается <b>только</b> <code>domain/</code>. Выше слои проницаемы фактически: use-case&#39;ы участников импортируют конкретный <code>MemberLookupQuery</code> из <code>infrastructure/</code>, контроллеры — <code>WorkspaceViewQuery</code> и <code>SlugAvailabilityQuery</code>. Это осознанно (read-модель — проекция, а не правило), но читающий пакет как эталон легко примет за инверсию то, чего нет</td>
+      </tr>
+      <tr>
+        <td class="mono">workspaces/server/AGENTS.md, «Ports &amp; adapters»</td>
+        <td>«<code>DrizzleMemberProvisioner</code>: provisions pending users for invited emails, drops stale ids»</td>
+        <td>Верно, но не сказано главного для тестировщика: провизионер <b>пишет в чужую таблицу</b> <code>users</code> плагина identity и назначает роль <code>viewer</code>, а <code>TODO(invites)</code> прямо в коде фиксирует, что токен приглашения при этом не выписывается. То есть «пригласить по адресу» в мастере не отправляет ничего и не даёт человеку способа войти</td>
+      </tr>
+      <tr>
+        <td class="mono">Корневой <code>AGENTS.md</code>, карта проекта</td>
+        <td>Группа <code>workspaces</code> отдельной строкой не описана</td>
+        <td>Карта подробно описывает database, identity, copilot, tools, content/graphql, transfer, segments, alarms, mcp, nx, cli и scaffolder, но <code>packages/workspaces</code> в перечислении отсутствует — при том что именно она названа эталоном ADR-0003 и её guard используют 51 файл в других пакетах</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer class="end">
+  <p><b>Второй артефакт серии.</b> Сделан по группе <code>packages/workspaces</code> по каркасу пилотного паспорта Identity, с одним добавленным разделом — «Слоёная раскладка (ADR-0003)», потому что этот пакет является её эталонной реализацией и на него смотрят остальные плагины. Разделы, которых у пакета нет (SSO, сессии, отдельные framework-free пакеты), выпали; конфигурация сведена к порядку регистрации, так как собственных настроек у плагина нет.</p>
+  <p>Источник — исходный код: 13 контроллеров, DTO, два guard&#39;а и декоратор, 8 use-case&#39;ов, агрегат и value-объекты, схема Drizzle и единственная миграция, страницы, хуки и слоты админки. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 15.</p>
+</footer>
+
+</main>
+</div>
