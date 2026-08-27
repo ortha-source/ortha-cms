@@ -168,10 +168,19 @@ export function renderTemplate(
             continue;
         }
 
-        writeFileSync(
-            destination,
-            render(applyConditionals(raw, flags, file), values)
-        );
+        const contents = applyConditionals(raw, flags, file);
+
+        // A file that conditioned *itself* away is not written at all. This is
+        // what lets one module per optional plugin live under `config/`: wrap
+        // the whole of `config/mcp.ts` in `ortha:if mcp` and an app generated
+        // without MCP has no such file, rather than an empty one whose only
+        // job is to explain why it is empty. Guarded on the source having had
+        // content, so a template file that is deliberately blank still ships.
+        if (raw.trim() !== '' && contents.trim() === '') {
+            continue;
+        }
+
+        writeFileSync(destination, render(contents, values));
     }
 }
 

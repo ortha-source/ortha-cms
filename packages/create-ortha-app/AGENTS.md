@@ -225,6 +225,22 @@ dropped. An unclosed block **throws** — silently swallowing the rest of
 `plugins.ts` would produce an app that boots with no API rather than one that
 fails to render.
 
+**A file that conditions itself away is not written.** Wrap the whole of a file
+in one block and an app generated without that feature simply has no such file —
+which is what lets `apps/server/config/` hold one module per optional plugin
+(`mcp.ts`, `sso-oidc.ts`, `copilot-anthropic.ts`) rather than one file of
+markers. The guard is on the *rendered* result being blank while the source was
+not, so a template file that is deliberately empty still ships.
+
+That shape is not decoration. Split across modules, an import list is narrow
+enough that a helper only a feature block used is left **dangling** when that
+feature is off — and `ortha:if` cannot drop it, because two features may need
+the same import and a marker per specifier would emit it twice. One file per
+optional thing sidesteps that entirely: every module's imports are
+unconditional and exactly used. `apps/server/config/media-storage.ts` is the
+one file that still carries several blocks, and it can, because storage is a
+single choice — exactly one survives.
+
 `package.json` deliberately does **not** use them: dropping lines from JSON is
 how you get a trailing comma and an app that cannot be installed, blaming the
 template rather than the feature that was switched off. Its dependency map is
