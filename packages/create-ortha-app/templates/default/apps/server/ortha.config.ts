@@ -29,10 +29,6 @@ import type {
 // rather than hand-rolled here: each reader refuses a value it cannot honour
 // instead of guessing, and the guessing is what makes a misconfigured
 // deployment look configured. See `@orthacms/utils-server`.
-//
-// Every name here is used in every generated app, whatever the wizard was asked
-// for. An import that only a switched-off feature needed would be left
-// dangling: `ortha:if` drops the block that used it, not the import.
 import {
     defined,
     isProduction,

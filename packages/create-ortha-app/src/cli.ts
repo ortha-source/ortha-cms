@@ -64,6 +64,47 @@ function idList(raw: string | undefined): string[] | undefined {
 }
 
 /**
+ * The ids a `--media` / `--copilot` / `--sso` / `--protocols` flag named, checked
+ * against the group it belongs to.
+ *
+ * An id nobody recognises has to stop the run. The flags take *feature ids*
+ * (`media-s3`), not the label or the bare adapter name, and `--media s3` is the
+ * natural guess — it used to select nothing, and "nothing" is a real answer for
+ * three of the four groups, so it scaffolded an app quietly missing whatever was
+ * asked for. For storage that app cannot even compile: no adapter means no
+ * `storage` setting and no `mediaStorage()` for the config to call. Naming the
+ * valid ids here costs a typo nothing and turns a broken app into one line of
+ * output.
+ *
+ * `required` marks a single-choice group that must end up with something —
+ * storage, where "no adapter" is not a configuration an app can run.
+ */
+function selected(
+    argv: readonly string[],
+    name: string,
+    group: readonly Feature[],
+    required = false
+): string[] {
+    const chosen = idList(option(argv, name)) ?? defaultsOf(group);
+    const known = new Set(group.map((feature) => feature.id));
+    const unknown = chosen.filter((id) => !known.has(id));
+
+    if (unknown.length > 0) {
+        throw new Error(
+            `--${name}: no such option ${unknown.map((id) => `"${id}"`).join(', ')}. ` +
+                `Expected ${[...known].join(', ')}${required ? '' : ', or none'}.`
+        );
+    }
+    if (required && chosen.length === 0) {
+        throw new Error(
+            `--${name}: an app needs one of ${[...known].join(', ')} — ` +
+                'there is no configuration for "no adapter at all".'
+        );
+    }
+    return chosen;
+}
+
+/**
  * This package's own version, which every `@orthacms/*` dependency in the
  * generated app is pinned to.
  *
@@ -179,13 +220,14 @@ async function resolveAnswers(
         '_'
     )}`;
 
-    const media = idList(option(argv, 'media')) ?? defaultsOf(MEDIA_PROVIDERS);
-    const copilot =
-        idList(option(argv, 'copilot')) ?? defaultsOf(COPILOT_PROVIDERS);
-    const sso = idList(option(argv, 'sso')) ?? defaultsOf(SSO_PROVIDERS);
+    // Storage is `required`: it is a single choice, and an app with no adapter
+    // has no `storage` setting for `plugins.ts` to hand its factory.
+    const media = selected(argv, 'media', MEDIA_PROVIDERS, true);
+    const copilot = selected(argv, 'copilot', COPILOT_PROVIDERS);
+    const sso = selected(argv, 'sso', SSO_PROVIDERS);
     const protocols = [
         ...lockedOf(PROTOCOLS),
-        ...(idList(option(argv, 'protocols')) ?? defaultsOf(PROTOCOLS))
+        ...selected(argv, 'protocols', PROTOCOLS)
     ];
 
     if (!asked) {
