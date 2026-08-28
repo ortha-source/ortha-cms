@@ -1,3 +1,45 @@
+## 0.4.3 (2026-08-28)
+
+### 🚀 Features
+
+- **alarms:** content rules that flag problems without blocking a write ([b86f4499](https://github.com/ortha-source/ortha-cms/commit/b86f4499))
+- **alarms:** expose findings to the copilot and render them ([dfbfe29b](https://github.com/ortha-source/ortha-cms/commit/dfbfe29b))
+- **alarms:** group flagged records by the alarm that flagged them ([3d5740b1](https://github.com/ortha-source/ortha-cms/commit/3d5740b1))
+- **alarms:** mark required fields, remove muting, wire the relation picker ([7c6de578](https://github.com/ortha-source/ortha-cms/commit/7c6de578))
+- **alarms:** re-check from a group header, and collapse the builder on apply ([b4e19c50](https://github.com/ortha-source/ortha-cms/commit/b4e19c50))
+- **content:** saved list views for collection records ([dcf80402](https://github.com/ortha-source/ortha-cms/commit/dcf80402))
+- **content,segments:** version an entry's access with the entry ([1828438b](https://github.com/ortha-source/ortha-cms/commit/1828438b))
+- **identity:** let a contributor delete content and media ([9ae9248c](https://github.com/ortha-source/ortha-cms/commit/9ae9248c))
+- **query-builder:** a named category for flat fields, and put segments in one ([22107929](https://github.com/ortha-source/ortha-cms/commit/22107929))
+- **segments:** reader access as two lists on the entry ([e5f500e9](https://github.com/ortha-source/ortha-cms/commit/e5f500e9))
+- **segments:** apply entry access on the entry's own Save/Publish ([7716a0ab](https://github.com/ortha-source/ortha-cms/commit/7716a0ab))
+- **segments:** audience pages, workspace scope, pagination, bulk set ([f1f2afc3](https://github.com/ortha-source/ortha-cms/commit/f1f2afc3))
+- **segments:** filter records by audience; move the Access tab's directory link ([ec850b2e](https://github.com/ortha-source/ortha-cms/commit/ec850b2e))
+- **segments:** default the audience filter to multi-select, and cover both halves by e2e ([7e4106a7](https://github.com/ortha-source/ortha-cms/commit/7e4106a7))
+- **segments:** revise every locale a save's audiences reached, and load into skeletons ([7ceebbb5](https://github.com/ortha-source/ortha-cms/commit/7ceebbb5))
+- **segments:** reach reader entitlements from MCP, the copilot and a token ([0a6b6ab2](https://github.com/ortha-source/ortha-cms/commit/0a6b6ab2))
+
+### 🩹 Fixes
+
+- **admin-e2e:** sort from the header's button, not the cell around it ([33eddbfb](https://github.com/ortha-source/ortha-cms/commit/33eddbfb))
+- **alarms:** rebuild the alarms UI around what people actually reported ([e8311ae5](https://github.com/ortha-source/ortha-cms/commit/e8311ae5))
+- **alarms:** drop the dead space under a group that does not page ([a1f76dc9](https://github.com/ortha-source/ortha-cms/commit/a1f76dc9))
+- **content:** apply the read scope inside relation windows, not only on hydration ([bb379d58](https://github.com/ortha-source/ortha-cms/commit/bb379d58))
+- **create-ortha-app:** refuse a feature id no group defines ([b6c4a98c](https://github.com/ortha-source/ortha-cms/commit/b6c4a98c))
+- **release:** stop pack leaving a broken package staged ([b2e085ec](https://github.com/ortha-source/ortha-cms/commit/b2e085ec))
+- **segments:** space badge icons in the design system, validate the segment form ([da7a3191](https://github.com/ortha-source/ortha-cms/commit/da7a3191))
+- **segments:** bind reader/audience ids as one uuid[] parameter ([f4bf6dd5](https://github.com/ortha-source/ortha-cms/commit/f4bf6dd5))
+- **segments:** write an entry's audiences to its whole locale group ([c364a01c](https://github.com/ortha-source/ortha-cms/commit/c364a01c))
+- **server-e2e:** give the run the heap the run actually needs ([be0df263](https://github.com/ortha-source/ortha-cms/commit/be0df263))
+- **server-e2e:** bound resetDb's wait for its own locks ([29aabc9b](https://github.com/ortha-source/ortha-cms/commit/29aabc9b))
+
+### ❤️ Thank You
+
+- Claude
+- Claude Opus 5
+- Claude Opus 5 (1M context)
+- Pavel Makhanko @pmknk
+
 ## 0.4.2 (2026-08-24)
 
 ### 🩹 Fixes
