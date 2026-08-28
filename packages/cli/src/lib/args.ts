@@ -2,8 +2,9 @@
  * Argv parsing for the `ortha` binary.
  *
  * Split out of `cli.ts` because that file runs `main()` on import: anything
- * left in it is untestable, and the one thing worth testing here is which
- * arguments mean "show the help" — the first command a new user types.
+ * left in it is untestable, and what is worth testing here is which arguments
+ * mean "show the help" or "show the version" — the two a new user reaches for
+ * first, and the two that answer before the app itself has to exist.
  */
 
 export const USAGE = `ortha — the Ortha CMS command line
@@ -22,6 +23,7 @@ Options:
   --server               build/dev: the server only, skipping the admin
   --admin                build: the admin bundle only
   -h, --help             Show this message
+  -v, --version          Show the installed version
 `;
 
 /** Reads `--flag=value`, or `--flag value`, from argv. */
@@ -61,4 +63,14 @@ export function wantsHelp(args: readonly string[]): boolean {
         args.includes('--help') ||
         args.includes('-h')
     );
+}
+
+/**
+ * Whether this invocation is asking which version is installed.
+ *
+ * Checked before {@link wantsHelp}, so `ortha --version --help` answers with
+ * the number — the same precedence `node` and `git` use.
+ */
+export function wantsVersion(args: readonly string[]): boolean {
+    return args.includes('--version') || args.includes('-v');
 }

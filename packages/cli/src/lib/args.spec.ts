@@ -1,4 +1,4 @@
-import { flag, option, wantsHelp } from './args';
+import { flag, option, wantsHelp, wantsVersion } from './args';
 
 describe('wantsHelp', () => {
     // The regression: `--help` lands in the command position, so a check that
@@ -46,5 +46,27 @@ describe('flag', () => {
     it('is true only for the bare flag', () => {
         expect(flag(['--server'], 'server')).toBe(true);
         expect(flag(['--admin'], 'server')).toBe(false);
+    });
+});
+
+describe('wantsVersion', () => {
+    it.each([['--version'], ['-v']])('recognises a bare %s', (arg) => {
+        expect(wantsVersion([arg])).toBe(true);
+    });
+
+    it('recognises the flag asked after a command', () => {
+        expect(wantsVersion(['migrate', '--version'])).toBe(true);
+    });
+
+    it('leaves real commands to run', () => {
+        expect(wantsVersion([])).toBe(false);
+        expect(wantsVersion(['migrate'])).toBe(false);
+        expect(wantsVersion(['build', '--server'])).toBe(false);
+    });
+
+    // The precedence `cli.ts` relies on: it asks this first, so the pair has
+    // to be answerable by the version rather than swallowed by the help.
+    it('is true alongside a help flag, which cli.ts checks second', () => {
+        expect(wantsVersion(['--version', '--help'])).toBe(true);
     });
 });

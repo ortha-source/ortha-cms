@@ -38,6 +38,7 @@ get the most destructive operation in the system wrong.
 | `ortha generate --name=<n>` | drizzle-kit against the app's own `drizzle.config.ts` |
 | `ortha studio` | Drizzle Studio on the app's database |
 | `ortha --help` | Usage — also `-h` and a bare `help`. Answered before `findProjectRoot`, so it works outside an app |
+| `ortha --version` | The installed version, read from the package manifest at runtime. Also `-v`, and checked before `--help` |
 
 ## Architecture
 

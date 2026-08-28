@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { USAGE, flag, option, wantsHelp } from './lib/args';
+import { USAGE, flag, option, wantsHelp, wantsVersion } from './lib/args';
 import { buildCommand } from './lib/commands/build';
 import { devCommand } from './lib/commands/dev';
 import { generateCommand } from './lib/commands/generate';
@@ -8,12 +8,19 @@ import { startCommand } from './lib/commands/start';
 import { studioCommand } from './lib/commands/studio';
 import { loadEnv } from './lib/env';
 import { findProjectRoot } from './lib/project';
+import { cliVersion } from './lib/version';
 
 async function main(): Promise<void> {
     const args = process.argv.slice(2);
 
-    // Before `findProjectRoot`, so asking what the command does works from
-    // anywhere — including the shell you are in before the app exists.
+    // Both before `findProjectRoot`, so asking what the command is and which
+    // version it is works from anywhere — including the shell you are in
+    // before the app exists.
+    if (wantsVersion(args)) {
+        console.log(cliVersion());
+        return;
+    }
+
     if (wantsHelp(args)) {
         console.log(USAGE);
         return;
