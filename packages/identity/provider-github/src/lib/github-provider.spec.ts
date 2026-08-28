@@ -239,3 +239,13 @@ describe('createGithubProvider — complete', () => {
         expect(github.calls.token).toBe(0);
     });
 });
+
+describe('createGithubProvider — logout', () => {
+    it('implements no back-channel logout, which is what makes that route answer 404', () => {
+        // GitHub posts no logout notification there is anything to verify, and
+        // the port makes the method optional for exactly this case: an adapter
+        // that cannot verify one does not have it, so the endpoint says 404
+        // rather than pretending to have ended somebody's sessions.
+        expect(providerFor().provider.verifyLogoutToken).toBeUndefined();
+    });
+});

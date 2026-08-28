@@ -322,19 +322,37 @@ once they have tried a password, that result is what they are waiting to hear.
 
 - **Unit (vitest)** — `src/**/*.spec.ts(x)`, configured in `vite.config.mts`
   (jsdom + the React plugin, so a component test needs no harness change).
-  Today it covers `domain/` only: the `Email` and `Password` value objects,
-  where the rules actually live. Both mirror a server rule, so the specs pin the
-  boundaries the two have to agree on — 320/321 characters for an email, 11/12
-  and 72/73 for a password, plus the UTF-16-vs-bytes counting that `Password`
-  shares with the server.
-- **End-to-end** — everything above `domain/` is covered from the browser in
+  It covers the decisions this package makes on its own, layer by layer:
+    - `domain/` — the `Email` and `Password` value objects, where the format
+      rules live. Both mirror a server rule, so the specs pin the boundaries the
+      two have to agree on — 320/321 characters for an email, 11/12 and 72/73
+      for a password, plus the UTF-16-vs-bytes counting that `Password` shares
+      with the server.
+    - `presentation/auth/` — the **gate**. `useHasPermission` is fail-closed in
+      every state but `Authenticated` (including with no provider mounted at
+      all), the `AuthProvider` reducer keeps a failed probe distinct from a
+      refused one (`Unavailable` ≠ `Unauthenticated`, so an outage does not
+      bounce anyone to the sign-in form), and `RequireAuth` renders each of the
+      four states. The reducer is private to `AuthProvider`, so it is driven
+      through a render rather than imported.
+    - `application/` — the cache rules a session change depends on:
+      `resetSessionCache` removes every namespace but `auth` (and uses
+      `removeQueries`, not `clear()`, so mutations survive), `sessionEnded` is a
+      one-shot flag that survives StrictMode's double-invoke, and
+      `useLogoutMutation` clears the cached user **before** it sweeps.
+    - `infrastructure/` — `httpAuthGateway.getCurrentUser` returns `null` on
+      `401` and throws on anything else. That split is what the `Unavailable`
+      state is made of.
+    - the form schemas — one message per empty field, and the byte-counted
+      password ceiling.
+- **End-to-end** — the wiring is covered from the browser in
   [`apps/admin-e2e/src/auth`](../../../apps/admin-e2e/AGENTS.md) (`login`,
   `logout`, `accept-invite`, `reset-password`, `private-routes`, `routing`,
   plus the `a11y` and
-  `keyboard` suites), against mocked `/api` routes. Prefer adding there over
-  unit-testing a hook or a page: the states worth guarding — an outage, a dead
-  link, a stale cache after a session change — only exist once the router, the
-  query client and the gate are wired together.
+  `keyboard` suites), against mocked `/api` routes. Reach for it when what you
+  are guarding only exists once the router, the query client and the gate are
+  wired together — a redirect that carries `state.from`, a toast that fires on a
+  real `401`. A rule that one module decides by itself belongs in a unit spec.
 
 ## Commands
 

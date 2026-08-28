@@ -292,4 +292,12 @@ describe('createSamlProvider — logout', () => {
             provider().logoutUrl?.({ returnTo: 'https://cms.test/' })
         ).toBeNull();
     });
+
+    it('implements no back-channel logout, which is what makes that route answer 404', () => {
+        // The port makes `verifyLogoutToken` optional so an adapter that cannot
+        // verify a notification simply does not have one — the alternative, a
+        // method that accepted whatever was posted, would be an unauthenticated
+        // way to sign arbitrary people out of the CMS.
+        expect(provider().verifyLogoutToken).toBeUndefined();
+    });
 });

@@ -59,4 +59,15 @@ describe('normalizeSsoProfile', () => {
     it('collapses a blank name to null, so the column is not spaces', () => {
         expect(normalizeSsoProfile(profile({ name: '  ' })).name).toBeNull();
     });
+
+    it('passes the group claims through untouched, so the role resolver sees what the provider said', () => {
+        const groups = ['  Platform Editors  ', 'admins'];
+        expect(normalizeSsoProfile(profile({ groups })).groups).toEqual(groups);
+    });
+
+    it('passes the provider session id through untouched, so a back-channel logout can still find it', () => {
+        expect(
+            normalizeSsoProfile(profile({ sessionId: ' sid-42 ' })).sessionId
+        ).toBe(' sid-42 ');
+    });
 });

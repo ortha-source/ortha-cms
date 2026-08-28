@@ -1,7 +1,13 @@
+import type { DomainEvent } from '@orthacms/database';
 import { UserAccount } from './user-account';
 import { PasswordHash } from './value-objects/password-hash';
 import { IDENTITY_EVENT_KINDS } from './events/identity-events';
-import { InvalidUserStateError } from './errors';
+import {
+    InvalidEmailError,
+    InvalidUserIdError,
+    InvalidUserStateError,
+    InvalidUserStatusError
+} from './errors';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const HASH = PasswordHash.create('$2b$12$abcdefghijklmnopqrstuv');
@@ -19,6 +25,21 @@ function rehydrated(
                 ? '$2b$12$abcdefghijklmnopqrstuv'
                 : overrides.passwordHash
     });
+}
+
+/** A loaded `pending` account: an invite nobody has accepted yet. */
+function pendingAccount(): UserAccount {
+    return rehydrated({ status: 'pending', passwordHash: null });
+}
+
+/** The identifying parts of an event, minus the per-instance id and clock. */
+function fact(event: DomainEvent) {
+    return {
+        kind: event.kind,
+        aggregateType: event.aggregateType,
+        aggregateId: event.aggregateId,
+        payload: event.payload
+    };
 }
 
 describe('UserAccount aggregate', () => {
@@ -44,6 +65,69 @@ describe('UserAccount aggregate', () => {
         it('rejects activating a non-pending account', () => {
             const account = rehydrated({ status: 'active' });
             expect(() => account.activate(HASH)).toThrow(InvalidUserStateError);
+        });
+    });
+
+    /**
+     * The SSO acceptance path (И-22). An identity provider vouched for the
+     * address, so there is no password to set — and the missing hash is the
+     * point, not an omission: it is what makes the password path refuse the
+     * account exactly as it refuses an unaccepted invite, leaving the provider
+     * as the only way in. A `credentialChanged` here would have the repository
+     * write a credential nobody chose.
+     */
+    describe('activateWithoutCredential', () => {
+        it('activates a pending account and leaves it without a credential', () => {
+            const account = pendingAccount();
+            account.activateWithoutCredential();
+
+            expect(account.status.value).toBe('active');
+            expect(account.passwordHash).toBeNull();
+            expect(account.changes()).toEqual({
+                statusChanged: true,
+                credentialChanged: false
+            });
+            expect(account.pullEvents().map((event) => event.kind)).toEqual([
+                IDENTITY_EVENT_KINDS.USER_ACTIVATED
+            ]);
+        });
+
+        it.each(['active', 'disabled'])(
+            'rejects activating a %s account',
+            (status) => {
+                const account = rehydrated({ status });
+                expect(() => account.activateWithoutCredential()).toThrow(
+                    InvalidUserStateError
+                );
+            }
+        );
+
+        it('leaves a rejected account exactly as it was', () => {
+            const account = rehydrated({ status: 'disabled' });
+            expect(() => account.activateWithoutCredential()).toThrow(
+                InvalidUserStateError
+            );
+
+            expect(account.status.value).toBe('disabled');
+            expect(account.changes()).toEqual({
+                statusChanged: false,
+                credentialChanged: false
+            });
+            expect(account.pullEvents()).toEqual([]);
+        });
+
+        // What changed about the *account* is identical either way, so the two
+        // paths raise one fact; how it happened rides on the sign-in event
+        // beside it. A subscriber must not have to know which path ran.
+        it('raises the same user.activated fact as the password path', () => {
+            const credentialled = pendingAccount();
+            credentialled.activate(HASH);
+            const vouchedFor = pendingAccount();
+            vouchedFor.activateWithoutCredential();
+
+            expect(vouchedFor.pullEvents().map(fact)).toEqual(
+                credentialled.pullEvents().map(fact)
+            );
         });
     });
 
@@ -95,6 +179,25 @@ describe('UserAccount aggregate', () => {
             );
         });
 
+        // The method gates on `disabled` alone, deliberately: a pending
+        // account is how an invite acceptance and a reset-before-acceptance
+        // set a first credential. It must not activate the account as a side
+        // effect — that transition belongs to `activate`.
+        it('changes the credential of a pending account without activating it', () => {
+            const account = pendingAccount();
+            account.changeCredential(HASH);
+
+            expect(account.status.value).toBe('pending');
+            expect(account.passwordHash?.value).toBe(HASH.value);
+            expect(account.changes()).toEqual({
+                statusChanged: false,
+                credentialChanged: true
+            });
+            expect(account.pullEvents()[0].kind).toBe(
+                IDENTITY_EVENT_KINDS.PASSWORD_CHANGED
+            );
+        });
+
         it('rejects changing the credential of a disabled account', () => {
             const account = rehydrated({ status: 'disabled' });
             expect(() => account.changeCredential(HASH)).toThrow(
@@ -103,12 +206,83 @@ describe('UserAccount aggregate', () => {
         });
     });
 
-    it('rehydrate carries no pending changes or events', () => {
-        const account = rehydrated();
-        expect(account.changes()).toEqual({
-            statusChanged: false,
-            credentialChanged: false
+    /**
+     * The application drains the aggregate into the transactional outbox. A
+     * second drain has to come back empty, or a single state change would be
+     * published twice — and an outbox subscriber has no way to tell the
+     * duplicate from a genuine repeat of the same transition.
+     */
+    describe('pullEvents', () => {
+        it('returns the events in the order they were raised', () => {
+            const account = rehydrated();
+            account.disable();
+            account.enable();
+
+            expect(account.pullEvents().map((event) => event.kind)).toEqual([
+                IDENTITY_EVENT_KINDS.USER_DISABLED,
+                IDENTITY_EVENT_KINDS.USER_ENABLED
+            ]);
         });
-        expect(account.pullEvents()).toHaveLength(0);
+
+        it('drains what it returned, so a second pull is empty', () => {
+            const account = rehydrated();
+            account.disable();
+
+            expect(account.pullEvents()).toHaveLength(1);
+            expect(account.pullEvents()).toEqual([]);
+        });
+
+        it('is empty on an aggregate nothing was done to', () => {
+            expect(rehydrated().pullEvents()).toEqual([]);
+        });
+    });
+
+    /**
+     * Rehydration is the boundary where a persisted row becomes a domain
+     * object, and it is the last place a value the value objects reject can be
+     * stopped. Letting one through would produce an aggregate whose guards
+     * cannot reason about it and which would write the bad value straight back.
+     */
+    describe('rehydrate', () => {
+        it('carries no pending changes or events', () => {
+            const account = rehydrated();
+            expect(account.changes()).toEqual({
+                statusChanged: false,
+                credentialChanged: false
+            });
+            expect(account.pullEvents()).toHaveLength(0);
+        });
+
+        it('keeps a pending account credential-less', () => {
+            expect(pendingAccount().passwordHash).toBeNull();
+        });
+
+        it('rejects a status outside the lifecycle enum', () => {
+            expect(() => rehydrated({ status: 'suspended' })).toThrow(
+                InvalidUserStatusError
+            );
+        });
+
+        it('rejects a malformed email', () => {
+            expect(() =>
+                UserAccount.rehydrate({
+                    id: USER_ID,
+                    email: 'ada@localhost',
+                    status: 'active',
+                    passwordHash: HASH.value
+                })
+            ).toThrow(InvalidEmailError);
+        });
+
+        it('rejects a non-UUID id', () => {
+            expect(() =>
+                UserAccount.rehydrate({
+                    id: 'not-a-uuid',
+                    email: 'ada@example.com',
+                    status: 'active',
+                    passwordHash: HASH.value
+                })
+            ).toThrow(InvalidUserIdError);
+        });
     });
 });

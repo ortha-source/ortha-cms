@@ -18,15 +18,22 @@ describe('safeRedirectPath', () => {
         ['a bare host', 'evil.test'],
         ['a protocol-relative URL', '//evil.test/'],
         ['a backslash-smuggled host', '/\\evil.test'],
+        ['a doubled backslash with no leading slash', '\\\\evil.test'],
         ['a scheme with no slash', 'javascript:alert(1)'],
         ['an embedded newline', '/ok\nLocation: https://evil.test'],
         ['an embedded tab', '/ok\ttail'],
         ['a leading space', ' /ok'],
+        ['an embedded DEL', '/ok\u007f'],
+        ['an embedded NUL', '/ok\u0000'],
         ['an empty string', ''],
         ['undefined', undefined],
         ['null', null]
     ])('falls back for %s', (_label, input) => {
         expect(safeRedirectPath(input as string | undefined)).toBe('/');
+    });
+
+    it('keeps a non-ASCII path, because only control characters are unsafe', () => {
+        expect(safeRedirectPath('/записи/тест')).toBe('/записи/тест');
     });
 
     it('uses the supplied fallback', () => {
