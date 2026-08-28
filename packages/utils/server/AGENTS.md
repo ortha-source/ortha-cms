@@ -1,6 +1,6 @@
 # @orthacms/utils-server
 
-Server-side shared utilities for Ortha CMS. Two concerns:
+Server-side shared utilities for Ortha CMS. Three concerns:
 
 - the **filter query builder** — translates a REST-style `?filter=` payload into
   a Drizzle SQL fragment that callers splice into their `WHERE` clause (the bulk
@@ -11,6 +11,13 @@ Server-side shared utilities for Ortha CMS. Two concerns:
   violation" from "not a violation"): a table with several unique indexes needs
   to know _which_ one tripped, because reporting one as the other tells the user
   to fix something that isn't wrong.
+- **Environment readers** (`env.ts`) — `readEnv`, `requireEnv`,
+  `readPositiveInt` / `readOptionalPositiveInt`, `readList` /
+  `readOptionalList`, `readFlag`, `readTrustProxy`, `readNodeEnv` /
+  `isProduction`, plus `when` and `defined`. What a host's `ortha.config.ts`
+  turns `process.env` into. Here rather than in each host because this repo's
+  host and the scaffolder's template had a copy each and they had already
+  drifted; see below.
 
 The package has no NestJS module of its own — it's a pure helper library any
 plugin can import.
@@ -19,6 +26,46 @@ plugin can import.
 
 - Name: `@orthacms/utils-server`
 - Import: `import { applyFilterTree, parseFilterTree } from '@orthacms/utils-server'`
+
+## Environment readers (`env.ts`)
+
+Every reader **throws rather than guesses**, which is the whole point of the
+module: the failure mode of environment parsing is silence. A number that is
+not a plain positive decimal integer, a `NODE_ENV` that is not one of the three
+recognised modes, a required variable that is empty — each refuses at import,
+naming the variable, instead of producing a deployment that looks configured.
+`Number(process.env[x]) || default` was wrong in three directions at once (a
+falsy `0` became the default, a truthy negative was accepted, `1e9` parsed) and
+silent in all of them.
+
+Four things here are decisions rather than details:
+
+- **`readEnv` is the one every other reader is built on.** "Empty means not
+  configured" is decided in exactly one place, which is what makes
+  `ANTHROPIC_API_KEY=` leave a deployment with no Claude backend rather than one
+  registered with an empty key — a backend that is in the picker and fails on
+  the first message.
+- **`readOptionalPositiveInt` exists alongside `readPositiveInt`** (and
+  `readOptionalList` alongside `readList`). A *ceiling* whose owner ships its
+  own default cannot be handed `{ maxSteps: undefined }` — spreading that
+  overwrites the default with nothing — so the optional form yields `undefined`
+  and the caller drops the key.
+- **`when` and `defined` read nothing**, and are here anyway. They are what a
+  host does with that `undefined`: `when(configured, build)` yields a block or
+  nothing, `defined(obj)` strips the keys that were never set. Without them
+  every host writes `...(x ? { key } : {})` at each optional setting, which is
+  the duplication this module exists to end — and the shape that made the
+  erasure above easy to get wrong.
+- **`readTrustProxy` returns `boolean | number | string` structurally**, rather
+  than importing `TrustProxySetting` from `@orthacms/bootstrap-server`. This is
+  a leaf helper package and the host that imports it must not become a
+  dependency of it; the host's own `trustProxy?: TrustProxySetting` field is
+  what checks the two still agree.
+
+`isProduction` is a **function**, not a constant, because a library cannot
+decide when a host reads its environment. `apps/server/config/env.ts` re-derives
+it as a constant at import for its own reasons, which is the shape a host is
+free to choose.
 
 ## Conventions
 
