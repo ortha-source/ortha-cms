@@ -73,6 +73,21 @@ if (!existsSync(buildDir)) {
     fail(`${pkg.name} has no dist/ — run \`nx build ${pkg.name}\` first`);
 }
 
+// A private package is not a distributable, and the staged manifest is built
+// field by field below — it never carries `private` forward. So `dist/pack` is
+// the point at which that fact is lost: everything downstream reads the staged
+// manifest, sees no flag, and treats the package as publishable.
+// `packages/nx` already withholds the `pack` target from a private package, but
+// this script is also run by hand, and a staged directory outlives the policy
+// that produced it. Refuse here too, where the flag is still readable.
+if (pkg.private) {
+    fail(
+        `${pkg.name} is marked private and must not be staged for publication.\n` +
+            '        If it is meant to ship, drop `"private": true` from its package.json;\n' +
+            '        `packages/nx` infers the pack target from that flag.'
+    );
+}
+
 /* ------------------------------------------------------------------ files */
 
 rmSync(stagingDir, { recursive: true, force: true });
@@ -153,13 +168,20 @@ const staged = {
     publishConfig: { access: 'public' }
 };
 
+// Verify BEFORE writing. The order is the whole point: `dist/pack` is a
+// directory other tools walk and trust — `reserve-names.mjs` reads it to decide
+// which npm names to create, and the release publishes what it finds there.
+// Writing first meant a *failed* pack still left a complete-looking staged
+// package behind, missing exactly the dependency the check had objected to, and
+// nothing downstream re-ran the check. The task went red and the artifact
+// stayed. A staged package must mean a package that passed.
+verifyEntryPoints(staged);
+verifyDependenciesAreDeclared(staged);
+
 writeFileSync(
     join(stagingDir, 'package.json'),
     `${JSON.stringify(staged, null, 4)}\n`
 );
-
-verifyEntryPoints(staged);
-verifyDependenciesAreDeclared(staged);
 
 console.log(
     `packed ${pkg.name}@${pkg.version} → ${relative(workspaceRoot, stagingDir)}`
