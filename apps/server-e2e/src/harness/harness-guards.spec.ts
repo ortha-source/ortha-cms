@@ -3,6 +3,8 @@ import {
     assertDisposableExternalDatabase,
     assertSerialExecution,
     availableMemoryBytes,
+    heapCeilingBytes,
+    warnOnLowHeapCeiling,
     warnOnLowMemory
 } from '../support/preflight';
 import {
@@ -96,6 +98,47 @@ describe('harness guards', () => {
             // the wrong field, not that the box is out of memory — it is running
             // this test.
             expect(availableMemoryBytes()).toBeGreaterThan(32 * 1024 * 1024);
+        });
+    });
+
+    describe('heap headroom (warnOnLowHeapCeiling)', () => {
+        const GIB = 1024 ** 3;
+        let warn: jest.SpyInstance;
+
+        beforeEach(() => {
+            warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+                /* keep the suite's output clean */
+            });
+        });
+        afterEach(() => warn.mockRestore());
+
+        it('says nothing when the run has room to grow', () => {
+            expect(warnOnLowHeapCeiling(4 * GIB)).toBeUndefined();
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it('names the ceiling and the fix when it does not', () => {
+            // Node's default on an 8 GB machine, which is exactly the case that
+            // used to end in a heap-limit abort twenty minutes in.
+            const message = warnOnLowHeapCeiling(2.2 * GIB);
+            expect(message).toContain('2.2 GiB');
+            expect(message).toContain('max-old-space-size');
+            expect(warn).toHaveBeenCalled();
+        });
+
+        it('actually has the headroom `.env.e2e` asks for', () => {
+            // The guard the other two only describe. Nx loads
+            // `apps/server-e2e/.env.e2e` for the `e2e` target, and that is the
+            // entire mechanism — if it stops happening (the file renamed, the
+            // target renamed, `NX_LOAD_DOT_ENV_FILES=false`), nothing else goes
+            // red until the run dies in its back half, twenty minutes in,
+            // against an unrelated suite.
+            //
+            // Asserted unconditionally and NOT gated on `NODE_OPTIONS` looking
+            // right: a missing variable is the failure, so a check that reads
+            // the variable to decide whether to check would pass in exactly the
+            // case it exists to catch.
+            expect(heapCeilingBytes()).toBeGreaterThan(3 * GIB);
         });
     });
 

@@ -54,12 +54,27 @@ export default {
     // here: a CLI `--maxWorkers` overrides this file, and the corruption that
     // follows presents as unique-constraint violations inside unrelated tests.
     maxWorkers: 1
-    // NOT set: `workerIdleMemoryLimit`. The worker's RSS does climb across a run
-    // — measured 1.3 GB at 12 minutes and 2.0 GB at 25 on the 70-file suite,
-    // each file booting its own Nest app — and recycling the worker does hold it
-    // near 500 MB. But it was measured on the machine that has the problem, and
-    // it made things worse: 1894 s against 1030 s for the same suite, because a
-    // restart discards the whole `node_modules` require cache and re-reading it
-    // is exactly what a memory-starved box is worst at. The growth is real and
-    // worth fixing at the source; this particular lever is not the fix.
+    // `maxWorkers: 1` also decides *where* the specs run, which is not obvious
+    // and is what the memory story below turns on. Jest's `shouldRunInBand`
+    // returns true on `maxWorkers <= 1`, so this suite runs **in band** — every
+    // spec file executes in the task process itself, not in a forked worker.
+    // One long-lived process for all ~94 files, and nothing recycles it.
+    //
+    // Its heap therefore climbs monotonically: 1.3 GB at 12 minutes, 2.0 GB at
+    // 25, each file booting its own Nest app in its own module registry. Node's
+    // default old-space ceiling is sized from total RAM — 2.2 GB on an 8 GB
+    // machine — so a full run hits it around minute 20 and dies with
+    // "Ineffective mark-compacts near heap limit", blamed on whichever suite was
+    // running. **The ceiling is raised in `.env.e2e`**, which Nx loads for this
+    // target; `global-setup` warns if a run somehow starts without it.
+    //
+    // NOT set: `workerIdleMemoryLimit`. It looks like the fix and is not, for a
+    // reason the same line of Jest source explains: setting it is precisely what
+    // *disables* in-band execution (`workerIdleMemoryLimit === undefined &&
+    // (oneWorkerOrLess || …)`). So it does not "recycle the worker" — it forks
+    // one that did not exist before, then restarts it whenever RSS crosses the
+    // limit, each restart discarding the whole `node_modules` require cache.
+    // Measured on the machine that has the problem: 1894 s against 1030 s for
+    // the same suite, with RSS held near 500 MB. A ceiling is the cheap lever;
+    // this is not. The growth itself is still worth fixing at the source.
 };

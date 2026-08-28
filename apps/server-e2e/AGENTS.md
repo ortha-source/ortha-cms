@@ -109,6 +109,30 @@ The guards are asserted by `src/harness/harness-guards.spec.ts`.
   lands at the top rather than inside whichever seeder noticed first. An
   assertion failure is **never** re-labelled.
 
+- **The run exhausting its own heap.** `maxWorkers: 1` does not only mean
+  "one worker" — Jest's `shouldRunInBand` returns true on `maxWorkers <= 1`, so
+  every spec runs **in band**, in the task process itself. One process for all
+  ~94 files, never recycled, each file booting its own Nest app in its own
+  module registry: the heap climbs monotonically (1.3 GB at 12 minutes, 2.0 GB
+  at 25). Node's default old-space ceiling is sized from total RAM — 2.2 GB on
+  an 8 GB machine — so a full run used to abort around minute 20 with
+  `Ineffective mark-compacts near heap limit`, reported against whichever suite
+  was running rather than against the cause.
+
+  **`apps/server-e2e/.env.e2e` raises the ceiling to 4 GB**, and Nx loads
+  `{projectRoot}/.env.<target>` for the `e2e` target, so `npx nx e2e server-e2e`
+  carries it with no flag to remember. It is a ceiling, not a reservation. If
+  you invoke Jest another way, pass `NODE_OPTIONS=--max-old-space-size=4096`
+  yourself — `global-setup` warns when the ceiling is under 3 GB, and
+  `harness-guards.spec.ts` asserts the headroom outright so a broken `.env.e2e`
+  goes red in seconds instead of at minute 20.
+
+  `workerIdleMemoryLimit` is **not** the fix, for a reason worth knowing before
+  reaching for it: setting it is what *disables* in-band execution, so it forks
+  a worker that did not exist and restarts it whenever RSS crosses the limit,
+  each restart re-reading the whole `node_modules` require cache. Measured
+  1894 s against 1030 s for the same suite. See `jest.config.cts`.
+
 ## Conventions
 
 - **One suite per endpoint/concern**, grouped by feature folder under

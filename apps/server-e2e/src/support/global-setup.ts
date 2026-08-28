@@ -10,6 +10,8 @@ import {
     assertDisposableExternalDatabase,
     assertSerialExecution,
     availableMemoryBytes,
+    heapCeilingBytes,
+    warnOnLowHeapCeiling,
     warnOnLowMemory
 } from './preflight';
 
@@ -33,6 +35,11 @@ module.exports = async function (globalConfig?: { maxWorkers?: number }) {
     // Advisory, not a gate. If the run goes red in its back half, this line is
     // the difference between "memory" and a 20-minute misdiagnosis.
     warnOnLowMemory(availableMemoryBytes());
+
+    // Same idea, different resource. Memory the machine *has* is one thing; the
+    // ceiling this process is allowed to grow its heap to is another, and the
+    // second one is what a full run actually dies on. Both advisory.
+    warnOnLowHeapCeiling(heapCeilingBytes());
 
     // `E2E_DATABASE_URL` points the run at an already-running Postgres instead
     // of starting a container. Deliberately its OWN variable rather than

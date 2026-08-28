@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { freemem } from 'node:os';
+import { getHeapStatistics } from 'node:v8';
 
 /**
  * Checks `global-setup` makes **before** it starts a container or touches a
@@ -92,6 +93,56 @@ export function warnOnLowMemory(availableBytes: number): string | undefined {
         '[e2e] A starved run fails in ways that look like product regressions — hook\n' +
         '[e2e] timeouts, then pg-pool connection failures, then the testcontainer being\n' +
         '[e2e] killed. If this run goes red in its back half, suspect memory first.';
+    console.warn(message);
+    return message;
+}
+
+/**
+ * Old-space ceiling a full run needs, in bytes.
+ *
+ * The heap climbs monotonically across the run and was measured at 2.0 GB by
+ * minute 25 on the 70-file suite; the suite is larger now. Three gigabytes is
+ * the first round number with room above that, and well under the 4 GB
+ * `.env.e2e` asks for — this is the line at which a run is *suspect*, not the
+ * line at which it is comfortable.
+ */
+const RECOMMENDED_HEAP_BYTES = 3 * 1024 * 1024 * 1024;
+
+/** This process's V8 old-space ceiling, in bytes. */
+export function heapCeilingBytes(): number {
+    return getHeapStatistics().heap_size_limit;
+}
+
+/**
+ * Warn — do not refuse — when the run has no room to grow.
+ *
+ * `maxWorkers: 1` makes Jest run the specs **in band**, so this process is the
+ * one that executes all ~94 files, and its heap only goes up: each file boots
+ * its own Nest app in its own module registry. Node's default ceiling is sized
+ * from total RAM (2.2 GB on an 8 GB machine), which a full run exhausts around
+ * minute 20 — and a heap-limit abort names no cause, blames whichever suite was
+ * running, and costs twenty minutes to reach a second time.
+ *
+ * `apps/server-e2e/.env.e2e` raises the ceiling and Nx loads it for the `e2e`
+ * target, so the documented command already carries it. This catches the runs
+ * that route around that — a direct `jest` invocation, `NX_LOAD_DOT_ENV_FILES=false`,
+ * a `NODE_OPTIONS` set to something else — and says so in the first seconds
+ * rather than the twenty-first minute.
+ *
+ * Advisory, like {@link warnOnLowMemory}: a single targeted suite runs fine on
+ * the default ceiling, and refusing those would be a worse trade than the
+ * occasional wasted full run. Returns the message it printed, or `undefined`.
+ */
+export function warnOnLowHeapCeiling(ceilingBytes: number): string | undefined {
+    if (ceilingBytes >= RECOMMENDED_HEAP_BYTES) return undefined;
+    const gib = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
+    const message =
+        `[e2e] WARNING: this process can only grow its heap to ${gib(ceilingBytes)}; a full run wants at least ${gib(RECOMMENDED_HEAP_BYTES)}.\n` +
+        '[e2e] Every spec runs in this one process (maxWorkers: 1 means Jest runs in band)\n' +
+        '[e2e] and its heap climbs across the run, so a full suite ends in "Ineffective\n' +
+        '[e2e] mark-compacts near heap limit" — reported against whichever suite was running.\n' +
+        '[e2e] `apps/server-e2e/.env.e2e` sets this and Nx loads it for `nx e2e server-e2e`;\n' +
+        '[e2e] if you invoked jest another way, pass NODE_OPTIONS=--max-old-space-size=4096.';
     console.warn(message);
     return message;
 }
