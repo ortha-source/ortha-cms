@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginSkeleton } from '../components/LoginSkeleton';
 import { AuthErrorBoundary } from '../components/AuthErrorBoundary';
+import { RouteNotFoundPage } from '../pages/RouteNotFoundPage';
 
 /**
  * Login page, code-split so its bundle (form, schema, validation) loads only
@@ -66,6 +67,18 @@ export function IdentityRouter() {
                         path="reset-password"
                         element={<ResetPasswordPage />}
                     />
+                    {/*
+                     * Anything else under `/identity`. Without this the subtree
+                     * answered with a blank document: the plugin contributes
+                     * `/identity/*` as one wildcard route, so the host's own
+                     * catch-all never sees these paths, and `<Routes>` with no
+                     * match renders nothing at all.
+                     *
+                     * It is not split: it is the fallback for a broken address,
+                     * so it has to be able to render when a chunk request is
+                     * the thing that went wrong.
+                     */}
+                    <Route path="*" element={<RouteNotFoundPage />} />
                 </Routes>
             </Suspense>
         </AuthErrorBoundary>
