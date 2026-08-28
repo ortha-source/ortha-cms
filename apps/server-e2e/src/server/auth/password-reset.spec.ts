@@ -403,6 +403,139 @@ describe('reset a password', () => {
                 .expect(201);
         });
 
+        it('lets only one of two concurrent redemptions of the same link through', async () => {
+            // The pre-check outside the transaction is advisory: both requests
+            // read a live token, both hash a password, and then the conditional
+            // `consume` decides. If that write were a read-then-update the
+            // second would also succeed — and would overwrite the credential
+            // the first person had just chosen, with no way for either to know
+            // which one is now on the account.
+            const live = await loginAsMember();
+            await loginAsMember();
+            expect(await countUserSessions(member.id)).toBe(2);
+
+            const token = await issueReset();
+            const second = 'entirely different passphrase';
+
+            const results = await Promise.all([
+                request(harness.server)
+                    .post('/api/auth/reset')
+                    .set('Origin', TEST_ALLOWED_ORIGIN)
+                    .send(body(token)),
+                request(harness.server)
+                    .post('/api/auth/reset')
+                    .set('Origin', TEST_ALLOWED_ORIGIN)
+                    .send({
+                        token,
+                        password: second,
+                        confirmPassword: second
+                    })
+            ]);
+
+            expect(results.map((res) => res.status).sort()).toEqual([201, 404]);
+            expect(await getResetConsumedAt(member.id)).toBeInstanceOf(Date);
+
+            // Exactly one credential is on the account, and it is the winner's.
+            // Which one won is a race; that only one of them did is not.
+            const winner = results[0].status === 201 ? NEW_PASSWORD : second;
+            const loser = winner === NEW_PASSWORD ? second : NEW_PASSWORD;
+            await request(harness.server)
+                .post('/api/auth/login')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ email: MEMBER_EMAIL, password: loser })
+                .expect(401);
+            await request(harness.server)
+                .post('/api/auth/login')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ email: MEMBER_EMAIL, password: winner })
+                .expect(201);
+
+            // The eviction happened once, not twice: the losing request threw
+            // before it reached the session repository, so the two pre-existing
+            // sessions are gone and nothing double-counted them.
+            await live.get('/api/auth/me').expect(401);
+            const changed = (await getActivityRows()).filter(
+                (row) => row.kind === 'user.password_changed'
+            );
+            expect(changed).toHaveLength(1);
+            expect(changed[0].meta).toMatchObject({ sessionsRevoked: 2 });
+        });
+
+        it('400s a password past bcrypt’s 72-byte ceiling rather than truncating it', async () => {
+            const token = await issueReset();
+            const tooLong = 'a'.repeat(73);
+
+            await request(harness.server)
+                .post('/api/auth/reset')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: tooLong,
+                    confirmPassword: tooLong
+                })
+                .expect(400);
+
+            expect(await getResetConsumedAt(member.id)).toBeNull();
+        });
+
+        it('counts the ceiling in bytes, so a 72-character accented passphrase is rejected', async () => {
+            // The reset path has its own DTO, so the byte-counted bound has to
+            // be asserted here too: `'é'.repeat(72)` is 72 UTF-16 code units
+            // and 144 UTF-8 bytes, and a character-counted `@MaxLength(72)`
+            // would wave it through for bcrypt to silently halve.
+            const token = await issueReset();
+            const multibyte = 'é'.repeat(72);
+            expect(multibyte.length).toBe(72);
+            expect(Buffer.byteLength(multibyte, 'utf8')).toBe(144);
+
+            await request(harness.server)
+                .post('/api/auth/reset')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: multibyte,
+                    confirmPassword: multibyte
+                })
+                .expect(400);
+
+            // Nothing spent, nothing changed — the link is still good.
+            expect(await getResetConsumedAt(member.id)).toBeNull();
+            await request(harness.server)
+                .post('/api/auth/login')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ email: MEMBER_EMAIL, password: MEMBER_PASSWORD })
+                .expect(201);
+        });
+
+        it('accepts the exact 72-byte ceiling, and a multibyte passphrase inside it', async () => {
+            // The rule is a byte budget, not a ban on non-ASCII — and the whole
+            // passphrase is what protects the account, not a truncated prefix.
+            const token = await issueReset();
+            const multibyte = 'é'.repeat(36);
+            expect(Buffer.byteLength(multibyte, 'utf8')).toBe(72);
+
+            await request(harness.server)
+                .post('/api/auth/reset')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    token,
+                    password: multibyte,
+                    confirmPassword: multibyte
+                })
+                .expect(201);
+
+            await request(harness.server)
+                .post('/api/auth/login')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ email: MEMBER_EMAIL, password: 'é'.repeat(18) })
+                .expect(401);
+            await request(harness.server)
+                .post('/api/auth/login')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({ email: MEMBER_EMAIL, password: multibyte })
+                .expect(201);
+        });
+
         it('404s an expired token, leaving the old password in place', async () => {
             const token = await issueReset();
             await expireResetTokens(member.id);

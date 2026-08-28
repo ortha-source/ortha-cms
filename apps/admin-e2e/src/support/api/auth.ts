@@ -214,8 +214,14 @@ export async function mockSsoProvidersUnavailable(page: Page): Promise<void> {
  * keep the login-page suite deterministic (the auth probe never hits a real
  * backend).
  */
-export async function mockSignedOut(page: Page): Promise<void> {
+export async function mockSignedOut(
+    page: Page,
+    { delayMs }: { delayMs?: number } = {}
+): Promise<void> {
     await page.route('**/api/auth/me', async (route) => {
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
         await route.fulfill({
             status: 401,
             contentType: 'application/json',
@@ -251,6 +257,34 @@ export async function spySignedOut(
             return count;
         }
     };
+}
+
+/**
+ * Stub `GET /api/auth/me` as **unreachable at the transport layer** — the
+ * request never gets an answer at all.
+ *
+ * Distinct from {@link mockAuthProbeUnavailable}, which answers `500`. A `500`
+ * is a response; a dropped connection, a DNS failure or a timeout is not, so it
+ * reaches the client as a rejected fetch with **no status** — the one shape
+ * that is easy to mishandle, because code that branches on `status === 401`
+ * against `undefined` can fall through to either answer. It must land on
+ * `unavailable`, exactly as the `500` does: neither says anything about whether
+ * the session is still valid.
+ *
+ * `delayMs` holds the request open first, which is what a real timeout looks
+ * like — the gate must show its loader for that whole time and only then
+ * report the outage.
+ */
+export async function mockAuthProbeOffline(
+    page: Page,
+    { delayMs }: { delayMs?: number } = {}
+): Promise<void> {
+    await page.route('**/api/auth/me', async (route) => {
+        if (delayMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        await route.abort('failed');
+    });
 }
 
 /**

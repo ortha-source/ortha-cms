@@ -76,6 +76,17 @@ export interface TestConfigOverrides {
      */
     sso?: Partial<IdentitySsoConfig>;
     /**
+     * Which identity providers the app boots with.
+     *
+     * `'fake'` (the default) registers the scripted provider, which is what
+     * every SSO suite drives. `'none'` boots the shape a default install has —
+     * the routes mounted, nothing registered — and it is the only way to reach
+     * two claims: that `GET /auth/sso` answers `[]` rather than 404 on such a
+     * deployment, and that the `strict`-cookie boot refusal fires **because a
+     * provider is registered** rather than on the cookie setting alone.
+     */
+    ssoProviders?: 'fake' | 'none';
+    /**
      * Configure the root-admin bootstrap. Omitted by default, so the seeder
      * is a no-op and a freshly booted app has no users (matching production
      * with no `ORTHA_ROOT_ADMIN_EMAIL` set).

@@ -1,6 +1,12 @@
 import { test, expect } from '../support/fixtures';
-import { mockLogin, mockSignedIn, mockSignedOut } from '../support/api/auth';
+import {
+    mockLogin,
+    mockSignedIn,
+    mockSignedOut,
+    mockUnauthorized
+} from '../support/api/auth';
 import { mockInvite } from '../support/api/invites';
+import { mockMembers } from '../support/api/members';
 
 /**
  * Focus management and page titles on the auth screens — WCAG 2.4.3 (Focus
@@ -43,6 +49,22 @@ function boxShadowOf(node: unknown): string {
             getComputedStyle: (el: unknown) => { boxShadow: string };
         }
     ).getComputedStyle(node).boxShadow;
+}
+
+/**
+ * The top edge of a rendered element, in page coordinates — how "comes before"
+ * is judged here. Structurally typed rather than imported as a `Locator`, and
+ * it throws rather than returning `null`, so an element that is not on screen
+ * fails as a missing element instead of comparing as `0`.
+ */
+async function topOf(locator: {
+    boundingBox(): Promise<{ y: number } | null>;
+}): Promise<number> {
+    const box = await locator.boundingBox();
+    if (!box) {
+        throw new Error('expected the element to be rendered on screen');
+    }
+    return box.y;
 }
 
 test.describe('auth focus management', () => {
@@ -160,6 +182,91 @@ test.describe('auth focus management', () => {
         await page.keyboard.press('Tab');
         await expect(loginPage.email).toBeFocused();
         expect(await loginPage.email.evaluate(boxShadowOf)).not.toBe(unfocused);
+    });
+
+    test('a second, different failure takes focus again', async ({
+        page,
+        loginPage
+    }) => {
+        // The banner focuses on mount **and** whenever its message changes, and
+        // the second half is the one that is easy to lose. Between two attempts
+        // the mutation clears its error, so the usual case unmounts the banner
+        // and the next one is a fresh mount — but a rendering that kept the node
+        // alive (a banner mounted with an empty message, say) would swap the
+        // text in place and never fire the effect, leaving the user standing
+        // wherever they were while the page silently said something new.
+        await mockSignedOut(page);
+        await mockLogin(page, { status: 401 });
+        await loginPage.goto();
+        await expect(loginPage.heading).toBeVisible();
+
+        await loginPage.login('admin@example.com', 'wrong-password');
+        await expect(loginPage.errorBanner).toBeFocused();
+        await expect(loginPage.errorBanner).toContainText(
+            'email or password you entered is incorrect'
+        );
+
+        // Move focus away, exactly as somebody correcting the form would, then
+        // fail differently: a `500` maps to the generic message, so the banner
+        // has new text to announce.
+        await loginPage.email.focus();
+        await expect(loginPage.email).toBeFocused();
+        await mockLogin(page, { status: 500 });
+        await loginPage.submit.click();
+
+        await expect(loginPage.errorBanner).toContainText(
+            'Something went wrong'
+        );
+        await expect(loginPage.errorBanner).toBeFocused();
+    });
+
+    test('the session-lost notice does not take focus away from the heading', async ({
+        page,
+        loginPage,
+        membersPage
+    }) => {
+        // The other alert on this card, and it must behave the opposite way.
+        // `AuthLayout` puts focus on the `<h1>` when the screen is reached, and
+        // a reader continuing from there meets the explanation next in DOM
+        // order. A second focus move on the same mount would fight that — and
+        // would lose the race anyway, since a child's effect runs before its
+        // parent's, so the notice would be skipped past rather than read.
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        await mockUnauthorized(page, '**/api/users?*');
+        await membersPage.search.fill('ada');
+
+        await expect(loginPage.sessionEndedNotice).toBeVisible();
+        await expect(loginPage.heading).toBeFocused();
+        await expect(loginPage.sessionEndedNotice).not.toBeFocused();
+    });
+
+    test('the notice sits between the heading and the fields', async ({
+        page,
+        loginPage,
+        membersPage
+    }) => {
+        // Not focusing it is only half the claim: it has to be somewhere the
+        // reader actually reaches from the heading they were placed on, and
+        // before the form they are being asked to fill in again.
+        await mockSignedIn(page);
+        await mockMembers(page);
+        await membersPage.goto();
+        await expect(membersPage.heading).toBeVisible();
+
+        await mockUnauthorized(page, '**/api/users?*');
+        await membersPage.search.fill('ada');
+        await expect(loginPage.sessionEndedNotice).toBeVisible();
+
+        const heading = await topOf(loginPage.heading);
+        const notice = await topOf(loginPage.sessionEndedNotice);
+        const email = await topOf(loginPage.email);
+
+        expect(notice).toBeGreaterThan(heading);
+        expect(notice).toBeLessThan(email);
     });
 
     test('the invite form takes focus when the lookup resolves', async ({

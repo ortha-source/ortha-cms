@@ -42,6 +42,14 @@ export interface BuildTestPluginsOptions {
      * needs both, and the filesystem cannot sign.
      */
     signingProvider?: boolean;
+    /**
+     * Which identity providers to register. `'fake'` (the default) is the
+     * scripted provider every SSO suite drives; `'none'` registers none, which
+     * is the shape a default install boots in — and the only way to tell the
+     * `strict`-cookie boot refusal (which fires on a *registered* provider)
+     * from a refusal on the cookie setting alone.
+     */
+    ssoProviders?: 'fake' | 'none';
 }
 
 /**
@@ -85,7 +93,10 @@ export function buildTestPlugins(
         // tenant and no network.
         IdentityPlugin(config.plugins.identity, {
             sso: {
-                providers: [{ name: 'fake', provider: fakeSsoProvider }],
+                providers:
+                    options.ssoProviders === 'none'
+                        ? []
+                        : [{ name: 'fake', provider: fakeSsoProvider }],
                 // Always registered, so the wiring is exercised on every boot.
                 // It answers `null` — "leave the role alone", the shipped
                 // default — unless a test scripts something with

@@ -173,6 +173,139 @@ describe('GET /api/auth/me', () => {
             );
         });
 
+        it('grants a contributor exactly the editorial set', async () => {
+            const contributor = await seedActiveUser(harness.app, {
+                email: 'me-contributor@example.com',
+                password: PASSWORD,
+                role: 'contributor'
+            });
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: contributor.email, password: PASSWORD })
+                .expect(201);
+
+            const res = await agent.get('/api/auth/me').expect(200);
+            expect([...res.body.permissions].sort()).toEqual(
+                [
+                    'workspaces:read',
+                    'users:read',
+                    'content:read',
+                    'content:create',
+                    'content:update',
+                    'content:publish',
+                    // Removing the draft that should never have existed is the
+                    // same editorial act as writing it — a role that can
+                    // publish to the world but cannot retract is the more
+                    // dangerous of the two.
+                    'content:delete',
+                    // Bulk egress and bulk ingest are separate capabilities
+                    // from read and create, and both are held here: an import
+                    // still needs the ordinary write keys for each record it
+                    // touches, so it can never do more than this role could by
+                    // hand.
+                    'content:export',
+                    'content:import',
+                    'media:read',
+                    'media:create',
+                    'media:update',
+                    'media:delete',
+                    // Read-only on both features an editor has to *see* but
+                    // does not configure: findings are rendered inline in the
+                    // entry editor, and an editor who cannot see that an entry
+                    // is restricted would publish one believing it is public.
+                    'alarms:read',
+                    'segments:read',
+                    'copilot:use',
+                    // Saving a private view needs no permission; making one a
+                    // navigation item for the whole workspace is an editorial
+                    // decision, and this is it.
+                    'views:share'
+                ].sort()
+            );
+        });
+
+        it('withholds every configuration key from a contributor', async () => {
+            // The complement of the list above, spelled out: the exact-set
+            // assertion already implies it, but a future key added to both
+            // `PERMISSIONS` and contributor's grants would only move one
+            // sorted list. These are the keys whose absence is the point —
+            // authority over people, credentials, audiences, alarm rules and
+            // the prompt text the copilot runs for everyone.
+            const contributor = await seedActiveUser(harness.app, {
+                email: 'me-contributor-negative@example.com',
+                password: PASSWORD,
+                role: 'contributor'
+            });
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: contributor.email, password: PASSWORD })
+                .expect(201);
+
+            const res = await agent.get('/api/auth/me').expect(200);
+            const held = new Set<string>(res.body.permissions);
+            for (const withheld of [
+                'workspaces:create',
+                'workspaces:update',
+                'workspaces:delete',
+                'users:create',
+                'users:update',
+                'users:delete',
+                'activity:read',
+                'tokens:read',
+                'tokens:create',
+                'tokens:delete',
+                'alarms:manage',
+                'segments:manage',
+                'copilot:skills:manage'
+            ]) {
+                expect(held.has(withheld)).toBe(false);
+            }
+        });
+
+        it('nests the three system roles: viewer ⊆ contributor ⊆ admin', async () => {
+            // Not a restatement of the lists above. The matrix is only
+            // coherent if the roles are ordered — a viewer holding something a
+            // contributor does not would mean "read-only" and "editor" are two
+            // unrelated sets, and no UI that gates on a role could be right.
+            const [viewer, contributor] = await Promise.all([
+                seedActiveUser(harness.app, {
+                    email: 'me-nested-viewer@example.com',
+                    password: PASSWORD,
+                    role: 'viewer'
+                }),
+                seedActiveUser(harness.app, {
+                    email: 'me-nested-contributor@example.com',
+                    password: PASSWORD,
+                    role: 'contributor'
+                })
+            ]);
+
+            const permissionsFor = async (email: string) => {
+                const agent = request.agent(harness.server);
+                await agent
+                    .post('/api/auth/login')
+                    .send({ email, password: PASSWORD })
+                    .expect(201);
+                const res = await agent.get('/api/auth/me').expect(200);
+                return new Set<string>(res.body.permissions);
+            };
+
+            const viewerKeys = await permissionsFor(viewer.email);
+            const contributorKeys = await permissionsFor(contributor.email);
+            const adminKeys = new Set<string>(PERMISSION_KEYS);
+
+            for (const key of viewerKeys) {
+                expect(contributorKeys.has(key)).toBe(true);
+            }
+            for (const key of contributorKeys) {
+                expect(adminKeys.has(key)).toBe(true);
+            }
+            expect(contributorKeys.size).toBeGreaterThan(viewerKeys.size);
+            expect(adminKeys.size).toBeGreaterThan(contributorKeys.size);
+        });
+
         it('works with an explicitly forwarded session cookie', async () => {
             await get()
                 .set('Cookie', await login())

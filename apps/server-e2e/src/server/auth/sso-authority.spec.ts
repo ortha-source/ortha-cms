@@ -34,9 +34,7 @@ describe('SSO authority', () => {
     /** Runs `/start` and returns the agent plus the callback to follow. */
     async function handshake(harness: TestApp) {
         const agent = request.agent(harness.server);
-        const started = await agent
-            .get('/api/auth/sso/fake/start')
-            .expect(302);
+        const started = await agent.get('/api/auth/sso/fake/start').expect(302);
         const location = new URL(started.headers['location']);
         return {
             agent,
@@ -106,6 +104,25 @@ describe('SSO authority', () => {
             expect(me.body.email).toBe(SSO_EMAILS.stranger);
         });
 
+        it('refuses a domain that merely ends with an allowed one', async () => {
+            // The suffix attack. `evil-example.com` passes
+            // `endsWith('example.com')`, which is the implementation everybody
+            // reaches for first — and it hands every account at a domain an
+            // attacker can register a seat in this CMS. Matching has to be
+            // exact on the domain, so this is refused by the same app that
+            // provisions `stranger@example.com` in the test above.
+            fakeSsoProvider.signInAs(SSO_SUBJECTS.suffix);
+            expect(SSO_EMAILS.suffix.endsWith('example.com')).toBe(true);
+
+            const { agent, callback } = await handshake(harness);
+            const done = await agent.get(callback).expect(302);
+
+            expect(done.headers['location']).toBe(FAILURE);
+            expect(await getUserByEmail(SSO_EMAILS.suffix)).toBeNull();
+            // Not signed in either — the refusal is complete, not partial.
+            await agent.get('/api/auth/me').expect(401);
+        });
+
         it('gives the account no password, so only the provider can open it', async () => {
             const { agent, callback } = await handshake(harness);
             await agent.get(callback).expect(302);
@@ -159,7 +176,7 @@ describe('SSO authority', () => {
             expect(kinds).toContain('user.signed_in');
         });
 
-        it('lets a role-mapping handler choose the new account\'s role', async () => {
+        it("lets a role-mapping handler choose the new account's role", async () => {
             scriptSsoRole(({ isNewAccount }) =>
                 isNewAccount ? 'contributor' : null
             );

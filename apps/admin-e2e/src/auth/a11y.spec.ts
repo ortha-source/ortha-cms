@@ -4,13 +4,18 @@ import {
     mockAuthProbeUnavailable,
     mockLogin,
     mockSignedIn,
-    mockSignedOut
+    mockSignedOut,
+    mockSsoProviders
 } from '../support/api/auth';
 import {
     DEFAULT_INVITE,
     mockInvite,
     spyAcceptInvite
 } from '../support/api/invites';
+import {
+    mockPasswordReset,
+    spyResetPassword
+} from '../support/api/passwordReset';
 import { expectNoA11yViolations } from '../support/a11y';
 
 /**
@@ -127,6 +132,163 @@ test.describe('accessibility (axe, WCAG 2.1 A/AA)', () => {
         await mockInvite(page, DEFAULT_INVITE, { status: 500 });
         await acceptInvitePage.goto();
         await acceptInvitePage.lookupFailedHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    // The reset screen is the third auth surface and, until now, the only one
+    // never scanned. It is reached by somebody who has lost access to their
+    // account, from a link, with no way to ask anyone for help — so every one of
+    // its five states is somewhere a person can be stranded.
+    test('reset-password page — form ready', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordReset(page);
+        await resetPasswordPage.goto();
+        await resetPasswordPage.heading.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — validation errors visible', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordReset(page);
+        await spyResetPassword(page);
+        await resetPasswordPage.goto();
+        await resetPasswordPage.heading.waitFor();
+
+        // Two field errors at once — a short password and a confirmation that
+        // does not match it — so the scan covers several `role="alert"` regions
+        // pointed at by `aria-describedby`, not just one.
+        await resetPasswordPage.setPassword('short', 'shorter');
+        await resetPasswordPage.fieldError(/at least 12 characters/).waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — dead link', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordReset(page, undefined, { status: 404 });
+        await resetPasswordPage.goto();
+        await resetPasswordPage.unavailableHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — lookup outage', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordReset(page, undefined, { status: 500 });
+        await resetPasswordPage.goto();
+        await resetPasswordPage.lookupFailedHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — submission-error banner visible', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockPasswordReset(page);
+        await spyResetPassword(page, { status: 404 });
+        await resetPasswordPage.goto();
+        await resetPasswordPage.heading.waitFor();
+        await resetPasswordPage.setPassword('correct horse battery staple');
+        await resetPasswordPage.errorBanner.waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — success confirmation', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        // The end of the flow, and the only screen that replaces the form
+        // outright — its heading, its hand-off link and nothing else.
+        await mockSignedOut(page);
+        await mockPasswordReset(page);
+        await spyResetPassword(page);
+        await resetPasswordPage.goto();
+        await resetPasswordPage.heading.waitFor();
+        await resetPasswordPage.setPassword('correct horse battery staple');
+        await resetPasswordPage.doneHeading().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reset-password page — dark theme', async ({
+        page,
+        resetPasswordPage,
+        makeAxe
+    }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await mockSignedOut(page);
+        await mockPasswordReset(page);
+        await resetPasswordPage.goto();
+        await resetPasswordPage.heading.waitFor();
+        await expectDarkTheme(page);
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    // The single-sign-on block is a second column of controls on the sign-in
+    // card, and `?error=sso` is a banner rendered from a query parameter rather
+    // than from anything the visitor did — both change the card's structure,
+    // and neither was ever scanned.
+    test('login page — with single-sign-on providers', async ({
+        page,
+        loginPage,
+        makeAxe
+    }) => {
+        await mockSignedOut(page);
+        await mockSsoProviders(page, [
+            { name: 'google', label: 'Google', kind: 'oidc' },
+            { name: 'entra', label: 'Microsoft', kind: 'oidc' }
+        ]);
+        await loginPage.goto();
+        await expect(loginPage.ssoSeparator).toBeVisible();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('login page — returning from a failed provider sign-in', async ({
+        page,
+        loginPage,
+        makeAxe
+    }) => {
+        // Banner and provider links together: the two structures that were
+        // added to this card most recently, on screen at the same time.
+        await mockSignedOut(page);
+        await mockSsoProviders(page, [
+            { name: 'google', label: 'Google', kind: 'oidc' }
+        ]);
+        await page.goto('/identity/signin?error=sso');
+        await loginPage.errorBanner.waitFor();
+        await expect(loginPage.ssoLink('Google')).toBeVisible();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('login page — single-sign-on block in dark theme', async ({
+        page,
+        loginPage,
+        makeAxe
+    }) => {
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await mockSignedOut(page);
+        await mockSsoProviders(page, [
+            { name: 'google', label: 'Google', kind: 'oidc' }
+        ]);
+        await loginPage.goto();
+        await expect(loginPage.ssoSeparator).toBeVisible();
+        await expectDarkTheme(page);
         await expectNoA11yViolations(makeAxe());
     });
 

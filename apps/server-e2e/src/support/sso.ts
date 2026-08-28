@@ -1,4 +1,7 @@
-import type { SsoRoleContext, SsoRoleResolver } from '@orthacms/identity-domain';
+import type {
+    SsoRoleContext,
+    SsoRoleResolver
+} from '@orthacms/identity-domain';
 import {
     createFakeSsoProvider,
     type FakeSsoProvider
@@ -11,14 +14,22 @@ export const SSO_SUBJECTS = {
     /** Matches a seeded account, but the provider will not vouch for the address. */
     unverified: 'idp-subject-unverified',
     /** Verified, but no Ortha account holds the address. */
-    stranger: 'idp-subject-stranger'
+    stranger: 'idp-subject-stranger',
+    /**
+     * Verified, no account — and in a domain that merely *ends with* an allowed
+     * one. `evil-example.com` passes a naive `endsWith('example.com')` and must
+     * fail an exact domain match, which is the whole of the just-in-time
+     * provisioning rule.
+     */
+    suffix: 'idp-subject-suffix'
 } as const;
 
 /** The addresses those subjects report. Suites seed accounts against them. */
 export const SSO_EMAILS = {
     linked: 'sso-linked@example.com',
     unverified: 'sso-unverified@example.com',
-    stranger: 'sso-stranger@example.com'
+    stranger: 'sso-stranger@example.com',
+    suffix: 'sso-suffix@evil-example.com'
 } as const;
 
 /**
@@ -48,6 +59,11 @@ export const fakeSsoProvider: FakeSsoProvider = createFakeSsoProvider({
             subject: SSO_SUBJECTS.stranger,
             email: SSO_EMAILS.stranger,
             name: 'SSO Stranger'
+        },
+        {
+            subject: SSO_SUBJECTS.suffix,
+            email: SSO_EMAILS.suffix,
+            name: 'SSO Lookalike'
         }
     ]
 });

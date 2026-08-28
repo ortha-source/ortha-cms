@@ -6,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    countUserSessions,
     getUserByEmail,
     resetDb,
     seedActiveUser,
@@ -121,18 +122,20 @@ describe('SSO sign-in', () => {
             ['an absolute URL', 'https://evil.test/'],
             ['a protocol-relative URL', '//evil.test/'],
             ['a backslash-smuggled host', '/\\evil.test']
-        ])('refuses to carry %s as the post-sign-in destination', async (
-            _label,
-            redirect
-        ) => {
-            const user = await seedLinkedAccount();
-            expect(user.id).toBeTruthy();
+        ])(
+            'refuses to carry %s as the post-sign-in destination',
+            async (_label, redirect) => {
+                const user = await seedLinkedAccount();
+                expect(user.id).toBeTruthy();
 
-            const { agent, callback } = await start('fake', redirect);
-            const done = await agent.get(callback).expect(302);
+                const { agent, callback } = await start('fake', redirect);
+                const done = await agent.get(callback).expect(302);
 
-            expect(done.headers['location']).toBe(`${TEST_ALLOWED_ORIGIN}/`);
-        });
+                expect(done.headers['location']).toBe(
+                    `${TEST_ALLOWED_ORIGIN}/`
+                );
+            }
+        );
     });
 
     describe('completing an attempt', () => {
@@ -156,8 +159,9 @@ describe('SSO sign-in', () => {
             const { agent, callback } = await start();
             const done = await agent.get(callback).expect(302);
 
-            const session = (done.headers['set-cookie'] as unknown as string[])
-                .find((cookie) => cookie.startsWith('ortha_session='));
+            const session = (
+                done.headers['set-cookie'] as unknown as string[]
+            ).find((cookie) => cookie.startsWith('ortha_session='));
             expect(session).toBeDefined();
             expect(session).toContain('HttpOnly');
 
@@ -173,8 +177,9 @@ describe('SSO sign-in', () => {
             const { agent, callback } = await start();
             const done = await agent.get(callback).expect(302);
 
-            const cleared = (done.headers['set-cookie'] as unknown as string[])
-                .find((cookie) => cookie.startsWith(`${SSO_REQUEST_COOKIE}=`));
+            const cleared = (
+                done.headers['set-cookie'] as unknown as string[]
+            ).find((cookie) => cookie.startsWith(`${SSO_REQUEST_COOKIE}=`));
             expect(cleared).toBeDefined();
             expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/);
         });
@@ -270,6 +275,38 @@ describe('SSO sign-in', () => {
                 .expect(302);
 
             expect(replay.headers['location']).toBe(FAILURE);
+        });
+
+        it('lets only one of two simultaneous callbacks through', async () => {
+            // The sequential replay above is the easy half. This is the one the
+            // ordering inside the use case exists for: the attempt is burned
+            // **before** the token exchange, so two callbacks arriving together
+            // cannot both reach the provider. Burning afterwards would let the
+            // second exchange start while the first was still in flight, and
+            // two sessions would come out of one authorization code.
+            const user = await seedLinkedAccount();
+            const { agent, callback } = await start();
+            const before = fakeSsoProvider.calls().complete;
+
+            const results = await Promise.all([
+                agent.get(callback),
+                agent.get(callback)
+            ]);
+
+            const locations = results
+                .map((res) => {
+                    expect(res.status).toBe(302);
+                    return res.headers['location'] as string;
+                })
+                .sort();
+            expect(locations).toEqual(
+                [`${TEST_ALLOWED_ORIGIN}/`, FAILURE].sort()
+            );
+
+            // One exchange, one session. The loser was stopped at the
+            // conditional consume, before the adapter was asked for anything.
+            expect(fakeSsoProvider.calls().complete).toBe(before + 1);
+            expect(await countUserSessions(user.id)).toBe(1);
         });
 
         it('refuses a foreign state before it exchanges anything', async () => {

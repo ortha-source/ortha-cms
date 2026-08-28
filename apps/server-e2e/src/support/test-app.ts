@@ -36,7 +36,8 @@ export async function createTestApp(
     const config = buildTestConfig(resolveDatabaseUrl(), overrides);
     const plugins = buildTestPlugins(config, {
         localMediaRoot: overrides.localMediaRoot,
-        signingProvider: overrides.directServe === 'signed-url'
+        signingProvider: overrides.directServe === 'signed-url',
+        ssoProviders: overrides.ssoProviders
     });
 
     return withDatabaseDiagnostics('booting the test app', () =>

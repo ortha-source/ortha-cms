@@ -278,6 +278,100 @@ describe('OriginGuard — users-server state-changing routes', () => {
         });
     });
 
+    describe('DELETE /api/users/:id/sessions/:sessionId', () => {
+        // The route lives in `identity-server` rather than `users-server`, but
+        // it is mounted under `/api/users/:id` and is the most destructive of
+        // the family: a forged request signs a colleague out of every device.
+        // It belongs in this sweep for the same reason the others do.
+
+        /** Opens a session for `email` and returns its revocation handle. */
+        async function targetSession(
+            email: string,
+            targetId: string
+        ): Promise<string> {
+            const victim = request.agent(harness.server);
+            await victim
+                .post('/api/auth/login')
+                .send({ email, password: PASSWORD })
+                .expect(201);
+
+            const admin = await login();
+            const list = await admin
+                .get(`/api/users/${targetId}/sessions`)
+                .expect(200);
+            expect(list.body).toHaveLength(1);
+            return list.body[0].id as string;
+        }
+
+        it('rejects a disallowed Origin with 403, leaving the session live', async () => {
+            const target = await seedSecondAdmin();
+            const sessionId = await targetSession(target.email, target.id);
+            const agent = await login();
+
+            await agent
+                .delete(`/api/users/${target.id}/sessions/${sessionId}`)
+                .set('Origin', EVIL_ORIGIN)
+                .expect(403);
+
+            const after = await agent
+                .get(`/api/users/${target.id}/sessions`)
+                .expect(200);
+            expect(after.body).toHaveLength(1);
+            expect(after.body[0].id).toBe(sessionId);
+        });
+
+        it('allows the configured app origin', async () => {
+            const target = await seedSecondAdmin();
+            const sessionId = await targetSession(target.email, target.id);
+            const agent = await login();
+
+            await agent
+                .delete(`/api/users/${target.id}/sessions/${sessionId}`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(204);
+
+            const after = await agent
+                .get(`/api/users/${target.id}/sessions`)
+                .expect(200);
+            expect(after.body).toEqual([]);
+        });
+
+        it('allows a request with no Origin (non-browser client)', async () => {
+            const target = await seedSecondAdmin();
+            const sessionId = await targetSession(target.email, target.id);
+            const agent = await login();
+
+            await agent
+                .delete(`/api/users/${target.id}/sessions/${sessionId}`)
+                .expect(204);
+
+            const after = await agent
+                .get(`/api/users/${target.id}/sessions`)
+                .expect(200);
+            expect(after.body).toEqual([]);
+        });
+
+        it('does not sign the admin out of their own session from a hostile Origin', async () => {
+            // The self-directed version of the same payload: a page the admin
+            // is visiting posts at their own session id. Without the guard this
+            // ends their working session mid-task.
+            const agent = await login();
+            const own = await agent
+                .get(`/api/users/${admin.id}/sessions`)
+                .expect(200);
+            const sessionId = own.body[0].id as string;
+            expect(own.body[0].current).toBe(true);
+
+            await agent
+                .delete(`/api/users/${admin.id}/sessions/${sessionId}`)
+                .set('Origin', EVIL_ORIGIN)
+                .expect(403);
+
+            // Still signed in, on the same session.
+            await agent.get('/api/auth/me').expect(200);
+        });
+    });
+
     describe('reads are unaffected', () => {
         it('allows GET /api/users from any Origin', async () => {
             const agent = await login();

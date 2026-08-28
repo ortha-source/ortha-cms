@@ -1,5 +1,7 @@
+import { type Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
 import {
+    mockAuthProbeOffline,
     mockAuthProbeUnavailable,
     mockLogin,
     mockSignedIn,
@@ -93,6 +95,175 @@ test.describe('Auth probe unavailable', () => {
 
         await expect(homePage.nav).toBeVisible();
         await expect(homePage.heading).toBeVisible();
+    });
+});
+
+/**
+ * The same answer, reached the other way. A `500` is a response; a dropped
+ * connection is not, and it arrives with **no status at all** — which is the
+ * shape that gets mishandled, because a check written as `status === 401` and a
+ * check written as `status !== 200` disagree about `undefined`. Guessing either
+ * way is wrong: a request that never arrived says nothing about whether the
+ * session behind it is still valid.
+ */
+test.describe('Auth probe unreachable', () => {
+    test('reports an outage rather than signing the visitor out', async ({
+        page,
+        homePage,
+        loginPage
+    }) => {
+        await mockAuthProbeOffline(page);
+        await homePage.goto();
+
+        await expect(homePage.authUnavailableHeading()).toBeVisible();
+        await expect(page).toHaveURL('/');
+        await expect(loginPage.heading).toHaveCount(0);
+    });
+
+    test('recovers when the connection comes back', async ({
+        page,
+        homePage
+    }) => {
+        await mockAuthProbeOffline(page);
+        await homePage.goto();
+        await expect(homePage.authUnavailableHeading()).toBeVisible();
+
+        await mockSignedIn(page);
+        await homePage.retryAuthProbe().click();
+
+        await expect(homePage.nav).toBeVisible();
+        await expect(homePage.heading).toBeVisible();
+    });
+
+    test('holds the loader while the request hangs, then reports the outage', async ({
+        page,
+        homePage,
+        loginPage
+    }) => {
+        // What a timeout actually looks like: nothing for a while, then a
+        // failure with no response. The gate has to stay in `loading` for the
+        // whole wait — showing the outage screen early would be a guess — and
+        // must never resolve the wait into a sign-out.
+        await mockAuthProbeOffline(page, { delayMs: 1_500 });
+        await homePage.goto();
+
+        await expect(homePage.rootLoader()).toBeVisible();
+        await expect(loginPage.heading).toHaveCount(0);
+
+        await expect(homePage.authUnavailableHeading()).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(page).toHaveURL('/');
+        await expect(loginPage.heading).toHaveCount(0);
+    });
+});
+
+/**
+ * A tab left open over lunch.
+ *
+ * The session behind it can be revoked from another device, expire, or have its
+ * account suspended, and nothing tells the tab: it holds a cached user and will
+ * keep rendering the app until it asks again. `useCurrentUser` therefore
+ * re-checks **on window focus** — coming back to the tab is exactly the moment
+ * the answer matters and the moment a stale one becomes visible.
+ *
+ * The two tests below are the two halves of getting that right, and they pull
+ * in opposite directions: the check has to happen without being asked, and it
+ * has to be invisible while it runs. A probe that flashed the boot loader on
+ * every tab switch would be worse than not re-checking at all.
+ *
+ * **Why the clock is moved.** `staleTime` is 60 s, so a query that resolved
+ * moments ago is fresh and a focus event is deliberately ignored — that bound
+ * is what stops a probe per alt-tab. `setFixedTime` moves the page's clock past
+ * it (and, unlike `install`, leaves timers running), which is what a tab that
+ * really has been idle looks like.
+ */
+test.describe('Session lost while the tab sat idle', () => {
+    /**
+     * Return to the tab, on a clock that says the query has gone stale.
+     *
+     * The event is `visibilitychange` on `window` because that is the only one
+     * TanStack Query's focus manager listens to — it dropped the `focus`
+     * listener in v5, so dispatching that instead would silently do nothing and
+     * the test would pass by never having probed.
+     */
+    async function returnToTab(page: Page): Promise<void> {
+        const loadedAt = await page.evaluate(() => Date.now());
+        await page.clock.setFixedTime(loadedAt + 5 * 60_000);
+        await page.evaluate(() => {
+            // Typed inline through `globalThis`: this project's tsconfig ships
+            // no DOM lib, the same reason `reflow.spec.ts` casts for
+            // `documentElement`.
+            const browser = globalThis as unknown as {
+                window: { dispatchEvent(event: unknown): void };
+                Event: new (type: string) => unknown;
+            };
+            browser.window.dispatchEvent(new browser.Event('visibilitychange'));
+        });
+    }
+
+    test('re-checks on its own and lands on sign-in when the session is gone', async ({
+        page,
+        homePage,
+        loginPage
+    }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        // The session dies somewhere else. Nothing on this page has been
+        // touched, and no request of its own is pending.
+        await mockSignedOut(page);
+        await returnToTab(page);
+
+        await expect(page).toHaveURL(/\/identity\/signin$/);
+        await expect(loginPage.heading).toBeVisible();
+        await expect(homePage.nav).toBeHidden();
+    });
+
+    test('never flashes the loader while the background re-check is in flight', async ({
+        page,
+        homePage,
+        loginPage
+    }) => {
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        // Held open, so the in-flight window is long enough to observe. The
+        // gate reports the **cached** user throughout — a refetch that dropped
+        // back to `loading` would replace the whole app with the boot screen
+        // every time somebody alt-tabbed into it.
+        await mockSignedOut(page, { delayMs: 3_000 });
+        await returnToTab(page);
+
+        await expect(homePage.rootLoader()).toHaveCount(0);
+        await expect(homePage.nav).toBeVisible();
+        await expect(loginPage.heading).toHaveCount(0);
+
+        // …and it still resolves into the sign-out once the answer lands, so
+        // the silence above is a smooth transition rather than a probe that
+        // never ran.
+        await expect(page).toHaveURL(/\/identity\/signin$/, {
+            timeout: 15_000
+        });
+    });
+
+    test('stays put when the re-check says the session is still good', async ({
+        page,
+        homePage
+    }) => {
+        // The common case, and the one a fail-open bug hides in: returning to
+        // the tab must not disturb anything.
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        await returnToTab(page);
+
+        await expect(page).toHaveURL('/');
+        await expect(homePage.nav).toBeVisible();
+        await expect(homePage.rootLoader()).toHaveCount(0);
     });
 });
 
