@@ -12,6 +12,7 @@ import {
     isDatabaseUnreachable,
     withDatabaseDiagnostics
 } from '../support/infra-error';
+import { isDuplicateEmail } from '../support/seed';
 import { parseSse } from '../support/sse';
 
 /**
@@ -139,6 +140,50 @@ describe('harness guards', () => {
             // the variable to decide whether to check would pass in exactly the
             // case it exists to catch.
             expect(heapCeilingBytes()).toBeGreaterThan(3 * GIB);
+        });
+    });
+
+    describe('abandoned-hook cascade (isDuplicateEmail)', () => {
+        // A hook that overruns `testTimeout` is reported and abandoned — but
+        // not cancelled, so its insert can land after the NEXT test's resetDb.
+        // That test then fails on a unique violation having done nothing wrong.
+        // `seedUser` re-labels it to name the real culprit, and this is the
+        // detection that decides when it may.
+        const pgError = (constraint: string) =>
+            Object.assign(new Error('duplicate key value'), { constraint });
+
+        it('recognises the collision on the driver error', () => {
+            expect(isDuplicateEmail(pgError('users_email_lower_unique'))).toBe(
+                true
+            );
+        });
+
+        it('recognises it through the wrapper Drizzle throws', () => {
+            const wrapped = new Error('Failed query', {
+                cause: pgError('users_email_lower_unique')
+            });
+            expect(isDuplicateEmail(wrapped)).toBe(true);
+        });
+
+        it('recognises it from the message alone', () => {
+            // Which of the three fields is populated is a detail of a
+            // dependency; the re-label must not depend on that detail.
+            expect(
+                isDuplicateEmail(
+                    new Error(
+                        'duplicate key value violates unique constraint "users_email_lower_unique"'
+                    )
+                )
+            ).toBe(true);
+        });
+
+        it('does NOT claim another constraint is the cascade', () => {
+            // The whole risk of a re-label: swallowing a real failure. A
+            // duplicate slug or role key is a test's own doing.
+            expect(isDuplicateEmail(pgError('roles_key_unique'))).toBe(false);
+            expect(isDuplicateEmail(new Error('some other failure'))).toBe(
+                false
+            );
         });
     });
 

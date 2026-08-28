@@ -83,18 +83,73 @@ export async function seedUser(
         : null;
     const roleId = await roleIdByKey(opts.role);
 
-    const [user] = await getDatabase()
-        .insert(users)
-        .values({
-            email: opts.email,
-            name: opts.name ?? null,
-            passwordHash,
-            roleId,
-            status: opts.status ?? 'active'
-        })
-        .returning();
+    const [user] = await insertSeedUser({
+        email: opts.email,
+        name: opts.name ?? null,
+        passwordHash,
+        roleId,
+        status: opts.status ?? 'active'
+    });
 
     return { id: user.id, email: user.email };
+}
+
+/**
+ * The insert, with the one failure it has been observed to produce explained.
+ *
+ * `resetDb` truncates `users` before every test, so a duplicate email here is
+ * never the test's own doing — the row was written by something outside this
+ * test's sequence. In practice that is an **abandoned hook**: Jest reports a
+ * hook that overruns `testTimeout` and moves on, but it does not cancel the
+ * promise, so the rest of that hook keeps running and its insert lands after
+ * the *next* test's `resetDb` has already truncated. The next test then dies on
+ * a unique violation while doing nothing wrong, and the report blames it.
+ *
+ * The stall is what to fix (see {@link truncateWithBoundedLockWait}, which
+ * removes the known cause of one). This exists so that if a hook is ever
+ * abandoned for some other reason, the second failure says which test to look
+ * at instead of reading as a data-integrity bug.
+ */
+async function insertSeedUser(values: {
+    email: string;
+    name: string | null;
+    passwordHash: string | null;
+    roleId: string;
+    status: UserStatus;
+}) {
+    try {
+        return await getDatabase().insert(users).values(values).returning();
+    } catch (error) {
+        // Drizzle wraps the driver error, so the `constraint` field can be on
+        // either level; the message is checked too because which of the three
+        // is populated is a detail of a dependency, and getting this wrong
+        // would swallow an unrelated failure.
+        if (!isDuplicateEmail(error)) throw error;
+        throw new Error(
+            `[e2e] seedUser: "${values.email}" already exists, immediately after resetDb truncated \`users\`.\n\n` +
+                'That row was written outside this test. The usual cause is a hook in an\n' +
+                'EARLIER test that exceeded its timeout: Jest gives up on it and moves on, but\n' +
+                "the work behind it keeps running, so that hook's insert lands after this\n" +
+                "test's reset. This test is the victim, not the cause — look for the hook\n" +
+                'timeout reported above it.',
+            { cause: error }
+        );
+    }
+}
+
+/** The unique index on `lower(email)` that a re-seeded user collides with. */
+const USERS_EMAIL_UNIQUE = 'users_email_lower_unique';
+
+/** Whether a thrown error is that collision, however it is wrapped. */
+export function isDuplicateEmail(error: unknown): boolean {
+    for (let current = error, depth = 0; current && depth < 4; depth += 1) {
+        const node = current as { constraint?: string; cause?: unknown };
+        if (node.constraint === USERS_EMAIL_UNIQUE) return true;
+        current = node.cause;
+    }
+    return (
+        error instanceof Error && error.message.includes(USERS_EMAIL_UNIQUE)
+    );
 }
 
 /** Convenience: an active user with valid credentials for `POST /auth/login`. */
@@ -675,27 +730,142 @@ export async function countActivityRows(): Promise<number> {
  */
 export async function resetDb(): Promise<void> {
     await withDatabaseDiagnostics('resetting the test database', async () => {
-        await getPool().query(
-            'TRUNCATE TABLE users, workspaces, activity_events, ' +
-                'content_test_article, content_test_author, content_test_tag, ' +
-                'content_test_seo, content_test_comment, content_test_landing, ' +
-                'content_test_page, content_entry_revisions, ' +
-                'media_asset, media_folder, outbox_events, ' +
-                // Segments' two. The catalogue is cached in memory and only
-                // reloaded by writes through its own service, so a suite that
-                // truncates these must also call `reloadSegmentCatalogue` —
-                // see `support/segments.ts`.
-                'segments, entry_access ' +
-                'RESTART IDENTITY CASCADE'
-        );
-        // After the TRUNCATE: `users` is gone, so nothing references these any
-        // more. `role_permissions` is ON DELETE CASCADE.
-        await getPool().query('DELETE FROM roles WHERE is_system = false');
+        await truncateWithBoundedLockWait();
         // The bytes, too. `media_asset` is truncated above, so a surviving blob
         // is one no row names — able to satisfy a download for a `storage_key`
         // a later test happens to reproduce.
         resetBlobStore();
     });
+}
+
+/** The reset itself, as one transaction. See {@link truncateWithBoundedLockWait}. */
+const RESET_SQL = [
+    'TRUNCATE TABLE users, workspaces, activity_events, ' +
+        'content_test_article, content_test_author, content_test_tag, ' +
+        'content_test_seo, content_test_comment, content_test_landing, ' +
+        'content_test_page, content_entry_revisions, ' +
+        'media_asset, media_folder, outbox_events, ' +
+        // Segments' two. The catalogue is cached in memory and only
+        // reloaded by writes through its own service, so a suite that
+        // truncates these must also call `reloadSegmentCatalogue` —
+        // see `support/segments.ts`.
+        'segments, entry_access ' +
+        'RESTART IDENTITY CASCADE',
+    // After the TRUNCATE: `users` is gone, so nothing references these any
+    // more. `role_permissions` is ON DELETE CASCADE.
+    'DELETE FROM roles WHERE is_system = false'
+];
+
+/** Postgres `lock_not_available` — a `lock_timeout` expired. */
+const LOCK_NOT_AVAILABLE = '55P03';
+
+/** How long one attempt waits for the ACCESS EXCLUSIVE lock. */
+const LOCK_TIMEOUT_MS = 4_000;
+
+/**
+ * Attempts before giving up. Four bounded waits plus backoff stays inside the
+ * 30-second hook budget, which is the point: the harness must reach its own
+ * diagnosis before Jest reaches its timeout, or the diagnosis never prints.
+ */
+const LOCK_ATTEMPTS = 4;
+
+/**
+ * Run the reset with a **bounded** wait for its locks, retrying, and naming the
+ * blocker if it never gets them.
+ *
+ * `TRUNCATE` needs `ACCESS EXCLUSIVE` on every table it lists, so it queues
+ * behind any open transaction touching one of them — and Postgres defaults
+ * `lock_timeout` to `0`, meaning *wait forever*. This suite has a writer that
+ * makes that a live hazard rather than a theoretical one: `OutboxDispatcher`
+ * runs its subscribers **inside** the transaction that claims their rows
+ * (`packages/database/src/lib/outbox/outbox-dispatcher.ts`), so a drain holds a
+ * transaction on `outbox_events` for as long as the slowest subscriber takes,
+ * and a drain is in flight after almost every content-writing test — on commit,
+ * and again on the dispatcher's 5-second poll.
+ *
+ * Unbounded, that presents as `Exceeded timeout of 30000 ms for a hook` with no
+ * error, no query and no cause — and then, because Jest abandons a timed-out
+ * hook without cancelling the work behind it, the abandoned seed lands *after*
+ * the next test's reset and fails **that** test on a duplicate key. One stall,
+ * two failures, neither naming it, and the second pointing at an innocent test.
+ *
+ * Bounded, the common case is unchanged (a drain finishes in well under a
+ * second, and attempt 1 succeeds), a slow drain costs one retry, and a genuine
+ * hang fails inside the hook budget with the blocking query attached.
+ */
+async function truncateWithBoundedLockWait(): Promise<void> {
+    for (let attempt = 1; ; attempt += 1) {
+        const client = await getPool().connect();
+        try {
+            await client.query('BEGIN');
+            // `SET LOCAL` — scoped to this transaction, so the timeout cannot
+            // ride the pooled connection back out and clip an app query.
+            await client.query(`SET LOCAL lock_timeout = ${LOCK_TIMEOUT_MS}`);
+            for (const statement of RESET_SQL) await client.query(statement);
+            await client.query('COMMIT');
+            return;
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => undefined);
+            const code = (error as { code?: string }).code;
+            if (code !== LOCK_NOT_AVAILABLE) throw error;
+            if (attempt >= LOCK_ATTEMPTS) {
+                throw new Error(
+                    `[e2e] resetDb could not lock the tables it truncates after ${LOCK_ATTEMPTS} attempts ` +
+                        `of ${LOCK_TIMEOUT_MS} ms.\n\n` +
+                        'Something is holding a transaction open on one of them. The likeliest\n' +
+                        'candidate is an outbox drain: `OutboxDispatcher` runs subscribers inside\n' +
+                        'the transaction that claims their rows, so a slow subscriber holds\n' +
+                        '`outbox_events` for its whole duration.\n\n' +
+                        `Backends in this database:\n${await describeBlockers()}`,
+                    { cause: error }
+                );
+            }
+            // Linear, not exponential: the blocker is a bounded batch, not a
+            // contended resource that backs off usefully.
+            await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        } finally {
+            client.release();
+        }
+    }
+}
+
+/**
+ * Every non-idle backend and how long its transaction has been open — the
+ * answer to "what was holding it", collected while it is still true rather than
+ * guessed at afterwards. Best-effort: a diagnosis that throws would replace the
+ * message it exists to improve.
+ */
+async function describeBlockers(): Promise<string> {
+    try {
+        const { rows } = await getPool().query<{
+            pid: number;
+            state: string;
+            wait_event_type: string | null;
+            xact_age: string | null;
+            query: string;
+        }>(
+            `SELECT pid, state, wait_event_type,
+                    to_char(now() - xact_start, 'HH24:MI:SS') AS xact_age,
+                    left(query, 200) AS query
+               FROM pg_stat_activity
+              WHERE datname = current_database()
+                AND pid <> pg_backend_pid()
+                AND state IS DISTINCT FROM 'idle'
+              ORDER BY xact_start NULLS LAST`
+        );
+        if (rows.length === 0) return '  (none — the blocker had already gone)';
+        return rows
+            .map(
+                (row) =>
+                    `  pid ${row.pid} ${row.state}` +
+                    `${row.wait_event_type ? ` (waiting: ${row.wait_event_type})` : ''}` +
+                    `${row.xact_age ? ` xact open ${row.xact_age}` : ''}\n` +
+                    `    ${row.query.replace(/\s+/g, ' ')}`
+            )
+            .join('\n');
+    } catch (error) {
+        return `  (could not read pg_stat_activity: ${(error as Error).message})`;
+    }
 }
 
 /**
