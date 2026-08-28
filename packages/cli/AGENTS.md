@@ -37,6 +37,7 @@ get the most destructive operation in the system wrong.
 | `ortha migrate` | Builds the server, then applies every plugin's migrations |
 | `ortha generate --name=<n>` | drizzle-kit against the app's own `drizzle.config.ts` |
 | `ortha studio` | Drizzle Studio on the app's database |
+| `ortha --help` | Usage — also `-h` and a bare `help`. Answered before `findProjectRoot`, so it works outside an app |
 
 ## Architecture
 

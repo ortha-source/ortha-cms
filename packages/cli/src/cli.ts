@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { USAGE, flag, option, wantsHelp } from './lib/args';
 import { buildCommand } from './lib/commands/build';
 import { devCommand } from './lib/commands/dev';
 import { generateCommand } from './lib/commands/generate';
@@ -8,47 +9,17 @@ import { studioCommand } from './lib/commands/studio';
 import { loadEnv } from './lib/env';
 import { findProjectRoot } from './lib/project';
 
-const USAGE = `ortha — the Ortha CMS command line
-
-Usage: ortha <command> [options]
-
-Commands:
-  dev                    Run the API and admin dev servers together
-  build                  Compile the server and build the admin bundle
-  start                  Run the built server
-  migrate                Apply every plugin's pending migrations
-  generate [--name=<n>]  Generate a migration for this app's content tables
-  studio [--host --port] Open Drizzle Studio on this app's database
-
-Options:
-  --server               build/dev: the server only, skipping the admin
-  --admin                build: the admin bundle only
-  -h, --help             Show this message
-`;
-
-/** Reads `--flag=value`, or `--flag value`, from argv. */
-function option(argv: readonly string[], name: string): string | undefined {
-    const inline = argv.find((arg) => arg.startsWith(`--${name}=`));
-    if (inline) return inline.slice(`--${name}=`.length);
-
-    const index = argv.indexOf(`--${name}`);
-    const next = index === -1 ? undefined : argv[index + 1];
-
-    return next && !next.startsWith('-') ? next : undefined;
-}
-
-/** Whether a bare `--flag` is present. */
-function flag(argv: readonly string[], name: string): boolean {
-    return argv.includes(`--${name}`);
-}
-
 async function main(): Promise<void> {
-    const [command, ...argv] = process.argv.slice(2);
+    const args = process.argv.slice(2);
 
-    if (!command || flag(argv, 'help') || argv.includes('-h')) {
+    // Before `findProjectRoot`, so asking what the command does works from
+    // anywhere — including the shell you are in before the app exists.
+    if (wantsHelp(args)) {
         console.log(USAGE);
         return;
     }
+
+    const [command, ...argv] = args;
 
     const root = findProjectRoot();
 
