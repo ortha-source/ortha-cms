@@ -104,19 +104,32 @@ describe('useAcceptInviteSchema', () => {
     });
 
     describe('confirmPassword', () => {
-        // Only the presence of the ask is asserted. The object-level mismatch
-        // check is not skipped for an empty box the way the password field's
-        // length checks are, so today this field answers with the ask *and*
-        // "these two passwords don't match" — two messages in one alert about a
-        // box that has not been typed in yet. Asserting the exact list here
-        // would cement that; the test states what the field must say.
-        it('asks for the confirmation when it is empty', () => {
+        // One message, not two. The mismatch check is object-level, and an
+        // object-level `.refine` still runs when a field-level check on the
+        // same path has already failed — so it has to skip an empty box the
+        // way the password field's length checks do. Without that guard the
+        // field answers the ask *and* "these two passwords don't match" in one
+        // `role="alert"`, telling the invitee their passwords disagree before
+        // they have typed a second one.
+        it('asks for the confirmation once, not once per rule', () => {
             expect(
                 messagesFor('confirmPassword', {
                     password: 'a'.repeat(12),
                     confirmPassword: ''
                 })
-            ).toContain('Type your password once more to confirm it');
+            ).toEqual(['Type your password once more to confirm it']);
+        });
+
+        // Both boxes empty is the first-render state, and it must not accuse
+        // anyone of a mismatch either — '' equals '', so only the two asks
+        // appear, one per field.
+        it('says nothing about a mismatch when both boxes are empty', () => {
+            expect(
+                messagesFor('confirmPassword', {
+                    password: '',
+                    confirmPassword: ''
+                })
+            ).toEqual(['Type your password once more to confirm it']);
         });
 
         // The mismatch is reported on the confirm field, not the password one:

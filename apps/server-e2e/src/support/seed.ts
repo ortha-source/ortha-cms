@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { getDatabase, getPool } from '@orthacms/database';
 import {
@@ -669,6 +669,28 @@ export async function countUserSessions(userId: string): Promise<number> {
         .select({ id: sessions.id })
         .from(sessions)
         .where(eq(sessions.userId, userId));
+    return rows.length;
+}
+
+/**
+ * Count the sessions a user could still present — not revoked, not expired.
+ *
+ * Revocation is a soft one: `revoke` stamps `revoked_at` and leaves the row
+ * where it is, so {@link countUserSessions} still sees it. That distinction is
+ * the whole point when asserting that something *ended* a session rather than
+ * that no session was ever opened, and counting rows conflates the two.
+ */
+export async function countLiveUserSessions(userId: string): Promise<number> {
+    const rows = await getDatabase()
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(
+            and(
+                eq(sessions.userId, userId),
+                isNull(sessions.revokedAt),
+                gt(sessions.expiresAt, new Date())
+            )
+        );
     return rows.length;
 }
 

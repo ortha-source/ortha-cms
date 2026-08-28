@@ -221,6 +221,37 @@ test.describe('Session lost while the tab sat idle', () => {
         await expect(homePage.nav).toBeHidden();
     });
 
+    test('explains itself, even though the probe handles its own 401', async ({
+        page,
+        homePage,
+        hostPage,
+        loginPage
+    }) => {
+        // This path very nearly went unannounced. The transport exempts
+        // `/auth/me` from the shared `401` handler — the sign-in page polls
+        // that endpoint, where a `401` is the ordinary answer — so an
+        // announcement wired to that handler would fire for a session lost on
+        // any *other* request and stay silent here, on the one path that has no
+        // user action behind it at all. Someone who alt-tabbed back to a tab
+        // they left signed in would be dropped onto a sign-in form with nothing
+        // anywhere saying why.
+        await mockSignedIn(page);
+        await homePage.goto();
+        await expect(homePage.nav).toBeVisible();
+
+        await mockSignedOut(page);
+        await returnToTab(page);
+
+        // Announced in the host's live region, which sits outside the router
+        // and so survives the view being replaced…
+        await expect(
+            hostPage.toastHost.getByText(/Your session has ended/)
+        ).toBeVisible();
+        // …and repeated on the page, so it is still readable once the toast
+        // has expired.
+        await expect(loginPage.sessionEndedNotice).toBeVisible();
+    });
+
     test('never flashes the loader while the background re-check is in flight', async ({
         page,
         homePage,

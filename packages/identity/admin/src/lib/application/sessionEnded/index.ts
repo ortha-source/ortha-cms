@@ -41,3 +41,37 @@ export function takeSessionEnded(): boolean {
     sessionEnded = false;
     return ended;
 }
+
+/**
+ * The counterpart flag: this tab is about to go from signed-in to signed-out
+ * **because the visitor asked**.
+ *
+ * `AuthProvider` announces the loss by watching the published state fall from
+ * authenticated to unauthenticated, which is the only signal that catches every
+ * way a session can die — including the auth probe's own `401`, which the
+ * transport exempts from the shared handler because the sign-in page polls that
+ * same endpoint and a `401` there is its ordinary answer.
+ *
+ * But a deliberate sign-out produces that identical fall, and announcing "your
+ * session has ended" to someone who just clicked *Sign out* would report their
+ * own action back to them as if something had gone wrong. So the sign-out path
+ * raises this first, and the watcher consumes it and stays quiet.
+ */
+let expectedSignOut = false;
+
+/**
+ * Record that the sign-out about to happen was asked for.
+ *
+ * Call this **before** the write that clears the cached user, so the watcher
+ * observing that write finds the flag already up.
+ */
+export function markExpectedSignOut(): void {
+    expectedSignOut = true;
+}
+
+/** Read the flag and clear it, so only the next fall is treated as expected. */
+export function takeExpectedSignOut(): boolean {
+    const expected = expectedSignOut;
+    expectedSignOut = false;
+    return expected;
+}

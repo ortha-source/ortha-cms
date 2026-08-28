@@ -5,6 +5,7 @@ import type { ApiError } from '@orthacms/utils-admin';
 import { httpAuthGateway } from '../../infrastructure/httpAuthGateway';
 import { currentUserKey } from '../useCurrentUser';
 import { resetSessionCache } from '../resetSessionCache';
+import { markExpectedSignOut } from '../sessionEnded';
 
 /** Intl descriptors for {@link useLogoutMutation}, co-located with the hook. */
 const messages = defineMessages({
@@ -35,6 +36,13 @@ export function useLogoutMutation() {
     return useMutation<void, ApiError, void>({
         mutationFn: () => httpAuthGateway.logout(),
         onSuccess: () => {
+            // Say so before clearing the user, not after. `AuthProvider`
+            // announces a lost session by watching the published state fall
+            // from authenticated to unauthenticated, and the write below is
+            // exactly that fall — so without this the visitor would be told
+            // their session "has ended" in reply to their own Sign out click.
+            markExpectedSignOut();
+
             // Write `null` rather than invalidating: the session is gone, so a
             // refetch could only 401 its way to the same answer, and the write
             // settles the gate in this tick. It also has to happen *before* the

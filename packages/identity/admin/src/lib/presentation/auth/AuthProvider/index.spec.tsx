@@ -9,7 +9,10 @@ import {
     currentUserKey,
     useCurrentUser
 } from '../../../application/useCurrentUser';
-import { markSessionEnded } from '../../../application/sessionEnded';
+import {
+    markSessionEnded,
+    takeExpectedSignOut
+} from '../../../application/sessionEnded';
 import { AuthStatus, useAuth, type AuthState } from '../authContext';
 import { AuthProvider } from './index';
 
@@ -25,7 +28,9 @@ vi.mock('../../../application/useCurrentUser', async (importOriginal) => ({
 // Module-scope flag with no React state to observe; a mock is how we see it set.
 vi.mock('../../../application/sessionEnded', () => ({
     markSessionEnded: vi.fn(),
-    takeSessionEnded: vi.fn()
+    takeSessionEnded: vi.fn(),
+    markExpectedSignOut: vi.fn(),
+    takeExpectedSignOut: vi.fn(() => false)
 }));
 
 // The transport seam. Mocking it is what gives the test a handle on the `401`
@@ -224,7 +229,12 @@ describe('AuthProvider', () => {
     });
 
     describe('the 401 handler', () => {
-        it('clears the cached user, flags the loss, and announces it', () => {
+        // The handler's whole job is the cache write. It deliberately does not
+        // announce anything: it only ever sees the `401`s the transport routes
+        // to it, and `/auth/me`'s own is exempt — so an announcement made here
+        // would miss the focus re-check, which is the very path that catches an
+        // idle tab whose account was suspended.
+        it('settles the gate by answering the probe with "nobody"', () => {
             const warn = vi.spyOn(toast, 'warning');
             const { queryClient } = renderProvider();
             queryClient.setQueryData(currentUserKey, {
@@ -237,29 +247,139 @@ describe('AuthProvider', () => {
             act(() => installedHandler()());
 
             expect(queryClient.getQueryData(currentUserKey)).toBeNull();
-            expect(markSessionEnded).toHaveBeenCalledTimes(1);
-            expect(warn).toHaveBeenCalledTimes(1);
-            expect(warn).toHaveBeenCalledWith(
-                'Your session has ended. Please sign in again.'
-            );
+            expect(warn).not.toHaveBeenCalled();
         });
 
-        // A `401` with nothing in the cache is the ordinary signed-out state —
-        // a background request on a tab that never had a session. Announcing a
-        // loss here would tell a visitor something of theirs was taken away
-        // when nothing was, and the flag would make the sign-in page repeat it.
-        // The `null` is still written, so the gate settles at once.
-        it('stays silent when there was no session to lose', () => {
-            const warn = vi.spyOn(toast, 'warning');
-            const { queryClient } = renderProvider();
+        /**
+         * The announcement rides the published state, not the transport.
+         *
+         * A session can end in three ways that reach this component
+         * differently: a `401` on some other request (the handler above), the
+         * auth probe's own `401` on a focus re-check (exempt from that handler,
+         * because the sign-in page polls the same endpoint), and an
+         * administrator suspending the account between two navigations. All
+         * three land as the same fall — a resolved user giving way to nobody —
+         * so that fall is what is watched.
+         */
+        describe('announcing a session that ended', () => {
+            /** Re-renders the provider with a fresh probe state. */
+            function reprobe(view: { rerender: (ui: ReactNode) => void }) {
+                act(() => {
+                    view.rerender(
+                        <QueryClientProvider client={new QueryClient()}>
+                            <IntlProvider locale="en">
+                                <AuthProvider>
+                                    <AuthStateProbe />
+                                </AuthProvider>
+                            </IntlProvider>
+                        </QueryClientProvider>
+                    );
+                });
+            }
 
-            expect(queryClient.getQueryData(currentUserKey)).toBeUndefined();
+            it('announces when a resolved user gives way to nobody', () => {
+                const warn = vi.spyOn(toast, 'warning');
+                probeReturns({
+                    data: {
+                        id: 'usr_1',
+                        email: 'ada@ortha.dev',
+                        name: 'Ada Lovelace',
+                        permissions: []
+                    }
+                });
+                const view = renderProvider();
 
-            act(() => installedHandler()());
+                probeReturns({ data: null });
+                reprobe(view);
 
-            expect(queryClient.getQueryData(currentUserKey)).toBeNull();
-            expect(markSessionEnded).not.toHaveBeenCalled();
-            expect(warn).not.toHaveBeenCalled();
+                expect(markSessionEnded).toHaveBeenCalledTimes(1);
+                expect(warn).toHaveBeenCalledTimes(1);
+                expect(warn).toHaveBeenCalledWith(
+                    'Your session has ended. Please sign in again.'
+                );
+            });
+
+            // The ordinary signed-out state: a bookmark opened in a fresh tab
+            // reaches `unauthenticated` too. Announcing here would tell someone
+            // who never signed in that something of theirs was taken away.
+            it('stays silent on a tab that never held a session', () => {
+                const warn = vi.spyOn(toast, 'warning');
+                probeReturns({ data: null });
+
+                renderProvider();
+
+                expect(markSessionEnded).not.toHaveBeenCalled();
+                expect(warn).not.toHaveBeenCalled();
+            });
+
+            // Signing out produces the identical fall. Reporting it back as a
+            // session that "has ended" would dress the visitor's own click up
+            // as a fault, so the sign-out path raises a flag this consumes.
+            it('stays silent when the visitor asked to sign out', () => {
+                const warn = vi.spyOn(toast, 'warning');
+                vi.mocked(takeExpectedSignOut).mockReturnValueOnce(true);
+                probeReturns({
+                    data: {
+                        id: 'usr_1',
+                        email: 'ada@ortha.dev',
+                        name: null,
+                        permissions: []
+                    }
+                });
+                const view = renderProvider();
+
+                probeReturns({ data: null });
+                reprobe(view);
+
+                expect(markSessionEnded).not.toHaveBeenCalled();
+                expect(warn).not.toHaveBeenCalled();
+            });
+
+            // An outage is not a sign-out: `unavailable` keeps the visitor
+            // where they are behind a retry card, so there is nothing to
+            // announce and nothing for the sign-in page to repeat.
+            it('stays silent when the probe failed rather than refused', () => {
+                const warn = vi.spyOn(toast, 'warning');
+                probeReturns({
+                    data: {
+                        id: 'usr_1',
+                        email: 'ada@ortha.dev',
+                        name: null,
+                        permissions: []
+                    }
+                });
+                const view = renderProvider();
+
+                probeReturns({ data: null, isError: true });
+                reprobe(view);
+
+                expect(markSessionEnded).not.toHaveBeenCalled();
+                expect(warn).not.toHaveBeenCalled();
+            });
+
+            // One loss, one announcement. The effect keys on a status that
+            // stays `unauthenticated` across every later render, so without the
+            // latch each one would raise another toast.
+            it('announces once, however many renders follow', () => {
+                const warn = vi.spyOn(toast, 'warning');
+                probeReturns({
+                    data: {
+                        id: 'usr_1',
+                        email: 'ada@ortha.dev',
+                        name: null,
+                        permissions: []
+                    }
+                });
+                const view = renderProvider();
+
+                probeReturns({ data: null });
+                reprobe(view);
+                reprobe(view);
+                reprobe(view);
+
+                expect(markSessionEnded).toHaveBeenCalledTimes(1);
+                expect(warn).toHaveBeenCalledTimes(1);
+            });
         });
 
         // The handler closes over this provider's query client. Leaving it

@@ -7,6 +7,7 @@ import {
 } from '../../support/test-app';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
+    countLiveUserSessions,
     countUserSessions,
     getUserByEmail,
     resetDb,
@@ -164,9 +165,13 @@ describe('disabling an account while it is signing in', () => {
             .expect(201);
 
         await victim.get('/api/auth/me').expect(401);
-        // The endpoint revoked the row as well, so this is belt *and* braces
-        // rather than only the per-request status check.
-        expect(await countUserSessions(target.id)).toBe(0);
+        // The endpoint revoked the session as well, so this is belt *and*
+        // braces rather than only the per-request status check. Revocation is
+        // a soft one — `revoked_at` is stamped and the row stays put, which is
+        // what lets an admin still see that the session existed — so count the
+        // sessions that could still be presented, not the rows.
+        expect(await countLiveUserSessions(target.id)).toBe(0);
+        expect(await countUserSessions(target.id)).toBe(1);
     });
 
     it('refuses a new sign-in once the account is suspended', async () => {

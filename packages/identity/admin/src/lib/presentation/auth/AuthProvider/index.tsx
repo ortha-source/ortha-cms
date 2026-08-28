@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { defineMessages, useIntl } from 'react-intl';
 import { toast } from '@orthacms/design-system';
@@ -7,7 +7,10 @@ import {
     currentUserKey,
     useCurrentUser
 } from '../../../application/useCurrentUser';
-import { markSessionEnded } from '../../../application/sessionEnded';
+import {
+    markSessionEnded,
+    takeExpectedSignOut
+} from '../../../application/sessionEnded';
 import {
     AuthProviderContext,
     AuthStatus,
@@ -100,14 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         setUnauthorizedHandler(() => {
-            // Whether anyone was signed in a moment ago, read BEFORE the write
-            // below clears it. A cached user is what separates "the session you
-            // were using has ended" from the ordinary signed-out state a
-            // background request can also produce, and announcing the first
-            // over the second would tell a visitor who never signed in that
-            // something of theirs was taken away.
-            const hadSession = queryClient.getQueryData(currentUserKey) != null;
-
             // Answer the probe with "no user" rather than invalidating it: the
             // session is gone, so a refetch would only 401 again, and the null
             // settles the gate on `unauthenticated` at once. Deliberately not
@@ -115,22 +110,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // observers makes them refetch, and each refetch 401s straight back
             // into this handler. The redirect unmounts the private tree instead,
             // leaving its data inactive for the cache's own GC.
+            //
+            // Saying so is NOT done here: this handler sees only the `401`s the
+            // transport routes to it, and the auth probe's own is exempt (the
+            // sign-in page polls that endpoint, where a `401` is the ordinary
+            // answer). The announcement watches the published state instead —
+            // see below — so it covers every way the session can end.
             queryClient.setQueryData(currentUserKey, null);
-
-            if (!hadSession) return;
-            // Two audiences, one fact. The toast is announced now, in the live
-            // region the host mounts outside the router — so it survives the
-            // view being replaced; the flag is what the sign-in page reads to
-            // keep the explanation on screen once the toast has expired.
-            markSessionEnded();
-            toast.warning(intl.formatMessage(messages.sessionEnded));
         });
         return () => setUnauthorizedHandler(null);
-    }, [queryClient, intl]);
+    }, [queryClient]);
+
+    const state = toAuthState(currentUser);
+
+    // Whether this tab has ever held a session. It is what separates "the
+    // session you were using has ended" from the ordinary signed-out state —
+    // a bookmark opened in a fresh tab reaches `unauthenticated` too, and
+    // telling that visitor something of theirs was taken away would be a lie.
+    const hadSession = useRef(false);
+
+    useEffect(() => {
+        if (state.status === AuthStatus.Authenticated) {
+            hadSession.current = true;
+            return;
+        }
+        if (state.status !== AuthStatus.Unauthenticated) return;
+        if (!hadSession.current) return;
+
+        // Lowered before announcing, so `StrictMode`'s second pass over this
+        // effect finds nothing left to say rather than raising a second toast.
+        hadSession.current = false;
+
+        // A sign-out the visitor asked for lands here as the same fall from
+        // authenticated to unauthenticated. Reporting it back to them as a
+        // session that "has ended" would dress their own click up as a fault.
+        if (takeExpectedSignOut()) return;
+
+        // Two audiences, one fact. The toast is announced now, in the live
+        // region the host mounts outside the router — so it survives the view
+        // being replaced; the flag is what the sign-in page reads to keep the
+        // explanation on screen once the toast has expired.
+        markSessionEnded();
+        toast.warning(intl.formatMessage(messages.sessionEnded));
+    }, [state.status, intl]);
 
     return (
-        <AuthProviderContext value={toAuthState(currentUser)}>
-            {children}
-        </AuthProviderContext>
+        <AuthProviderContext value={state}>{children}</AuthProviderContext>
     );
 }

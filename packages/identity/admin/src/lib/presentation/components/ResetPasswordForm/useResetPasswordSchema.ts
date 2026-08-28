@@ -93,8 +93,17 @@ export function useResetPasswordSchema() {
                         message: intl.formatMessage(messages.confirmRequired)
                     })
                 })
+                // Skipped for an empty confirm box, for the same reason the
+                // length checks above are: an object-level `.refine` runs even
+                // when a field-level check on the same path already failed, so
+                // without the guard an untouched box answers "type it once more
+                // to confirm" AND "these two don't match" in one `role="alert"`
+                // — telling someone their two passwords disagree before they
+                // have typed a second one.
                 .refine(
-                    (values) => values.password === values.confirmPassword,
+                    (values) =>
+                        values.confirmPassword.length === 0 ||
+                        values.password === values.confirmPassword,
                     {
                         message: intl.formatMessage(messages.confirmMismatch),
                         path: ['confirmPassword']
