@@ -162,6 +162,98 @@ const actionMessages = defineMessages({
     folderDeleted: {
         id: 'activity.action.media.folder.deleted',
         defaultMessage: 'Deleted folder'
+    },
+    signInFailed: {
+        id: 'activity.action.user.sign_in_failed',
+        defaultMessage: 'Sign-in refused'
+    },
+    sessionRevoked: {
+        id: 'activity.action.user.session_revoked',
+        defaultMessage: 'Ended a session'
+    },
+    ssoLinked: {
+        id: 'activity.action.user.sso_linked',
+        defaultMessage: 'Linked an identity provider'
+    },
+    ssoProvisioned: {
+        id: 'activity.action.user.sso_provisioned',
+        defaultMessage: 'Provisioned from a provider'
+    },
+    ssoRoleMapped: {
+        id: 'activity.action.user.sso_role_mapped',
+        defaultMessage: 'Role set by a provider'
+    },
+    tokenUsed: {
+        id: 'activity.action.token.used',
+        defaultMessage: 'Used token'
+    },
+    contentExported: {
+        id: 'activity.action.transfer.content.exported',
+        defaultMessage: 'Exported content'
+    },
+    contentImported: {
+        id: 'activity.action.transfer.content.imported',
+        defaultMessage: 'Imported content'
+    },
+    segmentCreated: {
+        id: 'activity.action.segment.created',
+        defaultMessage: 'Created audience'
+    },
+    segmentUpdated: {
+        id: 'activity.action.segment.updated',
+        defaultMessage: 'Updated audience'
+    },
+    segmentDeleted: {
+        id: 'activity.action.segment.deleted',
+        defaultMessage: 'Deleted audience'
+    },
+    entryAccessChanged: {
+        id: 'activity.action.segment.entry_access_changed',
+        defaultMessage: 'Changed who can read this'
+    },
+    alarmRuleCreated: {
+        id: 'activity.action.alarm.rule.created',
+        defaultMessage: 'Created check'
+    },
+    alarmRuleUpdated: {
+        id: 'activity.action.alarm.rule.updated',
+        defaultMessage: 'Updated check'
+    },
+    alarmRuleDeleted: {
+        id: 'activity.action.alarm.rule.deleted',
+        defaultMessage: 'Deleted check'
+    },
+    alarmRuleRescanned: {
+        id: 'activity.action.alarm.rule.rescanned',
+        defaultMessage: 'Rescanned check'
+    },
+    savedViewCreated: {
+        id: 'activity.action.saved_view.created',
+        defaultMessage: 'Saved a view'
+    },
+    savedViewUpdated: {
+        id: 'activity.action.saved_view.updated',
+        defaultMessage: 'Updated a view'
+    },
+    savedViewDeleted: {
+        id: 'activity.action.saved_view.deleted',
+        defaultMessage: 'Deleted a view'
+    },
+    skillCreated: {
+        id: 'activity.action.copilot.skill.created',
+        defaultMessage: 'Created copilot skill'
+    },
+    skillUpdated: {
+        id: 'activity.action.copilot.skill.updated',
+        defaultMessage: 'Updated copilot skill'
+    },
+    skillDeleted: {
+        id: 'activity.action.copilot.skill.deleted',
+        defaultMessage: 'Deleted copilot skill'
+    },
+    toolPermissionDecided: {
+        id: 'activity.action.copilot.tool_permission.decided',
+        defaultMessage: 'Answered a copilot request'
     }
 });
 
@@ -170,8 +262,11 @@ const actionMessages = defineMessages({
  *
  * Typed `Record<ActivityKind, …>` on purpose: adding a string to
  * `ACTIVITY_KINDS` without a label here is a **compile error**, so the two
- * halves of the catalogue cannot drift apart within this package. (The
- * server-side half is pinned by `apps/admin-e2e/src/activity/activity-kinds.spec.ts`.)
+ * halves of the catalogue cannot drift apart within this package. The
+ * *server* half is pinned by `audit-event-mapping.spec.ts`'s "the admin
+ * catalogue" block, which compares `ACTIVITY_KINDS` with the server's
+ * `AUDIT_KINDS` in both directions — the e2e suite alone could not, since its
+ * fixture is built from this same list.
  */
 export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.invited': actionMessages.invited,
@@ -186,6 +281,11 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'user.password_changed': actionMessages.passwordChanged,
     'user.signed_in': actionMessages.signedIn,
     'user.signed_out': actionMessages.signedOut,
+    'user.sign_in_failed': actionMessages.signInFailed,
+    'user.session_revoked': actionMessages.sessionRevoked,
+    'user.sso_linked': actionMessages.ssoLinked,
+    'user.sso_provisioned': actionMessages.ssoProvisioned,
+    'user.sso_role_mapped': actionMessages.ssoRoleMapped,
     'workspace.created': actionMessages.workspaceCreated,
     'workspace.updated': actionMessages.workspaceUpdated,
     'workspace.archived': actionMessages.workspaceArchived,
@@ -204,13 +304,31 @@ export const ACTION_MESSAGES: Record<ActivityKind, MessageDescriptor> = {
     'entry.purged': actionMessages.entryPurged,
     'token.created': actionMessages.tokenCreated,
     'token.revoked': actionMessages.tokenRevoked,
+    'token.used': actionMessages.tokenUsed,
     'media.asset.uploaded': actionMessages.assetUploaded,
     'media.asset.updated': actionMessages.assetUpdated,
     'media.asset.moved': actionMessages.assetMoved,
     'media.asset.deleted': actionMessages.assetDeleted,
     'media.folder.created': actionMessages.folderCreated,
     'media.folder.renamed': actionMessages.folderRenamed,
-    'media.folder.deleted': actionMessages.folderDeleted
+    'media.folder.deleted': actionMessages.folderDeleted,
+    'transfer.content.exported': actionMessages.contentExported,
+    'transfer.content.imported': actionMessages.contentImported,
+    'segment.created': actionMessages.segmentCreated,
+    'segment.updated': actionMessages.segmentUpdated,
+    'segment.deleted': actionMessages.segmentDeleted,
+    'segment.entry_access_changed': actionMessages.entryAccessChanged,
+    'alarm.rule.created': actionMessages.alarmRuleCreated,
+    'alarm.rule.updated': actionMessages.alarmRuleUpdated,
+    'alarm.rule.deleted': actionMessages.alarmRuleDeleted,
+    'alarm.rule.rescanned': actionMessages.alarmRuleRescanned,
+    'saved_view.created': actionMessages.savedViewCreated,
+    'saved_view.updated': actionMessages.savedViewUpdated,
+    'saved_view.deleted': actionMessages.savedViewDeleted,
+    'copilot.skill.created': actionMessages.skillCreated,
+    'copilot.skill.updated': actionMessages.skillUpdated,
+    'copilot.skill.deleted': actionMessages.skillDeleted,
+    'copilot.tool_permission.decided': actionMessages.toolPermissionDecided
 };
 
 /** Display labels for the `subjectType` column's machine tokens. */
@@ -235,6 +353,34 @@ const subjectTypeMessages = defineMessages({
     mediaFolder: {
         id: 'activity.subjectType.media_folder',
         defaultMessage: 'Media folder'
+    },
+    contentType: {
+        id: 'activity.subjectType.content_type',
+        defaultMessage: 'Content type'
+    },
+    loginAttempt: {
+        id: 'activity.subjectType.login_attempt',
+        defaultMessage: 'Sign-in attempt'
+    },
+    segment: {
+        id: 'activity.subjectType.segment',
+        defaultMessage: 'Audience'
+    },
+    alarmRule: {
+        id: 'activity.subjectType.alarm_rule',
+        defaultMessage: 'Content check'
+    },
+    savedView: {
+        id: 'activity.subjectType.saved_view',
+        defaultMessage: 'Saved view'
+    },
+    copilotSkill: {
+        id: 'activity.subjectType.copilot_skill',
+        defaultMessage: 'Copilot skill'
+    },
+    copilotRun: {
+        id: 'activity.subjectType.copilot_run',
+        defaultMessage: 'Copilot run'
     }
 });
 
@@ -245,7 +391,14 @@ const SUBJECT_TYPE_MESSAGES: Record<ActivitySubjectType, MessageDescriptor> = {
     content_entry: subjectTypeMessages.contentEntry,
     api_token: subjectTypeMessages.apiToken,
     media_asset: subjectTypeMessages.mediaAsset,
-    media_folder: subjectTypeMessages.mediaFolder
+    media_folder: subjectTypeMessages.mediaFolder,
+    content_type: subjectTypeMessages.contentType,
+    login_attempt: subjectTypeMessages.loginAttempt,
+    segment: subjectTypeMessages.segment,
+    alarm_rule: subjectTypeMessages.alarmRule,
+    saved_view: subjectTypeMessages.savedView,
+    copilot_skill: subjectTypeMessages.copilotSkill,
+    copilot_run: subjectTypeMessages.copilotRun
 };
 
 /** Detail-template descriptors for the kinds that render a "Details" string. */

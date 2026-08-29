@@ -838,10 +838,119 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
 /**
  * Every event kind the activity subscriber audits — the dispatcher delivers
  * only these to it.
+ *
+ * These are the mappers' **inputs**. For the `kind` values they produce — the
+ * strings that reach the wire and that a client renders — see
+ * {@link AUDIT_KINDS}, which is a different and slightly shorter list
+ * (`member.*` and `user.disabled` collapse onto `user.*` audit kinds).
  */
 export const AUDITED_EVENT_KINDS = Object.keys(
     FACET_MAPPERS
 ) as readonly string[];
+
+/**
+ * Every audit `kind` this mapper can **produce** — the catalogue a client has
+ * to be able to render.
+ *
+ * It is declared rather than derived because deriving it would mean running
+ * every mapper, and several legitimately throw on a payload that cannot name
+ * their subject. `audit-event-mapping.spec.ts` drives each mapper once and
+ * asserts the two agree in both directions, so a kind added to `FACET_MAPPERS`
+ * and forgotten here fails a test rather than reaching the admin as a raw
+ * dotted token.
+ *
+ * That failure is the whole reason this exists. The admin restates these
+ * strings locally (it cannot import a server plugin), the mapper casts
+ * `dto.kind as ActivityKind` without checking, and a kind with no descriptor
+ * falls back to printing the wire token. No type error, no runtime error, no
+ * failing test — six `workspace.*` kinds, `user.activated`, all seven `media.*`
+ * kinds and all three `user.sso_*` kinds shipped that way.
+ */
+export const AUDIT_KINDS = [
+    'user.invited',
+    'user.invite_resent',
+    'user.invite_revoked',
+    'user.password_reset_issued',
+    'user.activated',
+    'user.profile_updated',
+    'user.role_changed',
+    'user.suspended',
+    'user.reactivated',
+    'user.password_changed',
+    'user.signed_in',
+    'user.signed_out',
+    'user.sign_in_failed',
+    'user.session_revoked',
+    'user.sso_linked',
+    'user.sso_provisioned',
+    'user.sso_role_mapped',
+    'workspace.created',
+    'workspace.updated',
+    'workspace.archived',
+    'workspace.unarchived',
+    'workspace.deleted',
+    'workspace.member_added',
+    'workspace.member_removed',
+    'workspace.content_granted',
+    'workspace.content_revoked',
+    'entry.created',
+    'entry.updated',
+    'entry.published',
+    'entry.unpublished',
+    'entry.deleted',
+    'entry.restored',
+    'entry.purged',
+    'token.created',
+    'token.revoked',
+    'token.used',
+    'media.asset.uploaded',
+    'media.asset.updated',
+    'media.asset.moved',
+    'media.asset.deleted',
+    'media.folder.created',
+    'media.folder.renamed',
+    'media.folder.deleted',
+    'transfer.content.exported',
+    'transfer.content.imported',
+    'segment.created',
+    'segment.updated',
+    'segment.deleted',
+    'segment.entry_access_changed',
+    'alarm.rule.created',
+    'alarm.rule.updated',
+    'alarm.rule.deleted',
+    'alarm.rule.rescanned',
+    'saved_view.created',
+    'saved_view.updated',
+    'saved_view.deleted',
+    'copilot.skill.created',
+    'copilot.skill.updated',
+    'copilot.skill.deleted',
+    'copilot.tool_permission.decided'
+] as const satisfies readonly string[];
+
+/**
+ * Every `subject_type` this mapper can stamp — the column's whole range.
+ *
+ * Restated in the admin for the same reason as {@link AUDIT_KINDS}, and pinned
+ * by the same spec: the raw values are snake_cased machine tokens that a client
+ * has to translate into something a person reads.
+ */
+export const AUDIT_SUBJECT_TYPES = [
+    'user',
+    'workspace',
+    'content_entry',
+    'content_type',
+    'api_token',
+    'media_asset',
+    'media_folder',
+    'login_attempt',
+    'segment',
+    'alarm_rule',
+    'saved_view',
+    'copilot_skill',
+    'copilot_run'
+] as const satisfies readonly string[];
 
 /**
  * Reads the acting principal off the event payload (`attachActor`'s `actor`

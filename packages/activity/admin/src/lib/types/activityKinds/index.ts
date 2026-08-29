@@ -18,6 +18,17 @@
  * `activity-kinds.spec.ts` pins the whole catalogue so a new server kind is
  * caught by a failing test rather than by a reader seeing `media.asset.uploaded`
  * in the UI.
+ *
+ * **That e2e pin is not, on its own, enough** — its fixture is built from *this*
+ * list, so it proves the list is self-consistent and can never notice the
+ * server having moved ahead of it. Three `user.sso_*` kinds shipped exactly
+ * that way. The check that closes it is `audit-event-mapping.spec.ts`'s "the
+ * admin catalogue" block, which reads this file directly and compares it with
+ * the server's `AUDIT_KINDS` in both directions.
+ *
+ * **This module must keep importing nothing.** That is what lets a Node test
+ * read it without pulling React or the admin runtime in; if it ever needs an
+ * import, both lists belong in a shared package instead.
  */
 export const ACTIVITY_KINDS = [
     'user.invited',
@@ -32,6 +43,11 @@ export const ACTIVITY_KINDS = [
     'user.password_changed',
     'user.signed_in',
     'user.signed_out',
+    'user.sign_in_failed',
+    'user.session_revoked',
+    'user.sso_linked',
+    'user.sso_provisioned',
+    'user.sso_role_mapped',
     'workspace.created',
     'workspace.updated',
     'workspace.archived',
@@ -50,13 +66,31 @@ export const ACTIVITY_KINDS = [
     'entry.purged',
     'token.created',
     'token.revoked',
+    'token.used',
     'media.asset.uploaded',
     'media.asset.updated',
     'media.asset.moved',
     'media.asset.deleted',
     'media.folder.created',
     'media.folder.renamed',
-    'media.folder.deleted'
+    'media.folder.deleted',
+    'transfer.content.exported',
+    'transfer.content.imported',
+    'segment.created',
+    'segment.updated',
+    'segment.deleted',
+    'segment.entry_access_changed',
+    'alarm.rule.created',
+    'alarm.rule.updated',
+    'alarm.rule.deleted',
+    'alarm.rule.rescanned',
+    'saved_view.created',
+    'saved_view.updated',
+    'saved_view.deleted',
+    'copilot.skill.created',
+    'copilot.skill.updated',
+    'copilot.skill.deleted',
+    'copilot.tool_permission.decided'
 ] as const;
 
 /** A kind the Activity Log knows how to render. */
@@ -73,9 +107,16 @@ export const ACTIVITY_SUBJECT_TYPES = [
     'user',
     'workspace',
     'content_entry',
+    'content_type',
     'api_token',
     'media_asset',
-    'media_folder'
+    'media_folder',
+    'login_attempt',
+    'segment',
+    'alarm_rule',
+    'saved_view',
+    'copilot_skill',
+    'copilot_run'
 ] as const;
 
 /** A subject type the Activity Log knows how to name. */
