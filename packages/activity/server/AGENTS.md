@@ -13,10 +13,15 @@ lifecycle) — so this package stays decoupled from any one domain's events.
 > **Adding a producer means adding a mapper here.** An event kind with no entry
 > in `FACET_MAPPERS` is not an error anywhere: the dispatcher finds no
 > subscriber, stamps the row `dispatched_at`, and the action is simply never
-> audited. That failure is completely silent, and it has happened three times
-> (API tokens, entry publishes, and the whole media library). The check is one
-> query — compare `select distinct kind from outbox_events` against
-> `AUDITED_EVENT_KINDS`.
+> audited. That failure is completely silent, and it has happened four times
+> (API tokens, entry publishes, the whole media library, and content
+> export/import). The check is one query — compare
+> `select distinct kind from outbox_events` against `AUDITED_EVENT_KINDS`.
+>
+> **And adding a mapper means adding a label.** The other half of the same
+> failure lives in the admin, which restates these strings and prints the raw
+> dotted token for one it does not know. Both halves are now pinned by
+> `audit-event-mapping.spec.ts` — see **The catalogue** below.
 
 > **Layered (ADR-0003 — tactical DDD inside plugins).** `activity` is a
 > read-side / CRUD audit context: ADR-0003 says **don't force DDD on CRUD**, so
@@ -27,11 +32,41 @@ lifecycle) — so this package stays decoupled from any one domain's events.
 
 Under `/api/activity`:
 
-- `GET /activity` — filterable (`subjectType`/`subjectId`/`actorId`, `kind`
-  CSV→`IN`, `actorEmail` search, `from`/`to` range), paginated
-  (`page`/`pageSize`, 1-based), sortable (`sort=at|kind`, `order=asc|desc`,
-  default `at desc`) audit log. Gated `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`.
-  Drops `created_at` from the wire.
+- `GET /activity` — filterable (`subjectType`/`subjectId`/`actorId`/`actorType`/
+  `workspaceId`, `kind` CSV→`IN`, `actorEmail` search, `from`/`to` range),
+  paginated (`page`/`pageSize`, 1-based), sortable (`sort=at|kind`,
+  `order=asc|desc`, default `at desc`) audit log. Gated
+  `@RequirePermissions(PERMISSIONS.ACTIVITY_READ)`. Drops `created_at` from the
+  wire.
+- `GET /activity/entries/:entryId` — **one entry's own trail**, gated
+  `content:read` + `WorkspaceGuard` rather than `activity:read`.
+
+    A different question with a different key, and that is the point. The full
+    log is admin-only and correctly so — it carries invites, role changes and
+    sign-in failures across the deployment — with the consequence that an
+    **editor could not see the history of their own content**. The entry
+    editor's History tab is the revision timeline: it records what the words
+    were, and says nothing about who published the record, who took it down, or
+    who changed who may read it.
+
+    It **fails closed**: the query requires the row's `workspace_id` to match the
+    open workspace, so an entry id from elsewhere reads as an empty history, and
+    rows written before that column existed (which carry `null`) are excluded
+    from this route. Losing old history on a narrow route is the right side to
+    err on; the full log still has it.
+
+- `GET /activity/dead-letters` — the events that **could not** be recorded
+  (`dispatched_at IS NULL AND attempts >= MAX_DELIVERY_ATTEMPTS`), newest first,
+  each with the reason it parked. Gated `activity:read`.
+
+    This is the gap-in-the-trail route. The dispatcher logs the moment a row
+    parks, but a log line is loud only to somebody tailing logs right then;
+    afterwards "is anything missing from the log" had no answer short of a
+    `psql` session, and a hole only visible to a person who thinks to go looking
+    is barely a hole that has been noticed. The admin renders a non-zero `total`
+    as a notice above the Activity table. It **reports rather than repairs**:
+    replaying a parked row means clearing its `attempts`, a deliberate operator
+    action against a fixed cause.
 
 ## Recording (outbox subscriber — the live path)
 
@@ -76,7 +111,51 @@ entirely.
   `actor_email` a frozen snapshot; `subject_id` **text** (not always a uuid);
   `meta` open jsonb (each emitter owns its shape); `at` (logical) vs
   `created_at` (write time). Indexes on `(subject_type, subject_id, at)`,
-  `(actor_id, at)`, `(kind, at)`.
+  `(actor_id, at)`, `(kind, at)`, `(workspace_id, at)`.
+- `actor_type` — what `actor_id` names: `'user'` or `'api_token'`. It used to
+  mean "a `users` row" and nothing else, so a write made with a bearer token had
+  to pass **no actor at all** rather than name a person who did not do it: every
+  write over the public REST API, GraphQL and MCP recorded as "System", and
+  which of a workspace's tokens did it was unrecoverable. Naming the kind
+  alongside the id is what lets a credential be the actor. Nullable — a
+  system-initiated event still has none.
+- `workspace_id` — nullable, and **not a scoping boundary**. The trail records
+  invites, role changes and workspace lifecycle alongside content edits, and
+  several of those belong to no workspace at all; `activity:read` is still what
+  bounds the log. What the column buys is the ability to *ask* a
+  workspace-shaped question, which previously had no answer at any price — and
+  it is what makes the entry-scoped route above able to fail closed. Filled from
+  the emitting event's own `payload.workspaceId`, so a producer that has one
+  puts it there.
+- **`meta` may carry a `via`** — *how* an action was performed, lifted off the
+  actor. A copilot proposal applies under the authority of the person who
+  accepted it, so the actor is correctly that human; without `via` the row was
+  indistinguishable from one they typed, and under ADR-0009 "Ada updated three
+  articles" could equally mean Ada edited three or that Ada accepted one agent
+  turn that rewrote them. A revision restore reuses the same seam. Merged into
+  the kind's own `meta` rather than replacing it, and absent on the
+  overwhelming majority of rows.
+
+## The catalogue — two lists, pinned in both directions
+
+`AUDITED_EVENT_KINDS` is what the mappers **consume**; `AUDIT_KINDS` and
+`AUDIT_SUBJECT_TYPES` are what they **produce**. They are different lists
+(`member.*` and `user.disabled` collapse onto `user.*` audit kinds), and only
+the second pair is a client contract.
+
+The produced pair is declared by hand — deriving it would mean running every
+mapper, and several legitimately throw on a payload that cannot name their
+subject — so `audit-event-mapping.spec.ts` proves the declaration honest by
+driving **every** mapper once, then checks it against the admin's
+`ACTIVITY_KINDS` in both directions. A kind the server can write and the admin
+would render as a raw token, and a dead label the server can no longer produce,
+are both failing tests.
+
+The spec reads the admin's catalogue module **as text**. An ordinary import
+would work and would also put `@orthacms/activity-admin` in this package's
+project graph — `nx sync` adds the TypeScript project reference immediately, and
+the audit plugin starts depending on a React package. Keep that module
+import-free at the other end, or move both lists into a shared package.
 
 ## The copilot tool (`src/lib/copilot/`)
 
@@ -86,11 +165,13 @@ entirely.
 deployment without `CopilotPlugin` is normal.
 
 **The tool is deployment-wide, not workspace-scoped, and that is not an
-oversight.** `activity_events` has no workspace column by design (see Schema
-above): the trail records invites, role changes and workspace lifecycle
+oversight.** The trail records invites, role changes and workspace lifecycle
 alongside content edits, and several of those belong to no workspace at all.
-There is nothing to scope by, so the tool's description says so rather than
-implying a boundary it cannot enforce.
+`activity_events` now carries a nullable `workspace_id` (see Schema above), so
+the tool *could* be narrowed where it once could not — but a narrowing that
+silently drops every workspace-less row is not the same as a boundary, and the
+thing that actually bounds this tool is `activity:read`. The description says
+deployment-wide because that is what it is.
 
 What bounds it is `activity:read`, admin-only in the v1 role matrix and the same
 key guarding `GET /api/activity`. The copilot's capability profile withholds the
@@ -115,5 +196,5 @@ The fence is what makes that safe; omission would only make the tool less useful
 
 ## Commands
 
-- `npx nx run @orthacms/activity-server:db:generate --name=<change>` (commit the SQL)
+- `npx nx run "@orthacms/activity-server:db:generate" --name=<change>` (commit the SQL)
 - `npx nx typecheck @orthacms/activity-server` / `npx nx lint @orthacms/activity-server`

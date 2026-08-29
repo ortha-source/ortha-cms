@@ -1,9 +1,11 @@
 import { Suspense, lazy } from 'react';
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { HOME_SECTION_SLOT, SIDEBAR_NAV_SLOT } from '@orthacms/shell-admin';
+import { ENTRY_SIDEBAR_WIDGET_SLOT } from '@orthacms/content-admin';
 import { Activity } from 'lucide-react';
 import { ActivityLogPageSkeleton } from '../components/ActivityLogSkeleton';
 import { RecentActivityPanel } from '../components/RecentActivityPanel';
+import { EntryActivityWidget } from '../components/EntryActivityWidget';
 
 // Lazy-loaded so the Activity Log page is code-split into its own chunk,
 // fetched only when a signed-in user first navigates to `/activity`.
@@ -66,6 +68,29 @@ export function ActivityPlugin(): ActivityAdminPlugin {
                         icon: Activity,
                         iconColor: 'text-nav-blue',
                         permission: 'activity:read'
+                    }
+                ]
+            },
+            {
+                // The entry editor's Properties rail: who did what to the open
+                // record. The built-in History tab is the **revision**
+                // timeline — what the words were at each save — and cannot say
+                // who published it, who took it down, or who changed who may
+                // read it. Those rows exist and were reachable only from the
+                // admin-only Activity page, so the person most likely to ask
+                // was the one who could not.
+                //
+                // Not mounted, and not requested, unless the reader holds
+                // `content:read` — the same key the scoped route is gated on.
+                slot: ENTRY_SIDEBAR_WIDGET_SLOT,
+                items: [
+                    {
+                        id: 'activity.entry.history',
+                        // Last in the rail: the record's own properties and its
+                        // checks come first, and history is context you go
+                        // looking for rather than the reason you opened it.
+                        order: 60,
+                        Component: EntryActivityWidget
                     }
                 ]
             },

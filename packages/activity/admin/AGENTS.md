@@ -45,6 +45,18 @@ three layers plus a shared type kernel:
   The page itself also gates on `useHasPermission('activity:read')`.
 - A `HOME_SECTION_SLOT` panel (`RecentActivityPanel`) — the latest events on the
   home dashboard, reusing `useActivityLog` and gated on `activity:read`.
+- An `ENTRY_SIDEBAR_WIDGET_SLOT` block (`EntryActivityWidget`) — **one entry's
+  own trail**, in the content editor's Properties rail. It reads a different
+  route (`GET /activity/entries/:id`) under a different permission
+  (`content:read`), which is the whole point: the editor's built-in History tab
+  is the *revision* timeline — what the words were at each save — and cannot say
+  who published the record, who took it down, or who changed who may read it.
+  Those rows existed and were reachable only from the admin-only Activity page,
+  so the person most likely to ask was the one who could not.
+- A `DeadLetterNotice` on the Activity page — how many events could **not** be
+  recorded (`GET /activity/dead-letters`). It renders nothing when there are
+  none, and nothing while loading or on error: a caveat about a list must never
+  be the reason the page looks broken.
 
 ## The page
 
@@ -61,26 +73,51 @@ result, and `pageSize` is clamped to the largest option the server accepts.
 
 ## Three things about this page that are load-bearing
 
-**The log is deployment-wide, not workspace-scoped, and the copy must say so.**
-`activity_events` has no workspace column and this page sends no workspace
-context — that is deliberate (see `activity/server`'s `AGENTS.md`). The subtitle
-and the empty state used to read "across the workspace", which told an admin of
-a multi-workspace deployment that the figure was scoped when it never was, on the
-page whose whole job is being the record of record. **Do not add a workspace
-filter** — there is no column to filter on. Fix the copy, not the query.
+**The log is deployment-wide, and the copy must say so.** This page sends no
+workspace context, and the subtitle and empty state must keep saying "this
+deployment": telling an admin of a multi-workspace deployment that the figure is
+scoped, on the page whose whole job is being the record of record, is the defect
+that copy exists to prevent.
+
+`activity_events` **does** now carry a nullable `workspace_id`, and
+`GET /activity` accepts a `workspaceId` filter — so a workspace filter is
+buildable where it once was not. It is deliberately not built: the trail records
+invites, role changes, sign-in failures and workspace lifecycle alongside
+content edits, several of those belong to no workspace at all, and a filter that
+silently drops them from a page called Activity would be worse than the absence
+of one. If it is ever added it has to say what it excludes. It is **not** a
+scoping boundary either way — `activity:read` still is.
 
 **`ACTIVITY_KINDS` must stay in step with the server, and nothing enforces it at
 runtime.** The admin restates the kind strings locally because it cannot import
 the server plugins. A kind the server writes and this list omits is not a type
 error and not a runtime error: the mapper casts `dto.kind as ActivityKind`,
 `formatActivityAction` finds no descriptor, and the Action column silently prints
-the raw dotted wire token. Six `workspace.*` kinds, `user.activated` and all
-seven `media.*` kinds shipped that way. Inside the package `ACTION_MESSAGES` is
-typed `Record<ActivityKind, …>`, so a kind added to the list without a label is
-a compile error; the cross-repo half is pinned by
-`apps/admin-e2e/src/activity/activity-kinds.spec.ts` — **update its
-`ALL_KINDS_ACTIVITY` seed when the server gains a kind.** The same applies to
-`ACTIVITY_SUBJECT_TYPES`.
+the raw dotted wire token. Six `workspace.*` kinds, `user.activated`, all seven
+`media.*` kinds and all three `user.sso_*` kinds shipped that way.
+
+Three things now guard it, and the third is the one that was missing:
+
+- Inside the package, `ACTION_MESSAGES` is typed `Record<ActivityKind, …>`, so a
+  kind added to the list without a label is a **compile error**.
+- `apps/admin-e2e/src/activity/activity-kinds.spec.ts` proves every kind
+  actually **renders** — **update its `ALL_KINDS_ACTIVITY` seed when the server
+  gains a kind.**
+- `audit-event-mapping.spec.ts`'s "the admin catalogue" block (in
+  `activity/server`) compares this list with the server's `AUDIT_KINDS` in both
+  directions, so a kind the server can write and the admin cannot render is a
+  failing test. **The e2e suite alone could never catch that** — its seed is
+  written from this same list, so it proves the list is self-consistent and
+  nothing more. That is precisely how the SSO kinds shipped with every test
+  green.
+
+The same applies to `ACTIVITY_SUBJECT_TYPES`.
+
+**Keep `types/activityKinds` free of imports.** The server-side check reads that
+file as text rather than importing it, because an import would put this React
+package in the audit plugin's TypeScript project graph. Two bare `as const`
+arrays is what makes that work; if the module ever needs an import, move both
+lists into a shared package rather than dropping the check.
 
 **`at` may be an `Invalid Date`, on purpose.** `toActivityEvent` will not
 substitute an instant for a timestamp the wire got wrong — inventing one for an

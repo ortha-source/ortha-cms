@@ -1,6 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { ACTIVITY_RECORDER } from '@orthacms/identity-server';
 import { ListActivityController } from './activity/controllers/list-activity.controller';
+import { DeadLettersController } from './activity/controllers/dead-letters.controller';
+import { EntryActivityController } from './activity/controllers/entry-activity.controller';
 import { ActivityService } from './activity/services/activity.service';
 import { AuditEventSubscriber } from './activity/infrastructure/audit-event.subscriber';
 import { ActivityCopilotToolProvider } from './copilot/activity-tool.provider';
@@ -26,7 +28,16 @@ export class ActivityModule {
         return {
             module: ActivityModule,
             global: true,
-            controllers: [ListActivityController],
+            controllers: [
+                // The scoped route is declared **before** the global one:
+                // `activity/entries/:id` and `activity` are different paths, but
+                // keeping the literal-prefixed controller first is the same
+                // ordering habit the content routes follow, and it stays true
+                // as the pattern set grows.
+                EntryActivityController,
+                ListActivityController,
+                DeadLettersController
+            ],
             providers: [
                 ActivityService,
                 AuditEventSubscriber,

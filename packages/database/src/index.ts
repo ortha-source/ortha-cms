@@ -35,3 +35,4 @@ export {
     MAX_DELIVERY_ATTEMPTS
 } from './lib/outbox/outbox-dispatcher';
 export { outboxEvents } from './lib/schema';
+export type { DeadLetter } from './lib/outbox/outbox-dispatcher';
