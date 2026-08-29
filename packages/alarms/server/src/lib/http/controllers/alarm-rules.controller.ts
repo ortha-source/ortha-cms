@@ -14,6 +14,7 @@ import {
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { EventActor } from '@orthacms/database';
 import {
     CurrentUser,
     OriginGuard,
@@ -88,7 +89,7 @@ export class AlarmRulesController {
         @Body() dto: CreateAlarmRuleDto
     ): Promise<{ rule: AlarmRuleView; scan: AlarmScanResultView }> {
         return mapErrors(() =>
-            this.rules.create(workspaceId, user?.id ?? null, dto)
+            this.rules.create(workspaceId, user?.id ?? null, dto, toActor(user))
         );
     }
 
@@ -127,9 +128,12 @@ export class AlarmRulesController {
     update(
         @CurrentWorkspace() workspaceId: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() dto: UpdateAlarmRuleDto
+        @Body() dto: UpdateAlarmRuleDto,
+        @CurrentUser() user?: PublicUser
     ): Promise<AlarmRuleView> {
-        return mapErrors(() => this.rules.update(workspaceId, id, dto));
+        return mapErrors(() =>
+            this.rules.update(workspaceId, id, dto, toActor(user))
+        );
     }
 
     /** Deletes a rule; its findings cascade away with it. */
@@ -145,9 +149,12 @@ export class AlarmRulesController {
     @Delete(':id')
     remove(
         @CurrentWorkspace() workspaceId: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<void> {
-        return mapErrors(() => this.rules.remove(workspaceId, id));
+        return mapErrors(() =>
+            this.rules.remove(workspaceId, id, toActor(user))
+        );
     }
 
     /** Re-runs one rule over its whole collection. */
@@ -164,9 +171,12 @@ export class AlarmRulesController {
     @Post(':id/rescan')
     rescan(
         @CurrentWorkspace() workspaceId: string,
-        @Param('id', ParseUUIDPipe) id: string
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<AlarmScanResultView> {
-        return mapErrors(() => this.rules.rescan(workspaceId, id));
+        return mapErrors(() =>
+            this.rules.rescan(workspaceId, id, toActor(user))
+        );
     }
 }
 
@@ -197,4 +207,12 @@ async function mapErrors<T>(run: () => Promise<T>): Promise<T> {
         }
         throw error;
     }
+}
+
+/**
+ * The signed-in administrator as the {@link EventActor} an alarm-rule write
+ * stamps onto its domain event, or `undefined` when there is nobody to name.
+ */
+function toActor(user?: PublicUser): EventActor | undefined {
+    return user ? { id: user.id, email: user.email ?? null } : undefined;
 }

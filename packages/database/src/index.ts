@@ -25,7 +25,8 @@ export type {
     CreateDomainEventParams,
     DomainEventSubscriber,
     EventActor,
-    EventActorType
+    EventActorType,
+    EventOrigin
 } from './lib/events/domain-event';
 export { UnitOfWork } from './lib/uow/unit-of-work';
 export { OutboxWriter } from './lib/outbox/outbox-writer';

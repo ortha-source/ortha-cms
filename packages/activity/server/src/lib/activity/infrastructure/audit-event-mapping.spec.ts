@@ -375,7 +375,10 @@ describe('toAuditRow — event → audit-row parity', () => {
                 actorType: 'user',
                 workspaceId: null,
                 actorEmail: 'me@example.com',
-                meta: null,
+                // Where the sign-in came from. Both are null on an event that
+                // carried no session context — "not captured", which a reader
+                // should be able to tell from "not looked at".
+                meta: { ipAddress: null, userAgent: null },
                 at: AT
             });
         });
@@ -742,15 +745,23 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 47 expected kinds', () => {
+        it('audits exactly the 61 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
+                    'alarm.rule.created',
+                    'alarm.rule.deleted',
+                    'alarm.rule.rescanned',
+                    'alarm.rule.updated',
                     'api_token.created',
                     'api_token.revoked',
                     'api_token.used',
                     'auth.sign_in_failed',
                     'auth.signed_in',
                     'auth.signed_out',
+                    'copilot.skill.created',
+                    'copilot.skill.deleted',
+                    'copilot.skill.updated',
+                    'copilot.tool_permission.decided',
                     'media.asset.deleted',
                     'media.asset.moved',
                     'media.asset.updated',
@@ -758,6 +769,13 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'media.folder.created',
                     'media.folder.deleted',
                     'media.folder.renamed',
+                    'saved_view.created',
+                    'saved_view.deleted',
+                    'saved_view.updated',
+                    'segment.created',
+                    'segment.deleted',
+                    'segment.entry_access_changed',
+                    'segment.updated',
                     'transfer.content.exported',
                     'transfer.content.imported',
                     'user.activated',

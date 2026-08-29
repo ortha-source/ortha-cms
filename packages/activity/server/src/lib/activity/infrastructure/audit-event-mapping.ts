@@ -135,6 +135,86 @@ const MEDIA_AUDIT_KINDS = {
  * those rows say a hundred entries changed, not that one person imported a file.
  * Those are different facts and the second one is the one an operator asks about.
  */
+/**
+ * The **segment.\*** audit kinds — reader entitlements.
+ *
+ * Segments answer who may *read* published content, and until now nothing in
+ * that context raised an event at all: creating an audience, re-tagging one
+ * (which changes who every entry naming it is visible to, while its name and
+ * its entries stay put), deleting one (which strips its mention from every
+ * entry in one statement), and setting an entry's allow/deny lists were all
+ * access-control decisions the log recorded nothing about.
+ *
+ * The entry's own revisions carry its access as part of a snapshot, which
+ * covers exactly one of those four and only for entries saved afterwards. A
+ * segment's tag list is in no revision at all.
+ */
+const SEGMENT_AUDIT_KINDS = {
+    CREATED: 'segment.created',
+    UPDATED: 'segment.updated',
+    DELETED: 'segment.deleted',
+    ENTRY_ACCESS_CHANGED: 'segment.entry_access_changed'
+} as const;
+
+/**
+ * The **alarm.rule.\*** audit kinds — the *configuration* of the content
+ * checks, never the findings.
+ *
+ * An alarm never gates a write (ADR-0015), which is precisely why its rules are
+ * worth a row: disable one, re-filter one, delete one, and everything
+ * downstream — the entry rail's checks block, the records column, the alarms
+ * page — simply goes quiet. Nothing about that quiet says a person chose it,
+ * and after a delete the rule row that would have explained it is gone.
+ *
+ * Findings are deliberately absent: one per matching entry per sweep, derived
+ * from content the log already records. Auditing them would make the trail a
+ * metrics feed.
+ */
+const ALARM_AUDIT_KINDS = {
+    RULE_CREATED: 'alarm.rule.created',
+    RULE_UPDATED: 'alarm.rule.updated',
+    RULE_DELETED: 'alarm.rule.deleted',
+    RULE_RESCANNED: 'alarm.rule.rescanned'
+} as const;
+
+/**
+ * The **saved_view.\*** audit kinds.
+ *
+ * A view is a bookmark, not a grant — it replays through the ordinary list
+ * query with the reader's own permissions — so this is a low-stakes trio. It is
+ * here because a `workspace`-visible view is genuinely shared state: it is in
+ * every member's switcher, sharing it is its own permission, and deleting one
+ * takes it away from everybody.
+ *
+ * Setting a **personal default** raises nothing and is not listed: it is the
+ * reader's own landing choice, set by clicking a view, and a row per click
+ * would be a usage metric in an audit trail.
+ */
+const SAVED_VIEW_AUDIT_KINDS = {
+    CREATED: 'saved_view.created',
+    UPDATED: 'saved_view.updated',
+    DELETED: 'saved_view.deleted'
+} as const;
+
+/**
+ * The **copilot.\*** audit kinds — authority a human hands the agent.
+ *
+ * A skill is standing instruction: it changes what the copilot does in a
+ * workspace on every future run, and one set to `auto` runs without being asked
+ * for. A tool permission is the same decision at one moment. Both are recorded.
+ *
+ * What is not here: starting a run, and renaming a conversation. Everything a
+ * run *does* is already audited where it happens — under ADR-0009 an applied
+ * change is an `entry.*` row, and it now carries the run that produced it — so
+ * a row per run would be a usage metric with no way to filter it out.
+ */
+const COPILOT_AUDIT_KINDS = {
+    SKILL_CREATED: 'copilot.skill.created',
+    SKILL_UPDATED: 'copilot.skill.updated',
+    SKILL_DELETED: 'copilot.skill.deleted',
+    TOOL_PERMISSION_DECIDED: 'copilot.tool_permission.decided'
+} as const;
+
 const TRANSFER_AUDIT_KINDS = {
     EXPORTED: 'transfer.content.exported',
     IMPORTED: 'transfer.content.imported'
@@ -335,6 +415,88 @@ function signInAttemptSubject(event: DomainEvent): AuditFacet {
 }
 
 /**
+ * An `'alarm_rule'`-subject facet. `meta` is the payload minus the actor, which
+ * for an update carries `enabled` on both sides — a disabled rule is
+ * indistinguishable from a rule that finds nothing, so that transition is the
+ * one a reader most needs spelled out.
+ */
+function alarmRuleSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'alarm_rule',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/** A `'copilot_skill'`-subject facet. Payload passthrough. */
+function copilotSkillSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'copilot_skill',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
+ * A `'copilot_run'`-subject facet — the subject is the run, which is the handle
+ * a reviewer actually has: a transcript is read by run id, and the tool call
+ * this decision answered is one field inside it.
+ */
+function copilotRunSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'copilot_run',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/** A `'saved_view'`-subject facet. Payload passthrough, as for alarm rules. */
+function savedViewSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'saved_view',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
+ * A `'segment'`-subject facet — the audience itself. `meta` is the payload
+ * minus the actor, which for `segment.updated` includes the tag list on both
+ * sides and for `segment.deleted` the whole record, since after that commits
+ * there is nowhere left to look it up.
+ */
+function segmentSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'segment',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
+ * A `'content_entry'`-subject facet for an access change.
+ *
+ * Deliberately the **entry**, not the segment: "who may read this record" is a
+ * fact about the record, so the row belongs in that entry's own history beside
+ * its edits and its publishes — which is where somebody asking "why can nobody
+ * read this" actually looks. It shares `subjectType` with the `entry.*` kinds
+ * for exactly that reason.
+ */
+function entryAccessSubject(event: DomainEvent): AuditFacet {
+    return {
+        kind: event.kind,
+        subjectType: 'content_entry',
+        subjectId: event.aggregateId,
+        meta: payloadWithoutActor(event)
+    };
+}
+
+/**
  * A `'content_type'`-subject facet — the subject of a transfer is the content
  * type that moved, which is what the event's `aggregateId` already carries.
  *
@@ -412,6 +574,21 @@ function payloadWithoutActor(event: DomainEvent): Record<string, unknown> {
  * | `media.folder.created`     | `media.folder.created`    | media_folder / payload minus `actor`             |
  * | `media.folder.renamed`     | `media.folder.renamed`    | media_folder / payload minus `actor`             |
  * | `media.folder.deleted`     | `media.folder.deleted`    | media_folder / payload minus `actor`             |
+ * | `alarm.rule.created`       | `alarm.rule.created`      | alarm_rule / payload minus `actor`               |
+ * | `alarm.rule.updated`       | `alarm.rule.updated`      | alarm_rule / payload minus `actor` (enabled from/to) |
+ * | `alarm.rule.deleted`       | `alarm.rule.deleted`      | alarm_rule / payload minus `actor`               |
+ * | `alarm.rule.rescanned`     | `alarm.rule.rescanned`    | alarm_rule / payload minus `actor` (scan counts) |
+ * | `copilot.skill.created`    | `copilot.skill.created`   | copilot_skill / payload minus `actor`            |
+ * | `copilot.skill.updated`    | `copilot.skill.updated`   | copilot_skill / payload minus `actor`            |
+ * | `copilot.skill.deleted`    | `copilot.skill.deleted`   | copilot_skill / payload minus `actor`            |
+ * | `copilot.tool_permission.decided` | same               | **copilot_run** / `{ callId, decision, … }`      |
+ * | `saved_view.created`       | `saved_view.created`      | saved_view / payload minus `actor`               |
+ * | `saved_view.updated`       | `saved_view.updated`      | saved_view / payload minus `actor`               |
+ * | `saved_view.deleted`       | `saved_view.deleted`      | saved_view / payload minus `actor`               |
+ * | `segment.created`          | `segment.created`         | segment / payload minus `actor`                  |
+ * | `segment.updated`          | `segment.updated`         | segment / payload minus `actor` (tags from/to)   |
+ * | `segment.deleted`          | `segment.deleted`         | segment / payload minus `actor`                  |
+ * | `segment.entry_access_changed` | same                  | **content_entry** / `{ allow, deny, entryIds, … }` |
  * | `transfer.content.exported`| `transfer.content.exported`| content_type / payload minus `actor`            |
  * | `transfer.content.imported`| `transfer.content.imported`| content_type / payload minus `actor`            |
  *
@@ -506,22 +683,28 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // different facts and a security review wants the first one.
     'user.activated': (e) => userSubject(e, USER_AUDIT_KINDS.ACTIVATED, null),
 
-    // The sign-in itself, plus **how** it happened. A password sign-in carries
-    // no method and reads as it always has; an SSO one records the provider, so
-    // the log can answer "which of these people came in through the directory,
-    // and which still hold a password?" — which is the first question after a
-    // provider is misconfigured or retired.
+    // The sign-in itself, plus **where from** and **how**. The IP and
+    // User-Agent were stored on the session row and nowhere else, so the trail
+    // could say somebody signed in and never from where — and a session is
+    // eventually pruned while the audit row is not.
     'auth.signed_in': (e) =>
-        userSubject(
-            e,
-            IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN,
-            e.payload.method === 'sso'
+        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_IN, {
+            // Where it came from. Password sign-ins carry these; an SSO one
+            // does not (the browser reached the provider, not us), so they are
+            // null there rather than absent — a reader should be able to tell
+            // "not captured" from "not looked at".
+            ipAddress: nullableString(e.payload.ipAddress),
+            userAgent: nullableString(e.payload.userAgent),
+            // `method` distinguishes the two, which is the first question after
+            // a provider is misconfigured or retired: which of these people
+            // came in through the directory, and which still hold a password?
+            ...(e.payload.method === 'sso'
                 ? {
                       method: 'sso',
                       provider: nullableString(e.payload.provider)
                   }
-                : null
-        ),
+                : {})
+        }),
     'auth.signed_out': (e) =>
         userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null),
 
@@ -622,6 +805,32 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
     // dropped on the floor ever since, so the one operation that moves a
     // workspace's content out of the system wholesale was the one operation the
     // audit log could not answer for.
+    // Reader entitlements. Four access-control decisions that produced no
+    // event of any kind, so the log could not answer "when did this stop being
+    // public, and who decided that".
+    [SEGMENT_AUDIT_KINDS.CREATED]: segmentSubject,
+    [SEGMENT_AUDIT_KINDS.UPDATED]: segmentSubject,
+    [SEGMENT_AUDIT_KINDS.DELETED]: segmentSubject,
+    [SEGMENT_AUDIT_KINDS.ENTRY_ACCESS_CHANGED]: entryAccessSubject,
+
+    // Content checks — the rules, not their findings.
+    [ALARM_AUDIT_KINDS.RULE_CREATED]: alarmRuleSubject,
+    [ALARM_AUDIT_KINDS.RULE_UPDATED]: alarmRuleSubject,
+    [ALARM_AUDIT_KINDS.RULE_DELETED]: alarmRuleSubject,
+    [ALARM_AUDIT_KINDS.RULE_RESCANNED]: alarmRuleSubject,
+
+    // Shared list views. The personal default is not here — see the kind block.
+    [SAVED_VIEW_AUDIT_KINDS.CREATED]: savedViewSubject,
+    [SAVED_VIEW_AUDIT_KINDS.UPDATED]: savedViewSubject,
+    [SAVED_VIEW_AUDIT_KINDS.DELETED]: savedViewSubject,
+
+    // The copilot's standing instructions, and the moment a person grants one
+    // of its calls the authority to proceed.
+    [COPILOT_AUDIT_KINDS.SKILL_CREATED]: copilotSkillSubject,
+    [COPILOT_AUDIT_KINDS.SKILL_UPDATED]: copilotSkillSubject,
+    [COPILOT_AUDIT_KINDS.SKILL_DELETED]: copilotSkillSubject,
+    [COPILOT_AUDIT_KINDS.TOOL_PERMISSION_DECIDED]: copilotRunSubject,
+
     [TRANSFER_AUDIT_KINDS.EXPORTED]: transferSubject,
     [TRANSFER_AUDIT_KINDS.IMPORTED]: transferSubject
 };
@@ -646,23 +855,38 @@ export const AUDITED_EVENT_KINDS = Object.keys(
  *
  * `label` is the readable name of a non-person actor (an API token's label);
  * for a user the readable name is the email, which already has its own column.
+ *
+ * `via` says **how** — a copilot run, say. It is folded into `meta` rather than
+ * given a column: it is open per-mechanism data, it is absent on the
+ * overwhelming majority of rows, and nothing filters or indexes on it.
  */
 function readActor(payload: Record<string, unknown>): {
     id: string | null;
     email: string | null;
     type: string | null;
+    via: Record<string, unknown> | null;
 } {
     const actor = payload.actor as
-        | { id?: unknown; email?: unknown; type?: unknown; label?: unknown }
+        | {
+              id?: unknown;
+              email?: unknown;
+              type?: unknown;
+              label?: unknown;
+              via?: unknown;
+          }
         | undefined;
     const id = nullableString(actor?.id);
     if (!id) {
-        return { id: null, email: null, type: null };
+        return { id: null, email: null, type: null, via: null };
     }
     return {
         id,
         email: nullableString(actor?.email) ?? nullableString(actor?.label),
-        type: nullableString(actor?.type) ?? 'user'
+        type: nullableString(actor?.type) ?? 'user',
+        via:
+            actor?.via && typeof actor.via === 'object'
+                ? (actor.via as Record<string, unknown>)
+                : null
     };
 }
 
@@ -685,6 +909,12 @@ export function toAuditRow(event: DomainEvent): AuditRow | null {
     }
     const facet = mapper(event);
     const actor = readActor(event.payload);
+    // `via` is merged into the kind's own meta rather than replacing it: a
+    // copilot-applied entry update is still an entry update, and a reader wants
+    // the changed fields *and* the run that changed them.
+    const meta = actor.via
+        ? { ...(facet.meta ?? {}), via: actor.via }
+        : facet.meta;
     return {
         id: event.eventId,
         kind: facet.kind,
@@ -694,7 +924,7 @@ export function toAuditRow(event: DomainEvent): AuditRow | null {
         actorType: actor.type,
         actorEmail: actor.email,
         workspaceId: nullableString(event.payload.workspaceId),
-        meta: facet.meta,
+        meta,
         at: event.occurredAt
     };
 }

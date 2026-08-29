@@ -9,11 +9,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { EventActor } from '@orthacms/database';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@orthacms/identity-server';
 import {
     InjectContentRegistry,
@@ -78,7 +81,8 @@ export class EntryAccessController {
     set(
         @CurrentWorkspace() workspaceId: string,
         @Param('entryId', ParseUUIDPipe) entryId: string,
-        @Body() body: SetEntryAccessDto
+        @Body() body: SetEntryAccessDto,
+        @CurrentUser() user?: PublicUser
     ): Promise<EntryAccessView> {
         // Resolved from the registry rather than taken as a slug, because the
         // fan-out over the locale group needs the type's **table** — and because
@@ -97,7 +101,8 @@ export class EntryAccessController {
                     type,
                     entryId,
                     allow: body.allow,
-                    deny: body.deny
+                    deny: body.deny,
+                    actor: toActor(user)
                 })
                 // The ids it also wrote matter only on the entry-save path, where
                 // content turns them into revisions. This route appends none — it is
@@ -106,4 +111,12 @@ export class EntryAccessController {
                 .then((written) => written.access)
         );
     }
+}
+
+/**
+ * The signed-in administrator as the {@link EventActor} a segments write stamps
+ * onto its domain event, or `undefined` when there is nobody to name.
+ */
+function toActor(user?: PublicUser): EventActor | undefined {
+    return user ? { id: user.id, email: user.email ?? null } : undefined;
 }

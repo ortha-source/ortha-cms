@@ -78,7 +78,8 @@ describe('attachActor', () => {
                 id: 'u1',
                 email: 'admin@example.com',
                 type: 'user',
-                label: null
+                label: null,
+                via: null
             }
         });
         // The producer keeps its own events: the aggregate that pulled them has
@@ -95,7 +96,8 @@ describe('attachActor', () => {
             id: 'u1',
             email: null,
             type: 'user',
-            label: null
+            label: null,
+            via: null
         });
     });
 
@@ -131,7 +133,8 @@ describe('attachActor', () => {
             id: 'u1',
             email: null,
             type: 'user',
-            label: null
+            label: null,
+            via: null
         });
     });
 
@@ -140,7 +143,8 @@ describe('attachActor', () => {
             id: 't1',
             email: null,
             type: 'api_token',
-            label: 'Deploy bot'
+            label: 'Deploy bot',
+            via: null
         });
 
         // The whole point of the field: `id` is an `api_tokens` row here, not a
@@ -149,7 +153,26 @@ describe('attachActor', () => {
             id: 't1',
             email: null,
             type: 'api_token',
-            label: 'Deploy bot'
+            label: 'Deploy bot',
+            via: null
+        });
+    });
+
+    it('carries `via` — how the actor performed it, not who they are', () => {
+        const enriched = attachActor(source(), {
+            id: 'u1',
+            email: 'ada@example.com',
+            via: { kind: 'copilot', runId: 'r1', proposalId: 'p1' }
+        });
+
+        // The actor stays the human; `via` is what stops a copilot-applied
+        // change reading as one they typed.
+        expect(enriched[0].payload.actor).toEqual({
+            id: 'u1',
+            email: 'ada@example.com',
+            type: 'user',
+            label: null,
+            via: { kind: 'copilot', runId: 'r1', proposalId: 'p1' }
         });
     });
 

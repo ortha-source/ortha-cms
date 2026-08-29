@@ -7,6 +7,7 @@ import {
 } from '@orthacms/tools-server';
 import {
     InjectContentRegistry,
+    toToolEventActor,
     type ContentTypeRegistry
 } from '@orthacms/content-server';
 import { PERMISSIONS } from '@orthacms/identity-server';
@@ -212,7 +213,8 @@ export class SegmentsToolProvider implements ToolProvider, OnModuleInit {
                     type,
                     entryId: args.entryId,
                     allow: args.allow,
-                    deny: args.deny
+                    deny: args.deny,
+                    actor: toToolEventActor(ctx.actor)
                 });
                 return this.view(args.entryId, written.access);
             }

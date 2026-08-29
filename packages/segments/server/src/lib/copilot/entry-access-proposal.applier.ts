@@ -1,3 +1,4 @@
+import { proposalEventActor } from '@orthacms/copilot-server';
 import { Injectable } from '@nestjs/common';
 import {
     InjectContentRegistry,
@@ -66,7 +67,11 @@ export class EntryAccessProposalApplier implements ProposalApplier {
             type,
             entryId,
             allow: idList(input.patch['allow']),
-            deny: idList(input.patch['deny'])
+            deny: idList(input.patch['deny']),
+            // The acting human, never the copilot: a proposal applies under the
+            // authority of the person whose run produced it, and the audit row
+            // has to name them.
+            actor: proposalEventActor(actor)
         });
 
         return {

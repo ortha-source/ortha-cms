@@ -125,7 +125,12 @@ export class DecideProposalService {
                     userId: by.userId,
                     actorEmail: by.email,
                     workspaceId: by.workspaceId,
-                    runId: proposal.runId
+                    runId: proposal.runId,
+                    // Provenance, alongside the run: the applier stamps the
+                    // pair onto the domain event, so an audit row can say which
+                    // change an agent turn actually made rather than only that
+                    // one happened.
+                    proposalId: proposal.id
                 }
             );
 

@@ -102,6 +102,48 @@ export interface EventActor {
      * this a token-actored row would show an id and nothing readable.
      */
     label?: string | null;
+    /**
+     * **How** this principal performed the action, when it was not by hand.
+     *
+     * Distinct from the fields above, which say *who*. A copilot proposal is
+     * applied under the authority of the person who accepted it — there is no
+     * copilot identity and there must not be one — so the actor is correctly
+     * that human. What was missing is that the resulting audit row was then
+     * indistinguishable from one they typed themselves: under
+     * [ADR-0009](../../../../../docs/adr/0009-copilot-applies-directly.md) a
+     * proposal applies as it is drafted, so "Ada updated three articles" could
+     * mean Ada edited three articles or that Ada accepted one agent turn that
+     * rewrote them.
+     *
+     * Left absent for a direct action, which is the overwhelming majority, so
+     * an ordinary row carries nothing extra.
+     */
+    via?: EventOrigin | null;
+}
+
+/**
+ * The mechanism an action was performed through, carried on
+ * {@link EventActor.via}.
+ *
+ * Open by design — a `kind` plus whatever ids that kind has. An agent run names
+ * its run and proposal; a future importer would name its job. A consumer that
+ * does not recognise a `kind` still has something to show, which is the point
+ * of not making this a closed union.
+ */
+export interface EventOrigin {
+    /** What performed it — e.g. `'copilot'`, `'revision_restore'`. */
+    kind: string;
+    /** The agent run that produced the change, when there was one. */
+    runId?: string | null;
+    /** The specific proposal that was applied, when there was one. */
+    proposalId?: string | null;
+    /**
+     * Whatever else that `kind` has to say — a restored version's number, an
+     * import job's id. Open on purpose: the alternative is this interface
+     * growing a field every time a mechanism is added, in the one package that
+     * must not know about any of them.
+     */
+    [key: string]: unknown;
 }
 
 /**
@@ -124,7 +166,8 @@ export function attachActor(
                 id: actor.id,
                 email: actor.email,
                 type: actor.type ?? EVENT_ACTOR_TYPE.User,
-                label: actor.label ?? null
+                label: actor.label ?? null,
+                via: actor.via ?? null
             }
         }
     }));

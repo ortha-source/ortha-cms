@@ -16,6 +16,15 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
+import {
+    COPILOT_EVENT_KINDS,
+    copilotSkillEvent
+} from '../../../copilot.events';
+import {
     CurrentUser,
     OriginGuard,
     PERMISSIONS,
@@ -62,8 +71,28 @@ import { UpdateSkillDto } from '../../application/dto/update-skill.dto';
 export class ManageSkillsController {
     constructor(
         private readonly skills: SkillRepository,
-        private readonly catalog: SkillCatalogService
+        private readonly catalog: SkillCatalogService,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter
     ) {}
+
+    /**
+     * Appends one `copilot.skill.*` event from inside the active unit of work,
+     * stamped with the administrator who made the change.
+     */
+    private async emit(
+        kind: string,
+        skillId: string,
+        payload: Record<string, unknown>,
+        user: PublicUser
+    ): Promise<void> {
+        await this.outbox.append(
+            attachActor([copilotSkillEvent(kind, skillId, payload)], {
+                id: user.id,
+                email: user.email ?? null
+            })
+        );
+    }
 
     /**
      * Every skill the manage page lists — code skills (read-only) and all of
@@ -106,15 +135,32 @@ export class ManageSkillsController {
     ): Promise<SkillRecord> {
         await this.assertNameFree(body.name, workspaceId);
 
-        return this.skills.create({
-            workspaceId,
-            name: body.name,
-            title: body.title,
-            description: body.description,
-            instructions: body.instructions,
-            mode: body.mode ?? 'manual',
-            enabled: body.enabled ?? true,
-            createdBy: user.id
+        return this.uow.run(async () => {
+            const created = await this.skills.create({
+                workspaceId,
+                name: body.name,
+                title: body.title,
+                description: body.description,
+                instructions: body.instructions,
+                mode: body.mode ?? 'manual',
+                enabled: body.enabled ?? true,
+                createdBy: user.id
+            });
+            await this.emit(
+                COPILOT_EVENT_KINDS.SKILL_CREATED,
+                created.id,
+                {
+                    workspaceId,
+                    name: created.name,
+                    title: created.title,
+                    // `auto` means it runs without anybody asking for it, which
+                    // is the fact that makes a skill worth an audit row.
+                    mode: created.mode,
+                    enabled: created.enabled
+                },
+                user
+            );
+            return created;
         });
     }
 
@@ -125,6 +171,7 @@ export class ManageSkillsController {
     async update(
         @Param('id', ParseUUIDPipe) id: string,
         @Body() body: UpdateSkillDto,
+        @CurrentUser() user: PublicUser,
         @CurrentWorkspace() workspaceId: string
     ): Promise<SkillRecord> {
         // An empty patch cannot mean anything, and answering 200 to it would
@@ -139,11 +186,31 @@ export class ManageSkillsController {
             await this.assertNameFree(body.name, workspaceId, id);
         }
 
-        const updated = await this.skills.update(id, workspaceId, body);
-        if (!updated) {
-            throw new NotFoundException('Skill not found.');
-        }
-        return updated;
+        const existing = await this.skills.find(id, workspaceId);
+        return this.uow.run(async () => {
+            const updated = await this.skills.update(id, workspaceId, body);
+            if (!updated) {
+                throw new NotFoundException('Skill not found.');
+            }
+            await this.emit(
+                COPILOT_EVENT_KINDS.SKILL_UPDATED,
+                id,
+                {
+                    workspaceId,
+                    name: updated.name,
+                    // The keys the caller sent — a patch, so "what changed" is
+                    // the request rather than the row.
+                    fields: Object.keys(body),
+                    mode: { from: existing?.mode ?? null, to: updated.mode },
+                    enabled: {
+                        from: existing?.enabled ?? null,
+                        to: updated.enabled
+                    }
+                },
+                user
+            );
+            return updated;
+        });
     }
 
     /**
@@ -160,12 +227,29 @@ export class ManageSkillsController {
     @ApiOperation({ summary: 'Delete a skill' })
     async remove(
         @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: PublicUser,
         @CurrentWorkspace() workspaceId: string
     ): Promise<void> {
-        const removed = await this.skills.remove(id, workspaceId);
-        if (!removed) {
-            throw new NotFoundException('Skill not found.');
-        }
+        const existing = await this.skills.find(id, workspaceId);
+        await this.uow.run(async () => {
+            const removed = await this.skills.remove(id, workspaceId);
+            if (!removed) {
+                throw new NotFoundException('Skill not found.');
+            }
+            // The skill's own details, because after this commits there is
+            // nowhere left to look them up.
+            await this.emit(
+                COPILOT_EVENT_KINDS.SKILL_DELETED,
+                id,
+                {
+                    workspaceId,
+                    name: existing?.name ?? null,
+                    title: existing?.title ?? null,
+                    mode: existing?.mode ?? null
+                },
+                user
+            );
+        });
     }
 
     /**

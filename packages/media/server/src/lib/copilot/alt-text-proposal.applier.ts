@@ -1,3 +1,4 @@
+import { proposalEventActor } from '@orthacms/copilot-server';
 import { Injectable } from '@nestjs/common';
 import type {
     ProposalActor,
@@ -38,7 +39,7 @@ export class AltTextProposalApplier implements ProposalApplier {
             assetId,
             actor.workspaceId,
             { alt },
-            { id: actor.userId, email: actor.actorEmail }
+            proposalEventActor(actor)
         );
         return { entityId: assetId, detail: { alt } };
     }

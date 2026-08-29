@@ -129,7 +129,18 @@ export class LoginUseCase {
                     [
                         identityEvent(
                             IDENTITY_EVENT_KINDS.SIGNED_IN,
-                            user.userId
+                            user.userId,
+                            {
+                                // Where the session was opened from. Both are
+                                // already stored on the `sessions` row, and
+                                // neither reached the audit log — so the trail
+                                // could say a person signed in and never from
+                                // where, which is the first thing asked after a
+                                // credential is suspected. The row outlives the
+                                // session, which is the point of copying them.
+                                ipAddress: context.ipAddress ?? null,
+                                userAgent: context.userAgent ?? null
+                            }
                         )
                     ],
                     { id: user.userId, email: user.email }

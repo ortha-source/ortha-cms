@@ -1,3 +1,4 @@
+import { proposalEventActor } from '@orthacms/copilot-server';
 import { Injectable } from '@nestjs/common';
 import { Readable } from 'node:stream';
 import type {
@@ -76,7 +77,7 @@ export class CreateFileProposalApplier implements ProposalApplier {
                 // byte by byte, so this is one chunk, not a stream of numbers.
                 body: Readable.from(bytes)
             },
-            { id: actor.userId, email: actor.actorEmail }
+            proposalEventActor(actor)
         );
 
         return {
