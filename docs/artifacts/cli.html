@@ -1,4 +1,4 @@
-<title>Паспорт команды Ortha CLI</title>
+<title>Ortha CLI Dossier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
@@ -237,180 +237,179 @@ footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
-
 <header class="masthead">
   <div class="wrap">
-    <p class="eyebrow">Пакет · packages/cli</p>
+    <p class="eyebrow">Package · packages/cli</p>
     <h1 class="title">Ortha CLI
-      <small>Команда <code>ortha</code> — как установленное из npm приложение собирается, запускается и мигрирует</small>
+      <small>The <code>ortha</code> command — how an application installed from npm is built, run and migrated</small>
     </h1>
-    <p class="lede">Всё, что нужно, чтобы <strong>эксплуатировать</strong> приложение OrthaCMS, раньше жило в <code>@orthacms/nx</code> — приватном пакете, который никогда не будет опубликован. Приложение, установленное из npm, физически не имело способа применить свои миграции. <code>@orthacms/cli</code> закрывает эту дыру и одновременно фиксирует правило: <strong>монорепозиторий и любое сгенерированное приложение мигрируют одной и той же реализацией</strong>. Две реализации «применить миграции в порядке плагинов» — это два шанса ошибиться в самой разрушительной операции системы.</p>
+    <p class="lede">Everything needed to <strong>operate</strong> an OrthaCMS application used to live in <code>@orthacms/nx</code> — a private package that will never be published. An application installed from npm physically had no way to apply its own migrations. <code>@orthacms/cli</code> closes that hole and at the same time fixes a rule: <strong>the monorepo and any generated application migrate through one and the same implementation</strong>. Two implementations of "apply migrations in plugin order" are two chances to get the system's most destructive operation wrong.</p>
     <ul class="facts">
-      <li><b>6</b> команд</li>
-      <li><b>6</b> флагов и опций</li>
-      <li><b>9</b> путей в LAYOUT</li>
-      <li><b>9</b> публичных экспортов</li>
-      <li><b>4</b> зависимости</li>
-      <li><b>31</b> юнит-тест</li>
-      <li><b>1</b> обязательная переменная окружения</li>
+      <li><b>6</b> commands</li>
+      <li><b>6</b> flags and options</li>
+      <li><b>9</b> paths in LAYOUT</li>
+      <li><b>9</b> public exports</li>
+      <li><b>4</b> dependencies</li>
+      <li><b>31</b> unit tests</li>
+      <li><b>1</b> required environment variable</li>
     </ul>
   </div>
 </header>
 
 <div class="wrap shell">
-<nav class="toc" aria-label="Содержание">
-  <h2>Содержание</h2>
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
   <ol>
-    <li><a href="#business">Бизнес-описание</a></li>
-    <li><a href="#place">Состав и место в системе</a></li>
-    <li><a href="#commands">Каталог команд</a></li>
-    <li><a href="#flows">Сценарии по шагам</a></li>
-    <li><a href="#internals">Устройство: компиляция → конфиг → действие</a></li>
-    <li><a href="#config">Конфигурация и окружение</a></li>
-    <li><a href="#errors">Диагностика и ошибки</a></li>
-    <li><a href="#invariants">Инварианты</a></li>
-    <li><a href="#qa">Чек-лист тестирования</a></li>
-    <li><a href="#bounds">Границы: CLI и @orthacms/nx</a></li>
-    <li><a href="#gaps">Расхождения</a></li>
+    <li><a href="#business">Business description</a></li>
+    <li><a href="#place">Composition and place in the system</a></li>
+    <li><a href="#commands">Command catalogue</a></li>
+    <li><a href="#flows">Step-by-step flows</a></li>
+    <li><a href="#internals">Internals: compile → config → action</a></li>
+    <li><a href="#config">Configuration and environment</a></li>
+    <li><a href="#errors">Diagnostics and errors</a></li>
+    <li><a href="#invariants">Invariants</a></li>
+    <li><a href="#qa">Testing checklist</a></li>
+    <li><a href="#bounds">Boundaries: the CLI and @orthacms/nx</a></li>
+    <li><a href="#gaps">Discrepancies</a></li>
   </ol>
 </nav>
 
 <main>
 
 <section id="business">
-  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+  <h2 class="sec"><span class="num">01</span>Business description</h2>
 
-  <p>OrthaCMS распространяется двумя способами. Внутри монорепозитория разработчик живёт в Nx: <code>npx nx serve server</code>, <code>npx nx run server:db:migrate</code>. Но конечный продукт — это приложение, которое человек создаёт командой <code>npx create-ortha-app my-cms</code> и которое состоит почти целиком из пакетов <code>@orthacms/*</code>, установленных из npm. У такого приложения нет Nx, нет исполнителей, нет графа проектов — и нужен способ его собрать, запустить и мигрировать.</p>
+  <p>OrthaCMS is distributed in two ways. Inside the monorepo a developer lives in Nx: <code>npx nx serve server</code>, <code>npx nx run server:db:migrate</code>. But the end product is an application a person creates with <code>npx create-ortha-app my-cms</code>, made almost entirely of <code>@orthacms/*</code> packages installed from npm. Such an application has no Nx, no executors and no project graph — and needs a way to be built, run and migrated.</p>
 
-  <p>Этот способ и есть <code>ortha</code>. Шесть команд, которые сгенерированное приложение оборачивает в свои <code>npm run</code>-скрипты, так что владелец приложения обычно даже не набирает слово <code>ortha</code>:</p>
+  <p>That way is <code>ortha</code>. Six commands, which a generated application wraps in its own <code>npm run</code> scripts, so that the application's owner usually never types the word <code>ortha</code> at all:</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Что делает владелец приложения</th><th>Что он набирает</th><th>Что вызывается</th></tr></thead>
+    <thead><tr><th>What the application's owner does</th><th>What they type</th><th>What is invoked</th></tr></thead>
     <tbody>
-      <tr><td>Разрабатывает</td><td class="mono">npm run dev</td><td class="mono">ortha dev</td></tr>
-      <tr><td>Собирает релиз</td><td class="mono">npm run build</td><td class="mono">ortha build</td></tr>
-      <tr><td>Запускает в проде</td><td class="mono">npm start</td><td class="mono">ortha start</td></tr>
-      <tr><td>Создаёт схему БД</td><td class="mono">npm run migrate</td><td class="mono">ortha migrate</td></tr>
-      <tr><td>Заводит свои типы контента</td><td class="mono">npm run generate -- --name=…</td><td class="mono">ortha generate --name=…</td></tr>
-      <tr><td>Смотрит данные</td><td class="mono">npm run studio</td><td class="mono">ortha studio</td></tr>
+      <tr><td>Develops</td><td class="mono">npm run dev</td><td class="mono">ortha dev</td></tr>
+      <tr><td>Builds a release</td><td class="mono">npm run build</td><td class="mono">ortha build</td></tr>
+      <tr><td>Runs in production</td><td class="mono">npm start</td><td class="mono">ortha start</td></tr>
+      <tr><td>Creates the database schema</td><td class="mono">npm run migrate</td><td class="mono">ortha migrate</td></tr>
+      <tr><td>Sets up their own content types</td><td class="mono">npm run generate -- --name=…</td><td class="mono">ortha generate --name=…</td></tr>
+      <tr><td>Inspects the data</td><td class="mono">npm run studio</td><td class="mono">ortha studio</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Зачем это отдельный пакет</h3>
+  <h3>Why this is a separate package</h3>
   <ul>
-    <li><b>Публикуемость.</b> <code>@orthacms/nx</code> помечен <code>private: true</code> и не попадёт в npm никогда — он завязан на <code>@nx/devkit</code>, граф проектов и файл <code>nx.json</code>. Функция <code>applyPluginMigrations</code> была достижима только через исполнитель Nx, то есть только изнутри монорепозитория.</li>
-    <li><b>Одна реализация на два мира.</b> Исполнители <code>db-migrate</code>, <code>db-generate</code> и <code>db-studio</code> в <code>@orthacms/nx</code> — тонкие адаптеры поверх функций, экспортируемых отсюда. Тот же цикл применения миграций, тот же отказ при пустом <code>DATABASE_URL</code>, то же предупреждение при небезопасной привязке Drizzle Studio.</li>
-    <li><b>Скучность как продуктовое качество.</b> CLI не имеет собственного файла конфигурации и не принимает пути к папкам. Раскладка приложения (<code>apps/server</code>, <code>apps/admin</code>, <code>dist/server</code>) — это <b>соглашение</b>. Приложение, которое может положить сервер куда угодно, требует конфига, описывающего где, — а его CLI обязан прочитать раньше, чем сделает хоть что-то.</li>
+    <li><b>Publishability.</b> <code>@orthacms/nx</code> is marked <code>private: true</code> and will never reach npm — it is tied to <code>@nx/devkit</code>, the project graph and the <code>nx.json</code> file. The <code>applyPluginMigrations</code> function was reachable only through an Nx executor, that is, only from inside the monorepo.</li>
+    <li><b>One implementation for two worlds.</b> The <code>db-migrate</code>, <code>db-generate</code> and <code>db-studio</code> executors in <code>@orthacms/nx</code> are thin adapters over the functions exported here. The same migration loop, the same refusal on an empty <code>DATABASE_URL</code>, the same warning on an unsafe Drizzle Studio bind.</li>
+    <li><b>Dullness as a product quality.</b> The CLI has no configuration file of its own and accepts no directory paths. An application's layout (<code>apps/server</code>, <code>apps/admin</code>, <code>dist/server</code>) is a <b>convention</b>. An application that may put its server anywhere needs a config describing where — and the CLI would have to read that before doing anything at all.</li>
   </ul>
 
-  <h3>Кому это видно</h3>
+  <h3>Who sees it</h3>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">Владелец сгенерированного приложения</h4>
-      <p class="small sub">Единственный настоящий пользователь. Видит команду через <code>npm run</code>-скрипты и README, сгенерированный вместе с приложением. Ошибки читает как предложения на человеческом языке, а не как стек-трейсы.</p>
+      <h4 style="margin-top:0">The generated application's owner</h4>
+      <p class="small sub">The only real user. Meets the command through the <code>npm run</code> scripts and the README generated alongside the application. Reads the errors as sentences in human language rather than as stack traces.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Разработчик OrthaCMS</h4>
-      <p class="small sub">Не вызывает <code>ortha</code> напрямую — у него Nx. Но исполняет ту же логику: три исполнителя Nx импортируют функции из этого пакета.</p>
+      <h4 style="margin-top:0">An OrthaCMS developer</h4>
+      <p class="small sub">Never calls <code>ortha</code> directly — they have Nx. But they execute the same logic: three Nx executors import functions from this package.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Развёртывание / CI</h4>
-      <p class="small sub">Прод — это ровно <code>ortha build &amp;&amp; ortha start</code>, один процесс, отдающий и API, и админку с одного origin. Миграции — отдельный шаг <code>ortha migrate</code> перед стартом.</p>
+      <h4 style="margin-top:0">Deployment / CI</h4>
+      <p class="small sub">Production is exactly <code>ortha build &amp;&amp; ortha start</code>, one process serving both the API and the admin UI from one origin. Migrations are a separate <code>ortha migrate</code> step before the start.</p>
     </div>
   </div>
 
-  <h3>Чем CLI не является</h3>
+  <h3>What the CLI is not</h3>
   <ul>
-    <li><b>Это не сборщик.</b> Компиляция — это <code>tsc</code> самого приложения, сборка админки — его же <code>vite</code>. CLI только находит их и запускает с правильными аргументами.</li>
-    <li><b>Это не менеджер миграций.</b> Генерацию делает <code>drizzle-kit</code>, применение — <code>drizzle-orm</code>. CLI владеет <b>порядком</b> и <b>сообщениями об ошибках</b>.</li>
-    <li><b>Это не сервер.</b> <code>ortha start</code> запускает уже скомпилированный <code>main.js</code> обычным <code>node</code> и умирает вместе с ним.</li>
-    <li><b>Это не генератор проекта.</b> Создание приложения — <code>create-ortha-app</code>. CLI появляется в приложении уже как <code>devDependency</code>.</li>
-    <li><b>Это не бандлер.</b> Намеренно: см. инвариант И-11.</li>
+    <li><b>It is not a build tool.</b> Compilation is the application's own <code>tsc</code>, and the admin build its own <code>vite</code>. The CLI only finds them and runs them with the right arguments.</li>
+    <li><b>It is not a migration manager.</b> Generation is done by <code>drizzle-kit</code> and application by <code>drizzle-orm</code>. The CLI owns the <b>order</b> and the <b>error messages</b>.</li>
+    <li><b>It is not a server.</b> <code>ortha start</code> runs the already compiled <code>main.js</code> with plain <code>node</code> and dies with it.</li>
+    <li><b>It is not a project generator.</b> Creating an application is <code>create-ortha-app</code>. The CLI appears in an application as a <code>devDependency</code> afterwards.</li>
+    <li><b>It is not a bundler.</b> Deliberately: see invariant I-11.</li>
   </ul>
 
   <div class="note">
-    <span class="label">Ключевая идея</span>
-    <p><b>Сначала компилируем — потом читаем JavaScript.</b> Чтобы применить миграции, надо знать список плагинов, а он объявлен в TypeScript-файле приложения. Монорепозиторий читает этот TypeScript «на лету» и платит за это <code>jiti</code> плюс трансформ-хуком <code>swc</code>, настроенным на legacy-декораторы. У сгенерированного приложения есть собственный шаг сборки — значит, оно может просто собраться и <code>require</code>-нуть JavaScript. Вся проблема трансформации <b>перестаёт существовать</b> на стороне потребителя.</p>
+    <span class="label">The key idea</span>
+    <p><b>Compile first — then read JavaScript.</b> To apply migrations you have to know the plugin list, and that is declared in one of the application's TypeScript files. The monorepo reads that TypeScript on the fly and pays for it with <code>jiti</code> plus an <code>swc</code> transform hook configured for legacy decorators. A generated application has a build step of its own — so it can simply build and <code>require</code> the JavaScript. The whole transform problem <b>ceases to exist</b> on the consumer's side.</p>
   </div>
 </section>
 
 <section id="place">
-  <h2 class="sec"><span class="num">02</span>Состав и место в системе</h2>
+  <h2 class="sec"><span class="num">02</span>Composition and place in the system</h2>
 
-  <p>Пакет плоский (<code>packages/cli</code>, а не группа <code>admin</code>/<code>server</code>), <b>CommonJS</b> — без <code>"type": "module"</code>, поэтому доступны <code>require</code> и <code>__dirname</code>, а <code>import.meta</code> — нет. Это не стилистика: и <code>require</code>, и <code>__dirname</code> здесь несут вес (см. раздел 5).</p>
+  <p>The package is flat (<code>packages/cli</code> rather than an <code>admin</code>/<code>server</code> group) and <b>CommonJS</b> — no <code>"type": "module"</code>, so <code>require</code> and <code>__dirname</code> are available and <code>import.meta</code> is not. That is not a matter of style: both <code>require</code> and <code>__dirname</code> are load-bearing here (see section 5).</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Файл</th><th>Роль</th><th>Ключевое решение внутри</th></tr></thead>
+    <thead><tr><th>File</th><th>Role</th><th>The key decision inside</th></tr></thead>
     <tbody>
-      <tr><td class="mono">src/cli.ts</td><td>Точка входа бинаря <code>ortha</code>: разбор argv, текст справки, диспетчер команд, единый перехват ошибок</td><td>Печатает <b>сообщение</b>, а не стек; <code>process.exit(1)</code></td></tr>
-      <tr><td class="mono">src/index.ts</td><td>Публичный API пакета — то, что импортирует <code>@orthacms/nx</code></td><td>9 экспортов; именно они делают реализацию общей</td></tr>
-      <tr><td class="mono">src/lib/project.ts</td><td><code>LAYOUT</code> (9 путей), <code>findProjectRoot</code>, <code>loadHost</code>, <code>requireDatabaseUrl</code></td><td>Раскладка — соглашение, а не конфигурация</td></tr>
-      <tr><td class="mono">src/lib/env.ts</td><td><code>loadEnv</code> — единственное место, читающее <code>.env</code></td><td><code>process.loadEnvFile</code> не перетирает уже экспортированное</td></tr>
-      <tr><td class="mono">src/lib/run.ts</td><td>Запуск дочерних процессов: <code>resolveBin</code>, <code>tscBin</code>, <code>viteBin</code>, <code>spawnNode</code>, <code>run</code>, <code>superviseUntilExit</code></td><td>Бинарь ищется в <code>node_modules</code> <b>приложения</b> через поле <code>bin</code> манифеста</td></tr>
-      <tr><td class="mono">src/lib/migrate.ts</td><td><code>applyPluginMigrations</code>, <code>describeTarget</code> — цикл по плагинам и текст отказа</td><td>Порядок плагинов сохраняется дословно; ничего не откатывается</td></tr>
-      <tr><td class="mono">src/lib/generate.ts</td><td><code>runDrizzleKitGenerate</code> — вызов <code>drizzle-kit generate</code></td><td>Имя миграции идёт одним элементом argv, без shell</td></tr>
-      <tr><td class="mono">src/lib/studio.ts</td><td><code>runDrizzleKitStudio</code> + предупреждение о небезопасной привязке</td><td>Эфемерный конфиг во временной папке; credential не пишется на диск</td></tr>
-      <tr><td class="mono">src/lib/commands/*.ts</td><td>Шесть тонких адаптеров argv → функции из <code>src/lib</code></td><td>Логики не содержат почти совсем</td></tr>
+      <tr><td class="mono">src/cli.ts</td><td>The <code>ortha</code> binary's entry point: argv parsing, the help text, the command dispatcher, one error catch</td><td>Prints a <b>message</b> rather than a stack; <code>process.exit(1)</code></td></tr>
+      <tr><td class="mono">src/index.ts</td><td>The package's public API — what <code>@orthacms/nx</code> imports</td><td>9 exports; they are what makes the implementation shared</td></tr>
+      <tr><td class="mono">src/lib/project.ts</td><td><code>LAYOUT</code> (9 paths), <code>findProjectRoot</code>, <code>loadHost</code>, <code>requireDatabaseUrl</code></td><td>The layout is a convention, not configuration</td></tr>
+      <tr><td class="mono">src/lib/env.ts</td><td><code>loadEnv</code> — the only place that reads <code>.env</code></td><td><code>process.loadEnvFile</code> does not overwrite what was already exported</td></tr>
+      <tr><td class="mono">src/lib/run.ts</td><td>Running child processes: <code>resolveBin</code>, <code>tscBin</code>, <code>viteBin</code>, <code>spawnNode</code>, <code>run</code>, <code>superviseUntilExit</code></td><td>A binary is looked up in the <b>application's</b> <code>node_modules</code> through the manifest's <code>bin</code> field</td></tr>
+      <tr><td class="mono">src/lib/migrate.ts</td><td><code>applyPluginMigrations</code>, <code>describeTarget</code> — the plugin loop and the refusal text</td><td>The plugin order is preserved verbatim; nothing is rolled back</td></tr>
+      <tr><td class="mono">src/lib/generate.ts</td><td><code>runDrizzleKitGenerate</code> — the call into <code>drizzle-kit generate</code></td><td>The migration name goes as a single argv element, with no shell</td></tr>
+      <tr><td class="mono">src/lib/studio.ts</td><td><code>runDrizzleKitStudio</code> plus the unsafe-bind warning</td><td>An ephemeral config in a temporary directory; the credential never reaches the disk</td></tr>
+      <tr><td class="mono">src/lib/commands/*.ts</td><td>Six thin adapters from argv to the functions in <code>src/lib</code></td><td>They contain almost no logic at all</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Зависимости — четыре, и все обязательные</h3>
+  <h3>The dependencies — four, and all of them required</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Пакет</th><th>Зачем</th></tr></thead>
+    <thead><tr><th>Package</th><th>What for</th></tr></thead>
     <tbody>
-      <tr><td class="mono">@orthacms/bootstrap-server</td><td>Только за типом <code>ServerPlugin</code> — из него читается дескриптор <code>migrations: { dir(), table }</code></td></tr>
-      <tr><td class="mono">drizzle-kit</td><td><code>generate</code> и <code>studio</code>; бинарь ищется как <code>bin.cjs</code> рядом с главным входом пакета</td></tr>
-      <tr><td class="mono">drizzle-orm</td><td><code>drizzle()</code> + <code>migrate()</code> из <code>node-postgres</code> — применение миграций</td></tr>
-      <tr><td class="mono">pg</td><td>Единственный <code>Pool</code>, который открывает <code>migrate</code>, и он же его закрывает</td></tr>
+      <tr><td class="mono">@orthacms/bootstrap-server</td><td>Only for the <code>ServerPlugin</code> type — the <code>migrations: { dir(), table }</code> descriptor is read from it</td></tr>
+      <tr><td class="mono">drizzle-kit</td><td><code>generate</code> and <code>studio</code>; the binary is looked up as <code>bin.cjs</code> next to the package's main entry</td></tr>
+      <tr><td class="mono">drizzle-orm</td><td><code>drizzle()</code> + <code>migrate()</code> from <code>node-postgres</code> — applying migrations</td></tr>
+      <tr><td class="mono">pg</td><td>The one <code>Pool</code> that <code>migrate</code> opens, and closes</td></tr>
     </tbody>
   </table>
   </div>
 
-  <p><b>Чего в зависимостях нет</b> и это принципиально: нет <code>jiti</code>, нет <code>@swc/core</code>, нет <code>@nx/devkit</code>, нет <code>typescript</code> и нет <code>vite</code>. Последние два должны прийти из приложения — компилировать чужое приложение версией TypeScript, которую npm случайно поднял рядом с CLI, недопустимо.</p>
+  <p><b>What is not among the dependencies</b>, and it matters: no <code>jiti</code>, no <code>@swc/core</code>, no <code>@nx/devkit</code>, no <code>typescript</code> and no <code>vite</code>. The last two must come from the application — compiling somebody else's application with a TypeScript version npm happened to hoist next to the CLI is not acceptable.</p>
 
-  <h3>Публичный API (что импортирует <code>@orthacms/nx</code>)</h3>
+  <h3>The public API (what <code>@orthacms/nx</code> imports)</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Экспорт</th><th>Кто использует</th><th>Что делает</th></tr></thead>
+    <thead><tr><th>Export</th><th>Who uses it</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="mono">applyPluginMigrations</td><td>исполнитель <code>db-migrate</code>, команда <code>migrate</code>, набор <code>server-e2e</code> сгенерированного приложения</td><td>Применяет миграции каждого плагина в порядке списка</td></tr>
-      <tr><td class="mono">describeTarget</td><td><code>applyPluginMigrations</code></td><td><code>host:port/database</code> без учётных данных</td></tr>
-      <tr><td class="mono">runDrizzleKitGenerate</td><td>исполнитель <code>db-generate</code>, команда <code>generate</code></td><td>Запускает <code>drizzle-kit generate</code> в заданном <code>cwd</code></td></tr>
-      <tr><td class="mono">runDrizzleKitStudio</td><td>исполнитель <code>db-studio</code>, команда <code>studio</code></td><td>Запускает Drizzle Studio через эфемерный конфиг</td></tr>
-      <tr><td class="mono">loadEnv</td><td>только CLI (Nx грузит <code>.env</code> сам)</td><td>Читает <code>.env</code> приложения</td></tr>
-      <tr><td class="mono">findProjectRoot</td><td>CLI</td><td>Ближайший предок с <code>package.json</code></td></tr>
-      <tr><td class="mono">loadHost</td><td>CLI</td><td>Читает <b>скомпилированные</b> конфиг и фабрику плагинов</td></tr>
-      <tr><td class="mono">requireDatabaseUrl</td><td>CLI</td><td>Отказ при пустом URL вместо падения в libpq-дефолты</td></tr>
-      <tr><td class="mono">LAYOUT</td><td>CLI</td><td>Девять путей — вся «конфигурация» приложения</td></tr>
+      <tr><td class="mono">applyPluginMigrations</td><td>the <code>db-migrate</code> executor, the <code>migrate</code> command, a generated application's <code>server-e2e</code> suite</td><td>Applies each plugin's migrations in list order</td></tr>
+      <tr><td class="mono">describeTarget</td><td><code>applyPluginMigrations</code></td><td><code>host:port/database</code> without credentials</td></tr>
+      <tr><td class="mono">runDrizzleKitGenerate</td><td>the <code>db-generate</code> executor, the <code>generate</code> command</td><td>Runs <code>drizzle-kit generate</code> in a given <code>cwd</code></td></tr>
+      <tr><td class="mono">runDrizzleKitStudio</td><td>the <code>db-studio</code> executor, the <code>studio</code> command</td><td>Runs Drizzle Studio through an ephemeral config</td></tr>
+      <tr><td class="mono">loadEnv</td><td>the CLI only (Nx loads <code>.env</code> itself)</td><td>Reads the application's <code>.env</code></td></tr>
+      <tr><td class="mono">findProjectRoot</td><td>the CLI</td><td>The nearest ancestor with a <code>package.json</code></td></tr>
+      <tr><td class="mono">loadHost</td><td>the CLI</td><td>Reads the <b>compiled</b> config and plugin factory</td></tr>
+      <tr><td class="mono">requireDatabaseUrl</td><td>the CLI</td><td>A refusal on an empty URL rather than a fall through to libpq's defaults</td></tr>
+      <tr><td class="mono">LAYOUT</td><td>the CLI</td><td>Nine paths — the whole of an application's "configuration"</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note warn">
-    <span class="label">Бинарь в манифесте указывает на TypeScript</span>
-    <p>В репозитории <code>package.json</code> объявляет <code>"bin": { "ortha": "./src/cli.ts" }</code> — потому что все пакеты рабочего пространства резолвятся <b>из исходников</b>. Публикуемый тарбол это исправляет: скрипт <code>tools/release/pack.mjs</code> переписывает манифест и ремапит <code>bin</code> ровно так же, как <code>main</code> (на <code>./dist/…js</code>), а затем проверяет, что файл, названный в <code>bin</code>, действительно был собран. Следствие: <b>внутри монорепозитория команда <code>ortha</code> как таковая неработоспособна</b> — там её роль исполняет Nx.</p>
+    <span class="label">The binary in the manifest points at TypeScript</span>
+    <p>In the repository <code>package.json</code> declares <code>"bin": { "ortha": "./src/cli.ts" }</code> — because every workspace package resolves <b>from source</b>. The published tarball fixes it: the <code>tools/release/pack.mjs</code> script rewrites the manifest and remaps <code>bin</code> exactly as it does <code>main</code> (to <code>./dist/…js</code>), then checks that the file named in <code>bin</code> really was built. The consequence: <b>inside the monorepo the <code>ortha</code> command as such does not work</b> — Nx plays its role there.</p>
   </div>
-  <h3>Как пакет попадает к пользователю</h3>
-  <p>Между тем, что лежит в репозитории, и тем, что человек ставит из npm, есть шаг, без которого <code>ortha</code> просто не запустился бы. Все пакеты рабочего пространства резолвятся <b>из исходников</b>: их <code>exports</code> указывают на <code>./src/index.ts</code>, а <code>tsconfig.base.json</code> задаёт условие <code>@orthacms/source</code>. Потребитель так не умеет — у него нет ни этого условия, ни компилятора в рантайме.</p>
+  <h3>How the package reaches a user</h3>
+  <p>Between what sits in the repository and what a person installs from npm there is a step without which <code>ortha</code> would simply not start. Every workspace package resolves <b>from source</b>: their <code>exports</code> point at <code>./src/index.ts</code> and <code>tsconfig.base.json</code> supplies the <code>@orthacms/source</code> condition. A consumer cannot do that — they have neither the condition nor a compiler at runtime.</p>
   <ol class="flow">
-    <li><b>Сборка.</b> Цель <code>build</code> компилирует пакет через <code>tsconfig.lib.json</code>, эмитируя JS и <code>.d.ts</code>.</li>
-    <li><b>Стейджинг.</b> Цель <code>pack</code> собирает публикуемый корень под <code>dist/pack/packages/cli</code> с <b>переписанным</b> манифестом: <code>main</code>, <code>types</code>, <code>exports</code> и <code>bin</code> переводятся с <code>./src/*.ts</code> на <code>./dist/*.js</code>, а зависимости на пакеты рабочего пространства (<code>"*"</code>) пинятся выпускаемой версией.<span class="meta">именно здесь <code>bin.ortha</code> перестаёт указывать на TypeScript</span></li>
-    <li><b>Проверка.</b> Стейджинг отказывается собирать тарбол, чей манифест называет файл, которого сборка не эмитировала, — и <code>bin</code> в этом списке самый важный: тарбол с несуществующим бинарём ставится успешно и падает при первом вызове команды.</li>
-    <li><b>Публикация.</b> Все пакеты выпускаются одним набором, в шаге. Публикации сериализованы с паузой и ретраями: npm ограничивает частоту записей, а один прогон выпускает десятки тарболов.</li>
+    <li><b>The build.</b> The <code>build</code> target compiles the package through <code>tsconfig.lib.json</code>, emitting JS and <code>.d.ts</code>.</li>
+    <li><b>Staging.</b> The <code>pack</code> target assembles the publishable root under <code>dist/pack/packages/cli</code> with a <b>rewritten</b> manifest: <code>main</code>, <code>types</code>, <code>exports</code> and <code>bin</code> are moved from <code>./src/*.ts</code> to <code>./dist/*.js</code>, and dependencies on workspace packages (<code>"*"</code>) are pinned to the version being released.<span class="meta">this is where <code>bin.ortha</code> stops pointing at TypeScript</span></li>
+    <li><b>The check.</b> Staging refuses to assemble a tarball whose manifest names a file the build never emitted — and <code>bin</code> is the most important name on that list: a tarball with a non-existent binary installs successfully and fails on the first invocation of the command.</li>
+    <li><b>Publishing.</b> Every package is released as one set, in lockstep. The publishes are serialised with a gap and retries: npm limits write frequency, and one run releases dozens of tarballs.</li>
   </ol>
-  <p>Отсюда практическое следствие для отладки: увидеть <code>ortha</code> «как у пользователя» можно только на собранном тарболе, а не в чекауте монорепозитория.</p>
+  <p>A practical consequence for debugging follows: <code>ortha</code> "as a user sees it" can only be observed on a built tarball, not in a monorepo checkout.</p>
 
 </section>
 
 <section id="commands">
-  <h2 class="sec"><span class="num">03</span>Каталог команд</h2>
+  <h2 class="sec"><span class="num">03</span>Command catalogue</h2>
 
-  <p>Шесть команд плюс справка. Разбор argv умещается в двух функциях: <code>option()</code> читает <code>--flag=value</code> или <code>--flag value</code>, <code>flag()</code> отвечает на «есть ли голый <code>--flag</code>». Ни библиотеки разбора аргументов, ни подкоманд, ни интерактивности.</p>
+  <p>Six commands plus the help. The argv parsing fits into two functions: <code>option()</code> reads <code>--flag=value</code> or <code>--flag value</code>, and <code>flag()</code> answers "is there a bare <code>--flag</code>". No argument-parsing library, no subcommands, no interactivity.</p>
 
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>ortha — the Ortha CMS command line
 
@@ -429,64 +428,64 @@ Options:
   --admin                build: the admin bundle only
   -h, --help             Show this message</code></pre></div>
 
-  <h3>3.1 Сводная таблица</h3>
+  <h3>3.1 The summary table</h3>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Команда</th><th>Что делает</th><th>Флаги и опции</th><th>Что требует</th><th>Код выхода</th></tr></thead>
+    <thead><tr><th>Command</th><th>What it does</th><th>Flags and options</th><th>What it needs</th><th>Exit code</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">dev</td>
-        <td>Разовая сборка сервера, затем три watch-процесса в одном терминале: <code>tsc --watch</code>, <code>node --watch dist/server/src/main.js</code> и dev-сервер Vite</td>
-        <td class="mono">—<br><span class="sub">(<code>--server</code> объявлен, но не читается — см. раздел 11)</span></td>
-        <td><code>typescript</code> и <code>vite</code> в <code>node_modules</code> приложения; <code>apps/server/tsconfig.json</code>; живая БД, потому что сервер стартует по-настоящему</td>
-        <td class="mono">0 по Ctrl+C; 1 при падении сборки</td>
+        <td>A one-shot server build, then three watch processes in one terminal: <code>tsc --watch</code>, <code>node --watch dist/server/src/main.js</code> and the Vite dev server</td>
+        <td class="mono">—<br><span class="sub">(<code>--server</code> is declared but never read — see section 11)</span></td>
+        <td><code>typescript</code> and <code>vite</code> in the application's <code>node_modules</code>; <code>apps/server/tsconfig.json</code>; a live database, because the server really starts</td>
+        <td class="mono">0 on Ctrl+C; 1 if the build fails</td>
       </tr>
       <tr>
         <td class="mono">build</td>
-        <td><code>tsc -p apps/server/tsconfig.json</code>, затем <code>vite build --config apps/admin/vite.config.mts</code></td>
+        <td><code>tsc -p apps/server/tsconfig.json</code>, then <code>vite build --config apps/admin/vite.config.mts</code></td>
         <td class="mono">--server<br>--admin</td>
-        <td><code>typescript</code>; для админки — <code>vite</code> и наличие <code>apps/admin/index.html</code></td>
+        <td><code>typescript</code>; for the admin build, <code>vite</code> and the presence of <code>apps/admin/index.html</code></td>
         <td class="mono">0 / 1</td>
       </tr>
       <tr>
         <td class="mono">start</td>
-        <td>Запускает <code>node dist/server/src/main.js</code> — один процесс, отдающий API и (через <code>staticDir</code> конфига) собранную админку</td>
+        <td>Runs <code>node dist/server/src/main.js</code> — one process serving the API and (through the config's <code>staticDir</code>) the built admin UI</td>
         <td class="mono">—</td>
-        <td>Приложение уже собрано; <code>DATABASE_URL</code> и остальные переменные читает само приложение, не CLI</td>
-        <td class="mono">0 по Ctrl+C; 1 если <code>dist</code> нет</td>
+        <td>The application is already built; <code>DATABASE_URL</code> and the other variables are read by the application itself, not by the CLI</td>
+        <td class="mono">0 on Ctrl+C; 1 if <code>dist</code> is missing</td>
       </tr>
       <tr>
         <td class="mono">migrate</td>
-        <td>Собирает сервер (<code>--server</code>), читает скомпилированные конфиг и список плагинов, применяет миграции каждого плагина в порядке списка</td>
+        <td>Builds the server (<code>--server</code>), reads the compiled config and plugin list, and applies each plugin's migrations in list order</td>
         <td class="mono">—</td>
-        <td><code>DATABASE_URL</code>; доступная БД; <code>dist/server/ortha.config.js</code> и <code>dist/server/src/plugins.js</code> (создаются самой командой)</td>
+        <td><code>DATABASE_URL</code>; a reachable database; <code>dist/server/ortha.config.js</code> and <code>dist/server/src/plugins.js</code> (created by the command itself)</td>
         <td class="mono">0 / 1</td>
       </tr>
       <tr>
         <td class="mono">generate</td>
-        <td>Запускает <code>drizzle-kit generate</code> против <code>apps/server/drizzle.config.ts</code> — миграция для <b>собственных</b> таблиц контента приложения</td>
+        <td>Runs <code>drizzle-kit generate</code> against <code>apps/server/drizzle.config.ts</code> — a migration for the application's <b>own</b> content tables</td>
         <td class="mono">--name=&lt;n&gt;</td>
-        <td>Наличие <code>apps/server/drizzle.config.ts</code>. <b>БД не нужна</b>: генерация только сравнивает схему со снапшотом</td>
+        <td>The presence of <code>apps/server/drizzle.config.ts</code>. <b>No database needed</b>: generation only diffs the schema against a snapshot</td>
         <td class="mono">0 / 1</td>
       </tr>
       <tr>
         <td class="mono">studio</td>
-        <td>Собирает сервер, берёт URL из конфига и запускает Drizzle Studio через эфемерный конфиг во временной папке</td>
+        <td>Builds the server, takes the URL from the config and starts Drizzle Studio through an ephemeral config in a temporary directory</td>
         <td class="mono">--host=&lt;h&gt;<br>--port=&lt;p&gt;</td>
-        <td><code>DATABASE_URL</code>; доступная БД; собранный конфиг</td>
-        <td class="mono">0 по Ctrl+C; 1 при отказе</td>
+        <td><code>DATABASE_URL</code>; a reachable database; a built config</td>
+        <td class="mono">0 on Ctrl+C; 1 on a refusal</td>
       </tr>
       <tr>
-        <td class="mono">(без команды)</td>
-        <td>Печатает справку</td>
+        <td class="mono">(no command)</td>
+        <td>Prints the help</td>
         <td class="mono">-h, --help</td>
         <td>—</td>
         <td class="mono">0</td>
       </tr>
       <tr>
-        <td class="mono">(неизвестная)</td>
-        <td>Сообщение <code>Unknown command "…"</code> плюс справка</td>
+        <td class="mono">(unknown)</td>
+        <td>An <code>Unknown command "…"</code> message plus the help</td>
         <td class="mono">—</td>
         <td>—</td>
         <td class="mono">1</td>
@@ -496,47 +495,47 @@ Options:
   </div>
 
   <div class="note">
-    <span class="label">Кодов выхода ровно два</span>
-    <p><code>0</code> — успех, включая <b>намеренное</b> завершение по Ctrl+C для <code>dev</code>, <code>start</code> и <code>studio</code>. <code>1</code> — любой отказ: неизвестная команда (через <code>process.exitCode = 1</code>) или брошенное исключение, перехваченное в <code>main().catch</code> (через <code>process.exit(1)</code>). Код выхода дочернего процесса <b>не пробрасывается</b> наружу: <code>tsc</code>, упавший с кодом 2, превращается в <code>Error("tsc exited with code 2")</code> и наружу выходит единицей.</p>
+    <span class="label">There are exactly two exit codes</span>
+    <p><code>0</code> — success, including a <b>deliberate</b> Ctrl+C exit for <code>dev</code>, <code>start</code> and <code>studio</code>. <code>1</code> — any failure: an unknown command (through <code>process.exitCode = 1</code>) or a thrown exception caught in <code>main().catch</code> (through <code>process.exit(1)</code>). A child process's exit code is <b>not</b> propagated: a <code>tsc</code> that failed with code 2 becomes an <code>Error("tsc exited with code 2")</code> and leaves as a one.</p>
   </div>
 
   <h3>3.2 <code>ortha dev</code></h3>
-  <p>Три процесса, объединённые надзирателем <code>superviseUntilExit</code>. Порядок обязателен: <b>сначала разовая сборка сервера</b>, и только потом watch-процессы.</p>
+  <p>Three processes joined by the <code>superviseUntilExit</code> supervisor. The order is mandatory: <b>the one-shot server build first</b>, and only then the watch processes.</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>ortha dev
-  1. buildCommand(root, { serverOnly: true })          # dist/ гарантированно существует
+  1. buildCommand(root, { serverOnly: true })          # dist/ is guaranteed to exist
   2. node &lt;tsc&gt; -p apps/server/tsconfig.json --watch --preserveWatchOutput
   3. node --watch dist/server/src/main.js
-  4. node &lt;vite&gt; --config apps/admin/vite.config.mts   # только если есть apps/admin/index.html</code></pre></div>
+  4. node &lt;vite&gt; --config apps/admin/vite.config.mts   # only if apps/admin/index.html exists</code></pre></div>
   <ul>
-    <li><b><code>--preserveWatchOutput</code></b> — иначе <code>tsc</code> очищает экран при каждой перекомпиляции и стирает логи Nest, живущие в том же терминале.</li>
-    <li><b><code>--watch</code> передаётся как флаг <code>node</code>, а не как аргумент скрипта.</b> Поэтому <code>spawnNode</code> принимает один массив argv целиком: разложенный на «скрипт + аргументы» флаг ушёл бы в скрипт, процесс запустился бы один раз и не следил бы ни за чем.</li>
-    <li><b>Завершение забирает всех.</b> Без этого выход из <code>dev</code> оставляет осиротевший <code>node --watch</code>, всё ещё держащий порт API, — и следующий <code>ortha dev</code> падает на занятом порту, обвиняя процесс, которого пользователь не видит.</li>
+    <li><b><code>--preserveWatchOutput</code></b> — otherwise <code>tsc</code> clears the screen on every recompile and wipes the Nest logs living in the same terminal.</li>
+    <li><b><code>--watch</code> is passed as a <code>node</code> flag rather than a script argument.</b> That is why <code>spawnNode</code> takes one whole argv array: split into "script + arguments", the flag would go to the script, the process would start once and watch nothing.</li>
+    <li><b>Termination takes everyone with it.</b> Without that, leaving <code>dev</code> orphans a <code>node --watch</code> still holding the API port — and the next <code>ortha dev</code> fails on a busy port, blaming a process the user cannot see.</li>
   </ul>
   <div class="note crit">
-    <span class="label">Почему разовая сборка обязательна</span>
-    <p><code>node --watch</code> <b>не умеет восстанавливаться из отсутствующей точки входа</b>. Получив путь к ещё не существующему файлу, он остаётся живым, не следит ни за чем и никогда не загружается. Снаружи это выглядит не как «стартовали на секунду раньше времени», а как <b>зависший сервер</b>. Монорепозиторий решает ту же задачу отдельной целью <code>dev:prebuild</code>.</p>
+    <span class="label">Why the one-shot build is mandatory</span>
+    <p><code>node --watch</code> <b>cannot recover from a missing entry point</b>. Given a path to a file that does not exist yet, it stays alive, watches nothing and never loads. From the outside that looks not like "we started a second too early" but like a <b>hung server</b>. The monorepo solves the same problem with a separate <code>dev:prebuild</code> target.</p>
   </div>
 
   <h3>3.3 <code>ortha build</code></h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Вызов</th><th>Сервер</th><th>Админка</th></tr></thead>
+    <thead><tr><th>Invocation</th><th>Server</th><th>Admin</th></tr></thead>
     <tbody>
-      <tr><td class="mono">ortha build</td><td class="yes">да</td><td class="yes">да, если есть <code>apps/admin/index.html</code></td></tr>
-      <tr><td class="mono">ortha build --server</td><td class="yes">да</td><td class="no">нет</td></tr>
-      <tr><td class="mono">ortha build --admin</td><td class="no">нет</td><td class="yes">да</td></tr>
-      <tr><td class="mono">ortha build --server --admin</td><td class="no">нет</td><td class="no">нет</td></tr>
+      <tr><td class="mono">ortha build</td><td class="yes">yes</td><td class="yes">yes, if <code>apps/admin/index.html</code> exists</td></tr>
+      <tr><td class="mono">ortha build --server</td><td class="yes">yes</td><td class="no">no</td></tr>
+      <tr><td class="mono">ortha build --admin</td><td class="no">no</td><td class="yes">yes</td></tr>
+      <tr><td class="mono">ortha build --server --admin</td><td class="no">no</td><td class="no">no</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Последняя строка — следствие порядка проверок, а не задумка: <code>adminOnly</code> пропускает <code>tsc</code>, затем <code>serverOnly</code> делает ранний выход до Vite. Оба флага вместе дают команду, которая не делает ничего и завершается нулём.</p>
-  <p>Отсутствие <code>apps/admin/index.html</code> — это <b>не ошибка</b>, а признак «у приложения нет UI»: команда печатает <code>No apps/admin/index.html — skipping the admin build.</code> и выходит успешно. Vite вызывается с явным <code>--config</code>, потому что конфиг лежит внутри собираемого приложения: Vite ищет конфиг в рабочей директории и иначе собрал бы бандл с дефолтами из неверного корня — молча.</p>
+  <p>The last row is a consequence of the check order rather than a design: <code>adminOnly</code> skips <code>tsc</code>, then <code>serverOnly</code> returns early before Vite. Both flags together give a command that does nothing and exits zero.</p>
+  <p>A missing <code>apps/admin/index.html</code> is <b>not an error</b> but a sign that "this application has no UI": the command prints <code>No apps/admin/index.html — skipping the admin build.</code> and exits successfully. Vite is invoked with an explicit <code>--config</code>, because the config sits inside the application being built: Vite looks for a config in the working directory and would otherwise build a bundle with defaults from the wrong root — silently.</p>
 
   <h3>3.4 <code>ortha start</code></h3>
-  <p>Самая короткая команда в пакете: проверить, что <code>dist/server/src/main.js</code> существует, и запустить его. Никакой сборки — если файла нет, это отказ с текстом <code>… does not exist — run `ortha build` first.</code> Прод — это буквально <code>ortha build &amp;&amp; ortha start</code>: один процесс, один origin, API и админка вместе.</p>
+  <p>The shortest command in the package: check that <code>dist/server/src/main.js</code> exists, and run it. No building — if the file is missing, that is a refusal reading <code>… does not exist — run `ortha build` first.</code> Production is literally <code>ortha build &amp;&amp; ortha start</code>: one process, one origin, the API and the admin UI together.</p>
 
   <h3>3.5 <code>ortha migrate</code></h3>
-  <p>Единственная команда, чей вход — <b>собственный TypeScript приложения</b>: список плагинов и порядок, в котором он записан. Поэтому она собирает сервер сама, а не полагается на то, что кто-то собрал раньше.</p>
+  <p>The only command whose input is <b>the application's own TypeScript</b>: the plugin list and the order it is written in. So it builds the server itself rather than relying on somebody having built it earlier.</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>Applying migrations for 12 plugin(s) to localhost:5432/ortha_cms
 Applying migrations: database → __drizzle_migrations_database
 Applying migrations: identity → __drizzle_migrations_identity
@@ -544,234 +543,234 @@ Applying migrations: workspaces → __drizzle_migrations_workspaces
 …
 Migrations complete.</code></pre></div>
   <ul>
-    <li>Плагины <b>без</b> дескриптора <code>migrations</code> отфильтровываются заранее. Если таких не осталось ни одного — печатается <code>No plugin migrations to apply.</code> и <b>соединение не открывается вовсе</b>.</li>
-    <li>Каждый плагин ведёт свою таблицу истории (<code>migrations.table</code>), поэтому плагины версионируются независимо. Плагин из исходников и плагин, установленный из npm, идут одним и тем же путём — каждый лишь объявляет свой <code>migrations.dir()</code>.</li>
-    <li>Строка назначения не содержит учётных данных: <code>describeTarget</code> собирает <code>host:port/database</code>, а нераспарсенный URL честно называет себя <code>(unparseable DATABASE_URL)</code> вместо догадки.</li>
+    <li>Plugins <b>without</b> a <code>migrations</code> descriptor are filtered out up front. If none is left, it prints <code>No plugin migrations to apply.</code> and <b>opens no connection at all</b>.</li>
+    <li>Each plugin keeps its own history table (<code>migrations.table</code>), so plugins are versioned independently. A plugin from source and a plugin installed from npm take the same path — each merely declares its own <code>migrations.dir()</code>.</li>
+    <li>The destination line carries no credentials: <code>describeTarget</code> assembles <code>host:port/database</code>, and a URL that will not parse honestly calls itself <code>(unparseable DATABASE_URL)</code> rather than guessing.</li>
   </ul>
 
   <h3>3.6 <code>ortha generate</code></h3>
-  <p>Это <b>только</b> о схеме, которую определяет само приложение. Плагины везут свои миграции внутри тарболов, генерировать для них нечего. Отсюда и требование <code>apps/server/drizzle.config.ts</code>, которого у только что созданного приложения нет: первый запуск этой команды — это и есть момент, когда появляется папка <code>migrations/</code>.</p>
+  <p>This is <b>only</b> about the schema the application itself defines. Plugins carry their migrations inside their tarballs, and there is nothing to generate for them. Hence the requirement for an <code>apps/server/drizzle.config.ts</code>, which a freshly created application does not have: the first run of this command is the moment the <code>migrations/</code> folder appears.</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>ortha generate --name=add_content_types
   → node &lt;drizzle-kit&gt;/bin.cjs generate --config=apps/server/drizzle.config.ts --name=add_content_types
-     cwd = &lt;корень приложения&gt;, stdio = inherit</code></pre></div>
-  <p>Без <code>--name</code> флаг <b>не добавляется вовсе</b> — имя выбирает сам drizzle-kit. Имя передаётся одним литеральным элементом argv, без shell, поэтому <code>--name="a b; rm -rf /"</code> — это просто длинное имя миграции, а не команда.</p>
+     cwd = &lt;the application's root&gt;, stdio = inherit</code></pre></div>
+  <p>Without <code>--name</code> the flag is <b>not added at all</b> — drizzle-kit picks the name itself. The name is passed as one literal argv element with no shell, so <code>--name="a b; rm -rf /"</code> is simply a long migration name rather than a command.</p>
 
   <h3>3.7 <code>ortha studio</code></h3>
-  <p>Drizzle Studio читает подключение из <code>dbCredentials</code> конфига, но все закоммиченные drizzle-конфиги намеренно только про схему — секретов в них нет. Поэтому CLI синтезирует <b>эфемерный</b> конфиг во временной папке:</p>
+  <p>Drizzle Studio reads its connection from the config's <code>dbCredentials</code>, but every committed drizzle config is deliberately schema-only — there are no secrets in them. So the CLI synthesises an <b>ephemeral</b> config in a temporary directory:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export default {
     dialect: 'postgresql',
     dbCredentials: { url: process.env.DATABASE_URL }
 };</code></pre></div>
-  <p>Конфиг ссылается на переменную, а не инлайнит URL; сам URL уходит в окружение дочернего процесса. <b>Credential не оказывается на диске ни на мгновение</b>, а временная папка удаляется в <code>finally</code>. Схема не нужна: Studio интроспектирует живую БД, связи выводятся из внешних ключей.</p>
+  <p>The config references the variable rather than inlining the URL; the URL itself goes into the child process's environment. <b>The credential never touches the disk for a moment</b>, and the temporary directory is removed in a <code>finally</code>. No schema is needed: Studio introspects the live database and derives the relations from the foreign keys.</p>
   <div class="note crit">
-    <span class="label">Опасность одного флага</span>
-    <p>Studio — это <b>неаутентифицированный</b> браузер с полным доступом на чтение и запись ко всему, на что смотрит <code>DATABASE_URL</code>. Привязанный к loopback, он локальный инструмент; привязанный к чему угодно ещё — консоль БД, выставленная в сеть, и drizzle-kit об этой разнице не говорит ничего. Поэтому <code>--host</code>, не входящий в <code>{localhost, 127.0.0.1, ::1, [::1]}</code>, печатает явное предупреждение с адресом до старта.</p>
+    <span class="label">The danger of one flag</span>
+    <p>Studio is an <b>unauthenticated</b> browser with full read and write access to everything <code>DATABASE_URL</code> points at. Bound to loopback it is a local tool; bound to anything else it is a database console exposed to the network, and drizzle-kit says nothing about the difference. So a <code>--host</code> outside <code>{localhost, 127.0.0.1, ::1, [::1]}</code> prints an explicit warning naming the address before the start.</p>
   </div>
-  <h3>3.8 Разбор аргументов — что именно понимает CLI</h3>
-  <p>Библиотеки разбора аргументов здесь нет. Есть две функции по пять строк, и их поведение стоит знать точно, потому что оно определяет все крайние случаи.</p>
+  <h3>3.8 Argument parsing — what the CLI actually understands</h3>
+  <p>There is no argument-parsing library here. There are two five-line functions, and their behaviour is worth knowing precisely, because it determines every edge case.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Форма</th><th>Как разбирается</th><th>Замечание</th></tr></thead>
+    <thead><tr><th>Form</th><th>How it is parsed</th><th>Note</th></tr></thead>
     <tbody>
-      <tr><td class="mono">--name=add_x</td><td>Значение — всё после первого <code>=</code></td><td>Предпочтительная форма; работает всегда</td></tr>
-      <tr><td class="mono">--name add_x</td><td>Значение — следующий элемент argv, если он не начинается с <code>-</code></td><td>Работает</td></tr>
-      <tr><td class="mono">--name --port 1</td><td>Значение <b>не</b> подхватывается: следующий элемент начинается с <code>-</code></td><td>Опция считается непереданной, без предупреждения</td></tr>
-      <tr><td class="mono">--name</td><td>В конце argv — значения нет</td><td>То же: молча непередана</td></tr>
-      <tr><td class="mono">--server</td><td><code>flag()</code> — простое вхождение строки в argv</td><td>Значение после него игнорируется</td></tr>
-      <tr><td class="mono">--port=abc</td><td><code>Number('abc')</code> → <code>NaN</code> → условие ложно</td><td>Опция теряется молча</td></tr>
-      <tr><td class="mono">--port=0</td><td><code>0</code> ложно → флаг не добавляется</td><td>Studio встаёт на 4983; Nx-исполнитель на том же вводе отказывает</td></tr>
-      <tr><td class="mono">лишние аргументы</td><td>Игнорируются полностью</td><td>Опечатка во флаге не диагностируется</td></tr>
+      <tr><td class="mono">--name=add_x</td><td>The value is everything after the first <code>=</code></td><td>The preferred form; always works</td></tr>
+      <tr><td class="mono">--name add_x</td><td>The value is the next argv element, unless it starts with <code>-</code></td><td>Works</td></tr>
+      <tr><td class="mono">--name --port 1</td><td>The value is <b>not</b> picked up: the next element starts with <code>-</code></td><td>The option counts as unset, with no warning</td></tr>
+      <tr><td class="mono">--name</td><td>At the end of argv there is no value</td><td>The same: silently unset</td></tr>
+      <tr><td class="mono">--server</td><td><code>flag()</code> — a plain string membership test on argv</td><td>Any value after it is ignored</td></tr>
+      <tr><td class="mono">--port=abc</td><td><code>Number('abc')</code> → <code>NaN</code> → the condition is false</td><td>The option is silently lost</td></tr>
+      <tr><td class="mono">--port=0</td><td><code>0</code> is falsy → the flag is not added</td><td>Studio takes 4983; the Nx executor refuses on the same input</td></tr>
+      <tr><td class="mono">extra arguments</td><td>Ignored entirely</td><td>A typo in a flag is never diagnosed</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Компромисс сознательный: шесть команд с шестью опциями не оправдывают зависимости на разборщик argv, а любое непонятое слово в худшем случае означает «сделали не то, о чём просили» — но не «сделали разрушительное». Единственное место, где это неприятно, — <code>studio --port</code>, и именно там <code>@orthacms/nx</code> добавил недостающую проверку.</p>
+  <p>The trade-off is deliberate: six commands with six options do not justify a dependency on an argv parser, and a word that is not understood means, at worst, "did something other than what was asked" — never "did something destructive". The one place where that stings is <code>studio --port</code>, and that is exactly where <code>@orthacms/nx</code> added the missing check.</p>
 
 </section>
 
 <section id="flows">
-  <h2 class="sec"><span class="num">04</span>Сценарии по шагам</h2>
+  <h2 class="sec"><span class="num">04</span>Step-by-step flows</h2>
 
-  <h3>4.1 Первый запуск установленного приложения</h3>
-  <p>То, что человек делает сразу после <code>npx create-ortha-app my-cms</code>. Сгенерированный README сводит это к трём строкам; ниже — что происходит на самом деле.</p>
+  <h3>4.1 The first run of an installed application</h3>
+  <p>What a person does immediately after <code>npx create-ortha-app my-cms</code>. The generated README reduces it to three lines; below is what actually happens.</p>
   <ol class="flow">
-    <li><b>Поднимается Postgres.</b> <code>docker compose up -d</code> — <code>docker-compose.yml</code> входит в шаблон приложения.<span class="meta">CLI в этом не участвует</span></li>
-    <li><b><code>npm run migrate</code> → <code>ortha migrate</code>.</b> Первым делом <code>findProjectRoot()</code> идёт вверх от текущей директории до ближайшего <code>package.json</code>. Затем <code>loadEnv(root)</code> читает <code>.env</code> — и это происходит <b>до</b> любой команды, чтобы и <code>ortha.config.ts</code> нашёл свои настройки, и дочерние процессы унаследовали переменные.<span class="meta">.env отсутствует — это нормально, а не предупреждение</span></li>
-    <li><b>Собирается сервер.</b> <code>tsc -p apps/server/tsconfig.json</code> → <code>dist/server/</code>. Компиляция инкрементальная и стоит около секунды.</li>
-    <li><b>Читается скомпилированный хост.</b> <code>require('dist/server/ortha.config.js').default</code> и <code>require('dist/server/src/plugins.js').buildPlugins(config)</code>. Оба отсутствия и обе «неправильные формы» экспорта названы отдельными сообщениями.</li>
-    <li><b>Проверяется URL базы.</b> <code>requireDatabaseUrl(config)</code> отказывается работать с пустым значением — молчаливый переход на локальные дефолты запрещён.</li>
-    <li><b>Применяются миграции всех плагинов</b> в порядке, который вернул <code>buildPlugins</code>. Каждый — в свою таблицу истории.<span class="meta">одно соединение <code>pg.Pool</code> на весь прогон, закрывается в <code>finally</code></span></li>
-    <li><b><code>npm run dev</code> → <code>ortha dev</code>.</b> API на <code>:3000</code>, админка на <code>:4200</code>.</li>
-    <li><b>Первый вход.</b> Учётка администратора провижинится при старте из <code>ORTHA_ROOT_ADMIN_EMAIL</code> / <code>ORTHA_ROOT_ADMIN_PASSWORD</code> — это делает плагин identity, а не CLI. Но переменные до него доносит именно <code>loadEnv</code>.</li>
+    <li><b>Postgres comes up.</b> <code>docker compose up -d</code> — the <code>docker-compose.yml</code> is part of the application template.<span class="meta">the CLI takes no part in this</span></li>
+    <li><b><code>npm run migrate</code> → <code>ortha migrate</code>.</b> First <code>findProjectRoot()</code> walks up from the current directory to the nearest <code>package.json</code>. Then <code>loadEnv(root)</code> reads <code>.env</code> — and that happens <b>before</b> any command, so that <code>ortha.config.ts</code> finds its settings and the child processes inherit the variables.<span class="meta">a missing .env is normal, not a warning</span></li>
+    <li><b>The server is built.</b> <code>tsc -p apps/server/tsconfig.json</code> → <code>dist/server/</code>. The compilation is incremental and costs about a second.</li>
+    <li><b>The compiled host is read.</b> <code>require('dist/server/ortha.config.js').default</code> and <code>require('dist/server/src/plugins.js').buildPlugins(config)</code>. Both absences and both "wrong export shapes" have messages of their own.</li>
+    <li><b>The database URL is checked.</b> <code>requireDatabaseUrl(config)</code> refuses to work with an empty value — a silent fall through to local defaults is forbidden.</li>
+    <li><b>Every plugin's migrations are applied</b> in the order <code>buildPlugins</code> returned. Each into its own history table.<span class="meta">one <code>pg.Pool</code> connection for the whole run, closed in a <code>finally</code></span></li>
+    <li><b><code>npm run dev</code> → <code>ortha dev</code>.</b> The API on <code>:3000</code>, the admin UI on <code>:4200</code>.</li>
+    <li><b>The first sign-in.</b> The administrator's account is provisioned at startup from <code>ORTHA_ROOT_ADMIN_EMAIL</code> / <code>ORTHA_ROOT_ADMIN_PASSWORD</code> — that is the identity plugin's doing, not the CLI's. But it is <code>loadEnv</code> that gets the variables to it.</li>
   </ol>
 
-  <h3>4.2 Применение миграций после обновления пакетов</h3>
+  <h3>4.2 Applying migrations after a package update</h3>
   <ol class="flow">
-    <li><b>Версии <code>@orthacms/*</code> подняты в шаг.</b> Пакеты выпускаются одним набором; частичное обновление способно оставить две копии общего пакета в <code>node_modules</code>.</li>
-    <li><b><code>ortha migrate</code>.</b> Пересборка сервера здесь не формальность: <b>устаревший <code>dist/</code> молча мигрировал бы против предыдущей композиции</b> — плагин, добавленный час назад, просто не получил бы своих таблиц, и никто бы об этом не сказал.</li>
-    <li><b>Каждый плагин применяет только своё непримененное.</b> Таблицы истории раздельные, поэтому новый плагин догоняет с нуля, а старые не трогаются.</li>
-    <li><b>Если что-то падает — прогон останавливается.</b> Плагины, уже прошедшие до сбойного, <b>зафиксированы</b>: отката нет, каждый плагин коммитит по ходу. Сообщение говорит, сколько из скольких успело.<span class="meta">повторный запуск возобновляет прогон с упавшего плагина</span></li>
+    <li><b>The <code>@orthacms/*</code> versions are raised in lockstep.</b> The packages are released as one set; a partial update can leave two copies of a shared package in <code>node_modules</code>.</li>
+    <li><b><code>ortha migrate</code>.</b> Rebuilding the server here is not a formality: <b>a stale <code>dist/</code> would silently migrate against the previous composition</b> — a plugin added an hour ago would simply not get its tables, and nobody would say so.</li>
+    <li><b>Each plugin applies only what it has not applied.</b> The history tables are separate, so a new plugin catches up from zero and the old ones are untouched.</li>
+    <li><b>If something fails, the run stops.</b> The plugins that ran before the failing one are <b>committed</b>: there is no rollback, and each plugin commits as it goes. The message says how many of how many made it.<span class="meta">a re-run resumes from the plugin that failed</span></li>
   </ol>
   <div class="note warn">
-    <span class="label">Порядок плагинов — несущая конструкция</span>
-    <p>Таблицы одного плагина ссылаются внешними ключами на таблицы другого (<code>memberships</code> у workspaces ссылается на <code>users</code> у identity). <b>Эту зависимость нигде не объявляют.</b> Единственная гарантия — то, что цикл применяет плагины ровно в порядке списка хоста. Поэтому при ошибке «relation … does not exist» текст отказа прямо указывает на порядок в <code>plugins.ts</code> как на самую вероятную причину.</p>
+    <span class="label">The plugin order is load-bearing</span>
+    <p>One plugin's tables reference another's by foreign key (workspaces' <code>memberships</code> references identity's <code>users</code>). <b>That dependency is declared nowhere.</b> The only guarantee is that the loop applies plugins in exactly the host list's order. So on a "relation … does not exist" error the refusal text points at the order in <code>plugins.ts</code> as the most likely cause.</p>
   </div>
 
-  <h3>4.3 Генерация миграции для собственных типов контента</h3>
+  <h3>4.3 Generating a migration for your own content types</h3>
   <ol class="flow">
-    <li><b>Описать типы контента</b> и собрать их в массив <code>contentTypes</code>.</li>
-    <li><b>Передать их в <code>ContentPlugin({ types, migrations })</code></b> в <code>apps/server/src/plugins.ts</code>. Дескриптор <code>migrations</code> — это и есть то, за что зацепится <code>ortha migrate</code>.</li>
-    <li><b>Добавить <code>apps/server/drizzle.config.ts</code></b> с путями <code>schema</code> и <code>out</code>. Без него <code>ortha generate</code> отказывается работать и объясняет, чего не хватает.<span class="meta">пути в конфиге резолвятся относительно <b>cwd</b>, а не относительно самого конфига — см. раздел 11</span></li>
-    <li><b><code>ortha generate --name=add_content_types</code>.</b> drizzle-kit сравнивает схему со снапшотом в <code>migrations/meta/</code> и пишет SQL. <b>Базы данных не требуется</b> — секретов в конфиге поэтому и нет.</li>
-    <li><b><code>ortha migrate</code>.</b> Сгенерированный SQL применяется через тот же общий цикл, что и миграции всех плагинов.</li>
-    <li><b>SQL коммитится в репозиторий приложения.</b> Так же, как плагины коммитят свой.</li>
+    <li><b>Describe the content types</b> and gather them into a <code>contentTypes</code> array.</li>
+    <li><b>Pass them into <code>ContentPlugin({ types, migrations })</code></b> in <code>apps/server/src/plugins.ts</code>. The <code>migrations</code> descriptor is what <code>ortha migrate</code> will latch onto.</li>
+    <li><b>Add an <code>apps/server/drizzle.config.ts</code></b> with <code>schema</code> and <code>out</code> paths. Without it <code>ortha generate</code> refuses to run and explains what is missing.<span class="meta">paths in the config resolve against the <b>cwd</b> rather than against the config itself — see section 11</span></li>
+    <li><b><code>ortha generate --name=add_content_types</code>.</b> drizzle-kit diffs the schema against the snapshot in <code>migrations/meta/</code> and writes the SQL. <b>No database is required</b> — which is why there are no secrets in the config.</li>
+    <li><b><code>ortha migrate</code>.</b> The generated SQL is applied through the same shared loop as every plugin's migrations.</li>
+    <li><b>The SQL is committed into the application's repository.</b> Just as plugins commit theirs.</li>
   </ol>
 
-  <h3>4.4 Продакшн-сборка и старт</h3>
+  <h3>4.4 A production build and start</h3>
   <ol class="flow">
-    <li><b><code>ortha build</code>.</b> <code>tsc</code> компилирует сервер в <code>dist/server</code>, Vite собирает админку в <code>dist/admin</code>. <b>Ничего не бандлится.</b></li>
-    <li><b><code>ortha migrate</code> в окне развёртывания.</b> Отдельным шагом, до старта нового процесса, — миграции не привязаны к загрузке приложения.</li>
-    <li><b><code>ortha start</code>.</b> Проверка наличия <code>dist/server/src/main.js</code>, затем <code>node</code> на нём. Процесс отдаёт API и, через <code>staticDir</code> конфига, собранную админку — <b>один процесс, один origin</b>.</li>
-    <li><b>Переменные берутся из окружения, а не из файла.</b> <code>.env</code> в образе не обязателен, а если он там оказался — уже экспортированные переменные он не перетрёт.<span class="meta">это и есть нужный приоритет для развёртывания</span></li>
-    <li><b>Остановка.</b> SIGTERM/SIGINT для <code>run()</code> — успех, а не отказ: код выхода 0.</li>
+    <li><b><code>ortha build</code>.</b> <code>tsc</code> compiles the server into <code>dist/server</code> and Vite builds the admin UI into <code>dist/admin</code>. <b>Nothing is bundled.</b></li>
+    <li><b><code>ortha migrate</code> in the deployment window.</b> As a separate step, before the new process starts — migrations are not tied to the application booting.</li>
+    <li><b><code>ortha start</code>.</b> A check that <code>dist/server/src/main.js</code> exists, then <code>node</code> on it. The process serves the API and, through the config's <code>staticDir</code>, the built admin UI — <b>one process, one origin</b>.</li>
+    <li><b>The variables come from the environment rather than from a file.</b> A <code>.env</code> in the image is not required, and if one ends up there it will not overwrite already exported variables.<span class="meta">that is the priority a deployment needs</span></li>
+    <li><b>Stopping.</b> SIGTERM/SIGINT for <code>run()</code> is a success rather than a failure: exit code 0.</li>
   </ol>
   <div class="note">
-    <span class="label">Почему сборка не бандлится</span>
-    <p>Каждый плагин Ortha находит свои миграции как <code>join(__dirname, '../../../migrations')</code> — путь, ведущий к корню его собственного пакета внутри <code>node_modules</code>. Бандлер, который сплющит эти файлы в один, ломает такой поиск. Монорепозиторий использует webpack только потому, что обязан заинлайнить пакеты, потребляемые <b>из исходников</b>; у установленного приложения такой проблемы нет, поэтому оно оставляет <code>node_modules</code> в покое.</p>
+    <span class="label">Why the build is not bundled</span>
+    <p>Every Ortha plugin finds its migrations as <code>join(__dirname, '../../../migrations')</code> — a path leading to the root of its own package inside <code>node_modules</code>. A bundler that flattens those files into one breaks that lookup. The monorepo uses webpack only because it has to inline packages consumed <b>from source</b>; an installed application has no such problem, so it leaves <code>node_modules</code> alone.</p>
   </div>
 </section>
 
 <section id="internals">
-  <h2 class="sec"><span class="num">05</span>Устройство: компиляция → чтение конфига → действие</h2>
+  <h2 class="sec"><span class="num">05</span>Internals: compile → read the config → act</h2>
 
-  <p>Три команды из шести (<code>migrate</code>, <code>studio</code> и косвенно <code>dev</code>) проходят один и тот же конвейер. Его стоит разобрать целиком, потому что именно он объясняет, почему этому пакету не нужна машинерия, без которой не обходится <code>@orthacms/nx</code>.</p>
+  <p>Three of the six commands (<code>migrate</code>, <code>studio</code> and indirectly <code>dev</code>) go through one and the same pipeline. It is worth taking apart in full, because it explains why this package does not need the machinery <code>@orthacms/nx</code> cannot do without.</p>
 
-  <h3>5.1 Шаг «найти корень»</h3>
-  <p><code>findProjectRoot()</code> идёт вверх от <code>process.cwd()</code> до ближайшего каталога с <code>package.json</code>. Не «доверять текущей директории», а именно подниматься: <code>ortha migrate</code> должен работать из подкаталога, потому что оттуда его и запускают. Всё остальное резолвится относительно найденного корня, поэтому относительные пути приложения (<code>migrations/</code>, <code>dist/</code>) означают одно и то же, где бы ни была набрана команда. Если <code>package.json</code> нет нигде вверх по дереву — отказ с текстом «run this inside an Ortha app».</p>
+  <h3>5.1 The "find the root" step</h3>
+  <p><code>findProjectRoot()</code> walks up from <code>process.cwd()</code> to the nearest directory holding a <code>package.json</code>. Not "trust the current directory" but specifically walking up: <code>ortha migrate</code> has to work from a subdirectory, because that is where it is run from. Everything else resolves against the root it found, so the application's relative paths (<code>migrations/</code>, <code>dist/</code>) mean the same thing wherever the command was typed. If there is no <code>package.json</code> anywhere up the tree, it refuses with "run this inside an Ortha app".</p>
 
-  <h3>5.2 Шаг «прочитать <code>.env</code>»</h3>
-  <p><code>loadEnv(root)</code> вызывается ровно один раз, в <code>main()</code>, до диспетчера команд. Реализация — три строки поверх <code>process.loadEnvFile</code>, но каждая нагружена решением:</p>
+  <h3>5.2 The "read <code>.env</code>" step</h3>
+  <p><code>loadEnv(root)</code> is called exactly once, in <code>main()</code>, before the command dispatcher. The implementation is three lines over <code>process.loadEnvFile</code>, but each carries a decision:</p>
   <ul>
-    <li><b>Отсутствие файла — норма</b>, а не повод предупреждать: развёртывание задаёт настоящие переменные окружения и такого файла не пишет вовсе.</li>
-    <li><b>Уже экспортированное не перетирается.</b> Реальные окружения задают конфигурацию в окружении, и <code>.env</code>, случайно уехавший в образ, не должен её побеждать.</li>
-    <li><b>Нужен Node ≥ 20.12.</b> Более старая версия получает отдельное сообщение с указанием своей <code>process.version</code>, а не <code>TypeError: process.loadEnvFile is not a function</code>.</li>
-    <li><b>Момент вызова важен.</b> Значения должны попасть в <code>process.env</code> до того, как будут порождены <code>node</code>, <code>vite</code> и <code>drizzle-kit</code>, — они наследуют окружение родителя.</li>
+    <li><b>A missing file is normal</b>, not something to warn about: a deployment sets real environment variables and writes no such file at all.</li>
+    <li><b>Already exported values are not overwritten.</b> Real environments set configuration in the environment, and a <code>.env</code> that accidentally rode into the image must not beat it.</li>
+    <li><b>Node ≥ 20.12 is required.</b> An older version gets a message of its own naming its <code>process.version</code>, rather than <code>TypeError: process.loadEnvFile is not a function</code>.</li>
+    <li><b>The moment of the call matters.</b> The values have to reach <code>process.env</code> before <code>node</code>, <code>vite</code> and <code>drizzle-kit</code> are spawned — they inherit the parent's environment.</li>
   </ul>
 
-  <h3>5.3 Шаг «скомпилировать»</h3>
-  <p>Команда, которой нужен список плагинов, <b>сначала собирает сервер</b> и только потом читает результат. Это выглядит как лишний шаг, а на деле убирает целый класс проблем.</p>
+  <h3>5.3 The "compile" step</h3>
+  <p>A command that needs the plugin list <b>builds the server first</b> and only then reads the result. That looks like an extra step and in fact removes a whole class of problems.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Аспект</th><th><code>@orthacms/nx</code> (монорепо)</th><th><code>@orthacms/cli</code> (установленное приложение)</th></tr></thead>
+    <thead><tr><th>Aspect</th><th><code>@orthacms/nx</code> (the monorepo)</th><th><code>@orthacms/cli</code> (an installed application)</th></tr></thead>
     <tbody>
-      <tr><td>Что читается</td><td><code>apps/server/ortha.config.ts</code> и <code>src/plugins.ts</code> — <b>TypeScript</b></td><td><code>dist/server/ortha.config.js</code> и <code>dist/server/src/plugins.js</code> — <b>JavaScript</b></td></tr>
-      <tr><td>Чем читается</td><td><code>jiti</code> + трансформ-хук <code>@swc/core</code></td><td>обычный <code>createRequire()</code></td></tr>
-      <tr><td>Почему так</td><td>Nx работает против исходников; шага сборки перед целью нет</td><td>у приложения есть собственный шаг сборки, и он всё равно нужен</td></tr>
-      <tr><td>Цена</td><td>2 дополнительные зависимости (<code>jiti</code>, <code>@swc/core</code>) и настройка декораторов</td><td>~1 секунда инкрементальной компиляции</td></tr>
+      <tr><td>What is read</td><td><code>apps/server/ortha.config.ts</code> and <code>src/plugins.ts</code> — <b>TypeScript</b></td><td><code>dist/server/ortha.config.js</code> and <code>dist/server/src/plugins.js</code> — <b>JavaScript</b></td></tr>
+      <tr><td>What reads it</td><td><code>jiti</code> plus an <code>@swc/core</code> transform hook</td><td>an ordinary <code>createRequire()</code></td></tr>
+      <tr><td>Why</td><td>Nx works against source; there is no build step before the target</td><td>the application has a build step of its own, and it is needed anyway</td></tr>
+      <tr><td>The cost</td><td>2 extra dependencies (<code>jiti</code>, <code>@swc/core</code>) and decorator configuration</td><td>~1 second of incremental compilation</td></tr>
     </tbody>
   </table>
   </div>
 
-  <p>Почему монорепозиторию не хватает «просто jiti»: загрузка <code>ortha.config.ts</code> или <code>buildPlugins</code> втягивает весь граф плагинов — модули NestJS и их DTO, — а он использует <b>legacy-декораторы</b> (<code>experimentalDecorators</code>). Встроенный в jiti babel игнорирует tsconfig репозитория и по умолчанию берёт семантику декораторов stage-3: поле с definite assignment под декоратором (<code>email!: string</code>) получает инициализатор, и <code>transform-typescript</code> падает. Поэтому в <code>@orthacms/nx</code> живёт <code>createTsJiti</code> — jiti с трансформом на swc в режиме <code>legacyDecorator</code> + <code>decoratorMetadata</code>, чтобы тот же исходник читался так же, как его компилирует само приложение.</p>
+  <p>Why "just jiti" is not enough for the monorepo: loading <code>ortha.config.ts</code> or <code>buildPlugins</code> drags in the whole plugin graph — NestJS modules and their DTOs — and that graph uses <b>legacy decorators</b> (<code>experimentalDecorators</code>). The babel built into jiti ignores the repository's tsconfig and defaults to stage-3 decorator semantics: a field with a definite assignment under a decorator (<code>email!: string</code>) gets an initializer, and <code>transform-typescript</code> fails. So <code>@orthacms/nx</code> holds <code>createTsJiti</code> — jiti with an swc transform in <code>legacyDecorator</code> + <code>decoratorMetadata</code> mode, so that the same source is read the way the application itself compiles it.</p>
 
   <div class="note">
-    <span class="label">Что из этого следует</span>
-    <p>Три следствия, и все три — в пользу потребителя. <b>Первое:</b> <code>jiti</code> и <code>@swc/core</code> остаются зависимостями <code>@orthacms/nx</code> и никогда не попадают в дерево установленного приложения. <b>Второе:</b> исчезает целый класс расхождений «конфиг читается одним компилятором, а приложение собирается другим» — читается ровно тот JavaScript, который потом и запустится. <b>Третье:</b> устаревший <code>dist/</code> перестаёт быть возможным источником тихой ошибки, потому что команда собирает его сама.</p>
+    <span class="label">What follows from this</span>
+    <p>Three consequences, all three in the consumer's favour. <b>First:</b> <code>jiti</code> and <code>@swc/core</code> stay dependencies of <code>@orthacms/nx</code> and never reach an installed application's tree. <b>Second:</b> a whole class of "the config is read by one compiler while the application is built by another" divergences disappears — what is read is exactly the JavaScript that will later run. <b>Third:</b> a stale <code>dist/</code> stops being a possible source of a silent error, because the command builds it itself.</p>
   </div>
 
-  <h3>5.4 Шаг «прочитать конфиг» — почему <code>require</code>, а не <code>await import()</code></h3>
-  <p>Приложение компилируется в CommonJS. Импорт CommonJS-модуля из ESM кладёт <b>весь</b> <code>module.exports</code> в <code>default</code> пространства имён — то есть <code>module.default</code> оказывается <code>{ default: config }</code>, а не самим конфигом. Первое же обращение к полю падает с <code>Cannot read properties of undefined</code>, и в сообщении нет ни слова про interop: пользователь видит ошибку, не называющую ничего. <code>require</code> возвращает <code>module.exports</code> как есть, и такой двусмысленности не возникает. <code>createRequire</code> строится от <code>package.json</code> приложения, чтобы резолвинг шёл из его дерева.</p>
+  <h3>5.4 The "read the config" step — why <code>require</code> rather than <code>await import()</code></h3>
+  <p>The application compiles to CommonJS. Importing a CommonJS module from ESM puts the <b>entire</b> <code>module.exports</code> into the namespace's <code>default</code> — so <code>module.default</code> turns out to be <code>{ default: config }</code> rather than the config itself. The very first field access fails with <code>Cannot read properties of undefined</code>, and the message says nothing about interop: the user sees an error that names nothing. <code>require</code> returns <code>module.exports</code> as is, and that ambiguity never arises. <code>createRequire</code> is built from the application's <code>package.json</code> so that resolution happens in its tree.</p>
 
-  <p><code>loadHost</code> проверяет четыре вещи и на каждую даёт своё сообщение:</p>
+  <p><code>loadHost</code> checks four things and gives each its own message:</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Проверка</th><th>Сообщение</th></tr></thead>
+    <thead><tr><th>Check</th><th>Message</th></tr></thead>
     <tbody>
-      <tr><td>Нет <code>dist/server/ortha.config.js</code></td><td class="mono">… does not exist — the app has not been built. Run `ortha build` first (`ortha migrate` does this for you).</td></tr>
-      <tr><td>Нет <code>dist/server/src/plugins.js</code></td><td class="mono">то же сообщение с другим путём</td></tr>
-      <tr><td>У конфига нет default-экспорта</td><td class="mono">… has no default export — ortha.config.ts must `export default` the app's config.</td></tr>
-      <tr><td><code>plugins.js</code> не экспортирует функцию</td><td class="mono">… does not export buildPlugins(config).</td></tr>
+      <tr><td>No <code>dist/server/ortha.config.js</code></td><td class="mono">… does not exist — the app has not been built. Run `ortha build` first (`ortha migrate` does this for you).</td></tr>
+      <tr><td>No <code>dist/server/src/plugins.js</code></td><td class="mono">the same message with a different path</td></tr>
+      <tr><td>The config has no default export</td><td class="mono">… has no default export — ortha.config.ts must `export default` the app's config.</td></tr>
+      <tr><td><code>plugins.js</code> exports no function</td><td class="mono">… does not export buildPlugins(config).</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>5.5 Шаг «действие» — где берутся бинари</h3>
-  <p><code>resolveBin</code> решает две задачи разом.</p>
+  <h3>5.5 The “action” step — where the binaries come from</h3>
+  <p><code>resolveBin</code> solves two problems at once.</p>
   <ul>
-    <li><b>Резолвинг от приложения, а не от CLI.</b> <code>ortha</code> установлен внутрь приложения, которое собирает, поэтому работать должны те <code>typescript</code> и <code>vite</code>, которые объявило приложение. Резолвинг из собственного дерева CLI означал бы компиляцию чужого приложения версией, которую npm случайно поднял рядом.</li>
-    <li><b>Через манифест, а не угадыванием пути.</b> Глубокий спецификатор вида <code>vite/bin/vite.js</code> резолвится, только если пакет экспортирует этот подпуть, — а Vite его не экспортирует, и попытка падает с <code>Package subpath './bin/vite.js' is not defined by "exports"</code>. <code>package.json</code> экспортируют оба, и его поле <code>bin</code> — авторитетный ответ: именно его линкует npm.</li>
+    <li><b>Resolution from the application, not from the CLI.</b> <code>ortha</code> is installed inside the application it builds, so the <code>typescript</code> and <code>vite</code> that must run are the ones the application declared. Resolving from the CLI's own tree would mean compiling someone else's application with whatever version npm happened to hoist next door.</li>
+    <li><b>Through the manifest, not by guessing a path.</b> A deep specifier such as <code>vite/bin/vite.js</code> resolves only if the package exports that subpath — and Vite does not export it, so the attempt fails with <code>Package subpath './bin/vite.js' is not defined by "exports"</code>. Both packages do export <code>package.json</code>, and its <code>bin</code> field is the authoritative answer: it is exactly what npm links.</li>
   </ul>
-  <p>С <code>drizzle-kit</code> та же история решается иначе: его карта <code>exports</code> тоже блокирует прямой доступ к <code>./bin.cjs</code>, поэтому CLI резолвит главный вход пакета и берёт соседний <code>bin.cjs</code> — <code>join(dirname(require.resolve('drizzle-kit')), 'bin.cjs')</code>.</p>
+  <p>With <code>drizzle-kit</code> the same story is resolved differently: its <code>exports</code> map also blocks direct access to <code>./bin.cjs</code>, so the CLI resolves the package's main entry and takes the neighbouring <code>bin.cjs</code> — <code>join(dirname(require.resolve('drizzle-kit')), 'bin.cjs')</code>.</p>
 
   <details>
-    <summary>Раскладка приложения: девять путей, ноль настроек</summary>
-    <p><code>LAYOUT</code> в <code>src/lib/project.ts</code> — это весь «конфиг» CLI: <code>apps/server/tsconfig.json</code>, <code>apps/admin/vite.config.mts</code>, <code>apps/admin/index.html</code>, <code>dist/server</code>, <code>dist/admin</code>, <code>dist/server/src/main.js</code>, <code>dist/server/ortha.config.js</code>, <code>dist/server/src/plugins.js</code>, <code>apps/server/drizzle.config.ts</code>. Раскладка повторяет папку <code>apps/</code> самого OrthaCMS (<code>server</code>, <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>), чтобы человек, читавший исходники Ortha, находил у себя ту же форму.</p>
-    <p>Скомпилированные пути следуют из того, что <code>apps/server/tsconfig.json</code> задаёт <code>rootDir: "."</code> и <code>outDir: "../../dist/server"</code>: <code>apps/server/ortha.config.ts</code> → <code>dist/server/ortha.config.js</code>, <code>apps/server/src/main.ts</code> → <code>dist/server/src/main.js</code>. Изменить <code>rootDir</code>, не изменив <code>LAYOUT</code>, — и пути перестают резолвиться: <code>ortha start</code> тогда сообщит об отсутствующей точке входа, а не о неверной настройке.</p>
+    <summary>Application layout: nine paths, zero settings</summary>
+    <p><code>LAYOUT</code> in <code>src/lib/project.ts</code> is the CLI's entire “config”: <code>apps/server/tsconfig.json</code>, <code>apps/admin/vite.config.mts</code>, <code>apps/admin/index.html</code>, <code>dist/server</code>, <code>dist/admin</code>, <code>dist/server/src/main.js</code>, <code>dist/server/ortha.config.js</code>, <code>dist/server/src/plugins.js</code>, <code>apps/server/drizzle.config.ts</code>. The layout mirrors OrthaCMS's own <code>apps/</code> folder (<code>server</code>, <code>admin</code>, <code>server-e2e</code>, <code>admin-e2e</code>), so that someone who has read the Ortha sources finds the same shape in their own project.</p>
+    <p>The compiled paths follow from <code>apps/server/tsconfig.json</code> setting <code>rootDir: "."</code> and <code>outDir: "../../dist/server"</code>: <code>apps/server/ortha.config.ts</code> → <code>dist/server/ortha.config.js</code>, <code>apps/server/src/main.ts</code> → <code>dist/server/src/main.js</code>. Change <code>rootDir</code> without changing <code>LAYOUT</code> and the paths stop resolving: <code>ortha start</code> will then report a missing entry point rather than an incorrect setting.</p>
   </details>
-  <h3>5.6 Надзор за дочерними процессами</h3>
-  <p>Три функции в <code>src/lib/run.ts</code> делят между собой всю работу с процессами, и разница между ними — это разница между «дождаться результата» и «жить, пока живут».</p>
+  <h3>5.6 Supervising child processes</h3>
+  <p>Three functions in <code>src/lib/run.ts</code> share all the process work between them, and the difference between them is the difference between “wait for a result” and “live as long as they live”.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Функция</th><th>Кто использует</th><th>Семантика</th></tr></thead>
+    <thead><tr><th>Function</th><th>Who uses it</th><th>Semantics</th></tr></thead>
     <tbody>
-      <tr><td class="mono">spawnNode(argv, root, env)</td><td>все</td><td>Порождает <code>node</code> с унаследованным stdio и окружением. Принимает <b>один</b> массив argv целиком, включая флаги самого <code>node</code></td></tr>
-      <tr><td class="mono">run(argv, root, env)</td><td><code>build</code>, <code>start</code></td><td>Ждёт завершения. Ненулевой код → <code>Error("&lt;label&gt; exited with code N")</code>, где label — базовое имя первого не-флагового аргумента. <code>SIGINT</code>/<code>SIGTERM</code> → успех</td></tr>
-      <tr><td class="mono">superviseUntilExit(children)</td><td><code>dev</code></td><td>Живёт, пока живы все. Выход или ошибка любого ребёнка, либо сигнал родителю → всем остальным <code>SIGTERM</code>, ровно один раз</td></tr>
+      <tr><td class="mono">spawnNode(argv, root, env)</td><td>everyone</td><td>Spawns <code>node</code> with inherited stdio and environment. Takes <b>one</b> whole argv array, including <code>node</code>'s own flags</td></tr>
+      <tr><td class="mono">run(argv, root, env)</td><td><code>build</code>, <code>start</code></td><td>Waits for completion. A non-zero code → <code>Error("&lt;label&gt; exited with code N")</code>, where label is the basename of the first non-flag argument. <code>SIGINT</code>/<code>SIGTERM</code> → success</td></tr>
+      <tr><td class="mono">superviseUntilExit(children)</td><td><code>dev</code></td><td>Lives as long as they all live. An exit or error from any child, or a signal to the parent → <code>SIGTERM</code> to all the others, exactly once</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Две детали в <code>superviseUntilExit</code> несут вес. Флаг <code>settling</code> делает завершение однократным: без него выход трёх детей подряд запускал бы уборку трижды и пытался бы резолвить уже разрешённое обещание. Проверка <code>exitCode === null &amp;&amp; signalCode === null</code> означает «сигнал шлём только тем, кто ещё жив» — тому, кто и вызвал уборку своим выходом, второй раз не достаётся.</p>
+  <p>Two details in <code>superviseUntilExit</code> carry weight. The <code>settling</code> flag makes shutdown happen once: without it, three children exiting in a row would trigger cleanup three times and try to resolve an already-resolved promise. The <code>exitCode === null &amp;&amp; signalCode === null</code> check means “only signal the ones still alive” — the child whose own exit triggered the cleanup does not get hit a second time.</p>
   <div class="note warn">
-    <span class="label">Почему это вообще важно</span>
-    <p>Без уборки выход из <code>ortha dev</code> оставляет осиротевшие <code>tsc --watch</code> и <code>node --watch</code>, причём второй продолжает держать порт API. Следующий <code>ortha dev</code> падает на «порт занят», и виноват в этом процесс, которого пользователь не видит и не запускал в этой сессии. Отладка такого занимает несопоставимо больше времени, чем стоит сам обработчик.</p>
+    <span class="label">Why this matters at all</span>
+    <p>Without cleanup, quitting <code>ortha dev</code> leaves orphaned <code>tsc --watch</code> and <code>node --watch</code> processes behind, and the second one keeps holding the API port. The next <code>ortha dev</code> fails with “port in use”, and the culprit is a process the user cannot see and did not start in this session. Debugging that costs incomparably more time than the handler itself is worth.</p>
   </div>
 
 </section>
 
 <section id="config">
-  <h2 class="sec"><span class="num">06</span>Конфигурация и окружение</h2>
+  <h2 class="sec"><span class="num">06</span>Configuration and environment</h2>
 
-  <p>У CLI нет собственного файла настроек. Всё, что он знает о приложении, делится на две части: <b>соглашения о путях</b> (<code>LAYOUT</code>, раздел 5) и <b>переменные окружения</b>, которые он лишь доносит до тех, кто их читает.</p>
+  <p>The CLI has no settings file of its own. Everything it knows about the application falls into two parts: <b>path conventions</b> (<code>LAYOUT</code>, section 5) and <b>environment variables</b>, which it merely carries through to whoever reads them.</p>
 
-  <h3>6.1 Что читает сам CLI</h3>
+  <h3>6.1 What the CLI itself reads</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Источник</th><th>Кто читает</th><th>Поведение</th></tr></thead>
+    <thead><tr><th>Source</th><th>Who reads it</th><th>Behaviour</th></tr></thead>
     <tbody>
-      <tr><td class="mono">&lt;корень&gt;/.env</td><td><code>loadEnv</code> — единственный читатель во всей системе на стороне установленного приложения</td><td>Отсутствует → тихо пропускается. Не перетирает уже экспортированные переменные</td></tr>
-      <tr><td class="mono">DATABASE_URL</td><td>косвенно: через <code>config.database.url</code> в <code>ortha.config.ts</code></td><td>Единственная переменная, отсутствие которой CLI превращает в собственный отказ (<code>requireDatabaseUrl</code>)</td></tr>
-      <tr><td class="mono">process.env (целиком)</td><td><code>spawnNode</code> / <code>run</code> / <code>execFileSync</code></td><td>Наследуется каждым дочерним процессом; <code>studio</code> дополнительно кладёт в него разрешённый <code>DATABASE_URL</code></td></tr>
-      <tr><td class="mono">process.version</td><td><code>loadEnv</code></td><td>Проверяется наличие <code>process.loadEnvFile</code> (Node ≥ 20.12)</td></tr>
+      <tr><td class="mono">&lt;root&gt;/.env</td><td><code>loadEnv</code> — the only reader in the whole system on the installed application's side</td><td>Missing → silently skipped. Does not overwrite already-exported variables</td></tr>
+      <tr><td class="mono">DATABASE_URL</td><td>indirectly: through <code>config.database.url</code> in <code>ortha.config.ts</code></td><td>The only variable whose absence the CLI turns into a refusal of its own (<code>requireDatabaseUrl</code>)</td></tr>
+      <tr><td class="mono">process.env (in full)</td><td><code>spawnNode</code> / <code>run</code> / <code>execFileSync</code></td><td>Inherited by every child process; <code>studio</code> additionally puts the resolved <code>DATABASE_URL</code> into it</td></tr>
+      <tr><td class="mono">process.version</td><td><code>loadEnv</code></td><td>Checks for the presence of <code>process.loadEnvFile</code> (Node ≥ 20.12)</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note">
-    <span class="label">Одна дверь для process.env</span>
-    <p>В сгенерированном приложении <code>apps/server/ortha.config.ts</code> объявлен <b>единственным местом, читающим <code>process.env</code></b>: всё ниже по течению — хост и каждый плагин — получает уже типизированные значения. CLI это правило поддерживает, а не нарушает: он не парсит <code>DATABASE_URL</code> самостоятельно, а забирает <code>config.database?.url</code> из загруженного конфига. Поэтому у вопроса «откуда взялась эта настройка» ровно один ответ.</p>
+    <span class="label">One door to process.env</span>
+    <p>In a generated application, <code>apps/server/ortha.config.ts</code> is declared the <b>single place that reads <code>process.env</code></b>: everything downstream — the host and every plugin — receives already-typed values. The CLI upholds that rule rather than breaking it: it does not parse <code>DATABASE_URL</code> itself, it takes <code>config.database?.url</code> from the loaded config. That is why “where did this setting come from” has exactly one answer.</p>
   </div>
 
-  <h3>6.2 Что задаёт владелец приложения (шаблон <code>.env</code>)</h3>
-  <p>Эти переменные читает <code>ortha.config.ts</code> и плагины, но доносит их до процесса именно <code>loadEnv</code>. Список зависит от того, какие возможности были выбраны в мастере <code>create-ortha-app</code>; ниже — те, что есть всегда.</p>
+  <h3>6.2 What the application owner sets (the <code>.env</code> template)</h3>
+  <p>These variables are read by <code>ortha.config.ts</code> and the plugins, but it is <code>loadEnv</code> that carries them into the process. The list depends on which capabilities were chosen in the <code>create-ortha-app</code> wizard; below are the ones that are always there.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Переменная</th><th>Назначение</th><th>Обязательность</th></tr></thead>
+    <thead><tr><th>Variable</th><th>Purpose</th><th>Required?</th></tr></thead>
     <tbody>
-      <tr><td class="mono">DATABASE_URL</td><td>Строка подключения к PostgreSQL</td><td><b>Обязательна.</b> Без неё отказывают <code>migrate</code> и <code>studio</code></td></tr>
-      <tr><td class="mono">PORT</td><td>Порт API; <code>ortha start</code> отдаёт с него же админку</td><td>По умолчанию 3000</td></tr>
-      <tr><td class="mono">ADMIN_PORT</td><td>Порт dev-сервера Vite (только разработка)</td><td>По умолчанию 4200</td></tr>
-      <tr><td class="mono">NODE_ENV</td><td><code>production</code> пишется строго так: иное значение снимает <code>Secure</code> с сессионной куки и публикует справочник API</td><td>Для прода обязательна</td></tr>
-      <tr><td class="mono">TRUST_PROXY</td><td>Число обратных прокси перед приложением</td><td>Обязательна за балансировщиком, иначе rate limit схлопывается в одну корзину</td></tr>
-      <tr><td class="mono">API_DOCS</td><td>Отдавать ли справочник API на <code>/reference</code></td><td>Необязательна</td></tr>
-      <tr><td class="mono">MAX_REQUEST_BODY</td><td>Максимальный JSON-запрос</td><td>По умолчанию 1mb</td></tr>
-      <tr><td class="mono">ORTHA_ROOT_ADMIN_EMAIL / _PASSWORD</td><td>Провижининг первой учётки администратора при старте</td><td>Нужны для первого входа, потом очищаются</td></tr>
+      <tr><td class="mono">DATABASE_URL</td><td>PostgreSQL connection string</td><td><b>Required.</b> Without it <code>migrate</code> and <code>studio</code> refuse to run</td></tr>
+      <tr><td class="mono">PORT</td><td>The API port; <code>ortha start</code> serves the admin UI from the same one</td><td>Defaults to 3000</td></tr>
+      <tr><td class="mono">ADMIN_PORT</td><td>The Vite dev server's port (development only)</td><td>Defaults to 4200</td></tr>
+      <tr><td class="mono">NODE_ENV</td><td><code>production</code> must be spelled exactly so: any other value drops <code>Secure</code> from the session cookie and publishes the API reference</td><td>Required in production</td></tr>
+      <tr><td class="mono">TRUST_PROXY</td><td>The number of reverse proxies in front of the application</td><td>Required behind a load balancer, otherwise the rate limit collapses into a single bucket</td></tr>
+      <tr><td class="mono">API_DOCS</td><td>Whether to serve the API reference at <code>/reference</code></td><td>Optional</td></tr>
+      <tr><td class="mono">MAX_REQUEST_BODY</td><td>Maximum JSON request size</td><td>Defaults to 1mb</td></tr>
+      <tr><td class="mono">ORTHA_ROOT_ADMIN_EMAIL / _PASSWORD</td><td>Provisioning the first administrator account at startup</td><td>Needed for the first sign-in, then cleared</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="sub small">Плюс группы, появляющиеся по выбору в мастере: хранилище медиа (<code>MEDIA_*</code>), копайлот (<code>COPILOT_*</code>, <code>ANTHROPIC_API_KEY</code>), MCP (<code>MCP_*</code>), единый вход (<code>SSO_*</code>). CLI ни одну из них не интерпретирует — только доносит.</p>
+  <p class="sub small">Plus the groups that appear depending on the wizard's choices: media storage (<code>MEDIA_*</code>), copilot (<code>COPILOT_*</code>, <code>ANTHROPIC_API_KEY</code>), MCP (<code>MCP_*</code>), single sign-on (<code>SSO_*</code>). The CLI interprets none of them — it only carries them.</p>
 
-  <h3>6.3 Связь со сгенерированным приложением</h3>
-  <p><code>@orthacms/cli</code> попадает в новое приложение не как выбор, а как константа: он числится в <code>CORE_DEV_PACKAGES</code> генератора и всегда пишется в <code>devDependencies</code> с версией, проштампованной самим <code>create-ortha-app</code>. Шаблон <code>package.json</code> сразу оборачивает шесть команд в скрипты, поэтому владелец приложения обычно взаимодействует с CLI только через <code>npm run</code>.</p>
+  <h3>6.3 The link to the generated application</h3>
+  <p><code>@orthacms/cli</code> lands in a new application not as a choice but as a constant: it is listed in the generator's <code>CORE_DEV_PACKAGES</code> and is always written into <code>devDependencies</code> with the version stamped in by <code>create-ortha-app</code> itself. The <code>package.json</code> template wraps six commands in scripts right away, so the application owner usually interacts with the CLI only through <code>npm run</code>.</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>"scripts": {
     "dev": "ortha dev",
     "build": "ortha build",
@@ -781,13 +780,13 @@ Migrations complete.</code></pre></div>
     "studio": "ortha studio",
     …
 }</code></pre></div>
-  <p>Есть и седьмой потребитель, уже внутри самого приложения: набор <code>apps/server-e2e</code> создаёт и мигрирует свою базу <code>&lt;база&gt;_e2e</code> <b>той же</b> функцией <code>applyPluginMigrations</code>, которую вызывает <code>ortha migrate</code>. Значит, схема, против которой идут e2e-тесты, — настоящая, а не отдельно поддерживаемая копия.</p>
+  <p>There is a seventh consumer too, already inside the application itself: the <code>apps/server-e2e</code> suite creates and migrates its own <code>&lt;database&gt;_e2e</code> database with the <b>same</b> <code>applyPluginMigrations</code> function that <code>ortha migrate</code> calls. That means the schema the e2e tests run against is the real one, not a separately maintained copy.</p>
 </section>
 
 <section id="errors">
-  <h2 class="sec"><span class="num">07</span>Диагностика и ошибки</h2>
+  <h2 class="sec"><span class="num">07</span>Diagnostics and errors</h2>
 
-  <p>Философия сообщений задана в одном месте — в перехватчике на дне <code>src/cli.ts</code>:</p>
+  <p>The philosophy of the messages is set in one place — the handler at the bottom of <code>src/cli.ts</code>:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>main().catch((error: unknown) =&gt; {
     // The message, not the stack. Every throw reaching here is a condition the
     // user can act on — an unbuilt app, a missing DATABASE_URL, a failed
@@ -797,83 +796,83 @@ Migrations complete.</code></pre></div>
     process.exit(1);
 });</code></pre></div>
 
-  <h3>7.1 Что видит пользователь при типичных отказах</h3>
+  <h3>7.1 What the user sees on typical failures</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Ситуация</th><th>Что видно</th><th>Где решается</th></tr></thead>
+    <thead><tr><th>Situation</th><th>What is shown</th><th>Where it is decided</th></tr></thead>
     <tbody>
       <tr>
-        <td>Команда запущена вне приложения</td>
+        <td>The command was run outside an application</td>
         <td class="mono">No package.json in /home/user or any parent directory — run this inside an Ortha app.</td>
         <td class="mono">findProjectRoot</td>
       </tr>
       <tr>
-        <td>Приложение не собрано, запущен <code>start</code></td>
+        <td>The application is not built and <code>start</code> was run</td>
         <td class="mono">dist/server/src/main.js does not exist — run `ortha build` first.</td>
         <td class="mono">commands/start</td>
       </tr>
       <tr>
-        <td>Приложение не собрано, запущен <code>studio</code> с чужим <code>dist/</code></td>
+        <td>The application is not built and <code>studio</code> was run with someone else's <code>dist/</code></td>
         <td class="mono">… does not exist — the app has not been built. Run `ortha build` first (`ortha migrate` does this for you).</td>
         <td class="mono">loadHost</td>
       </tr>
       <tr>
-        <td>Ошибка компиляции TypeScript</td>
-        <td>Полный вывод <code>tsc</code> (stdio унаследован), затем одна строка <code>tsc exited with code 2</code></td>
+        <td>A TypeScript compilation error</td>
+        <td>The full <code>tsc</code> output (stdio is inherited), then one line: <code>tsc exited with code 2</code></td>
         <td class="mono">run()</td>
       </tr>
       <tr>
-        <td><code>ortha.config.ts</code> без <code>export default</code></td>
+        <td><code>ortha.config.ts</code> without <code>export default</code></td>
         <td class="mono">dist/server/ortha.config.js has no default export — ortha.config.ts must `export default` the app's config.</td>
         <td class="mono">loadHost</td>
       </tr>
       <tr>
-        <td><code>plugins.ts</code> без <code>buildPlugins</code></td>
+        <td><code>plugins.ts</code> without <code>buildPlugins</code></td>
         <td class="mono">dist/server/src/plugins.js does not export buildPlugins(config).</td>
         <td class="mono">loadHost</td>
       </tr>
       <tr>
-        <td><code>DATABASE_URL</code> не задан или пуст</td>
+        <td><code>DATABASE_URL</code> is unset or empty</td>
         <td class="mono">DATABASE_URL is not set — migrating needs to know which database to change, and will not fall back to the local defaults. Set it in your .env and try again.</td>
         <td class="mono">requireDatabaseUrl</td>
       </tr>
       <tr>
-        <td>БД недоступна (контейнер не поднят, неверный порт)</td>
-        <td>Ошибка драйвера <code>pg</code> как есть — <code>ECONNREFUSED …</code>. CLI её не переформулирует, но перед этим уже напечатал строку <code>Applying migrations for N plugin(s) to host:port/db</code>, по которой видно, куда именно он стучался</td>
+        <td>The database is unreachable (container not up, wrong port)</td>
+        <td>The <code>pg</code> driver's error as it is — <code>ECONNREFUSED …</code>. The CLI does not rephrase it, but it has already printed the line <code>Applying migrations for N plugin(s) to host:port/db</code>, which shows exactly where it was knocking</td>
         <td class="mono">pg / applyPluginMigrations</td>
       </tr>
       <tr>
-        <td>Миграция плагина упала</td>
-        <td>Развёрнутое сообщение: какой плагин, сколько из скольких уже зафиксировано, что откат не производится и что первая версия для проверки — порядок в <code>plugins.ts</code>. Исходная ошибка сохранена в <code>cause</code></td>
+        <td>A plugin's migration failed</td>
+        <td>A detailed message: which plugin, how many of how many are already committed, that no rollback is performed, and that the first thing to check is the order in <code>plugins.ts</code>. The original error is preserved in <code>cause</code></td>
         <td class="mono">migrationFailure</td>
       </tr>
       <tr>
-        <td>Нет <code>apps/server/drizzle.config.ts</code></td>
+        <td>No <code>apps/server/drizzle.config.ts</code></td>
         <td class="mono">No apps/server/drizzle.config.ts in &lt;root&gt;. It describes the content tables this app defines — add one (plus the content types it points at) before generating a migration.</td>
         <td class="mono">commands/generate</td>
       </tr>
       <tr>
-        <td><code>drizzle-kit generate</code> вернул ненулевой код</td>
-        <td>Свой вывод drizzle-kit выше, затем <code>drizzle-kit generate failed in &lt;cwd&gt; (exit 1) — its output is above. Check …'s `schema` paths and that the schema files compile.</code></td>
+        <td><code>drizzle-kit generate</code> returned a non-zero code</td>
+        <td>drizzle-kit's own output above, then <code>drizzle-kit generate failed in &lt;cwd&gt; (exit 1) — its output is above. Check …'s `schema` paths and that the schema files compile.</code></td>
         <td class="mono">runDrizzleKitGenerate</td>
       </tr>
       <tr>
-        <td>Не установлены <code>typescript</code> / <code>vite</code></td>
+        <td><code>typescript</code> / <code>vite</code> are not installed</td>
         <td class="mono">typescript declares no "tsc" binary — is it installed in &lt;root&gt;?</td>
         <td class="mono">resolveBin</td>
       </tr>
       <tr>
-        <td>Node старее 20.12 при наличии <code>.env</code></td>
+        <td>Node older than 20.12 with a <code>.env</code> present</td>
         <td class="mono">Reading .env needs Node 20.12 or newer (process.loadEnvFile). You are on v18.x.x.</td>
         <td class="mono">loadEnv</td>
       </tr>
       <tr>
         <td><code>ortha studio --host 0.0.0.0</code></td>
-        <td>Многострочное предупреждение об отсутствии аутентификации и полном доступе на запись — <b>перед</b> стартом Studio. Не отказ: команда продолжает работу</td>
+        <td>A multi-line warning about the absence of authentication and full write access — <b>before</b> Studio starts. Not a refusal: the command carries on</td>
         <td class="mono">warnIfExposed</td>
       </tr>
       <tr>
-        <td>Неизвестная команда</td>
+        <td>An unknown command</td>
         <td class="mono">Unknown command "buld".</td>
         <td class="mono">cli.ts</td>
       </tr>
@@ -882,291 +881,291 @@ Migrations complete.</code></pre></div>
   </div>
 
   <div class="note crit">
-    <span class="label">Пустой DATABASE_URL — это не «ничего страшного»</span>
-    <p><code>new Pool({ connectionString: '' })</code> <b>не падает</b>: он проваливается в дефолты libpq — <code>PGHOST</code>/<code>PGDATABASE</code>, а при их отсутствии в localhost и пользователя ОС. Это измеряли в этом репозитории до появления проверки: при неустановленном <code>DATABASE_URL</code> миграция отрапортовала об успехе, создав всю схему в базе, которую никто не называл. Отсюда правило: <b>отказ, а не догадка</b>. Идентичная проверка стоит и в исполнителе <code>db-migrate</code>.</p>
+    <span class="label">An empty DATABASE_URL is not “no big deal”</span>
+    <p><code>new Pool({ connectionString: '' })</code> <b>does not fail</b>: it falls through to libpq's defaults — <code>PGHOST</code>/<code>PGDATABASE</code>, and in their absence to localhost and the OS user. This was measured in this repository before the check existed: with <code>DATABASE_URL</code> unset, the migration reported success, having created the whole schema in a database nobody had named. Hence the rule: <b>refuse, do not guess</b>. An identical check sits in the <code>db-migrate</code> executor.</p>
   </div>
 
   <div class="note warn">
-    <span class="label">Ctrl+C — это успех</span>
-    <p><code>dev</code>, <code>start</code> и <code>studio</code> задокументированно завершаются пользователем. <code>run()</code> распознаёт <code>SIGINT</code>/<code>SIGTERM</code> и резолвится, <code>runDrizzleKitStudio</code> распознаёт то же самое в исключении <code>execFileSync</code>. Причина в поведении людей, а не в аккуратности: сообщать о задокументированном выходе как о падении — значит приучать читать красное как шум.</p>
+    <span class="label">Ctrl+C is a success</span>
+    <p><code>dev</code>, <code>start</code> and <code>studio</code> are documented as being terminated by the user. <code>run()</code> recognises <code>SIGINT</code>/<code>SIGTERM</code> and resolves; <code>runDrizzleKitStudio</code> recognises the same thing in the <code>execFileSync</code> exception. The reason is human behaviour, not tidiness: reporting a documented exit as a failure teaches people to read red as noise.</p>
   </div>
 
-  <h3>7.2 Что осталось «сырым»</h3>
+  <h3>7.2 What is left “raw”</h3>
   <ul>
-    <li><b>Ошибки соединения с БД</b> приходят от <code>pg</code> без обработки. Строка о цели, напечатанная до подключения, компенсирует это лишь частично.</li>
-    <li><b>Вывод <code>tsc</code> и <code>vite</code></b> не фильтруется — stdio наследуется целиком. Это осознанно: их собственные сообщения полезнее любого пересказа.</li>
-    <li><b><code>cause</code> у ошибки миграции не печатается.</b> Верхнеуровневый перехватчик выводит только <code>error.message</code>, а исходное <code>relation "users" does not exist</code> лежит в <code>cause</code> и наружу не попадает — хотя текст отказа прямо предполагает, что читатель знает про missing relation.</li>
+    <li><b>Database connection errors</b> arrive from <code>pg</code> unprocessed. The line about the target, printed before connecting, only partly compensates.</li>
+    <li><b>The <code>tsc</code> and <code>vite</code> output</b> is not filtered — stdio is inherited whole. That is deliberate: their own messages are more useful than any retelling.</li>
+    <li><b>The migration error's <code>cause</code> is not printed.</b> The top-level handler prints only <code>error.message</code>, while the original <code>relation "users" does not exist</code> sits in <code>cause</code> and never reaches the outside — even though the text of the refusal directly assumes the reader knows about the missing relation.</li>
   </ul>
 </section>
 
 <section id="invariants">
-  <h2 class="sec"><span class="num">08</span>Инварианты</h2>
+  <h2 class="sec"><span class="num">08</span>Invariants</h2>
 
-  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+  <p>Statements that must always hold. This is at once a review checklist and a draft set of test assertions.</p>
 
   <ul class="inv">
-    <li><span class="id">И-01</span><span><b>Одна реализация на два мира.</b> Монорепозиторий и любое сгенерированное приложение применяют миграции через одну и ту же <code>applyPluginMigrations</code>; исполнители Nx — тонкие адаптеры, а не вторая реализация.</span></li>
-    <li><span class="id">И-02</span><span><code>migrate</code> и <code>studio</code> никогда не работают против устаревшего <code>dist/</code>: обе сначала собирают сервер, потом читают скомпилированный конфиг.</span></li>
-    <li><span class="id">И-03</span><span>Пустой или отсутствующий URL базы — <b>отказ</b>, а не переход на локальные дефолты libpq.</span></li>
-    <li><span class="id">И-04</span><span>Плагины мигрируют ровно в том порядке, в котором их вернул <code>buildPlugins()</code>. Порядок не переставляется, не сортируется и не выводится из зависимостей.</span></li>
-    <li><span class="id">И-05</span><span>Плагин без дескриптора <code>migrations</code> пропускается; если таких плагинов нет вовсе, <b>соединение не открывается</b>.</span></li>
-    <li><span class="id">И-06</span><span>Каждый плагин отслеживается в <b>своей</b> таблице истории (<code>migrations.table</code>), поэтому плагины версионируются независимо.</span></li>
-    <li><span class="id">И-07</span><span>Сбой миграции называет плагин, число уже зафиксированных, общее число и указывает на порядок как на вероятную причину; исходная ошибка сохраняется в <code>cause</code>; плагины после сбойного <b>не пробуются</b>.</span></li>
-    <li><span class="id">И-08</span><span>Пул соединений закрывается и при успехе, и при сбое (<code>finally</code>).</span></li>
-    <li><span class="id">И-09</span><span>Ни один лог не содержит учётных данных: цель описывается как <code>host:port/database</code>, а нераспарсенный URL — как <code>(unparseable DATABASE_URL)</code>, а не как догадка.</span></li>
-    <li><span class="id">И-10</span><span>Credential для Drizzle Studio <b>никогда не пишется на диск</b>: эфемерный конфиг ссылается на <code>process.env.DATABASE_URL</code>, URL передаётся окружением дочернего процесса, временная папка удаляется в <code>finally</code>.</span></li>
-    <li><span class="id">И-11</span><span>Привязка Studio к чему-либо, кроме loopback, печатает предупреждение с адресом <b>до</b> старта.</span></li>
-    <li><span class="id">И-12</span><span>Сборка <b>никогда не бандлится</b>: миграции плагинов должны оставаться файлами внутри их пакетов в <code>node_modules</code>.</span></li>
-    <li><span class="id">И-13</span><span><code>tsc</code> и <code>vite</code> резолвятся из <code>node_modules</code> <b>приложения</b> и только через поле <code>bin</code> его манифеста — не из дерева CLI и не угадыванием подпути.</span></li>
-    <li><span class="id">И-14</span><span><code>.env</code> не перетирает уже экспортированные переменные окружения; отсутствие файла — не ошибка и не предупреждение.</span></li>
-    <li><span class="id">И-15</span><span><code>.env</code> читается один раз, до диспетчера команд, чтобы значения унаследовали все порождённые процессы.</span></li>
-    <li><span class="id">И-16</span><span><code>dev</code> заполняет <code>dist/</code> разовой сборкой <b>до</b> запуска <code>node --watch</code>.</span></li>
-    <li><span class="id">И-17</span><span>Завершение <code>dev</code> — по выходу любого из детей или по сигналу — забирает с собой всех остальных, ровно один раз (флаг <code>settling</code>).</span></li>
-    <li><span class="id">И-18</span><span>Завершение по <code>SIGINT</code>/<code>SIGTERM</code> для <code>dev</code>, <code>start</code> и <code>studio</code> — <b>успех</b>, код выхода 0.</span></li>
-    <li><span class="id">И-19</span><span>Любое исключение, дошедшее до верха, печатается одной строкой сообщения без стек-трейса, и процесс выходит с кодом 1.</span></li>
-    <li><span class="id">И-20</span><span><code>generate</code> <b>никогда не подключается к базе</b>: генерация только сравнивает схему со снапшотом, поэтому в drizzle-конфигах нет и не должно быть секретов.</span></li>
-    <li><span class="id">И-21</span><span>Имя миграции доходит до drizzle-kit одним литеральным элементом argv, без shell: враждебное имя — это просто странное имя.</span></li>
-    <li><span class="id">И-22</span><span>Раскладка приложения — соглашение (<code>LAYOUT</code>), а не конфигурация: CLI не читает никакого собственного файла настроек.</span></li>
-    <li><span class="id">И-23</span><span>Скомпилированный конфиг читается через <code>require</code>, а не <code>await import()</code>, — иначе <code>module.default</code> оказывается обёрткой, а не конфигом.</span></li>
-    <li><span class="id">И-24</span><span><code>findProjectRoot</code> поднимается до ближайшего <code>package.json</code>, поэтому команда работает из любого подкаталога приложения.</span></li>
+    <li><span class="id">I-01</span><span><b>One implementation for two worlds.</b> The monorepo and any generated application apply migrations through the very same <code>applyPluginMigrations</code>; the Nx executors are thin adapters, not a second implementation.</span></li>
+    <li><span class="id">I-02</span><span><code>migrate</code> and <code>studio</code> never run against a stale <code>dist/</code>: both build the server first, then read the compiled config.</span></li>
+    <li><span class="id">I-03</span><span>An empty or missing database URL is a <b>refusal</b>, not a fallback to libpq's local defaults.</span></li>
+    <li><span class="id">I-04</span><span>Plugins migrate in exactly the order <code>buildPlugins()</code> returned them. The order is never rearranged, sorted, or derived from dependencies.</span></li>
+    <li><span class="id">I-05</span><span>A plugin without a <code>migrations</code> descriptor is skipped; if there are no such plugins at all, <b>no connection is opened</b>.</span></li>
+    <li><span class="id">I-06</span><span>Every plugin is tracked in <b>its own</b> history table (<code>migrations.table</code>), so plugins are versioned independently.</span></li>
+    <li><span class="id">I-07</span><span>A migration failure names the plugin, the number already committed, the total, and points at the ordering as the likely cause; the original error is preserved in <code>cause</code>; plugins after the failing one are <b>not attempted</b>.</span></li>
+    <li><span class="id">I-08</span><span>The connection pool is closed on both success and failure (<code>finally</code>).</span></li>
+    <li><span class="id">I-09</span><span>No log contains credentials: the target is described as <code>host:port/database</code>, and an unparseable URL as <code>(unparseable DATABASE_URL)</code> rather than as a guess.</span></li>
+    <li><span class="id">I-10</span><span>The credential for Drizzle Studio is <b>never written to disk</b>: the ephemeral config references <code>process.env.DATABASE_URL</code>, the URL is passed through the child process's environment, and the temporary folder is removed in <code>finally</code>.</span></li>
+    <li><span class="id">I-11</span><span>Binding Studio to anything other than loopback prints a warning with the address <b>before</b> startup.</span></li>
+    <li><span class="id">I-12</span><span>The build <b>never bundles</b>: plugin migrations must remain files inside their packages in <code>node_modules</code>.</span></li>
+    <li><span class="id">I-13</span><span><code>tsc</code> and <code>vite</code> are resolved from the <b>application's</b> <code>node_modules</code> and only through its manifest's <code>bin</code> field — not from the CLI's tree and not by guessing a subpath.</span></li>
+    <li><span class="id">I-14</span><span><code>.env</code> does not overwrite already-exported environment variables; a missing file is neither an error nor a warning.</span></li>
+    <li><span class="id">I-15</span><span><code>.env</code> is read once, before the command dispatcher, so that every spawned process inherits the values.</span></li>
+    <li><span class="id">I-16</span><span><code>dev</code> populates <code>dist/</code> with a one-shot build <b>before</b> starting <code>node --watch</code>.</span></li>
+    <li><span class="id">I-17</span><span>Shutting <code>dev</code> down — by any child exiting or by a signal — takes all the others with it, exactly once (the <code>settling</code> flag).</span></li>
+    <li><span class="id">I-18</span><span>Termination by <code>SIGINT</code>/<code>SIGTERM</code> for <code>dev</code>, <code>start</code> and <code>studio</code> is a <b>success</b>, exit code 0.</span></li>
+    <li><span class="id">I-19</span><span>Any exception that reaches the top is printed as a single message line without a stack trace, and the process exits with code 1.</span></li>
+    <li><span class="id">I-20</span><span><code>generate</code> <b>never connects to a database</b>: generation only compares the schema against a snapshot, which is why there are — and must be — no secrets in the drizzle configs.</span></li>
+    <li><span class="id">I-21</span><span>The migration name reaches drizzle-kit as a single literal argv element, with no shell involved: a hostile name is merely a strange name.</span></li>
+    <li><span class="id">I-22</span><span>The application layout is a convention (<code>LAYOUT</code>), not configuration: the CLI reads no settings file of its own.</span></li>
+    <li><span class="id">I-23</span><span>The compiled config is read through <code>require</code>, not <code>await import()</code> — otherwise <code>module.default</code> turns out to be a wrapper rather than the config.</span></li>
+    <li><span class="id">I-24</span><span><code>findProjectRoot</code> walks up to the nearest <code>package.json</code>, so a command works from any subdirectory of the application.</span></li>
   </ul>
 </section>
 
 <section id="qa">
-  <h2 class="sec"><span class="num">09</span>Чек-лист тестирования</h2>
+  <h2 class="sec"><span class="num">09</span>Testing checklist</h2>
 
-  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Существующее автоматическое покрытие: <b>31</b> юнит-тест в трёх файлах рядом с кодом (<code>migrate.spec.ts</code> — 13, <code>studio.spec.ts</code> — 12, <code>generate.spec.ts</code> — 6), мокающих на границе процесса (<code>node:child_process</code>, <code>pg</code>), поэтому пакет тестируется без базы данных. Запуск: <code>npx nx test @orthacms/cli</code>. <b>Не покрыто юнит-тестами вовсе:</b> <code>cli.ts</code>, <code>project.ts</code>, <code>env.ts</code>, <code>run.ts</code> и все шесть команд — их проверяют вручную по пунктам ниже.</p>
+  <p class="sub small">The wording is “action → expected result”, so items can go into a test case without rewriting. Existing automated coverage: <b>31</b> unit tests in three files next to the code (<code>migrate.spec.ts</code> — 13, <code>studio.spec.ts</code> — 12, <code>generate.spec.ts</code> — 6), mocking at the process boundary (<code>node:child_process</code>, <code>pg</code>), so the package is tested without a database. Run them with <code>npx nx test @orthacms/cli</code>. <b>Not covered by unit tests at all:</b> <code>cli.ts</code>, <code>project.ts</code>, <code>env.ts</code>, <code>run.ts</code> and all six commands — they are checked manually against the items below.</p>
 
-  <h3>Разбор аргументов и справка</h3>
+  <h3>Argument parsing and help</h3>
   <ul class="check">
-    <li><b><code>ortha</code> без аргументов</b> → <span class="exp">печатает справку, код выхода 0.</span></li>
-    <li><b><code>ortha build --help</code></b> → <span class="exp">печатает справку и <b>не собирает</b> ничего, код 0.</span></li>
-    <li><b><code>ortha --help</code> и <code>ortha -h</code></b> → <span class="exp">сегодня: <code>Unknown command "--help"</code> + справка, код 1. См. раздел 11.</span></li>
-    <li><b><code>ortha buld</code></b> → <span class="exp"><code>Unknown command "buld".</code>, справка, код 1.</span></li>
-    <li><b><code>ortha generate --name add_x</code> (пробел вместо <code>=</code>)</b> → <span class="exp">имя распознано так же, как в форме <code>--name=add_x</code>.</span></li>
-    <li><b><code>ortha generate --name --other</code></b> → <span class="exp">имя не подхватывается (значение начинается с <code>-</code>), drizzle-kit выбирает имя сам.</span></li>
+    <li><b><code>ortha</code> with no arguments</b> → <span class="exp">prints help, exit code 0.</span></li>
+    <li><b><code>ortha build --help</code></b> → <span class="exp">prints help and builds <b>nothing</b>, code 0.</span></li>
+    <li><b><code>ortha --help</code> and <code>ortha -h</code></b> → <span class="exp">today: <code>Unknown command "--help"</code> + help, code 1. See section 11.</span></li>
+    <li><b><code>ortha buld</code></b> → <span class="exp"><code>Unknown command "buld".</code>, help, code 1.</span></li>
+    <li><b><code>ortha generate --name add_x</code> (a space instead of <code>=</code>)</b> → <span class="exp">the name is recognised exactly as in the <code>--name=add_x</code> form.</span></li>
+    <li><b><code>ortha generate --name --other</code></b> → <span class="exp">the name is not picked up (the value starts with <code>-</code>), drizzle-kit chooses a name itself.</span></li>
   </ul>
 
-  <h3>Поиск корня и окружение</h3>
+  <h3>Finding the root and the environment</h3>
   <ul class="check">
-    <li><b><code>ortha migrate</code> из подкаталога приложения</b> → <span class="exp">работает так же, как из корня; относительные пути означают то же самое.</span></li>
-    <li><b>Запуск вне какого-либо приложения</b> → <span class="exp">сообщение «run this inside an Ortha app», код 1.</span></li>
-    <li><b><code>.env</code> отсутствует, переменные заданы в шелле</b> → <span class="exp">команда работает; предупреждения нет.</span></li>
-    <li><b><code>DATABASE_URL</code> задан и в шелле, и в <code>.env</code>, значения разные</b> → <span class="exp">побеждает шелл; миграция идёт в базу, названную в окружении.</span></li>
-    <li><b><code>.env</code> есть, Node 18</b> → <span class="exp">сообщение про Node 20.12 с указанием текущей версии, код 1.</span></li>
+    <li><b><code>ortha migrate</code> from a subdirectory of the application</b> → <span class="exp">works exactly as from the root; relative paths mean the same thing.</span></li>
+    <li><b>Running outside any application</b> → <span class="exp">the “run this inside an Ortha app” message, code 1.</span></li>
+    <li><b>No <code>.env</code>, variables set in the shell</b> → <span class="exp">the command works; there is no warning.</span></li>
+    <li><b><code>DATABASE_URL</code> set both in the shell and in <code>.env</code>, with different values</b> → <span class="exp">the shell wins; the migration goes to the database named in the environment.</span></li>
+    <li><b><code>.env</code> present, Node 18</b> → <span class="exp">the message about Node 20.12 naming the current version, code 1.</span></li>
   </ul>
 
   <h3>build / start</h3>
   <ul class="check">
-    <li><b><code>ortha build</code> в чистом приложении</b> → <span class="exp">появляются <code>dist/server/</code> и <code>dist/admin/</code>; <code>node_modules</code> не заинлайнен в бандл.</span></li>
-    <li><b><code>ortha build --server</code></b> → <span class="exp">Vite не запускается вовсе.</span></li>
-    <li><b><code>ortha build --admin</code></b> → <span class="exp"><code>tsc</code> не запускается; <code>dist/server</code> остаётся прежним.</span></li>
-    <li><b><code>ortha build</code> в приложении без <code>apps/admin/index.html</code></b> → <span class="exp">строка «skipping the admin build», код выхода 0.</span></li>
-    <li><b>Ошибка типов в <code>apps/server</code></b> → <span class="exp">вывод <code>tsc</code> целиком, затем <code>tsc exited with code 2</code>, код 1; <code>dist/</code> не обновлён.</span></li>
-    <li><b><code>typescript</code> удалён из приложения</b> → <span class="exp">сообщение «typescript declares no "tsc" binary — is it installed in …?».</span></li>
-    <li><b><code>ortha start</code> без предварительной сборки</b> → <span class="exp">«dist/server/src/main.js does not exist — run `ortha build` first.», код 1.</span></li>
-    <li><b><code>ortha start</code> после сборки</b> → <span class="exp">один процесс отдаёт и API, и админку с одного origin; Ctrl+C даёт код 0.</span></li>
+    <li><b><code>ortha build</code> in a clean application</b> → <span class="exp"><code>dist/server/</code> and <code>dist/admin/</code> appear; <code>node_modules</code> is not inlined into the bundle.</span></li>
+    <li><b><code>ortha build --server</code></b> → <span class="exp">Vite does not run at all.</span></li>
+    <li><b><code>ortha build --admin</code></b> → <span class="exp"><code>tsc</code> does not run; <code>dist/server</code> stays as it was.</span></li>
+    <li><b><code>ortha build</code> in an application without <code>apps/admin/index.html</code></b> → <span class="exp">the “skipping the admin build” line, exit code 0.</span></li>
+    <li><b>A type error in <code>apps/server</code></b> → <span class="exp">the whole <code>tsc</code> output, then <code>tsc exited with code 2</code>, code 1; <code>dist/</code> is not updated.</span></li>
+    <li><b><code>typescript</code> removed from the application</b> → <span class="exp">the message “typescript declares no "tsc" binary — is it installed in …?”.</span></li>
+    <li><b><code>ortha start</code> without building first</b> → <span class="exp">“dist/server/src/main.js does not exist — run `ortha build` first.”, code 1.</span></li>
+    <li><b><code>ortha start</code> after a build</b> → <span class="exp">one process serves both the API and the admin UI from a single origin; Ctrl+C gives code 0.</span></li>
   </ul>
 
   <h3>dev</h3>
   <ul class="check">
-    <li><b><code>ortha dev</code> при пустом <code>dist/</code></b> → <span class="exp">сервер поднимается (а не «висит»): разовая сборка отработала до <code>node --watch</code>.</span></li>
-    <li><b>Правка файла сервера</b> → <span class="exp"><code>tsc</code> перекомпилирует, <code>node --watch</code> перезапускает; логи Nest не стираются с экрана.</span></li>
-    <li><b>Ctrl+C, затем сразу повторный <code>ortha dev</code></b> → <span class="exp">второй запуск не падает на занятом порту — осиротевших процессов не осталось.</span></li>
-    <li><b>Падение <code>tsc --watch</code></b> → <span class="exp">остальные два процесса тоже завершаются, терминал возвращается.</span></li>
-    <li><b>Приложение без админки</b> → <span class="exp">Vite не запускается, остальные два процесса работают.</span></li>
+    <li><b><code>ortha dev</code> with an empty <code>dist/</code></b> → <span class="exp">the server comes up (rather than “hanging”): the one-shot build ran before <code>node --watch</code>.</span></li>
+    <li><b>Editing a server file</b> → <span class="exp"><code>tsc</code> recompiles, <code>node --watch</code> restarts; the Nest logs are not wiped off the screen.</span></li>
+    <li><b>Ctrl+C, then immediately <code>ortha dev</code> again</b> → <span class="exp">the second run does not fail on a busy port — no orphaned processes were left.</span></li>
+    <li><b><code>tsc --watch</code> crashing</b> → <span class="exp">the other two processes terminate as well and the terminal comes back.</span></li>
+    <li><b>An application without an admin UI</b> → <span class="exp">Vite does not start, the other two processes run.</span></li>
   </ul>
 
   <h3>migrate</h3>
   <ul class="check">
-    <li><b>Чистая база, полный список плагинов</b> → <span class="exp">строка с числом плагинов и целью <code>host:port/db</code>, по строке на плагин, «Migrations complete.», код 0.</span></li>
-    <li><b>Повторный запуск сразу же</b> → <span class="exp">идемпотентен: ничего нового не применяется, код 0.</span></li>
-    <li><b>Пароль в <code>DATABASE_URL</code></b> → <span class="exp">в выводе его нет ни в одной строке.</span></li>
-    <li><b><code>DATABASE_URL</code> не задан</b> → <span class="exp">отказ; <b>ни одна таблица не создана</b> ни в какой базе.</span></li>
-    <li><b>Нераспарсиваемый <code>DATABASE_URL</code></b> → <span class="exp">в логе <code>(unparseable DATABASE_URL)</code>, дальше — ошибка драйвера.</span></li>
-    <li><b>Postgres не поднят</b> → <span class="exp">ошибка соединения, код 1; строка с целью напечатана до неё.</span></li>
-    <li><b>Плагин переставлен так, что его FK ссылается вперёд</b> → <span class="exp">отказ называет плагин, «applied N of M», говорит про отсутствие отката и указывает на порядок в <code>plugins.ts</code>.</span></li>
-    <li><b>После такого сбоя — исправить порядок и запустить снова</b> → <span class="exp">прогон возобновляется с упавшего плагина, ранее применённые не переигрываются.</span></li>
-    <li><b>Список плагинов, где ни один не везёт миграций</b> → <span class="exp">«No plugin migrations to apply.», соединение не открывается.</span></li>
-    <li><b>Добавлен новый плагин, <code>dist/</code> устарел</b> → <span class="exp">его таблицы всё равно создаются: команда пересобрала сервер сама.</span></li>
-    <li><b><code>ortha.config.ts</code> без <code>export default</code></b> → <span class="exp">сообщение про отсутствующий default-экспорт, а не <code>Cannot read properties of undefined</code>.</span></li>
+    <li><b>A clean database, the full plugin list</b> → <span class="exp">a line with the number of plugins and the target <code>host:port/db</code>, one line per plugin, “Migrations complete.”, code 0.</span></li>
+    <li><b>Running it again straight away</b> → <span class="exp">idempotent: nothing new is applied, code 0.</span></li>
+    <li><b>A password in <code>DATABASE_URL</code></b> → <span class="exp">it appears in no line of the output.</span></li>
+    <li><b><code>DATABASE_URL</code> unset</b> → <span class="exp">a refusal; <b>no table is created</b> in any database.</span></li>
+    <li><b>An unparseable <code>DATABASE_URL</code></b> → <span class="exp"><code>(unparseable DATABASE_URL)</code> in the log, then the driver's error.</span></li>
+    <li><b>Postgres not running</b> → <span class="exp">a connection error, code 1; the target line was printed before it.</span></li>
+    <li><b>A plugin reordered so that its FK points forward</b> → <span class="exp">the refusal names the plugin, says “applied N of M”, mentions that there is no rollback, and points at the order in <code>plugins.ts</code>.</span></li>
+    <li><b>After such a failure — fix the order and run again</b> → <span class="exp">the run resumes from the failed plugin; the already-applied ones are not replayed.</span></li>
+    <li><b>A plugin list where none carries migrations</b> → <span class="exp">“No plugin migrations to apply.”, no connection is opened.</span></li>
+    <li><b>A new plugin added, <code>dist/</code> stale</b> → <span class="exp">its tables are still created: the command rebuilt the server itself.</span></li>
+    <li><b><code>ortha.config.ts</code> without <code>export default</code></b> → <span class="exp">the message about the missing default export, not <code>Cannot read properties of undefined</code>.</span></li>
   </ul>
 
   <h3>generate</h3>
   <ul class="check">
-    <li><b>Свежесозданное приложение</b> → <span class="exp">отказ «No apps/server/drizzle.config.ts …», база не тронута.</span></li>
-    <li><b>Конфиг добавлен, <code>--name=add_content_types</code></b> → <span class="exp">SQL с этим именем появился в папке <code>out</code>; подключения к базе не было (проверяется с погашенным Postgres).</span></li>
-    <li><b>Без <code>--name</code></b> → <span class="exp">drizzle-kit выбирает имя сам; флаг в argv отсутствует.</span></li>
-    <li><b><code>--name="a b; rm -rf /"</code></b> → <span class="exp">создаётся миграция с таким именем; никакой команды не выполняется.</span></li>
-    <li><b>Битые пути <code>schema</code> в конфиге</b> → <span class="exp">вывод drizzle-kit, затем «drizzle-kit generate failed in &lt;cwd&gt; (exit N) — its output is above».</span></li>
+    <li><b>A freshly created application</b> → <span class="exp">the refusal “No apps/server/drizzle.config.ts …”, the database is untouched.</span></li>
+    <li><b>The config added, <code>--name=add_content_types</code></b> → <span class="exp">SQL with that name appears in the <code>out</code> folder; there was no database connection (verified with Postgres shut down).</span></li>
+    <li><b>Without <code>--name</code></b> → <span class="exp">drizzle-kit picks a name itself; the flag is absent from argv.</span></li>
+    <li><b><code>--name="a b; rm -rf /"</code></b> → <span class="exp">a migration with that name is created; no command is executed.</span></li>
+    <li><b>Broken <code>schema</code> paths in the config</b> → <span class="exp">drizzle-kit's output, then “drizzle-kit generate failed in &lt;cwd&gt; (exit N) — its output is above”.</span></li>
   </ul>
 
   <h3>studio</h3>
   <ul class="check">
-    <li><b><code>ortha studio</code></b> → <span class="exp">Studio на <code>127.0.0.1:4983</code>; видны все применённые таблицы.</span></li>
-    <li><b>Во время работы Studio</b> → <span class="exp">во временной директории нет файла, содержащего пароль: конфиг ссылается на <code>process.env.DATABASE_URL</code>.</span></li>
-    <li><b>Ctrl+C</b> → <span class="exp">код выхода 0, временная директория удалена.</span></li>
-    <li><b><code>--host 0.0.0.0</code></b> → <span class="exp">многострочное предупреждение об отсутствии аутентификации печатается <b>до</b> старта; команда продолжает работу.</span></li>
-    <li><b><code>--host localhost</code></b> → <span class="exp">предупреждения нет.</span></li>
-    <li><b><code>--port 4990</code></b> → <span class="exp">Studio слушает 4990.</span></li>
-    <li><b><code>--port 0</code></b> → <span class="exp">сегодня: флаг молча отбрасывается и Studio встаёт на 4983, тогда как исполнитель Nx на этом отказывает. См. раздел 11.</span></li>
-    <li><b><code>DATABASE_URL</code> не задан</b> → <span class="exp">отказ до запуска drizzle-kit.</span></li>
+    <li><b><code>ortha studio</code></b> → <span class="exp">Studio on <code>127.0.0.1:4983</code>; every applied table is visible.</span></li>
+    <li><b>While Studio is running</b> → <span class="exp">there is no file containing the password in the temporary directory: the config references <code>process.env.DATABASE_URL</code>.</span></li>
+    <li><b>Ctrl+C</b> → <span class="exp">exit code 0, the temporary directory is removed.</span></li>
+    <li><b><code>--host 0.0.0.0</code></b> → <span class="exp">the multi-line warning about the absence of authentication is printed <b>before</b> startup; the command carries on.</span></li>
+    <li><b><code>--host localhost</code></b> → <span class="exp">no warning.</span></li>
+    <li><b><code>--port 4990</code></b> → <span class="exp">Studio listens on 4990.</span></li>
+    <li><b><code>--port 0</code></b> → <span class="exp">today: the flag is silently dropped and Studio comes up on 4983, whereas the Nx executor refuses on it. See section 11.</span></li>
+    <li><b><code>DATABASE_URL</code> unset</b> → <span class="exp">a refusal before drizzle-kit is started.</span></li>
   </ul>
 
-  <h3>Интеграция с монорепозиторием</h3>
+  <h3>Integration with the monorepo</h3>
   <ul class="check">
-    <li><b><code>npx nx run server:db:migrate</code> и <code>ortha migrate</code> на одинаковом списке плагинов</b> → <span class="exp">одинаковый порядок, одинаковые таблицы истории, одинаковый текст отказа.</span></li>
-    <li><b><code>npx nx run &lt;plugin&gt;:db:generate</code> и <code>ortha generate</code></b> → <span class="exp">оба вызывают <code>drizzle-kit</code> одним и тем же способом, различаясь только <code>cwd</code> и путём к конфигу.</span></li>
-    <li><b>Собранный тарбол пакета</b> → <span class="exp"><code>bin.ortha</code> указывает на существующий файл в <code>dist/</code>, а не на <code>src/cli.ts</code>.</span></li>
+    <li><b><code>npx nx run server:db:migrate</code> and <code>ortha migrate</code> on the same plugin list</b> → <span class="exp">the same order, the same history tables, the same refusal text.</span></li>
+    <li><b><code>npx nx run &lt;plugin&gt;:db:generate</code> and <code>ortha generate</code></b> → <span class="exp">both call <code>drizzle-kit</code> the same way, differing only in <code>cwd</code> and the config path.</span></li>
+    <li><b>The built package tarball</b> → <span class="exp"><code>bin.ortha</code> points at an existing file in <code>dist/</code>, not at <code>src/cli.ts</code>.</span></li>
   </ul>
   <details>
-    <summary>Как устроены существующие юнит-тесты пакета</summary>
-    <p>Спецификации лежат <b>рядом</b> с кодом (<code>src/lib/*.spec.ts</code>) и мокают строго на границе процесса: <code>node:child_process</code> для <code>generate</code> и <code>studio</code>, <code>pg</code> плюс <code>drizzle-orm</code> для <code>migrate</code>. Поэтому <code>npx nx test @orthacms/cli</code> не требует ни базы данных, ни собранного приложения.</p>
-    <p><b>Что именно закреплено тестами.</b> Для <code>migrate</code>: точный порядок применения плагинов (это и есть вся гарантия, потому что зависимость между таблицами нигде не объявлена), передача каждому плагину его собственной папки и таблицы истории, отсутствие соединения при пустом списке, текст отказа с именами и счётчиками, сохранение исходной ошибки в <code>cause</code>, непопытка применить плагины после сбойного, закрытие пула и при успехе, и при сбое, отсутствие пароля в описании цели. Для <code>studio</code>: эфемерный конфиг не содержит ни пароля, ни имени базы, URL уходит окружением, временная папка удаляется, дефолты <code>host</code>/<code>port</code> не подставляются искусственно. Для <code>generate</code>: вызов идёт через <code>process.execPath</code> из корня проекта, <code>--name</code> отсутствует, когда его не дали, враждебное имя остаётся одним элементом argv, а ненулевой код превращается в сообщение с проектом и кодом вместо копии argv.</p>
-    <p><b>Чего тесты не покрывают:</b> разбор argv и диспетчер (<code>cli.ts</code>), поиск корня и загрузку скомпилированного хоста (<code>project.ts</code>), чтение <code>.env</code> (<code>env.ts</code>), резолвинг бинарей и надзор за процессами (<code>run.ts</code>), а также все шесть адаптеров-команд. Это ровно та часть, которую проверяет ручной чек-лист выше.</p>
+    <summary>How the package's existing unit tests are put together</summary>
+    <p>The specs live <b>next to</b> the code (<code>src/lib/*.spec.ts</code>) and mock strictly at the process boundary: <code>node:child_process</code> for <code>generate</code> and <code>studio</code>, <code>pg</code> plus <code>drizzle-orm</code> for <code>migrate</code>. That is why <code>npx nx test @orthacms/cli</code> requires neither a database nor a built application.</p>
+    <p><b>What exactly the tests pin down.</b> For <code>migrate</code>: the exact order in which plugins are applied (that is the entire guarantee, because the dependency between tables is declared nowhere), passing each plugin its own folder and history table, the absence of a connection on an empty list, the refusal text with names and counters, preserving the original error in <code>cause</code>, not attempting plugins after the failing one, closing the pool on both success and failure, and the absence of the password from the target description. For <code>studio</code>: the ephemeral config contains neither the password nor the database name, the URL goes through the environment, the temporary folder is removed, and the <code>host</code>/<code>port</code> defaults are not artificially substituted. For <code>generate</code>: the call goes through <code>process.execPath</code> from the project root, <code>--name</code> is absent when it was not given, a hostile name stays a single argv element, and a non-zero code turns into a message naming the project and the code rather than a copy of argv.</p>
+    <p><b>What the tests do not cover:</b> argv parsing and the dispatcher (<code>cli.ts</code>), finding the root and loading the compiled host (<code>project.ts</code>), reading <code>.env</code> (<code>env.ts</code>), resolving binaries and supervising processes (<code>run.ts</code>), and all six command adapters. That is exactly the part the manual checklist above covers.</p>
   </details>
 
 </section>
 
 <section id="bounds">
-  <h2 class="sec"><span class="num">10</span>Границы: CLI и @orthacms/nx</h2>
+  <h2 class="sec"><span class="num">10</span>Boundaries: the CLI and @orthacms/nx</h2>
 
-  <p>Два пакета решают одни и те же три задачи для двух разных миров. Разделение проходит не по функциональности, а по <b>способу добраться до TypeScript приложения</b>.</p>
+  <p>Two packages solve the same three problems for two different worlds. The split runs not along functionality but along <b>how they get at the application's TypeScript</b>.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Признак</th><th>@orthacms/cli</th><th>@orthacms/nx</th></tr></thead>
+    <thead><tr><th>Trait</th><th>@orthacms/cli</th><th>@orthacms/nx</th></tr></thead>
     <tbody>
-      <tr><td>Для кого</td><td>Приложение, установленное из npm</td><td>Монорепозиторий OrthaCMS</td></tr>
-      <tr><td>Публикуется</td><td class="yes">да, в npm</td><td class="no">нет (<code>private: true</code>)</td></tr>
-      <tr><td>Как вызывается</td><td>бинарь <code>ortha</code> / <code>npm run</code></td><td>цели Nx (<code>db:generate</code>, <code>db:migrate</code>, <code>db:studio</code>)</td></tr>
-      <tr><td>Как цели появляются</td><td>жёсткий список из шести команд</td><td>вывод (<code>createNodesV2</code>) по наличию <code>drizzle.config.ts</code> / <code>ortha.config.ts</code></td></tr>
-      <tr><td>Как читает конфиг хоста</td><td>сборка + <code>require</code> JavaScript</td><td><code>jiti</code> + <code>swc</code> прямо из TypeScript</td></tr>
-      <tr><td>Кто грузит <code>.env</code></td><td>сам (<code>loadEnv</code>)</td><td>Nx, до запуска цели</td></tr>
-      <tr><td>Кто собирает и запускает приложение</td><td>он (<code>build</code>, <code>dev</code>, <code>start</code>)</td><td>цели <code>@nx/*</code> и webpack; это не его дело</td></tr>
-      <tr><td>Кэширование</td><td>нет и не предполагается</td><td>есть у <code>build</code>/<code>pack</code>; у <code>db-*</code> намеренно выключено</td></tr>
-      <tr><td>Публикация в npm</td><td class="no">нет</td><td>да — исполнитель <code>release-publish</code> с троттлингом и ретраями</td></tr>
-      <tr><td>Проверка <code>--port=0</code> для Studio</td><td class="no">нет</td><td>да, отказ с объяснением</td></tr>
+      <tr><td>Who it is for</td><td>An application installed from npm</td><td>The OrthaCMS monorepo</td></tr>
+      <tr><td>Published</td><td class="yes">yes, to npm</td><td class="no">no (<code>private: true</code>)</td></tr>
+      <tr><td>How it is invoked</td><td>the <code>ortha</code> binary / <code>npm run</code></td><td>Nx targets (<code>db:generate</code>, <code>db:migrate</code>, <code>db:studio</code>)</td></tr>
+      <tr><td>How the targets appear</td><td>a hard-coded list of six commands</td><td>inference (<code>createNodesV2</code>) from the presence of <code>drizzle.config.ts</code> / <code>ortha.config.ts</code></td></tr>
+      <tr><td>How it reads the host config</td><td>build + <code>require</code> of JavaScript</td><td><code>jiti</code> + <code>swc</code> straight from TypeScript</td></tr>
+      <tr><td>Who loads <code>.env</code></td><td>itself (<code>loadEnv</code>)</td><td>Nx, before the target runs</td></tr>
+      <tr><td>Who builds and runs the application</td><td>it does (<code>build</code>, <code>dev</code>, <code>start</code>)</td><td>the <code>@nx/*</code> targets and webpack; not its business</td></tr>
+      <tr><td>Caching</td><td>none, and none intended</td><td><code>build</code>/<code>pack</code> have it; <code>db-*</code> has it deliberately off</td></tr>
+      <tr><td>Publishing to npm</td><td class="no">no</td><td>yes — the <code>release-publish</code> executor with throttling and retries</td></tr>
+      <tr><td>Validating <code>--port=0</code> for Studio</td><td class="no">no</td><td>yes, a refusal with an explanation</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Кто чем владеет</h3>
+  <h3>Who owns what</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает CLI</th></tr></thead>
+    <thead><tr><th>Area</th><th>Who owns it</th><th>What the CLI does</th></tr></thead>
     <tbody>
-      <tr><td>Порядок плагинов</td><td><code>apps/server/src/plugins.ts</code> приложения</td><td>Сохраняет его дословно; при сбое указывает на него как на причину</td></tr>
-      <tr><td>Дескриптор миграций плагина</td><td>сам плагин (<code>ServerPlugin.migrations</code>)</td><td>Читает <code>dir()</code> и <code>table</code>, не интерпретируя</td></tr>
-      <tr><td>Чтение <code>process.env</code></td><td><code>apps/server/ortha.config.ts</code></td><td>Доносит переменные до процесса и забирает <code>config.database.url</code></td></tr>
-      <tr><td>Соединение с БД в рантайме</td><td><code>@orthacms/database</code></td><td>Открывает <b>свой</b> временный пул только на время миграции и закрывает его</td></tr>
-      <tr><td>Генерация SQL</td><td><code>drizzle-kit</code></td><td>Запускает его с нужным <code>cwd</code> и переводит ненулевой код в понятное сообщение</td></tr>
-      <tr><td>Применение SQL</td><td><code>drizzle-orm</code></td><td>Владеет циклом, порядком, логами и текстом отказа</td></tr>
-      <tr><td>Компиляция и бандл админки</td><td><code>typescript</code> и <code>vite</code> приложения</td><td>Находит их бинари и передаёт правильные аргументы</td></tr>
-      <tr><td>Создание приложения</td><td><code>create-ortha-app</code></td><td>Ничего; попадает в приложение как <code>devDependency</code></td></tr>
-      <tr><td>Поднятие Postgres</td><td><code>docker-compose.yml</code> приложения</td><td>Ничего</td></tr>
+      <tr><td>Plugin order</td><td>the application's <code>apps/server/src/plugins.ts</code></td><td>Preserves it verbatim; on failure points at it as the cause</td></tr>
+      <tr><td>A plugin's migrations descriptor</td><td>the plugin itself (<code>ServerPlugin.migrations</code>)</td><td>Reads <code>dir()</code> and <code>table</code> without interpreting them</td></tr>
+      <tr><td>Reading <code>process.env</code></td><td><code>apps/server/ortha.config.ts</code></td><td>Carries the variables into the process and takes <code>config.database.url</code></td></tr>
+      <tr><td>The runtime database connection</td><td><code>@orthacms/database</code></td><td>Opens <b>its own</b> temporary pool only for the duration of the migration and closes it</td></tr>
+      <tr><td>Generating SQL</td><td><code>drizzle-kit</code></td><td>Runs it with the right <code>cwd</code> and turns a non-zero code into an intelligible message</td></tr>
+      <tr><td>Applying SQL</td><td><code>drizzle-orm</code></td><td>Owns the loop, the order, the logs and the refusal text</td></tr>
+      <tr><td>Compiling and bundling the admin UI</td><td>the application's <code>typescript</code> and <code>vite</code></td><td>Finds their binaries and passes the right arguments</td></tr>
+      <tr><td>Creating an application</td><td><code>create-ortha-app</code></td><td>Nothing; it lands in the application as a <code>devDependency</code></td></tr>
+      <tr><td>Bringing Postgres up</td><td>the application's <code>docker-compose.yml</code></td><td>Nothing</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Чего в CLI нет</h3>
+  <h3>What the CLI does not have</h3>
   <ul>
-    <li><b>Отката миграций.</b> Ни команды <code>down</code>, ни <code>drizzle-kit drop</code>. Восстановление — задача резервной копии, а не CLI.</li>
-    <li><b>Команды <code>ortha migrate --dry-run</code></b> и вообще любого способа посмотреть, что будет применено, не применяя.</li>
-    <li><b>Проброса кода выхода дочернего процесса.</b> Любой отказ — это единица.</li>
-    <li><b>Собственного файла конфигурации.</b> Пути — соглашение; кастомная раскладка не поддерживается.</li>
-    <li><b>Работы с несколькими приложениями.</b> Одна команда — один корень, найденный вверх по дереву.</li>
-    <li><b>Флага <code>--verbose</code>, уровней логирования и машиночитаемого вывода.</b></li>
+    <li><b>Migration rollback.</b> No <code>down</code> command, no <code>drizzle-kit drop</code>. Recovery is a backup's job, not the CLI's.</li>
+    <li><b>An <code>ortha migrate --dry-run</code> command</b> — or any way at all to see what would be applied without applying it.</li>
+    <li><b>Propagating a child process's exit code.</b> Any failure is a one.</li>
+    <li><b>A configuration file of its own.</b> The paths are a convention; a custom layout is not supported.</li>
+    <li><b>Working with several applications.</b> One command, one root, found by walking up the tree.</li>
+    <li><b>A <code>--verbose</code> flag, log levels, or machine-readable output.</b></li>
   </ul>
 </section>
 
 <section id="gaps">
-  <h2 class="sec"><span class="num">11</span>Расхождения кода и документации</h2>
+  <h2 class="sec"><span class="num">11</span>Discrepancies between the code and the documentation</h2>
 
-  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+  <p>Found while reconciling this dossier with the sources. Not product bugs in themselves, but they disorient developers and testers alike.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <thead><tr><th>Where</th><th>What it says</th><th>How it actually is</th></tr></thead>
     <tbody>
       <tr>
-        <td class="mono">packages/cli/AGENTS.md, таблица команд</td>
-        <td>«<code>ortha start</code> — Runs <code>dist/server/main.js</code>»</td>
-        <td><code>LAYOUT.serverEntry</code> = <code>dist/server/src/main.js</code>. Сегмент <code>src/</code> сохраняется, потому что <code>rootDir</code> шаблонного <code>apps/server/tsconfig.json</code> равен <code>"."</code>, а не <code>"src"</code></td>
+        <td class="mono">packages/cli/AGENTS.md, the command table</td>
+        <td>“<code>ortha start</code> — Runs <code>dist/server/main.js</code>”</td>
+        <td><code>LAYOUT.serverEntry</code> = <code>dist/server/src/main.js</code>. The <code>src/</code> segment is preserved because the template's <code>apps/server/tsconfig.json</code> has <code>rootDir</code> equal to <code>"."</code>, not <code>"src"</code></td>
       </tr>
       <tr>
-        <td class="mono">packages/cli/AGENTS.md, «Compile first»</td>
-        <td>«<code>require</code>s <code>dist/server/{ortha.config,plugins}.js</code>»</td>
-        <td>Пути разные: <code>dist/server/ortha.config.js</code>, но <code>dist/server/<b>src/</b>plugins.js</code>. Форма с фигурными скобками подразумевает общий каталог, которого нет</td>
+        <td class="mono">packages/cli/AGENTS.md, “Compile first”</td>
+        <td>“<code>require</code>s <code>dist/server/{ortha.config,plugins}.js</code>”</td>
+        <td>The paths differ: <code>dist/server/ortha.config.js</code>, but <code>dist/server/<b>src/</b>plugins.js</code>. The brace form implies a shared directory that does not exist</td>
       </tr>
       <tr>
-        <td class="mono">packages/cli/AGENTS.md, «Compile first»</td>
-        <td>«<code>tsconfig.server.json</code> sets <code>rootDir</code> to <code>src/server</code>, … <code>src/server/main.ts</code> → <code>dist/server/main.js</code>»</td>
-        <td>Файла <code>tsconfig.server.json</code> не существует ни в шаблоне, ни в монорепозитории; читается <code>apps/server/tsconfig.json</code> с <code>rootDir: "."</code>. Комментарий в <code>src/lib/project.ts</code> описывает это <b>верно</b> — то есть документ противоречит собственному коду</td>
+        <td class="mono">packages/cli/AGENTS.md, “Compile first”</td>
+        <td>“<code>tsconfig.server.json</code> sets <code>rootDir</code> to <code>src/server</code>, … <code>src/server/main.ts</code> → <code>dist/server/main.js</code>”</td>
+        <td>No <code>tsconfig.server.json</code> file exists, neither in the template nor in the monorepo; what is read is <code>apps/server/tsconfig.json</code> with <code>rootDir: "."</code>. The comment in <code>src/lib/project.ts</code> describes this <b>correctly</b> — that is, the document contradicts its own code</td>
       </tr>
       <tr>
-        <td class="mono">packages/cli/src/cli.ts, блок Options</td>
-        <td>«<code>--server</code> — build/<b>dev</b>: the server only, skipping the admin»</td>
-        <td><code>devCommand(root)</code> не принимает опций вовсе и argv не читает: <code>ortha dev --server</code> всё равно поднимет Vite, если есть <code>apps/admin/index.html</code>. Флаг работает только у <code>build</code></td>
+        <td class="mono">packages/cli/src/cli.ts, the Options block</td>
+        <td>“<code>--server</code> — build/<b>dev</b>: the server only, skipping the admin”</td>
+        <td><code>devCommand(root)</code> takes no options at all and does not read argv: <code>ortha dev --server</code> will still bring Vite up if <code>apps/admin/index.html</code> exists. The flag only works for <code>build</code></td>
       </tr>
       <tr>
-        <td class="mono">packages/cli/src/cli.ts, блок Options</td>
-        <td>«<code>-h, --help</code> — Show this message»</td>
-        <td>Первый элемент argv всегда трактуется как команда, поэтому <code>ortha --help</code> и <code>ortha -h</code> дают <code>Unknown command</code> и код выхода 1. Справка доступна только как <code>ortha</code> без аргументов или <code>ortha &lt;команда&gt; --help</code></td>
+        <td class="mono">packages/cli/src/cli.ts, the Options block</td>
+        <td>“<code>-h, --help</code> — Show this message”</td>
+        <td>The first argv element is always treated as a command, so <code>ortha --help</code> and <code>ortha -h</code> give <code>Unknown command</code> and exit code 1. Help is available only as <code>ortha</code> with no arguments or <code>ortha &lt;command&gt; --help</code></td>
       </tr>
       <tr>
         <td class="mono">packages/cli/src/lib/studio.ts</td>
-        <td>Опции <code>--host</code>/<code>--port</code> описаны как прямой проброс в drizzle-kit</td>
-        <td><code>--port=0</code> <b>молча отбрасывается</b> (<code>0</code> ложно в <code>if (options.port)</code>), и Studio встаёт на 4983. Исполнитель <code>db-studio</code> из <code>@orthacms/nx</code> на этот же ввод отказывает с объяснением — <b>две ветки одного инструмента ведут себя по-разному</b>. Нечисловой <code>--port=abc</code> становится <code>NaN</code> и так же теряется</td>
+        <td>The <code>--host</code>/<code>--port</code> options are described as passed straight through to drizzle-kit</td>
+        <td><code>--port=0</code> is <b>silently dropped</b> (<code>0</code> is falsy in <code>if (options.port)</code>), and Studio comes up on 4983. The <code>db-studio</code> executor from <code>@orthacms/nx</code> refuses the very same input with an explanation — <b>two branches of one tool behave differently</b>. A non-numeric <code>--port=abc</code> becomes <code>NaN</code> and is lost the same way</td>
       </tr>
       <tr>
-        <td class="mono">create-ortha-app · README.md.tmpl, «Adding content types», шаг 3</td>
-        <td>«Add <code>apps/server/drizzle.config.ts</code> pointing <code>schema</code> at your <code>src/content/index.ts</code> and <code>out</code> at <code>../../migrations</code>»</td>
-        <td>Пути записаны так, будто резолвятся относительно файла конфига. Но <code>generateCommand</code> запускает drizzle-kit с <code>cwd</code> = <b>корень приложения</b>, а drizzle-kit резолвит <code>schema</code>/<code>out</code> относительно рабочей директории (это прямо сказано в комментарии <code>src/lib/generate.ts</code>). При буквальном следовании инструкции <code>out</code> уедет на два уровня <b>выше</b> корня приложения, а <code>schema</code> не найдётся</td>
+        <td class="mono">create-ortha-app · README.md.tmpl, “Adding content types”, step 3</td>
+        <td>“Add <code>apps/server/drizzle.config.ts</code> pointing <code>schema</code> at your <code>src/content/index.ts</code> and <code>out</code> at <code>../../migrations</code>”</td>
+        <td>The paths are written as if they resolved relative to the config file. But <code>generateCommand</code> starts drizzle-kit with <code>cwd</code> = <b>the application root</b>, and drizzle-kit resolves <code>schema</code>/<code>out</code> relative to the working directory (this is stated outright in the comment in <code>src/lib/generate.ts</code>). Following the instruction literally sends <code>out</code> two levels <b>above</b> the application root, and <code>schema</code> is not found</td>
       </tr>
       <tr>
-        <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, комментарий</td>
-        <td>«Define some in <code>src/server/content/</code>»</td>
-        <td>В шаблоне такого пути нет: серверная часть лежит в <code>apps/server/src/</code>. README того же шаблона называет верный путь — <code>apps/server/src/content/</code></td>
+        <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, comment</td>
+        <td>“Define some in <code>src/server/content/</code>”</td>
+        <td>No such path exists in the template: the server side lives in <code>apps/server/src/</code>. The same template's README names the correct path — <code>apps/server/src/content/</code></td>
       </tr>
       <tr>
-        <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, пример</td>
+        <td class="mono">create-ortha-app · templates/default/apps/server/src/plugins.ts, example</td>
         <td><code>migrations: { dir: () =&gt; join(process.cwd(), 'migrations') }</code></td>
-        <td>Зависит от текущей директории, тогда как <code>findProjectRoot</code> специально сделан так, чтобы команду можно было запускать из подкаталога. Монорепозиторий в аналогичном месте использует <code>join(__dirname, '../migrations')</code>, а все плагины — <code>join(__dirname, '…')</code>. Пример из шаблона ломается ровно в том сценарии, который CLI обещает поддерживать</td>
+        <td>Depends on the current directory, whereas <code>findProjectRoot</code> exists precisely so a command can be run from a subdirectory. The monorepo uses <code>join(__dirname, '../migrations')</code> in the equivalent place, and every plugin uses <code>join(__dirname, '…')</code>. The template's example breaks in exactly the scenario the CLI promises to support</td>
       </tr>
       <tr>
-        <td class="mono">create-ortha-app · README.md.tmpl, таблица команд</td>
-        <td><code>npm run generate -- --name=&lt;name&gt;</code> перечислена рядом с остальными как готовая к использованию</td>
-        <td>У только что созданного приложения нет <code>apps/server/drizzle.config.ts</code> (в шаблоне этого файла нет), поэтому первый же запуск — отказ. Это задумано и объяснено в разделе «Adding content types», но в таблице ничем не помечено</td>
+        <td class="mono">create-ortha-app · README.md.tmpl, the command table</td>
+        <td><code>npm run generate -- --name=&lt;name&gt;</code> is listed alongside the rest as ready to use</td>
+        <td>A freshly created application has no <code>apps/server/drizzle.config.ts</code> (the template does not contain that file), so the very first run is a refusal. This is intended and explained in “Adding content types”, but nothing marks it in the table</td>
       </tr>
       <tr>
-        <td class="mono">packages/cli/AGENTS.md, структура</td>
-        <td>Заголовок «## Commands» встречается <b>дважды</b>: один раз как таблица команд <code>ortha</code>, второй — как список <code>npm exec nx …</code></td>
-        <td>Второе вхождение относится к разработке самого пакета. Дубликат заголовка ломает навигацию по документу</td>
+        <td class="mono">packages/cli/AGENTS.md, structure</td>
+        <td>The “## Commands” heading appears <b>twice</b>: once as the table of <code>ortha</code> commands, once as a list of <code>npm exec nx …</code></td>
+        <td>The second occurrence is about developing the package itself. The duplicate heading breaks navigation through the document</td>
       </tr>
       <tr>
         <td class="mono">packages/cli/package.json</td>
-        <td>Требование Node ≥ 20.12 сформулировано только в тексте ошибки <code>loadEnv</code></td>
-        <td>Поля <code>engines</code> в манифесте нет, поэтому npm не предупредит при установке на старую версию — узнать можно лишь по факту отказа</td>
+        <td>The Node ≥ 20.12 requirement is stated only in <code>loadEnv</code>'s error text</td>
+        <td>There is no <code>engines</code> field in the manifest, so npm will not warn when installing on an older version — you find out only by the refusal itself</td>
       </tr>
       <tr>
         <td class="mono">packages/cli/src/lib/commands/build.ts</td>
-        <td>Флаги описаны как «<code>--server</code>/<code>--admin</code> сужают сборку»</td>
-        <td>Комбинация <code>--server --admin</code> не отвергается, а даёт команду, которая не делает ничего и выходит с кодом 0</td>
+        <td>The flags are described as “<code>--server</code>/<code>--admin</code> narrow the build”</td>
+        <td>The <code>--server --admin</code> combination is not rejected; it yields a command that does nothing and exits with code 0</td>
       </tr>
     </tbody>
   </table>
   </div>
 
   <div class="note warn">
-    <span class="label">Что стоит проверить в первую очередь</span>
-    <p>Из перечисленного практический эффект на пользователя дают три пункта: инструкция про <code>drizzle.config.ts</code> в README сгенерированного приложения (человек следует ей дословно и получает непонятный отказ), пример <code>process.cwd()</code> в <code>plugins.ts</code> (ломается только при запуске из подкаталога, то есть проявляется не сразу) и расхождение по <code>--port=0</code> между CLI и исполнителем Nx.</p>
+    <span class="label">What is worth checking first</span>
+    <p>Of everything listed, three items have a practical effect on the user: the <code>drizzle.config.ts</code> instruction in the generated application's README (a person follows it literally and gets an unintelligible refusal), the <code>process.cwd()</code> example in <code>plugins.ts</code> (it only breaks when running from a subdirectory, so it does not show up straight away), and the <code>--port=0</code> divergence between the CLI and the Nx executor.</p>
   </div>
 </section>
 
 <footer class="end">
-  <p><b>Паспорт пакета <code>packages/cli</code>.</b> Каркас тот же, что в артефакте по <code>identity</code>: бизнес-описание → состав → каталог команд → сценарии → устройство → конфигурация → диагностика → инварианты → чек-лист → границы → расхождения. Разделы, которых у пакета нет (модель данных, HTTP API, экраны админки, права), выпали — у CLI нет ни таблиц, ни маршрутов, ни UI.</p>
-  <p>Источник — исходный код пакета: <code>src/cli.ts</code>, <code>src/index.ts</code>, шесть команд в <code>src/lib/commands/</code>, шесть модулей ядра в <code>src/lib/</code> и три файла спецификаций. Сверено с исполнителями <code>@orthacms/nx</code> (<code>db-migrate</code>, <code>db-generate</code>, <code>db-studio</code>, <code>lib/jiti.ts</code>), с шаблоном <code>create-ortha-app</code> (<code>package.json.tmpl</code>, <code>env.tmpl</code>, <code>README.md.tmpl</code>, <code>apps/server/{tsconfig.json,src/plugins.ts}</code>) и с типом <code>ServerPlugin</code> из <code>@orthacms/bootstrap-server</code>. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 11.</p>
+  <p><b>Dossier for the <code>packages/cli</code> package.</b> The skeleton is the same as in the <code>identity</code> dossier: business description → composition → command catalogue → scenarios → internals → configuration → diagnostics → invariants → checklist → boundaries → discrepancies. Sections the package does not have (data model, HTTP API, admin screens, permissions) have dropped out — the CLI has neither tables nor routes nor a UI.</p>
+  <p>The source is the package's own code: <code>src/cli.ts</code>, <code>src/index.ts</code>, six commands in <code>src/lib/commands/</code>, six core modules in <code>src/lib/</code> and three spec files. Cross-checked against the <code>@orthacms/nx</code> executors (<code>db-migrate</code>, <code>db-generate</code>, <code>db-studio</code>, <code>lib/jiti.ts</code>), against the <code>create-ortha-app</code> template (<code>package.json.tmpl</code>, <code>env.tmpl</code>, <code>README.md.tmpl</code>, <code>apps/server/{tsconfig.json,src/plugins.ts}</code>) and against the <code>ServerPlugin</code> type from <code>@orthacms/bootstrap-server</code>. The <code>AGENTS.md</code> files were used as a skeleton, but every statement was verified against the implementation — the divergences are collected in section 11.</p>
 </footer>
 
 </main>
