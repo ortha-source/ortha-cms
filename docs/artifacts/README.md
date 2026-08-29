@@ -1,19 +1,21 @@
-# Паспорта пакетов
+# Package dossiers
 
-Технико-бизнесовое описание каждого пакета монорепозитория: назначение и бизнес-смысл,
-модель данных, HTTP API, экраны админки, инварианты и чек-лист тестирования.
+A combined technical and business description of every package in the monorepo: what it is
+for and why it exists, the data model, the HTTP API, the admin screens, the invariants and a
+testing checklist.
 
-Готовились как основа для QA-прогонов, админской и продуктовой документации. Источник
-утверждений — **исходный код** на момент составления; файлы `AGENTS.md` использовались как
-каркас, но каждое утверждение сверялось с реализацией. Найденные расхождения вынесены в
-последний раздел каждого паспорта.
+Written to serve as the basis for QA runs and for admin- and product-facing documentation.
+The source of every claim is the **source code** as it stood when the dossier was written;
+the `AGENTS.md` files were used as a skeleton, but each claim was checked against the
+implementation. Discrepancies found along the way are collected in the last section of each
+dossier.
 
-Каждый файл — самодостаточная HTML-страница (стили и шрифты внутри, тёмная и светлая тема).
-Открывается двойным щелчком локально; опубликованная копия живёт по ссылке в таблице.
+Every file is a self-contained HTML page (styles and fonts inline, dark and light themes).
+Double-click to open it locally; the published copy lives at the link in the table.
 
-## Состав
+## Contents
 
-| Пакет | Файл | Опубликовано |
+| Package | File | Published |
 | --- | --- | --- |
 | identity | [identity.html](identity.html) | https://claude.ai/code/artifact/79be4062-536f-4c33-bd49-3cd9d475aa10 |
 | users | [users.html](users.html) | https://claude.ai/code/artifact/81665627-b6d7-445b-ad7f-a9699a0917f6 |
@@ -41,64 +43,69 @@
 | cli | [cli.html](cli.html) | https://claude.ai/code/artifact/40c5084d-6a32-4c4a-9b8a-49c3b02bf82f |
 | create-ortha-app | [create-ortha-app.html](create-ortha-app.html) | https://claude.ai/code/artifact/3d9ece77-a7d1-4ee8-b253-7aab9cfac89a |
 
-## Структура паспорта
+## Structure of a dossier
 
-Разделы, которых у пакета нет, опускаются; специфичные — добавляются (матрица адаптеров
-хранилища у `media`, таблица истинности `canRead` у `segments`, реестр инструментов у `tools`,
-каталог видов событий у `activity`).
+Sections a package does not have are dropped; package-specific ones are added (the storage
+adapter matrix in `media`, the `canRead` truth table in `segments`, the tool registry in
+`tools`, the event-kind catalogue in `activity`).
 
-1. Бизнес-описание — зачем, кому, какая ценность, чем **не** является
-2. Состав группы пакетов
-3. Роли и права
-4. Модель данных — таблицы, поля, ограничения, миграции
-5. Жизненный цикл ключевой сущности
-6. Сценарии по шагам — с обоснованиями «почему сделано именно так»
-7. HTTP API — метод, путь, охрана, вход, успех, отказы
-8. Админка — маршруты, экраны, состояния, слоты, доступность
-9. Конфигурация
-10. Безопасность и устойчивость
-11. Инварианты `И-01…` — пригодны как утверждения для тестов
-12. Чек-лист тестирования — «действие → ожидаемый результат»
-13. Границы ответственности
-14. Расхождения кода и документации
+1. Business description — why, for whom, what the value is, what it is **not**
+2. Composition of the package group
+3. Roles and permissions
+4. Data model — tables, columns, constraints, migrations
+5. Lifecycle of the key entity
+6. Step-by-step flows — with the reasoning for "why it was done this way"
+7. HTTP API — method, path, guard, input, success, failures
+8. Admin UI — routes, screens, states, slots, accessibility
+9. Configuration
+10. Security and resilience
+11. Invariants `I-01…` — usable as assertions for tests
+12. Testing checklist — "action → expected result"
+13. Boundaries of responsibility
+14. Discrepancies between code and documentation
 
-## Сквозные находки
+## Cross-cutting findings
 
-Проблемы, всплывшие независимо в нескольких паспортах. Требуют проверки на живом стенде —
-все выводы получены чтением исходников, стек не поднимался.
+Problems that surfaced independently in several dossiers. They need to be checked against a
+live stack — every conclusion here comes from reading the source, the stack was never brought
+up.
 
-**Корневая документация отстала от кода.** `ARCHITECTURE.md`, `CONTEXT-MAP.md` и ADR-0002
-утверждают, что `database` не владеет схемой (владеет — `outbox_events` и две миграции);
-контракт `ServerPlugin` показан без поля `docs`; «Content Library определяет пять слотов» —
-их 14; сессия названа «signed token» (она непрозрачная, без подписи); §8 отрицает наличие
-контентной модели и интеграции с LLM. Обнаружено паспортами `bootstrap`, `database`, `workspaces`.
+**The root documentation has fallen behind the code.** `ARCHITECTURE.md`, `CONTEXT-MAP.md`
+and ADR-0002 claim that `database` owns no schema (it does — `outbox_events` and two
+migrations); the `ServerPlugin` contract is shown without its `docs` field; "the Content
+Library defines five slots" — there are 14; the session is called a "signed token" (it is
+opaque and unsigned); §8 denies that a content model and an LLM integration exist. Found by
+the `bootstrap`, `database` and `workspaces` dossiers.
 
-**`WorkspacePurger` реализуют только `media` и `api-tokens`.** Строки `alarm_rules`,
-`alarm_findings`, `entry_access` и `segments.workspace_ids` переживают удаление воркспейса.
-Обнаружено паспортами `workspaces` и `alarms`.
+**Only `media` and `api-tokens` implement `WorkspacePurger`.** Rows in `alarm_rules`,
+`alarm_findings`, `entry_access` and `segments.workspace_ids` survive the deletion of a
+workspace. Found by the `workspaces` and `alarms` dossiers.
 
-**Грамматика фильтров продублирована и разошлась.** Словарь операторов существует в двух
-несинхронизируемых копиях (`utils-server` и `query-builder-admin/wireOp.ts`); оператор `like`
-отсутствует в клиентской таблице обратного преобразования и молча теряется при подъёме дерева
-из URL. `FILTER_MAX_LENGTH` продублирована в четырёх пакетах (4096/4096/4096/8192), а в самом
-движке предела длины строки нет. Обнаружено паспортами `query-builder` и `utils`.
+**The filter grammar is duplicated and the copies have diverged.** The operator dictionary
+exists in two copies that nothing keeps in sync (`utils-server` and
+`query-builder-admin/wireOp.ts`); the `like` operator is missing from the client-side reverse
+mapping table and is silently lost when a tree is lifted out of the URL. `FILTER_MAX_LENGTH`
+is duplicated across four packages (4096/4096/4096/8192), while the engine itself imposes no
+string-length limit at all. Found by the `query-builder` and `utils` dossiers.
 
-**Пять ADR реализованы, но висят в статусе `Proposed`** — 0003, 0006, 0007, 0011; плюс
-`identity-provider-oidc` и `identity-provider-saml` ссылаются на несуществующий файл
-`0012-sso-provider-port.md` (SSO-порт описан в ADR-0013).
+**Five ADRs are implemented but still sit in status `Proposed`** — 0003, 0006, 0007, 0011;
+plus `identity-provider-oidc` and `identity-provider-saml` reference a file that does not
+exist, `0012-sso-provider-port.md` (the SSO port is described in ADR-0013).
 
-**Первый опыт пользователя ломается в трёх местах.** `ortha --help` и `ortha -h` дают
-`Unknown command` с кодом 1 (argv[0] всегда трактуется как имя команды); инструкция «как
-добавить тип контента» в README сгенерированного приложения не работает буквально (пути
-резолвятся от cwd, `out: ../../migrations` уводит выше корня); `npm test` в свежесозданном
-приложении красный — `EXPECTED_PLUGINS` не содержит `content-views`, а тесты скаффолдера
-этого не ловят, потому что грепают текст шаблона, а не исполняют его спеки.
+**The first-run experience breaks in three places.** `ortha --help` and `ortha -h` return
+`Unknown command` with exit code 1 (argv[0] is always treated as a command name); the "how to
+add a content type" instructions in the generated app's README do not work literally (paths
+resolve from the cwd, and `out: ../../migrations` walks above the project root); `npm test` in
+a freshly created app is red — `EXPECTED_PLUGINS` does not include `content-views`, and the
+scaffolder's own tests miss it because they grep the template text instead of executing its
+specs.
 
-**Эксплуатация outbox.** Очистки `outbox_events` нет, инструментария для мёртвых писем нет —
-событие после 15 попыток (≈33 минуты) паркуется навсегда и находится только SQL-запросом.
+**Operating the outbox.** There is no cleanup of `outbox_events` and no dead-letter tooling —
+after 15 attempts (≈33 minutes) an event is parked forever and can only be found with a SQL
+query.
 
-## Обновление
+## Updating
 
-Файл здесь и опубликованная страница — независимые копии. После правки HTML перевыпустите
-страницу по её же ссылке (для Claude Code: передать URL из таблицы), иначе появится второй
-артефакт вместо обновлённого.
+The file here and the published page are independent copies. After editing the HTML, republish
+the page at its own link (for Claude Code: pass the URL from the table), otherwise you get a
+second artifact instead of an updated one.

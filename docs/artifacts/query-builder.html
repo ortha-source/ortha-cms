@@ -1,4 +1,4 @@
-<title>Паспорт пакета Query Builder</title>
+<title>Query Builder Package Dossier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
@@ -237,155 +237,154 @@ footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
-
 <header class="masthead">
   <div class="wrap">
-    <p class="eyebrow">Пакет · packages/query-builder/admin</p>
+    <p class="eyebrow">Package · packages/query-builder/admin</p>
     <h1 class="title">Query Builder
-      <small>Визуальный конструктор дерева фильтров и грамматика, которую он пишет</small>
+      <small>The visual filter-tree builder and the grammar it writes</small>
     </h1>
-    <p class="lede">Query Builder — это не плагин, а <strong>чистая UI-библиотека</strong>: у неё нет ни таблиц в базе, ни HTTP-маршрутов, ни слоя данных. Она делает ровно одно — превращает <strong>типизированную схему полей</strong> в экран, на котором редактор мышью собирает условие, и сериализует собранное в JSON-грамматику, которую на сервере разбирает <code>parseFilterTree</code>. Обратное преобразование — тоже её работа: <code>?filter=</code> из адресной строки поднимается обратно в редактируемое дерево целиком, вместе с OR и вложенными группами.</p>
+    <p class="lede">Query Builder is not a plugin but a <strong>pure UI library</strong>: it has no database tables, no HTTP routes and no data layer. It does exactly one thing — turns a <strong>typed field schema</strong> into a screen where an editor assembles a condition with the mouse, and serialises what was assembled into the JSON grammar that <code>parseFilterTree</code> parses on the server. The reverse transformation is its job too: a <code>?filter=</code> from the address bar is lifted back into an editable tree in full, ORs and nested groups included.</p>
     <ul class="facts">
-      <li><b>14</b> UI-операторов</li>
-      <li><b>12</b> wire-операторов</li>
-      <li><b>6</b> типов полей</li>
-      <li><b>12</b> компонентов</li>
-      <li><b>6</b> пакетов-потребителей</li>
-      <li><b>5</b> точек монтирования</li>
-      <li><b>11</b> кодов валидации</li>
-      <li><b>0</b> таблиц и маршрутов</li>
+      <li><b>14</b> UI operators</li>
+      <li><b>12</b> wire operators</li>
+      <li><b>6</b> field types</li>
+      <li><b>12</b> components</li>
+      <li><b>6</b> consuming packages</li>
+      <li><b>5</b> mount points</li>
+      <li><b>11</b> validation codes</li>
+      <li><b>0</b> tables and routes</li>
     </ul>
   </div>
 </header>
 
 <div class="wrap shell">
-<nav class="toc" aria-label="Содержание">
-  <h2>Содержание</h2>
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
   <ol>
-    <li><a href="#business">Бизнес-описание</a></li>
-    <li><a href="#place">Место в системе</a></li>
-    <li><a href="#grammar">Грамматика дерева</a></li>
-    <li><a href="#operators">Операторы</a></li>
-    <li><a href="#schema">Схема полей и UI</a></li>
-    <li><a href="#roundtrip">Круговорот состояние ⇄ провод</a></li>
-    <li><a href="#api">API компонента</a></li>
-    <li><a href="#flows">Сценарии</a></li>
-    <li><a href="#limits">Ограничения и валидация</a></li>
-    <li><a href="#a11y">Доступность</a></li>
-    <li><a href="#invariants">Инварианты</a></li>
-    <li><a href="#qa">Чек-лист тестирования</a></li>
-    <li><a href="#bounds">Границы</a></li>
-    <li><a href="#gaps">Расхождения</a></li>
+    <li><a href="#business">Business description</a></li>
+    <li><a href="#place">Its place in the system</a></li>
+    <li><a href="#grammar">The tree grammar</a></li>
+    <li><a href="#operators">Operators</a></li>
+    <li><a href="#schema">The field schema and the UI</a></li>
+    <li><a href="#roundtrip">The state ⇄ wire round trip</a></li>
+    <li><a href="#api">The component's API</a></li>
+    <li><a href="#flows">Scenarios</a></li>
+    <li><a href="#limits">Limits and validation</a></li>
+    <li><a href="#a11y">Accessibility</a></li>
+    <li><a href="#invariants">Invariants</a></li>
+    <li><a href="#qa">Testing checklist</a></li>
+    <li><a href="#bounds">Boundaries</a></li>
+    <li><a href="#gaps">Discrepancies</a></li>
   </ol>
 </nav>
 
 <main>
 
 <section id="business">
-  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+  <h2 class="sec"><span class="num">01</span>Business description</h2>
 
-  <p>Списки в CMS длинные. Реестр записей коллекции, журнал активности, список участников — всё это таблицы, в которых ответ на рабочий вопрос («какие статьи автора Иванова не обновлялись 90 дней и не имеют немецкого перевода?») лежит в трёх-четырёх пересечениях сразу. Поисковая строка отвечает на один вопрос из десяти; всё остальное упирается либо в «выгрузите мне CSV», либо в запрос к разработчику.</p>
+  <p>Lists in a CMS are long. A collection's entry registry, the activity log, the member list — all of them are tables where the answer to a working question (“which of Ivanov's articles have not been updated in 90 days and have no German translation?”) lies in three or four intersections at once. A search box answers one question in ten; everything else runs into either “export me a CSV” or a request to a developer.</p>
 
-  <h3>Какую задачу решает</h3>
+  <h3>The problem it solves</h3>
   <ul>
-    <li><b>Сложный вопрос без SQL.</b> Пользователь набирает условие из готовых кубиков: поле, оператор, значение. Комбинация AND/OR и вложенные группы дают полноценную булеву логику, но ни одного символа синтаксиса вводить не нужно.</li>
-    <li><b>Один язык на весь продукт.</b> Реестр записей, журнал, участники и правила алармов используют <em>одну</em> грамматику и <em>один</em> конструктор. Выучив фильтр в одном месте, редактор умеет фильтровать везде, а инженеру не приходится поддерживать второй язык запросов.</li>
-    <li><b>Фильтр как ссылка.</b> Результат живёт в <code>?filter=</code>. Отправив коллеге адрес, вы отправляете ему ровно тот срез, который видите сами — а не описание того, как его повторить.</li>
-    <li><b>Фильтр как правило.</b> То же самое дерево, но сохранённое, становится правилом аларма («следи за записями, которые выглядят так») или сохранённым представлением. Правило аларма — это буквально <em>дословно сохранённое дерево фильтра списка</em>, вычисляемое тем же движком, поэтому у алармов нет собственного языка условий.</li>
-    <li><b>Невозможность собрать запрос, который сервер отвергнет.</b> Список операторов сужается типом поля; значение проверяется по тем же правилам, что применяет серверная коррекция типов; кнопка «Применить» не срабатывает на недособранном правиле. Ошибка ловится в интерфейсе, а не приходит из API как «не удалось загрузить коллекцию».</li>
+    <li><b>A complex question without SQL.</b> The user assembles a condition out of ready-made blocks: a field, an operator, a value. AND/OR combinations and nested groups give full boolean logic, but not a single character of syntax has to be typed.</li>
+    <li><b>One language across the product.</b> The entry registry, the log, the members and the alarm rules use <em>one</em> grammar and <em>one</em> builder. Having learned filtering in one place, an editor can filter everywhere, and an engineer does not have to maintain a second query language.</li>
+    <li><b>A filter as a link.</b> The result lives in <code>?filter=</code>. Sending a colleague the address sends them exactly the slice you see yourself — rather than a description of how to reproduce it.</li>
+    <li><b>A filter as a rule.</b> The same tree, saved, becomes an alarm rule (“watch for entries that look like this”) or a saved view. An alarm rule is literally <em>the list filter's tree stored verbatim</em>, evaluated by the same engine, which is why alarms have no condition language of their own.</li>
+    <li><b>The impossibility of assembling a query the server will reject.</b> The operator list is narrowed by the field's type; a value is checked by the same rules the server's type coercion applies; the “Apply” button does not fire on a half-assembled rule. The error is caught in the interface rather than arriving from the API as “could not load the collection”.</li>
   </ul>
 
-  <h3>Кому это видно</h3>
+  <h3>Who sees it</h3>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">Редактор контента</h4>
-      <p class="small sub">Открывает панель под тулбаром реестра, набирает два-три условия, жмёт «Применить». Таблица под панелью пересобирается, условия оседают в виде удаляемых чипов. Из этого же состояния делается «Сохранить как аларм».</p>
+      <h4 style="margin-top:0">The content editor</h4>
+      <p class="small sub">Opens the panel under the registry's toolbar, types two or three conditions and presses “Apply”. The table below the panel is rebuilt and the conditions settle as removable chips. “Save as an alarm” is made out of the same state.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Администратор</h4>
-      <p class="small sub">Фильтрует журнал активности («кто и что делал с этой записью за последние сутки») и список участников («все отключённые контрибьюторы»). Обе страницы предлагают ту же панель с тем же поведением.</p>
+      <h4 style="margin-top:0">The administrator</h4>
+      <p class="small sub">Filters the activity log (“who did what to this entry in the last day”) and the member list (“every disabled contributor”). Both pages offer the same panel with the same behaviour.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Инженер поддержки</h4>
-      <p class="small sub">Разворачивает блок «JSON preview», копирует полезную нагрузку и вставляет её в curl или в тикет. То, что показано в превью, — ровно то, что уйдёт на провод.</p>
+      <h4 style="margin-top:0">The support engineer</h4>
+      <p class="small sub">Expands the “JSON preview” block, copies the payload and pastes it into a curl or a ticket. What the preview shows is exactly what will go on the wire.</p>
     </div>
   </div>
 
   <div class="note">
-    <span class="label">Ключевая идея</span>
-    <p>Пакет — <b>управляемый компонент без слоя данных</b>. Он ничего не запрашивает и никуда не ходит: схему полей и редактор значения для связи ему <em>передают снаружи</em>. Именно поэтому одну и ту же панель удалось повесить на четыре совершенно разных экрана, у каждого из которых свой источник полей — статический массив, ответ API или вклад плагина через слот.</p>
+    <span class="label">The key idea</span>
+    <p>The package is a <b>controlled component with no data layer</b>. It requests nothing and goes nowhere: the field schema and the value editor for relations are <em>passed in from outside</em>. That is exactly why one and the same panel could be attached to four completely different screens, each with its own source of fields — a static array, an API response, or a plugin's contribution through a slot.</p>
   </div>
 </section>
 
 <section id="place">
-  <h2 class="sec"><span class="num">02</span>Место в системе и потребители</h2>
+  <h2 class="sec"><span class="num">02</span>Its place in the system and its consumers</h2>
 
-  <p>Пакет один — <code>packages/query-builder/admin</code>, публикуется как <code>@orthacms/query-builder-admin</code>. Серверной половины у группы нет и не предполагается: грамматику на сервере разбирает <code>parseFilterTree</code> из <code>@orthacms/utils-server</code>, и это <em>другой</em> пакет, о существовании которого конструктор ничего не знает — их связывает только формат JSON.</p>
+  <p>There is one package — <code>packages/query-builder/admin</code>, published as <code>@orthacms/query-builder-admin</code>. The group has no server half and none is intended: the grammar is parsed on the server by <code>parseFilterTree</code> from <code>@orthacms/utils-server</code>, and that is a <em>different</em> package the builder knows nothing about — the only thing linking them is the JSON format.</p>
 
-  <h3>Что от чего зависит</h3>
+  <h3>What depends on what</h3>
   <div class="tablewrap">
   <table>
     <thead>
-      <tr><th>Зависимость</th><th>Роль</th></tr>
+      <tr><th>Dependency</th><th>Role</th></tr>
     </thead>
     <tbody>
-      <tr><td class="mono">@orthacms/design-system</td><td>Button, Input, Select, Checkbox, Popover, Drawer, SegmentedControl, Alert, Spinner — всё видимое собрано из них</td></tr>
-      <tr><td class="mono">lucide-react</td><td>Иконки: Plus, X, Check, ChevronDown/Right, Copy</td></tr>
-      <tr><td class="mono">react-intl</td><td>Все подписи — <code>MessageDescriptor</code>. Каждый компонент держит собственный <code>defineMessages</code> рядом с собой</td></tr>
-      <tr><td class="mono">react / react-dom</td><td>Peer-зависимости, ^19</td></tr>
+      <tr><td class="mono">@orthacms/design-system</td><td>Button, Input, Select, Checkbox, Popover, Drawer, SegmentedControl, Alert, Spinner — everything visible is assembled from these</td></tr>
+      <tr><td class="mono">lucide-react</td><td>The icons: Plus, X, Check, ChevronDown/Right, Copy</td></tr>
+      <tr><td class="mono">react-intl</td><td>Every label is a <code>MessageDescriptor</code>. Each component keeps its own <code>defineMessages</code> next to it</td></tr>
+      <tr><td class="mono">react / react-dom</td><td>Peer dependencies, ^19</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Ни роутера, ни TanStack Query, ни <code>apiClient</code>. Это не аскеза, а условие переиспользования: пакет монтируется и внутри страницы, и внутри модального диалога выбора связанной записи, где никакого «текущего списка» нет вовсе.</p>
+  <p class="small sub">No router, no TanStack Query, no <code>apiClient</code>. That is not asceticism but the condition of reuse: the package is mounted both inside a page and inside the modal dialog for picking a related entry, where there is no “current list” at all.</p>
 
-  <h3>Пять точек монтирования</h3>
+  <h3>Five mount points</h3>
   <div class="tablewrap">
   <table>
     <thead>
-      <tr><th>Где</th><th>Какая обёртка</th><th>Откуда берутся поля</th></tr>
+      <tr><th>Where</th><th>Which wrapper</th><th>Where the fields come from</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><b>Реестр записей коллекции</b><br><span class="small sub">content-admin, <code>LoadedRecordsView</code></span></td>
+        <td><b>A collection's entry registry</b><br><span class="small sub">content-admin, <code>LoadedRecordsView</code></span></td>
         <td class="mono">QueryBuilderPanel<br>+ QueryBuilderSummary</td>
-        <td><code>useFilterFields(typeName)</code> — ответ <code>GET /content-schema/:name/filter-fields</code>, плюс вклады слота <code>RECORDS_FILTER_FIELDS_SLOT</code></td>
+        <td><code>useFilterFields(typeName)</code> — the <code>GET /content-schema/:name/filter-fields</code> response, plus the <code>RECORDS_FILTER_FIELDS_SLOT</code> slot's contributions</td>
       </tr>
       <tr>
-        <td><b>Журнал активности</b><br><span class="small sub">activity-admin, <code>ActivityLogPage</code></span></td>
+        <td><b>The activity log</b><br><span class="small sub">activity-admin, <code>ActivityLogPage</code></span></td>
         <td class="mono">QueryBuilderPanel<br>+ QueryBuilderSummary</td>
-        <td>Статическая константа <code>ACTIVITY_FILTER_FIELDS</code> — 6 полей, зеркало серверной <code>ACTIVITY_FILTER_SCHEMA</code></td>
+        <td>The static <code>ACTIVITY_FILTER_FIELDS</code> constant — 6 fields, mirroring the server's <code>ACTIVITY_FILTER_SCHEMA</code></td>
       </tr>
       <tr>
-        <td><b>Участники</b><br><span class="small sub">users-admin, <code>MembersPage</code></span></td>
+        <td><b>Members</b><br><span class="small sub">users-admin, <code>MembersPage</code></span></td>
         <td class="mono">QueryBuilderDrawer</td>
-        <td>Статическая константа <code>MEMBERS_FILTER_FIELDS</code> — 5 полей, включая связь <code>role.key</code></td>
+        <td>The static <code>MEMBERS_FILTER_FIELDS</code> constant — 5 fields, including the <code>role.key</code> relation</td>
       </tr>
       <tr>
-        <td><b>Редактор правила аларма</b><br><span class="small sub">alarms-admin, <code>AlarmRuleEditorPage</code></span></td>
+        <td><b>The alarm rule editor</b><br><span class="small sub">alarms-admin, <code>AlarmRuleEditorPage</code></span></td>
         <td class="mono">QueryBuilderPanel<br>+ QueryBuilderSummary</td>
-        <td>Тот же <code>useFilterFields</code> плюс те же слот-вклады — «правило не может сказать больше, чем список»</td>
+        <td>The same <code>useFilterFields</code> plus the same slot contributions — “a rule cannot say more than the list can”</td>
       </tr>
       <tr>
-        <td><b>Диалог выбора связанной записи</b><br><span class="small sub">content-admin, <code>RelationPickerFilters</code></span></td>
-        <td class="mono">QueryBuilder<br><span class="small sub">голый, внутри Collapsible</span></td>
-        <td><code>useFilterFields</code> целевого типа; фильтр применяется сразу, без Apply</td>
+        <td><b>The related-entry picker dialog</b><br><span class="small sub">content-admin, <code>RelationPickerFilters</code></span></td>
+        <td class="mono">QueryBuilder<br><span class="small sub">bare, inside a Collapsible</span></td>
+        <td><code>useFilterFields</code> for the target type; the filter is applied at once, with no Apply</td>
       </tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Кто вкладывает поля, не монтируя компонент</h3>
-  <p>Два плагина расширяют фильтруемую поверхность реестра через слот <code>RECORDS_FILTER_FIELDS_SLOT</code>. Их поля <b>виртуальные</b>: за ними нет колонки, сервер отвечает на них подзапросом, поэтому они объявляют суженный список операторов через <code>FilterField.operators</code>.</p>
+  <h3>Who contributes fields without mounting the component</h3>
+  <p>Two plugins extend the registry's filterable surface through the <code>RECORDS_FILTER_FIELDS_SLOT</code> slot. Their fields are <b>virtual</b>: there is no column behind them and the server answers them with a subquery, so they declare a narrowed operator list through <code>FilterField.operators</code>.</p>
   <div class="tablewrap">
   <table>
     <thead>
-      <tr><th>Плагин</th><th>Поля</th><th>Тип</th><th>Операторы</th></tr>
+      <tr><th>Plugin</th><th>Fields</th><th>Type</th><th>Operators</th></tr>
     </thead>
     <tbody>
       <tr>
         <td class="mono">i18n-admin</td>
         <td><code>hasLocale</code> / <code>missingLocale</code></td>
-        <td>enum — список настроенных локалей</td>
+        <td>enum — the list of configured locales</td>
         <td class="mono">equals, is_one_of</td>
       </tr>
       <tr>
@@ -397,7 +396,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">segments-admin</td>
         <td><code>audienceAllowed</code> / <code>audienceDenied</code></td>
-        <td>enum — uuid аудиторий воркспейса</td>
+        <td>enum — the workspace's audience uuids</td>
         <td class="mono">is_one_of, equals</td>
       </tr>
       <tr>
@@ -410,42 +409,42 @@ html{scroll-behavior:smooth}
   </table>
   </div>
   <div class="note warn">
-    <span class="label">Почему отрицания нет</span>
-    <p>И у локалей, и у аудиторий из списка операторов сознательно убрано <code>is not</code>. Отрицание в этих полях уходит <em>внутрь</em> подзапроса: <code>hasLocale ne "de"</code> означает «в группе переводов есть какая-то локаль, кроме немецкой» — чему удовлетворяет и полностью переведённая запись. Отсутствие выражается соседним полем <code>missingLocale</code>. То же с аудиториями: <code>audienceAllowed ne "acme"</code> читается как «не виден Acme», но означает не это.</p>
+    <span class="label">Why there is no negation</span>
+    <p><code>is not</code> has been deliberately removed from the operator list of both the locale and the audience fields. Negation in these fields moves <em>inside</em> the subquery: <code>hasLocale ne "de"</code> means “the translation group contains some locale other than German” — which a fully translated entry also satisfies. Absence is expressed by the neighbouring <code>missingLocale</code> field. The same goes for audiences: <code>audienceAllowed ne "acme"</code> reads as “not visible to Acme” but does not mean that.</p>
   </div>
 </section>
 
 <section id="grammar">
-  <h2 class="sec"><span class="num">03</span>Грамматика дерева фильтров</h2>
+  <h2 class="sec"><span class="num">03</span>The filter-tree grammar</h2>
 
-  <p>Грамматика умышленно крошечная. В ней <b>два вида узлов</b> и больше ничего: группа и правило. Всё остальное — комбинации этих двух.</p>
+  <p>The grammar is deliberately tiny. It has <b>two kinds of node</b> and nothing else: a group and a rule. Everything else is a combination of those two.</p>
 
-  <h3>Узел-группа</h3>
-  <p>Объект ровно с <b>одним</b> ключом — <code>and</code> либо <code>or</code>, — значение которого массив дочерних узлов. Дети могут быть и правилами, и другими группами, вперемешку и на любую разрешённую глубину.</p>
-  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "and": [ &lt;узел&gt;, &lt;узел&gt;, ... ] }
-{ "or":  [ &lt;узел&gt;, &lt;узел&gt;, ... ] }</code></pre></div>
-  <p>Сервер отвергает группу, где объявлены оба ключа сразу (<code>FILTER_INVALID_NODE</code>), и группу с пустым массивом (тоже <code>FILTER_INVALID_NODE</code>) — пустая группа не имеет смысла и, будучи переведённой в SQL, дала бы либо «ничего», либо «всё».</p>
+  <h3>The group node</h3>
+  <p>An object with exactly <b>one</b> key — <code>and</code> or <code>or</code> — whose value is an array of child nodes. Children may be rules or other groups, intermixed and at any permitted depth.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "and": [ &lt;node&gt;, &lt;node&gt;, ... ] }
+{ "or":  [ &lt;node&gt;, &lt;node&gt;, ... ] }</code></pre></div>
+  <p>The server rejects a group that declares both keys at once (<code>FILTER_INVALID_NODE</code>), and a group with an empty array (also <code>FILTER_INVALID_NODE</code>) — an empty group is meaningless and, translated into SQL, would yield either “nothing” or “everything”.</p>
 
-  <h3>Узел-правило (лист)</h3>
-  <p>Объект с тремя ключами: <code>field</code>, <code>op</code>, <code>value</code>.</p>
-  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "field": "author.name", "op": "ilike", "value": "%Иван%" }</code></pre></div>
+  <h3>The rule node (a leaf)</h3>
+  <p>An object with three keys: <code>field</code>, <code>op</code>, <code>value</code>.</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "field": "author.name", "op": "ilike", "value": "%Ivan%" }</code></pre></div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Ключ</th><th>Что это</th><th>Проверка на сервере</th></tr></thead>
+    <thead><tr><th>Key</th><th>What it is</th><th>The server's check</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">field</td>
-        <td>Непустая строка. Может быть <b>точечным путём по связям</b> — <code>author.company.name</code>. Путь режется по точкам и проходится посегментно по <code>FilterSchema</code>: все сегменты кроме последнего должны быть объявленными связями, последний — объявленным полем</td>
+        <td>A non-empty string. It may be a <b>dotted path across relations</b> — <code>author.company.name</code>. The path is split on dots and walked segment by segment through the <code>FilterSchema</code>: every segment but the last must be a declared relation, and the last a declared field</td>
         <td><code>FILTER_UNKNOWN_FIELD</code>, <code>FILTER_UNKNOWN_RELATION</code>, <code>FILTER_DEPTH_EXCEEDED</code>, <code>FILTER_EMPTY_PATH</code></td>
       </tr>
       <tr>
         <td class="mono">op</td>
-        <td>Непустая строка из словаря wire-операторов</td>
-        <td><code>FILTER_UNKNOWN_OPERATOR</code> — нет такого оператора вообще; <code>FILTER_OPERATOR_NOT_ALLOWED</code> — оператор есть, но тип колонки на него не отвечает</td>
+        <td>A non-empty string from the wire-operator dictionary</td>
+        <td><code>FILTER_UNKNOWN_OPERATOR</code> — no such operator at all; <code>FILTER_OPERATOR_NOT_ALLOWED</code> — the operator exists but the column's type does not answer to it</td>
       </tr>
       <tr>
         <td class="mono">value</td>
-        <td>Скаляр (строка/число/булево), массив для <code>in</code>/<code>nin</code>, булево для <code>null</code>, объект <code>{n, unit}</code> для <code>within_last</code>. <b>Единственный объектный тип значения во всей грамматике — <code>within_last</code></b></td>
+        <td>A scalar (string/number/boolean), an array for <code>in</code>/<code>nin</code>, a boolean for <code>null</code>, an <code>{n, unit}</code> object for <code>within_last</code>. <b>The grammar's only object-typed value is <code>within_last</code></b></td>
         <td><code>FILTER_INVALID_VALUE</code>, <code>FILTER_EMPTY_IN_LIST</code>, <code>FILTER_MAX_IN_LIST_EXCEEDED</code></td>
       </tr>
     </tbody>
@@ -453,17 +452,17 @@ html{scroll-behavior:smooth}
   </div>
 
   <div class="note crit">
-    <span class="label">Почему value не приводится через String()</span>
-    <p>Сервер <b>отвергает</b> нескалярное значение вместо того, чтобы привести его к строке. Причина в том, что <code>String(v)</code> даёт правдоподобную строку, по которой потом идёт сравнение: <code>null</code> → <code>"null"</code>, отсутствующий ключ → <code>"undefined"</code>, <code>{}</code> → <code>"[object Object]"</code>, <code>[1,2]</code> → <code>"1,2"</code>. Каждый такой случай возвращал бы 200 с пустой выборкой, которую клиент прочитает как «совпадений нет», а не как «плохой запрос» — единственный молчаливый отказ в библиотеке, которая на всё остальное отвечает 400.</p>
+    <span class="label">Why a value is not coerced through String()</span>
+    <p>The server <b>rejects</b> a non-scalar value instead of coercing it to a string. The reason is that <code>String(v)</code> yields a plausible string that a comparison is then made against: <code>null</code> → <code>"null"</code>, a missing key → <code>"undefined"</code>, <code>{}</code> → <code>"[object Object]"</code>, <code>[1,2]</code> → <code>"1,2"</code>. Every such case would return a 200 with an empty result set, which the client reads as “no matches” rather than “a bad request” — the one silent refusal in a library that answers everything else with a 400.</p>
   </div>
 
-  <h3>Корень</h3>
-  <p>Корнем может быть и группа, и одиночное правило — сервер принимает оба. Клиент же всегда держит в состоянии <b>группу</b>: <code>jsonFilterToTree</code>, встретив в корне одиночное правило, оборачивает его в группу <code>and</code>. Пустой объект <code>{}</code>, отсутствующий и пустой параметр дают <code>null</code> — вызывающий просто не добавляет WHERE.</p>
+  <h3>The root</h3>
+  <p>The root may be either a group or a single rule — the server accepts both. The client, though, always holds a <b>group</b> in state: <code>jsonFilterToTree</code>, on meeting a single rule at the root, wraps it in an <code>and</code> group. An empty object <code>{}</code>, a missing parameter and an empty parameter all yield <code>null</code> — the caller simply adds no WHERE.</p>
 
-  <h3>Примеры целиком</h3>
+  <h3>Complete examples</h3>
 
-  <h4>Плоское условие из двух правил</h4>
-  <p>«Активные участники с почтой на @lilly» — то, что напишет <code>?filter=</code> страницы участников:</p>
+  <h4>A flat condition of two rules</h4>
+  <p>“Active members with an @lilly address” — what the members page's <code>?filter=</code> will write:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{
   "and": [
     { "field": "status", "op": "eq",    "value": "active" },
@@ -471,23 +470,23 @@ html{scroll-behavior:smooth}
   ]
 }</code></pre></div>
 
-  <h4>OR внутри AND — вложенная группа</h4>
-  <p>«Записи, автор которых Иванов <em>или</em> Петров, и при этом не обновлявшиеся с 1 января»:</p>
+  <h4>An OR inside an AND — a nested group</h4>
+  <p>“Entries whose author is Ivanov <em>or</em> Petrov, and which have not been updated since 1 January”:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{
   "and": [
     {
       "or": [
-        { "field": "author.name", "op": "eq", "value": "Иванов" },
-        { "field": "author.name", "op": "eq", "value": "Петров" }
+        { "field": "author.name", "op": "eq", "value": "Ivanov" },
+        { "field": "author.name", "op": "eq", "value": "Petrov" }
       ]
     },
     { "field": "updatedAt", "op": "lt", "value": "2026-01-01T00:00:00.000Z" }
   ]
 }</code></pre></div>
-  <p class="small sub">Внешняя группа — корень со своим переключателем AND/OR; внутренняя — то, что появляется по кнопке «Добавить группу» и рисуется пунктирной рамкой со своим переключателем и крестиком «Удалить группу».</p>
+  <p class="small sub">The outer group is the root with its own AND/OR switch; the inner one is what appears from the “Add group” button and is drawn with a dashed border, its own switch and a “Delete group” cross.</p>
 
-  <h4>Диапазон: одно правило в UI, три узла на проводе</h4>
-  <p>Оператор <code>between</code> не имеет собственного wire-представления. Он раскрывается в маленькую группу <code>and</code> из <code>gte</code> и <code>lte</code> по тому же полю:</p>
+  <h4>A range: one rule in the UI, three nodes on the wire</h4>
+  <p>The <code>between</code> operator has no wire representation of its own. It expands into a small <code>and</code> group of a <code>gte</code> and an <code>lte</code> on the same field:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{
   "and": [
     { "field": "createdAt", "op": "gte", "value": "2026-01-01T00:00:00.000Z" },
@@ -495,52 +494,52 @@ html{scroll-behavior:smooth}
   ]
 }</code></pre></div>
   <div class="note warn">
-    <span class="label">Обратное преобразование здесь с потерями</span>
-    <p><code>jsonFilterToTree</code> сворачивает группу <code>and</code> ровно из двух правил <code>gte</code>+<code>lte</code> по одному полю обратно в одно правило <code>between</code>. Отличить это от честной группы, собранной вручную из двух правил, невозможно — сериализация у них побайтово одинаковая. Выбран вариант «between», как более частый и авторски-редакторский. Семантика при этом не теряется: WHERE получается идентичный, различается только то, <em>какой редактор значения</em> пользователь увидит после перезагрузки.</p>
+    <span class="label">The reverse transformation is lossy here</span>
+    <p><code>jsonFilterToTree</code> folds an <code>and</code> group of exactly two <code>gte</code>+<code>lte</code> rules on one field back into a single <code>between</code> rule. There is no way to tell that apart from an honest group assembled by hand from two rules — their serialisation is byte-identical. The “between” reading was chosen as the more common and more editorial one. No semantics are lost in the process: the WHERE comes out identical, and the only difference is <em>which value editor</em> the user will see after a reload.</p>
   </div>
 
-  <h4>Относительное окно</h4>
-  <p>Единственное объектное значение в грамматике. Хранится и вычисляется на стороне базы:</p>
+  <h4>A relative window</h4>
+  <p>The grammar's only object value. Stored and computed on the database's side:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "field": "updatedAt", "op": "within_last", "value": { "n": 90, "unit": "days" } }</code></pre></div>
-  <p>Единицы — только <code>minutes</code>, <code>hours</code>, <code>days</code>. В SQL это <code>column &gt;= now() - make_interval(days =&gt; 90)</code>: отсечка считается Postgres в момент выполнения запроса, а не в момент написания фильтра.</p>
+  <p>The units are only <code>minutes</code>, <code>hours</code> and <code>days</code>. In SQL this is <code>column &gt;= now() - make_interval(days =&gt; 90)</code>: the cut-off is computed by Postgres at query time, not when the filter was written.</p>
 
-  <h4>Пустота</h4>
-  <p>Оператор <code>null</code> обслуживает <em>два</em> UI-оператора, различаясь только значением:</p>
+  <h4>Emptiness</h4>
+  <p>The <code>null</code> operator serves <em>two</em> UI operators, differing only in its value:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>{ "field": "summary", "op": "null", "value": true  }   // is empty      → IS NULL
 { "field": "summary", "op": "null", "value": false }   // is not empty  → IS NOT NULL</code></pre></div>
-  <p>Принимаются как булевы литералы, так и строки <code>"true"</code>/<code>"false"</code>; всё остальное — 400.</p>
+  <p>Both boolean literals and the strings <code>"true"</code>/<code>"false"</code> are accepted; everything else is a 400.</p>
 </section>
 
 <section id="operators">
-  <h2 class="sec"><span class="num">04</span>Операторы: три словаря и как они соотносятся</h2>
+  <h2 class="sec"><span class="num">04</span>Operators: three dictionaries and how they relate</h2>
 
-  <p>Операторов не один список, а три, и путать их — главный источник недоразумений при чтении кода.</p>
+  <p>There is not one operator list but three, and confusing them is the main source of misunderstanding when reading the code.</p>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">UI-операторы — <code>OP</code></h4>
-      <p class="small sub">14 штук. То, что видит пользователь в выпадающем списке. Живут в <code>filter-tree.type.ts</code>, никогда не сериализуются в этом виде.</p>
+      <h4 style="margin-top:0">UI operators — <code>OP</code></h4>
+      <p class="small sub">14 of them. What the user sees in the dropdown. They live in <code>filter-tree.type.ts</code> and are never serialised in that form.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Wire-операторы — <code>WIRE_OP</code></h4>
-      <p class="small sub">12 штук. То, что уходит в JSON. Живут в <code>utils/wireOp.ts</code>. Клиент никогда не пишет голую строку — только через таблицу соответствия.</p>
+      <h4 style="margin-top:0">Wire operators — <code>WIRE_OP</code></h4>
+      <p class="small sub">12 of them. What goes into the JSON. They live in <code>utils/wireOp.ts</code>. The client never writes a bare string — only through the mapping table.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Серверные — <code>FilterOperator</code></h4>
-      <p class="small sub">13 штук: те же 12 плюс регистрозависимый <code>like</code>, который админка не порождает никогда.</p>
+      <h4 style="margin-top:0">Server-side — <code>FilterOperator</code></h4>
+      <p class="small sub">13 of them: the same 12 plus the case-sensitive <code>like</code>, which the admin UI never produces.</p>
     </div>
   </div>
 
-  <h3>Полная таблица</h3>
-  <p>Колонка «типы» — для каких <code>FieldType</code> оператор вообще предлагается пикером (таблица <code>OPS_FOR_TYPE</code>); поле может сузить этот набор своим <code>operators</code>, но не расширить.</p>
+  <h3>The full table</h3>
+  <p>The “types” column is which <code>FieldType</code>s the operator is offered for by the picker at all (the <code>OPS_FOR_TYPE</code> table); a field may narrow that set with its own <code>operators</code>, but not widen it.</p>
   <div class="tablewrap">
   <table>
     <thead>
       <tr>
-        <th>UI-оператор</th>
-        <th>Подпись</th>
-        <th>Типы поля</th>
+        <th>UI operator</th>
+        <th>Label</th>
+        <th>Field types</th>
         <th>Wire</th>
-        <th>Что делает и во что превращается в SQL</th>
+        <th>What it does and what it becomes in SQL</th>
       </tr>
     </thead>
     <tbody>
@@ -548,31 +547,31 @@ html{scroll-behavior:smooth}
         <td class="mono">equals</td><td>equals</td>
         <td class="mono">string, number, boolean, uuid, enum</td>
         <td class="mono">eq</td>
-        <td><code>col = $v</code>. У дат отсутствует намеренно — см. врезку ниже</td>
+        <td><code>col = $v</code>. Deliberately absent for dates — see the note below</td>
       </tr>
       <tr>
         <td class="mono">not_equals</td><td>is not</td>
         <td class="mono">string, number, uuid, enum</td>
         <td class="mono">ne</td>
-        <td><code>col &lt;&gt; $v OR col IS NULL</code> — <b>отрицание включает NULL</b></td>
+        <td><code>col &lt;&gt; $v OR col IS NULL</code> — <b>the negation includes NULL</b></td>
       </tr>
       <tr>
         <td class="mono">contains</td><td>contains</td>
         <td class="mono">string</td>
         <td class="mono">ilike</td>
-        <td>Значение экранируется (<code>\</code>, <code>%</code>, <code>_</code>) и оборачивается в <code>%…%</code> → <code>col ILIKE '%v%'</code></td>
+        <td>The value is escaped (<code>\</code>, <code>%</code>, <code>_</code>) and wrapped in <code>%…%</code> → <code>col ILIKE '%v%'</code></td>
       </tr>
       <tr>
         <td class="mono">not_contains</td><td>does not contain</td>
         <td class="mono">string</td>
         <td class="mono">nilike</td>
-        <td>То же экранирование → <code>col NOT ILIKE '%v%' OR col IS NULL</code></td>
+        <td>The same escaping → <code>col NOT ILIKE '%v%' OR col IS NULL</code></td>
       </tr>
       <tr>
         <td class="mono">is_one_of</td><td>is one of</td>
         <td class="mono">string, number*, uuid, enum</td>
         <td class="mono">in</td>
-        <td>Значение остаётся массивом → <code>col IN (...)</code>. Пустой массив сервер отвергает</td>
+        <td>The value stays an array → <code>col IN (...)</code>. An empty array is rejected by the server</td>
       </tr>
       <tr>
         <td class="mono">not_one_of</td><td>is none of</td>
@@ -582,15 +581,15 @@ html{scroll-behavior:smooth}
       </tr>
       <tr>
         <td class="mono">is_empty</td><td>is empty</td>
-        <td class="mono">все шесть</td>
+        <td class="mono">all six</td>
         <td class="mono">null</td>
-        <td>Значение <code>true</code> → <code>col IS NULL</code>. Редактор значения не рисуется вовсе</td>
+        <td>The value <code>true</code> → <code>col IS NULL</code>. No value editor is rendered at all</td>
       </tr>
       <tr>
         <td class="mono">is_not_empty</td><td>is not empty</td>
-        <td class="mono">все шесть</td>
+        <td class="mono">all six</td>
         <td class="mono">null</td>
-        <td>Значение <code>false</code> → <code>col IS NOT NULL</code></td>
+        <td>The value <code>false</code> → <code>col IS NOT NULL</code></td>
       </tr>
       <tr>
         <td class="mono">gt</td><td>greater than</td>
@@ -619,730 +618,729 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">between</td><td>between</td>
         <td class="mono">number, date</td>
-        <td class="mono">— (составной)</td>
-        <td>Разворачивается в <code>{and:[gte, lte]}</code> по тому же полю. Значение — <code>{from, to}</code></td>
+        <td class="mono">— (composite)</td>
+        <td>Expands into <code>{and:[gte, lte]}</code> on the same field. The value is a <code>{from, to}</code></td>
       </tr>
       <tr>
         <td class="mono">within_last</td><td>within the last</td>
         <td class="mono">date</td>
-        <td class="mono">gte <b>или</b> within_last</td>
-        <td>По умолчанию резолвится в конкретную ISO-отсечку и уходит как <code>gte</code>; с флагом <code>relativeDates</code> уходит как <code>within_last</code> со значением <code>{n, unit}</code> → <code>col &gt;= now() - make_interval(...)</code></td>
+        <td class="mono">gte <b>or</b> within_last</td>
+        <td>By default it resolves to a concrete ISO cut-off and goes out as a <code>gte</code>; with the <code>relativeDates</code> flag it goes out as a <code>within_last</code> with an <code>{n, unit}</code> value → <code>col &gt;= now() - make_interval(...)</code></td>
       </tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">* <code>is_one_of</code> у чисел разрешён серверной таблицей и клиентской <code>OPS_FOR_TYPE</code> его не предлагает: у типа <code>number</code> набор — equals, not_equals, gt, gte, lt, lte, between, is_empty, is_not_empty.</p>
+  <p class="small sub">* <code>is_one_of</code> on numbers is permitted by the server's table, and the client's <code>OPS_FOR_TYPE</code> does not offer it: type <code>number</code>'s set is equals, not_equals, gt, gte, lt, lte, between, is_empty, is_not_empty.</p>
 
   <div class="note">
-    <span class="label">Почему у дат нет equals</span>
-    <p>Редактор даты — <code>&lt;input type="datetime-local"&gt;</code>, то есть <b>точность до минуты</b>, а колонка — <code>timestamptz</code> с миллисекундами. <code>eq</code> сравнивал бы с мгновением на нулевой секунде и практически никогда не совпадал бы ни с одной реальной строкой — тупиковый фильтр. Диапазоны (<code>between</code>, <code>gt/gte/lt/lte</code>, <code>within_last</code>) ограничивают, а не пришпиливают мгновение, поэтому остаются.</p>
-    <p>На сервере <code>eq</code> по дате при этом <b>разрешён</b>: серверная таблица <code>OPERATORS_BY_TYPE</code> описывает, на что способна колонка, а не что предлагает конкретный редактор. Через API-токен или руками собранный URL легальный <code>publishedAt eq &lt;мгновение&gt;</code> пройдёт.</p>
+    <span class="label">Why dates have no equals</span>
+    <p>The date editor is an <code>&lt;input type="datetime-local"&gt;</code>, that is, <b>minute precision</b>, while the column is a <code>timestamptz</code> with milliseconds. An <code>eq</code> would compare against an instant at second zero and would practically never match a single real row — a dead-end filter. Ranges (<code>between</code>, <code>gt/gte/lt/lte</code>, <code>within_last</code>) bound rather than pin an instant, so they remain.</p>
+    <p>On the server <code>eq</code> on a date is nevertheless <b>permitted</b>: the server's <code>OPERATORS_BY_TYPE</code> table describes what a column is capable of, not what a particular editor offers. Through an API token or a hand-assembled URL, a legitimate <code>publishedAt eq &lt;instant&gt;</code> goes through.</p>
   </div>
 
   <div class="note warn">
-    <span class="label">Единственное реальное ограничение сервера по операторам</span>
-    <p>Серверная таблица шире клиентской ровно в одном месте, и это семейство <code>~~</code>: <code>like</code>/<code>ilike</code>/<code>nilike</code> Postgres определяет только для текста. Поэтому <code>ilike</code> по <code>date</code>, <code>number</code>, <code>boolean</code> или <code>uuid</code> отвергается кодом <code>FILTER_OPERATOR_NOT_ALLOWED</code>. До появления этой проверки такое правило доходило до драйвера и возвращалось как <b>500 по ссылке, которую можно переслать</b>. Проверка идёт <em>до</em> коррекции значения, чтобы в ошибке был назван оператор, а не значение, которое этот оператор всё равно бы не принял.</p>
+    <span class="label">The server's one real operator restriction</span>
+    <p>The server's table is wider than the client's in exactly one place, and that is the <code>~~</code> family: Postgres defines <code>like</code>/<code>ilike</code>/<code>nilike</code> only for text. So an <code>ilike</code> on a <code>date</code>, a <code>number</code>, a <code>boolean</code> or a <code>uuid</code> is rejected with the <code>FILTER_OPERATOR_NOT_ALLOWED</code> code. Before that check existed, such a rule reached the driver and came back as <b>a 500 behind a forwardable link</b>. The check runs <em>before</em> value coercion, so that the error names the operator rather than a value the operator would not have accepted anyway.</p>
   </div>
 
-  <h3>Асимметрия таблиц соответствия</h3>
-  <p>Таблица <code>UI_TO_WIRE</code> содержит <b>девять</b> записей, а не четырнадцать. Пять UI-операторов не имеют в ней строки и обрабатываются сериализатором напрямую, потому что либо разворачиваются в составную форму, либо требуют преобразования значения:</p>
+  <h3>The mapping tables' asymmetry</h3>
+  <p>The <code>UI_TO_WIRE</code> table holds <b>nine</b> entries, not fourteen. Five UI operators have no row in it and are handled by the serialiser directly, because they either expand into a composite form or require a value transformation:</p>
   <ul>
-    <li><code>contains</code> и <code>not_contains</code> — есть в таблице (<code>ilike</code>) или обрабатываются веткой (<code>nilike</code>), но в обоих случаях значение экранируется и оборачивается в проценты вручную;</li>
-    <li><code>is_one_of</code> / <code>not_one_of</code> — значение должно остаться массивом;</li>
-    <li><code>is_empty</code> / <code>is_not_empty</code> — делят один wire-оператор, различаясь значением;</li>
-    <li><code>between</code> — группа из двух узлов;</li>
-    <li><code>within_last</code> — две разные wire-формы в зависимости от того, куда фильтр едет.</li>
+    <li><code>contains</code> and <code>not_contains</code> — present in the table (<code>ilike</code>) or handled by a branch (<code>nilike</code>), but in both cases the value is escaped and wrapped in percent signs by hand;</li>
+    <li><code>is_one_of</code> / <code>not_one_of</code> — the value must stay an array;</li>
+    <li><code>is_empty</code> / <code>is_not_empty</code> — they share one wire operator and differ in the value;</li>
+    <li><code>between</code> — a group of two nodes;</li>
+    <li><code>within_last</code> — two different wire forms depending on where the filter is headed.</li>
   </ul>
-  <p>Обратная таблица <code>WIRE_TO_UI</code> — наоборот, полная (11 записей): она должна уметь прочитать всё, что могло быть написано. Все три таблицы читаются через <code>Object.hasOwn</code>, а не голым индексом: <code>op</code> приходит с публичного, редактируемого руками URL, и <code>WIRE_TO_UI['constructor']</code> вернул бы <code>Object</code> — истинное значение, из-за которого «неизвестный оператор» не отсеивался бы, а превращался в правило, чей <code>op</code> — функция.</p>
+  <p>The reverse table, <code>WIRE_TO_UI</code>, is by contrast complete (11 entries): it must be able to read anything that could have been written. All three tables are read through <code>Object.hasOwn</code> rather than a bare index: an <code>op</code> arrives from a public, hand-editable URL, and <code>WIRE_TO_UI['constructor']</code> would return <code>Object</code> — a truthy value that would stop “an unknown operator” from being filtered out and turn it into a rule whose <code>op</code> is a function.</p>
 </section>
 
 <section id="schema">
-  <h2 class="sec"><span class="num">05</span>Схема полей и как из неё строится интерфейс</h2>
+  <h2 class="sec"><span class="num">05</span>The field schema and how the interface is built from it</h2>
 
-  <p>Всё, что конструктор знает о предметной области, приходит одним плоским массивом <code>FilterField[]</code>. Ни глубины, ни вложенности в нём нет — иерархия <em>восстанавливается</em> из двух полей записи.</p>
+  <p>Everything the builder knows about the subject area arrives as one flat <code>FilterField[]</code> array. It contains no depth and no nesting — the hierarchy is <em>reconstructed</em> from two of the record's fields.</p>
 
-  <h3>Описание одного поля</h3>
+  <h3>One field's description</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Свойство</th><th>Обязательно</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Property</th><th>Required</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr>
-        <td class="mono">id</td><td class="center yes">да</td>
-        <td>Имя поля на проводе. Для скалярной колонки — само имя; для поля через связь — <b>точечный путь</b> (<code>author.name</code>). Должно совпадать с листом, который белым списком разрешает серверная <code>FilterSchema</code></td>
+        <td class="mono">id</td><td class="center yes">yes</td>
+        <td>The field's name on the wire. For a scalar column it is the name itself; for a field across a relation it is a <b>dotted path</b> (<code>author.name</code>). It must match a leaf the server's <code>FilterSchema</code> allowlists</td>
       </tr>
       <tr>
-        <td class="mono">label</td><td class="center yes">да</td>
-        <td><code>MessageDescriptor</code>. Только для показа, никогда не сериализуется</td>
+        <td class="mono">label</td><td class="center yes">yes</td>
+        <td>A <code>MessageDescriptor</code>. For display only, never serialised</td>
       </tr>
       <tr>
-        <td class="mono">type</td><td class="center yes">да</td>
-        <td>Один из шести: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>uuid</code>, <code>date</code>, <code>enum</code>. Решает и набор операторов, и вид редактора значения, и правила проверки</td>
+        <td class="mono">type</td><td class="center yes">yes</td>
+        <td>One of six: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>uuid</code>, <code>date</code>, <code>enum</code>. It decides the operator set, the kind of value editor and the validation rules alike</td>
       </tr>
       <tr>
-        <td class="mono">enumValues</td><td>для enum</td>
-        <td>Массив пар <code>{value, label}</code>. <code>value</code> уходит на провод, <code>label</code> рисуется</td>
+        <td class="mono">enumValues</td><td>for enum</td>
+        <td>An array of <code>{value, label}</code> pairs. The <code>value</code> goes on the wire, the <code>label</code> is rendered</td>
       </tr>
       <tr>
-        <td class="mono">operators</td><td class="center no">нет</td>
-        <td>Сужает набор операторов <em>внутри</em> того, что разрешает тип. <b>И задаёт порядок, а значит — умолчание</b></td>
+        <td class="mono">operators</td><td class="center no">no</td>
+        <td>Narrows the operator set <em>within</em> what the type permits. <b>And it sets the order, and therefore the default</b></td>
       </tr>
       <tr>
-        <td class="mono">group</td><td class="center no">нет</td>
-        <td><code>MessageDescriptor[]</code> — хлебные крошки. Значение зависит от <code>id</code>, см. ниже</td>
+        <td class="mono">group</td><td class="center no">no</td>
+        <td>A <code>MessageDescriptor[]</code> — breadcrumbs. Its meaning depends on the <code>id</code>, see below</td>
       </tr>
       <tr>
-        <td class="mono">relationTarget</td><td class="center no">нет</td>
-        <td>Имя целевого типа для поля <code>id</code> связи (<code>author.id</code> → <code>'author'</code>). Включает вместо ввода uuid вставной пикер записей</td>
+        <td class="mono">relationTarget</td><td class="center no">no</td>
+        <td>The target type's name for a relation's <code>id</code> field (<code>author.id</code> → <code>'author'</code>). It swaps the uuid input for an inline entry picker</td>
       </tr>
     </tbody>
   </table>
   </div>
 
   <div class="note">
-    <span class="label">Одно свойство group, два прочтения — и различает их id</span>
-    <p>На <b>точечном</b> <code>id</code> крошки называют связи, по которым идёт путь: <code>author.company.name</code> + <code>['Автор','Компания']</code> — сегменты и крошки выравниваются по индексу. На <b>плоском</b> <code>id</code> первая крошка называет обычную <em>категорию</em> — просто заголовок в пикере, за которым нет никакого обхода: так группируются виртуальные поля плагина (раздел «Segmentation» у сегментов). Это одно свойство, отвечающее на один вопрос — «под каким заголовком это лежит», — а не второе свойство <code>category</code>, означающее то же самое, которое хлебной крошке в поиске пришлось бы читать наравне с первым.</p>
-    <p>Категория <b>одноуровневая</b>: читается только первая крошка. Вкладываться здесь имеет право связь, у которой есть путь в доказательство.</p>
+    <span class="label">One group property, two readings — and the id tells them apart</span>
+    <p>On a <b>dotted</b> <code>id</code> the breadcrumbs name the relations the path travels through: <code>author.company.name</code> + <code>['Author','Company']</code> — the segments and the crumbs line up by index. On a <b>flat</b> <code>id</code> the first crumb names an ordinary <em>category</em> — merely a heading in the picker, with no traversal behind it: that is how a plugin's virtual fields are grouped (segments' “Segmentation” section). This is one property answering one question — “under which heading does this sit” — rather than a second <code>category</code> property meaning the same thing, which a breadcrumb in search would then have to read alongside the first.</p>
+    <p>A category is <b>single-level</b>: only the first crumb is read. Nesting here is the right of a relation, which has a path to prove it.</p>
   </div>
 
-  <h3>Восстановление дерева — <code>buildFieldTree</code></h3>
-  <p>Единственная функция пакета, покрытая модульными тестами (браузер до неё дёшево не достаёт). Один проход по плоскому массиву раскладывает поля в три корзины:</p>
+  <h3>Reconstructing the tree — <code>buildFieldTree</code></h3>
+  <p>The package's only function covered by unit tests (a browser does not reach it cheaply). One pass over the flat array sorts the fields into three baskets:</p>
   <ol class="flow">
-    <li><b>Поля коллекции (<code>fields</code>)</b> — плоский <code>id</code>, <code>group</code> отсутствует. Всё, что сервер вывел из самого типа.<span class="meta">В пикере — секция «Fields», первой</span></li>
-    <li><b>Категории (<code>categories</code>)</b> — плоский <code>id</code>, есть <code>group</code>. Ключ корзины — <code>id</code> сообщения-заголовка; порядок корзин — порядок первого появления, то есть порядок регистрации вклада, а не выдуманный сортировкой.<span class="meta">В пикере — между «Fields» и «Relations»</span></li>
-    <li><b>Связи (<code>relations</code>)</b> — точечный <code>id</code>. Каждый ведущий сегмент даёт узел <code>RelationNode</code> с ключом-накопителем (<code>author</code>, затем <code>author.company</code>), подпись берётся из крошки с тем же индексом. Рекурсивно, до той глубины, которую сервер решил показать.<span class="meta">В пикере — «Relations», свёрнутыми</span></li>
+    <li><b>Collection fields (<code>fields</code>)</b> — a flat <code>id</code> and no <code>group</code>. Everything the server derived from the type itself.<span class="meta">In the picker: the “Fields” section, first</span></li>
+    <li><b>Categories (<code>categories</code>)</b> — a flat <code>id</code> with a <code>group</code>. The basket's key is the heading message's <code>id</code>; the baskets' order is the order of first appearance, that is, the order in which contributions were registered rather than one invented by a sort.<span class="meta">In the picker: between “Fields” and “Relations”</span></li>
+    <li><b>Relations (<code>relations</code>)</b> — a dotted <code>id</code>. Every leading segment yields a <code>RelationNode</code> with an accumulating key (<code>author</code>, then <code>author.company</code>), and the label comes from the crumb with the same index. Recursively, to whatever depth the server chose to expose.<span class="meta">In the picker: “Relations”, collapsed</span></li>
   </ol>
-  <p>Обход завершается всегда: циклы связей отсекает сервер — он не разворачивает путь обратно в тип-предок. Если подпись для сегмента не пришла, узел получает запасной дескриптор <code>qb.field.relation.&lt;путь&gt;</code> с именем сегмента в качестве текста.</p>
+  <p>The walk always terminates: relation cycles are cut off by the server — it does not unfold a path back into an ancestor type. If no label arrived for a segment, the node gets a fallback descriptor <code>qb.field.relation.&lt;path&gt;</code> with the segment's name as its text.</p>
 
-  <h3>Пикер поля</h3>
-  <p>В покое триггер показывает выбранный путь <b>чипами</b>: сегменты-связи — нейтральными, лист — сплошным («Автор · Почта»), либо приглушённый плейсхолдер «Field». Открывается кликом или Enter.</p>
+  <h3>The field picker</h3>
+  <p>At rest the trigger shows the chosen path as <b>chips</b>: relation segments neutral, the leaf solid (“Author · Email”), or a muted “Field” placeholder. It opens on a click or Enter.</p>
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">В покое</h4>
-      <p class="small sub">Секции по порядку: <b>Fields</b> — собственные скаляры типа; <b>именованные категории</b> — виртуальные поля плагинов (это поля коллекции, поэтому выше связей, но не то, что ищет читатель, сканирующий колонки, поэтому ниже Fields); <b>Relations</b> — свёрнутые связи. Раскрытая связь показывает подзаголовок «&lt;Связь&gt; fields», свои поля и свои вложенные связи, рекурсивно. Отступ — 8px плюс 12px на уровень, задан padding'ом, чтобы подсветка строки шла на всю ширину.</p>
+      <h4 style="margin-top:0">At rest</h4>
+      <p class="small sub">The sections in order: <b>Fields</b> — the type's own scalars; <b>named categories</b> — the plugins' virtual fields (they are collection fields, hence above relations, but not what a reader scanning the columns is looking for, hence below Fields); <b>Relations</b> — collapsed relations. An expanded relation shows a “&lt;Relation&gt; fields” subheading, its own fields and its own nested relations, recursively. The indent is 8px plus 12px per level, set with padding so that the row's highlight spans the full width.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">При вводе в поиск</h4>
-      <p class="small sub">Секции исчезают, всё достижимое сплющивается в один список. Совпадение — <b>токенное И</b>: каждое слово запроса должно найтись в строке «крошки + подпись листа + сырой id». То есть «авт поч» найдёт «Автор · Почта», и по <code>author.email</code> тоже. У каждой строки — маленький тег типа, помеченный <code>aria-hidden</code> (он визуальная подсказка, а не часть имени).</p>
+      <h4 style="margin-top:0">While typing in the search</h4>
+      <p class="small sub">The sections disappear and everything reachable is flattened into one list. A match is <b>token AND</b>: every word of the query must be found in the string “crumbs + leaf label + raw id”. So “aut ema” finds “Author · Email”, and so does <code>author.email</code>. Each row carries a small type tag marked <code>aria-hidden</code> (it is a visual hint, not part of the name).</p>
     </div>
   </div>
-  <p>Список — <b>настоящий listbox</b>. Каждая <em>навигируемая</em> строка это <code>option</code>, включая строку связи: она несёт <code>aria-expanded</code> вместо значения и никогда не бывает <code>aria-selected</code> — listbox не допускает других интерактивных детей. Заголовки секций помечены <code>role="presentation"</code>, чтобы не оказаться невалидными узлами внутри listbox.</p>
+  <p>The list is <b>a real listbox</b>. Every <em>navigable</em> row is an <code>option</code>, the relation row included: it carries an <code>aria-expanded</code> instead of a value and is never <code>aria-selected</code> — a listbox permits no other interactive children. Section headings are marked <code>role="presentation"</code> so as not to become invalid nodes inside a listbox.</p>
 
-  <h3>Редактор значения</h3>
-  <p><code>ValueEditor</code> — один switch, выбирающий контрол по паре «тип поля × оператор»:</p>
+  <h3>The value editor</h3>
+  <p><code>ValueEditor</code> is one switch choosing a control by the “field type × operator” pair:</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Условие</th><th>Контрол</th></tr></thead>
+    <thead><tr><th>Condition</th><th>Control</th></tr></thead>
     <tbody>
-      <tr><td><code>is_empty</code> / <code>is_not_empty</code></td><td><b>Ничего.</b> Смысл целиком в операторе</td></tr>
-      <tr><td>Есть <code>relationTarget</code>, передан <code>renderRelationValue</code>, оператор равенства или множественный</td><td>Вставной пикер записей потребителя. Значение всегда массив id; для одиночного оператора берётся первый</td></tr>
-      <tr><td><code>between</code></td><td>Два инпута «От»/«До» с разделителем «and». Тип инпута — по типу поля</td></tr>
-      <tr><td><code>within_last</code></td><td>Числовой инпут (min 1, max <code>MAX_WITHIN_LAST</code> = 100 000) + селект единицы</td></tr>
-      <tr><td>enum + множественный оператор</td><td><code>EnumMultiSelect</code> — группа чекбоксов по объявленным членам</td></tr>
-      <tr><td>enum + одиночный оператор</td><td><code>Select</code> по объявленным членам</td></tr>
-      <tr><td>string/uuid + множественный оператор</td><td><code>CsvValueInput</code> — свободный ввод через запятую</td></tr>
-      <tr><td>boolean</td><td><code>Select</code> из двух пунктов: true / false</td></tr>
-      <tr><td>date</td><td><code>&lt;input type="datetime-local"&gt;</code>, значение конвертируется в полное ISO-мгновение и обратно</td></tr>
-      <tr><td>всё остальное</td><td><code>&lt;input&gt;</code>, тип <code>number</code> или <code>text</code></td></tr>
+      <tr><td><code>is_empty</code> / <code>is_not_empty</code></td><td><b>Nothing.</b> The meaning is entirely in the operator</td></tr>
+      <tr><td>A <code>relationTarget</code> is present, <code>renderRelationValue</code> was passed, and the operator is an equality or a multi-value one</td><td>The consumer's inline entry picker. The value is always an array of ids; a single-value operator takes the first</td></tr>
+      <tr><td><code>between</code></td><td>Two “From”/“To” inputs with an “and” separator. The input's type follows the field's type</td></tr>
+      <tr><td><code>within_last</code></td><td>A number input (min 1, max <code>MAX_WITHIN_LAST</code> = 100,000) + a unit select</td></tr>
+      <tr><td>enum + a multi-value operator</td><td>An <code>EnumMultiSelect</code> — a checkbox group over the declared members</td></tr>
+      <tr><td>enum + a single-value operator</td><td>A <code>Select</code> over the declared members</td></tr>
+      <tr><td>string/uuid + a multi-value operator</td><td>A <code>CsvValueInput</code> — free comma-separated entry</td></tr>
+      <tr><td>boolean</td><td>A <code>Select</code> of two items: true / false</td></tr>
+      <tr><td>date</td><td>An <code>&lt;input type="datetime-local"&gt;</code>, with the value converted to a full ISO instant and back</td></tr>
+      <tr><td>everything else</td><td>An <code>&lt;input&gt;</code>, of type <code>number</code> or <code>text</code></td></tr>
     </tbody>
   </table>
   </div>
-  <p><b>Почему у enum нельзя ввести значение руками.</b> Чекбоксы и селект ограничивают выбор объявленными членами, поэтому массив на проводе всегда валиден. Свободный CSV остаётся только там, где множество значений принципиально открыто — у строк и uuid, — и именно поэтому его содержимое проверяется поэлементно.</p>
-  <p><b>Почему CSV хранит черновик.</b> <code>CsvValueInput</code> держит сырую строку в локальном состоянии и никогда не читает её обратно из <code>value.join(',')</code>: иначе висящая запятая, пауза посреди слова или перемещение курсора «схлопывались» бы прямо под руками. Разобранный массив уходит наверх на каждое нажатие (превью остаётся живым), а нормализация (<code>a,,b</code> → <code>a,b</code>) происходит по потере фокуса.</p>
+  <p><b>Why an enum's value cannot be typed by hand.</b> Checkboxes and a select limit the choice to the declared members, so the array on the wire is always valid. Free-form CSV remains only where the set of values is open in principle — for strings and uuids — and that is exactly why its contents are validated element by element.</p>
+  <p><b>Why CSV keeps a draft.</b> <code>CsvValueInput</code> holds the raw string in local state and never reads it back from <code>value.join(',')</code>: otherwise a trailing comma, a pause mid-word or a caret move would “collapse” right under the user's hands. The parsed array goes upwards on every keystroke (so the preview stays live), and normalisation (<code>a,,b</code> → <code>a,b</code>) happens on blur.</p>
 </section>
 
 <section id="roundtrip">
-  <h2 class="sec"><span class="num">06</span>Круговорот: состояние ⇄ провод</h2>
+  <h2 class="sec"><span class="num">06</span>The round trip: state ⇄ wire</h2>
 
-  <p>Два представления одного и того же условия. Слева — то, что держит React; справа — то, что едет в URL или в базу.</p>
+  <p>Two representations of one and the same condition. On the left is what React holds; on the right is what travels into a URL or a database.</p>
 
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">Состояние: <code>FilterGroup</code></h4>
+      <h4 style="margin-top:0">The state: <code>FilterGroup</code></h4>
       <div class="tablewrap" style="margin:.6rem 0 0"><pre style="margin:0;padding:.8rem;overflow-x:auto"><code>type FilterGroup = {
-  id: string;              // ключ React
+  id: string;              // the React key
   combinator: 'and' | 'or';
   children: (FilterGroup | FilterRule)[];
 }
 
 type FilterRule = {
-  id: string;              // ключ React
+  id: string;              // the React key
   fieldId: string;         // = FilterField.id
-  op: OpId;                // UI-оператор
+  op: OpId;                // the UI operator
   value: RuleValue;
 }</code></pre></div>
-      <p class="small sub" style="margin-top:.7rem">Поле <code>id</code> — клиентское, генерируется <code>crypto.randomUUID()</code> и <b>никогда не сериализуется</b>. Различает узлы <code>isRule</code> — по наличию <code>fieldId</code>.</p>
+      <p class="small sub" style="margin-top:.7rem">The <code>id</code> field is client-side, generated by <code>crypto.randomUUID()</code> and <b>never serialised</b>. <code>isRule</code> tells the nodes apart by the presence of a <code>fieldId</code>.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Провод: <code>JsonFilterNode</code></h4>
+      <h4 style="margin-top:0">The wire: <code>JsonFilterNode</code></h4>
       <div class="tablewrap" style="margin:.6rem 0 0"><pre style="margin:0;padding:.8rem;overflow-x:auto"><code>type JsonFilterNode =
   | { and: JsonFilterNode[] }
   | { or:  JsonFilterNode[] }
   | { field: string;
       op: WireOp;
       value: unknown }</code></pre></div>
-      <p class="small sub" style="margin-top:.7rem">Ни идентификаторов, ни подписей, ни типов — только то, что нужно, чтобы построить WHERE. Ровно эту форму принимает <code>parseFilterTree</code>.</p>
+      <p class="small sub" style="margin-top:.7rem">No identifiers, no labels, no types — only what is needed to build a WHERE. This is exactly the shape <code>parseFilterTree</code> accepts.</p>
     </div>
   </div>
 
-  <h3>Туда: <code>treeToJsonFilter(tree, now?, options?)</code></h3>
+  <h3>Outbound: <code>treeToJsonFilter(tree, now?, options?)</code></h3>
   <ol class="flow">
-    <li><b>Пустое дерево отбрасывается.</b> <code>null</code> или группа без детей → результат <code>null</code>, вызывающий просто не кладёт параметр в URL.<span class="meta">treeToJsonFilter → null</span></li>
-    <li><b>Незавершённые правила выпадают.</b> <code>isRuleComplete</code> отсекает правило без значения (<code>actorId equals</code> с пустым инпутом), пустой массив у множественного оператора, диапазон без одной из границ, окно с нулевым счётчиком.<span class="meta">чтобы сервер не отвечал FILTER_INVALID_VALUE на черновик</span></li>
-    <li><b>Опустевшие группы выпадают тоже.</b> Группа, все дети которой отпали, не отправляется как <code>{or:[]}</code> — сервер отверг бы её как <code>FILTER_INVALID_NODE</code>.<span class="meta">симметрично пункту выше</span></li>
-    <li><b>Каждое оставшееся правило переводится в wire-форму</b> — по таблице <code>UI_TO_WIRE</code> или отдельной веткой для составных операторов.<span class="meta">неизвестный op → throw, чтобы новый оператор без записи в таблице падал громко</span></li>
-    <li><b>Результат — строка JSON</b>, готовая к подстановке в <code>?filter=</code>. Вариант <code>treeToJsonNode</code> возвращает объект — им пользуется превью.<span class="meta">JSON.stringify</span></li>
+    <li><b>An empty tree is discarded.</b> <code>null</code> or a group with no children → the result is <code>null</code>, and the caller simply does not put the parameter in the URL.<span class="meta">treeToJsonFilter → null</span></li>
+    <li><b>Incomplete rules drop out.</b> <code>isRuleComplete</code> cuts off a rule with no value (an <code>actorId equals</code> with an empty input), an empty array on a multi-value operator, a range missing one bound, a window with a zero count.<span class="meta">so that the server does not answer FILTER_INVALID_VALUE to a draft</span></li>
+    <li><b>Emptied groups drop out too.</b> A group whose children all fell away is not sent as <code>{or:[]}</code> — the server would reject it as <code>FILTER_INVALID_NODE</code>.<span class="meta">symmetric to the point above</span></li>
+    <li><b>Every surviving rule is converted to its wire form</b> — through the <code>UI_TO_WIRE</code> table or a dedicated branch for the composite operators.<span class="meta">an unknown op → throw, so that a new operator with no table entry fails loudly</span></li>
+    <li><b>The result is a JSON string</b>, ready to be substituted into <code>?filter=</code>. The <code>treeToJsonNode</code> variant returns an object — that is what the preview uses.<span class="meta">JSON.stringify</span></li>
   </ol>
-  <p><b>Инвариант этого прохода:</b> полезная нагрузка всегда корректна по форме, даже пока в панели лежат черновики. Пользователю можно иметь недособранное правило на экране; на провод оно не попадёт.</p>
+  <p><b>This pass's invariant:</b> the payload is always well-formed, even while drafts are sitting in the panel. The user is allowed a half-assembled rule on screen; it will not reach the wire.</p>
 
   <div class="note crit">
-    <span class="label">Опция relativeDates — самый нагруженный аргумент в пакете</span>
-    <p>По умолчанию <code>within_last</code> <b>резолвится</b>: в момент сериализации считается конкретная ISO-отсечка и уходит обычный <code>gte</code>. Это правильно для <b>ссылки</b> — открывший присланный «за последние 7 дней» увидит те же строки, что отправитель.</p>
-    <p>И это <b>молча неверно</b> для <b>сохранённого</b> фильтра. Правило аларма «не обновлялось 90 дней», записанное с резолвленной отсечкой, навсегда означает «не обновлялось с того дня, когда правило написали», и выглядит при этом совершенно нормально. Поэтому: <b>передавайте <code>relativeDates</code> всякий раз, когда фильтр сохраняется и переигрывается; не передавайте, когда он едет в URL.</b></p>
-    <p>Во всей админке флаг передаётся ровно в одном месте — <code>AlarmRuleEditorPage</code>. Это единственный экран, где фильтр хранится, а не линкуется.</p>
+    <span class="label">The relativeDates option — the package's most loaded argument</span>
+    <p>By default <code>within_last</code> is <b>resolved</b>: a concrete ISO cut-off is computed at serialisation time and an ordinary <code>gte</code> goes out. That is right for a <b>link</b> — whoever opens a shared “in the last 7 days” sees the same rows the sender did.</p>
+    <p>And it is <b>silently wrong</b> for a <b>saved</b> filter. An alarm rule of “not updated in 90 days”, written with a resolved cut-off, means “not updated since the day the rule was written” forever, and looks perfectly normal doing so. Hence: <b>pass <code>relativeDates</code> whenever a filter is saved and replayed; do not pass it when the filter goes into a URL.</b></p>
+    <p>In the whole admin UI the flag is passed in exactly one place — <code>AlarmRuleEditorPage</code>. That is the only screen where a filter is stored rather than linked.</p>
   </div>
 
-  <h3>Обратно: <code>jsonFilterToTree(filter)</code></h3>
+  <h3>Inbound: <code>jsonFilterToTree(filter)</code></h3>
   <ul>
-    <li><b>Не бросает исключений.</b> Отсутствующая, пустая или битая строка даёт <code>null</code>: устаревший или отредактированный руками URL не должен ронять страницу.</li>
-    <li><b>Одиночное правило в корне заворачивается в группу <code>and</code></b> — в состоянии наверху всегда группа.</li>
-    <li><b>Неизвестный wire-оператор отбрасывает правило</b> (проверка через <code>Object.hasOwn</code>).</li>
-    <li><b><code>null</code> разводится по значению:</b> <code>true</code> → <code>is_empty</code>, <code>false</code> → <code>is_not_empty</code>.</li>
-    <li><b>Проценты и экранирование снимаются:</b> обёртка <code>%…%</code> срезается, <code>\%</code>/<code>\_</code>/<code>\\</code> распаковываются обратно в буквальный текст — значение с процентом внутри переживает круг честно.</li>
-    <li><b>Пара <code>gte</code>+<code>lte</code> по одному полю сворачивается в <code>between</code></b> (описано выше).</li>
-    <li><b>Битое <code>within_last</code> не ломает контролы:</b> нечисловой <code>n</code> становится 1, неизвестная единица — <code>days</code>.</li>
+    <li><b>It throws no exceptions.</b> A missing, empty or corrupt string yields <code>null</code>: a stale or hand-edited URL must not bring the page down.</li>
+    <li><b>A single rule at the root is wrapped in an <code>and</code> group</b> — the state's top level is always a group.</li>
+    <li><b>An unknown wire operator discards the rule</b> (checked through <code>Object.hasOwn</code>).</li>
+    <li><b><code>null</code> is split by value:</b> <code>true</code> → <code>is_empty</code>, <code>false</code> → <code>is_not_empty</code>.</li>
+    <li><b>Percent signs and escaping are removed:</b> the <code>%…%</code> wrapper is stripped and <code>\%</code>/<code>\_</code>/<code>\\</code> are unpacked back into literal text — a value with a percent sign inside survives the round trip honestly.</li>
+    <li><b>A <code>gte</code>+<code>lte</code> pair on one field is folded into a <code>between</code></b> (described above).</li>
+    <li><b>A corrupt <code>within_last</code> does not break the controls:</b> a non-numeric <code>n</code> becomes 1, and an unknown unit becomes <code>days</code>.</li>
   </ul>
 
-  <h3>Что ходит туда-обратно целиком, а что нет</h3>
+  <h3>What round-trips intact and what does not</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Что</th><th>Круг</th><th>Комментарий</th></tr></thead>
+    <thead><tr><th>What</th><th>Round trip</th><th>Comment</th></tr></thead>
     <tbody>
-      <tr><td>Вложенные группы любой глубины</td><td class="yes center">полный</td><td>Рекурсия в обе стороны, структура сохраняется побайтово</td></tr>
-      <tr><td>Комбинатор OR</td><td class="yes center">полный</td><td>Ключ группы и есть комбинатор — терять нечего</td></tr>
-      <tr><td>Все скалярные операторы</td><td class="yes center">полный</td><td>Таблицы взаимно обратны</td></tr>
-      <tr><td><code>contains</code> / <code>not_contains</code></td><td class="yes center">полный</td><td>Экранирование симметрично разэкранированию</td></tr>
-      <tr><td><code>is_empty</code> / <code>is_not_empty</code></td><td class="yes center">полный</td><td>Разводятся по значению <code>true</code>/<code>false</code></td></tr>
-      <tr><td><code>within_last</code> с <code>relativeDates</code></td><td class="yes center">полный</td><td>Форма <code>{n, unit}</code> переживает круг точно</td></tr>
-      <tr><td><code>within_last</code> без флага</td><td class="center" style="color:var(--warn);font-weight:600">односторонний</td><td>Уезжает как <code>gte</code> с отсечкой, возвращается абсолютным правилом <code>gte</code>. Отличить его от настоящего <code>gte</code> невозможно, и это <b>намеренно</b>: присланная ссылка обязана показывать те же строки</td></tr>
-      <tr><td><code>between</code></td><td class="center" style="color:var(--warn);font-weight:600">с потерями</td><td>Возвращается как <code>between</code>, даже если это была честная группа <code>and</code>. WHERE идентичен, различается только редактор</td></tr>
-      <tr><td>Ключи React (<code>id</code>)</td><td class="center no">нет</td><td>Генерируются заново при каждом разборе — они и не должны переживать круг</td></tr>
-      <tr><td>Оператор <code>like</code></td><td class="center" style="color:var(--crit);font-weight:600">теряется</td><td>Клиент его не порождает и не имеет записи в <code>WIRE_TO_UI</code>: правило с ним <b>молча выпадает</b> из поднятого дерева</td></tr>
+      <tr><td>Nested groups of any depth</td><td class="yes center">complete</td><td>Recursion in both directions, and the structure is preserved byte for byte</td></tr>
+      <tr><td>The OR combinator</td><td class="yes center">complete</td><td>The group's key <em>is</em> the combinator — there is nothing to lose</td></tr>
+      <tr><td>Every scalar operator</td><td class="yes center">complete</td><td>The tables are mutually inverse</td></tr>
+      <tr><td><code>contains</code> / <code>not_contains</code></td><td class="yes center">complete</td><td>The escaping is symmetric with the unescaping</td></tr>
+      <tr><td><code>is_empty</code> / <code>is_not_empty</code></td><td class="yes center">complete</td><td>Split by the <code>true</code>/<code>false</code> value</td></tr>
+      <tr><td><code>within_last</code> with <code>relativeDates</code></td><td class="yes center">complete</td><td>The <code>{n, unit}</code> shape survives the round trip exactly</td></tr>
+      <tr><td><code>within_last</code> without the flag</td><td class="center" style="color:var(--warn);font-weight:600">one-way</td><td>It leaves as a <code>gte</code> with a cut-off and comes back as an absolute <code>gte</code> rule. Telling it apart from a genuine <code>gte</code> is impossible, and that is <b>deliberate</b>: a shared link must show the same rows</td></tr>
+      <tr><td><code>between</code></td><td class="center" style="color:var(--warn);font-weight:600">lossy</td><td>It comes back as a <code>between</code> even if it was an honest <code>and</code> group. The WHERE is identical; only the editor differs</td></tr>
+      <tr><td>The React keys (<code>id</code>)</td><td class="center no">no</td><td>Regenerated on every parse — they are not meant to survive the round trip</td></tr>
+      <tr><td>The <code>like</code> operator</td><td class="center" style="color:var(--crit);font-weight:600">lost</td><td>The client never produces it and it has no entry in <code>WIRE_TO_UI</code>: a rule using it <b>silently drops out</b> of the lifted tree</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
 <section id="api">
-  <h2 class="sec"><span class="num">07</span>API компонента</h2>
+  <h2 class="sec"><span class="num">07</span>The component's API</h2>
 
-  <p>Один импорт: <code>import { QueryBuilder, QueryBuilderPanel, type FilterField } from '@orthacms/query-builder-admin'</code>. Публичная поверхность — четыре компонента, восемь утилит и набор типов.</p>
+  <p>One import: <code>import { QueryBuilder, QueryBuilderPanel, type FilterField } from '@orthacms/query-builder-admin'</code>. The public surface is four components, eight utilities and a set of types.</p>
 
-  <h3>QueryBuilder — безголовый управляемый компонент</h3>
+  <h3>QueryBuilder — the headless controlled component</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Проп</th><th>Тип</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Prop</th><th>Type</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td class="mono">fields</td><td class="mono">readonly FilterField[]</td><td>Доступные поля. Обычно зеркало серверной <code>FilterSchema</code></td></tr>
-      <tr><td class="mono">value</td><td class="mono">FilterGroup | null</td><td>Текущее дерево. <code>null</code> = условий нет</td></tr>
-      <tr><td class="mono">onChange</td><td class="mono">(next: FilterGroup) =&gt; void</td><td>Вызывается на <b>каждую</b> правку. Решать, копить это в черновике или применять сразу, — дело потребителя</td></tr>
-      <tr><td class="mono">showErrors</td><td class="mono">boolean = false</td><td>Показывать ли под каждым невалидным правилом встроенное сообщение</td></tr>
-      <tr><td class="mono">renderRelationValue</td><td class="mono">RelationValueEditor?</td><td>Редактор значения для правила, чьё поле несёт <code>relationTarget</code>. Без него такие правила получают сырой ввод uuid</td></tr>
-      <tr><td class="mono">portalContainer</td><td class="mono">HTMLElement | null</td><td>Узел, в который порталятся вложенные поповеры. По умолчанию <code>document.body</code></td></tr>
+      <tr><td class="mono">fields</td><td class="mono">readonly FilterField[]</td><td>The available fields. Usually a mirror of the server's <code>FilterSchema</code></td></tr>
+      <tr><td class="mono">value</td><td class="mono">FilterGroup | null</td><td>The current tree. <code>null</code> = no conditions</td></tr>
+      <tr><td class="mono">onChange</td><td class="mono">(next: FilterGroup) =&gt; void</td><td>Called on <b>every</b> edit. Whether to accumulate that in a draft or apply it at once is the consumer's business</td></tr>
+      <tr><td class="mono">showErrors</td><td class="mono">boolean = false</td><td>Whether to show an inline message under each invalid rule</td></tr>
+      <tr><td class="mono">renderRelationValue</td><td class="mono">RelationValueEditor?</td><td>The value editor for a rule whose field carries a <code>relationTarget</code>. Without it such rules get a raw uuid input</td></tr>
+      <tr><td class="mono">portalContainer</td><td class="mono">HTMLElement | null</td><td>The node nested popovers portal into. <code>document.body</code> by default</td></tr>
     </tbody>
   </table>
   </div>
   <div class="note warn">
-    <span class="label">renderRelationValue надо передавать элементом</span>
-    <p><code>renderRelationValue={(p) =&gt; &lt;Picker {...p} /&gt;}</code>, а не <code>renderRelationValue={Picker}</code>. Иначе хуки инжектируемого редактора выполнятся в области видимости ячейки правила, а не в собственной компонентной.</p>
+    <span class="label">renderRelationValue must be passed as an element</span>
+    <p><code>renderRelationValue={(p) =&gt; &lt;Picker {...p} /&gt;}</code>, not <code>renderRelationValue={Picker}</code>. Otherwise the injected editor's hooks run in the rule cell's scope rather than in a component scope of their own.</p>
   </div>
 
-  <h3>QueryBuilderDrawer — выдвижная панель</h3>
-  <p>Владеет открытым состоянием, черновиком, превью JSON и футером Apply/Reset. Потребитель передаёт <code>trigger</code> (обычно кнопка «Фильтры (3)»), поэтому бейдж и проверка прав остаются на его стороне.</p>
+  <h3>QueryBuilderDrawer — the slide-out panel</h3>
+  <p>It owns the open state, the draft, the JSON preview and the Apply/Reset footer. The consumer passes a <code>trigger</code> (usually a “Filters (3)” button), so the badge and the permission check stay on their side.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Проп</th><th>Тип</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Prop</th><th>Type</th><th>Meaning</th></tr></thead>
     <tbody>
       <tr><td class="mono">fields</td><td class="mono">readonly FilterField[]</td><td>—</td></tr>
-      <tr><td class="mono">value</td><td class="mono">FilterGroup | null</td><td><b>Применённый</b> фильтр (из URL)</td></tr>
-      <tr><td class="mono">onApply</td><td class="mono">(next: FilterGroup | null) =&gt; void</td><td>Вызывается на Apply (с деревом) или Reset (с <code>null</code>)</td></tr>
-      <tr><td class="mono">trigger</td><td class="mono">ReactNode</td><td>Рендерится внутри <code>DrawerTrigger asChild</code></td></tr>
-      <tr><td class="mono">direction</td><td class="mono">'left' | 'right' = 'right'</td><td>С какого края выезжает</td></tr>
-      <tr><td class="mono">renderRelationValue</td><td class="mono">RelationValueEditor?</td><td>Прокидывается в <code>QueryBuilder</code></td></tr>
+      <tr><td class="mono">value</td><td class="mono">FilterGroup | null</td><td>The <b>applied</b> filter (from the URL)</td></tr>
+      <tr><td class="mono">onApply</td><td class="mono">(next: FilterGroup | null) =&gt; void</td><td>Called on Apply (with the tree) or Reset (with <code>null</code>)</td></tr>
+      <tr><td class="mono">trigger</td><td class="mono">ReactNode</td><td>Rendered inside a <code>DrawerTrigger asChild</code></td></tr>
+      <tr><td class="mono">direction</td><td class="mono">'left' | 'right' = 'right'</td><td>Which edge it slides in from</td></tr>
+      <tr><td class="mono">renderRelationValue</td><td class="mono">RelationValueEditor?</td><td>Forwarded to <code>QueryBuilder</code></td></tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Контейнер портала drawer подставляет себе сам — vaul блокирует прокрутку страницы, и поповер, отпорталенный в <code>body</code>, оказался бы вне разрешённого поддерева.</p>
+  <p class="small sub">The drawer supplies its own portal container — vaul locks the page's scroll, and a popover portalled into <code>body</code> would end up outside the permitted subtree.</p>
 
-  <h3>QueryBuilderPanel — встроенный аккордеон</h3>
-  <p>Альтернатива drawer'у: полноширинная секция между тулбаром и таблицей, которая при раскрытии сдвигает таблицу вниз (без оверлея). Кнопку-переключатель и состояние <code>open</code> держит потребитель; панель держит черновик, футер и поведение по Esc.</p>
+  <h3>QueryBuilderPanel — the inline accordion</h3>
+  <p>An alternative to the drawer: a full-width section between the toolbar and the table that pushes the table down when expanded (with no overlay). The toggle button and the <code>open</code> state are held by the consumer; the panel holds the draft, the footer and the Esc behaviour.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Проп</th><th>Тип</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Prop</th><th>Type</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td class="mono">open / onOpenChange</td><td class="mono">boolean / (b) =&gt; void</td><td>Раскрыта ли; вызов на схлопывание (Esc)</td></tr>
-      <tr><td class="mono">fields / value / onApply</td><td>—</td><td>Как у drawer'а</td></tr>
-      <tr><td class="mono">onApplied</td><td class="mono">() =&gt; void</td><td>После <b>успешного</b> Apply (но не Reset). Редактор алармов использует это, чтобы схлопнуть панель и вернуть фокус на переключатель</td></tr>
-      <tr><td class="mono">labelledBy</td><td class="mono">string</td><td><code>id</code> кнопки-переключателя: секция им подписана, и на него же возвращается фокус по Esc</td></tr>
-      <tr><td class="mono">id</td><td class="mono">string</td><td><code>id</code> секции — цель <code>aria-controls</code> переключателя</td></tr>
-      <tr><td class="mono">fieldsPending</td><td class="mono">boolean = false</td><td>Поля ещё грузятся — рисуется спиннер вместо конструктора, Apply заблокирован</td></tr>
-      <tr><td class="mono">fieldsError</td><td class="mono">boolean = false</td><td>Загрузка полей упала — рисуется <code>Alert</code> с «Try again»</td></tr>
-      <tr><td class="mono">onRetryFields</td><td class="mono">() =&gt; void</td><td>Повтор запроса</td></tr>
+      <tr><td class="mono">open / onOpenChange</td><td class="mono">boolean / (b) =&gt; void</td><td>Whether it is expanded; called on collapse (Esc)</td></tr>
+      <tr><td class="mono">fields / value / onApply</td><td>—</td><td>As for the drawer</td></tr>
+      <tr><td class="mono">onApplied</td><td class="mono">() =&gt; void</td><td>After a <b>successful</b> Apply (but not a Reset). The alarm editor uses this to collapse the panel and return focus to the toggle</td></tr>
+      <tr><td class="mono">labelledBy</td><td class="mono">string</td><td>The toggle button's <code>id</code>: the section is labelled by it, and focus returns to it on Esc</td></tr>
+      <tr><td class="mono">id</td><td class="mono">string</td><td>The section's <code>id</code> — the target of the toggle's <code>aria-controls</code></td></tr>
+      <tr><td class="mono">fieldsPending</td><td class="mono">boolean = false</td><td>The fields are still loading — a spinner is drawn instead of the builder and Apply is disabled</td></tr>
+      <tr><td class="mono">fieldsError</td><td class="mono">boolean = false</td><td>Loading the fields failed — an <code>Alert</code> with a “Try again” is drawn</td></tr>
+      <tr><td class="mono">onRetryFields</td><td class="mono">() =&gt; void</td><td>Retry the request</td></tr>
     </tbody>
   </table>
   </div>
   <div class="note">
-    <span class="label">Почему fieldsPending / fieldsError обязательны, а не полировка</span>
-    <p>Ворота Apply отвергают <b>каждое</b> правило, чьё поле не удалось разрешить по <code>id</code>. Значит, панель, которой отдали пустой массив <code>fields</code>, пока поверхность грузится (или после того, как запрос упал), никогда не сможет применить условие — и молчит о причине. Пустой пикер читается как сломанная кнопка. Reset при этом остаётся активным: чтобы снять применённый фильтр, определения полей не нужны.</p>
+    <span class="label">Why fieldsPending / fieldsError are mandatory rather than polish</span>
+    <p>The Apply gate rejects <b>every</b> rule whose field could not be resolved by <code>id</code>. Which means a panel handed an empty <code>fields</code> array while the surface loads (or after the request failed) can never apply a condition — and says nothing about why. An empty picker reads as a broken button. Reset stays enabled meanwhile: clearing an applied filter needs no field definitions.</p>
   </div>
 
-  <h3>QueryBuilderSummary — сводка в покое</h3>
-  <p>Один удаляемый чип на каждое применённое условие («Автор · Почта contains @lilly ×») плюс «Clear all». Удаление чипа сразу переприменяет суженное дерево. Вложенность AND/OR здесь <b>сплющивается</b> — структура редактируется в панели, а это компактная читалка.</p>
-  <p>Значение enum-правила рисуется через объявленные члены поля, потому что на проводе там может лежать непрозрачный id, а чип — единственное место, где правило читают после схлопывания панели. Виртуальное поле плагина делает это очевидным: сегменты фильтруют по <b>uuid</b> аудитории, и неразрешённый чип читался бы как «Can be seen by is one of d19a552b-…». Неизвестный член откатывается к сырому значению, а не исчезает: сохранённое представление может пережить опцию, которую называет, а чип, показывающий пустоту, прочитался бы как «фильтр не применён».</p>
-
-  <h3>Утилиты</h3>
+  <h3>QueryBuilderSummary — the at-rest summary</h3>
+  <p>One removable chip per applied condition (“Author · Email contains @lilly ×”) plus a “Clear all”. Removing a chip immediately re-applies the narrowed tree. AND/OR nesting is <b>flattened</b> here — the structure is edited in the panel and this is a compact reader.</p>
+  <p>An enum rule's value is rendered through the field's declared members, because the wire may hold an opaque id there, and the chip is the only place a rule is read after the panel collapses. A plugin's virtual field makes that obvious: segments filter by an audience's <b>uuid</b>, and an unresolved chip would read as “Can be seen by is one of d19a552b-…”. An unknown member falls back to the raw value rather than disappearing: a saved view can outlive the option it names, and a chip showing nothing would read as “no filter applied”.</p>
+  <h3>Utilities</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Экспорт</th><th>Назначение</th></tr></thead>
+    <thead><tr><th>Export</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td class="mono">treeToJsonFilter(tree, now?, options?)</td><td>Дерево → строка JSON для <code>?filter=</code>. <code>now</code> инжектируется, чтобы тесты могли пришпилить отсечку</td></tr>
-      <tr><td class="mono">treeToJsonNode(...)</td><td>То же, но объектом — для превью и красивой печати</td></tr>
-      <tr><td class="mono">jsonFilterToTree(filter)</td><td>Строка JSON → дерево. Никогда не бросает</td></tr>
-      <tr><td class="mono">countRules(tree)</td><td>Число листьев по всему дереву — для бейджа «Фильтры (N)»</td></tr>
-      <tr><td class="mono">validateRule(rule, field)</td><td>Код первой ошибки правила или <code>null</code></td></tr>
-      <tr><td class="mono">treeHasInvalidRules(tree, fields)</td><td>Ворота Apply: есть ли в дереве хоть одно невалидное правило</td></tr>
-      <tr><td class="mono">opsForField(field)</td><td>Операторы поля с учётом сужения и порядка</td></tr>
-      <tr><td class="mono">OPS_FOR_TYPE, OP_LABELS, UI_TO_WIRE, WIRE_TO_UI</td><td>Словари; экспортированы, чтобы потребитель мог сослаться на них, а не переписать</td></tr>
-      <tr><td class="mono">usePortalContainer()</td><td>Контейнер портала из контекста — нужен инжектируемому редактору связи</td></tr>
+      <tr><td class="mono">treeToJsonFilter(tree, now?, options?)</td><td>A tree → a JSON string for <code>?filter=</code>. <code>now</code> is injected so that tests can pin the cut-off</td></tr>
+      <tr><td class="mono">treeToJsonNode(...)</td><td>The same, but as an object — for the preview and for pretty-printing</td></tr>
+      <tr><td class="mono">jsonFilterToTree(filter)</td><td>A JSON string → a tree. Never throws</td></tr>
+      <tr><td class="mono">countRules(tree)</td><td>The number of leaves across the whole tree — for the “Filters (N)” badge</td></tr>
+      <tr><td class="mono">validateRule(rule, field)</td><td>The code of a rule's first error, or <code>null</code></td></tr>
+      <tr><td class="mono">treeHasInvalidRules(tree, fields)</td><td>The Apply gate: does the tree contain even one invalid rule</td></tr>
+      <tr><td class="mono">opsForField(field)</td><td>A field's operators, taking the narrowing and the ordering into account</td></tr>
+      <tr><td class="mono">OPS_FOR_TYPE, OP_LABELS, UI_TO_WIRE, WIRE_TO_UI</td><td>The dictionaries; exported so that a consumer can reference them rather than rewrite them</td></tr>
+      <tr><td class="mono">usePortalContainer()</td><td>The portal container from context — needed by an injected relation editor</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
 <section id="flows">
-  <h2 class="sec"><span class="num">08</span>Сценарии по шагам</h2>
+  <h2 class="sec"><span class="num">08</span>Step-by-step scenarios</h2>
 
-  <h3>Сценарий А. Собрать фильтр в реестре записей</h3>
+  <h3>Scenario A. Assembling a filter in the entry registry</h3>
   <ol class="flow">
-    <li><b>Пользователь жмёт «Фильтры» в тулбаре.</b> Потребитель переключает <code>open</code>; секция разворачивается анимацией <code>grid-template-rows: 0fr → 1fr</code> за ~150 мс, с уважением к <code>prefers-reduced-motion</code>.<span class="meta">QueryBuilderPanel</span></li>
-    <li><b>Панель синхронизирует черновик с применённым фильтром.</b> На каждое открытие <code>draft ← value</code>, флаг <code>showErrors</code> сбрасывается: пользователь всегда правит текущее состояние, а не оставшееся от прошлого раза.<span class="meta">useEffect по open</span></li>
-    <li><b>Фокус переезжает в первую ячейку поля.</b> Эффект ищет первый <code>[role="combobox"]</code>. Он перезапускается, когда поля догрузились, — до этого конструктора на экране нет вовсе.<span class="meta">2.4.3</span></li>
-    <li><b>«Add rule».</b> Берётся <code>fields[0]</code>, оператором ставится <code>opsForField(first)[0]</code> — <em>не</em> первый оператор типа, чтобы поле с суженным списком получило оператор, который оно реально предлагает. Значение сеется по форме оператора (<code>defaultValueForOp</code>). Живой регион произносит «Condition added. N conditions in total».<span class="meta">addRuleTo → onChange</span></li>
-    <li><b>Пользователь выбирает поле.</b> Смена поля сбрасывает <b>и оператор, и значение</b>: правило не должно оставаться в состоянии «оператор был валиден для прошлого типа». Живой регион произносит «&lt;путь&gt; selected. Operator and value reset for the new field type» — два изменения контекста, происходившие раньше в тишине (3.2.2).<span class="meta">RuleRow.onChange</span></li>
-    <li><b>Пользователь выбирает оператор и вводит значение.</b> Смена оператора снова пересевает значение по его форме. Превью JSON, если оно раскрыто, обновляется на каждое нажатие.<span class="meta">defaultValueForOp</span></li>
-    <li><b>«Apply».</b> Сначала ворота: <code>treeHasInvalidRules</code>. Если чисто — <code>onApply(draft)</code> (или <code>null</code>, если детей нет), URL меняется, таблица пересобирается. Панель <b>остаётся раскрытой</b>: изменилась таблица под ней, и она на экране.<span class="meta">applyFilter → updateParams({filter})</span></li>
-    <li><b>Если грязно</b> — <code>showErrors</code> включается, под каждым битым правилом появляется сообщение с именем поля, и фокус на следующем кадре уезжает на <b>первый контрол первой ошибочной строки</b> (не на само сообщение — оно нефокусируемо, а менять надо контрол).<span class="meta">3.3.1</span></li>
-    <li><b>Ошибки гаснут сами.</b> Как только дерево становится валидным, <code>showErrors</code> сбрасывается — второго нажатия Apply не требуется.<span class="meta">useEffect по draft</span></li>
-    <li><b>Панель схлопывается.</b> Условия оседают чипами <code>QueryBuilderSummary</code> под тулбаром.<span class="meta">потребитель выключает open</span></li>
+    <li><b>The user presses “Filters” in the toolbar.</b> The consumer toggles <code>open</code>; the section expands with a <code>grid-template-rows: 0fr → 1fr</code> animation over ~150 ms, respecting <code>prefers-reduced-motion</code>.<span class="meta">QueryBuilderPanel</span></li>
+    <li><b>The panel syncs the draft with the applied filter.</b> On every opening, <code>draft ← value</code> and the <code>showErrors</code> flag is cleared: the user always edits the current state rather than what was left over from last time.<span class="meta">a useEffect on open</span></li>
+    <li><b>Focus moves into the first field cell.</b> The effect looks for the first <code>[role="combobox"]</code>. It re-runs once the fields have loaded — before that there is no builder on screen at all.<span class="meta">2.4.3</span></li>
+    <li><b>“Add rule”.</b> <code>fields[0]</code> is taken and the operator is set to <code>opsForField(first)[0]</code> — <em>not</em> the type's first operator, so that a field with a narrowed list gets an operator it actually offers. The value is seeded by the operator's shape (<code>defaultValueForOp</code>). The live region announces “Condition added. N conditions in total”.<span class="meta">addRuleTo → onChange</span></li>
+    <li><b>The user picks a field.</b> Changing the field resets <b>both the operator and the value</b>: a rule must not be left in a state where “the operator was valid for the previous type”. The live region announces “&lt;path&gt; selected. Operator and value reset for the new field type” — two context changes that used to happen in silence (3.2.2).<span class="meta">RuleRow.onChange</span></li>
+    <li><b>The user picks an operator and types a value.</b> Changing the operator re-seeds the value by its shape again. The JSON preview, if expanded, updates on every keystroke.<span class="meta">defaultValueForOp</span></li>
+    <li><b>“Apply”.</b> The gate comes first: <code>treeHasInvalidRules</code>. If it is clean — <code>onApply(draft)</code> (or <code>null</code> if there are no children), the URL changes and the table is rebuilt. The panel <b>stays expanded</b>: what changed is the table beneath it, and it is on screen.<span class="meta">applyFilter → updateParams({filter})</span></li>
+    <li><b>If it is dirty</b> — <code>showErrors</code> is switched on, a message naming the field appears under each broken rule, and on the next frame focus moves to <b>the first control of the first erroneous row</b> (not to the message itself — that is not focusable, and it is the control that needs changing).<span class="meta">3.3.1</span></li>
+    <li><b>The errors clear themselves.</b> As soon as the tree becomes valid, <code>showErrors</code> is reset — a second press of Apply is not required.<span class="meta">a useEffect on draft</span></li>
+    <li><b>The panel collapses.</b> The conditions settle as <code>QueryBuilderSummary</code> chips under the toolbar.<span class="meta">the consumer switches open off</span></li>
   </ol>
 
-  <h3>Сценарий Б. Вложить группу и переключить AND/OR</h3>
+  <h3>Scenario B. Nesting a group and switching AND/OR</h3>
   <ol class="flow">
-    <li><b>«Add group» в футере любой группы.</b> Создаётся пустая подгруппа с комбинатором <code>and</code> по умолчанию. Вставка адресная — <code>addGroupTo(tree, parentGroupId, newGroup())</code>, то есть работает на любой глубине, а не только в корне.<span class="meta">живой регион: «Group added»</span></li>
-    <li><b>Подгруппа рисуется отличимо</b> — скруглённая <b>пунктирная</b> рамка с отступом, чтобы вложенность читалась без скобок. У неё свой переключатель AND/OR слева и крестик «Удалить группу» справа.<span class="meta">isRoot=false</span></li>
-    <li><b>Подгруппы нумеруются.</b> Её четыре контрола называются «Add rule to group 2», «Add group inside group 2», «Remove group 2», «Combinator for group 2». Нумерация считается <em>среди подгрупп</em>, а не среди всех детей, поэтому не съезжает, когда между двумя группами добавляют правило. У корня номера нет — он один.<span class="meta">4.1.2</span></li>
-    <li><b>Переключатель — <code>SegmentedControl</code> из двух пунктов.</b> Значение меняется через <code>updateCombinator(tree, groupId, v)</code>, тоже адресно по id. Никакого глобального «режима» у конструктора нет: <b>у каждой группы свой комбинатор</b>.<span class="meta">and ↔ or</span></li>
-    <li><b>Глубина на клиенте не ограничена вовсе.</b> Тип <code>FilterGroup</code> рекурсивен, рендер тоже. Границу ставит только сервер — <code>maxGroupDepth</code>.<span class="meta">см. раздел 09</span></li>
-    <li><b>Удаление группы удаляет её вместе с содержимым</b> — <code>removeNode</code> рекурсивно ищет узел по id и фильтрует его из детей. Корень удалить нельзя: пустой корень и есть состояние «фильтра нет».<span class="meta">treeOps</span></li>
+    <li><b>“Add group” in any group's footer.</b> An empty subgroup is created with the <code>and</code> combinator by default. The insertion is addressed — <code>addGroupTo(tree, parentGroupId, newGroup())</code> — that is, it works at any depth rather than only at the root.<span class="meta">live region: “Group added”</span></li>
+    <li><b>A subgroup is drawn distinguishably</b> — a rounded <b>dashed</b> border with an indent, so that nesting reads without brackets. It has its own AND/OR switch on the left and a “Remove group” cross on the right.<span class="meta">isRoot=false</span></li>
+    <li><b>Subgroups are numbered.</b> Its four controls are named “Add rule to group 2”, “Add group inside group 2”, “Remove group 2”, “Combinator for group 2”. The numbering counts <em>among the subgroups</em> rather than among all the children, so it does not shift when a rule is added between two groups. The root has no number — there is only one.<span class="meta">4.1.2</span></li>
+    <li><b>The switch is a two-item <code>SegmentedControl</code>.</b> The value changes through <code>updateCombinator(tree, groupId, v)</code>, also addressed by id. The builder has no global “mode”: <b>every group has its own combinator</b>.<span class="meta">and ↔ or</span></li>
+    <li><b>Depth is not limited on the client at all.</b> The <code>FilterGroup</code> type is recursive and so is the render. The only boundary is set by the server — <code>maxGroupDepth</code>.<span class="meta">see section 09</span></li>
+    <li><b>Deleting a group deletes it with its contents</b> — <code>removeNode</code> recursively finds the node by id and filters it out of the children. The root cannot be deleted: an empty root <em>is</em> the “no filter” state.<span class="meta">treeOps</span></li>
   </ol>
 
-  <h3>Сценарий В. Сохранить фильтр как правило аларма</h3>
-  <p>Два входа, и они дают разный результат по датам.</p>
+  <h3>Scenario C. Saving a filter as an alarm rule</h3>
+  <p>There are two entry points, and they give different results as regards dates.</p>
   <ol class="flow">
-    <li><b>Быстрый путь — «Save as alarm» в тулбаре реестра.</b> Кнопка появляется только когда в URL есть <code>?filter=</code> и у пользователя есть право <code>alarms:manage</code>; иначе её просто нет (отключённый контрол без объяснения — ответ хуже отсутствующего).<span class="meta">RECORDS_TOOLBAR_SLOT</span></li>
-    <li><b>Фильтр читается прямо из адресной строки</b> и разбирается <code>JSON.parse</code> как есть. Диалог сразу считает число совпадений, чтобы человек, дающий правилу имя, видел размер того, за чем собирается следить.<span class="meta">usePreviewAlarmRule</span></li>
-    <li><b>Следствие, которое важно знать:</b> список, отфильтрованный «за последние N дней», несёт в URL <b>резолвленную отсечку</b> — значит, правило, сохранённое отсюда, получает абсолютный диапазон дат, а не скользящее окно. URL просто не умеет сказать, что из двух имелось в виду. Превратить в скользящее — правка в одну строку в редакторе правила.<span class="meta">см. раздел 06</span></li>
-    <li><b>Полный путь — редактор правила.</b> Панель конструктора там же, поля те же (<code>useFilterFields</code> + те же слот-вклады), поэтому правило по определению не может сказать больше, чем говорит список.<span class="meta">AlarmRuleEditorPage</span></li>
-    <li><b>Здесь Apply схлопывает панель</b> — через <code>onApplied</code>, потому что коммит уезжает в чипы <b>над</b> конструктором, и оставленная раскрытой панель скрывала бы единственное, что только что изменилось. Фокус возвращается на переключатель.<span class="meta">отличие от реестра</span></li>
-    <li><b>Сохранение сериализует с <code>relativeDates: true</code></b> и разбирает результат обратно в объект, потому что API правил принимает дерево объектом, а не строкой.<span class="meta">одна реализация сериализации на оба случая</span></li>
-    <li><b>Загрузка существующего правила</b> идёт обратной дорогой: хранимый объект прогоняется через <code>JSON.stringify</code> и подаётся в <code>jsonFilterToTree</code> — один <code>stringify</code> дешевле второго парсера.<span class="meta">сеется один раз, по id правила</span></li>
+    <li><b>The quick path — “Save as alarm” in the registry's toolbar.</b> The button appears only when the URL holds a <code>?filter=</code> and the user has the <code>alarms:manage</code> permission; otherwise it is simply absent (a disabled control with no explanation is a worse answer than a missing one).<span class="meta">RECORDS_TOOLBAR_SLOT</span></li>
+    <li><b>The filter is read straight out of the address bar</b> and parsed with <code>JSON.parse</code> as it is. The dialog immediately counts the matches, so that the person naming the rule sees the size of what they are about to watch.<span class="meta">usePreviewAlarmRule</span></li>
+    <li><b>A consequence worth knowing:</b> a list filtered by “in the last N days” carries a <b>resolved cut-off</b> in its URL — so a rule saved from here gets an absolute date range rather than a sliding window. A URL simply cannot say which of the two was meant. Turning it into a sliding one is a one-line edit in the rule editor.<span class="meta">see section 06</span></li>
+    <li><b>The full path — the rule editor.</b> The builder panel is the same there, and so are the fields (<code>useFilterFields</code> + the same slot contributions), so a rule cannot by definition say more than the list says.<span class="meta">AlarmRuleEditorPage</span></li>
+    <li><b>Here Apply collapses the panel</b> — through <code>onApplied</code>, because the commit moves into the chips <b>above</b> the builder, and a panel left expanded would hide the one thing that has just changed. Focus returns to the toggle.<span class="meta">unlike in the registry</span></li>
+    <li><b>Saving serialises with <code>relativeDates: true</code></b> and parses the result back into an object, because the rules API takes the tree as an object rather than as a string.<span class="meta">one serialisation implementation for both cases</span></li>
+    <li><b>Loading an existing rule</b> goes the reverse way: the stored object is run through <code>JSON.stringify</code> and fed into <code>jsonFilterToTree</code> — one <code>stringify</code> is cheaper than a second parser.<span class="meta">seeded once, by the rule's id</span></li>
   </ol>
   <div class="note warn">
-    <span class="label">Превью JSON в редакторе правила показывает не то, что сохранится</span>
-    <p><code>JsonPreview</code> всегда сериализует черновик <b>с настройками по умолчанию</b>, то есть с резолвленной отсечкой. В редакторе аларма сохраняется при этом относительная форма. Для правила с <code>within_last</code> превью и сохранённое дерево расходятся: в превью <code>{"op":"gte","value":"2026-05-28T…"}</code>, в базе — <code>{"op":"within_last","value":{"n":90,"unit":"days"}}</code>.</p>
+    <span class="label">The JSON preview in the rule editor shows something other than what will be saved</span>
+    <p><code>JsonPreview</code> always serialises the draft <b>with the default options</b>, that is, with a resolved cut-off. In the alarm editor, meanwhile, the relative form is what gets saved. For a rule with a <code>within_last</code>, the preview and the stored tree diverge: the preview shows <code>{"op":"gte","value":"2026-05-28T…"}</code> and the database holds <code>{"op":"within_last","value":{"n":90,"unit":"days"}}</code>.</p>
   </div>
 
-  <h3>Сценарий Г. Фильтр внутри диалога выбора связанной записи</h3>
+  <h3>Scenario D. A filter inside the related-entry picker dialog</h3>
   <ol class="flow">
-    <li><b>Монтируется голый <code>QueryBuilder</code></b> внутри <code>Collapsible</code>, без Apply — правки применяются сразу, потому что список кандидатов тут же рядом.<span class="meta">RelationPickerFilters</span></li>
-    <li><b>Передаётся <code>portalContainer</code></b> — элемент диалога. Radix-диалог блокирует прокрутку страницы через react-remove-scroll, и поповер пикера поля, отпорталенный в <code>body</code>, оказался бы <em>снаружи</em> разрешённого поддерева: его список тянулся бы полосой прокрутки, но не крутился колесом.<span class="meta">PortalContainerContext</span></li>
-    <li><b>Тот же контекст читает инжектированный редактор связи</b> через экспортированный <code>usePortalContainer()</code> — иначе вложенный пикер записей повторил бы ту же болезнь на уровень глубже.<span class="meta">рекурсия фильтров внутри фильтра</span></li>
+    <li><b>A bare <code>QueryBuilder</code> is mounted</b> inside a <code>Collapsible</code>, with no Apply — edits are applied at once, because the candidate list is right there.<span class="meta">RelationPickerFilters</span></li>
+    <li><b>A <code>portalContainer</code> is passed</b> — the dialog's element. A Radix dialog locks the page's scroll through react-remove-scroll, and the field picker's popover, portalled into <code>body</code>, would end up <em>outside</em> the permitted subtree: its list would stretch a scrollbar but would not scroll with the wheel.<span class="meta">PortalContainerContext</span></li>
+    <li><b>The injected relation editor reads that same context</b> through the exported <code>usePortalContainer()</code> — otherwise the nested entry picker would repeat the same ailment one level deeper.<span class="meta">filters recursing inside a filter</span></li>
   </ol>
 </section>
 
 <section id="limits">
-  <h2 class="sec"><span class="num">09</span>Ограничения и валидация: клиент и сервер</h2>
+  <h2 class="sec"><span class="num">09</span>Limits and validation: client and server</h2>
 
-  <p>Проверок две линии. Клиентская зеркалит серверную коррекцию типов, чтобы правило, прошедшее ворота Apply, сервер принял. Зеркало это <b>не полное</b> — и знать, где именно оно неполное, важнее, чем знать, где оно совпадает.</p>
+  <p>There are two lines of checks. The client's mirrors the server's type coercion, so that a rule which passed the Apply gate is accepted by the server. That mirror is <b>not complete</b> — and knowing exactly where it is incomplete matters more than knowing where it agrees.</p>
 
-  <h3>Клиентская проверка правила — 11 кодов</h3>
+  <h3>The client's rule validation — 11 codes</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Код</th><th>Когда</th><th>Показывается</th></tr></thead>
+    <thead><tr><th>Code</th><th>When</th><th>Shown</th></tr></thead>
     <tbody>
-      <tr><td class="mono">unknown_field</td><td><code>fieldId</code> не найден среди <code>fields</code> — фильтр восстановлен из URL или сохранённого представления после переименования поля</td><td><b>Всегда</b>, вне зависимости от <code>showErrors</code>: это сломанное правило, а не недописанное</td></tr>
-      <tr><td class="mono">operator_not_allowed</td><td>Оператор не входит в <code>opsForField(field)</code>. Достижимо только из руками собранного или устаревшего URL</td><td><b>Всегда.</b> Ячейка оператора при этом пуста (у <code>Select</code> нет подходящего пункта), и без сообщения строка читалась бы как просто недозаполненная</td></tr>
-      <tr><td class="mono">value_required</td><td>Скалярное значение пусто</td><td>После Apply</td></tr>
-      <tr><td class="mono">not_boolean</td><td>Не <code>"true"</code> и не <code>"false"</code> на булевом поле</td><td>После Apply</td></tr>
-      <tr><td class="mono">not_uuid</td><td>Не канонический вид 8-4-4-4-12</td><td>После Apply</td></tr>
-      <tr><td class="mono">not_number</td><td><code>Number(s)</code> не конечен</td><td>После Apply</td></tr>
-      <tr><td class="mono">not_date</td><td><code>new Date(s)</code> даёт NaN</td><td>После Apply</td></tr>
-      <tr><td class="mono">range_required</td><td>У <code>between</code> нет одной из границ</td><td>После Apply</td></tr>
-      <tr><td class="mono">range_invalid</td><td>Одна из границ не проходит проверку типа</td><td>После Apply</td></tr>
-      <tr><td class="mono">multi_required</td><td>У множественного оператора значение не массив или массив пуст</td><td>После Apply</td></tr>
-      <tr><td class="mono">count_required</td><td>У <code>within_last</code> счётчик не число, ≤ 0, или единица отсутствует</td><td>После Apply</td></tr>
+      <tr><td class="mono">unknown_field</td><td>The <code>fieldId</code> was not found among the <code>fields</code> — a filter restored from a URL or a saved view after a field was renamed</td><td><b>Always</b>, regardless of <code>showErrors</code>: this is a broken rule, not an unfinished one</td></tr>
+      <tr><td class="mono">operator_not_allowed</td><td>The operator is not in <code>opsForField(field)</code>. Reachable only from a hand-assembled or stale URL</td><td><b>Always.</b> The operator cell is empty in that case (the <code>Select</code> has no matching item), and without a message the row would read as merely half-filled</td></tr>
+      <tr><td class="mono">value_required</td><td>A scalar value is empty</td><td>After Apply</td></tr>
+      <tr><td class="mono">not_boolean</td><td>Neither <code>"true"</code> nor <code>"false"</code> on a boolean field</td><td>After Apply</td></tr>
+      <tr><td class="mono">not_uuid</td><td>Not the canonical 8-4-4-4-12 shape</td><td>After Apply</td></tr>
+      <tr><td class="mono">not_number</td><td><code>Number(s)</code> is not finite</td><td>After Apply</td></tr>
+      <tr><td class="mono">not_date</td><td><code>new Date(s)</code> yields NaN</td><td>After Apply</td></tr>
+      <tr><td class="mono">range_required</td><td>A <code>between</code> is missing one of its bounds</td><td>After Apply</td></tr>
+      <tr><td class="mono">range_invalid</td><td>One of the bounds fails the type check</td><td>After Apply</td></tr>
+      <tr><td class="mono">multi_required</td><td>A multi-value operator's value is not an array, or the array is empty</td><td>After Apply</td></tr>
+      <tr><td class="mono">count_required</td><td>A <code>within_last</code>'s count is not a number, is ≤ 0, or the unit is missing</td><td>After Apply</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Порядок проверок не случаен: <b>легальность оператора проверяется первой</b>, потому что все ветки ниже предполагают, что оператор имеет смысл для поля. Ничто в интерфейсе не может породить нелегальный оператор — пикер показывает ровно <code>opsForField</code>, — но <code>?filter=</code> публичен и правится руками, и без этой проверки ворота охотно отправляли <code>ilike</code> по <code>timestamptz</code> (сервер отвечает 500) и <code>eq "yes"</code> по булеву (400). Фильтр, который конструктор сам отказывается нарисовать, он не должен соглашаться отправить.</p>
-  <p>Множественные операторы проверяются <b>поэлементно</b>, а не на одно лишь наличие: свободный CSV на строковых и uuid-полях легко порождает элементы, которые сервер отвергнет. Без этого правило <code>uuid in (abc,def)</code> проходило ворота и получало 400 уже на проводе.</p>
-  <p>UUID проверяется <b>строже сервера</b> — по каноническому 8-4-4-4-12, тогда как серверный регексп свободнее. Причина: тип <code>uuid</code> в Postgres отвергает всё, что не имеет этой формы, поэтому свободная проверка всё равно кончалась бы 400 из драйвера. Значение, прошедшее клиентскую проверку, гарантированно проходит и коррекцию, и разбор в Postgres.</p>
+  <p>The order of the checks is not accidental: <b>the operator's legality is checked first</b>, because every branch below assumes the operator makes sense for the field. Nothing in the interface can produce an illegal operator — the picker shows exactly <code>opsForField</code> — but <code>?filter=</code> is public and hand-editable, and without this check the gate happily sent an <code>ilike</code> on a <code>timestamptz</code> (the server answers 500) and an <code>eq "yes"</code> on a boolean (400). A filter the builder itself refuses to draw is one it must not agree to send.</p>
+  <p>Multi-value operators are checked <b>element by element</b> rather than merely for presence: free-form CSV on string and uuid fields easily produces elements the server will reject. Without that, a <code>uuid in (abc,def)</code> rule passed the gate and got a 400 already on the wire.</p>
+  <p>A UUID is checked <b>more strictly than on the server</b> — by the canonical 8-4-4-4-12 — whereas the server's regexp is looser. The reason: Postgres's <code>uuid</code> type rejects anything without that shape, so a loose check would end in a 400 from the driver anyway. A value that passes the client's check is guaranteed to pass both coercion and parsing in Postgres.</p>
 
-  <h3>Серверные ограничения — <code>FilterSchema</code></h3>
+  <h3>The server's limits — <code>FilterSchema</code></h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Ограничение</th><th>По умолчанию</th><th>Что считает</th><th>Код при нарушении</th></tr></thead>
+    <thead><tr><th>Limit</th><th>Default</th><th>What it counts</th><th>The code on violation</th></tr></thead>
     <tbody>
-      <tr><td class="mono">maxNodes</td><td class="num-col">50</td><td><b>Все узлы вместе</b> — и группы, и правила. Счётчик инкрементируется на каждом заходе в <code>walkNode</code></td><td class="mono">FILTER_MAX_NODES_EXCEEDED</td></tr>
-      <tr><td class="mono">maxGroupDepth</td><td class="num-col">5</td><td>Глубину вложенности групп <code>and</code>/<code>or</code></td><td class="mono">FILTER_GROUP_DEPTH_EXCEEDED</td></tr>
-      <tr><td class="mono">maxDepth</td><td class="num-col">3</td><td><b>Сегменты точечного пути одного правила</b> — независимо от глубины групп. У контента выводится как «число прыжков + 1»: 2 прыжка по умолчанию, значит <code>author.company.name</code> достижим, а <code>…country.name</code> — нет</td><td class="mono">FILTER_DEPTH_EXCEEDED</td></tr>
-      <tr><td class="mono">maxInListLength</td><td class="num-col">100</td><td>Число элементов в одном <code>in</code>/<code>nin</code> — отдельно от <code>maxNodes</code>, который считает целые правила, а не элементы внутри одного</td><td class="mono">FILTER_MAX_IN_LIST_EXCEEDED</td></tr>
-      <tr><td class="mono">FILTER_MAX_LENGTH</td><td class="num-col">4096</td><td><b>Длину строки</b> параметра <code>filter</code>. Живёт не в схеме, а в DTO каждого потребителя (<code>@MaxLength</code>) — у активности, участников, записей, публичного API и сохранённых представлений одно и то же число</td><td>400 от <code>ValidationPipe</code></td></tr>
+      <tr><td class="mono">maxNodes</td><td class="num-col">50</td><td><b>Every node together</b> — groups and rules alike. The counter increments on each entry into <code>walkNode</code></td><td class="mono">FILTER_MAX_NODES_EXCEEDED</td></tr>
+      <tr><td class="mono">maxGroupDepth</td><td class="num-col">5</td><td>The nesting depth of <code>and</code>/<code>or</code> groups</td><td class="mono">FILTER_GROUP_DEPTH_EXCEEDED</td></tr>
+      <tr><td class="mono">maxDepth</td><td class="num-col">3</td><td><b>The dotted-path segments of one rule</b> — independently of group depth. For content it is derived as “hops + 1”: 2 hops by default, so <code>author.company.name</code> is reachable and <code>…country.name</code> is not</td><td class="mono">FILTER_DEPTH_EXCEEDED</td></tr>
+      <tr><td class="mono">maxInListLength</td><td class="num-col">100</td><td>The number of elements in one <code>in</code>/<code>nin</code> — separately from <code>maxNodes</code>, which counts whole rules rather than the elements inside one</td><td class="mono">FILTER_MAX_IN_LIST_EXCEEDED</td></tr>
+      <tr><td class="mono">FILTER_MAX_LENGTH</td><td class="num-col">4096</td><td>The <b>string length</b> of the <code>filter</code> parameter. It lives not in the schema but in each consumer's DTO (<code>@MaxLength</code>) — activity, members, entries, the public API and saved views all use the same number</td><td>400 from the <code>ValidationPipe</code></td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note crit">
-    <span class="label">Клиент не знает ни одного из этих пяти чисел</span>
-    <p>В пакете нет ни счётчика узлов, ни счётчика глубины, ни проверки длины строки, ни ограничения на длину CSV-списка. <code>treeHasInvalidRules</code> зеркалит <em>коррекцию листа</em> и только её. Дерево можно построить сколь угодно глубокое и сколь угодно большое, вставить в него сотню значений через запятую — ворота Apply пропустят его, URL обновится, и отказ придёт с сервера как ошибка загрузки списка.</p>
-    <p>Практически это упирается в терпение: набрать 50 узлов мышью тяжело. Но <code>between</code> стоит <b>три</b> узла (группа + два правила) при единице в бейдже «Фильтры (N)», поэтому бюджет расходуется быстрее, чем показывает счётчик, и восстановленный из сохранённого представления фильтр может оказаться уже за границей.</p>
+    <span class="label">The client knows none of these five numbers</span>
+    <p>The package has no node counter, no depth counter, no string-length check and no limit on a CSV list's length. <code>treeHasInvalidRules</code> mirrors <em>leaf coercion</em> and nothing else. A tree can be built arbitrarily deep and arbitrarily large, and a hundred comma-separated values can be pasted into it — the Apply gate will let it through, the URL will update, and the refusal will arrive from the server as a list-loading error.</p>
+    <p>In practice this comes down to patience: typing 50 nodes with a mouse is hard work. But a <code>between</code> costs <b>three</b> nodes (a group + two rules) while counting as one in the “Filters (N)” badge, so the budget is spent faster than the counter shows, and a filter restored from a saved view may already be over the line.</p>
   </div>
 
-  <h3>Ещё два числа, о которых стоит знать</h3>
+  <h3>Two more numbers worth knowing</h3>
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0"><code>MAX_WITHIN_LAST</code> = 100 000 (клиент)</h4>
-      <p class="small sub">Инпут зажат в <code>[1, 100000]</code> на каждое нажатие, и сериализатор дополнительно ограничивает отсечку представимым мгновением. Причина сугубо практическая: превью сериализует живой черновик на каждую клавишу, и пользователь, набирающий длинное число, раньше получал <code>new Date(NaN).toISOString()</code> — <code>RangeError</code>, брошенный во время рендера, между которым и страницей нет никакой границы. Клемпинг делает сериализатор тотальным: бессмысленное окно вырождается в самое широкое представимое, а отказывает уже Apply.</p>
+      <h4 style="margin-top:0"><code>MAX_WITHIN_LAST</code> = 100,000 (client)</h4>
+      <p class="small sub">The input is clamped to <code>[1, 100000]</code> on every keystroke, and the serialiser additionally bounds the cut-off to a representable instant. The reason is purely practical: the preview serialises the live draft on every key, and a user typing a long number used to get <code>new Date(NaN).toISOString()</code> — a <code>RangeError</code> thrown during render, between which and the page there is no boundary whatsoever. Clamping makes the serialiser total: a meaningless window degenerates into the widest representable one, and it is Apply that refuses.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0"><code>MAX_WITHIN_LAST_N</code> = 10 000 000 (сервер)</h4>
-      <p class="small sub">Здесь граница про Postgres: <code>now() - make_interval(days =&gt; 1e9)</code> переполняет диапазон timestamp и даёт <code>22008</code>, который вызывающий увидит как 500. Клиент строже сервера по <em>числу</em>, но не по <em>длительности</em>: 100 000 дней — это около 274 лет, а 100 000 минут — всего 69 дней. Ограничение считает счётчик, а не окно.</p>
+      <h4 style="margin-top:0"><code>MAX_WITHIN_LAST_N</code> = 10,000,000 (server)</h4>
+      <p class="small sub">Here the boundary is about Postgres: <code>now() - make_interval(days =&gt; 1e9)</code> overflows the timestamp range and yields a <code>22008</code>, which the caller sees as a 500. The client is stricter than the server on the <em>number</em> but not on the <em>duration</em>: 100,000 days is about 274 years, whereas 100,000 minutes is only 69 days. The limit counts the counter, not the window.</p>
     </div>
   </div>
 
-  <h3>Что делает сервер, чего клиент не отражает вовсе</h3>
+  <h3>What the server does that the client does not mirror at all</h3>
   <ul>
-    <li><b>Отрицания NULL-инклюзивны.</b> <code>ne</code>, <code>nin</code>, <code>nilike</code> транслируются как <code>предикат OR col IS NULL</code>. В SQL трёхзначная логика дала бы NULL (то есть «не совпало») на пустой колонке, и «Заголовок не содержит foo» тихо прятало бы все черновики с пустым заголовком. Пустое значение — не то значение, которое исключают.</li>
-    <li><b>Отрицание на пути по связи переписывается.</b> <code>EXISTS(… NOT p …)</code> превращается в <code>NOT EXISTS(… p …)</code>. Это не одно и то же, как только связь может держать больше одной строки: «теги не содержат x» в первой форме означает «есть какой-то тег, отличный от x», чему запись с тегами <code>[x, y]</code> удовлетворяет.</li>
-    <li><b>Каждая связь несёт свой <code>scope</code></b> — границу воркспейса и защиту от мягко удалённых строк, приклеенную внутрь подзапроса EXISTS. Без него фильтр по связи ходил бы по строкам, которые сам корневой запрос исключает.</li>
-    <li><b>Пустой <code>in</code> отвергается</b> (<code>FILTER_EMPTY_IN_LIST</code>): Drizzle выдаёт <code>IN ()</code> как <code>false</code>, а <code>NOT IN ()</code> как <code>true</code> — молчаливый ноль или молчаливая инверсия вместо намерения пользователя.</li>
-    <li><b>Виртуальные поля</b> (<code>extensionFields</code>) уходят в хост-обработчик и становятся подзапросом, вшиваемым в позицию листа, — поэтому они спокойно живут внутри тех же групп AND/OR, что и обычные правила.</li>
+    <li><b>Negations are NULL-inclusive.</b> <code>ne</code>, <code>nin</code> and <code>nilike</code> are translated as <code>predicate OR col IS NULL</code>. In SQL, three-valued logic would yield NULL (that is, “no match”) on an empty column, and “Title does not contain foo” would quietly hide every draft with an empty title. An empty value is not the value being excluded.</li>
+    <li><b>Negation on a relation path is rewritten.</b> <code>EXISTS(… NOT p …)</code> becomes <code>NOT EXISTS(… p …)</code>. These are not the same thing as soon as a relation can hold more than one row: “tags do not contain x” in the first form means “there is some tag other than x”, which an entry tagged <code>[x, y]</code> satisfies.</li>
+    <li><b>Every relation carries its own <code>scope</code></b> — the workspace boundary and the guard against soft-deleted rows, glued into the EXISTS subquery. Without it a relation filter would walk rows that the root query itself excludes.</li>
+    <li><b>An empty <code>in</code> is rejected</b> (<code>FILTER_EMPTY_IN_LIST</code>): Drizzle emits <code>IN ()</code> as <code>false</code> and <code>NOT IN ()</code> as <code>true</code> — a silent zero or a silent inversion in place of the user's intent.</li>
+    <li><b>Virtual fields</b> (<code>extensionFields</code>) go to a host handler and become a subquery inlined at the leaf's position — which is why they sit happily inside the same AND/OR groups as ordinary rules.</li>
   </ul>
 </section>
 
 <section id="a11y">
-  <h2 class="sec"><span class="num">10</span>Доступность и клавиатура</h2>
+  <h2 class="sec"><span class="num">10</span>Accessibility and the keyboard</h2>
 
-  <p>Доступность здесь — не отдельный слой поверх готового компонента, а причина, по которой некоторые части написаны именно так. Тикет <code>ORT-157</code> прошёлся по конструктору целиком; ниже — что он изменил и почему.</p>
+  <p>Accessibility here is not a separate layer over a finished component but the reason some parts are written the way they are. The <code>ORT-157</code> ticket went through the whole builder; below is what it changed and why.</p>
 
-  <h3>Проблема, с которой всё началось: строки были неразличимы</h3>
-  <p>Дерево доступности с тремя правилами на экране читалось буквально так:</p>
+  <h3>The problem it started from: the rows were indistinguishable</h3>
+  <p>The accessibility tree with three rules on screen read literally like this:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>combobox "Field"   combobox "Operator"   combobox "Value"   button "Remove rule"
 combobox "Field"   combobox "Operator"   combobox "Value"   button "Remove rule"
 combobox "Field"   combobox "Operator"   combobox "Value"   button "Remove rule"</code></pre></div>
-  <p>Вторая строка ничем не отличалась от третьей, и после нажатия одной из пяти кнопок «Remove rule» узнать, какая именно исчезла, было неоткуда (4.1.2, 2.4.6). Решение — <b>идентичность строки</b>: функция <code>fieldPath(intl, fields, fieldId)</code> собирает локализованный путь «Автор · Почта», и он подставляется в имя каждого контрола строки и в её сообщение об ошибке. Ровно ту же композицию использовали чипы сводки — теперь реализация одна, и чип не может разойтись в названии с породившей его строкой. Для поля, которого больше нет в схеме, возвращается сырой <code>fieldId</code>: сломанное правило тоже обязано быть опознаваемым, а его id — единственная оставшаяся ручка.</p>
+  <p>The second row was in no way different from the third, and after pressing one of five “Remove rule” buttons there was nowhere to learn which had disappeared (4.1.2, 2.4.6). The fix is <b>row identity</b>: the <code>fieldPath(intl, fields, fieldId)</code> function assembles a localised “Author · Email” path, and it is substituted into the name of every control on the row and into its error message. The summary chips used exactly the same composition — now there is one implementation, and a chip cannot diverge in naming from the row that produced it. For a field that is no longer in the schema, the raw <code>fieldId</code> is returned: a broken rule must be identifiable too, and its id is the only handle left.</p>
 
-  <h3>Имена контролов</h3>
+  <h3>The controls' names</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Элемент</th><th>Доступное имя</th></tr></thead>
+    <thead><tr><th>Element</th><th>Accessible name</th></tr></thead>
     <tbody>
-      <tr><td>Ячейка поля</td><td>«Field for Автор · Почта»</td></tr>
-      <tr><td>Ячейка оператора</td><td>«Operator for Автор · Почта»</td></tr>
-      <tr><td>Кнопка удаления правила</td><td>«Remove condition: Автор · Почта»</td></tr>
-      <tr><td>Сообщение об ошибке</td><td>«Автор · Почта: Value required» — 3.3.1 требует, чтобы элемент в ошибке был назван</td></tr>
-      <tr><td>Контролы корневой группы</td><td>Простые: «Add rule», «Add group», «Combinator»</td></tr>
-      <tr><td>Контролы подгруппы N</td><td>«Add rule to group N», «Add group inside group N», «Remove group N», «Combinator for group N»; сама секция — <code>role="group"</code> с именем «Group N»</td></tr>
-      <tr><td>Чип сводки</td><td>«Remove condition Автор · Почта contains»</td></tr>
+      <tr><td>The field cell</td><td>“Field for Author · Email”</td></tr>
+      <tr><td>The operator cell</td><td>“Operator for Author · Email”</td></tr>
+      <tr><td>The rule's remove button</td><td>“Remove condition: Author · Email”</td></tr>
+      <tr><td>The error message</td><td>“Author · Email: Value required” — 3.3.1 requires the element in error to be named</td></tr>
+      <tr><td>The root group's controls</td><td>Plain ones: “Add rule”, “Add group”, “Combinator”</td></tr>
+      <tr><td>Subgroup N's controls</td><td>“Add rule to group N”, “Add group inside group N”, “Remove group N”, “Combinator for group N”; the section itself is a <code>role="group"</code> named “Group N”</td></tr>
+      <tr><td>A summary chip</td><td>“Remove condition Author · Email contains”</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Управление фокусом при удалении</h3>
-  <p>Кнопка, по которой только что нажали, исчезает вместе со строкой — фокус падал на <code>&lt;body&gt;</code>, и следующий Tab начинал обход заново с начала документа. Удаление третьего условия из пяти стоило полного повторного прохода (2.4.3). Теперь:</p>
+  <h3>Focus management on deletion</h3>
+  <p>The button just pressed disappears along with the row — focus fell onto <code>&lt;body&gt;</code>, and the next Tab restarted the traversal from the top of the document. Deleting the third condition of five cost a full second pass (2.4.3). Now:</p>
   <ol class="flow">
-    <li><b>Элементы захватываются <em>до</em> удаления.</b> Обработчик передаёт наверх сам нажатый элемент; список кнопок <code>[data-qb-remove]</code> снимается с живого DOM.<span class="meta">onRemoveFocus(event.currentTarget)</span></li>
-    <li><b>Цель выбирается по направлению списка:</b> следующая кнопка удаления, затем предыдущая, затем «Add rule» этой группы. Удаляя три строки подряд, пользователь остаётся на одном месте, а не улетает наверх каждый раз.<span class="meta">React ключует строки — все кроме удаляемой сохраняют свои узлы DOM</span></li>
-    <li><b>Фокус ставится в <code>requestAnimationFrame</code></b> — после коммита, размонтирующего строку. Поставленный раньше, он был бы отменён браузером, размывающим исчезающий элемент.<span class="meta">то же самое у чипов сводки</span></li>
+    <li><b>The elements are captured <em>before</em> the deletion.</b> The handler passes the pressed element itself upwards; the list of <code>[data-qb-remove]</code> buttons is taken from the live DOM.<span class="meta">onRemoveFocus(event.currentTarget)</span></li>
+    <li><b>The target is chosen by the list's direction:</b> the next remove button, then the previous one, then that group's “Add rule”. Deleting three rows in a row, the user stays in one place rather than flying to the top each time.<span class="meta">React keys the rows — all but the deleted one keep their DOM nodes</span></li>
+    <li><b>Focus is set in a <code>requestAnimationFrame</code></b> — after the commit that unmounts the row. Set earlier, it would be cancelled by the browser blurring the disappearing element.<span class="meta">the same applies to the summary chips</span></li>
   </ol>
-  <p>У чипов сводки логика та же (следующий чип, затем предыдущий), но с честной оговоркой: когда удаляют последний чип, вся сводка размонтируется и приземляться здесь не на что. Остаётся собственный контрол потребителя, и называть цель через эту границу значило бы привязать пакет к каждому хосту.</p>
+  <p>The summary chips use the same logic (the next chip, then the previous), but with an honest caveat: when the last chip is removed, the whole summary unmounts and there is nothing here to land on. What remains is the consumer's own control, and naming a target across that boundary would tie the package to every host.</p>
 
-  <h3>Живой регион</h3>
-  <p>Один <code>role="status"</code> с именем «Filter builder status» на весь конструктор. <b>Polite, а не assertive</b> — пользователь сделал это намеренно и его не перебивают. Произносятся четыре события: добавлено условие (с итоговым числом), удалено (со сколькими осталось), добавлена группа, <b>сменено поле</b>. Правка оператора и значения не произносится — это пользователь смотрит, как его собственное нажатие попадает на экран. А вот смена поля произносится обязательно: она сбрасывает оператор и подменяет редактор значения, то есть меняет контекст дважды, и раньше делала это молча (3.2.2).</p>
+  <h3>The live region</h3>
+  <p>One <code>role="status"</code> named “Filter builder status” for the whole builder. <b>Polite, not assertive</b> — the user did this deliberately and is not interrupted. Four events are announced: a condition added (with the resulting count), one removed (with how many remain), a group added, and <b>a field changed</b>. Editing the operator and the value is not announced — that is a user watching their own keystroke land on screen. A field change, though, is announced without fail: it resets the operator and swaps the value editor, that is, changes the context twice, and used to do so in silence (3.2.2).</p>
 
-  <h3>Клавиатура в пикере поля</h3>
+  <h3>The keyboard in the field picker</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Клавиша</th><th>Действие</th></tr></thead>
+    <thead><tr><th>Key</th><th>Action</th></tr></thead>
     <tbody>
-      <tr><td class="mono">Enter</td><td>На триггере — открыть. В списке: выбрать поле либо развернуть/свернуть связь</td></tr>
-      <tr><td class="mono">↓ / ↑</td><td>Перейти к следующей/предыдущей <b>навигируемой</b> строке — заголовки пропускаются. Обход <b>циклический</b> по модулю длины списка</td></tr>
-      <tr><td class="mono">Esc</td><td>Закрыть поповер</td></tr>
-      <tr><td class="mono">Tab</td><td>Покинуть поповер целиком — строки помечены <code>tabIndex={-1}</code>, иначе Tab обходил бы каждое поле схемы</td></tr>
-      <tr><td>любой ввод</td><td>Уходит в строку поиска: фокус её не покидает никогда</td></tr>
+      <tr><td class="mono">Enter</td><td>On the trigger — open. In the list: pick a field, or expand/collapse a relation</td></tr>
+      <tr><td class="mono">↓ / ↑</td><td>Move to the next/previous <b>navigable</b> row — headings are skipped. The traversal <b>wraps</b>, modulo the list's length</td></tr>
+      <tr><td class="mono">Esc</td><td>Close the popover</td></tr>
+      <tr><td class="mono">Tab</td><td>Leave the popover entirely — the rows are marked <code>tabIndex={-1}</code>, otherwise Tab would walk every field in the schema</td></tr>
+      <tr><td>any typing</td><td>Goes into the search box: focus never leaves it</td></tr>
     </tbody>
   </table>
   </div>
   <div class="note">
-    <span class="label">Почему обе половины обязательны</span>
-    <p>Строка поиска несёт <code>aria-controls</code> и живой <code>aria-activedescendant</code>. Подсветка стрелками <b>без</b> <code>aria-activedescendant</code> — чисто визуальное состояние, о котором вспомогательные технологии не узнают вовсе. А строки, достижимые только через Tab, объявляли бы позицию, с которой клавиатура ничего не может сделать. Нужны обе.</p>
+    <span class="label">Why both halves are mandatory</span>
+    <p>The search box carries an <code>aria-controls</code> and a live <code>aria-activedescendant</code>. Arrow-key highlighting <b>without</b> an <code>aria-activedescendant</code> is a purely visual state that assistive technology never learns about. And rows reachable only through Tab would announce a position the keyboard can do nothing with. Both are needed.</p>
   </div>
-  <p>Ещё две детали клавиатуры, которые легко потерять при правках: подсветка сбрасывается на первую навигируемую строку при <b>открытии и смене запроса</b>, но <em>не</em> при разворачивании связи — иначе каждое раскрытие дёргало бы и подсветку, и прокрутку обратно наверх. И <code>scrollIntoView({block:'nearest'})</code> следит за подсветкой, а не за перерисовкой списка, поэтому по той же причине не срабатывает на разворачивании.</p>
+  <p>Two more keyboard details that are easy to lose in an edit: the highlight resets to the first navigable row on <b>opening and on a change of query</b>, but <em>not</em> on expanding a relation — otherwise every expansion would jerk both the highlight and the scroll back to the top. And <code>scrollIntoView({block:'nearest'})</code> follows the highlight rather than a re-render of the list, so for the same reason it does not fire on an expansion.</p>
 
-  <h3>Панель как область</h3>
+  <h3>The panel as a region</h3>
   <ul>
-    <li>Секция — <code>role="region"</code>, подписанная кнопкой-переключателем через <code>aria-labelledby</code>.</li>
-    <li>В свёрнутом виде на неё ставится <code>inert</code>: содержимое не фокусируется и не читается, хотя и остаётся в DOM (высота анимируется гридом).</li>
-    <li><b>Esc возвращает фокус на переключатель</b> — и делает это в <code>requestAnimationFrame</code> после коммита, ставящего <code>inert</code>. Панель намеренно уводит фокус <em>внутрь</em> при открытии, и до <code>ORT-157</code> ничего не делала на выходе.</li>
-    <li>Esc пропускается, если <code>event.defaultPrevented</code>: открытый поповер пикера обязан съесть свой Escape первым.</li>
-    <li><code>aria-invalid</code> вешается на <b>сами чекбоксы</b> <code>EnumMultiSelect</code>, а не на группу: это атрибут виджета-инпута, ARIA 1.2 не перечисляет его на <code>role="group"</code>, так что на группе он не сообщал состояние вообще никому.</li>
-    <li>Анимация раскрытия уважает <code>prefers-reduced-motion</code> (<code>motion-reduce:transition-none</code>); список правил ограничен по высоте (<code>22rem</code>) и прокручивается внутри себя, чтобы таблица не уезжала за экран.</li>
+    <li>The section is a <code>role="region"</code>, labelled by the toggle button through <code>aria-labelledby</code>.</li>
+    <li>When collapsed it is given <code>inert</code>: the content is not focusable and not read, although it remains in the DOM (the height is animated with a grid).</li>
+    <li><b>Esc returns focus to the toggle</b> — and does so in a <code>requestAnimationFrame</code> after the commit that sets <code>inert</code>. The panel deliberately moves focus <em>inwards</em> on opening, and before <code>ORT-157</code> did nothing on the way out.</li>
+    <li>Esc is skipped if <code>event.defaultPrevented</code>: an open picker popover must eat its own Escape first.</li>
+    <li><code>aria-invalid</code> is attached to <code>EnumMultiSelect</code>'s <b>checkboxes themselves</b> rather than to the group: it is an input-widget attribute, ARIA 1.2 does not list it on <code>role="group"</code>, so on the group it communicated the state to nobody at all.</li>
+    <li>The expansion animation respects <code>prefers-reduced-motion</code> (<code>motion-reduce:transition-none</code>); the rule list is height-bounded (<code>22rem</code>) and scrolls within itself so that the table does not travel off screen.</li>
   </ul>
 </section>
 
 <section id="invariants">
-  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <h2 class="sec"><span class="num">11</span>Invariants</h2>
 
-  <p>То, что должно оставаться истинным после любой правки пакета. Нарушение каждого пункта — это конкретный дефект, уже случавшийся хотя бы раз.</p>
+  <p>What must remain true after any edit to the package. Violating each point is a specific defect that has happened at least once already.</p>
 
   <ul class="inv">
-    <li><span class="id">И-01</span><div><b>Полезная нагрузка на проводе всегда корректна по форме.</b> Незавершённые правила и опустевшие группы выпадают при сериализации. Пользователь имеет право держать черновик на экране; сервер не имеет права его увидеть.</div></li>
-    <li><span class="id">И-02</span><div><b>Клиент никогда не пишет голую строку оператора.</b> Каждый лист проходит через <code>UI_TO_WIRE</code> или через явную ветку сериализатора. Оператор, добавленный в <code>OP</code> без записи в таблице и без ветки, обязан <b>бросить исключение</b>, а не молча уехать.</div></li>
-    <li><span class="id">И-03</span><div><b>Правило всегда имеет поле.</b> Модель не знает состояния «правило без поля», поэтому у ячейки поля нет разрушающего «очистить» — она просто открывается заново.</div></li>
-    <li><span class="id">И-04</span><div><b>Неизвестное поле не подменяется.</b> <code>RuleRow</code> разрешает поле по <code>id</code> <em>без</em> отката к <code>fields[0]</code>. Подстановка чужого поля повела бы список операторов и валидацию по неверному типу, пока правило несёт старый путь: строка выглядела бы валидной, а ворота Apply (разрешающие тоже по id) молча отказывали бы в коммите.</div></li>
-    <li><span class="id">И-05</span><div><b>Смена поля сбрасывает и оператор, и значение.</b> Иначе правило остаётся с оператором, легальным для прошлого типа, — и получает 400 на проводе. Смена оператора точно так же пересевает значение по его форме (<code>defaultValueForOp</code>), иначе составные операторы получают <code>''</code> и ломают контролы переходом controlled → uncontrolled.</div></li>
-    <li><span class="id">И-06</span><div><b>Оператор по умолчанию берётся из <code>opsForField</code>, а не из <code>OPS_FOR_TYPE</code>.</b> Порядок, объявленный полем, — это и есть его умолчание. Посев от типа разводил «Add rule» и пикер оператора по разным словарям.</div></li>
-    <li><span class="id">И-07</span><div><b>Объявленный список операторов сужает, но не расширяет.</b> Он фильтруется тем, что допускает тип; сужение, не совпавшее ни с чем, откатывается к полному набору типа — пикер с нулём опций хуже, чем неверный порядок.</div></li>
-    <li><span class="id">И-08</span><div><b>Все словари читаются через <code>Object.hasOwn</code>.</b> <code>OPS_FOR_TYPE</code>, <code>UI_TO_WIRE</code>, <code>WIRE_TO_UI</code>, <code>MS_PER_UNIT</code>, серверный <code>OPERATORS_BY_TYPE</code>. Это обычные объектные литералы, а ключ приходит с публичного URL или из построенной в рантайме схемы: <code>WIRE_TO_UI['constructor']</code> вернул бы <code>Object</code>, и <code>?? null</code> не сработал бы никогда.</div></li>
-    <li><span class="id">И-09</span><div><b>Сериализатор тотален.</b> Ни одно значение, которое пользователь может ввести, не должно бросать исключение во время рендера: превью сериализует живой черновик на каждое нажатие. Отсюда клемпинг <code>within_last</code> в представимое мгновение и откат неизвестной единицы к дням.</div></li>
-    <li><span class="id">И-10</span><div><b>Деcериализатор не бросает.</b> Битый JSON, неизвестный оператор, мусорное значение — всё даёт <code>null</code> или отброшенное правило. Пользователь способен отредактировать <code>?filter=</code> руками, и страница обязана это пережить.</div></li>
-    <li><span class="id">И-11</span><div><b>Каждая группа владеет своим комбинатором.</b> Глобального «режима AND/OR» нет; переключатель у корня и у каждой подгруппы независим, и все мутации адресуются по <code>id</code> узла, а не по позиции.</div></li>
-    <li><span class="id">И-12</span><div><b>Ключи React никогда не сериализуются.</b> <code>FilterGroup.id</code> и <code>FilterRule.id</code> — клиентские; при разборе URL они генерируются заново.</div></li>
-    <li><span class="id">И-13</span><div><b>Пустое дерево — это <code>null</code>, а не пустая группа.</b> <code>treeToJsonFilter</code> возвращает <code>null</code>, потребитель убирает параметр из URL. Отправка <code>{and:[]}</code> получила бы <code>FILTER_INVALID_NODE</code>.</div></li>
-    <li><span class="id">И-14</span><div><b>Черновик синхронизируется с применённым значением на каждое открытие.</b> И у drawer'а, и у панели. Закрытие без Apply отбрасывает правки и сбрасывает состояние ошибок предыдущей попытки.</div></li>
-    <li><span class="id">И-15</span><div><b>Ворота Apply не пропускают ни одного невалидного правила</b>, и в отсутствие определений полей отказывают <em>все</em>. Поэтому состояния загрузки и ошибки полей — часть контракта панели, а не полировка: пустой пикер читается как мёртвая кнопка.</div></li>
-    <li><span class="id">И-16</span><div><b>Сломанное правило сообщает о себе всегда, недописанное — после Apply.</b> <code>unknown_field</code> и <code>operator_not_allowed</code> игнорируют <code>showErrors</code>: пользователь их не набирал и дописывать ему нечего.</div></li>
-    <li><span class="id">И-17</span><div><b>Фильтр, который конструктор отказывается нарисовать, он не отправляет.</b> Легальность оператора проверяется до всех проверок значения.</div></li>
-    <li><span class="id">И-18</span><div><b>Фокус после удаления узла остаётся внутри конструктора.</b> Цель захватывается до размонтирования и ставится в <code>requestAnimationFrame</code> после него.</div></li>
-    <li><span class="id">И-19</span><div><b>Список пикера — валидный listbox.</b> Каждая навигируемая строка — <code>option</code> (строка связи тоже, с <code>aria-expanded</code> вместо значения), заголовки — <code>presentation</code>, фокус остаётся на поиске, <code>aria-activedescendant</code> живой.</div></li>
-    <li><span class="id">И-20</span><div><b>Внутри контейнера с блокировкой прокрутки поповеры порталятся в него.</b> <code>portalContainer</code> публикуется через контекст и обязан читаться и пикером поля, и инжектированным редактором связи, иначе их списки не крутятся колесом.</div></li>
-    <li><span class="id">И-21</span><div><b><code>relativeDates</code> передаётся тогда и только тогда, когда фильтр хранится.</b> Ссылка получает замороженную отсечку, хранимое правило — скользящее окно. Ошибка в любую сторону тиха и выглядит нормально.</div></li>
+    <li><span class="id">I-01</span><div><b>The payload on the wire is always well-formed.</b> Incomplete rules and emptied groups drop out during serialisation. The user is entitled to hold a draft on screen; the server is not entitled to see it.</div></li>
+    <li><span class="id">I-02</span><div><b>The client never writes a bare operator string.</b> Every leaf goes through <code>UI_TO_WIRE</code> or through an explicit branch of the serialiser. An operator added to <code>OP</code> with no table entry and no branch must <b>throw</b> rather than travel silently.</div></li>
+    <li><span class="id">I-03</span><div><b>A rule always has a field.</b> The model knows no “rule without a field” state, which is why the field cell has no destructive “clear” — it simply reopens.</div></li>
+    <li><span class="id">I-04</span><div><b>An unknown field is not substituted.</b> <code>RuleRow</code> resolves the field by <code>id</code> <em>without</em> falling back to <code>fields[0]</code>. Substituting someone else's field would drive the operator list and the validation by the wrong type while the rule still carries the old path: the row would look valid, and the Apply gate (which also resolves by id) would silently refuse the commit.</div></li>
+    <li><span class="id">I-05</span><div><b>Changing the field resets both the operator and the value.</b> Otherwise the rule is left with an operator legal for the previous type — and gets a 400 on the wire. Changing the operator likewise re-seeds the value by its shape (<code>defaultValueForOp</code>), otherwise composite operators get an <code>''</code> and break the controls with a controlled → uncontrolled transition.</div></li>
+    <li><span class="id">I-06</span><div><b>The default operator comes from <code>opsForField</code>, not from <code>OPS_FOR_TYPE</code>.</b> The order a field declares <em>is</em> its default. Seeding from the type drove “Add rule” and the operator picker off two different dictionaries.</div></li>
+    <li><span class="id">I-07</span><div><b>A declared operator list narrows but does not widen.</b> It is filtered by what the type permits; a narrowing that matched nothing falls back to the type's full set — a picker with zero options is worse than a wrong order.</div></li>
+    <li><span class="id">I-08</span><div><b>Every dictionary is read through <code>Object.hasOwn</code>.</b> <code>OPS_FOR_TYPE</code>, <code>UI_TO_WIRE</code>, <code>WIRE_TO_UI</code>, <code>MS_PER_UNIT</code>, and the server's <code>OPERATORS_BY_TYPE</code>. These are ordinary object literals, and the key arrives from a public URL or from a schema built at runtime: <code>WIRE_TO_UI['constructor']</code> would return <code>Object</code>, and the <code>?? null</code> would never fire.</div></li>
+    <li><span class="id">I-09</span><div><b>The serialiser is total.</b> No value a user can type may throw during render: the preview serialises the live draft on every keystroke. Hence the clamping of <code>within_last</code> to a representable instant and the fallback of an unknown unit to days.</div></li>
+    <li><span class="id">I-10</span><div><b>The deserialiser does not throw.</b> Corrupt JSON, an unknown operator, a junk value — each yields <code>null</code> or a discarded rule. A user is capable of hand-editing <code>?filter=</code>, and the page must survive it.</div></li>
+    <li><span class="id">I-11</span><div><b>Every group owns its combinator.</b> There is no global “AND/OR mode”; the root's switch and each subgroup's are independent, and every mutation is addressed by a node's <code>id</code> rather than by position.</div></li>
+    <li><span class="id">I-12</span><div><b>React keys are never serialised.</b> <code>FilterGroup.id</code> and <code>FilterRule.id</code> are client-side; they are regenerated when the URL is parsed.</div></li>
+    <li><span class="id">I-13</span><div><b>An empty tree is <code>null</code>, not an empty group.</b> <code>treeToJsonFilter</code> returns <code>null</code> and the consumer removes the parameter from the URL. Sending <code>{and:[]}</code> would get a <code>FILTER_INVALID_NODE</code>.</div></li>
+    <li><span class="id">I-14</span><div><b>The draft is synced with the applied value on every opening.</b> For the drawer and the panel alike. Closing without Apply discards the edits and clears the previous attempt's error state.</div></li>
+    <li><span class="id">I-15</span><div><b>The Apply gate lets through no invalid rule</b>, and in the absence of field definitions refuses <em>all</em> of them. That is why the fields' loading and error states are part of the panel's contract rather than polish: an empty picker reads as a dead button.</div></li>
+    <li><span class="id">I-16</span><div><b>A broken rule always announces itself; an unfinished one does so after Apply.</b> <code>unknown_field</code> and <code>operator_not_allowed</code> ignore <code>showErrors</code>: the user did not type them and has nothing to finish.</div></li>
+    <li><span class="id">I-17</span><div><b>A filter the builder refuses to draw is one it does not send.</b> The operator's legality is checked before every value check.</div></li>
+    <li><span class="id">I-18</span><div><b>Focus after deleting a node stays inside the builder.</b> The target is captured before the unmount and set in a <code>requestAnimationFrame</code> after it.</div></li>
+    <li><span class="id">I-19</span><div><b>The picker's list is a valid listbox.</b> Every navigable row is an <code>option</code> (the relation row too, with an <code>aria-expanded</code> instead of a value), headings are <code>presentation</code>, focus stays on the search box, and <code>aria-activedescendant</code> is live.</div></li>
+    <li><span class="id">I-20</span><div><b>Inside a scroll-locking container, popovers portal into it.</b> The <code>portalContainer</code> is published through context and must be read both by the field picker and by an injected relation editor, otherwise their lists do not scroll with the wheel.</div></li>
+    <li><span class="id">I-21</span><div><b><code>relativeDates</code> is passed if and only if the filter is stored.</b> A link gets a frozen cut-off, a stored rule a sliding window. An error in either direction is silent and looks normal.</div></li>
   </ul>
 </section>
 
 <section id="qa">
-  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <h2 class="sec"><span class="num">12</span>Testing checklist</h2>
 
-  <p>Модульные тесты в пакете покрывают только то, до чего браузер дёшево не достаёт: <code>utils/fieldTree</code> и <code>utils/operators</code>. Всё поведенческое живёт в <code>apps/admin-e2e</code>, где есть настоящий браузер. Ниже — что проверять руками или новым тестом.</p>
+  <p>The package's unit tests cover only what a browser does not reach cheaply: <code>utils/fieldTree</code> and <code>utils/operators</code>. Everything behavioural lives in <code>apps/admin-e2e</code>, where there is a real browser. Below is what to check by hand or with a new test.</p>
 
-  <h3>Грамматика и круговорот</h3>
+  <h3>The grammar and the round trip</h3>
   <ul class="check">
-    <li><b>Плоское условие из двух правил</b> <span class="exp">— в URL <code>{"and":[…, …]}</code>, обратная загрузка даёт те же две строки</span></li>
-    <li><b>OR в корне</b> <span class="exp">— переключить комбинатор корня, применить, перезагрузить: комбинатор сохранился</span></li>
-    <li><b>Вложенная группа</b> <span class="exp">— добавить подгруппу с OR внутри AND, применить, перезагрузить: структура вернулась целиком, а не сплющилась</span></li>
-    <li><b>Две подгруппы рядом</b> <span class="exp">— обе восстанавливаются, нумерация в именах контролов не съезжает при добавлении правила между ними</span></li>
-    <li><b><code>contains</code> со спецсимволами</b> <span class="exp">— значение <code>50%_off</code> уезжает как <code>%50\%\_off%</code> и возвращается в инпут буквально</span></li>
-    <li><b><code>between</code> туда-обратно</b> <span class="exp">— уезжает группой из двух правил, возвращается одним составным редактором, бейдж считает 1</span></li>
-    <li><b>Честная группа <code>gte</code>+<code>lte</code></b> <span class="exp">— вернётся как <code>between</code>; убедиться, что результирующая выборка совпадает</span></li>
-    <li><b><code>is not empty</code></b> <span class="exp">— на проводе <code>{"op":"null","value":false}</code>, обратно поднимается как <code>is_not_empty</code>, а не как <code>is_empty</code></span></li>
-    <li><b><code>within_last</code> в ссылке</b> <span class="exp">— в URL резолвленный <code>gte</code>; после перезагрузки строка читается как абсолютное «greater than or equal to»</span></li>
-    <li><b><code>within_last</code> в правиле аларма</b> <span class="exp">— в базе <code>{"op":"within_last","value":{"n":…,"unit":…}}</code>; повторное открытие правила даёт тот же составной редактор</span></li>
-    <li><b>Битый <code>?filter=</code></b> <span class="exp">— мусорная строка, оборванный JSON, <code>{"op":"constructor"}</code>: страница грузится, фильтр пуст, ничего не падает</span></li>
+    <li><b>A flat condition of two rules</b> <span class="exp">— <code>{"and":[…, …]}</code> in the URL, and loading it back gives the same two rows</span></li>
+    <li><b>An OR at the root</b> <span class="exp">— switch the root's combinator, apply, reload: the combinator survived</span></li>
+    <li><b>A nested group</b> <span class="exp">— add a subgroup with an OR inside an AND, apply, reload: the structure came back intact rather than flattened</span></li>
+    <li><b>Two subgroups side by side</b> <span class="exp">— both are restored, and the numbering in the control names does not shift when a rule is added between them</span></li>
+    <li><b><code>contains</code> with special characters</b> <span class="exp">— the value <code>50%_off</code> leaves as <code>%50\%\_off%</code> and comes back into the input literally</span></li>
+    <li><b><code>between</code> round trip</b> <span class="exp">— it leaves as a group of two rules and returns as one composite editor, with the badge counting 1</span></li>
+    <li><b>An honest <code>gte</code>+<code>lte</code> group</b> <span class="exp">— it will come back as a <code>between</code>; confirm the resulting result set matches</span></li>
+    <li><b><code>is not empty</code></b> <span class="exp">— on the wire it is <code>{"op":"null","value":false}</code>, and it lifts back as <code>is_not_empty</code> rather than <code>is_empty</code></span></li>
+    <li><b><code>within_last</code> in a link</b> <span class="exp">— a resolved <code>gte</code> in the URL; after a reload the row reads as an absolute “greater than or equal to”</span></li>
+    <li><b><code>within_last</code> in an alarm rule</b> <span class="exp">— <code>{"op":"within_last","value":{"n":…,"unit":…}}</code> in the database; reopening the rule gives the same composite editor</span></li>
+    <li><b>A corrupt <code>?filter=</code></b> <span class="exp">— a junk string, truncated JSON, <code>{"op":"constructor"}</code>: the page loads, the filter is empty, and nothing crashes</span></li>
   </ul>
 
-  <h3>Операторы и типы полей</h3>
+  <h3>Operators and field types</h3>
   <ul class="check">
-    <li><b>Каждый из шести типов</b> <span class="exp">— пикер оператора предлагает ровно то, что в <code>OPS_FOR_TYPE</code>; у даты нет <code>equals</code>, у булева только <code>equals</code></span></li>
-    <li><b>Поле с суженным <code>operators</code></b> <span class="exp">— «Has locale» предлагает только <code>equals</code> и <code>is one of</code>; «Can be seen by» открывается на <code>is one of</code>, а не на <code>equals</code></span></li>
-    <li><b>Сужение, не пересекающееся с типом</b> <span class="exp">— откат к полному набору типа, а не пустой список</span></li>
-    <li><b>Смена поля на другой тип</b> <span class="exp">— оператор и значение сброшены, редактор значения подменён, живой регион произнёс это</span></li>
-    <li><b>Смена оператора на составной</b> <span class="exp">— <code>between</code> даёт <code>{from:'',to:''}</code>, <code>within_last</code> даёт <code>{n:7,unit:'days'}</code>, множественный даёт <code>[]</code>; ни один инпут не переходит из controlled в uncontrolled</span></li>
-    <li><b>enum + множественный оператор</b> <span class="exp">— чекбоксы по объявленным членам, ввести постороннее значение нельзя</span></li>
-    <li><b>Поле со связью и <code>relationTarget</code></b> <span class="exp">— вместо ввода uuid пикер записей; при одиночном операторе выбор сводится к одному id</span></li>
+    <li><b>Each of the six types</b> <span class="exp">— the operator picker offers exactly what is in <code>OPS_FOR_TYPE</code>; a date has no <code>equals</code>, and a boolean has only <code>equals</code></span></li>
+    <li><b>A field with a narrowed <code>operators</code></b> <span class="exp">— “Has locale” offers only <code>equals</code> and <code>is one of</code>; “Can be seen by” opens on <code>is one of</code> rather than on <code>equals</code></span></li>
+    <li><b>A narrowing that does not intersect with the type</b> <span class="exp">— a fallback to the type's full set rather than an empty list</span></li>
+    <li><b>Changing the field to a different type</b> <span class="exp">— the operator and value are reset, the value editor is swapped, and the live region announced it</span></li>
+    <li><b>Changing the operator to a composite one</b> <span class="exp">— <code>between</code> yields <code>{from:'',to:''}</code>, <code>within_last</code> yields <code>{n:7,unit:'days'}</code>, a multi-value one yields <code>[]</code>; no input goes from controlled to uncontrolled</span></li>
+    <li><b>enum + a multi-value operator</b> <span class="exp">— checkboxes over the declared members, and a foreign value cannot be typed</span></li>
+    <li><b>A relation field with a <code>relationTarget</code></b> <span class="exp">— an entry picker instead of a uuid input; with a single-value operator the choice reduces to one id</span></li>
   </ul>
 
-  <h3>Валидация и ворота Apply</h3>
+  <h3>Validation and the Apply gate</h3>
   <ul class="check">
-    <li><b>Каждый из 11 кодов</b> <span class="exp">— в частности <code>uuid is one of</code> с не-uuid элементом должен блокировать Apply (есть e2e на активности)</span></li>
-    <li><b>Ошибки гаснут сами</b> <span class="exp">— исправить значение: сообщения исчезают без повторного Apply</span></li>
-    <li><b>Фокус после неудачного Apply</b> <span class="exp">— на первом контроле первой ошибочной строки, не на кнопке и не на тексте ошибки</span></li>
-    <li><b>Неизвестное поле</b> <span class="exp">— переименовать поле в схеме и открыть старую ссылку: строка сообщает <code>unknown_field</code> сразу, ячейка поля осталась и позволяет перевыбрать</span></li>
-    <li><b>Нелегальный оператор из URL</b> <span class="exp">— <code>ilike</code> по дате: сообщение появляется немедленно, Apply не срабатывает</span></li>
-    <li><b>Поля грузятся</b> <span class="exp">— спиннер вместо конструктора, Apply заблокирован, Reset активен</span></li>
-    <li><b>Загрузка полей упала</b> <span class="exp">— <code>Alert</code> с «Try again», применённый фильтр продолжает действовать, таблица грузится</span></li>
-    <li><b>Превышение серверных границ</b> <span class="exp">— 51 узел, 6 уровней групп, 101 значение в CSV, строка длиннее 4096: клиент пропустит, проверяется корректность ответа 400 на экране</span></li>
+    <li><b>Each of the 11 codes</b> <span class="exp">— in particular a <code>uuid is one of</code> with a non-uuid element must block Apply (there is an e2e test on activity)</span></li>
+    <li><b>The errors clear themselves</b> <span class="exp">— fix the value: the messages disappear without a second Apply</span></li>
+    <li><b>Focus after a failed Apply</b> <span class="exp">— on the first control of the first erroneous row, not on the button and not on the error text</span></li>
+    <li><b>An unknown field</b> <span class="exp">— rename a field in the schema and open an old link: the row reports <code>unknown_field</code> at once, and the field cell is still there and allows re-picking</span></li>
+    <li><b>An illegal operator from a URL</b> <span class="exp">— an <code>ilike</code> on a date: the message appears immediately and Apply does not fire</span></li>
+    <li><b>The fields are loading</b> <span class="exp">— a spinner instead of the builder, Apply disabled, Reset enabled</span></li>
+    <li><b>Loading the fields failed</b> <span class="exp">— an <code>Alert</code> with “Try again”, the applied filter still in force and the table loading</span></li>
+    <li><b>Exceeding the server's limits</b> <span class="exp">— 51 nodes, 6 levels of groups, 101 values in a CSV, a string longer than 4096: the client lets it through, so check that the 400 is presented correctly on screen</span></li>
   </ul>
 
-  <h3>Клавиатура и доступность</h3>
+  <h3>The keyboard and accessibility</h3>
   <ul class="check">
-    <li><b>axe на раскрытой панели с правилом</b> <span class="exp">— есть в e2e у участников и у активности</span></li>
-    <li><b>Обход пикера стрелками</b> <span class="exp">— заголовки пропускаются, обход цикличен, <code>aria-activedescendant</code> следует за подсветкой</span></li>
-    <li><b>Enter на строке связи</b> <span class="exp">— разворачивает её, а не выбирает; подсветка и прокрутка остаются на месте</span></li>
-    <li><b>Tab внутри поповера</b> <span class="exp">— выходит из него, а не обходит все поля схемы</span></li>
-    <li><b>Esc в панели</b> <span class="exp">— схлопывает и возвращает фокус на переключатель; при открытом поповере первым Esc закрывается поповер</span></li>
-    <li><b>Удаление третьего из пяти условий</b> <span class="exp">— фокус на кнопке удаления следующей строки, следующий Tab не начинает с начала документа</span></li>
-    <li><b>Удаление чипа сводки</b> <span class="exp">— фокус переходит на соседний чип; при удалении последнего сводка исчезает целиком</span></li>
-    <li><b>Живой регион</b> <span class="exp">— произносит добавление/удаление условия, добавление группы и смену поля; не произносит правку значения</span></li>
-    <li><b>Имена контролов в подгруппах</b> <span class="exp">— «Add rule to group 2» и т.д., корень остаётся без номера</span></li>
+    <li><b>axe on an expanded panel with a rule</b> <span class="exp">— present in the members' and the activity's e2e</span></li>
+    <li><b>Arrow-key traversal of the picker</b> <span class="exp">— headings are skipped, the traversal wraps, and <code>aria-activedescendant</code> follows the highlight</span></li>
+    <li><b>Enter on a relation row</b> <span class="exp">— expands it rather than selecting it; the highlight and the scroll stay put</span></li>
+    <li><b>Tab inside the popover</b> <span class="exp">— leaves it rather than walking every field in the schema</span></li>
+    <li><b>Esc in the panel</b> <span class="exp">— collapses it and returns focus to the toggle; with a popover open, the first Esc closes the popover</span></li>
+    <li><b>Deleting the third of five conditions</b> <span class="exp">— focus on the next row's remove button, and the next Tab does not start from the top of the document</span></li>
+    <li><b>Deleting a summary chip</b> <span class="exp">— focus moves to the neighbouring chip; deleting the last one makes the whole summary disappear</span></li>
+    <li><b>The live region</b> <span class="exp">— announces adding/removing a condition, adding a group and changing a field; does not announce a value edit</span></li>
+    <li><b>Control names inside subgroups</b> <span class="exp">— “Add rule to group 2” and so on, with the root left unnumbered</span></li>
   </ul>
 
-  <h3>Интеграция с потребителями</h3>
+  <h3>Integration with the consumers</h3>
   <ul class="check">
-    <li><b>Прокрутка колесом внутри drawer'а и диалога</b> <span class="exp">— список пикера поля крутится колесом, а не только полосой (регресс <code>portalContainer</code>)</span></li>
-    <li><b>Бейдж «Фильтры (N)»</b> <span class="exp">— считает листья по всему дереву, включая вложенные группы</span></li>
-    <li><b>Чипы enum-значений</b> <span class="exp">— «Can be seen by is one of Acme», а не uuid; неизвестный член показывает сырое значение</span></li>
-    <li><b>Удаление чипа</b> <span class="exp">— немедленно переприменяет суженное дерево; удаление последнего даёт <code>null</code>, а не пустую группу</span></li>
-    <li><b>Слот-вклады</b> <span class="exp">— поля i18n и сегментов появляются под своими заголовками; в типе без i18n их нет</span></li>
-    <li><b>Save as alarm</b> <span class="exp">— кнопка отсутствует без фильтра в URL и без права <code>alarms:manage</code></span></li>
-    <li><b>Apply в редакторе аларма</b> <span class="exp">— схлопывает панель, обновляет чипы, пересчитывает число совпадений, возвращает фокус на переключатель</span></li>
-    <li><b>Копирование JSON</b> <span class="exp">— по HTTP или при запрете доступа к буферу кнопка остаётся в исходном состоянии, в консоли нет необработанного отказа промиса</span></li>
+    <li><b>Wheel scrolling inside the drawer and the dialog</b> <span class="exp">— the field picker's list scrolls with the wheel and not only with the scrollbar (the <code>portalContainer</code> regression)</span></li>
+    <li><b>The “Filters (N)” badge</b> <span class="exp">— counts the leaves across the whole tree, nested groups included</span></li>
+    <li><b>Enum value chips</b> <span class="exp">— “Can be seen by is one of Acme” rather than a uuid; an unknown member shows the raw value</span></li>
+    <li><b>Removing a chip</b> <span class="exp">— immediately re-applies the narrowed tree; removing the last one yields <code>null</code> rather than an empty group</span></li>
+    <li><b>Slot contributions</b> <span class="exp">— the i18n and segments fields appear under their own headings; on a type without i18n they are absent</span></li>
+    <li><b>Save as alarm</b> <span class="exp">— the button is absent without a filter in the URL and without the <code>alarms:manage</code> permission</span></li>
+    <li><b>Apply in the alarm editor</b> <span class="exp">— collapses the panel, updates the chips, recomputes the match count and returns focus to the toggle</span></li>
+    <li><b>Copying the JSON</b> <span class="exp">— over HTTP or with clipboard access denied, the button stays in its initial state and the console holds no unhandled promise rejection</span></li>
   </ul>
 </section>
 
 <section id="bounds">
-  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <h2 class="sec"><span class="num">13</span>Boundaries of responsibility</h2>
 
-  <p>Границы объясняют, почему в пакете нет вещей, которых от него ждут, — и почему добавлять их сюда было бы ошибкой.</p>
+  <p>The boundaries explain why the package lacks things people expect of it — and why adding them here would be a mistake.</p>
 
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">Не слой данных</h4>
-      <p class="small sub">Ни одного запроса. Схема полей приходит пропом; пикер связанных записей инжектируется через <code>renderRelationValue</code>. Именно поэтому один компонент работает и там, где поля — статический массив из шести строк, и там, где они приходят из API вместе с рекурсивным графом связей.</p>
+      <h4 style="margin-top:0">Not a data layer</h4>
+      <p class="small sub">Not a single request. The field schema arrives as a prop; the related-entry picker is injected through <code>renderRelationValue</code>. That is exactly why one component works both where the fields are a static array of six rows and where they arrive from an API together with a recursive relation graph.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не владелец URL</h4>
-      <p class="small sub">Пакет не знает ни про роутер, ни про <code>?filter=</code>. Он отдаёт строку и принимает строку. Класть её в адрес, в тело запроса или в поле формы — решает потребитель.</p>
+      <h4 style="margin-top:0">Not the URL's owner</h4>
+      <p class="small sub">The package knows nothing of the router or of <code>?filter=</code>. It hands out a string and takes a string. Whether to put it into the address, into a request body or into a form field is the consumer's decision.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не источник истины о том, что фильтруемо</h4>
-      <p class="small sub">Белый список путей, доходящих до SQL, держит серверная <code>FilterSchema</code>. У контента поверхность строится <b>на сервере</b> и отдаётся эндпоинтом <code>/filter-fields</code> — именно чтобы клиентское зеркало не разошлось с ней. Прежняя клиентская реконструкция <code>filterFieldsFromSchema</code> удалена: с графом связей такое расхождение становится видимыми пользователю 400.</p>
+      <h4 style="margin-top:0">Not the source of truth about what is filterable</h4>
+      <p class="small sub">The allowlist of paths that reach SQL is held by the server's <code>FilterSchema</code>. For content the surface is built <b>on the server</b> and served by the <code>/filter-fields</code> endpoint — precisely so that the client's mirror cannot diverge from it. The old client-side reconstruction, <code>filterFieldsFromSchema</code>, has been removed: with a relation graph such a divergence becomes 400s the user can see.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не валидатор дерева целиком</h4>
-      <p class="small sub">Ворота Apply зеркалят <em>коррекцию листа</em>. Количество узлов, глубина групп, длина строки, длина списка <code>in</code> — целиком серверные, и клиент их не знает. Дублировать их здесь означало бы завести пятое место, где числа могут разойтись.</p>
+      <h4 style="margin-top:0">Not a whole-tree validator</h4>
+      <p class="small sub">The Apply gate mirrors <em>leaf coercion</em>. The node count, the group depth, the string length, the <code>in</code> list's length are entirely server-side, and the client does not know them. Duplicating them here would create a fifth place where the numbers can diverge.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не переводчик в SQL</h4>
-      <p class="small sub">Превью показывает JSON, не SQL. Вкладка с SQL значится в «Deferred» и осознанно отложена: то, во что дерево превратится, зависит от вида связи, от <code>scope</code> воркспейса и от переписывания отрицаний — показать здесь можно было бы только правдоподобную выдумку.</p>
+      <h4 style="margin-top:0">Not a translator into SQL</h4>
+      <p class="small sub">The preview shows JSON, not SQL. A SQL tab is listed under “Deferred” and is deliberately postponed: what a tree turns into depends on the relation's kind, on the workspace's <code>scope</code> and on the rewriting of negations — all that could be shown here is a plausible fabrication.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не хранилище фильтров</h4>
-      <p class="small sub">Сохранённые представления принадлежат контенту, правила алармов — алармам. Пакет умеет ровно две операции: сериализовать и разобрать. Что с результатом делать — не его вопрос.</p>
+      <h4 style="margin-top:0">Not a store for filters</h4>
+      <p class="small sub">Saved views belong to content and alarm rules to alarms. The package can do exactly two things: serialise and parse. What to do with the result is not its question.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не про права</h4>
-      <p class="small sub">Ни одной проверки разрешений. Кнопку прячет потребитель (<code>useHasPermission</code>), доступность полей ограничивает сервер — поверхность фильтров у контента отсекает связи в типы, не выданные воркспейсу.</p>
+      <h4 style="margin-top:0">Not about permissions</h4>
+      <p class="small sub">Not a single permission check. The button is hidden by the consumer (<code>useHasPermission</code>), and field availability is limited by the server — content's filter surface cuts off relations into types the workspace was not granted.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Не про сортировку и пагинацию</h4>
-      <p class="small sub">Конструктор отвечает только на «какие строки». Порядок, размер страницы и выбор колонок — другие контролы тулбара с собственными параметрами URL.</p>
+      <h4 style="margin-top:0">Not about sorting and pagination</h4>
+      <p class="small sub">The builder answers only “which rows”. The order, the page size and the column choice are other toolbar controls with URL parameters of their own.</p>
     </div>
   </div>
 
-  <h3>Что отложено сознательно</h3>
+  <h3>What is deliberately deferred</h3>
   <ul>
-    <li><b>Откат на составную строку.</b> Старая скобочная грамматика на клиенте больше не принимается вовсе: к моменту, когда URL доходит до <code>jsonFilterToTree</code>, он уже написан этим же пакетом.</li>
-    <li><b>Вкладка SQL-превью</b> — см. выше.</li>
-    <li><b>Пикеры внешних ключей встроены</b> — закрыто швом <code>renderRelationValue</code>.</li>
+    <li><b>A fallback to the composite string.</b> The old bracketed grammar is no longer accepted on the client at all: by the time a URL reaches <code>jsonFilterToTree</code>, it was written by this very package.</li>
+    <li><b>The SQL preview tab</b> — see above.</li>
+    <li><b>Built-in foreign-key pickers</b> — closed off by the <code>renderRelationValue</code> seam.</li>
   </ul>
 </section>
 
 <section id="gaps">
-  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <h2 class="sec"><span class="num">14</span>Discrepancies between the code and the documentation</h2>
 
-  <p>Каждое утверждение выше сверено с реализацией. Ниже — места, где <code>AGENTS.md</code> пакета или комментарии расходятся с тем, что делает код, плюс две функциональные асимметрии, о которых документация молчит.</p>
+  <p>Every statement above was checked against the implementation. Below are the places where the package's <code>AGENTS.md</code> or its comments diverge from what the code does, plus two functional asymmetries the documentation is silent about.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Где</th><th>Что написано</th><th>Что на самом деле</th></tr></thead>
+    <thead><tr><th>Where</th><th>What it says</th><th>What is actually the case</th></tr></thead>
     <tbody>
       <tr>
-        <td class="mono">AGENTS.md, «Key exports» — QueryBuilderDrawer</td>
-        <td>«consumer passes a <code>trigger</code> (used by the <b>members / activity</b> list pages)»</td>
-        <td>Журнал активности давно переведён на <code>QueryBuilderPanel</code>. Единственный потребитель drawer'а во всём репозитории — <code>MembersPage</code></td>
+        <td class="mono">AGENTS.md, “Key exports” — QueryBuilderDrawer</td>
+        <td>“consumer passes a <code>trigger</code> (used by the <b>members / activity</b> list pages)”</td>
+        <td>The activity log moved to <code>QueryBuilderPanel</code> long ago. The drawer's only consumer in the whole repository is <code>MembersPage</code></td>
       </tr>
       <tr>
-        <td class="mono">AGENTS.md, «Key exports» — QueryBuilderPanel</td>
-        <td>«collapses on Apply / Esc»</td>
-        <td>Панель <b>остаётся раскрытой</b> после Apply — это прямо сказано комментарием в коде («The panel stays open after Apply»). Схлопывает её только Esc либо сам потребитель через колбэк <code>onApplied</code>, что и делает редактор алармов</td>
+        <td class="mono">AGENTS.md, “Key exports” — QueryBuilderPanel</td>
+        <td>“collapses on Apply / Esc”</td>
+        <td>The panel <b>stays expanded</b> after Apply — a comment in the code says so outright (“The panel stays open after Apply”). Only Esc collapses it, or the consumer itself through the <code>onApplied</code> callback, which is what the alarm editor does</td>
       </tr>
       <tr>
-        <td class="mono">AGENTS.md, там же</td>
-        <td>«(used by the <b>content records</b> page)»</td>
-        <td>Панель используют три страницы: реестр записей, журнал активности и редактор правила аларма</td>
+        <td class="mono">AGENTS.md, the same place</td>
+        <td>“(used by the <b>content records</b> page)”</td>
+        <td>The panel is used by three pages: the entry registry, the activity log and the alarm rule editor</td>
       </tr>
       <tr>
-        <td class="mono">AGENTS.md, «Wire grammar»</td>
-        <td>Таблица соответствия из шести строк</td>
-        <td>Неполна: не названы <code>not_contains</code> → <code>nilike</code>, <code>not_one_of</code> → <code>nin</code> и <code>is_not_empty</code> → <code>null</code> со значением <code>false</code>. Не упомянуто и экранирование метасимволов LIKE у <code>contains</code>/<code>not_contains</code>, хотя от него зависит корректность круговорота</td>
+        <td class="mono">AGENTS.md, “Wire grammar”</td>
+        <td>A six-row mapping table</td>
+        <td>Incomplete: it does not name <code>not_contains</code> → <code>nilike</code>, <code>not_one_of</code> → <code>nin</code>, or <code>is_not_empty</code> → <code>null</code> with the value <code>false</code>. Nor does it mention the escaping of LIKE metacharacters in <code>contains</code>/<code>not_contains</code>, even though the round trip's correctness depends on it</td>
       </tr>
       <tr>
-        <td class="mono">utils/wireOp.ts, JSDoc <code>UI_TO_WIRE</code></td>
-        <td>«<code>OP.Between</code> and <code>OP.WithinLast</code> are intentionally <b>not</b> in this table»</td>
-        <td>В таблице отсутствуют <b>пять</b> операторов, а не два: к ним добавляются <code>not_contains</code>, <code>not_one_of</code> и <code>is_not_empty</code>, тоже обработанные напрямую в <code>ruleToJson</code>. Соответственно <code>UI_TO_WIRE</code> и <code>WIRE_TO_UI</code> не взаимно обратны (9 записей против 11), и это нигде не проговорено</td>
+        <td class="mono">utils/wireOp.ts, the <code>UI_TO_WIRE</code> JSDoc</td>
+        <td>“<code>OP.Between</code> and <code>OP.WithinLast</code> are intentionally <b>not</b> in this table”</td>
+        <td><b>Five</b> operators are absent from the table, not two: <code>not_contains</code>, <code>not_one_of</code> and <code>is_not_empty</code> join them, also handled directly in <code>ruleToJson</code>. Accordingly <code>UI_TO_WIRE</code> and <code>WIRE_TO_UI</code> are not mutually inverse (9 entries versus 11), and that is stated nowhere</td>
       </tr>
       <tr>
-        <td class="mono">AGENTS.md, «Commands»</td>
-        <td>«what lives here is what a browser cannot reach cheaply, <b>currently <code>utils/fieldTree</code></b>»</td>
-        <td>Модульных спеков два: <code>fieldTree.spec.ts</code> и <code>operators.spec.ts</code> (пять тестов на <code>opsForField</code> — порядок, сужение, откат, неизвестный тип)</td>
+        <td class="mono">AGENTS.md, “Commands”</td>
+        <td>“what lives here is what a browser cannot reach cheaply, <b>currently <code>utils/fieldTree</code></b>”</td>
+        <td>There are two unit specs: <code>fieldTree.spec.ts</code> and <code>operators.spec.ts</code> (five tests on <code>opsForField</code> — ordering, narrowing, fallback, an unknown type)</td>
       </tr>
       <tr>
         <td class="mono">QueryBuilderDrawer/JsonPreview</td>
-        <td>«the live wire format» — «живой формат провода»</td>
-        <td>Превью всегда сериализует <b>с настройками по умолчанию</b>. В редакторе правила аларма сохранение идёт с <code>relativeDates: true</code>, поэтому для правила с <code>within_last</code> превью показывает <code>gte</code> с замороженной отсечкой, а в базу уходит <code>within_last</code>. Показанное там не равно отправляемому</td>
+        <td>“the live wire format”</td>
+        <td>The preview always serialises <b>with the default options</b>. In the alarm rule editor the save goes with <code>relativeDates: true</code>, so for a rule with a <code>within_last</code> the preview shows a <code>gte</code> with a frozen cut-off while a <code>within_last</code> goes into the database. What is shown there is not what is sent</td>
       </tr>
       <tr>
         <td class="mono">utils/validateRule.ts, JSDoc</td>
-        <td>«Mirrors the BE coercion rules in <code>resolve-leaf.ts</code> so a rule that passes here is one the server accepts»</td>
-        <td>Верно только для <b>одного листа</b>. На уровне дерева зеркала нет вовсе: <code>maxNodes</code> (50), <code>maxGroupDepth</code> (5), <code>maxInListLength</code> (100) и <code>FILTER_MAX_LENGTH</code> (4096) клиентом не проверяются, и правило, прошедшее ворота, может уехать в составе дерева, которое сервер отвергнет</td>
+        <td>“Mirrors the BE coercion rules in <code>resolve-leaf.ts</code> so a rule that passes here is one the server accepts”</td>
+        <td>True only for <b>one leaf</b>. At the tree level there is no mirror at all: <code>maxNodes</code> (50), <code>maxGroupDepth</code> (5), <code>maxInListLength</code> (100) and <code>FILTER_MAX_LENGTH</code> (4096) are not checked by the client, and a rule that passed the gate can travel as part of a tree the server will reject</td>
       </tr>
       <tr>
         <td class="mono">FieldPicker — <code>typeTagFor</code></td>
-        <td>Тег типа «показывает тип поля»</td>
-        <td>Тип <code>uuid</code> отображается тегом <b>«relation»</b> безусловно, даже когда <code>relationTarget</code> не задан. У журнала активности поле <code>actorId</code> — обычная колонка uuid, но в пикере помечено как связь. Тег помечен <code>aria-hidden</code>, поэтому дефект чисто визуальный, но вводящий в заблуждение</td>
+        <td>The type tag “shows the field's type”</td>
+        <td>The <code>uuid</code> type is displayed with a <b>“relation”</b> tag unconditionally, even when no <code>relationTarget</code> is set. In the activity log the <code>actorId</code> field is an ordinary uuid column but is labelled a relation in the picker. The tag is marked <code>aria-hidden</code>, so the defect is purely visual — but misleading</td>
       </tr>
       <tr>
         <td class="mono">users-admin, <code>MEMBERS_FILTER_FIELDS</code></td>
-        <td>Комментарий: «the <code>role.key</code> dotted path resolves to the BE's <code>role</code> relation»</td>
-        <td>Путь точечный, но <code>group</code> у поля не объявлен. <code>buildFieldTree</code> поэтому подписывает узел связи запасным дескриптором <code>{id:'qb.field.relation.role', defaultMessage:'role'}</code> — в пикере появляется <b>непереводимый заголовок «role» со строчной буквы</b>. Это единственный дотированный <code>id</code> в репозитории без выровненных крошек</td>
+        <td>The comment: “the <code>role.key</code> dotted path resolves to the BE's <code>role</code> relation”</td>
+        <td>The path is dotted, but the field declares no <code>group</code>. <code>buildFieldTree</code> therefore labels the relation node with the fallback descriptor <code>{id:'qb.field.relation.role', defaultMessage:'role'}</code> — and an <b>untranslatable lowercase “role” heading</b> appears in the picker. It is the repository's only dotted <code>id</code> without aligned crumbs</td>
       </tr>
       <tr>
-        <td class="mono">Грамматика — оператор <code>like</code></td>
-        <td>Серверный словарь <code>FilterOperator</code> содержит 13 операторов</td>
-        <td>Регистрозависимый <code>like</code> не имеет записи в <code>WIRE_TO_UI</code>, поэтому <code>?filter=</code> с ним поднимается в дерево с <b>молча выброшенным</b> правилом: пользователь видит фильтр меньшей строгости, чем в ссылке, и никакого сообщения. Ни один потребитель админки <code>like</code> не порождает, но URL — публичная поверхность</td>
+        <td class="mono">The grammar — the <code>like</code> operator</td>
+        <td>The server's <code>FilterOperator</code> dictionary holds 13 operators</td>
+        <td>The case-sensitive <code>like</code> has no entry in <code>WIRE_TO_UI</code>, so a <code>?filter=</code> containing it lifts into a tree with the rule <b>silently discarded</b>: the user sees a filter less strict than the one in the link, with no message. No admin-UI consumer produces <code>like</code>, but a URL is a public surface</td>
       </tr>
       <tr>
-        <td class="mono">Бейдж «Фильтры (N)» vs бюджет узлов</td>
-        <td><code>countRules</code> — «число условий, которое ожидает пользователь»</td>
-        <td>Правило <code>between</code> считается за <b>1</b> в бейдже и стоит <b>3</b> узла на сервере (группа плюс два правила). При лимите в 50 узлов расхождение накапливается незаметно</td>
+        <td class="mono">The “Filters (N)” badge vs. the node budget</td>
+        <td><code>countRules</code> — “the number of conditions the user expects”</td>
+        <td>A <code>between</code> rule counts as <b>1</b> in the badge and costs <b>3</b> nodes on the server (a group plus two rules). Against a 50-node limit the divergence accumulates unnoticed</td>
       </tr>
       <tr>
-        <td class="mono">Клиентский <code>MAX_WITHIN_LAST</code></td>
-        <td>«100,000 days reaches back about 274 years — far past any real content»</td>
-        <td>Ограничение считает <b>счётчик</b>, а не длительность, и одинаково для всех трёх единиц: 100 000 минут — это 69 дней. Ссылка на 274 года верна ровно для одной единицы из трёх</td>
+        <td class="mono">The client's <code>MAX_WITHIN_LAST</code></td>
+        <td>“100,000 days reaches back about 274 years — far past any real content”</td>
+        <td>The limit counts the <b>counter</b> rather than the duration, and is the same for all three units: 100,000 minutes is 69 days. The reference to 274 years is true for exactly one unit out of three</td>
       </tr>
     </tbody>
   </table>
   </div>
 
   <div class="note">
-    <span class="label">Чего в этом артефакте нет</span>
-    <p>Разбор перевода дерева в SQL (<code>tree-to-drizzle.ts</code>, <code>relation-exists.ts</code>, пять видов связей и их <code>scope</code>) описан здесь ровно настолько, насколько нужно, чтобы понять смысл оператора. Это ответственность <code>@orthacms/utils-server</code> и тема отдельного паспорта. Также не разбираются сохранённые представления контента и движок алармов — они здесь только как <em>потребители</em> грамматики.</p>
+    <span class="label">What this dossier does not contain</span>
+    <p>The analysis of translating a tree into SQL (<code>tree-to-drizzle.ts</code>, <code>relation-exists.ts</code>, the five relation kinds and their <code>scope</code>) is described here only as far as is needed to understand an operator's meaning. That is <code>@orthacms/utils-server</code>'s responsibility and the subject of a dossier of its own. Content's saved views and the alarms engine are likewise not covered — they appear here only as <em>consumers</em> of the grammar.</p>
   </div>
 </section>
 
 <footer class="end">
-  <p><b>Паспорт компонента.</b> Каркас тот же, что у паспорта плагина, но разделы адаптированы под то, что это UI-библиотека, а не плагин: вместо модели данных, HTTP API и конфигурации — грамматика, операторы, API компонента и круговорот состояние ⇄ провод. Разделов, которых у пакета нет (таблицы БД, маршруты, права, миграции), здесь просто нет.</p>
-  <p>Источник — исходный код <code>packages/query-builder/admin</code> целиком (12 компонентов, 12 модулей утилит, 2 модуля типов), серверный потребитель грамматики <code>packages/utils/server/src/lib/filters</code>, а также все пять точек монтирования и оба слот-вклада. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+  <p><b>A component dossier.</b> The skeleton is the same as a plugin dossier's, but the sections are adapted to the fact that this is a UI library rather than a plugin: in place of the data model, the HTTP API and configuration come the grammar, the operators, the component's API and the state ⇄ wire round trip. The sections the package does not have (database tables, routes, permissions, migrations) are simply absent here.</p>
+  <p>The source is the whole of <code>packages/query-builder/admin</code> (12 components, 12 utility modules, 2 type modules), the grammar's server-side consumer <code>packages/utils/server/src/lib/filters</code>, and all five mount points and both slot contributions. The <code>AGENTS.md</code> files were used as a skeleton, but every statement was verified against the implementation — the divergences are collected in section 14.</p>
 </footer>
 
 </main>
