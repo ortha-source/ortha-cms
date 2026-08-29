@@ -75,7 +75,8 @@ React Query's structural sharing keeps working) rather than replacing it.
 ## The pages
 
 `MembersPage` — `Container`/`ContainerHeader`, a search toolbar, the
-**Member · Role · Status · Workspaces** table, pagination, a loading
+**Member · Role · Status · Workspaces · Joined** table plus an actions column
+(its header is there for screen readers), pagination, a loading
 **skeleton** (`MembersTableSkeleton`), and empty/no-access states. Each row is a
 shortcut to the member's detail page (the name is a real link for keyboard
 users); the row's kebab menu mirrors the detail tab bar — an **Account**
@@ -90,7 +91,7 @@ way.
 — fetches one member once (`useUserDetail`) and shares it with every tab through
 the Outlet context (`presentation/userDetailContext`), so a tab read is free. Renders
 the back link, `UserHero`, `UserStatsStrip`, and the `UserDetailTabs` underline
-tab bar (design-system `TabNav`) above the active tab. Six tab pages:
+tab bar (design-system `TabNav`) above the active tab. Seven tab pages:
 **General** (edit name), **Role** (`RolePicker` +
 confirm), **Workspaces** (`WorkspaceMembershipCard` + `AddToWorkspacesDialog`),
 **Sessions** (`SessionCard` + revoke), **Activity** (reuses
@@ -121,8 +122,11 @@ focus to whatever opened the overlay, but that trigger is the row's kebab and th
 row has just unmounted — so focus falls to `<body>` and a keyboard user restarts
 at the top of the document (WCAG 2.4.3). The row menu therefore targets a stable
 anchor explicitly: the member's own kebab when the row survives (disable, resend),
-and `MEMBERS_TABLE_ANCHOR_ID` — the table wrapper, `tabIndex={-1}` — when it does
-not. The Sessions tab does the same with its card heading. A `requestAnimationFrame`
+and `MEMBERS_RESULTS_ANCHOR_ID` (`presentation/membersResultsAnchor`,
+`tabIndex={-1}`) when it does not. That anchor wraps **all four** result states —
+skeleton, error, empty, table — not the table alone: revoking the last row on
+screen swaps the table for the empty state, so an anchor living on the table
+would unmount at exactly the moment focus needed somewhere to land. The Sessions tab does the same with its card heading. A `requestAnimationFrame`
 defers the move so it lands after Radix's own restoration rather than racing it.
 
 **Per-item accessible names carry the target.** Every session's visible label is

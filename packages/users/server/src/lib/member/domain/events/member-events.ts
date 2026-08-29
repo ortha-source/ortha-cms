@@ -9,8 +9,10 @@ import { createDomainEvent, type DomainEvent } from '@orthacms/database';
  * aggregate deliberately stays quiet on them (see {@link Member.rename} /
  * {@link Member.enable}).
  *
- * These `member.*` kinds are **distinct** from the `user.*` audit kinds
- * ({@link USER_ACTIVITY_KINDS}) the audit trail uses. Unlike the workspaces
+ * These `member.*` kinds are **distinct** from the `user.*` audit kinds the
+ * audit trail uses, whose catalogue lives with the subscriber that writes it
+ * (`USER_AUDIT_KINDS` in `activity/server/…/audit-event-mapping.ts`). Unlike
+ * the workspaces
  * pilot (whose event kinds mirror its audit kinds one-to-one), the users context
  * keeps the two catalogues separate, so the activity outbox subscriber maps
  * `member.*` → `user.*` rather than reusing the same strings.

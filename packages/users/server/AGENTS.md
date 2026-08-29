@@ -55,7 +55,6 @@ application/     # orchestration — one use case per state change
   queries/member.view.ts           # read-model view types (MemberView …)
   ports/                           # secondary ports (SESSION_REVOKER, WORKSPACE_LINKER)
   dto/                             # class-validator DTOs (shape checks only)
-  member-activity.ts               # in-band audit kinds (user.*)
   member-filter.ts                 # query-builder filter schema
 infrastructure/  # adapters — the only layer that knows Drizzle/pg
   persistence/  # DrizzleMemberRepository, MemberMapper, member-lock, InviteTokenService,
@@ -209,25 +208,30 @@ appends `aggregate.pullEvents()` to the transactional outbox (`OutboxWriter`).
 Reads (list / byId) bypass the aggregate as a thin CQRS query service
 (`MemberViewQuery`).
 
-## Audit transition (Wave 3 will change this)
+## Auditing is out of band
 
-Audit is **still recorded in-band** via the `ACTIVITY_RECORDER` token inside each
-use case (`user.*` kinds, same meta as before), so the audit log stays correct
-and gap-free. The same operations **also** emit `member.*` domain events to the
-outbox; with no subscriber yet those auto-mark dispatched (harmless). **Do NOT
-double-record.** Wave 3 moves auditing onto an outbox subscriber and removes the
-in-band `recorder.record(...)` calls. Unlike the workspaces pilot, the users
-event kinds (`member.*`) intentionally **differ** from the audit kinds
-(`user.*`), so that move maps between the two catalogues rather than reusing the
-same strings.
+Use cases write **only** to the outbox. There is no `ACTIVITY_RECORDER` in this
+package and no `recorder.record(...)` call anywhere in it: the audit rows are
+written by the outbox subscriber in `activity/server`, which maps `member.*` to
+`user.*`. So a new state change needs exactly one thing here — a `member.*`
+event — and its audit line is added on the activity side.
+
+Unlike the workspaces pilot, the users event kinds (`member.*`) intentionally
+**differ** from the audit kinds (`user.*`), which is why that step is a mapping
+rather than a reuse of the same strings. The `user.*` catalogue lives with the
+subscriber that writes it (`USER_AUDIT_KINDS` in
+`activity/server/…/audit-event-mapping.ts`), spelled as literals so the audit
+sink stays decoupled from every producer.
 
 ## The copilot tool (`src/lib/copilot/`)
 
 `WorkspaceCopilotToolProvider` binds one read tool, `workspace_members_list` —
 who is on the current workspace, with role and account status. It is what turns
 an `actorEmail` from `activity_recent` or an `authorId` on a revision into a
-person. Registered by `copilotToolsRegistrar('workspace', …)` in
-`UsersModule.forRoot`, which injects the copilot registry **optionally**.
+person. The provider registers itself: it implements `OnModuleInit` and calls
+`this.toolRegistry?.register(this)`, with `@Optional()` on the registry inject —
+so a deployment running neither the copilot nor MCP simply never gets the tool
+instead of failing to boot.
 
 It reads through a purpose-built `WorkspaceMembersQuery`
 (`member/infrastructure/queries/`) — `memberships ⋈ users ⋈ roles`, paginated —
@@ -260,7 +264,8 @@ same permission. No invite tokens, no session data.
   changes nothing and a browser can read it cross-origin anyway. This package
   shipped without the guard on any route, which is only latent because the
   session cookie is `SameSite=Lax`; `apps/server-e2e/src/server/users/origin-guard.spec.ts`
-  pins all five mutations so it cannot regress on a cookie-policy change.
+  pins all seven mutations — invite, resend, revoke, patch, disable, enable,
+  password-reset — so it cannot regress on a cookie-policy change.
 - Module is **not** global and exports nothing; every provider is private.
 - **`name` is trimmed before validation** on both write DTOs
   (`@Transform` → `@IsNotEmpty`). `@IsNotEmpty` alone rejects `''` but accepts
