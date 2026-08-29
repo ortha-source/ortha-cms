@@ -213,7 +213,6 @@ function toWriteModel(dto: SaveWebhookEndpointDto): EndpointWriteModel {
         contentTypes: dto.contentTypes ?? [],
         allWorkspaces,
         workspaceIds: allWorkspaces ? [] : (dto.workspaceIds ?? []),
-        headers: dto.headers ?? {},
-        includeEntry: dto.includeEntry ?? false
+        headers: dto.headers ?? {}
     };
 }

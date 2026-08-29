@@ -120,13 +120,4 @@ export class SaveWebhookEndpointDto {
     @IsOptional()
     @IsObject()
     headers?: Record<string, string>;
-
-    @ApiPropertyOptional({
-        description:
-            'Include a snapshot of the record in the body. Off by default — the reference-only envelope makes the receiver read the record back through the public API, where visibility rules still apply.',
-        default: false
-    })
-    @IsOptional()
-    @IsBoolean()
-    includeEntry?: boolean;
 }

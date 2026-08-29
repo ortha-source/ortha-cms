@@ -20,7 +20,6 @@
         "@orthacms/identity-admin": "*",
         "@orthacms/shell-admin": "*",
         "@orthacms/utils-admin": "*",
-        "@orthacms/webhooks-domain": "*",
         "@tanstack/react-query": "^5.0.0",
         "lucide-react": "^1.17.0",
         "react-intl": "^7.0.0"

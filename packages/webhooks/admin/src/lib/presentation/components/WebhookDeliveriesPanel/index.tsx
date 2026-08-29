@@ -17,7 +17,7 @@ import {
     TableRow,
     toast
 } from '@orthacms/design-system';
-import { DELIVERY_STATUSES } from '@orthacms/webhooks-domain';
+import { DELIVERY_STATUSES } from '../../../domain/types/webhook';
 import {
     DEFAULT_PAGE_SIZE,
     useWebhookDeliveries,

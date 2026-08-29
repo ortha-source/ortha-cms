@@ -98,6 +98,12 @@ const ALL_PERMISSIONS = [
     // Access tab.
     'segments:read',
     'segments:manage',
+    // Outgoing webhooks (`webhooks-admin`). Both keys are admin-only on the
+    // server — an endpoint is not scoped to a workspace and holds a signing
+    // secret — so unlike the pairs above there is no contributor variant to
+    // narrow to; withhold them to assert the no-access state instead.
+    'webhooks:read',
+    'webhooks:manage',
     // Saved list views. Only `share` is a permission — a private view needs
     // none — so without it the switcher's "share with the workspace" half is
     // invisible. Added here because `seed-drift.spec.ts` compares this list to

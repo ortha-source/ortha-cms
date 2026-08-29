@@ -23,6 +23,7 @@ import { InsightsPage } from './pages/InsightsPage';
 import { AlarmsPage } from './pages/AlarmsPage';
 import { SegmentsPage } from './pages/SegmentsPage';
 import { ApiTokensPage } from './pages/ApiTokensPage';
+import { WebhooksPage } from './pages/WebhooksPage';
 import { HostPage } from './pages/HostPage';
 
 /**
@@ -114,6 +115,7 @@ interface Fixtures {
     alarmsPage: AlarmsPage;
     segmentsPage: SegmentsPage;
     apiTokensPage: ApiTokensPage;
+    webhooksPage: WebhooksPage;
     hostPage: HostPage;
     /**
      * Factory for a fresh axe scanner scoped to the current page, tagged
@@ -196,6 +198,9 @@ export const test = base.extend<Fixtures>({
     },
     apiTokensPage: async ({ page }, use) => {
         await use(new ApiTokensPage(page));
+    },
+    webhooksPage: async ({ page }, use) => {
+        await use(new WebhooksPage(page));
     },
     hostPage: async ({ page }, use) => {
         await use(new HostPage(page));

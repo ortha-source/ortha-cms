@@ -24,7 +24,6 @@ export interface WebhookEndpointView {
     /** Empty when {@link allWorkspaces} is true. */
     workspaceIds: string[];
     headers: Record<string, string>;
-    includeEntry: boolean;
     /** Set when the endpoint switched itself off; null otherwise. */
     disabledReason: string | null;
     consecutiveFailures: number;

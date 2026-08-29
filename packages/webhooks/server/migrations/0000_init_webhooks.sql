@@ -36,7 +36,6 @@ CREATE TABLE "webhook_endpoints" (
 	"content_types" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"all_workspaces" boolean DEFAULT false NOT NULL,
 	"headers" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"include_entry" boolean DEFAULT false NOT NULL,
 	"disabled_reason" text,
 	"consecutive_failures" integer DEFAULT 0 NOT NULL,
 	"created_by" uuid,

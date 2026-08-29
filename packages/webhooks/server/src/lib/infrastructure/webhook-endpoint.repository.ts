@@ -23,7 +23,6 @@ export interface EndpointWriteModel {
     allWorkspaces: boolean;
     workspaceIds: string[];
     headers: Record<string, string>;
-    includeEntry: boolean;
 }
 
 /** An endpoint as the delivery path needs it — secret included. */
@@ -33,7 +32,6 @@ export interface EndpointWithSecret {
     url: string;
     secret: string;
     headers: Record<string, string>;
-    includeEntry: boolean;
     enabled: boolean;
 }
 
@@ -93,7 +91,6 @@ export class WebhookEndpointRepository {
                 url: webhookEndpoints.url,
                 secret: webhookEndpoints.secret,
                 headers: webhookEndpoints.headers,
-                includeEntry: webhookEndpoints.includeEntry,
                 enabled: webhookEndpoints.enabled
             })
             .from(webhookEndpoints)
@@ -171,7 +168,6 @@ export class WebhookEndpointRepository {
                     contentTypes: model.contentTypes,
                     allWorkspaces: model.allWorkspaces,
                     headers: model.headers,
-                    includeEntry: model.includeEntry,
                     createdBy
                 })
                 .returning({ id: webhookEndpoints.id });
@@ -194,7 +190,6 @@ export class WebhookEndpointRepository {
                     contentTypes: model.contentTypes,
                     allWorkspaces: model.allWorkspaces,
                     headers: model.headers,
-                    includeEntry: model.includeEntry,
                     // Re-enabling by hand clears the auto-disable state, so the
                     // reason shown in the UI can never outlive the condition.
                     disabledReason: model.enabled ? null : undefined,
@@ -366,7 +361,6 @@ function toView(
         allWorkspaces: row.allWorkspaces,
         workspaceIds: row.allWorkspaces ? [] : workspaceIds,
         headers: asHeaderMap(row.headers),
-        includeEntry: row.includeEntry,
         disabledReason: row.disabledReason,
         consecutiveFailures: row.consecutiveFailures,
         createdAt: row.createdAt.toISOString(),

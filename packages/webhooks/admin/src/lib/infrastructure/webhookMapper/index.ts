@@ -1,5 +1,5 @@
-import type { DeliveryStatus } from '@orthacms/webhooks-domain';
 import type {
+    DeliveryStatus,
     WebhookDelivery,
     WebhookDeliveryDetail,
     WebhookEndpoint,
@@ -30,7 +30,6 @@ export type WebhookEndpointResponse = {
     allWorkspaces: boolean;
     workspaceIds: string[];
     headers: Record<string, string>;
-    includeEntry: boolean;
     disabledReason: string | null;
     consecutiveFailures: number;
     createdAt: string;

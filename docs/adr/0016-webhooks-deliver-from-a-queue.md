@@ -71,9 +71,14 @@ webhook would be bypassing.
 **The envelope carries references, not content.** A delivery names the event,
 the workspace, the actor and the record's id and type. A receiver reads the
 record back through the public API with its own token, where every visibility
-rule still applies. `include_entry` exists as an explicit opt-in, and when it is
-implemented the snapshot must be assembled through `PublicEntriesQuery` — the
-same read path — so that "include the content" never means "skip the rules".
+rule still applies.
+
+There is deliberately **no opt-in to inline the values**, not even a column for
+one. A flag that is accepted and does nothing is worse than an absent feature:
+somebody sets it and spends an afternoon wondering why the body is unchanged. If
+one is ever added, the snapshot has to be assembled through `PublicEntriesQuery`
+— the same read path — so that "include the content" never quietly becomes "skip
+the rules".
 
 **Entry events carry `workspaceId`.** The workspace is the subscription filter,
 and it cannot be recovered from the row after `entry.purged` because there is no

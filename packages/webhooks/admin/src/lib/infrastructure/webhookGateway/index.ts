@@ -26,7 +26,6 @@ export type SaveWebhookInput = {
     allWorkspaces?: boolean;
     workspaceIds?: string[];
     headers?: Record<string, string>;
-    includeEntry?: boolean;
 };
 
 /**

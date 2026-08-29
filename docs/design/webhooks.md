@@ -86,10 +86,11 @@ X-Ortha-Signature:  t=1756468320,v1=5d41402abc4b2a76…
 }
 ```
 
-**The body carries references, not field values.** Read the record back through
-the public API with your own token: that read passes through the visibility
-rules and the audience entitlements an editor set on the entry, and a webhook
-that inlined the values would route around all of them.
+**The body carries references, not field values**, and there is no option to
+change that. Read the record back through the public API with your own token:
+that read passes through the visibility rules and the audience entitlements an
+editor set on the entry, and a webhook that inlined the values would route
+around all of them.
 
 `actor` is `null` for a write made with an API token or by the system. Naming a
 person who did not do it would be worse than saying nothing.

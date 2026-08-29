@@ -1,5 +1,5 @@
 import { defineMessages, useIntl } from 'react-intl';
-import type { DeliveryStatus } from '@orthacms/webhooks-domain';
+import type { DeliveryStatus } from '../../../domain/types/webhook';
 import { Badge } from '@orthacms/design-system';
 
 const messages = defineMessages({

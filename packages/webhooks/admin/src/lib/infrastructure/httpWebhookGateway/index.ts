@@ -34,12 +34,6 @@ type DeliveryPageResponse = {
     pageCount: number;
 };
 
-/** The paginated envelope `GET /api/workspaces` returns. */
-type WorkspaceListResponse = { items: WorkspaceOptionResponse[] };
-
-/** How many workspaces the picker asks for. */
-const WORKSPACE_PAGE_SIZE = 200;
-
 /** Maps a created/rotated endpoint, secret included. */
 function toCreated(
     dto: CreatedWebhookEndpointResponse
@@ -188,11 +182,12 @@ export const httpWebhookGateway: WebhookGateway = {
 
     async listWorkspaceOptions(): Promise<WorkspaceOption[]> {
         try {
-            const { data } = await apiClient.get<WorkspaceListResponse>(
-                '/workspaces',
-                { params: { page: 1, pageSize: WORKSPACE_PAGE_SIZE } }
-            );
-            return data.items.map(toWorkspaceOption);
+            // Unpaginated and scoped to the caller's memberships by the server
+            // — `GET /api/workspaces` returns a bare array, which is also what
+            // the API-tokens picker reads.
+            const { data } =
+                await apiClient.get<WorkspaceOptionResponse[]>('/workspaces');
+            return data.map(toWorkspaceOption);
         } catch (error) {
             throw toApiError(error);
         }

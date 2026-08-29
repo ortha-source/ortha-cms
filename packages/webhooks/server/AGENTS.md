@@ -62,7 +62,8 @@ endpoint, check that it returns a `WebhookEndpointView` and not a row.
 A receiver reads the record back through the public API with its own token,
 where `publishedOnly` visibility and the audience entitlements an editor set on
 the entry still apply. Inlining the values would route around all of them at
-once. `include_entry` exists as an opt-in column; when it is implemented the
+once. There is no opt-in to inline them and no column for one — a flag that is
+accepted and does nothing is worse than an absent feature. If one is added, the
 snapshot must come from `PublicEntriesQuery` — the same read path — so that
 "include the content" never becomes "skip the rules".
 

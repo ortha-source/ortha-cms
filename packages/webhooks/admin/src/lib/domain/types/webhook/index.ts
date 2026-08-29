@@ -1,4 +1,24 @@
-import type { DeliveryStatus } from '@orthacms/webhooks-domain';
+/**
+ * Every state a delivery can be in.
+ *
+ * Restated here rather than imported from `@orthacms/webhooks-domain`, and that
+ * is deliberate twice over. It is the convention — the admin restates the
+ * server's contracts locally, so a server-side rename surfaces as a type error
+ * here instead of as `undefined` in a cell. And it is a hard requirement: that
+ * package's barrel re-exports the HMAC helpers, which import `node:crypto`, so
+ * importing anything at all from it puts a Node built-in in the browser bundle
+ * and the whole admin fails to render.
+ */
+export const DELIVERY_STATUSES = [
+    'pending',
+    'delivering',
+    'succeeded',
+    'failed',
+    'dead'
+] as const;
+
+/** One of {@link DELIVERY_STATUSES}. */
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 
 /** One configured endpoint, as the admin renders it. */
 export type WebhookEndpoint = {
@@ -16,7 +36,6 @@ export type WebhookEndpoint = {
     /** Empty when {@link allWorkspaces} is true. */
     workspaceIds: string[];
     headers: Record<string, string>;
-    includeEntry: boolean;
     /** Set when the endpoint switched itself off after repeated failures. */
     disabledReason: string | null;
     consecutiveFailures: number;

@@ -64,13 +64,6 @@ export const webhookEndpoints = pgTable(
         allWorkspaces: boolean('all_workspaces').notNull().default(false),
         /** Extra static headers, filtered through the reserved-name allow-list. */
         headers: jsonb('headers').notNull().default({}),
-        /**
-         * Whether to inline a snapshot of the record in the body. Off by
-         * default: the reference-only envelope makes a receiver read the record
-         * back through the public API, where visibility rules and audience
-         * entitlements still apply.
-         */
-        includeEntry: boolean('include_entry').notNull().default(false),
         /** Why the endpoint was switched off automatically; null otherwise. */
         disabledReason: text('disabled_reason'),
         /** Consecutive dead deliveries; any success resets it to zero. */

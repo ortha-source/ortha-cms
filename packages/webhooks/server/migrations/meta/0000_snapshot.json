@@ -1,5 +1,5 @@
 {
-  "id": "b7a3d91f-481f-45c8-97e3-254fe4089b3a",
+  "id": "d2791c91-e6e4-4db2-8a9a-8d60eacfea58",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -350,13 +350,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
-        },
-        "include_entry": {
-          "name": "include_entry",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "disabled_reason": {
           "name": "disabled_reason",

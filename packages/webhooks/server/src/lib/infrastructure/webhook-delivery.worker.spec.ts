@@ -26,7 +26,6 @@ const endpoint: EndpointWithSecret = {
     url: 'https://example.com/hooks',
     secret: 'whsec_x',
     headers: {},
-    includeEntry: false,
     enabled: true
 };
 
@@ -74,7 +73,13 @@ function build(options: {
         maxAttempts: options.maxAttempts ?? WEBHOOKS_DEFAULTS.maxAttempts
     });
 
-    return { worker, deliveries, endpoints, http, tick: () => worker.runOnce() };
+    return {
+        worker,
+        deliveries,
+        endpoints,
+        http,
+        tick: () => worker.runOnce()
+    };
 }
 
 describe('WebhookDeliveryWorker', () => {
