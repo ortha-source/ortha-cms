@@ -37,15 +37,26 @@ export const DEFAULT_SESSIONS: SessionSeed[] = [
     }
 ];
 
+/** Handle returned by {@link mockUserDetail} for counting the member read. */
+export interface UserDetailMock {
+    /** How many `GET /api/users/:id` requests this route answered. */
+    readonly count: number;
+}
+
 /**
  * Stub `GET /api/users/:id` with a member from the shared roster (so the detail
  * page and the list agree). 404s an unknown id, mirroring the server. Pair with
  * `mockMembers` + `mockSignedIn` like the list suites.
+ *
+ * The returned counter pins the layout's contract with its tabs: the member is
+ * fetched **once** and handed to every tab through the Outlet context, so
+ * moving between them must add nothing to this count.
  */
 export async function mockUserDetail(
     page: Page,
     members: MemberSeed[] = DEFAULT_MEMBERS
-): Promise<void> {
+): Promise<UserDetailMock> {
+    let count = 0;
     await page.route('**/api/users/*', async (route) => {
         const url = new URL(route.request().url());
         // Only handle the bare `/api/users/:id` GET — let sub-resources
@@ -57,6 +68,7 @@ export async function mockUserDetail(
             await route.fallback();
             return;
         }
+        count += 1;
         const id = url.pathname.split('/').pop();
         const member = members.find((m) => m.id === id);
         await route.fulfill({
@@ -65,6 +77,11 @@ export async function mockUserDetail(
             body: JSON.stringify(member ?? { message: 'Not found' })
         });
     });
+    return {
+        get count() {
+            return count;
+        }
+    };
 }
 
 /** Stub `GET /api/users/:id/sessions` and record `DELETE` revocations. */

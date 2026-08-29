@@ -18,9 +18,15 @@ const PENDING_MEMBER = DEFAULT_MEMBERS.filter(
 
 /**
  * The Members page (`/users`, `@orthacms/users-admin`): rendering the roster,
- * search, the invite wizard, status-dependent row actions, the guardrail
- * tooltips for the sole admin, and permission gating. The backend is the
+ * search and its two empty states, the invite wizard, status-dependent row
+ * actions, the failed read, and permission gating — of the page, of the nav
+ * entry that points at it, and of the request behind it. The backend is the
  * `GET /api/users` mock; `mockSignedIn` satisfies the shell's auth probe.
+ *
+ * The row menu's **guardrails** (the sole admin, your own account) live in
+ * `destructive-actions.spec.ts` beside the actions they veto; the Access tab's
+ * equivalents are in `user-access.spec.ts`. This docstring used to claim them,
+ * which is roughly how they went untested.
  */
 test.describe('Members page', () => {
     test.beforeEach(async ({ page }) => {
@@ -69,6 +75,92 @@ test.describe('Members page', () => {
         await membersPage.goto();
         await membersPage.search.fill('nobody-xyz');
         await expect(membersPage.emptyText('No members match')).toBeVisible();
+    });
+
+    test('offers a retry when the roster read fails, instead of an empty table', async ({
+        membersPage,
+        page
+    }) => {
+        await mockMembers(page, DEFAULT_MEMBERS, { status: 500 });
+        await membersPage.goto();
+
+        // A `5xx` is retried three times with backoff before the query settles,
+        // so the alert is several seconds away — under the default timeout this
+        // assertion would judge a page still showing its skeleton.
+        await expect(membersPage.errorAlert()).toBeVisible({
+            timeout: 15_000
+        });
+        await expect(membersPage.errorAlert()).toContainText(
+            'Couldn’t load members'
+        );
+        // Not an empty table and not the empty state: both are claims about the
+        // directory, and the page does not know anything about the directory.
+        await expect(page.locator('table')).toHaveCount(0);
+        await expect(membersPage.emptyState()).toHaveCount(0);
+
+        // Retry has to refetch in place — an admin who has to reload the tab to
+        // get past a blip is being told to fix it themselves.
+        await mockMembers(page);
+        await membersPage.retryButton().click();
+
+        await expect(membersPage.row('Ada Lovelace')).toBeVisible();
+        await expect(membersPage.errorAlert()).toHaveCount(0);
+    });
+
+    test('tells an empty directory apart from a search that matched nobody', async ({
+        membersPage,
+        page
+    }) => {
+        await mockMembers(page, []);
+        await membersPage.goto();
+
+        // Nobody has been invited yet, so the way forward is to invite someone
+        // — not to clear a filter that was never applied.
+        await expect(membersPage.emptyText('No members yet')).toBeVisible();
+        await expect(membersPage.emptyInviteButton()).toBeVisible();
+        await expect(membersPage.clearSearchButton()).toHaveCount(0);
+
+        // The same surface under a search miss says the opposite. Telling the
+        // two apart is the entire reason there are two of them: an install with
+        // no members and a search for a name nobody has need different answers.
+        await membersPage.search.fill('nobody-xyz');
+        await expect(membersPage.emptyText('No members match')).toBeVisible();
+        await expect(membersPage.clearSearchButton()).toBeVisible();
+        await expect(membersPage.emptyInviteButton()).toHaveCount(0);
+    });
+
+    test('clearing the search from the empty state restores the roster', async ({
+        membersPage,
+        page
+    }) => {
+        await membersPage.goto();
+        await membersPage.search.fill('nobody-xyz');
+        await expect(membersPage.clearSearchButton()).toBeVisible();
+
+        await membersPage.clearSearchButton().click();
+
+        // The URL is this page's source of truth, so clearing has to reach it:
+        // a button that only emptied the input would leave `?search=` behind
+        // and the next render would re-apply it.
+        await expect(membersPage.search).toHaveValue('');
+        await expect(page).not.toHaveURL(/[?&]search=/);
+        await expect(membersPage.row('Ada Lovelace')).toBeVisible();
+    });
+
+    test('announces the result count when a search changes it', async ({
+        membersPage
+    }) => {
+        await membersPage.goto();
+        // The table is replaced without a navigation, so nothing tells a
+        // screen-reader user that anything happened except this region — and a
+        // search that narrowed four rows to one otherwise reads exactly like a
+        // search that did nothing (WCAG 4.1.3).
+        await expect(membersPage.resultsStatus()).toHaveText(
+            '4 members found.'
+        );
+
+        await membersPage.search.fill('grace');
+        await expect(membersPage.resultsStatus()).toHaveText('1 member found.');
     });
 
     test('a link back to the bare roster clears the search box with it', async ({
@@ -180,6 +272,38 @@ test.describe('Members page', () => {
         expect(invite.count).toBe(0);
     });
 
+    test('explains an invalid email once the field has been left', async ({
+        membersPage,
+        page
+    }) => {
+        await spyInvite(page);
+        await membersPage.goto();
+        await membersPage.inviteButton.click();
+
+        await membersPage.inviteEmail().fill('not-an-email');
+        // Nothing is said while the address is still being typed: the message
+        // is gated on `emailTouched`, which only `onBlur` sets, so someone who
+        // types an address and never leaves the field has the disabled Continue
+        // above as their only signal.
+        await expect(page.getByText('Enter a valid email address')).toHaveCount(
+            0
+        );
+
+        await membersPage.inviteEmail().blur();
+        await expect(
+            page.getByText('Enter a valid email address')
+        ).toBeVisible();
+
+        // From here it does track every keystroke — finishing the address
+        // clears the message without a second blur, so the person who is
+        // fixing it is not left staring at an error they already corrected.
+        await membersPage.inviteEmail().fill('new@ortha.dev');
+        await expect(page.getByText('Enter a valid email address')).toHaveCount(
+            0
+        );
+        await expect(membersPage.continueToRole()).toBeEnabled();
+    });
+
     test('paginates with a selectable page size', async ({
         membersPage,
         page
@@ -269,6 +393,40 @@ test.describe('Members page', () => {
 
         await expect(membersPage.noAccessText()).toBeVisible();
         await expect(membersPage.search).toHaveCount(0);
+    });
+
+    test('asks for nothing at all without users:read', async ({
+        membersPage,
+        page
+    }) => {
+        await mockSignedIn(page, { permissions: [] });
+        const roster = await mockMembers(page);
+        await membersPage.goto();
+
+        // The read is suppressed by the query's `enabled` flag rather than
+        // hidden after the fact. "No rows on screen" cannot tell those apart,
+        // which is why the counter exists: the server would refuse the request
+        // anyway, and asking it to is a wasted round-trip and an audit line
+        // about a permission nobody was exercising.
+        await expect(membersPage.noAccessText()).toBeVisible();
+        expect(roster.count).toBe(0);
+    });
+
+    test('offers the Members nav entry only to someone who can read it', async ({
+        membersPage,
+        page
+    }) => {
+        await mockSignedIn(page, { permissions: ['users:read'] });
+        await membersPage.goto();
+        await expect(membersPage.navItem('Members')).toBeVisible();
+
+        // The entry declares `permission: 'users:read'` precisely so navigation
+        // never promises a destination that answers "you don't have access to
+        // members" — a dead link in the sidebar reads as a broken app.
+        await mockSignedIn(page, { permissions: [] });
+        await membersPage.goto();
+        await expect(membersPage.noAccessText()).toBeVisible();
+        await expect(membersPage.navItem('Members')).toHaveCount(0);
     });
 
     test('hands over the rotated link when an invite is resent', async ({
