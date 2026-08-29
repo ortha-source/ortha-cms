@@ -67,6 +67,7 @@ export class BulkUnpublishEntriesUseCase {
                     const entry = Entry.rehydrate({
                         id,
                         contentType: type.name,
+                        workspaceId,
                         status: ENTRY_STATUS.Published
                     });
                     entry.unpublish();

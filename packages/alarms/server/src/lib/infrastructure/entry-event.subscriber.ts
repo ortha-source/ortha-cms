@@ -99,7 +99,9 @@ export class EntryEventSubscriber
             return;
         }
 
-        const workspaceId = await this.workspaceOf(contentType, entryId);
+        const workspaceId =
+            readWorkspaceId(event) ??
+            (await this.workspaceOf(contentType, entryId));
         if (!workspaceId) {
             // The row vanished between the commit and this delivery. Nothing to
             // evaluate, and the delete/purge event for it is already queued.
@@ -140,7 +142,14 @@ export class EntryEventSubscriber
         }
     }
 
-    /** The entry's workspace, read from its own content table. */
+    /**
+     * The entry's workspace, read from its own content table.
+     *
+     * The fallback, not the first choice: entry events now carry `workspaceId`
+     * on their payload, which is both cheaper and — for `entry.purged` — the
+     * only way to know it at all. This still exists for outbox rows written
+     * before that field did.
+     */
     private async workspaceOf(
         contentType: string,
         entryId: string
@@ -149,6 +158,21 @@ export class EntryEventSubscriber
         if (!type) return null;
         return this.matches.workspaceOf(type, entryId);
     }
+}
+
+/**
+ * `workspaceId` off an entry event's payload, if it carries one.
+ *
+ * Events written before content started stamping it do not, hence the null and
+ * the lookup behind it.
+ */
+function readWorkspaceId(event: DomainEvent): string | null {
+    const workspaceId = (event.payload as Record<string, unknown> | undefined)?.[
+        'workspaceId'
+    ];
+    return typeof workspaceId === 'string' && workspaceId.length > 0
+        ? workspaceId
+        : null;
 }
 
 /** `contentType` off an entry event's payload, if it carries one. */

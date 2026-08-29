@@ -14,6 +14,12 @@ export interface EntryState {
     id: string;
     /** The content-type machine name — carried only for the event payload. */
     contentType: string;
+    /**
+     * The owning workspace — carried only for the event payload, so a
+     * subscriber can route the fact without going back to the row. Nullable
+     * because `content_*.workspace_id` is.
+     */
+    workspaceId: string | null;
     /** Current publish status of the stored row. */
     status: EntryStatus;
 }
@@ -51,12 +57,18 @@ export class Entry {
     private constructor(
         private readonly _id: string,
         private readonly _contentType: string,
+        private readonly _workspaceId: string | null,
         private _status: EntryStatus
     ) {}
 
     /** Reconstructs an entry from its persisted lifecycle state. */
     static rehydrate(state: EntryState): Entry {
-        return new Entry(state.id, state.contentType, state.status);
+        return new Entry(
+            state.id,
+            state.contentType,
+            state.workspaceId,
+            state.status
+        );
     }
 
     /**
@@ -78,7 +90,8 @@ export class Entry {
         assertTransition(this._status, ENTRY_STATUS.Published);
         this._status = ENTRY_STATUS.Published;
         this.raise(ENTRY_EVENT_KINDS.PUBLISHED, {
-            contentType: this._contentType
+            contentType: this._contentType,
+            workspaceId: this._workspaceId
         });
     }
 
@@ -95,7 +108,8 @@ export class Entry {
         assertTransition(this._status, ENTRY_STATUS.Draft);
         this._status = ENTRY_STATUS.Draft;
         this.raise(ENTRY_EVENT_KINDS.UNPUBLISHED, {
-            contentType: this._contentType
+            contentType: this._contentType,
+            workspaceId: this._workspaceId
         });
     }
 

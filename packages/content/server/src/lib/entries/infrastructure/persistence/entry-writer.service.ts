@@ -644,7 +644,7 @@ export class EntryWriterService {
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
                     // of the outbox.
-                    await this.emit([entryCreated(id, type.name)], actor);
+                    await this.emit([entryCreated(id, type.name, workspaceId)], actor);
                     return inserted as Row;
                 }),
             type
@@ -955,7 +955,7 @@ export class EntryWriterService {
             // trip, not an editorial change, and the log is read by people.
             const fields = this.changedFields(type, before, updated as Row);
             if (fields.length > 0) {
-                await this.emit([entryUpdated(id, type.name, fields)], actor);
+                await this.emit([entryUpdated(id, type.name, workspaceId, fields)], actor);
             }
             return updated as Row;
         });
@@ -1215,7 +1215,7 @@ export class EntryWriterService {
             );
             if (!row) throw this.notFound(type, id);
             await this.emit(
-                [entryDeleted(id, type.name, Boolean(type.paranoid))],
+                [entryDeleted(id, type.name, workspaceId, Boolean(type.paranoid))],
                 actor
             );
         });
@@ -1256,7 +1256,7 @@ export class EntryWriterService {
                 type
             );
             if (!row) throw this.notFound(type, id);
-            await this.emit([entryRestored(id, type.name)], actor);
+            await this.emit([entryRestored(id, type.name, workspaceId)], actor);
             return toRecord(type, row as Row);
         });
     }
@@ -1289,7 +1289,7 @@ export class EntryWriterService {
             if (!row) throw this.notFound(type, id);
             // The one content action that leaves nothing behind to inspect, so
             // the event is the only remaining record that it happened.
-            await this.emit([entryPurged(id, type.name)], actor);
+            await this.emit([entryPurged(id, type.name, workspaceId)], actor);
         });
     }
 
@@ -1332,7 +1332,7 @@ export class EntryWriterService {
             // batching is a way of asking, and the log records what happened.
             await this.emit(
                 this.eventsFor(rows as Row[], (id) =>
-                    entryDeleted(id, type.name, Boolean(type.paranoid))
+                    entryDeleted(id, type.name, workspaceId, Boolean(type.paranoid))
                 ),
                 actor
             );
@@ -1368,7 +1368,7 @@ export class EntryWriterService {
             );
             await this.emit(
                 this.eventsFor(rows as Row[], (id) =>
-                    entryPurged(id, type.name)
+                    entryPurged(id, type.name, workspaceId)
                 ),
                 actor
             );
@@ -1413,7 +1413,7 @@ export class EntryWriterService {
             );
             await this.emit(
                 this.eventsFor(rows as Row[], (id) =>
-                    entryRestored(id, type.name)
+                    entryRestored(id, type.name, workspaceId)
                 ),
                 actor
             );

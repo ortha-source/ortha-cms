@@ -12,6 +12,12 @@ import { createDomainEvent, type DomainEvent } from '@orthacms/database';
  * raised by the write path directly, rather than by fabricating an aggregate
  * (and a publish status a non-publishable type does not have) around a fact.
  *
+ * Every one of them carries `workspaceId`. It is not decoration: a subscriber
+ * that has to route an event — outgoing webhooks are the first — cannot recover
+ * the workspace from the row after `entry.purged`, because there is no row left
+ * to read. Reading it from the aggregate at the moment the fact occurred is the
+ * only place it is reliably knowable.
+ *
  * Until this set existed the audit log could answer "who did what, when" for
  * accounts, workspaces, API tokens, the media library and content **publishes**
  * — and not for the single most frequent action in a CMS. An editor could
@@ -52,9 +58,13 @@ export function entryEvent(
 /** A new entry exists. `contentType` is what lets the log name *what* was made. */
 export function entryCreated(
     entryId: string,
-    contentType: string
+    contentType: string,
+    workspaceId: string | null
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.CREATED, entryId, { contentType });
+    return entryEvent(ENTRY_EVENT_KINDS.CREATED, entryId, {
+        contentType,
+        workspaceId
+    });
 }
 
 /**
@@ -72,10 +82,12 @@ export function entryCreated(
 export function entryUpdated(
     entryId: string,
     contentType: string,
+    workspaceId: string | null,
     fields: readonly string[]
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.UPDATED, entryId, {
         contentType,
+        workspaceId,
         fields: [...fields]
     });
 }
@@ -89,10 +101,12 @@ export function entryUpdated(
 export function entryDeleted(
     entryId: string,
     contentType: string,
+    workspaceId: string | null,
     soft: boolean
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.DELETED, entryId, {
         contentType,
+        workspaceId,
         soft
     });
 }
@@ -100,9 +114,13 @@ export function entryDeleted(
 /** A soft-deleted entry's tombstone was cleared. */
 export function entryRestored(
     entryId: string,
-    contentType: string
+    contentType: string,
+    workspaceId: string | null
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.RESTORED, entryId, { contentType });
+    return entryEvent(ENTRY_EVENT_KINDS.RESTORED, entryId, {
+        contentType,
+        workspaceId
+    });
 }
 
 /**
@@ -112,6 +130,13 @@ export function entryRestored(
  * action with nothing left behind to inspect afterwards, so it is exactly the
  * one an audit trail has to record distinctly.
  */
-export function entryPurged(entryId: string, contentType: string): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.PURGED, entryId, { contentType });
+export function entryPurged(
+    entryId: string,
+    contentType: string,
+    workspaceId: string | null
+): DomainEvent {
+    return entryEvent(ENTRY_EVENT_KINDS.PURGED, entryId, {
+        contentType,
+        workspaceId
+    });
 }

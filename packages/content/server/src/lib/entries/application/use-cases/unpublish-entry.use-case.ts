@@ -56,6 +56,7 @@ export class UnpublishEntryUseCase {
             const entry = Entry.rehydrate({
                 id,
                 contentType: type.name,
+                workspaceId,
                 status: current['status'] as EntryStatus
             });
             entry.unpublish();

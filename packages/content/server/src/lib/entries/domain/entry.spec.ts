@@ -3,8 +3,15 @@ import { Entry } from './entry';
 import { EntryPublishBlockedError } from './entry-publish-blocked.error';
 import { ENTRY_EVENT_KINDS } from './events/entry-events';
 
+const WORKSPACE = 'ws-1';
+
 const rehydrate = (status: 'draft' | 'published') =>
-    Entry.rehydrate({ id: 'e1', contentType: 'post', status });
+    Entry.rehydrate({
+        id: 'e1',
+        contentType: 'post',
+        workspaceId: WORKSPACE,
+        status
+    });
 
 const okGate = { valid: true, issues: [] };
 
@@ -18,7 +25,12 @@ describe('Entry publish lifecycle', () => {
             ENTRY_EVENT_KINDS.PUBLISHED
         ]);
         expect(events[0].aggregateId).toBe('e1');
-        expect(events[0].payload).toEqual({ contentType: 'post' });
+        expect(events[0].payload).toEqual({
+            contentType: 'post',
+            // Carried so a subscriber can route the fact without going back to
+            // the row — which for a purged entry is no longer possible at all.
+            workspaceId: WORKSPACE
+        });
     });
 
     it('blocks publish with the issues when the gate fails', () => {

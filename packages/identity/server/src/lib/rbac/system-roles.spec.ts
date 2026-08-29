@@ -40,8 +40,8 @@ describe('SYSTEM_ROLES', () => {
     });
 
     describe('the permission catalogue', () => {
-        it('enumerates 30 distinct keys', () => {
-            expect(PERMISSION_KEYS).toHaveLength(30);
+        it('enumerates 32 distinct keys', () => {
+            expect(PERMISSION_KEYS).toHaveLength(32);
             expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
         });
 
@@ -90,7 +90,9 @@ describe('SYSTEM_ROLES', () => {
             PERMISSIONS.SEGMENTS_MANAGE,
             PERMISSIONS.COPILOT_SKILLS_MANAGE,
             PERMISSIONS.USERS_CREATE,
-            PERMISSIONS.TOKENS_CREATE
+            PERMISSIONS.TOKENS_CREATE,
+            PERMISSIONS.WEBHOOKS_READ,
+            PERMISSIONS.WEBHOOKS_MANAGE
         ])('does not grant the configuration permission %p', (permission) => {
             expect(grants('contributor')).not.toContain(permission);
         });

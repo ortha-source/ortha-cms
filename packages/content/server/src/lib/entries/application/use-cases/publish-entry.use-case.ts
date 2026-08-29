@@ -86,6 +86,7 @@ export class PublishEntryUseCase {
             const entry = Entry.rehydrate({
                 id,
                 contentType: type.name,
+                workspaceId,
                 status: current['status'] as EntryStatus
             });
             try {
