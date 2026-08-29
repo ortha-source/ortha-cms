@@ -121,10 +121,13 @@ function* flatten(
 export function isDatabaseUnreachable(error: unknown): boolean {
     for (const inner of flatten(error)) {
         const { code, name } = inner;
-        if (typeof code === 'string' && UNREACHABLE_CODES.has(code)) return true;
+        if (typeof code === 'string' && UNREACHABLE_CODES.has(code))
+            return true;
 
         const message =
-            typeof inner.message === 'string' ? inner.message.toLowerCase() : '';
+            typeof inner.message === 'string'
+                ? inner.message.toLowerCase()
+                : '';
         if (UNREACHABLE_MESSAGES.some((needle) => message.includes(needle))) {
             return true;
         }
@@ -181,7 +184,8 @@ export async function withDatabaseDiagnostics<T>(
         return await fn();
     } catch (error) {
         if (error instanceof E2eInfrastructureError) throw error;
-        if (isDatabaseUnreachable(error)) throw infrastructureError(what, error);
+        if (isDatabaseUnreachable(error))
+            throw infrastructureError(what, error);
         throw error;
     }
 }
@@ -194,7 +198,10 @@ export async function withDatabaseDiagnostics<T>(
  * first bootstrap seeder happened to be doing when it noticed.
  */
 export async function assertDatabaseReachable(): Promise<void> {
-    await withDatabaseDiagnostics('connecting to the test database', async () => {
-        await getPool().query('SELECT 1');
-    });
+    await withDatabaseDiagnostics(
+        'connecting to the test database',
+        async () => {
+            await getPool().query('SELECT 1');
+        }
+    );
 }

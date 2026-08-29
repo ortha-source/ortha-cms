@@ -52,7 +52,9 @@ module.exports = async function (globalConfig?: { maxWorkers?: number }) {
     // the container remains the default and the thing CI normally uses.
     const external = process.env['E2E_DATABASE_URL'];
 
-    let container: Awaited<ReturnType<PostgreSqlContainer['start']>> | undefined;
+    let container:
+        | Awaited<ReturnType<PostgreSqlContainer['start']>>
+        | undefined;
     let connectionString: string;
 
     if (external) {
@@ -124,5 +126,7 @@ module.exports = async function (globalConfig?: { maxWorkers?: number }) {
         throw error;
     }
 
-    console.log(`[e2e] database ready${container ? ' (testcontainer)' : ''}.\n`);
+    console.log(
+        `[e2e] database ready${container ? ' (testcontainer)' : ''}.\n`
+    );
 };

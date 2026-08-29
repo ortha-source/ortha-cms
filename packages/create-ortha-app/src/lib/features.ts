@@ -118,6 +118,9 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/users-server',
     '@orthacms/utils-admin',
     '@orthacms/utils-server',
+    '@orthacms/webhooks-admin',
+    '@orthacms/webhooks-domain',
+    '@orthacms/webhooks-server',
     '@orthacms/workspaces-admin',
     '@orthacms/workspaces-server',
     '@orthacms/wysiwyg-admin'

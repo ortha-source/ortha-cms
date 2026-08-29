@@ -199,7 +199,7 @@ export function assertDisposableExternalDatabase(
             '[e2e] Refusing to run: E2E_DATABASE_URL names the same database as DATABASE_URL.\n\n' +
                 `  database: ${databaseName(externalUrl) || externalUrl}\n\n` +
                 'This suite TRUNCATEs every mutable table before every test. DATABASE_URL is\n' +
-                "the working database your `.env` points at — running here would empty it.\n\n" +
+                'the working database your `.env` points at — running here would empty it.\n\n' +
                 'Point E2E_DATABASE_URL at a throwaway database, or unset it to use the\n' +
                 'Postgres testcontainer (the default).'
         );

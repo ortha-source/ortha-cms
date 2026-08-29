@@ -29,6 +29,8 @@ export {
     type WebhookEndpointWithSecret
 } from './lib/application/webhook-endpoints.service';
 
+export { WebhookDeliveryWorker } from './lib/infrastructure/webhook-delivery.worker';
+
 export {
     WebhookDeliveryNotFoundError,
     WebhookEndpointNotFoundError

@@ -12,7 +12,7 @@
 - [`CONTEXT-MAP.md`](CONTEXT-MAP.md) — glossary + the full project map (every app & package, one line each)
 - [`DESIGN.md`](DESIGN.md) — product & design intent (owned by Design; partly `TODO:`)
 - [`docs/adr/`](docs/adr/README.md) — Architecture Decision Records (why things are the way they are)
-- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md), which documents shipped behaviour rather than a proposal
+- [`docs/design/`](docs/design/) — engineering design docs for work that is proposed but not yet built (currently: [`copilot.md`](docs/design/copilot.md), [`graphql-api.md`](docs/design/graphql-api.md), [`sso.md`](docs/design/sso.md)) — plus [`alarms.md`](docs/design/alarms.md) and [`webhooks.md`](docs/design/webhooks.md), which document shipped behaviour rather than proposals
 - [`README.md`](README.md) — human-facing project overview & getting started
 - `.cursor/BUGBOT.md` — recurring bug-patterns reviewers and agents must watch for
 
@@ -109,6 +109,20 @@
   language: it stores the **records-list filter tree verbatim** and is evaluated
   through content's own `EntryMatchQuery`, so it can only ever mean what the
   list means by the same filter. Severity orders and colours; it never gates.
+- `packages/webhooks/*` — outgoing **webhooks** on content changes. `domain` is
+  the framework-free kernel — the subscribable event catalogue, the subscription
+  filter (workspaces × event kinds × content types, where an **empty set means
+  everything, including what does not exist yet**), the HMAC-signed envelope,
+  the retry policy, and the URL policy that decides where this server may be
+  talked into connecting; `server` is the plugin — three tables, an outbox
+  subscriber and a delivery worker; `admin` is the global `/webhooks` pages in
+  the directory group. The structural rule is that the **subscriber never
+  touches the network** ([ADR-0016](docs/adr/0016-webhooks-deliver-from-a-queue.md)):
+  `OutboxDispatcher` calls subscribers inside its claim transaction, so fan-out
+  only queues delivery rows and a worker claims them, commits, and then POSTs
+  with nothing open. Delivery is at-least-once and unordered; receivers
+  deduplicate on `X-Ortha-Event-Id`. Administrator-only, because an endpoint
+  spans every workspace it names and holds a signing secret.
 - `packages/mcp/server` — `@orthacms/mcp-server`, the **MCP plugin**: the
   Model Context Protocol endpoint (`POST /api/v1/mcp`) that lets an external
   agent do content CRUD with an API token

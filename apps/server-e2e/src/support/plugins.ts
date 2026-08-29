@@ -14,6 +14,7 @@ import { SegmentsPlugin } from '@orthacms/segments-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { MediaServerPlugin } from '@orthacms/media-server';
 import { UsersPlugin } from '@orthacms/users-server';
+import { WebhooksPlugin } from '@orthacms/webhooks-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 import { testContentTypes } from './content';
@@ -180,6 +181,10 @@ export function buildTestPlugins(
         // is reachable) rather than a test hook beside one: with no header
         // every reader is anonymous, which is what a fresh install is.
         SegmentsPlugin({ resolver: headerSegmentResolver }),
+        // Webhooks. Its sender is switched off in `test-config` for the same
+        // reason the alarms sweep is — a background timer must not act while a
+        // test is asserting — so the suites claim and send a batch explicitly.
+        WebhooksPlugin(config.plugins.webhooks),
         // MCP last, as in the host. Enabled here regardless of the
         // `MCP_ENABLED` default so the endpoint is testable; the disabled path
         // is covered by a per-suite config override.

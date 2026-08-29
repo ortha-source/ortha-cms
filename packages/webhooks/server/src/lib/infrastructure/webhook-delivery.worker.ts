@@ -92,14 +92,21 @@ export class WebhookDeliveryWorker
     /** One guarded tick — skips if the previous one is still going. */
     private async tick(): Promise<void> {
         if (this.running || this.stopped) return;
-        this.running = this.runBatch().finally(() => {
+        this.running = this.runOnce().finally(() => {
             this.running = null;
         });
         await this.running;
     }
 
-    /** Claims a batch, sends each delivery, then prunes if it is time. */
-    private async runBatch(): Promise<void> {
+    /**
+     * Claims one batch, sends each delivery, then prunes if it is time.
+     *
+     * Public because "send what is claimable now" is a real operation and not
+     * only the timer's business: a deployment that runs the sender out of
+     * process, and the e2e suites, both need to drive a batch on demand rather
+     * than waiting for an interval to come round.
+     */
+    async runOnce(): Promise<void> {
         try {
             const claimed = await this.deliveries.claim(
                 this.config.batchSize,

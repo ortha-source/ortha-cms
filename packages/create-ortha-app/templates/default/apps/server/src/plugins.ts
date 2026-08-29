@@ -26,6 +26,7 @@ import { createVercelBlobStorageProvider } from '@orthacms/media-provider-vercel
 // ortha:end
 import { UsersPlugin } from '@orthacms/users-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
+import { WebhooksPlugin } from '@orthacms/webhooks-server';
 // ortha:if graphql
 import { ContentGraphqlPlugin } from '@orthacms/content-graphql';
 // ortha:end
@@ -197,6 +198,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // blocking a save or a publish. After content, whose registry and
         // filter surface it evaluates rules through.
         AlarmsPlugin(),
+        // Outgoing webhooks. Inert until someone adds an endpoint in the admin,
+        // and it only subscribes to the outbox, so nothing depends on it being
+        // registered any earlier than this.
+        WebhooksPlugin(),
         MediaServerPlugin({
             // ortha:if media-local
             provider: createLocalStorageProvider(config.plugins.media.storage),

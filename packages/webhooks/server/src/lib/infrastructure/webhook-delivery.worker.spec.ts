@@ -40,14 +40,7 @@ function response(overrides: Partial<WebhookResponse> = {}): WebhookResponse {
     };
 }
 
-/**
- * A worker wired to fakes, plus the calls it made.
- *
- * `runBatch` is private, so the tests drive it through `onApplicationBootstrap`
- * would be indirect and timer-bound; instead the one tick is invoked by calling
- * the private method through a typed cast. The alternative — exporting the tick
- * purely for tests — would widen the class's surface for no other reason.
- */
+/** A worker wired to fakes, plus the calls it made. */
 function build(options: {
     delivery?: ClaimedDelivery;
     endpoint?: EndpointWithSecret | null;
@@ -81,10 +74,7 @@ function build(options: {
         maxAttempts: options.maxAttempts ?? WEBHOOKS_DEFAULTS.maxAttempts
     });
 
-    const tick = () =>
-        (worker as unknown as { runBatch(): Promise<void> }).runBatch();
-
-    return { worker, deliveries, endpoints, http, tick };
+    return { worker, deliveries, endpoints, http, tick: () => worker.runOnce() };
 }
 
 describe('WebhookDeliveryWorker', () => {

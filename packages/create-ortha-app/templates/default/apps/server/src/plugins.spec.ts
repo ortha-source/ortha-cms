@@ -34,6 +34,7 @@ const EXPECTED_PLUGINS = [
     // ortha:end
     'i18n',
     'alarms',
+    'webhooks',
     'media',
     'copilot'
     // ortha:if mcp
