@@ -4,13 +4,19 @@ import {
     NotFoundException,
     UnprocessableEntityException
 } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import {
+    attachActor,
+    type EventActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
 import { type EntryStatus } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryValidationService } from '../../../validation/services/entry-validation.service';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import { toRecord } from '../../infrastructure/persistence/entry-row';
 import type { EntryRecord } from '../../types/entry-list-view';
+import { entryTitle } from '../../infrastructure/persistence/entry-row';
 import { Entry } from '../../domain/entry';
 import { EntryPublishBlockedError } from '../../domain/entry-publish-blocked.error';
 
@@ -40,11 +46,12 @@ export class PublishEntryUseCase {
         id: string,
         workspaceId: string,
         /**
-         * The acting user, merged onto the outbox events so the audit log can
-         * name who did this. Without it every content row in the activity log
-         * read "System".
+         * The acting principal, merged onto the outbox events so the audit log
+         * can name who did this. Without it every content row in the activity
+         * log read "System" — which is also what a token-authenticated publish
+         * read as until `actor_type` let a credential be named.
          */
-        actor?: { id: string; email: string | null },
+        actor?: EventActor,
         /**
          * The version to mark live, when publishing a **specific** earlier one
          * whose content the caller already re-applied to the live row. Omitted
@@ -86,7 +93,11 @@ export class PublishEntryUseCase {
             const entry = Entry.rehydrate({
                 id,
                 contentType: type.name,
-                status: current['status'] as EntryStatus
+                status: current['status'] as EntryStatus,
+                workspaceId,
+                // The stored row is already loaded, so the audit row gets a
+                // readable name for free rather than a bare uuid.
+                title: entryTitle(type, current)
             });
             try {
                 entry.publish({ valid: issues.length === 0, issues });

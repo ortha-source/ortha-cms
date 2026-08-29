@@ -17,13 +17,15 @@ export {
 export {
     createDomainEvent,
     attachActor,
+    EVENT_ACTOR_TYPE,
     DOMAIN_EVENT_SUBSCRIBERS
 } from './lib/events/domain-event';
 export type {
     DomainEvent,
     CreateDomainEventParams,
     DomainEventSubscriber,
-    EventActor
+    EventActor,
+    EventActorType
 } from './lib/events/domain-event';
 export { UnitOfWork } from './lib/uow/unit-of-work';
 export { OutboxWriter } from './lib/outbox/outbox-writer';

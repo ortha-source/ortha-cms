@@ -32,6 +32,58 @@ export const ENTRY_EVENT_KINDS = {
 const AGGREGATE_TYPE = 'content_entry';
 
 /**
+ * What an entry event says about **which entry** it is about, beyond the id.
+ *
+ * Both extra fields exist because of what an audit row can and cannot recover
+ * afterwards:
+ *
+ * - `workspaceId` is the only way the trail can answer a workspace-shaped
+ *   question. `activity_events` grew a nullable `workspace_id` for it, filled
+ *   from the event payload, and an entry is the most-produced audited fact in
+ *   the product — so an entry event that omitted it would leave the column
+ *   mostly empty and the question mostly unanswerable.
+ * - `title` is what makes the row **readable**. An audit row keeps no FK and no
+ *   denormalised name; its whole handle on the subject is `subject_id`. That is
+ *   survivable for an entry that still exists and unrecoverable for one that
+ *   does not — and `entry.purged` is precisely the case where this row is the
+ *   only remaining record of the thing. A uuid is not an answer to "what did
+ *   they delete".
+ *
+ * Both are optional so a caller that genuinely has neither (a unit test, an
+ * event minted outside the write path) is not forced to invent them.
+ */
+export interface EntrySubject {
+    /** The content type's machine name. */
+    contentType: string;
+    /** The workspace the entry lives in. */
+    workspaceId?: string | null;
+    /**
+     * A human label for the entry **at the time of the event** — a frozen
+     * snapshot, like `actor_email`, not a lookup. The point is to survive the
+     * subject.
+     */
+    title?: string | null;
+}
+
+/**
+ * The subject fields every entry event's payload carries.
+ *
+ * Exported because the {@link Entry} model raises its two events through the
+ * envelope builder directly rather than the per-kind helpers — those two are
+ * status transitions the model owns, and it must produce the same payload shape
+ * as the five the write path mints.
+ */
+export function entrySubjectPayload(
+    subject: EntrySubject
+): Record<string, unknown> {
+    return {
+        contentType: subject.contentType,
+        workspaceId: subject.workspaceId ?? null,
+        title: subject.title ?? null
+    };
+}
+
+/**
  * Builds an entry {@link DomainEvent} of `kind` for `entryId`, carrying
  * `payload`. Keeps the domain model free of the event envelope's plumbing — the
  * model names the fact and its data; this stamps the `aggregateType`/id.
@@ -52,9 +104,13 @@ export function entryEvent(
 /** A new entry exists. `contentType` is what lets the log name *what* was made. */
 export function entryCreated(
     entryId: string,
-    contentType: string
+    subject: EntrySubject
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.CREATED, entryId, { contentType });
+    return entryEvent(
+        ENTRY_EVENT_KINDS.CREATED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }
 
 /**
@@ -71,11 +127,11 @@ export function entryCreated(
  */
 export function entryUpdated(
     entryId: string,
-    contentType: string,
+    subject: EntrySubject,
     fields: readonly string[]
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.UPDATED, entryId, {
-        contentType,
+        ...entrySubjectPayload(subject),
         fields: [...fields]
     });
 }
@@ -88,11 +144,11 @@ export function entryUpdated(
  */
 export function entryDeleted(
     entryId: string,
-    contentType: string,
+    subject: EntrySubject,
     soft: boolean
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.DELETED, entryId, {
-        contentType,
+        ...entrySubjectPayload(subject),
         soft
     });
 }
@@ -100,9 +156,13 @@ export function entryDeleted(
 /** A soft-deleted entry's tombstone was cleared. */
 export function entryRestored(
     entryId: string,
-    contentType: string
+    subject: EntrySubject
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.RESTORED, entryId, { contentType });
+    return entryEvent(
+        ENTRY_EVENT_KINDS.RESTORED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }
 
 /**
@@ -112,6 +172,13 @@ export function entryRestored(
  * action with nothing left behind to inspect afterwards, so it is exactly the
  * one an audit trail has to record distinctly.
  */
-export function entryPurged(entryId: string, contentType: string): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.PURGED, entryId, { contentType });
+export function entryPurged(
+    entryId: string,
+    subject: EntrySubject
+): DomainEvent {
+    return entryEvent(
+        ENTRY_EVENT_KINDS.PURGED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }

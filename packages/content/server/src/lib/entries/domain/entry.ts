@@ -5,7 +5,12 @@ import {
     type EntryStatus,
     type ValidationIssue
 } from '@orthacms/content-domain';
-import { ENTRY_EVENT_KINDS, entryEvent } from './events/entry-events';
+import {
+    ENTRY_EVENT_KINDS,
+    entryEvent,
+    entrySubjectPayload,
+    type EntrySubject
+} from './events/entry-events';
 import { EntryPublishBlockedError } from './entry-publish-blocked.error';
 
 /** State the persistence layer hands {@link Entry.rehydrate} to reconstruct one. */
@@ -16,6 +21,13 @@ export interface EntryState {
     contentType: string;
     /** Current publish status of the stored row. */
     status: EntryStatus;
+    /** The workspace the row lives in — carried only for the event payload. */
+    workspaceId?: string | null;
+    /**
+     * A human label for the entry, carried only for the event payload so the
+     * audit row names something a reader recognises instead of a uuid.
+     */
+    title?: string | null;
 }
 
 /**
@@ -50,13 +62,21 @@ export class Entry {
 
     private constructor(
         private readonly _id: string,
-        private readonly _contentType: string,
+        private readonly _subject: EntrySubject,
         private _status: EntryStatus
     ) {}
 
     /** Reconstructs an entry from its persisted lifecycle state. */
     static rehydrate(state: EntryState): Entry {
-        return new Entry(state.id, state.contentType, state.status);
+        return new Entry(
+            state.id,
+            {
+                contentType: state.contentType,
+                workspaceId: state.workspaceId ?? null,
+                title: state.title ?? null
+            },
+            state.status
+        );
     }
 
     /**
@@ -77,9 +97,7 @@ export class Entry {
         }
         assertTransition(this._status, ENTRY_STATUS.Published);
         this._status = ENTRY_STATUS.Published;
-        this.raise(ENTRY_EVENT_KINDS.PUBLISHED, {
-            contentType: this._contentType
-        });
+        this.raise(ENTRY_EVENT_KINDS.PUBLISHED);
     }
 
     /**
@@ -94,9 +112,7 @@ export class Entry {
         }
         assertTransition(this._status, ENTRY_STATUS.Draft);
         this._status = ENTRY_STATUS.Draft;
-        this.raise(ENTRY_EVENT_KINDS.UNPUBLISHED, {
-            contentType: this._contentType
-        });
+        this.raise(ENTRY_EVENT_KINDS.UNPUBLISHED);
     }
 
     /** The entry id. */
@@ -114,7 +130,9 @@ export class Entry {
         return this.events.splice(0, this.events.length);
     }
 
-    private raise(kind: string, payload: Record<string, unknown>): void {
-        this.events.push(entryEvent(kind, this._id, payload));
+    private raise(kind: string): void {
+        this.events.push(
+            entryEvent(kind, this._id, entrySubjectPayload(this._subject))
+        );
     }
 }

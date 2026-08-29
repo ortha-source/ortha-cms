@@ -20,6 +20,7 @@ import {
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import {
     attachActor,
+    EVENT_ACTOR_TYPE,
     InjectDatabase,
     OutboxWriter,
     UnitOfWork,
@@ -57,7 +58,12 @@ import type {
 } from '../../types/entry-list-view';
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { snakeCase } from '../../../collection/table-builder';
-import { coerceValues, toColumns, toRecord } from './entry-row';
+import {
+    coerceValues,
+    entryTitle,
+    toColumns,
+    toRecord
+} from './entry-row';
 import {
     assertSameLocale,
     RelationLinkService,
@@ -72,7 +78,8 @@ import {
     entryDeleted,
     entryPurged,
     entryRestored,
-    entryUpdated
+    entryUpdated,
+    type EntrySubject
 } from '../../domain/events/entry-events';
 import { Revision } from '../../../revisions/domain/revision';
 import { buildSnapshot } from '../../../revisions/infrastructure/persistence/revision-snapshot';
@@ -162,22 +169,49 @@ export class EntryWriterService {
         return this.uow.current() as unknown as DbTransaction;
     }
 
-    /** One event per affected row, built from each row's own id. */
+    /**
+     * One event per affected row, built from each row's own id **and the row
+     * itself** — the latter because an entry event carries a frozen `title`
+     * snapshot, and a title is per row rather than per batch.
+     */
     private eventsFor(
         rows: readonly Row[],
-        build: (id: string) => DomainEvent
+        build: (id: string, row: Row) => DomainEvent
     ): DomainEvent[] {
-        return rows.map((row) => build(row['id'] as string));
+        return rows.map((row) => build(row['id'] as string, row));
+    }
+
+    /**
+     * What an entry event says about its subject: the type, the workspace, and
+     * a **frozen** human label read off the row being written.
+     *
+     * Frozen rather than looked up, for the same reason `actor_email` is: the
+     * audit row has to outlive its subject. `entry.purged` destroys the only
+     * other copy of the name, so a row that stored just the uuid could never
+     * answer "what did they delete" — not even in principle.
+     */
+    private subjectOf(
+        type: AnyContentType,
+        workspaceId: string,
+        row?: Row
+    ): EntrySubject {
+        return {
+            contentType: type.name,
+            workspaceId,
+            title: row ? entryTitle(type, row) : null
+        };
     }
 
     /**
      * Append `events` to the transactional outbox, stamped with the acting
-     * user, from inside the active unit of work.
+     * principal, from inside the active unit of work.
      *
-     * `actor` is `null` for a write made with an API token: revisions record a
-     * *user* id and a token is not one, and an audit row naming a person who
-     * did not do it is worse than one that says "System". Attributing a token's
-     * writes is a real gap that wants its own column, not a misused one.
+     * A **token** may be the actor here, and that is the whole difference from
+     * {@link revisionActorId} below: the audit row now carries an `actor_type`,
+     * so naming a credential is a fact rather than a misused user column. A
+     * write made with a bearer token used to reach the log as "System", which
+     * left every write over the public REST API, GraphQL and MCP unattributable
+     * to the credential that made it.
      */
     private async emit(
         events: readonly DomainEvent[],
@@ -472,7 +506,7 @@ export class EntryWriterService {
         actor?: EventActor | null,
         extensions?: Record<string, unknown>
     ): Promise<EntryRecord> {
-        const actorId = actor?.id ?? null;
+        const actorId = revisionActorId(actor);
         // `coerceValues` stamps every declared field onto the bag, so the
         // "sent in both places" check below has to read the RAW body — after
         // coercion every field looks present.
@@ -644,7 +678,15 @@ export class EntryWriterService {
                     // Inside the transaction, so the fact and the row it
                     // describes commit together or not at all — the whole point
                     // of the outbox.
-                    await this.emit([entryCreated(id, type.name)], actor);
+                    await this.emit(
+                        [
+                            entryCreated(
+                                id,
+                                this.subjectOf(type, workspaceId, inserted as Row)
+                            )
+                        ],
+                        actor
+                    );
                     return inserted as Row;
                 }),
             type
@@ -800,7 +842,7 @@ export class EntryWriterService {
             extensions?: Record<string, unknown>;
         }
     ): Promise<EntryRecord> {
-        const actorId = actor?.id ?? null;
+        const actorId = revisionActorId(actor);
         let coerced = coerceValues(type, values);
         // The row's own locale is what a relation link must match. Read up front
         // (one indexed lookup, and only on localized types) so the pre-transaction
@@ -955,7 +997,16 @@ export class EntryWriterService {
             // trip, not an editorial change, and the log is read by people.
             const fields = this.changedFields(type, before, updated as Row);
             if (fields.length > 0) {
-                await this.emit([entryUpdated(id, type.name, fields)], actor);
+                await this.emit(
+                    [
+                        entryUpdated(
+                            id,
+                            this.subjectOf(type, workspaceId, updated as Row),
+                            fields
+                        )
+                    ],
+                    actor
+                );
             }
             return updated as Row;
         });
@@ -1215,7 +1266,13 @@ export class EntryWriterService {
             );
             if (!row) throw this.notFound(type, id);
             await this.emit(
-                [entryDeleted(id, type.name, Boolean(type.paranoid))],
+                [
+                    entryDeleted(
+                        id,
+                        this.subjectOf(type, workspaceId, row as Row),
+                        Boolean(type.paranoid)
+                    )
+                ],
                 actor
             );
         });
@@ -1256,7 +1313,15 @@ export class EntryWriterService {
                 type
             );
             if (!row) throw this.notFound(type, id);
-            await this.emit([entryRestored(id, type.name)], actor);
+            await this.emit(
+                [
+                    entryRestored(
+                        id,
+                        this.subjectOf(type, workspaceId, row as Row)
+                    )
+                ],
+                actor
+            );
             return toRecord(type, row as Row);
         });
     }
@@ -1289,7 +1354,15 @@ export class EntryWriterService {
             if (!row) throw this.notFound(type, id);
             // The one content action that leaves nothing behind to inspect, so
             // the event is the only remaining record that it happened.
-            await this.emit([entryPurged(id, type.name)], actor);
+            await this.emit(
+                [
+                    entryPurged(
+                        id,
+                        this.subjectOf(type, workspaceId, row as Row)
+                    )
+                ],
+                actor
+            );
         });
     }
 
@@ -1331,8 +1404,12 @@ export class EntryWriterService {
             // One event per row actually removed, not one per id asked for:
             // batching is a way of asking, and the log records what happened.
             await this.emit(
-                this.eventsFor(rows as Row[], (id) =>
-                    entryDeleted(id, type.name, Boolean(type.paranoid))
+                this.eventsFor(rows as Row[], (id, row) =>
+                    entryDeleted(
+                        id,
+                        this.subjectOf(type, workspaceId, row),
+                        Boolean(type.paranoid)
+                    )
                 ),
                 actor
             );
@@ -1367,8 +1444,8 @@ export class EntryWriterService {
                 type
             );
             await this.emit(
-                this.eventsFor(rows as Row[], (id) =>
-                    entryPurged(id, type.name)
+                this.eventsFor(rows as Row[], (id, row) =>
+                    entryPurged(id, this.subjectOf(type, workspaceId, row))
                 ),
                 actor
             );
@@ -1412,8 +1489,8 @@ export class EntryWriterService {
                 type
             );
             await this.emit(
-                this.eventsFor(rows as Row[], (id) =>
-                    entryRestored(id, type.name)
+                this.eventsFor(rows as Row[], (id, row) =>
+                    entryRestored(id, this.subjectOf(type, workspaceId, row))
                 ),
                 actor
             );
@@ -1954,4 +2031,26 @@ export class EntryWriterService {
             `No entry "${id}" on content type "${type.name}".`
         );
     }
+}
+
+/**
+ * The **user** id to stamp on a revision, or `null` when the writer is not a
+ * person.
+ *
+ * `content_entry_revisions.created_by` records a `users` row. A token is not
+ * one, so writing its id there would make the history resolve every version to
+ * a nonexistent person — which is why the public API used to pass no actor at
+ * all rather than pass the token. The audit path has since gained an
+ * `actor_type` and can name a credential honestly, so the two answers had to be
+ * separated: {@link EntryWriterService.emit} gets the real principal, and this
+ * gets a user id or nothing.
+ *
+ * An actor with no `type` is a person — every actor predates the field except
+ * the token ones that introduced it.
+ */
+function revisionActorId(actor?: EventActor | null): string | null {
+    if (!actor) return null;
+    return (actor.type ?? EVENT_ACTOR_TYPE.User) === EVENT_ACTOR_TYPE.User
+        ? actor.id
+        : null;
 }

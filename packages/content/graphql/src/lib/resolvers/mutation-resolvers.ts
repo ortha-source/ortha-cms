@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
     PublicSaveEntryDto,
+    toTokenActor,
     type EntryLocator,
     type RelationDelta
 } from '@orthacms/content-server';
@@ -19,6 +20,11 @@ import { resolveType } from './entry-resolvers';
  * lock, the outbox, and i18n's sibling sync are all downstream, in the pipeline
  * the admin and the REST API already go through. A second implementation of any
  * of it is how you get duplicate version numbers and translations that drift.
+ *
+ * The token is stamped as the write's **actor**, the same as on the REST
+ * routes: one `toTokenActor` for both protocols, so a GraphQL mutation and the
+ * `POST` it mirrors produce audit rows naming the same credential rather than
+ * one of them reading "System".
  *
  * Two things *are* this layer's job:
  *
@@ -49,7 +55,13 @@ export function createResolver(
             body.localeGroupId = args['localeGroupId'];
         }
         assertValid(body);
-        return context.writes.create(type, body, context.workspaceId, granted);
+        return context.writes.create(
+            type,
+            body,
+            context.workspaceId,
+            granted,
+            toTokenActor(context.token)
+        );
     };
 }
 
@@ -68,7 +80,8 @@ export function updateResolver(
             body,
             context.workspaceId,
             granted,
-            addressingLocale(args)
+            addressingLocale(args),
+            toTokenActor(context.token)
         );
     };
 }
@@ -83,20 +96,23 @@ export function publishResolver(
         const { type, granted } = await resolveType(context, typeName);
         const locator = locatorFrom(args);
         const locale = addressingLocale(args);
+        const actor = toTokenActor(context.token);
         return live
             ? context.writes.publish(
                   type,
                   locator,
                   context.workspaceId,
                   granted,
-                  locale
+                  locale,
+                  actor
               )
             : context.writes.unpublish(
                   type,
                   locator,
                   context.workspaceId,
                   granted,
-                  locale
+                  locale,
+                  actor
               );
     };
 }
@@ -119,7 +135,8 @@ export function deleteResolver(
             type,
             locatorFrom(args),
             context.workspaceId,
-            addressingLocale(args)
+            addressingLocale(args),
+            toTokenActor(context.token)
         );
         return true;
     };

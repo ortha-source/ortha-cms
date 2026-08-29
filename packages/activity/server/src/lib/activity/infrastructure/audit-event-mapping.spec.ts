@@ -57,12 +57,24 @@ function event(
     return enriched;
 }
 
-/** The fixed fields shared by every produced row. */
-function base(): Pick<AuditRow, 'id' | 'actorId' | 'actorEmail' | 'at'> {
+/**
+ * The fixed fields shared by every produced row.
+ *
+ * `actorType` is `'user'` on all of them: `attachActor` defaults it, because
+ * until API tokens could act nothing but a person ever could. `workspaceId` is
+ * `null` unless the event's own payload names one — the column is filled from
+ * `payload.workspaceId`, and most of these kinds belong to no workspace at all.
+ */
+function base(): Pick<
+    AuditRow,
+    'id' | 'actorId' | 'actorType' | 'actorEmail' | 'workspaceId' | 'at'
+> {
     return {
         id: EVENT_ID,
         actorId: ACTOR.id,
+        actorType: 'user',
         actorEmail: ACTOR.email,
+        workspaceId: null,
         at: AT
     };
 }
@@ -360,6 +372,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'me@example.com',
                 meta: null,
                 at: AT
@@ -385,6 +399,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'me@example.com',
                 meta: { sessionsRevoked: 3 },
                 at: AT
@@ -425,6 +441,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'invited@example.com',
                 meta: null,
                 at: AT
@@ -450,6 +468,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: null,
                 meta: null,
                 at: AT
@@ -482,6 +502,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'api_token',
                 subjectId: TOKEN_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'admin@example.com',
                 meta: {
                     name: 'CI',
@@ -720,11 +742,13 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 40 expected kinds', () => {
+        it('audits exactly the 47 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'api_token.created',
                     'api_token.revoked',
+                    'api_token.used',
+                    'auth.sign_in_failed',
                     'auth.signed_in',
                     'auth.signed_out',
                     'media.asset.deleted',
@@ -734,8 +758,13 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'media.folder.created',
                     'media.folder.deleted',
                     'media.folder.renamed',
+                    'transfer.content.exported',
+                    'transfer.content.imported',
                     'user.activated',
+                    'user.disabled',
+                    'user.enabled',
                     'user.password_changed',
+                    'user.session_revoked',
                     'user.sso_linked',
                     'user.sso_provisioned',
                     'user.sso_role_mapped',

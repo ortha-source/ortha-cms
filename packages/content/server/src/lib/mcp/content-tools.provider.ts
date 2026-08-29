@@ -14,6 +14,7 @@ import {
     type ToolProvider
 } from '@orthacms/tools-server';
 import { InjectContentRegistry } from '../content.tokens';
+import { toToolEventActor } from '../public-api/infrastructure/token-actor';
 import type {
     ContentTypeRegistry,
     SerializedContentType
@@ -322,7 +323,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         type,
                         body,
                         context.workspaceId,
-                        granted
+                        granted,
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -356,7 +358,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         body,
                         context.workspaceId,
                         granted,
-                        localeArg(input)
+                        localeArg(input),
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -378,7 +381,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireLocator(input),
                         context.workspaceId,
                         granted,
-                        localeArg(input)
+                        localeArg(input),
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -400,7 +404,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         requireLocator(input),
                         context.workspaceId,
                         granted,
-                        localeArg(input)
+                        localeArg(input),
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -422,7 +427,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         type,
                         requireLocator(input),
                         context.workspaceId,
-                        localeArg(input)
+                        localeArg(input),
+                        toToolEventActor(context.actor)
                     );
                     return { deleted: true };
                 }
@@ -458,7 +464,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                         type,
                         body.items,
                         context.workspaceId,
-                        granted
+                        granted,
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -481,7 +488,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     return this.writes.bulkPublish(
                         type,
                         body.ids,
-                        context.workspaceId
+                        context.workspaceId,
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -504,7 +512,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     return this.writes.bulkUnpublish(
                         type,
                         body.ids,
-                        context.workspaceId
+                        context.workspaceId,
+                        toToolEventActor(context.actor)
                     );
                 }
             },
@@ -528,7 +537,8 @@ export class ContentToolProvider implements ToolProvider, OnModuleInit {
                     return this.writes.bulkRemove(
                         type,
                         body.ids,
-                        context.workspaceId
+                        context.workspaceId,
+                        toToolEventActor(context.actor)
                     );
                 }
             }

@@ -65,6 +65,42 @@ export class ListActivityQueryDto {
     actorId?: string;
 
     /**
+     * Restrict to actions performed by one kind of principal — `user` or
+     * `api_token`. Free text rather than an enum for the same reason `kind` is:
+     * the values are owned by `@orthacms/database`'s `EVENT_ACTOR_TYPE`, and a
+     * copy here would be a second catalogue to keep in step.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        maxLength: 255,
+        example: 'api_token',
+        description:
+            'Restrict to actions performed by one kind of principal (`user` / `api_token`).'
+    })
+    @IsOptional()
+    @IsString()
+    @MaxLength(255)
+    actorType?: string;
+
+    /**
+     * Restrict to one workspace's history.
+     *
+     * Narrows, never widens: the log is deployment-wide and `activity:read`
+     * is what bounds it, so this is a question a reader may ask rather than a
+     * boundary imposed on them. Rows belonging to no workspace (invites, role
+     * changes, workspace creation) are excluded by it, which is the point.
+     */
+    @ApiPropertyOptional({
+        type: String,
+        format: 'uuid',
+        description:
+            "Restrict to one workspace's history. Rows that belong to no workspace are excluded."
+    })
+    @IsOptional()
+    @IsUUID()
+    workspaceId?: string;
+
+    /**
      * Restrict to one or more event kinds. Accepts a comma-separated list
      * (`?kind=user.invited,user.suspended`) → matched with `IN`. Kinds are
      * owned by the emitting plugins, so this is validated as free text, not

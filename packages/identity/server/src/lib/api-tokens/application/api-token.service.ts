@@ -276,15 +276,52 @@ export class ApiTokenService {
     }
 
     /**
-     * Refreshes `last_used_at` only when it is stale, and never awaits the
-     * write — a failed touch must not fail the authenticated request.
+     * Refreshes `last_used_at` only when it is stale, and records
+     * `api_token.used` on the same schedule — never awaiting either, because a
+     * failed touch must not fail the authenticated request.
+     *
+     * **The staleness check is what bounds the audit volume**, which is why the
+     * event is raised here rather than in `verify`. A busy integration
+     * authenticates thousands of times an hour and the answer an operator wants
+     * — was this credential live, and over what period — needs one row a
+     * minute, not one per request. Sharing the existing interval means there is
+     * a single knob and the row and the column can never disagree about when
+     * the token was last seen.
+     *
+     * The touch and the event go in **one** unit of work so they commit
+     * together: a `last_used_at` that moved without a row, or a row claiming
+     * use that rolled back, would each be a small lie in the one place that
+     * exists to not tell them.
+     *
+     * There is **no actor**. A token acts as itself (the minting user's grants
+     * are deliberately not consulted — see `verify`), so naming that user here
+     * would attribute a request to a person who may have left the company. The
+     * token *is* the subject, and `api_tokens.created_by` is where "who minted
+     * it" already lives.
      */
     private maybeTouchLastUsed(row: ApiTokenRecord, now: Date): void {
         const last = row.lastUsedAt?.getTime() ?? 0;
         if (now.getTime() - last < LAST_USED_TOUCH_INTERVAL_MS) {
             return;
         }
-        void this.repo.touchLastUsed(row.id, now).catch(() => undefined);
+        void this.uow
+            .run(async () => {
+                await this.repo.touchLastUsed(row.id, now);
+                await this.outbox.append([
+                    apiTokenEvent(IDENTITY_EVENT_KINDS.API_TOKEN_USED, row.id, {
+                        name: row.name,
+                        scope: row.scope,
+                        workspaceIds: row.workspaceIds,
+                        lookupPrefix: row.lookupPrefix,
+                        // How long the credential had been quiet before this
+                        // request. A six-month gap is the interesting number
+                        // and it is not recoverable from the row afterwards —
+                        // the touch overwrites the only copy of it.
+                        previousUseAt: row.lastUsedAt ?? null
+                    })
+                ]);
+            })
+            .catch(() => undefined);
     }
 }
 

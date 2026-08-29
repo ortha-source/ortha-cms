@@ -17,7 +17,9 @@ export const ACTIVITY_FILTER_SCHEMA: FilterSchema = {
         subjectType: { type: ScalarFieldType.String },
         subjectId: { type: ScalarFieldType.String },
         actorId: { type: ScalarFieldType.Uuid },
+        actorType: { type: ScalarFieldType.String },
         actorEmail: { type: ScalarFieldType.String },
+        workspaceId: { type: ScalarFieldType.Uuid },
         at: { type: ScalarFieldType.Date }
     }
 };

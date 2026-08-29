@@ -20,6 +20,9 @@ import {
 import { OriginGuard } from '../guards/origin.guard';
 import { CookieService } from '../services/cookie.service';
 import { HashingService } from '../services/hashing.service';
+import { CurrentUser } from '../decorators/current-user.decorator';
+import { RevokeUserSessionUseCase } from '../../application/use-cases/revoke-user-session.use-case';
+import type { PublicUser } from '../services/auth.service';
 
 /** One session row as the admin Sessions tab consumes it over the wire. */
 export interface UserSessionResponse {
@@ -50,7 +53,9 @@ export interface UserSessionResponse {
  *   (`users:update`).
  * - `DELETE /api/users/:id/sessions/:sessionId` — revoke one (`users:update`),
  *   `Origin`-guarded like the other state-changing routes. Idempotent: an
- *   unknown/already-revoked session, or one not owned by `:id`, still 204s.
+ *   unknown/already-revoked session, or one not owned by `:id`, still 204s —
+ *   and records `user.session_revoked` only in the case where one actually was
+ *   (see {@link RevokeUserSessionUseCase}).
  *
  * **Both routes take the same permission, and the read is deliberately not the
  * weaker `users:read`.** A session row carries the member's IP address and
@@ -76,6 +81,7 @@ export class UserSessionsController {
     constructor(
         @Inject(SESSION_REPOSITORY)
         private readonly sessions: SessionRepository,
+        private readonly revokeSession: RevokeUserSessionUseCase,
         private readonly cookies: CookieService,
         private readonly hashing: HashingService
     ) {}
@@ -100,9 +106,10 @@ export class UserSessionsController {
     @HttpCode(204)
     async revoke(
         @Param('id', ParseUUIDPipe) id: string,
-        @Param('sessionId') sessionId: string
+        @Param('sessionId') sessionId: string,
+        @CurrentUser() actor?: PublicUser
     ): Promise<void> {
-        await this.sessions.revokeById(id, sessionId);
+        await this.revokeSession.execute(id, sessionId, actor);
     }
 
     /** Hashes the caller's session cookie to its row id, or `null` if absent. */

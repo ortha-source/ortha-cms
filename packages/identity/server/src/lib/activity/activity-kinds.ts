@@ -8,6 +8,16 @@
 export const IDENTITY_ACTIVITY_KINDS = {
     USER_SIGNED_IN: 'user.signed_in',
     USER_SIGNED_OUT: 'user.signed_out',
+    /**
+     * A password sign-in was refused. Named for the audit catalogue like its
+     * successful sibling (`auth.sign_in_failed` → `user.sign_in_failed`), even
+     * though the row's subject is an **address** rather than a user — the reader
+     * is scanning a list of things that happened to accounts, and "sign-in
+     * failed" belongs beside "signed in" there whether or not an account existed.
+     */
+    USER_SIGN_IN_FAILED: 'user.sign_in_failed',
+    /** An administrator ended one of a member's sessions. */
+    USER_SESSION_REVOKED: 'user.session_revoked',
     /** An identity provider was linked to an existing account. */
     USER_SSO_LINKED: 'user.sso_linked',
     /**
@@ -28,6 +38,11 @@ export const IDENTITY_ACTIVITY_KINDS = {
     TOKEN_CREATED: 'token.created',
     /** An external-API bearer token was revoked. */
     TOKEN_REVOKED: 'token.revoked',
+    /**
+     * An external-API bearer token was used. Throttled at the source to at most
+     * one row per token per minute — see `IDENTITY_EVENT_KINDS.API_TOKEN_USED`.
+     */
+    TOKEN_USED: 'token.used',
     WORKSPACE_CREATED: 'workspace.created',
     WORKSPACE_UPDATED: 'workspace.updated',
     WORKSPACE_ARCHIVED: 'workspace.archived',

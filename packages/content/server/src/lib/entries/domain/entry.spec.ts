@@ -18,7 +18,15 @@ describe('Entry publish lifecycle', () => {
             ENTRY_EVENT_KINDS.PUBLISHED
         ]);
         expect(events[0].aggregateId).toBe('e1');
-        expect(events[0].payload).toEqual({ contentType: 'post' });
+        // The subject fields ride on every entry event: `workspaceId` fills the
+        // audit row's column, `title` is the frozen label that keeps the row
+        // readable after the entry is gone. Both are null here because this
+        // rehydrate names neither.
+        expect(events[0].payload).toEqual({
+            contentType: 'post',
+            workspaceId: null,
+            title: null
+        });
     });
 
     it('blocks publish with the issues when the gate fails', () => {
