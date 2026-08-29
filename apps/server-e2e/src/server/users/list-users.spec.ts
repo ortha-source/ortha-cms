@@ -142,6 +142,96 @@ describe('GET /api/users', () => {
         }
     });
 
+    it('treats a literal % in the search as a character, not a wildcard', async () => {
+        // The needle is interpolated into an ILIKE pattern, so its own LIKE
+        // metacharacters have to be escaped first. Unescaped, `pct%user`
+        // reaches SQL as `%pct%user%` and matches both of these — a search box
+        // that silently widens the query it was given, and (with `_`) one an
+        // address can be probed through.
+        await seedUser(harness.app, {
+            email: 'pct%user@example.com',
+            role: 'viewer',
+            status: 'active'
+        });
+        await seedUser(harness.app, {
+            email: 'pctuser@example.com',
+            role: 'viewer',
+            status: 'active'
+        });
+
+        const agent = await adminAgent();
+        const res = await agent
+            .get('/api/users')
+            .query({ search: 'pct%user' })
+            .expect(200);
+
+        expect(res.body.total).toBe(1);
+        expect(res.body.items[0].email).toBe('pct%user@example.com');
+    });
+
+    it('neither repeats nor drops a row when names collide across pages', async () => {
+        // The ordering is `name, id`. With distinct names the tiebreak never
+        // has to decide anything, so the pagination test above would pass
+        // without it — a page boundary *inside* a run of equal names is the
+        // only place its absence shows, and it shows as one row served twice
+        // and another never served at all.
+        const ids: string[] = [];
+        for (let index = 0; index < 6; index += 1) {
+            const twin = await seedUser(harness.app, {
+                email: `twin-${index}@example.com`,
+                role: 'viewer',
+                status: 'active',
+                name: 'Twin'
+            });
+            ids.push(twin.id);
+        }
+
+        const agent = await adminAgent();
+        const seen: string[] = [];
+        for (const page of [1, 2, 3]) {
+            const res = await agent
+                .get('/api/users')
+                .query({ page, pageSize: 3 })
+                .expect(200);
+            seen.push(...res.body.items.map((m: { id: string }) => m.id));
+        }
+
+        expect(seen).toHaveLength(7); // the admin plus six twins
+        expect(new Set(seen).size).toBe(7);
+        for (const id of ids) {
+            expect(seen).toContain(id);
+        }
+    });
+
+    it('lists a member who has no name, and sorts them last', async () => {
+        // `name` is nullable until someone sets one, so an invited member who
+        // never filled it in is an ordinary row — not one the grid may drop,
+        // and not one that may take the ordering down with it.
+        await seedUser(harness.app, {
+            email: 'nameless@example.com',
+            role: 'viewer',
+            status: 'active'
+        });
+        await seedUser(harness.app, {
+            email: 'zoe@example.com',
+            role: 'viewer',
+            status: 'active',
+            name: 'Zoe'
+        });
+
+        const agent = await adminAgent();
+        const res = await agent.get('/api/users').expect(200);
+
+        expect(res.body.total).toBe(3);
+        const nameless = res.body.items.find(
+            (m: { email: string }) => m.email === 'nameless@example.com'
+        );
+        expect(nameless.name).toBeNull();
+        // `ORDER BY name` is ascending, where Postgres sorts NULLs last, so
+        // the unnamed member lands at the end rather than at the front.
+        expect(res.body.items.at(-1).email).toBe('nameless@example.com');
+    });
+
     it('returns every status when unfiltered (the members grid contract)', async () => {
         await seedUser(harness.app, {
             email: 'pending@example.com',
@@ -200,6 +290,14 @@ describe('GET /api/users', () => {
     it('rejects a non-numeric page with 400', async () => {
         const agent = await adminAgent();
         await agent.get('/api/users?page=abc').expect(400);
+    });
+
+    it('rejects page 0 with 400', async () => {
+        // Pagination is 1-based, and `(page - 1) * pageSize` turns a 0 into a
+        // negative OFFSET — which Postgres rejects at the driver, i.e. a 500
+        // from a link anyone can type. `@Min(1)` is what keeps it a 400.
+        const agent = await adminAgent();
+        await agent.get('/api/users?page=0').expect(400);
     });
 
     it('accepts the maximum page size (100)', async () => {
