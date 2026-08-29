@@ -321,23 +321,38 @@ export function WebhookFormDialog({
                             </Label>
                         </div>
                         {!values.allWorkspaces ? (
-                            <MultiSelect
-                                options={workspaceOptions}
-                                value={values.workspaceIds}
-                                onChange={(next) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        workspaceIds: next
-                                    }))
-                                }
-                                placeholder={intl.formatMessage(
-                                    messages.workspacesPlaceholder
-                                )}
-                                // The dialog locks scrolling, so the popover has
-                                // to portal inside it or its list will not
-                                // respond to the wheel.
-                                container={contentRef.current}
-                            />
+                            <>
+                                {/* The trigger is a `Button role="combobox"`
+                                    showing its own selection, so it has no name
+                                    of its own — and a <legend> names the group,
+                                    not the control inside it. Without this it
+                                    is an unnamed button to a screen reader (axe
+                                    `button-name`). */}
+                                <Label
+                                    htmlFor="webhook-workspaces"
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.workspaces)}
+                                </Label>
+                                <MultiSelect
+                                    id="webhook-workspaces"
+                                    options={workspaceOptions}
+                                    value={values.workspaceIds}
+                                    onChange={(next) =>
+                                        setValues((prev) => ({
+                                            ...prev,
+                                            workspaceIds: next
+                                        }))
+                                    }
+                                    placeholder={intl.formatMessage(
+                                        messages.workspacesPlaceholder
+                                    )}
+                                    // The dialog locks scrolling, so the popover has
+                                    // to portal inside it or its list will not
+                                    // respond to the wheel.
+                                    container={contentRef.current}
+                                />
+                            </>
                         ) : null}
                         <p className="text-xs text-muted-foreground">
                             {intl.formatMessage(messages.workspacesHint)}
@@ -372,20 +387,29 @@ export function WebhookFormDialog({
                             </Label>
                         </div>
                         {!values.allEvents ? (
-                            <MultiSelect
-                                options={eventOptions}
-                                value={values.eventKinds}
-                                onChange={(next) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        eventKinds: next
-                                    }))
-                                }
-                                placeholder={intl.formatMessage(
-                                    messages.eventsPlaceholder
-                                )}
-                                container={contentRef.current}
-                            />
+                            <>
+                                <Label
+                                    htmlFor="webhook-events"
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.events)}
+                                </Label>
+                                <MultiSelect
+                                    id="webhook-events"
+                                    options={eventOptions}
+                                    value={values.eventKinds}
+                                    onChange={(next) =>
+                                        setValues((prev) => ({
+                                            ...prev,
+                                            eventKinds: next
+                                        }))
+                                    }
+                                    placeholder={intl.formatMessage(
+                                        messages.eventsPlaceholder
+                                    )}
+                                    container={contentRef.current}
+                                />
+                            </>
                         ) : null}
                     </fieldset>
 
