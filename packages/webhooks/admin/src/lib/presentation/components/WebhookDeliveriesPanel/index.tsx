@@ -59,6 +59,7 @@ const messages = defineMessages({
         defaultMessage: 'Filter by state'
     },
     view: { id: 'webhooks.deliveries.view', defaultMessage: 'View' },
+    actions: { id: 'webhooks.deliveries.actions', defaultMessage: 'Actions' },
     prev: { id: 'webhooks.deliveries.prev', defaultMessage: 'Previous' },
     next: { id: 'webhooks.deliveries.next', defaultMessage: 'Next' },
     pageOf: {
@@ -216,7 +217,15 @@ export function WebhookDeliveriesPanel({
                                 <TableHead>
                                     {intl.formatMessage(messages.when)}
                                 </TableHead>
-                                <TableHead className="w-20" />
+                                <TableHead className="w-20">
+                                    {/* Visually redundant beside a row of
+                                        buttons, but a header cell with no text
+                                        leaves the column unnamed to a screen
+                                        reader (axe `empty-table-header`). */}
+                                    <span className="sr-only">
+                                        {intl.formatMessage(messages.actions)}
+                                    </span>
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>

@@ -92,7 +92,11 @@ describe('the wire → view mapping', () => {
 
     it('keeps a workspace description as null rather than as an empty string', () => {
         expect(
-            toWorkspaceOption({ id: 'ws_1', name: 'Marketing', description: null })
+            toWorkspaceOption({
+                id: 'ws_1',
+                name: 'Marketing',
+                description: null
+            })
         ).toEqual({ id: 'ws_1', name: 'Marketing', description: null });
     });
 });

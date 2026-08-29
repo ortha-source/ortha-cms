@@ -3,7 +3,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Plus, Webhook } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useDocumentTitle, type ApiError } from '@orthacms/utils-admin';
+import { useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -20,6 +20,7 @@ import { WebhooksTable } from '../../components/WebhooksTable';
 import { WebhooksEmpty } from '../../components/WebhooksEmpty';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
 import { WebhooksSkeleton } from '../../components/WebhooksSkeleton';
+import { serverMessageOf } from '../../../infrastructure/serverMessageOf';
 import { WebhookFormDialog } from '../../components/WebhookFormDialog';
 import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 
@@ -89,6 +90,12 @@ export function WebhooksPage() {
                     ]}
                 />
                 <Container>
+                    {/* The header stays even without access: the page still
+                        needs its `<h1>`, or it has no accessible name and no
+                        heading at all (axe `page-has-heading-one`). */}
+                    <ContainerHeader
+                        title={intl.formatMessage(messages.title)}
+                    />
                     <WebhooksNoAccess />
                 </Container>
             </>
@@ -185,9 +192,8 @@ export function WebhooksPage() {
                             // for whoever typed it; show that rather than a
                             // generic failure, and keep the dialog open so it
                             // can be corrected in place.
-                            const apiError = error as ApiError;
                             setFormError(
-                                apiError?.message ||
+                                serverMessageOf(error) ??
                                     intl.formatMessage(messages.createFailed)
                             );
                         }

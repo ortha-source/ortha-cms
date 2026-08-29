@@ -4,7 +4,7 @@ import { defineMessages, useIntl } from 'react-intl';
 import { Pencil, Send, Trash2, TriangleAlert, Webhook } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
-import { useDocumentTitle, type ApiError } from '@orthacms/utils-admin';
+import { useDocumentTitle } from '@orthacms/utils-admin';
 import {
     Alert,
     AlertDescription,
@@ -28,6 +28,7 @@ import {
     useTestWebhook,
     useUpdateWebhook
 } from '../../../application/useWebhookMutations';
+import { serverMessageOf } from '../../../infrastructure/serverMessageOf';
 import { WebhookFormDialog } from '../../components/WebhookFormDialog';
 import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 import { WebhookDeliveriesPanel } from '../../components/WebhookDeliveriesPanel';
@@ -409,9 +410,11 @@ export function WebhookDetailPage() {
                                 );
                             },
                             onError: (error) => {
-                                const apiError = error as ApiError;
+                                // The server's own message when it wrote one —
+                                // a refused URL says why, and that belongs in
+                                // the form rather than behind a generic toast.
                                 setFormError(
-                                    apiError?.message ||
+                                    serverMessageOf(error) ??
                                         intl.formatMessage(messages.saveFailed)
                                 );
                             }

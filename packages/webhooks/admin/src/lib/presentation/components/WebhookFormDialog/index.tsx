@@ -298,8 +298,13 @@ export function WebhookFormDialog({
                         <legend className="text-sm font-medium">
                             {intl.formatMessage(messages.workspaces)}
                         </legend>
-                        <label className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            {/* The design-system Checkbox is a Radix button
+                                (`role="checkbox"`), not a native input, so a
+                                wrapping <label> would not name it — it needs an
+                                id and an explicit `htmlFor`. */}
                             <Checkbox
+                                id="webhook-all-workspaces"
                                 checked={values.allWorkspaces}
                                 onCheckedChange={(checked) =>
                                     setValues((prev) => ({
@@ -308,8 +313,13 @@ export function WebhookFormDialog({
                                     }))
                                 }
                             />
-                            {intl.formatMessage(messages.allWorkspaces)}
-                        </label>
+                            <Label
+                                htmlFor="webhook-all-workspaces"
+                                className="text-sm font-normal"
+                            >
+                                {intl.formatMessage(messages.allWorkspaces)}
+                            </Label>
+                        </div>
                         {!values.allWorkspaces ? (
                             <MultiSelect
                                 options={workspaceOptions}
@@ -343,8 +353,9 @@ export function WebhookFormDialog({
                         <legend className="text-sm font-medium">
                             {intl.formatMessage(messages.events)}
                         </legend>
-                        <label className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center gap-2">
                             <Checkbox
+                                id="webhook-all-events"
                                 checked={values.allEvents}
                                 onCheckedChange={(checked) =>
                                     setValues((prev) => ({
@@ -353,8 +364,13 @@ export function WebhookFormDialog({
                                     }))
                                 }
                             />
-                            {intl.formatMessage(messages.allEvents)}
-                        </label>
+                            <Label
+                                htmlFor="webhook-all-events"
+                                className="text-sm font-normal"
+                            >
+                                {intl.formatMessage(messages.allEvents)}
+                            </Label>
+                        </div>
                         {!values.allEvents ? (
                             <MultiSelect
                                 options={eventOptions}
@@ -400,8 +416,9 @@ export function WebhookFormDialog({
                         </p>
                     </div>
 
-                    <label className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2">
                         <Checkbox
+                            id="webhook-enabled"
                             checked={values.enabled}
                             onCheckedChange={(checked) =>
                                 setValues((prev) => ({
@@ -410,8 +427,13 @@ export function WebhookFormDialog({
                                 }))
                             }
                         />
-                        {intl.formatMessage(messages.enabled)}
-                    </label>
+                        <Label
+                            htmlFor="webhook-enabled"
+                            className="text-sm font-normal"
+                        >
+                            {intl.formatMessage(messages.enabled)}
+                        </Label>
+                    </div>
 
                     {error ? (
                         <Alert variant="destructive" role="alert">
