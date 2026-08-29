@@ -38,11 +38,20 @@ const UserDetailRouter = lazy(() =>
 export type UsersAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side users plugin. It owns the members feature: the
- * private `/users` route (the Members page, rendered inside the shell's
- * authenticated layout) and its toolbar nav entry, contributed to the shell's
- * {@link NAVBAR_START_SLOT} at `order: 30` (after Workspaces). The page itself
- * gates on the `users:read` permission.
+ * Creates the admin-side users plugin. It owns the members feature: three
+ * private routes — `/users` (the Members page), `/users/invite` (the invite
+ * wizard) and `/users/:id/*` (the member card's own nested router) — rendered
+ * inside the shell's authenticated layout.
+ *
+ * It contributes to two slots. The nav entry goes to {@link SIDEBAR_NAV_SLOT}
+ * with `group: 'directory'`, `order: 20` and `permission: 'users:read'` —
+ * declared so the entry disappears for someone the page would refuse, rather
+ * than promising a screen that answers "no access". {@link ThemeSync} and
+ * {@link AccountMenu} go to {@link SIDEBAR_FOOTER_SLOT}, the one region the
+ * shell keeps mounted in both the global and the workspace sidebar.
+ *
+ * The static `/users/invite` route is declared **before** the `/users/:id/*`
+ * splat, so "invite" is never parsed as a member id.
  *
  * @example
  * ```typescript

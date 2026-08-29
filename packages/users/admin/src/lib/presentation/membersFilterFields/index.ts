@@ -37,7 +37,9 @@ const messages = defineMessages({
 
 /**
  * The members filter surface the query builder offers. A static mirror of the
- * server's `USERS_FILTER_SCHEMA` — each `id` matches a whitelisted field (the
+ * server's `MEMBER_FILTER_SCHEMA`
+ * (`users/server/…/member/application/member-filter.ts`) — each `id` matches a
+ * whitelisted field (the
  * `role.key` dotted path resolves to the BE's `role` relation), so a rule built
  * here always validates server-side. `status` / `role` render as dropdowns; the
  * BE still accepts any role key string, the UI just offers the system roles.

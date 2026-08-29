@@ -36,11 +36,12 @@ interface AuditFacet {
 }
 
 /**
- * The **user.\*** audit kinds owned by the users context
- * (`USER_ACTIVITY_KINDS` in `@orthacms/users-server`). Duplicated here as
- * literals rather than imported, so the audit sink stays decoupled from every
- * producer (activity depends on identity only); the parity unit test pins these
- * strings against the exact rows the old in-band recorder wrote.
+ * The **user.\*** audit kinds the users context's `member.*` events map onto.
+ * Spelled as literals rather than imported, so the audit sink stays decoupled
+ * from every producer (activity depends on identity only); the parity unit test
+ * pins these strings against the exact rows the old in-band recorder wrote.
+ * This is the only catalogue of them — the users package deliberately keeps
+ * none, since nothing there reads it.
  */
 const USER_AUDIT_KINDS = {
     INVITED: 'user.invited',
