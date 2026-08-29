@@ -45,8 +45,11 @@ the server's `FilterSchema`, which is the real boundary.
       pending/error states, and the record picker.
     - **Inline panel over a static schema** — `/activity`, the **Filters** toggle
       (`packages/activity/admin/src/lib/presentation/pages/ActivityLogPage/index.tsx:243`).
-    - **Drawer** — `/users` (Members), the filter button
-      (`packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:215`).
+    - **Inline panel over a static schema** — `/users` (Members), the
+      **Filters** toggle
+      (`packages/users/admin/src/lib/presentation/pages/MembersPage/index.tsx:278`).
+      The **drawer** now has no consumer in this repo; `QueryBuilderDrawer` is
+      still published API, so it ships untested from here on.
 
     All three read the tree from `?filter=` via
     `useMemo(() => jsonFilterToTree(filterParam), [filterParam])` and write it
@@ -238,7 +241,7 @@ see `♿ A11Y-query-builder-admin-04`.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Load a URL with a valid `filter` param | The panel opens pre-populated. Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:77` and `users/members-filter.spec.ts:67` |
+| 1 | Load a URL with a valid `filter` param | The panel opens pre-populated. Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:83` and `users/members-filter.spec.ts:86` |
 | 2 | Load `?filter=not-json` | `jsonFilterToTree` returns `null`; the page renders unfiltered rather than crashing (`jsonFilterToTree.ts:32-37`) |
 | 3 | Load `?filter={"field":"name","op":"eq","value":"x"}` (a bare rule, no root group) | Wrapped in an AND root (`jsonFilterToTree.ts:41-48`) |
 | 4 | Round-trip `contains 50%_x` | Serialised `"%50\\%\\_x%"`, parsed back to `50%_x` (`jsonFilterToTree.ts:116-129`) |
@@ -257,7 +260,7 @@ see `♿ A11Y-query-builder-admin-04`.
 | --- | --- | --- |
 | 1 | Add a rule, leave the value empty, click **Apply** | Nothing commits; a red "Value required" appears under the row; `showErrors` flips on (`QueryBuilderPanel/index.tsx:145-148`) |
 | 2 | Fill the value | The error clears without a second Apply (`QueryBuilderPanel/index.tsx:123-127`) |
-| 3 | `uuid` + `is one of` with `abc,def` | Blocked with "Must be a valid UUID" — every item is validated, not just presence (`validateRule.ts:91-104`). Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:95` |
+| 3 | `uuid` + `is one of` with `abc,def` | Blocked with "Must be a valid UUID" — every item is validated, not just presence (`validateRule.ts:91-104`). Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:101` |
 | 4 | `between` with only a `from` | "Both bounds required" |
 | 5 | `between` with `from` after `to` | **Accepted.** `validateRule` checks each bound's *type*, never their order (`validateRule.ts:57-70`); the server returns zero rows for an inverted range |
 | 6 | `within the last` with `0` | "Enter a positive count" (`validateRule.ts:77-79`) |
@@ -277,7 +280,7 @@ alerts fire at once and none of them names its rule. See
 | --- | --- | --- |
 | 1 | Add three rules, two of them inside a sub-group | The readout says "3 conditions" — `countRules` recurses (`countRules.ts:20-23`) |
 | 2 | Add an empty sub-group | The count does not change |
-| 3 | Collapse the panel | The toolbar's trigger shows the same count. Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:63` and `users/members-filter.spec.ts:54` |
+| 3 | Collapse the panel | The toolbar's trigger shows the same count. Asserted at `apps/admin-e2e/src/activity/activity-filter.spec.ts:69` and `users/members-filter.spec.ts:73` |
 | 4 | Apply a `between` and reload | Still 1 — the pair folds back into one rule (F20) |
 
 ### F25 / F26 — tree ops and date conversion
@@ -293,8 +296,8 @@ alerts fire at once and none of them names its rule. See
 
 | Step | Action | Expected result |
 | --- | --- | --- |
-| 1 | Members: click the filter button | A right-side drawer opens with a title, a description, the builder, the JSON preview and an Apply/Reset footer. Asserted at `apps/admin-e2e/src/users/members-filter.spec.ts:18` |
-| 2 | Drawer: click **Apply** | The drawer **closes** and the URL updates (`QueryBuilderDrawer/index.tsx:120-122`) |
+| 1 | Members: click the **Filters** toggle | The panel expands in place between the toolbar and the table, with the builder, the JSON preview and an Apply/Reset footer. Asserted at `apps/admin-e2e/src/users/members-filter.spec.ts:26` |
+| 2 | Drawer: click **Apply** | The drawer **closes** and the URL updates (`QueryBuilderDrawer/index.tsx:120-122`). **No page mounts the drawer any more** — reachable only by mounting `QueryBuilderDrawer` yourself |
 | 3 | Panel: click **Apply** | The panel **stays open** (`QueryBuilderPanel/index.tsx:152-154`) — deliberate, so you can keep editing |
 | 4 | Panel: press `Esc` | It collapses (`QueryBuilderPanel/index.tsx:162-168`), but only if no popover swallowed the key first |
 | 5 | Panel: press `Esc` with the field picker open | The picker closes; the panel stays — `event.defaultPrevented` is checked |
@@ -501,8 +504,8 @@ when a row is removed, whether an added row is announced, whether the operator
 Select silently changing meaning is a change of context, and whether five
 identically-named "Remove rule" buttons are usable. Two suites do scan this
 surface with the panel **open and holding a rule**
-(`apps/admin-e2e/src/activity/activity-filter.spec.ts:122`,
-`apps/admin-e2e/src/users/members-filter.spec.ts:81`) — which is more than most
+(`apps/admin-e2e/src/activity/activity-filter.spec.ts:131`,
+`apps/admin-e2e/src/users/members-filter.spec.ts:119`) — which is more than most
 units get — and they pass. That proves nothing about the findings below.
 
 #### ♿ A11Y-query-builder-admin-01 — Every rule row's controls carry identical generic names; the field being filtered is in none of them
@@ -657,7 +660,7 @@ which is why only the inline panel is affected.
 ARIA 1.2 does not list `aria-invalid` among the attributes supported by
 `role="group"` — it is a widget attribute for inputs. axe's `aria-allowed-attr`
 rule should flag this; the two suites that scan an open panel
-(`activity-filter.spec.ts:122`, `members-filter.spec.ts:81`) apply a rule to a
+(`activity-filter.spec.ts:131`, `members-filter.spec.ts:119`) apply a rule to a
 **string/uuid** field, so the enum editor is never in the scanned DOM.
 
 The practical effect is that the group's invalid state is not conveyed at all:
@@ -699,7 +702,9 @@ should be held to.
 
 Three suites drive this unit, all through consumers: `content/records-filter.spec.ts`
 (the panel + relations, the richest), `activity/activity-filter.spec.ts` (the
-panel over a static schema), `users/members-filter.spec.ts` (the drawer).
+panel over a static schema), `users/members-filter.spec.ts` (the panel over a
+static schema, plus the summary chips). **`QueryBuilderDrawer` is covered by
+none of them** — Members was its last consumer.
 **There are no unit tests in this package** — verified by glob; the only
 `*.spec.ts` under `packages/*/admin` is `insights-admin`'s layout fold.
 
@@ -714,15 +719,16 @@ panel over a static schema), `users/members-filter.spec.ts` (the drawer).
 | F15 `contains` → `ilike` with wildcards | `apps/admin-e2e/src/content/records-filter.spec.ts:109-117` | `toEqual({field,op:'ilike',value:'%Ada%'})` — an exact-shape assertion, not a partial | ✅ E2E |
 | F15 `not_contains` → `nilike` | `apps/admin-e2e/src/content/records-filter.spec.ts:197-205` | exact shape | ✅ E2E |
 | F18 `is not empty` → `null:false` | `apps/admin-e2e/src/content/records-filter.spec.ts:223-231` | exact shape, and that no value editor renders | ✅ E2E |
-| F19 deep-link restore | `apps/admin-e2e/src/activity/activity-filter.spec.ts:77`; `apps/admin-e2e/src/users/members-filter.spec.ts:67` | a filter in the URL is reflected in the UI on load | ✅ E2E |
-| F22/F23 Apply gate | `apps/admin-e2e/src/activity/activity-filter.spec.ts:95` | a `uuid is one of` rule with a non-UUID item blocks Apply | ✅ E2E — the strongest validation assertion, and it covers the per-item loop at `validateRule.ts:91-104` |
-| F24 condition count | `apps/admin-e2e/src/activity/activity-filter.spec.ts:63`; `apps/admin-e2e/src/users/members-filter.spec.ts:54` | the trigger reflects the active count | ✅ E2E — flat trees only; never a nested group |
-| F27 drawer | `apps/admin-e2e/src/users/members-filter.spec.ts:18, 28` | opens from the toolbar; filtering deep-links the choice | ✅ E2E |
-| F28 panel | `apps/admin-e2e/src/activity/activity-filter.spec.ts:19, 35` | expands from the toolbar; filtering by kind deep-links | ✅ E2E |
+| F19 deep-link restore | `apps/admin-e2e/src/activity/activity-filter.spec.ts:83`; `apps/admin-e2e/src/users/members-filter.spec.ts:86` | a filter in the URL is reflected in the UI on load | ✅ E2E |
+| F22/F23 Apply gate | `apps/admin-e2e/src/activity/activity-filter.spec.ts:101` | a `uuid is one of` rule with a non-UUID item blocks Apply | ✅ E2E — the strongest validation assertion, and it covers the per-item loop at `validateRule.ts:91-104` |
+| F24 condition count | `apps/admin-e2e/src/activity/activity-filter.spec.ts:69`; `apps/admin-e2e/src/users/members-filter.spec.ts:73` | the trigger reflects the active count | ✅ E2E — flat trees only; never a nested group |
+| F27 drawer | — | — | ❌ NONE — Members was the last consumer and has migrated to the panel; the component is still exported, so this is now a published surface with no test |
+| F28 panel | `apps/admin-e2e/src/activity/activity-filter.spec.ts:19, 35`; `apps/admin-e2e/src/users/members-filter.spec.ts:26, 40` | expands from the toolbar; filtering deep-links; **stays open after Apply** (asserted on both, so the panel's contract can't silently become the drawer's) | ✅ E2E |
+| F28a panel Esc + focus | `apps/admin-e2e/src/users/members-filter.spec.ts:100` | Esc collapses the panel and hands focus back to the toggle (2.4.3) | ✅ E2E — the only assertion of the focus hand-back in the repo |
 | F29 fields pending/error | `apps/admin-e2e/src/content/records-filter.spec.ts:299-309` | a 500 on `/filter-fields` renders an error state instead of an empty picker | ✅ E2E — the loading state and the Retry button are not asserted |
-| F31 Reset | `apps/admin-e2e/src/activity/activity-filter.spec.ts:133`; `apps/admin-e2e/src/users/members-filter.spec.ts:93` | Reset clears the filter and restores the full list | ✅ E2E |
-| F32 summary chips | `apps/admin-e2e/src/content/records-filter.spec.ts:257-290` | the chip text; removing the last chip drops the URL param entirely; Clear all | ✅ E2E — a genuinely good set; the "last chip drops the param rather than leaving an empty group" case is exactly the right thing to pin |
-| a11y (panel/drawer open, one rule) | `apps/admin-e2e/src/activity/activity-filter.spec.ts:122`; `apps/admin-e2e/src/users/members-filter.spec.ts:81` | axe-clean with the surface **open and holding a rule** | ⚠️ PARTIAL — scans one string-field rule in the light theme. The enum editor, the compound editors, the relation picker, the error state, nested groups and the dark theme are never in the scanned DOM |
+| F31 Reset | `apps/admin-e2e/src/activity/activity-filter.spec.ts:142`; `apps/admin-e2e/src/users/members-filter.spec.ts:131` | Reset clears the filter and restores the full list | ✅ E2E |
+| F32 summary chips | `apps/admin-e2e/src/content/records-filter.spec.ts:257-290`; `apps/admin-e2e/src/users/members-filter.spec.ts:168,181,194` | the chip text; removing the last chip drops the URL param entirely; Clear all. Members adds the **enum** case — the chip resolves `disabled` to "Disabled" through the field's declared members | ✅ E2E — a genuinely good set; the "last chip drops the param rather than leaving an empty group" case is exactly the right thing to pin |
+| a11y (panel open, one rule) | `apps/admin-e2e/src/activity/activity-filter.spec.ts:131`; `apps/admin-e2e/src/users/members-filter.spec.ts:119` | axe-clean with the surface **open and holding a rule** | ⚠️ PARTIAL — scans one string-field rule in the light theme. The enum editor, the compound editors, the relation picker, the error state, nested groups and the dark theme are never in the scanned DOM |
 | F2 AND/OR toggle | — | — | ⚠️ PARTIAL — the control is present in scanned DOM but no spec flips it and asserts the wire `or` |
 | F3 nested groups | — | — | ❌ NONE — "Add group" is never clicked in any spec, so the entire nesting feature, the recursive serialiser branch, and `addGroupTo`/`mapGroup` are unexercised |
 | F6 operator change reseeds the value | — | — | ⚠️ PARTIAL — implied by F5's coverage, never asserted directly for `between`/`within_last` |

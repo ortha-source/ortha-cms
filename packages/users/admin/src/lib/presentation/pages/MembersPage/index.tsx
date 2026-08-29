@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useId,
+    useMemo,
+    useRef,
+    useState
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { defineMessages, useIntl } from 'react-intl';
-import { Filter, UserPlus, Users } from 'lucide-react';
+import { ChevronDown, Filter, UserPlus, Users } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import {
-    QueryBuilderDrawer,
+    QueryBuilderPanel,
+    QueryBuilderSummary,
     countRules,
     jsonFilterToTree,
     treeToJsonFilter,
@@ -17,7 +25,8 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader
+    ContainerHeader,
+    cn
 } from '@orthacms/design-system';
 import { useMembers, DEFAULT_PAGE_SIZE } from '../../../application/useMembers';
 import { MembersTableSkeleton } from '../../components/MembersSkeleton';
@@ -99,7 +108,7 @@ export function MembersPage() {
         defaultPageSize: DEFAULT_PAGE_SIZE
     });
 
-    // Rehydrate the applied filter tree from the URL for the drawer. Keyed on
+    // Rehydrate the applied filter tree from the URL for the panel. Keyed on
     // the raw param so a deep-linked or hand-edited filter restores on load.
     const appliedFilter = useMemo(
         () => jsonFilterToTree(filterParam),
@@ -138,6 +147,19 @@ export function MembersPage() {
             );
         }
     }, [data, page, pageCount, updateParams]);
+
+    // The inline filter panel: its own open state (the toolbar button toggles
+    // it), with the ids wiring the button's `aria-controls` to the region.
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const filtersPanelId = useId();
+    const filtersToggleId = useId();
+    const filtersToggleRef = useRef<HTMLButtonElement>(null);
+    // Return focus to the toggle when the panel collapses (Esc, or a second
+    // press), so the now-`inert` panel doesn't strand focus on the body.
+    const setFiltersPanelOpen = useCallback((open: boolean) => {
+        setFiltersOpen(open);
+        if (!open) filtersToggleRef.current?.focus();
+    }, []);
 
     /** Commit (or clear) the query-builder filter to the URL. */
     const applyFilter = useCallback(
@@ -224,24 +246,52 @@ export function MembersPage() {
                     onSearchChange={setSearchInput}
                     busy={searchPending || isFetching}
                     filterControl={
-                        <QueryBuilderDrawer
-                            fields={MEMBERS_FILTER_FIELDS}
-                            value={appliedFilter}
-                            onApply={applyFilter}
-                            trigger={
-                                <Button
-                                    variant="outline"
-                                    className="shadow-none"
-                                >
-                                    <Filter aria-hidden className="size-4" />
-                                    {intl.formatMessage(messages.filters, {
-                                        count: ruleCount
-                                    })}
-                                </Button>
-                            }
-                        />
+                        <Button
+                            ref={filtersToggleRef}
+                            id={filtersToggleId}
+                            variant="outline"
+                            className="shadow-none"
+                            aria-expanded={filtersOpen}
+                            aria-controls={filtersPanelId}
+                            onClick={() => setFiltersPanelOpen(!filtersOpen)}
+                        >
+                            <Filter aria-hidden className="size-4" />
+                            {intl.formatMessage(messages.filters, {
+                                count: ruleCount
+                            })}
+                            <ChevronDown
+                                aria-hidden
+                                className={cn(
+                                    'size-4 transition-transform duration-150 motion-reduce:transition-none',
+                                    filtersOpen && 'rotate-180'
+                                )}
+                            />
+                        </Button>
                     }
                 />
+
+                {/* The filter builder, inline between the toolbar and the table
+                    — the same accordion the activity log and the records list
+                    use, rather than a drawer. It pushes the table down when
+                    open (no overlay); collapsed with active filters, the
+                    applied conditions read out as removable chips below. */}
+                <QueryBuilderPanel
+                    id={filtersPanelId}
+                    labelledBy={filtersToggleId}
+                    open={filtersOpen}
+                    onOpenChange={setFiltersPanelOpen}
+                    fields={MEMBERS_FILTER_FIELDS}
+                    value={appliedFilter}
+                    onApply={applyFilter}
+                />
+                {!filtersOpen && appliedFilter && ruleCount > 0 ? (
+                    <QueryBuilderSummary
+                        className="mb-4"
+                        tree={appliedFilter}
+                        fields={MEMBERS_FILTER_FIELDS}
+                        onChange={applyFilter}
+                    />
+                ) : null}
 
                 {/* Announce the result count to assistive tech after a search or
                 filter changes the table without a navigation (WCAG 4.1.3). */}

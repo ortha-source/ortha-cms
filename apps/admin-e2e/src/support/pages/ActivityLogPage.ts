@@ -10,16 +10,6 @@ import { BasePage } from './BasePage';
  * gate on the signed-in user's `activity:read` permission.
  */
 export class ActivityLogPage extends BasePage {
-    /**
-     * The Activity page mounts the query builder as an **inline accordion
-     * panel** (a `region` labelled by the "Filters" toggle), matching the
-     * records list — not the modal drawer it used to use. Override the shared
-     * filter helpers' surface accordingly.
-     */
-    override filterSurface(): Locator {
-        return this.page.getByRole('region', { name: /Filters/ });
-    }
-
     /** The page's `<h1>`. */
     readonly heading: Locator;
     /** The shell's primary nav — proof the gated layout wrapped the page. */
