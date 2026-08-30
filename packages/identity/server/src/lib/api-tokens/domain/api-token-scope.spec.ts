@@ -1,4 +1,4 @@
-import { scopePermissions } from './api-token-scope';
+import { scopePermissions, tokenActor } from './api-token-scope';
 
 describe('scopePermissions', () => {
     it('grants reading content and its media for a read token', () => {
@@ -56,6 +56,66 @@ describe('scopePermissions', () => {
             const granted = new Set(scopePermissions(scope));
             expect(granted.has('media:update')).toBe(false);
             expect(granted.has('media:delete')).toBe(false);
+        }
+    });
+});
+
+/**
+ * The bridge between a verified token and an access decision. Two invariants
+ * live here and nowhere else: *who* the decision is made for, and *what* that
+ * actor is allowed to hold.
+ */
+describe('tokenActor', () => {
+    /** A verified token, plus the minting user the actor must never become. */
+    const verified = {
+        id: 'token-1',
+        scope: 'read' as const,
+        // Not part of `ScopedToken` — carried here to make the point explicit:
+        // even when the caller has the minting user at hand, the actor is the
+        // token.
+        createdBy: 'user-1'
+    };
+
+    it('identifies the actor by the token, never by the minting user', () => {
+        // Revoking a token has to be enough to revoke its access. If the actor
+        // were the minting user, an access decision would follow that user's
+        // role instead — so a revoked token would keep working for as long as
+        // its creator kept their grants, and a promoted creator would silently
+        // widen every token they ever minted.
+        expect(tokenActor(verified).userId).toBe('token-1');
+        expect(tokenActor(verified).userId).not.toBe(verified.createdBy);
+    });
+
+    it('grants exactly what the scope maps to, for both scopes', () => {
+        for (const scope of ['read', 'full'] as const) {
+            const granted = tokenActor({
+                id: 'token-1',
+                scope
+            }).grantedPermissions;
+            // Set equality both ways: a superset would be an escalation, a
+            // subset would silently break a documented scope.
+            expect([...granted].sort()).toEqual(
+                [...scopePermissions(scope)].sort()
+            );
+            expect(granted.size).toBe(scopePermissions(scope).length);
+        }
+    });
+
+    it('never lets a token mint, read or revoke another token', () => {
+        // The escalation this whole design exists to prevent. A token that
+        // holds `tokens:create` can mint a `full` token and hand it on, so a
+        // read-only credential leaked into a build log becomes a permanent
+        // write credential nobody minted. The management routes are
+        // session-guarded precisely so this stays impossible — and this is the
+        // assertion that fails if a future scope quietly adds the key.
+        for (const scope of ['read', 'full'] as const) {
+            const granted = tokenActor({
+                id: 'token-1',
+                scope
+            }).grantedPermissions;
+            expect(granted.has('tokens:read')).toBe(false);
+            expect(granted.has('tokens:create')).toBe(false);
+            expect(granted.has('tokens:delete')).toBe(false);
         }
     });
 });
