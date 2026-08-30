@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import {
     closeTestApp,
@@ -6,12 +6,20 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    drainOutbox,
+    getOutboxRows,
+    suspendOutboxDispatch
+} from '../../support/outbox';
+import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
+import {
     archiveWorkspace,
+    expireApiToken,
     getActivityRows,
     getApiTokenHash,
     resetDb,
     seedActiveUser,
     seedUserWithEmptyRole,
+    seedUserWithPermissions,
     seedWorkspace
 } from '../../support/seed';
 
@@ -212,19 +220,6 @@ describe('API token management (/api/api-tokens)', () => {
             .expect(200);
         expect(second.body.total).toBe(1);
         expect(second.body.items[0].name).toBe('multi');
-    });
-
-    it('rejects an expiry in the past', async () => {
-        const agent = await login(ADMIN_EMAIL);
-        await agent
-            .post('/api/api-tokens')
-            .send({
-                name: 'stale',
-                workspaceIds: [workspaceId],
-                scope: 'read',
-                expiresAt: new Date(Date.now() - 60_000).toISOString()
-            })
-            .expect(400);
     });
 
     it('revokes a token', async () => {
@@ -532,6 +527,583 @@ describe('API token management (/api/api-tokens)', () => {
             expect(await tokenAudit()).toEqual([]);
             expect((await agent.get('/api/api-tokens').expect(200)).body.total)
                 .toBe(0);
+        });
+    });
+
+    /**
+     * Every spelling of "when does this expire", pinned together — because the
+     * bug was not in any one of them but in the gap between two.
+     *
+     * `expiresAt: null` used to be a 400 telling the caller to pick a future
+     * date, while omitting the field minted a never-expiring token.
+     * `@IsOptional()` skips the rest of the chain for `null` as well as
+     * `undefined`, so an explicit `null` reached the controller's `parseExpiry`,
+     * whose `=== undefined` guard let it fall through to `new Date(null)` — the
+     * epoch, which is comfortably in the past. The admin UI never sends it, so
+     * nothing here caught it; the field is `ApiPropertyOptional` in the
+     * published OpenAPI, so an integrator serialising their whole form did.
+     */
+    describe('expiry', () => {
+        it('treats an omitted and an explicitly null expiry the same', async () => {
+            const agent = await login(ADMIN_EMAIL);
+
+            const omitted = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'omitted',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+            expect(omitted.body.expiresAt).toBeNull();
+
+            const explicit = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'explicit-null',
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    expiresAt: null
+                })
+                .expect(201);
+            expect(explicit.body.expiresAt).toBeNull();
+
+            // Both are live, never-expiring tokens — the response field is not
+            // just cosmetically null.
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.total).toBe(2);
+            expect(
+                (list.body.items as { expiresAt: string | null }[]).map(
+                    (item) => item.expiresAt
+                )
+            ).toEqual([null, null]);
+        });
+
+        it('rejects an expiry in the past', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'stale',
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    expiresAt: new Date(Date.now() - 60_000).toISOString()
+                })
+                .expect(400);
+        });
+
+        it('rejects an expiry that is not a timestamp', async () => {
+            // The DTO's `@IsISO8601` has to hold the line: `parseExpiry` only
+            // compares against `Date.now()`, and `new Date('whenever')` is
+            // `NaN`, which is neither greater nor less than anything — so a
+            // string that slipped past validation would mint a token whose
+            // expiry can never arrive.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'gibberish',
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    expiresAt: 'whenever'
+                })
+                .expect(400);
+
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
+        });
+
+        it('accepts an expiry in the future and echoes it back', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'expiring',
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    expiresAt
+                })
+                .expect(201);
+            expect(new Date(created.body.expiresAt).toISOString()).toBe(
+                expiresAt
+            );
+
+            // And it survives the round-trip through the column, which is the
+            // half the create response cannot prove on its own.
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(new Date(list.body.items[0].expiresAt).toISOString()).toBe(
+                expiresAt
+            );
+        });
+    });
+
+    /**
+     * The `OriginGuard` on the two mutating routes. Both are state-changing
+     * admin routes reached with an ambient session cookie, which is exactly the
+     * shape a cross-site POST exploits: a page on another origin can make the
+     * browser send the request, cookie attached, and only the `Origin` header
+     * tells the two apart.
+     */
+    describe('origin guard', () => {
+        const HOSTILE_ORIGIN = 'https://evil.example.com';
+
+        it('403s a create from a disallowed origin, and mints nothing', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .set('Origin', HOSTILE_ORIGIN)
+                .send({
+                    name: 'csrf',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(403);
+
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
+        });
+
+        it('403s a revoke from a disallowed origin, and the token stays live', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'victim',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .set('Origin', HOSTILE_ORIGIN)
+                .expect(403);
+
+            // Refusing the request is only half of it: a revoke that half
+            // happened would be an outage nobody asked for.
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).toBeNull();
+        });
+
+        it('accepts both mutations from the allow-listed origin', async () => {
+            // The control: the guard is refusing the origin, not the browser
+            // header's mere presence.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .send({
+                    name: 'from-the-admin',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .set('Origin', TEST_ALLOWED_ORIGIN)
+                .expect(204);
+        });
+    });
+
+    /**
+     * The create DTO against the host's strict `ValidationPipe`
+     * (`whitelist` + `forbidNonWhitelisted`). Each case breaks exactly one
+     * field of an otherwise valid body, so a failure names the constraint that
+     * moved rather than "the body is wrong somehow".
+     */
+    describe('create validation', () => {
+        /** A valid create body, with the one field a case is about replaced. */
+        function body(overrides: Record<string, unknown> = {}) {
+            return {
+                name: 'valid',
+                workspaceIds: [workspaceId],
+                scope: 'read',
+                ...overrides
+            };
+        }
+
+        it('rejects an unknown extra field', async () => {
+            // `forbidNonWhitelisted` is what stops a client believing it set
+            // something the server silently dropped — `scopes`, say, next to
+            // `scope`.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ permissions: ['tokens:create'] }))
+                .expect(400);
+
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
+        });
+
+        it('rejects a name past the 120-character cap but accepts one at it', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ name: 'x'.repeat(121) }))
+                .expect(400);
+
+            // The boundary itself is legal — an off-by-one in the cap would
+            // otherwise read as "the rejection works".
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ name: 'x'.repeat(120) }))
+                .expect(201);
+        });
+
+        it('rejects an empty name', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ name: '' }))
+                .expect(400);
+        });
+
+        it('rejects a scope outside the two that exist', async () => {
+            // `write` is the plausible wrong guess, and the one that must not
+            // be silently coerced into anything.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ scope: 'write' }))
+                .expect(400);
+        });
+
+        it('rejects a non-uuid inside the workspace bucket', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send(body({ workspaceIds: [workspaceId, 'not-a-uuid'] }))
+                .expect(400);
+
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
+        });
+
+        it('rejects a bucket past the 100-workspace cap', async () => {
+            // The cap bounds the insert one request can provoke. Random uuids,
+            // so the rejection is the `ArrayMaxSize` and not the existence
+            // check further in — the pipe runs first and must be what answers.
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'too-wide',
+                    workspaceIds: Array.from({ length: 101 }, () =>
+                        randomUUID()
+                    ),
+                    scope: 'read'
+                })
+                .expect(400);
+        });
+    });
+
+    /** The route surface either side of the handler: the pipe, and the guard. */
+    describe('route surface', () => {
+        it('rejects a non-uuid id on revoke', async () => {
+            // `ParseUUIDPipe`, not the repository: revoke is idempotent and
+            // answers 204 for an id it has never seen, so a malformed id that
+            // reached the query would be indistinguishable from success.
+            const agent = await login(ADMIN_EMAIL);
+            await agent.delete('/api/api-tokens/not-a-uuid').expect(400);
+        });
+
+        it('401s an unauthenticated create, and mints nothing', async () => {
+            await request(harness.server)
+                .post('/api/api-tokens')
+                .send({
+                    name: 'anonymous',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(401);
+
+            const agent = await login(ADMIN_EMAIL);
+            expect(
+                (await agent.get('/api/api-tokens').expect(200)).body.total
+            ).toBe(0);
+        });
+
+        it('401s an unauthenticated revoke, and the token stays live', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'victim',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await request(harness.server)
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(401);
+
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).toBeNull();
+        });
+    });
+
+    /**
+     * The three `tokens:*` permissions held apart.
+     *
+     * They exist as three because they are three different powers — seeing that
+     * a credential exists, issuing one, and killing one — and a role granted
+     * only the first must reach neither of the others. The existing gate test
+     * uses a role with *no* permissions, which cannot tell "the guard reads the
+     * required permission" from "the guard refuses everyone but an admin".
+     */
+    describe('permission separation', () => {
+        const READER_EMAIL = 'token-reader@example.com';
+
+        /** Seeds a non-admin holding exactly `permissions`, and logs them in. */
+        async function loginAs(permissions: string[], roleKey: string) {
+            await seedUserWithPermissions(harness.app, {
+                email: READER_EMAIL,
+                password: PASSWORD,
+                roleKey,
+                permissions
+            });
+            return login(READER_EMAIL);
+        }
+
+        /** Mints a token as the admin, for a lesser role to fail to revoke. */
+        async function adminMintedToken() {
+            const admin = await login(ADMIN_EMAIL);
+            const created = await admin
+                .post('/api/api-tokens')
+                .send({
+                    name: 'admin-minted',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+            return { admin, id: created.body.id as string };
+        }
+
+        it('lets tokens:read list, and refuses it the mint', async () => {
+            const agent = await loginAs(['tokens:read'], 'tokens-read-only');
+
+            await agent.get('/api/api-tokens').expect(200);
+            await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'escalated',
+                    workspaceIds: [workspaceId],
+                    scope: 'full'
+                })
+                .expect(403);
+        });
+
+        it('refuses the revoke to tokens:read alone', async () => {
+            const { admin, id } = await adminMintedToken();
+            const agent = await loginAs(
+                ['tokens:read'],
+                'tokens-read-no-delete'
+            );
+
+            await agent.delete(`/api/api-tokens/${id}`).expect(403);
+
+            // Seeing a credential is not being able to kill it.
+            const list = await admin.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).toBeNull();
+        });
+
+        it('refuses the revoke to a role holding no tokens permission', async () => {
+            const { admin, id } = await adminMintedToken();
+            await seedUserWithEmptyRole(harness.app, {
+                email: NORIGHTS_EMAIL,
+                password: PASSWORD,
+                roleKey: 'token-delete-norights'
+            });
+            const agent = await login(NORIGHTS_EMAIL);
+
+            await agent.delete(`/api/api-tokens/${id}`).expect(403);
+
+            const list = await admin.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).toBeNull();
+        });
+    });
+
+    /**
+     * Revocation against expiry — the two ways a token dies, and what happens
+     * when both apply. Revocation is the operator's lever after a leak, so it
+     * has to be the one that wins and the one that always lands.
+     */
+    describe('revocation and expiry together', () => {
+        it('keeps a revoked token dead despite an expiry still in the future', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            const expiresAt = new Date(Date.now() + 86_400_000).toISOString();
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'leaked',
+                    workspaceIds: [workspaceId],
+                    scope: 'read',
+                    expiresAt
+                })
+                .expect(201);
+
+            // Live first, so the refusal below is the revocation and not the
+            // setup.
+            await request(harness.server)
+                .get('/api/v1/content-types')
+                .set('Authorization', `Bearer ${created.body.secret}`)
+                .expect(200);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            // `verify` checks `revoked_at` before it looks at `expires_at`, and
+            // that order is the whole point: a token revoked at 04:12 must not
+            // keep working until the expiry its owner chose.
+            await request(harness.server)
+                .get('/api/v1/content-types')
+                .set('Authorization', `Bearer ${created.body.secret}`)
+                .expect(401);
+
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).not.toBeNull();
+            expect(
+                new Date(list.body.items[0].expiresAt).getTime()
+            ).toBeGreaterThan(Date.now());
+        });
+
+        it('revokes an already-expired token, and records it', async () => {
+            // An expired token is still a row an operator may want explicitly
+            // killed — after a leak, "it would have expired anyway" is not an
+            // answer, and the audit line is what says the key was dealt with.
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'stale',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+            await expireApiToken(created.body.id);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+
+            const list = await agent.get('/api/api-tokens').expect(200);
+            expect(list.body.items[0].revokedAt).not.toBeNull();
+
+            const revoked = (await getActivityRows()).filter(
+                (row) => row.kind === 'token.revoked'
+            );
+            expect(revoked).toHaveLength(1);
+            expect(revoked[0].subjectId).toBe(created.body.id);
+        });
+
+        it('leaves revoked_at where it was when the revoke is replayed', async () => {
+            // The audit count already proves the second call raises no event.
+            // This is the column itself: the update is guarded on
+            // `revoked_at IS NULL`, so a replay must not restamp the row — the
+            // timestamp is the answer to "when did this credential die", and a
+            // moving one would make it the answer to "when was it last asked
+            // about".
+            const agent = await login(ADMIN_EMAIL);
+            const created = await agent
+                .post('/api/api-tokens')
+                .send({
+                    name: 'temp',
+                    workspaceIds: [workspaceId],
+                    scope: 'read'
+                })
+                .expect(201);
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+            const first = (await agent.get('/api/api-tokens').expect(200)).body
+                .items[0].revokedAt;
+            expect(first).not.toBeNull();
+
+            await agent
+                .delete(`/api/api-tokens/${created.body.id}`)
+                .expect(204);
+            const second = (await agent.get('/api/api-tokens').expect(200)).body
+                .items[0].revokedAt;
+
+            expect(second).toBe(first);
+        });
+    });
+
+    /**
+     * The token row and its audit event are one atomic fact.
+     *
+     * A credential that exists while its `token.created` row does not is exactly
+     * the key nobody can account for — so the insert and the outbox append share
+     * a transaction, and a subscriber being down may delay delivery but must
+     * never lose it.
+     */
+    describe('durability of the mint', () => {
+        it('commits the token and its event together, and survives a dead dispatcher', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            // Logged in *before* the suspension so the session's own events are
+            // already delivered and the assertions below are about the mint.
+            const restore = suspendOutboxDispatch(harness.app);
+
+            try {
+                const created = await agent
+                    .post('/api/api-tokens')
+                    .send({
+                        name: 'outbox-outage',
+                        workspaceIds: [workspaceId, otherWorkspaceId],
+                        scope: 'read'
+                    })
+                    .expect(201);
+                const id = created.body.id as string;
+
+                // State change: durable. `UnitOfWork.run` swallows a failed
+                // post-commit drain by design, so a broken subscriber must not
+                // cost the caller their token.
+                const list = await agent.get('/api/api-tokens').expect(200);
+                expect(list.body.total).toBe(1);
+                expect(list.body.items[0].id).toBe(id);
+
+                // Event: recorded, undelivered — not lost, which is the one
+                // outcome an outbox exists to rule out.
+                const pending = await getOutboxRows(id);
+                expect(pending.map((row) => row.kind)).toEqual([
+                    'api_token.created'
+                ]);
+                expect(pending[0].dispatchedAt).toBeNull();
+
+                // Audit: nothing yet, because the subscriber never ran. Scoped
+                // by kind — logging in wrote its own row before the suspension.
+                expect(
+                    (await getActivityRows()).filter(
+                        (row) => row.kind === 'token.created'
+                    )
+                ).toHaveLength(0);
+
+                restore();
+                await drainOutbox(harness.app);
+
+                // Recovery delivers exactly once and stamps the row.
+                const audited = (await getActivityRows()).filter(
+                    (row) => row.kind === 'token.created'
+                );
+                expect(audited).toHaveLength(1);
+                expect(audited[0].subjectId).toBe(id);
+
+                const settled = await getOutboxRows(id);
+                expect(settled[0].dispatchedAt).not.toBeNull();
+            } finally {
+                restore();
+            }
         });
     });
 });

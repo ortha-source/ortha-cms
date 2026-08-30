@@ -6,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    expireApiToken,
     resetDb,
     seedActiveUser,
     seedArticleTags,
@@ -83,11 +84,14 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
         return agent;
     }
 
-    /** Mints a token through the real management API and returns its secret. */
-    async function mintToken(options: {
+    /**
+     * Mints a token through the real management API, id included — the id is
+     * what the revocation case needs, and a secret alone cannot be revoked.
+     */
+    async function mintTokenRecord(options: {
         workspaceIds: string[];
         scope?: 'read' | 'full';
-    }): Promise<string> {
+    }): Promise<{ id: string; secret: string }> {
         const agent = await login();
         const res = await agent
             .post('/api/api-tokens')
@@ -97,7 +101,15 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
                 scope: options.scope ?? 'read'
             })
             .expect(201);
-        return res.body.secret as string;
+        return { id: res.body.id as string, secret: res.body.secret as string };
+    }
+
+    /** Mints a token through the real management API and returns its secret. */
+    async function mintToken(options: {
+        workspaceIds: string[];
+        scope?: 'read' | 'full';
+    }): Promise<string> {
+        return (await mintTokenRecord(options)).secret;
     }
 
     /** Runs one operation and returns the GraphQL envelope. */
@@ -171,6 +183,49 @@ describe('Public GraphQL API (/api/v1/graphql)', () => {
             const agent = await login();
             await agent
                 .post('/api/v1/graphql')
+                .send({ query: '{ contentTypes { name } }' })
+                .expect(401);
+        });
+
+        // Revocation and expiry are meant to kill *every* surface at once — the
+        // credential dies at `ApiTokenService.verify`, upstream of any protocol.
+        // GraphQL only ever tested the unknown token, which is the one case a
+        // second, GraphQL-specific auth path would also have got right.
+
+        it('401s once the token is revoked', async () => {
+            const { id, secret } = await mintTokenRecord({
+                workspaceIds: [workspaceId]
+            });
+            expect(
+                (await gql(secret, '{ contentTypes { name } }')).errors
+            ).toBeUndefined();
+
+            const agent = await login();
+            await agent.delete(`/api/api-tokens/${id}`).expect(204);
+
+            await request(harness.server)
+                .post('/api/v1/graphql')
+                .set('Authorization', `Bearer ${secret}`)
+                .send({ query: '{ contentTypes { name } }' })
+                .expect(401);
+        });
+
+        it('401s once the token has expired', async () => {
+            const { id, secret } = await mintTokenRecord({
+                workspaceIds: [workspaceId]
+            });
+            expect(
+                (await gql(secret, '{ contentTypes { name } }')).errors
+            ).toBeUndefined();
+
+            await expireApiToken(id);
+
+            // A flat HTTP 401, not a GraphQL `errors` envelope with `data: null`
+            // — the guard runs before the schema is ever consulted, and a
+            // caller must not have to parse a 200 to learn its key is dead.
+            await request(harness.server)
+                .post('/api/v1/graphql')
+                .set('Authorization', `Bearer ${secret}`)
                 .send({ query: '{ contentTypes { name } }' })
                 .expect(401);
         });

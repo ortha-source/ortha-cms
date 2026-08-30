@@ -66,6 +66,13 @@ test.describe('API tokens accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
+    // The workspace selector's **open** popover is deliberately not scanned:
+    // Radix gives a `PopoverContent` `role="dialog"`, the design-system
+    // `MultiSelect` passes it no name, and `aria-dialog-name` would fire on it
+    // in every consumer at once. The fix belongs in the component (the Content
+    // Library's column picker already does it with `aria-labelledby`); add the
+    // scan here in the same change.
+
     test('create dialog — the two selects carry real names', async ({
         page,
         apiTokensPage
@@ -107,6 +114,27 @@ test.describe('API tokens accessibility (axe, WCAG 2.1 A/AA)', () => {
         await apiTokensPage.table.waitFor();
         await apiTokensPage.createToken('Scanned token');
         await apiTokensPage.secretField().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('reveal dialog — confirming an uncopied close', async ({
+        page,
+        apiTokensPage,
+        makeAxe
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.createToken('Scanned guard');
+        await apiTokensPage.secretField().waitFor();
+        await apiTokensPage.doneButton().click();
+        await apiTokensPage.uncopiedWarning().waitFor();
+
+        // The one state in this unit that exists only while a credential is at
+        // risk: a second alert appears inside an open dialog and the footer
+        // swaps one button for two. Whoever has to read that alert to keep
+        // their token is exactly the user least able to recover from it being
+        // unannounced.
         await expectNoA11yViolations(makeAxe());
     });
 

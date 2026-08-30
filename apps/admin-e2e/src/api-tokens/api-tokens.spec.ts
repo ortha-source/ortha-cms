@@ -218,6 +218,44 @@ test.describe('API tokens page', () => {
         await expect(
             apiTokensPage.rowActions('Production website')
         ).toHaveCount(0);
+        // The *header* has to go too, not just the buttons: a column that names
+        // itself and then holds nothing leaves every row a cell short of its
+        // headers, which is what a screen reader reads the table by. Asserted
+        // against the loaded table on purpose — the loading skeleton draws its
+        // own eight-column header regardless of permissions.
+        await expect(apiTokensPage.columnHeaders()).toHaveCount(7);
+        await expect(apiTokensPage.actionsColumnHeader()).toHaveCount(0);
+    });
+
+    test('with tokens:delete the actions column is there at all', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        // The control for the assertion above: seven columns only means
+        // something if eight is what a permitted admin actually gets.
+        await expect(apiTokensPage.columnHeaders()).toHaveCount(8);
+        await expect(apiTokensPage.actionsColumnHeader()).toHaveCount(1);
+    });
+
+    test('without tokens:create a populated page offers no way in either', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockSignedIn(page, { permissions: ['tokens:read'] });
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        // Pinned only in the empty state until now — which is the one place the
+        // button is *also* rendered by the empty state itself, so the header
+        // action's own gate went unasserted for the case an admin actually
+        // meets: a deployment that already has tokens.
+        await expect(apiTokensPage.row('Production website')).toBeVisible();
+        await expect(apiTokensPage.newTokenButton).toHaveCount(0);
     });
 
     test('the create dialog sends exactly what the server expects', async ({
@@ -255,6 +293,66 @@ test.describe('API tokens page', () => {
         });
         // "Never" is the default preset, so no expiry is sent at all.
         expect(api.lastCreateBody).not.toHaveProperty('expiresAt');
+    });
+
+    test('a cancelled draft is gone when the dialog is reopened', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.openCreate();
+        await apiTokensPage.nameField().fill('Cancelled draft');
+        await apiTokensPage.pickWorkspace('Marketing site');
+        await apiTokensPage.accessSelect().click();
+        await apiTokensPage.chooseOption('Full access');
+        await apiTokensPage.expiresSelect().click();
+        await apiTokensPage.chooseOption('30 days');
+
+        await apiTokensPage.cancelCreateButton().click();
+        await expect(apiTokensPage.createDialog()).toHaveCount(0);
+
+        await apiTokensPage.openCreate();
+        // Cancel used to bypass the reset that Escape, the backdrop and the
+        // corner X all went through, so the next open presented the abandoned
+        // draft as a fresh form — including a `Full access` scope nobody chose
+        // this time. An admin who cancelled “Production website” and reopened
+        // was one click from a second live credential wearing the same name.
+        await expect(apiTokensPage.nameField()).toHaveValue('');
+        await expect(apiTokensPage.workspacesSelect()).toContainText(
+            'Select workspaces'
+        );
+        await expect(apiTokensPage.accessSelect()).toContainText('Read-only');
+        await expect(apiTokensPage.expiresSelect()).toContainText('Never');
+        await expect(apiTokensPage.submitCreateButton()).toBeDisabled();
+    });
+
+    test('a minted token is gone from the form when the dialog is reopened', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.createToken('Minted once');
+        await apiTokensPage.secretField().waitFor();
+        await apiTokensPage.doneButton().click();
+        await apiTokensPage.closeWithoutCopyingButton().click();
+        await expect(apiTokensPage.revealDialog()).toHaveCount(0);
+
+        await apiTokensPage.openCreate();
+        // The success path closes the dialog by flipping the page's controlled
+        // `open` prop, which never reaches Radix's `onOpenChange` — so a reset
+        // hanging off the closing edge alone misses it entirely, and the form
+        // re-opens pre-filled with the token that was just created.
+        await expect(apiTokensPage.nameField()).toHaveValue('');
+        await expect(apiTokensPage.workspacesSelect()).toContainText(
+            'Select workspaces'
+        );
+        await expect(apiTokensPage.submitCreateButton()).toBeDisabled();
     });
 
     test('an expiry preset becomes an ISO timestamp in the future', async ({
@@ -304,6 +402,37 @@ test.describe('API tokens page', () => {
         await expect(apiTokensPage.revealDialog()).toHaveCount(0);
     });
 
+    test('a rejected create keeps the form too, and is not retried', async ({
+        page,
+        apiTokensPage
+    }) => {
+        // A 400 is the server's settled answer, not an outage: the shared
+        // client's retry predicate stops on it, so this state arrives at once
+        // and the admin sees a form they can correct rather than a spinner.
+        const api = await mockApiTokensApi(page, { createStatus: 400 });
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.openCreate();
+        await apiTokensPage.nameField().fill('Rejected token');
+        await apiTokensPage.pickWorkspace('Marketing site');
+        await apiTokensPage.submitCreateButton().click();
+
+        await expect(
+            apiTokensPage.toast('Couldn’t create the token. Please try again.')
+        ).toBeVisible();
+        await expect(apiTokensPage.createDialog()).toBeVisible();
+        await expect(apiTokensPage.nameField()).toHaveValue('Rejected token');
+        await expect(apiTokensPage.workspacesSelect()).toContainText(
+            'Marketing site'
+        );
+        await expect(apiTokensPage.revealDialog()).toHaveCount(0);
+        // Correctable, not stuck: the submit comes back rather than staying
+        // disabled behind a mutation that has already settled.
+        await expect(apiTokensPage.submitCreateButton()).toBeEnabled();
+        expect(api.createCalls).toBe(1);
+    });
+
     test('the submit cannot be double-fired while a create is in flight', async ({
         page,
         apiTokensPage
@@ -338,6 +467,58 @@ test.describe('API tokens page', () => {
         // deployment with no workspaces looks like, and would have an admin mint
         // a token against the wrong bucket rather than retry.
         await expect(apiTokensPage.workspacesError()).toBeVisible(SETTLED);
+    });
+
+    test('no workspaces at all says exactly that, and raises no alarm', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page);
+        // Registered after the `beforeEach` mock, so this one answers: the last
+        // matching route wins.
+        await mockWorkspaces(page, []);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.openCreate();
+        // Named first, so the disabled submit below is about the missing bucket
+        // rather than the empty name field.
+        await apiTokensPage.nameField().fill('Nowhere to point it');
+        await apiTokensPage.openWorkspacePopover();
+
+        // The other half of the test above. These two states have to be
+        // distinguishable in both directions: a deployment with nothing to pick
+        // must not cry outage, or the alert stops meaning anything the day it
+        // is real.
+        await expect(apiTokensPage.workspacesEmpty()).toBeVisible();
+        await expect(apiTokensPage.workspacesError()).toHaveCount(0);
+        // And with no bucket to scope it to, there is nothing to mint.
+        await expect(apiTokensPage.submitCreateButton()).toBeDisabled();
+    });
+
+    test('the selector’s own Retry recovers it in place', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page);
+        await mockWorkspacesUnavailable(page);
+        await apiTokensPage.goto();
+        await apiTokensPage.heading.waitFor();
+        await apiTokensPage.openCreate();
+        await apiTokensPage.workspacesError().waitFor(SETTLED);
+
+        // The endpoint comes back; the alert's Retry is the admin's way out
+        // without losing the dialog — reopening it is what the offer implies
+        // they don't have to do.
+        await mockWorkspaces(page);
+        await apiTokensPage.workspacesRetryButton().click();
+
+        await expect(apiTokensPage.workspacesError()).toHaveCount(0);
+        // Recovered means pickable, not merely quiet.
+        await apiTokensPage.openWorkspacePopover();
+        await expect(
+            apiTokensPage.workspaceOption('Marketing site')
+        ).toBeVisible();
     });
 
     test('revoking flips the row in place and says it happened', async ({
@@ -465,5 +646,30 @@ test.describe('API tokens page', () => {
 
         await expect(apiTokensPage.pageIndicator()).toHaveText('Page 2 of 2');
         await expect(page).toHaveURL(/[?&]page=2/);
+    });
+
+    test('a nonsense ?page= lands on the first page rather than an error', async ({
+        page,
+        apiTokensPage
+    }) => {
+        await mockApiTokensApi(page, { tokens: manyApiTokens(26) });
+
+        // Not typos so much as stale links and hand-edited URLs. All three are
+        // unusable as a page number — `abc` isn't one, and `0`/`-3` are outside
+        // the 1-based range — and the honest answer to each is the first page.
+        // Passing them through would put `?page=0` on the wire, which the server
+        // answers 400, and the page would then show its "couldn't load" alert
+        // over a list that is perfectly fine.
+        for (const value of ['abc', '0', '-3']) {
+            await apiTokensPage.gotoWith(`page=${value}`);
+            await apiTokensPage.table.waitFor();
+
+            await expect(apiTokensPage.pageIndicator()).toHaveText(
+                'Page 1 of 2'
+            );
+            await expect(apiTokensPage.previousButton()).toBeDisabled();
+            await expect(apiTokensPage.row('Bulk token 00')).toBeVisible();
+            await expect(apiTokensPage.errorAlert()).toHaveCount(0);
+        }
     });
 });
