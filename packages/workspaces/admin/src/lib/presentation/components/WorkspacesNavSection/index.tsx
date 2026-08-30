@@ -30,6 +30,10 @@ const messages = defineMessages({
     newWorkspace: {
         id: 'workspaces.sidebar.newWorkspace',
         defaultMessage: 'New workspace'
+    },
+    unavailable: {
+        id: 'workspaces.sidebar.unavailable',
+        defaultMessage: 'Couldn’t load your workspaces.'
     }
 });
 
@@ -75,16 +79,10 @@ function WorkspaceNavRow({ workspace }: { workspace: Workspace }) {
  */
 export function WorkspacesNavSection() {
     const intl = useIntl();
-    const { data: workspaces } = useWorkspaces();
+    const { data: workspaces, isError } = useWorkspaces();
     const canCreate = useHasPermission(WORKSPACES_CREATE);
 
     const active = (workspaces ?? []).filter(isActiveWorkspace);
-    // Nothing to show and nothing to do → skip the section entirely. With create
-    // permission we still show it (the "+" invites creating the first one).
-    if (active.length === 0 && !canCreate) {
-        return null;
-    }
-
     const heading = intl.formatMessage(messages.heading);
     const newWorkspace = intl.formatMessage(messages.newWorkspace);
     const createAction = canCreate ? (
@@ -94,6 +92,42 @@ export function WorkspacesNavSection() {
             </Link>
         </SidebarGroupAction>
     ) : null;
+
+    // A failed read must not read as an empty membership. On error `data` is
+    // undefined, so every branch below would render exactly what someone who
+    // genuinely belongs to no workspace sees — the section vanishing, or a bare
+    // heading — and the person is told they have no workspaces when in fact we
+    // could not find out. Every other surface reading this query already says
+    // so (the page, the home panel, the stats strip, the workspace shell); this
+    // one is a nav aid, so it says it in one quiet line rather than an alert.
+    if (isError) {
+        return (
+            <SidebarGroup>
+                <SidebarGroupLabel>{heading}</SidebarGroupLabel>
+                {/* Keep the "+" here too: failing to read the list says
+                    nothing about whether this person may create one, and
+                    taking the action away would make an outage look like a
+                    loss of permission. */}
+                {createAction}
+                <SidebarGroupContent>
+                    {/* `text-sidebar-foreground`, not `muted-foreground`:
+                        the muted pair is calibrated against the main
+                        surface, and on `bg-sidebar` it fails the contrast
+                        floor — which the api-tokens axe scan caught, since
+                        it is the one that renders this state. */}
+                    <p className="px-2 text-xs text-sidebar-foreground">
+                        {intl.formatMessage(messages.unavailable)}
+                    </p>
+                </SidebarGroupContent>
+            </SidebarGroup>
+        );
+    }
+
+    // Nothing to show and nothing to do → skip the section entirely. With create
+    // permission we still show it (the "+" invites creating the first one).
+    if (active.length === 0 && !canCreate) {
+        return null;
+    }
 
     // Nothing to reveal (create permission but no workspaces yet, and every
     // moment the list query is still in flight) → a plain heading, no
