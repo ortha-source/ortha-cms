@@ -57,6 +57,9 @@ export function MemberListRow({
                     // destroys the button focus would otherwise return to, so
                     // the list finds the next one by this attribute.
                     data-remove-member=""
+                    // …and identifies *which* row, so a dismissed dialog can
+                    // hand focus back to the one that opened it.
+                    data-member-id={member.id}
                     onClick={onRemove}
                     aria-label={intl.formatMessage(messages.remove, {
                         name: member.name

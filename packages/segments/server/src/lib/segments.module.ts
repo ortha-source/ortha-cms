@@ -14,6 +14,7 @@ import type { SegmentsPluginConfig } from './types/segments-config';
 import { SegmentCatalogService } from './application/segment-catalog.service';
 import { SegmentsService } from './application/segments.service';
 import { EntryAccessService } from './application/entry-access.service';
+import { EntryAccessWorkspacePurger } from './infrastructure/purge/entry-access-workspace.purger';
 import { ReaderStore } from './application/reader.store';
 import { PrincipalStore } from './application/principal.store';
 import { SegmentReadScope } from './infrastructure/segment-read-scope';
@@ -59,6 +60,13 @@ export class SegmentsModule implements NestModule {
                 SegmentCatalogService,
                 SegmentsService,
                 EntryAccessService,
+                // Removes this workspace's per-entry audience rows on delete;
+                // `entry_access.workspace_id` carries no FK and the other
+                // deletes are per-entry and per-segment, so nothing reached
+                // them. `segments.workspace_ids` is deliberately left alone —
+                // a dangling id there narrows an audience, and dropping it
+                // would silently widen who may read.
+                EntryAccessWorkspacePurger,
                 ReaderStore,
                 PrincipalStore,
                 SegmentReadScope,

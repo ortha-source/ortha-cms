@@ -48,6 +48,7 @@ import { DrizzleRevisionStore } from './revisions/infrastructure/persistence/dri
 import { RestoreRevisionUseCase } from './revisions/application/use-cases/restore-revision.use-case';
 import { PublishRevisionUseCase } from './revisions/application/use-cases/publish-revision.use-case';
 import { RevisionRefsQuery } from './revisions/infrastructure/queries/revision-refs.query';
+import { RevisionsWorkspacePurger } from './revisions/infrastructure/purge/revisions-workspace.purger';
 import { RevisionsController } from './revisions/http/controllers/revisions.controller';
 import { RestoreRevisionController } from './revisions/http/controllers/restore-revision.controller';
 import { PublishRevisionController } from './revisions/http/controllers/publish-revision.controller';
@@ -190,6 +191,13 @@ export class ContentModule {
                 // Resolves a previewed revision's relation ids to display refs
                 // (the "exact linked records" the diff shows).
                 RevisionRefsQuery,
+                // Removes a deleted workspace's revision history. Content
+                // otherwise refuses rather than purges, but revisions escape
+                // that protection in both directions: no FK to `workspaces`,
+                // and `countWorkspaceEntries` sums live entry tables only — so
+                // a workspace whose entries were all deleted counts as empty,
+                // deletes cleanly, and strands its whole version timeline.
+                RevisionsWorkspacePurger,
                 EntryWriterService,
                 RelationLinkService,
                 // Entries feature, layered per ADR-0003: the publish-lifecycle

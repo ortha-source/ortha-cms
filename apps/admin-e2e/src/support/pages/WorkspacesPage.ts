@@ -105,6 +105,50 @@ export class WorkspacesPage extends BasePage {
         await this.statusOption(label).click();
     }
 
+    // --- error state ---
+
+    /**
+     * The table's "couldn't load workspaces" alert. The page renders exactly one
+     * `role="alert"`, and it is the state that must never be confused with an
+     * empty list — hence its own handle rather than an `emptyText` lookup.
+     */
+    errorAlert(): Locator {
+        return this.page.getByRole('alert');
+    }
+
+    /** The Retry button inside that alert, which refetches the list. */
+    retryButton(): Locator {
+        return this.errorAlert().getByRole('button', { name: 'Retry' });
+    }
+
+    /**
+     * The sidebar quick-list's one-line "couldn't load" note. A nav aid, so the
+     * section says it quietly rather than with an alert — but it does say it,
+     * instead of collapsing to a bare heading that reads as "you belong to no
+     * workspace".
+     */
+    sidebarWorkspacesError(): Locator {
+        return this.page.getByText('Couldn’t load your workspaces.');
+    }
+
+    /**
+     * The workspace shell's centred message block. Both of its states — the
+     * no-access screen and the "couldn't load workspaces" screen — render as a
+     * single `role="alert"`, so this is also how a test compares their copy.
+     */
+    shellMessage(): Locator {
+        return this.page.getByRole('alert');
+    }
+
+    /**
+     * That message's copy, for a test that compares two screens rather than
+     * matching a literal — an id that does not exist and one that is somebody
+     * else's have to read the same.
+     */
+    async shellMessageText(): Promise<string> {
+        return (await this.shellMessage().textContent()) ?? '';
+    }
+
     // --- empty state ---
 
     emptyText(text: string): Locator {

@@ -4,7 +4,7 @@ import { workspacesKey } from '../useWorkspaces';
 
 /**
  * Permanently deletes a workspace via the gateway. On success it invalidates the
- * workspaces list so the deleted workspace drops out of the grid; the caller
+ * workspaces list so the deleted workspace drops out of the table; the caller
  * navigates away from the (now-gone) shell route.
  *
  * `onSuccess` deliberately does **not** return the `invalidateQueries` promise:
