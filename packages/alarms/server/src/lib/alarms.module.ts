@@ -5,6 +5,7 @@ import { AlarmEvaluator } from './infrastructure/alarm-evaluator.service';
 import { AlarmFindingStore } from './infrastructure/alarm-finding.store';
 import { AlarmRuleRepository } from './infrastructure/alarm-rule.repository';
 import { AlarmSweepService } from './infrastructure/alarm-sweep.service';
+import { AlarmsWorkspacePurger } from './infrastructure/purge/alarms-workspace.purger';
 import { EntryEventSubscriber } from './infrastructure/entry-event.subscriber';
 import { AlarmsCopilotToolProvider } from './copilot/alarms-tool.provider';
 import { AlarmFindingsController } from './http/controllers/alarm-findings.controller';
@@ -41,6 +42,13 @@ export class AlarmsModule {
                 },
                 AlarmRuleRepository,
                 AlarmFindingStore,
+                // Removes this workspace's rules and findings when the
+                // workspace itself is deleted. Neither table carries an FK to
+                // `workspaces`, and an orphaned rule is not inert: the sweep
+                // reads `allActive()` without checking the workspace still
+                // exists, so it would be re-evaluated forever while being
+                // unreachable from an editor that no longer opens.
+                AlarmsWorkspacePurger,
                 AlarmEvaluator,
                 AlarmRulesService,
                 // Registers itself with the outbox dispatcher on bootstrap.
