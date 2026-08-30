@@ -70,9 +70,13 @@ type it subscribes to exists. So:
   know, labelled as unrecognised. Dropping it would widen the endpoint from one
   type to every type on the next save, which is the inversion this module exists
   to prevent.
-- Names can be typed in as well as picked. `parseContentTypeNames()` splits on
-  commas and whitespace (this field gets pasted into) and changes nothing else —
-  not even case, since the server matches the string as given.
+- Names are typed into **the picker's own search box**, which offers an
+  "Add …" row for a query that matches no option (`MultiSelect`'s `onCreate`).
+  There is no second field beside the picker: two controls that both meant
+  "which types" is how one of them gets ignored.
+  `parseContentTypeNames()` splits the query on commas and whitespace (it gets
+  pasted into) and changes nothing else — not even case, since the server
+  matches the string as given.
 - The catalogue is gated on `content:read`, not on a webhooks key. A **403 is
   answered with an empty catalogue rather than an error**, because free entry
   still works without it.

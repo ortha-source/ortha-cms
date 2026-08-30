@@ -143,14 +143,23 @@ export class WebhooksPage extends BasePage {
         return this.dialog().getByRole('combobox', { name: 'Content types' });
     }
 
-    /** The free-entry field for a type the registry does not list. */
-    contentTypeDraftField(): Locator {
-        return this.dialog().getByLabel(/Add a type that isn/);
+    /**
+     * The type picker's search box, which doubles as the way in for a name the
+     * registry has no row for.
+     */
+    contentTypeSearchBox(): Locator {
+        return this.page.getByPlaceholder('Search, or type a machine name');
     }
 
-    /** The button that commits what is typed in that field. */
-    addContentTypeButton(): Locator {
-        return this.dialog().getByRole('button', { name: 'Add' });
+    /** The picker's "Add …" row, offered for a name that is not an option. */
+    addContentTypeOption(name: string): Locator {
+        return this.page.getByRole('option', { name: `Add “${name}”` });
+    }
+
+    /** Types a name into the type picker and takes its add row. */
+    async addContentTypeByName(name: string) {
+        await this.contentTypeSearchBox().fill(name);
+        await this.addContentTypeOption(name).click();
     }
 
     /** A selected filter value, as the picker's trigger shows it. */

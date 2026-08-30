@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 
 import { cn } from '../../utils';
 import { Badge } from './badge';
@@ -35,6 +35,20 @@ type MultiSelectProps = {
     searchPlaceholder?: string;
     /** Shown when the search matches no option. */
     emptyText?: string;
+    /**
+     * Makes the search box able to add a value that is not among `options`.
+     *
+     * Called with the raw query when that row is chosen; the caller decides
+     * what the query means (it may name several values) and folds the result
+     * into `value`. Omit it for a closed list — a picker whose options are the
+     * only legal answers.
+     */
+    onCreate?: (query: string) => void;
+    /**
+     * Label for the add row, given the trimmed query. Defaults to
+     * `Add "<query>"`; pass a translated one.
+     */
+    createLabel?: (query: string) => string;
     /** Trigger id (wires an external `<label htmlFor>`). */
     id?: string;
     /** Marks the trigger invalid (`aria-invalid`). */
@@ -71,6 +85,8 @@ function MultiSelect({
     placeholder = 'Select…',
     searchPlaceholder = 'Search…',
     emptyText = 'No results.',
+    onCreate,
+    createLabel = (query) => `Add “${query}”`,
     id,
     invalid,
     disabled,
@@ -79,7 +95,19 @@ function MultiSelect({
     className
 }: MultiSelectProps) {
     const [open, setOpen] = React.useState(false);
+    // Controlled so the add row can read what was typed, and so a stale query
+    // does not filter the list the next time the popover opens.
+    const [search, setSearch] = React.useState('');
     const selected = new Set(value);
+
+    const query = search.trim();
+    // Offering to add something the list already has is noise — and would
+    // produce a duplicate row that toggles a different code path than the
+    // option beside it.
+    const canCreate =
+        onCreate !== undefined &&
+        query.length > 0 &&
+        !options.some((option) => option.value === query);
 
     const toggle = (option: string) =>
         onChange(
@@ -92,7 +120,13 @@ function MultiSelect({
         options.find((option) => option.value === val)?.label ?? val;
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover
+            open={open}
+            onOpenChange={(next) => {
+                setOpen(next);
+                if (!next) setSearch('');
+            }}
+        >
             <PopoverTrigger asChild>
                 <Button
                     id={id}
@@ -139,9 +173,33 @@ function MultiSelect({
                 {/* `overflow-hidden` + a square `Command` clip the search
                     field's divider to the popover's rounded corners. */}
                 <Command className="rounded-none">
-                    <CommandInput placeholder={searchPlaceholder} />
+                    <CommandInput
+                        placeholder={searchPlaceholder}
+                        value={search}
+                        onValueChange={setSearch}
+                    />
                     <CommandList aria-multiselectable="true">
-                        <CommandEmpty>{emptyText}</CommandEmpty>
+                        {/* With an add row on offer there is always something
+                            to do, so the "no results" copy would be a lie. */}
+                        {canCreate ? null : (
+                            <CommandEmpty>{emptyText}</CommandEmpty>
+                        )}
+                        {canCreate ? (
+                            <CommandGroup>
+                                <CommandItem
+                                    // The query matches itself, so cmdk keeps
+                                    // this row visible whatever was typed.
+                                    value={query}
+                                    onSelect={() => {
+                                        onCreate?.(search);
+                                        setSearch('');
+                                    }}
+                                >
+                                    <Plus className="size-4" aria-hidden />
+                                    {createLabel(query)}
+                                </CommandItem>
+                            </CommandGroup>
+                        ) : null}
                         <CommandGroup>
                             {options.map((option) => (
                                 <CommandItem

@@ -11,7 +11,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    Input,
     InputField,
     Label,
     MultiSelect
@@ -102,15 +101,14 @@ const messages = defineMessages({
         defaultMessage:
             'Nothing chosen yet, so this endpoint still receives every type.'
     },
+    contentTypeSearch: {
+        id: 'webhooks.form.contentTypeSearch',
+        defaultMessage: 'Search, or type a machine name'
+    },
     addContentType: {
         id: 'webhooks.form.addContentType',
-        defaultMessage: 'Add a type that isn’t listed'
+        defaultMessage: 'Add “{name}”'
     },
-    addContentTypePlaceholder: {
-        id: 'webhooks.form.addContentTypePlaceholder',
-        defaultMessage: 'article'
-    },
-    add: { id: 'webhooks.form.add', defaultMessage: 'Add' },
     unknownContentType: {
         id: 'webhooks.form.unknownContentType',
         defaultMessage: '{name} (not defined here)'
@@ -123,7 +121,7 @@ const messages = defineMessages({
     contentTypesNoneGranted: {
         id: 'webhooks.form.contentTypesNoneGranted',
         defaultMessage:
-            'The chosen workspaces were granted no content types, so there is nothing to pick. A name can still be added by hand.'
+            'The chosen workspaces were granted no content types, so there is nothing to pick from — a machine name can still be typed into the picker.'
     },
     contentTypesScoped: {
         id: 'webhooks.form.contentTypesScoped',
@@ -240,8 +238,7 @@ export function WebhookFormDialog({
     const intl = useIntl();
     const [values, setValues] = useState<WebhookFormValues>(emptyValues);
     const [touched, setTouched] = useState(false);
-    /** What is typed into the "add a type that isn't listed" field. */
-    const [typeDraft, setTypeDraft] = useState('');
+
     const contentRef = useRef<HTMLDivElement>(null);
 
     // Reset whenever the dialog opens, so a cancelled edit is not inherited by
@@ -250,7 +247,6 @@ export function WebhookFormDialog({
         if (open) {
             setValues(endpoint ? valuesOf(endpoint) : emptyValues());
             setTouched(false);
-            setTypeDraft('');
         }
     }, [open, endpoint]);
 
@@ -319,14 +315,13 @@ export function WebhookFormDialog({
         !values.allWorkspaces &&
         offeredContentTypes.length === 0;
 
-    const addTypedContentTypes = () => {
-        const names = parseContentTypeNames(typeDraft);
+    const addTypedContentTypes = (raw: string) => {
+        const names = parseContentTypeNames(raw);
         if (names.length === 0) return;
         setValues((prev) => ({
             ...prev,
             contentTypes: addContentTypeNames(prev.contentTypes, names)
         }));
-        setTypeDraft('');
     };
 
     const nameError =
@@ -582,50 +577,22 @@ export function WebhookFormDialog({
                                     placeholder={intl.formatMessage(
                                         messages.contentTypesPlaceholder
                                     )}
+                                    searchPlaceholder={intl.formatMessage(
+                                        messages.contentTypeSearch
+                                    )}
+                                    // The search box doubles as the way in for
+                                    // a name the registry has no row for — one
+                                    // control instead of a picker beside a
+                                    // second field that meant the same thing.
+                                    onCreate={addTypedContentTypes}
+                                    createLabel={(name) =>
+                                        intl.formatMessage(
+                                            messages.addContentType,
+                                            { name }
+                                        )
+                                    }
                                     container={contentRef.current}
                                 />
-                                <div className="flex items-center gap-2">
-                                    <Label
-                                        htmlFor="webhook-content-type-add"
-                                        className="sr-only"
-                                    >
-                                        {intl.formatMessage(
-                                            messages.addContentType
-                                        )}
-                                    </Label>
-                                    <Input
-                                        id="webhook-content-type-add"
-                                        value={typeDraft}
-                                        placeholder={intl.formatMessage(
-                                            messages.addContentTypePlaceholder
-                                        )}
-                                        className="font-mono text-sm"
-                                        onChange={(event) =>
-                                            setTypeDraft(event.target.value)
-                                        }
-                                        onKeyDown={(event) => {
-                                            // Enter here means "add this one",
-                                            // not "submit the dialog" — the
-                                            // footer button is the only way to
-                                            // save.
-                                            if (event.key === 'Enter') {
-                                                event.preventDefault();
-                                                addTypedContentTypes();
-                                            }
-                                        }}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={addTypedContentTypes}
-                                        disabled={
-                                            parseContentTypeNames(typeDraft)
-                                                .length === 0
-                                        }
-                                    >
-                                        {intl.formatMessage(messages.add)}
-                                    </Button>
-                                </div>
                                 {noGrants ? (
                                     <p className="text-xs text-muted-foreground">
                                         {intl.formatMessage(

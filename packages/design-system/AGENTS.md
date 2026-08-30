@@ -39,6 +39,16 @@ hand-written):
   portal, the bar keeps its page's React context — which is what lets the
   shell's page-actions region work from inside it.
 
+## Notes on specific components
+
+- **`MultiSelect` is a closed list by default.** Passing `onCreate` opens it:
+  the search box then offers an "Add …" row for a query that matches no option,
+  and the caller decides what the query means (it may name several values). The
+  row is suppressed for a query that already names an option — two rows for one
+  value would toggle different code paths. Without the prop the search box
+  answers "No results." and cannot invent a value, which is what a picker over
+  a fixed vocabulary needs.
+
 ## Tests
 
 The package has a vitest + Testing Library suite (`npx nx test design-system`),
@@ -47,7 +57,7 @@ jsdom lacks and Radix/cmdk/sonner require (`matchMedia`, `ResizeObserver`,
 pointer capture, `scrollIntoView`) — without it, anything built on `Popover`,
 `Command` or `Sheet` throws before the assertion.
 
-It is not a coverage exercise. What belongs here is the seam a *page* test
+It is not a coverage exercise. What belongs here is the seam a _page_ test
 cannot reach: a prop combination no shipped consumer passes
 (`invalid={false}` beside an error), a collision no shipped data produces (two
 options sharing a label), a value a browser test cannot see (the seconds in a

@@ -316,6 +316,27 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.eventOption('Products')).toBeVisible();
         });
 
+        test('does not offer to add a type the picker already lists', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.chooseWorkspace('Marketing site');
+            await webhooksPage.openContentTypePicker();
+            await webhooksPage.contentTypeSearchBox().fill('blog_post');
+
+            // Two rows for one name, toggling different code paths, is how a
+            // duplicate entry gets into the subscription.
+            await expect(
+                webhooksPage.addContentTypeOption('blog_post')
+            ).toBeHidden();
+            await expect(webhooksPage.eventOption('Blog posts')).toBeVisible();
+        });
+
         test('offers nothing for a workspace granted nothing', async ({
             page,
             webhooksPage
@@ -329,10 +350,18 @@ test.describe('Webhooks', () => {
             // a reason reads as broken, so the form says why — and free entry
             // still works.
             await webhooksPage.chooseWorkspace('Product docs');
-            await webhooksPage.allContentTypesToggle().click();
+            await webhooksPage.openContentTypePicker();
 
+            await expect(
+                webhooksPage.addContentTypeOption('report')
+            ).toBeHidden();
+            await webhooksPage.contentTypeSearchBox().fill('report');
+            // Nothing to pick from, but the picker is still how a name gets in.
+            await expect(
+                webhooksPage.addContentTypeOption('report')
+            ).toBeVisible();
+            await page.keyboard.press('Escape');
             await expect(webhooksPage.noGrantsHint()).toBeVisible();
-            await expect(webhooksPage.contentTypeDraftField()).toBeVisible();
         });
 
         test('offers every type when the endpoint takes all workspaces', async ({
@@ -371,11 +400,12 @@ test.describe('Webhooks', () => {
             await webhooksPage.nameField().fill('Cache purge');
             await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
             await webhooksPage.allWorkspacesToggle().click();
-            await webhooksPage.allContentTypesToggle().click();
             // A type that is about to be added: the picker cannot list it, and
             // an endpoint has to be able to subscribe to it before it exists.
-            await webhooksPage.contentTypeDraftField().fill('landing_page');
-            await webhooksPage.addContentTypeButton().click();
+            // The picker's own search box is the way in — there is no second
+            // field beside it.
+            await webhooksPage.openContentTypePicker();
+            await webhooksPage.addContentTypeByName('landing_page');
             await webhooksPage.submitButton().click();
 
             expect((await posted).postDataJSON()).toMatchObject({
@@ -401,11 +431,8 @@ test.describe('Webhooks', () => {
             await webhooksPage.nameField().fill('Cache purge');
             await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
             await webhooksPage.allWorkspacesToggle().click();
-            await webhooksPage.allContentTypesToggle().click();
-            await webhooksPage
-                .contentTypeDraftField()
-                .fill('landing_page, campaign');
-            await webhooksPage.addContentTypeButton().click();
+            await webhooksPage.openContentTypePicker();
+            await webhooksPage.addContentTypeByName('landing_page, campaign');
             await webhooksPage.submitButton().click();
 
             expect((await posted).postDataJSON()).toMatchObject({
