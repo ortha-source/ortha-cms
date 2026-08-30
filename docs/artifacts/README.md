@@ -32,6 +32,7 @@ Double-click to open it locally; the published copy lives at the link in the tab
 | copilot | [copilot.html](copilot.html) | https://claude.ai/code/artifact/e040daef-6ee5-4d01-9955-df276a426856 |
 | tools | [tools.html](tools.html) | https://claude.ai/code/artifact/f70d21fc-436b-4768-aea0-06704400f71f |
 | mcp | [mcp.html](mcp.html) | https://claude.ai/code/artifact/fb53de0a-9a7d-4fe2-82d9-0cd0b6a40f1f |
+| webhooks | [webhooks.html](webhooks.html) | https://claude.ai/code/artifact/adde62cf-fb40-43c2-b98e-1749446afdd9 |
 | shell | [shell.html](shell.html) | https://claude.ai/code/artifact/c5f4cf7e-ce93-461a-a030-98f9e5e3a375 |
 | design-system | [design-system.html](design-system.html) | https://claude.ai/code/artifact/bcc102c8-30f2-4e47-95ae-30fafd45ecdf |
 | insights | [insights.html](insights.html) | https://claude.ai/code/artifact/bed1f0c0-d7bc-412c-bbc7-52aad1985508 |
@@ -78,8 +79,9 @@ opaque and unsigned); §8 denies that a content model and an LLM integration exi
 the `bootstrap`, `database` and `workspaces` dossiers.
 
 **Only `media` and `api-tokens` implement `WorkspacePurger`.** Rows in `alarm_rules`,
-`alarm_findings`, `entry_access` and `segments.workspace_ids` survive the deletion of a
-workspace. Found by the `workspaces` and `alarms` dossiers.
+`alarm_findings`, `entry_access`, `segments.workspace_ids` and
+`webhook_endpoint_workspaces` survive the deletion of a workspace. Found by the
+`workspaces`, `alarms` and `webhooks` dossiers.
 
 **The filter grammar is duplicated and the copies have diverged.** The operator dictionary
 exists in two copies that nothing keeps in sync (`utils-server` and
