@@ -126,8 +126,11 @@ exist", mirroring the API's flat 403.
   Clipboard failure — insecure origin, denied permission — falls back to an
   error toast telling the user to select the id manually), **Members** (a directory typeahead that assigns **existing** users
   — no invite-by-email, since the add endpoint links a real id — plus a roster
-  where every member is removable behind a `ConfirmDialog` (access is purely
-  permission-based; no member is special),
+  where a member is removed behind a `ConfirmDialog`. Access is purely
+  permission-based, so no member is privileged — but the **last** one cannot go:
+  a workspace with nobody in it is unreachable, and the server answers 409
+  `LastMemberError`. The dialog narrows that status with `isConflict` and says
+  what would help, the way the content-revoke and delete dialogs already do,
   **Content** (the granted types shown as two titled groups — **Collections** and
   **Pages** (`GrantedContentGroup`, each row its title + description), granted
   through a **separate search + multi-select popup per kind** — two
@@ -184,7 +187,7 @@ exist", mirroring the API's flat 403.
   `infrastructure/httpWorkspaceGateway` (the sole `apiClient` user; same-origin,
   cookie-authed) behind the `WorkspaceGateway` port; `application/` hooks
   (`useWorkspaces` → `GET /api/workspaces`, `useCreateWorkspace` →
-  `POST /api/workspaces`, `useSlugAvailability`, `useUsersSearch` → `GET /api/users?q=`,
+  `POST /api/workspaces`, `useSlugAvailability`, `useUsersSearch` → `GET /api/users?search=&pageSize=10`,
   `useContentTypes` → `GET /api/content-types`, plus the settings mutations) call
   the gateway, not `apiClient`. Wire→view mapping lives in
   `infrastructure/workspaceMapper` (`toWorkspace`/`toMember`) — the anti-corruption

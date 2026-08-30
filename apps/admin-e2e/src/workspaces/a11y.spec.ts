@@ -5,6 +5,7 @@ import {
     mockWorkspaceSettingsApi,
     mockWorkspaces,
     mockWorkspacesApi,
+    mockWorkspacesUnavailable,
     WORKSPACES_SEED
 } from '../support/api/workspaces';
 import { expectNoA11yViolations } from '../support/a11y';
@@ -47,6 +48,22 @@ test.describe('Workspaces accessibility (axe, WCAG 2.1 A/AA)', () => {
         await workspacesPage.goto();
         await workspacesPage.filterByStatus('All');
         await workspacesPage.card('Research archive').waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('table — the list failed to load', async ({
+        page,
+        workspacesPage,
+        makeAxe
+    }) => {
+        // Two surfaces at once, both younger than the scans around them: the
+        // destructive alert with its inline Retry, and the sidebar quick-list's
+        // "couldn't load" line — which until recently rendered nothing at all,
+        // so there was no markup here to scan.
+        await mockWorkspacesUnavailable(page);
+        await workspacesPage.goto();
+        // A 5xx costs the query's retry ladder (~7s) before the error renders.
+        await workspacesPage.errorAlert().waitFor({ timeout: 15_000 });
         await expectNoA11yViolations(makeAxe());
     });
 

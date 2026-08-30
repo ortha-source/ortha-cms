@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { UnitOfWork, type Database } from '@orthacms/database';
 import type { Skill, SkillMode } from '@orthacms/copilot-domain';
 import { copilotSkills } from '../schema/skills';
 
@@ -51,7 +51,17 @@ export interface UpdateSkillInput {
  */
 @Injectable()
 export class SkillRepository {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(private readonly uow: UnitOfWork) {}
+
+    /**
+     * The executor to run against: the ambient transaction when a caller opened
+     * one, the base connection otherwise — so a skill write and the
+     * `copilot.skill.*` event describing it commit together. Outside a unit of
+     * work this is exactly the old behaviour.
+     */
+    private get db(): Database {
+        return this.uow.current();
+    }
 
     /**
      * The workspace's skills, oldest first.

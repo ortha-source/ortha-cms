@@ -53,6 +53,7 @@ export class Folder {
         );
         folder.events.push(
             folderEvent(MEDIA_EVENT_KINDS.FOLDER_CREATED, props.id.value, {
+                workspaceId: props.workspaceId,
                 name,
                 parentId: props.parentId?.value ?? null
             })
@@ -111,6 +112,7 @@ export class Folder {
         this._name = next;
         this.events.push(
             folderEvent(MEDIA_EVENT_KINDS.FOLDER_RENAMED, this._id.value, {
+                workspaceId: this._workspaceId,
                 name: next
             })
         );
@@ -119,7 +121,9 @@ export class Folder {
     /** Marks the folder deleted — raises `media.folder.deleted`. */
     markDeleted(): void {
         this.events.push(
-            folderEvent(MEDIA_EVENT_KINDS.FOLDER_DELETED, this._id.value, {})
+            folderEvent(MEDIA_EVENT_KINDS.FOLDER_DELETED, this._id.value, {
+                workspaceId: this._workspaceId
+            })
         );
     }
 

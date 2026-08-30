@@ -45,6 +45,34 @@ export class WorkspaceSettingsPage extends BasePage {
         await this.navItem(name).click();
     }
 
+    /** Deep-link straight at one settings section, bypassing the tab bar. */
+    async gotoSection(workspaceId: string, section: string) {
+        await this.page.goto(`/workspaces/${workspaceId}/settings/${section}`);
+        await this.heading.waitFor();
+    }
+
+    // --- gated-redirect arrival ---
+
+    /**
+     * The sr-only `role="status"` region a gated redirect writes its reason
+     * into. The settings page renders exactly one, and it is empty until a
+     * `<Navigate>` lands here carrying its notice — a redirect that says
+     * nothing is the SPA analog of a silent one.
+     */
+    redirectNotice(): Locator {
+        return this.page.getByRole('status');
+    }
+
+    /**
+     * The shell's `<main>`, which is `tabIndex={-1}` for the skip link and is
+     * where a gated redirect has to put focus: the page swapped under the user,
+     * so leaving focus on `<body>` restarts their next Tab at the top of the
+     * document.
+     */
+    mainContent(): Locator {
+        return this.page.locator('#main-content');
+    }
+
     // --- general ---
 
     get nameInput(): Locator {
@@ -150,6 +178,17 @@ export class WorkspaceSettingsPage extends BasePage {
     /** The blocking warning alert shown when a type still has entries. */
     get removeBlockedAlert(): Locator {
         return this.dialog.getByRole('alert');
+    }
+
+    /**
+     * The "still counting" line a blocking dialog shows while its entry-count
+     * read is in flight — a spinner plus its label. Shared verbatim by the
+     * revoke-content and delete-workspace dialogs, which is the window in which
+     * the destructive button must be disabled because nobody knows the count
+     * yet.
+     */
+    get countCheckingNotice(): Locator {
+        return this.dialog.getByText(/Checking for existing content/);
     }
 
     // --- danger ---
@@ -262,6 +301,18 @@ export class WorkspaceSettingsPage extends BasePage {
 
     get dialog(): Locator {
         return this.page.getByRole('dialog');
+    }
+
+    /**
+     * Whatever inside the open dialog holds focus — the dialog's own container
+     * included, since Radix focuses that when it finds nothing better. `:focus`
+     * matches at most one element in a document, so a count of `1` is the focus
+     * trap holding and `0` is focus having escaped behind the modal.
+     */
+    focusInsideDialog(): Locator {
+        return this.page.locator(
+            '[role="dialog"]:focus, [role="dialog"] :focus'
+        );
     }
 
     /** The confirm button inside the open dialog, by its label. */

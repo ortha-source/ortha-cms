@@ -1,5 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PublicUser } from '@orthacms/identity-server';
+import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
+import {
+    SAVED_VIEW_EVENT_KINDS,
+    savedViewEvent
+} from '../../domain/events/saved-view-events';
 import { isUniqueViolation } from '@orthacms/utils-server';
 import type {
     SavedView,
@@ -33,7 +42,9 @@ export class UpdateSavedViewUseCase {
     constructor(
         @Inject(SAVED_VIEW_REPOSITORY)
         private readonly repository: SavedViewRepository,
-        private readonly access: SavedViewAccessService
+        private readonly access: SavedViewAccessService,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter
     ) {}
 
     async execute(
@@ -72,7 +83,37 @@ export class UpdateSavedViewUseCase {
 
         let updated;
         try {
-            updated = await this.repository.update(id, input);
+            updated = await this.uow.run(async () => {
+                const row = await this.repository.update(id, input);
+                await this.outbox.append(
+                    attachActor(
+                        [
+                            savedViewEvent(
+                                SAVED_VIEW_EVENT_KINDS.UPDATED,
+                                id,
+                                {
+                                    workspaceId,
+                                    scope: existing.scope,
+                                    name: row.name,
+                                    // The keys the caller actually sent — a
+                                    // patch, so "what changed" is the request.
+                                    fields: Object.keys(input),
+                                    // Called out on its own: sharing is a
+                                    // permission of its own, and unsharing
+                                    // takes a view out of every member's
+                                    // switcher without telling them.
+                                    visibility: {
+                                        from: existing.visibility,
+                                        to: row.visibility
+                                    }
+                                }
+                            )
+                        ],
+                        { id: user.id, email: user.email ?? null }
+                    )
+                );
+                return row;
+            });
         } catch (error) {
             if (isUniqueViolation(error)) {
                 throw new SavedViewNameTakenError(input.name ?? existing.name);

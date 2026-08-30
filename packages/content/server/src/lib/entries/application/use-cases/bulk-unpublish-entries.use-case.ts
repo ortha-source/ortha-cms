@@ -1,10 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { OutboxWriter, UnitOfWork } from '@orthacms/database';
+import {
+    attachActor,
+    type EventActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
 import { ENTRY_STATUS } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import type { BulkActionResult } from '../../types/bulk-publish';
 import { Entry } from '../../domain/entry';
+import { entryTitle } from '../../infrastructure/persistence/entry-row';
 
 /**
  * Revert a set of live entries to draft. Runs inside one {@link UnitOfWork}, and
@@ -28,7 +34,8 @@ export class BulkUnpublishEntriesUseCase {
     async execute(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor
     ): Promise<BulkActionResult> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -47,6 +54,16 @@ export class BulkUnpublishEntriesUseCase {
                 ids,
                 workspaceId
             );
+            // Read the labels **before** the write: an audit row carries a
+            // frozen title, and after `markDraftBulk` the rows are still there
+            // but a later kind (a purge) would have taken them, so reading them
+            // up front is the habit that keeps every bulk path the same shape.
+            const byId = await this.writer.loadLiveByIds(
+                type,
+                publishedIds,
+                workspaceId,
+                exec
+            );
             const count = await this.writer.markDraftBulk(
                 exec,
                 type,
@@ -62,17 +79,20 @@ export class BulkUnpublishEntriesUseCase {
                     workspaceId
                 );
             }
+            const events = publishedIds.flatMap((id) => {
+                const row = byId.get(id);
+                const entry = Entry.rehydrate({
+                    id,
+                    contentType: type.name,
+                    status: ENTRY_STATUS.Published,
+                    workspaceId,
+                    title: row ? entryTitle(type, row) : null
+                });
+                entry.unpublish();
+                return entry.pullEvents();
+            });
             await this.outbox.append(
-                publishedIds.flatMap((id) => {
-                    const entry = Entry.rehydrate({
-                        id,
-                        contentType: type.name,
-                        workspaceId,
-                        status: ENTRY_STATUS.Published
-                    });
-                    entry.unpublish();
-                    return entry.pullEvents();
-                })
+                actor ? attachActor(events, actor) : events
             );
             return { count };
         });

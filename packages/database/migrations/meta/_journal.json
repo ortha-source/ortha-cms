@@ -15,6 +15,13 @@
       "when": 1786883379081,
       "tag": "0001_outbox_retry_backoff",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788002443075,
+      "tag": "0002_outbox_last_error",
+      "breakpoints": true
     }
   ]
 }

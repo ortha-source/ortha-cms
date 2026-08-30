@@ -71,7 +71,16 @@ describe('attachActor', () => {
 
         expect(enriched[0].payload).toEqual({
             name: 'Acme',
-            actor: { id: 'u1', email: 'admin@example.com' }
+            // `type` defaults to `user` and `label` to null: an actor that says
+            // nothing about its kind is a person, because until API tokens
+            // could be actors nothing else was one.
+            actor: {
+                id: 'u1',
+                email: 'admin@example.com',
+                type: 'user',
+                label: null,
+                via: null
+            }
         });
         // The producer keeps its own events: the aggregate that pulled them has
         // no idea an actor was ever added.
@@ -83,7 +92,13 @@ describe('attachActor', () => {
     it('carries a null email through rather than dropping the key', () => {
         const enriched = attachActor(source(), { id: 'u1', email: null });
 
-        expect(enriched[0].payload.actor).toEqual({ id: 'u1', email: null });
+        expect(enriched[0].payload.actor).toEqual({
+            id: 'u1',
+            email: null,
+            type: 'user',
+            label: null,
+            via: null
+        });
     });
 
     it('leaves the rest of the envelope alone', () => {
@@ -114,7 +129,51 @@ describe('attachActor', () => {
 
         // The application layer's actor wins — worth stating, because it means
         // `actor` is a reserved key a producer cannot use for anything else.
-        expect(enriched[0].payload.actor).toEqual({ id: 'u1', email: null });
+        expect(enriched[0].payload.actor).toEqual({
+            id: 'u1',
+            email: null,
+            type: 'user',
+            label: null,
+            via: null
+        });
+    });
+
+    it('carries a token actor as itself, with its label', () => {
+        const enriched = attachActor(source(), {
+            id: 't1',
+            email: null,
+            type: 'api_token',
+            label: 'Deploy bot',
+            via: null
+        });
+
+        // The whole point of the field: `id` is an `api_tokens` row here, not a
+        // `users` one, and a consumer has to be able to tell.
+        expect(enriched[0].payload.actor).toEqual({
+            id: 't1',
+            email: null,
+            type: 'api_token',
+            label: 'Deploy bot',
+            via: null
+        });
+    });
+
+    it('carries `via` — how the actor performed it, not who they are', () => {
+        const enriched = attachActor(source(), {
+            id: 'u1',
+            email: 'ada@example.com',
+            via: { kind: 'copilot', runId: 'r1', proposalId: 'p1' }
+        });
+
+        // The actor stays the human; `via` is what stops a copilot-applied
+        // change reading as one they typed.
+        expect(enriched[0].payload.actor).toEqual({
+            id: 'u1',
+            email: 'ada@example.com',
+            type: 'user',
+            label: null,
+            via: { kind: 'copilot', runId: 'r1', proposalId: 'p1' }
+        });
     });
 
     it('returns an empty array for an empty array', () => {

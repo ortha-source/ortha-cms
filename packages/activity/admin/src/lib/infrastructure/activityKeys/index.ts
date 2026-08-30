@@ -34,5 +34,14 @@ export const activityKeys = {
     /** Root key covering every activity query. */
     all: ['activity'] as const,
     /** One list page for the given params. */
-    list: (params: ActivityListParams) => ['activity', 'list', params] as const
+    list: (params: ActivityListParams) => ['activity', 'list', params] as const,
+    /** The events that could not be recorded — how complete the log is. */
+    deadLetters: () => ['activity', 'dead-letters'] as const,
+    /**
+     * One entry's own trail. Keyed separately from `list` because it is a
+     * different route with a different permission, and a `content:read` editor
+     * caching under the admin log's key would be confusing to reason about.
+     */
+    entry: (entryId: string, pageSize: number) =>
+        ['activity', 'entry', entryId, pageSize] as const
 };

@@ -22,6 +22,9 @@ import { InjectContentRegistry } from '../../../content.tokens';
 import type { ContentTypeRegistry } from '../../../registry/content-type-registry';
 import { WorkspaceGrantsQuery } from '../../../content-types/queries/workspace-grants.query';
 import { PublicEntryWritesService } from '../../infrastructure/public-entry-writes.service';
+import { toTokenActor } from '../../infrastructure/token-actor';
+import { CurrentApiToken } from '../decorators/current-api-token.decorator';
+import type { PublicApiToken } from '../api-token-request';
 import type { EntryLocator } from '../../infrastructure/public-entries.query';
 import type { PublicEntry } from '../../types/public-entry';
 import { ApiTokenGuard } from '../guards/api-token.guard';
@@ -94,7 +97,8 @@ export class PublicEntryWritesController {
     async create(
         @Param('typeName') typeName: string,
         @Body() body: PublicSaveEntryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         const { type, granted } = await resolveGrantedType(
             this.registry,
@@ -102,7 +106,13 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        return this.writes.create(type, body, workspaceId, granted);
+        return this.writes.create(
+            type,
+            body,
+            workspaceId,
+            granted,
+            toTokenActor(token)
+        );
     }
 
     // ---- batches -----------------------------------------------------------
@@ -124,7 +134,8 @@ export class PublicEntryWritesController {
     async bulkSave(
         @Param('typeName') typeName: string,
         @Body() body: PublicBulkSaveDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicBulkSaveResult> {
         const { type, granted } = await resolveGrantedType(
             this.registry,
@@ -132,7 +143,13 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        return this.writes.bulkSave(type, body.items, workspaceId, granted);
+        return this.writes.bulkSave(
+            type,
+            body.items,
+            workspaceId,
+            granted,
+            toTokenActor(token)
+        );
     }
 
     /** `POST /api/v1/content/:typeName/bulk/publish` — take many entries live. */
@@ -147,7 +164,8 @@ export class PublicEntryWritesController {
     async bulkPublish(
         @Param('typeName') typeName: string,
         @Body() body: PublicBulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<BulkPublishResult> {
         const { type } = await resolveGrantedType(
             this.registry,
@@ -155,7 +173,12 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        return this.writes.bulkPublish(type, body.ids, workspaceId);
+        return this.writes.bulkPublish(
+            type,
+            body.ids,
+            workspaceId,
+            toTokenActor(token)
+        );
     }
 
     /** `POST /api/v1/content/:typeName/bulk/unpublish` — take many off the air. */
@@ -170,7 +193,8 @@ export class PublicEntryWritesController {
     async bulkUnpublish(
         @Param('typeName') typeName: string,
         @Body() body: PublicBulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<BulkActionResult> {
         const { type } = await resolveGrantedType(
             this.registry,
@@ -178,7 +202,12 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        return this.writes.bulkUnpublish(type, body.ids, workspaceId);
+        return this.writes.bulkUnpublish(
+            type,
+            body.ids,
+            workspaceId,
+            toTokenActor(token)
+        );
     }
 
     /** `POST /api/v1/content/:typeName/bulk/delete` — remove many entries. */
@@ -193,7 +222,8 @@ export class PublicEntryWritesController {
     async bulkRemove(
         @Param('typeName') typeName: string,
         @Body() body: PublicBulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<BulkActionResult> {
         const { type } = await resolveGrantedType(
             this.registry,
@@ -201,7 +231,12 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        return this.writes.bulkRemove(type, body.ids, workspaceId);
+        return this.writes.bulkRemove(
+            type,
+            body.ids,
+            workspaceId,
+            toTokenActor(token)
+        );
     }
 
     // ---- addressed by translation group -----------------------------------
@@ -223,14 +258,16 @@ export class PublicEntryWritesController {
         @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
         @Body() body: PublicSaveEntryDto,
         @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         return this.applyUpdate(
             typeName,
             { localeGroupId },
             body,
             workspaceId,
-            query.locale
+            query.locale,
+            token
         );
     }
 
@@ -242,14 +279,16 @@ export class PublicEntryWritesController {
         @Param('typeName') typeName: string,
         @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
         @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         return this.applyPublish(
             typeName,
             { localeGroupId },
             workspaceId,
             query.locale,
-            true
+            true,
+            token
         );
     }
 
@@ -261,14 +300,16 @@ export class PublicEntryWritesController {
         @Param('typeName') typeName: string,
         @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
         @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         return this.applyPublish(
             typeName,
             { localeGroupId },
             workspaceId,
             query.locale,
-            false
+            false,
+            token
         );
     }
 
@@ -285,13 +326,15 @@ export class PublicEntryWritesController {
         @Param('typeName') typeName: string,
         @Param('localeGroupId', ParseUUIDPipe) localeGroupId: string,
         @Query() query: PublicEntryQueryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<void> {
         return this.applyRemove(
             typeName,
             { localeGroupId },
             workspaceId,
-            query.locale
+            query.locale,
+            token
         );
     }
 
@@ -309,11 +352,19 @@ export class PublicEntryWritesController {
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
         @Body() body: PublicSaveEntryDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         // No locale: an entry id already names exactly one row, in whatever
         // locale it happens to be.
-        return this.applyUpdate(typeName, { id }, body, workspaceId, undefined);
+        return this.applyUpdate(
+            typeName,
+            { id },
+            body,
+            workspaceId,
+            undefined,
+            token
+        );
     }
 
     /** `POST /api/v1/content/:typeName/:id/publish` — take an entry live. */
@@ -327,14 +378,16 @@ export class PublicEntryWritesController {
     publish(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         return this.applyPublish(
             typeName,
             { id },
             workspaceId,
             undefined,
-            true
+            true,
+            token
         );
     }
 
@@ -349,14 +402,16 @@ export class PublicEntryWritesController {
     unpublish(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntry> {
         return this.applyPublish(
             typeName,
             { id },
             workspaceId,
             undefined,
-            false
+            false,
+            token
         );
     }
 
@@ -372,9 +427,16 @@ export class PublicEntryWritesController {
     remove(
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) id: string,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<void> {
-        return this.applyRemove(typeName, { id }, workspaceId, undefined);
+        return this.applyRemove(
+            typeName,
+            { id },
+            workspaceId,
+            undefined,
+            token
+        );
     }
 
     // ---- the shared handlers, one per write --------------------------------
@@ -388,7 +450,8 @@ export class PublicEntryWritesController {
         locator: EntryLocator,
         body: PublicSaveEntryDto,
         workspaceId: string,
-        locale: string | undefined
+        locale: string | undefined,
+        token: PublicApiToken
     ): Promise<PublicEntry> {
         const { type, granted } = await resolveGrantedType(
             this.registry,
@@ -402,7 +465,8 @@ export class PublicEntryWritesController {
             body,
             workspaceId,
             granted,
-            locale
+            locale,
+            toTokenActor(token)
         );
     }
 
@@ -412,7 +476,8 @@ export class PublicEntryWritesController {
         locator: EntryLocator,
         workspaceId: string,
         locale: string | undefined,
-        live: boolean
+        live: boolean,
+        token: PublicApiToken
     ): Promise<PublicEntry> {
         const { type, granted } = await resolveGrantedType(
             this.registry,
@@ -420,14 +485,23 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
+        const actor = toTokenActor(token);
         return live
-            ? this.writes.publish(type, locator, workspaceId, granted, locale)
+            ? this.writes.publish(
+                  type,
+                  locator,
+                  workspaceId,
+                  granted,
+                  locale,
+                  actor
+              )
             : this.writes.unpublish(
                   type,
                   locator,
                   workspaceId,
                   granted,
-                  locale
+                  locale,
+                  actor
               );
     }
 
@@ -436,7 +510,8 @@ export class PublicEntryWritesController {
         typeName: string,
         locator: EntryLocator,
         workspaceId: string,
-        locale: string | undefined
+        locale: string | undefined,
+        token: PublicApiToken
     ): Promise<void> {
         const { type } = await resolveGrantedType(
             this.registry,
@@ -444,6 +519,12 @@ export class PublicEntryWritesController {
             typeName,
             workspaceId
         );
-        await this.writes.remove(type, locator, workspaceId, locale);
+        await this.writes.remove(
+            type,
+            locator,
+            workspaceId,
+            locale,
+            toTokenActor(token)
+        );
     }
 }

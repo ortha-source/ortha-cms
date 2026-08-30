@@ -12,12 +12,6 @@ import { createDomainEvent, type DomainEvent } from '@orthacms/database';
  * raised by the write path directly, rather than by fabricating an aggregate
  * (and a publish status a non-publishable type does not have) around a fact.
  *
- * Every one of them carries `workspaceId`. It is not decoration: a subscriber
- * that has to route an event — outgoing webhooks are the first — cannot recover
- * the workspace from the row after `entry.purged`, because there is no row left
- * to read. Reading it from the aggregate at the moment the fact occurred is the
- * only place it is reliably knowable.
- *
  * Until this set existed the audit log could answer "who did what, when" for
  * accounts, workspaces, API tokens, the media library and content **publishes**
  * — and not for the single most frequent action in a CMS. An editor could
@@ -36,6 +30,58 @@ export const ENTRY_EVENT_KINDS = {
 
 /** The aggregate type stamped on every entry domain event. */
 const AGGREGATE_TYPE = 'content_entry';
+
+/**
+ * What an entry event says about **which entry** it is about, beyond the id.
+ *
+ * Both extra fields exist because of what an audit row can and cannot recover
+ * afterwards:
+ *
+ * - `workspaceId` is the only way the trail can answer a workspace-shaped
+ *   question. `activity_events` grew a nullable `workspace_id` for it, filled
+ *   from the event payload, and an entry is the most-produced audited fact in
+ *   the product — so an entry event that omitted it would leave the column
+ *   mostly empty and the question mostly unanswerable.
+ * - `title` is what makes the row **readable**. An audit row keeps no FK and no
+ *   denormalised name; its whole handle on the subject is `subject_id`. That is
+ *   survivable for an entry that still exists and unrecoverable for one that
+ *   does not — and `entry.purged` is precisely the case where this row is the
+ *   only remaining record of the thing. A uuid is not an answer to "what did
+ *   they delete".
+ *
+ * Both are optional so a caller that genuinely has neither (a unit test, an
+ * event minted outside the write path) is not forced to invent them.
+ */
+export interface EntrySubject {
+    /** The content type's machine name. */
+    contentType: string;
+    /** The workspace the entry lives in. */
+    workspaceId?: string | null;
+    /**
+     * A human label for the entry **at the time of the event** — a frozen
+     * snapshot, like `actor_email`, not a lookup. The point is to survive the
+     * subject.
+     */
+    title?: string | null;
+}
+
+/**
+ * The subject fields every entry event's payload carries.
+ *
+ * Exported because the {@link Entry} model raises its two events through the
+ * envelope builder directly rather than the per-kind helpers — those two are
+ * status transitions the model owns, and it must produce the same payload shape
+ * as the five the write path mints.
+ */
+export function entrySubjectPayload(
+    subject: EntrySubject
+): Record<string, unknown> {
+    return {
+        contentType: subject.contentType,
+        workspaceId: subject.workspaceId ?? null,
+        title: subject.title ?? null
+    };
+}
 
 /**
  * Builds an entry {@link DomainEvent} of `kind` for `entryId`, carrying
@@ -58,13 +104,13 @@ export function entryEvent(
 /** A new entry exists. `contentType` is what lets the log name *what* was made. */
 export function entryCreated(
     entryId: string,
-    contentType: string,
-    workspaceId: string | null
+    subject: EntrySubject
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.CREATED, entryId, {
-        contentType,
-        workspaceId
-    });
+    return entryEvent(
+        ENTRY_EVENT_KINDS.CREATED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }
 
 /**
@@ -81,13 +127,11 @@ export function entryCreated(
  */
 export function entryUpdated(
     entryId: string,
-    contentType: string,
-    workspaceId: string | null,
+    subject: EntrySubject,
     fields: readonly string[]
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.UPDATED, entryId, {
-        contentType,
-        workspaceId,
+        ...entrySubjectPayload(subject),
         fields: [...fields]
     });
 }
@@ -100,13 +144,11 @@ export function entryUpdated(
  */
 export function entryDeleted(
     entryId: string,
-    contentType: string,
-    workspaceId: string | null,
+    subject: EntrySubject,
     soft: boolean
 ): DomainEvent {
     return entryEvent(ENTRY_EVENT_KINDS.DELETED, entryId, {
-        contentType,
-        workspaceId,
+        ...entrySubjectPayload(subject),
         soft
     });
 }
@@ -114,13 +156,13 @@ export function entryDeleted(
 /** A soft-deleted entry's tombstone was cleared. */
 export function entryRestored(
     entryId: string,
-    contentType: string,
-    workspaceId: string | null
+    subject: EntrySubject
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.RESTORED, entryId, {
-        contentType,
-        workspaceId
-    });
+    return entryEvent(
+        ENTRY_EVENT_KINDS.RESTORED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }
 
 /**
@@ -132,11 +174,11 @@ export function entryRestored(
  */
 export function entryPurged(
     entryId: string,
-    contentType: string,
-    workspaceId: string | null
+    subject: EntrySubject
 ): DomainEvent {
-    return entryEvent(ENTRY_EVENT_KINDS.PURGED, entryId, {
-        contentType,
-        workspaceId
-    });
+    return entryEvent(
+        ENTRY_EVENT_KINDS.PURGED,
+        entryId,
+        entrySubjectPayload(subject)
+    );
 }

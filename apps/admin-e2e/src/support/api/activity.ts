@@ -76,6 +76,15 @@ export const DEFAULT_ACTIVITY: ActivitySeed[] = [
  *
  * So when a new kind is added server-side, add it here — the specs below then
  * fail until the admin has a label for it.
+ *
+ * **This list alone cannot catch the server moving ahead**, and that is worth
+ * being clear about: it is written by hand from the admin's own catalogue, so
+ * a kind neither side knows about is invisible to it. Three `user.sso_*` kinds
+ * shipped rendering as raw tokens with this suite green. The check that closes
+ * that hole is `audit-event-mapping.spec.ts`'s "the admin catalogue" block,
+ * which compares the two lists directly. What this suite still uniquely proves
+ * is that each kind actually **renders** — a label present in the map but
+ * broken in the cell is a different failure.
  */
 export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['user.invited', 'user', { email: 'alan@ortha.dev' }],
@@ -88,8 +97,17 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['user.suspended', 'user', null],
     ['user.reactivated', 'user', null],
     ['user.password_changed', 'user', { sessionsRevoked: 2 }],
-    ['user.signed_in', 'user', null],
+    ['user.signed_in', 'user', { ipAddress: '203.0.113.7', userAgent: 'Firefox' }],
     ['user.signed_out', 'user', null],
+    [
+        'user.sign_in_failed',
+        'login_attempt',
+        { reason: 'bad_password', ipAddress: '203.0.113.7' }
+    ],
+    ['user.session_revoked', 'user', { sessionId: 's_1' }],
+    ['user.sso_linked', 'user', { provider: 'google' }],
+    ['user.sso_provisioned', 'user', { provider: 'google', role: 'editor' }],
+    ['user.sso_role_mapped', 'user', { provider: 'google', role: 'editor' }],
     [
         'workspace.created',
         'workspace',
@@ -134,7 +152,53 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     ['media.asset.deleted', 'media_asset', { storageKey: 'w/a/hero.png' }],
     ['media.folder.created', 'media_folder', { name: 'Brand', parentId: null }],
     ['media.folder.renamed', 'media_folder', { name: 'Brand assets' }],
-    ['media.folder.deleted', 'media_folder', {}]
+    ['media.folder.deleted', 'media_folder', {}],
+    ['token.used', 'api_token', { name: 'CI', lookupPrefix: 'orthacms_abc' }],
+    [
+        'transfer.content.exported',
+        'content_type',
+        { format: 'json', selected: 12 }
+    ],
+    ['transfer.content.imported', 'content_type', { created: 12, updated: 0 }],
+    ['segment.created', 'segment', { key: 'members', label: 'Members' }],
+    [
+        'segment.updated',
+        'segment',
+        { tags: { from: ['a'], to: ['a', 'b'] } }
+    ],
+    ['segment.deleted', 'segment', { key: 'members' }],
+    [
+        'segment.entry_access_changed',
+        'content_entry',
+        { allow: ['seg_1'], deny: [] }
+    ],
+    ['alarm.rule.created', 'alarm_rule', { name: 'Missing alt text' }],
+    [
+        'alarm.rule.updated',
+        'alarm_rule',
+        { enabled: { from: true, to: false } }
+    ],
+    ['alarm.rule.deleted', 'alarm_rule', { name: 'Missing alt text' }],
+    ['alarm.rule.rescanned', 'alarm_rule', { scanned: 312, open: 14 }],
+    ['saved_view.created', 'saved_view', { name: 'Needs review' }],
+    [
+        'saved_view.updated',
+        'saved_view',
+        { visibility: { from: 'private', to: 'workspace' } }
+    ],
+    ['saved_view.deleted', 'saved_view', { name: 'Needs review' }],
+    ['copilot.skill.created', 'copilot_skill', { name: 'house-style' }],
+    [
+        'copilot.skill.updated',
+        'copilot_skill',
+        { mode: { from: 'manual', to: 'auto' } }
+    ],
+    ['copilot.skill.deleted', 'copilot_skill', { name: 'house-style' }],
+    [
+        'copilot.tool_permission.decided',
+        'copilot_run',
+        { callId: 'call_1', decision: 'allow' }
+    ]
 ].map(([kind, subjectType, meta], index) => ({
     id: `ev_kind_${index}`,
     kind: kind as string,

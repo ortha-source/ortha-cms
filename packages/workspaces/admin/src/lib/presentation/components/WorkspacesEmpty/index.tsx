@@ -52,7 +52,7 @@ type WorkspacesEmptyProps = {
 };
 
 /**
- * The empty state for the grid. When filters are active it offers to clear
+ * The empty state for the table. When filters are active it offers to clear
  * them; otherwise it invites creating the first workspace — but only when the
  * user holds `workspaces:create`.
  */

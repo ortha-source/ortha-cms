@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { UnitOfWork, type Database } from '@orthacms/database';
 import { isUniqueViolation } from '@orthacms/utils-server';
 import { AlarmRuleNotFoundError } from '../domain/errors';
 import { filterTreeSegments } from '../domain/filter-tree-segments';
@@ -69,14 +69,27 @@ export class DuplicateAlarmRuleNameError extends Error {
  */
 @Injectable()
 export class AlarmRuleRepository {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(private readonly uow: UnitOfWork) {}
+
+    /**
+     * The executor to run against: the ambient transaction when a caller opened
+     * one, the base connection otherwise.
+     *
+     * It exists so a rule write and the `alarm.rule.*` event describing it
+     * commit together. Outside a unit of work this is exactly the old
+     * behaviour — `UnitOfWork.current()` falls back to the pool — so no caller
+     * had to change.
+     */
+    private get exec(): Database {
+        return this.uow.current();
+    }
 
     /** Every enabled, non-broken rule for one content type in one workspace. */
     async activeForType(
         workspaceId: string,
         contentType: string
     ): Promise<AlarmRuleRecord[]> {
-        const rows = await this.db
+        const rows = await this.exec
             .select()
             .from(alarmRules)
             .where(
@@ -95,7 +108,7 @@ export class AlarmRuleRepository {
 
     /** Every enabled, non-broken rule across all workspaces — the sweep's input. */
     async allActive(): Promise<AlarmRuleRecord[]> {
-        const rows = await this.db
+        const rows = await this.exec
             .select()
             .from(alarmRules)
             .where(
@@ -123,7 +136,7 @@ export class AlarmRuleRepository {
         relationsOf: (contentType: string) => Map<string, string>
     ): Promise<Array<{ rule: AlarmRuleRecord; relationField: string }>> {
         if (targetTypes.size === 0) return [];
-        const rows = await this.db
+        const rows = await this.exec
             .select()
             .from(alarmRules)
             .where(
@@ -156,7 +169,7 @@ export class AlarmRuleRepository {
         workspaceId: string,
         ruleId: string
     ): Promise<AlarmRuleRecord | null> {
-        const [row] = await this.db
+        const [row] = await this.exec
             .select()
             .from(alarmRules)
             .where(
@@ -182,7 +195,7 @@ export class AlarmRuleRepository {
     /** Inserts a rule, translating the unique index into a domain error. */
     async create(input: CreateAlarmRuleInput): Promise<AlarmRuleRecord> {
         try {
-            const [row] = await this.db
+            const [row] = await this.exec
                 .insert(alarmRules)
                 .values({
                     workspaceId: input.workspaceId,
@@ -228,7 +241,7 @@ export class AlarmRuleRepository {
         }
 
         try {
-            const [row] = await this.db
+            const [row] = await this.exec
                 .update(alarmRules)
                 .set(patch)
                 .where(
@@ -250,7 +263,7 @@ export class AlarmRuleRepository {
 
     /** Deletes a rule; its findings go with it by FK cascade. */
     async remove(workspaceId: string, ruleId: string): Promise<void> {
-        const [row] = await this.db
+        const [row] = await this.exec
             .delete(alarmRules)
             .where(
                 and(
@@ -268,7 +281,7 @@ export class AlarmRuleRepository {
      * reason writes the same row.
      */
     async markBroken(ruleId: string, reason: string): Promise<void> {
-        await this.db
+        await this.exec
             .update(alarmRules)
             .set({ brokenReason: reason })
             .where(eq(alarmRules.id, ruleId));
@@ -276,7 +289,7 @@ export class AlarmRuleRepository {
 
     /** Stamps the end of a successful full rescan. */
     async markScanned(ruleId: string, at: Date): Promise<void> {
-        await this.db
+        await this.exec
             .update(alarmRules)
             .set({ lastScanAt: at })
             .where(eq(alarmRules.id, ruleId));
@@ -291,14 +304,14 @@ export class AlarmRuleRepository {
      * forty queries to render one list.
      */
     async listWithCounts(workspaceId: string): Promise<AlarmRuleView[]> {
-        const rows = await this.db
+        const rows = await this.exec
             .select()
             .from(alarmRules)
             .where(eq(alarmRules.workspaceId, workspaceId))
             .orderBy(alarmRules.name);
         if (rows.length === 0) return [];
 
-        const counts = await this.db
+        const counts = await this.exec
             .select({ ruleId: alarmFindings.ruleId, total: count() })
             .from(alarmFindings)
             .where(

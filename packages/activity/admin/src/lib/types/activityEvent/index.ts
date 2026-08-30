@@ -9,10 +9,24 @@ export type ActivityMeta = Record<string, unknown>;
  * `null` if it was never captured.
  */
 export type ActivityActor = {
-    /** The actor's user id (no FK — the user may since have been deleted). */
+    /** The actor's id — a user id, or an API token id (see {@link type}). */
     id: string;
-    /** Frozen email snapshot at record time. */
+    /**
+     * Frozen email snapshot at record time. For an `api_token` actor this
+     * carries the **token's label** instead: a token has no address, and a row
+     * showing a bare uuid names nothing a reader recognises.
+     */
     email: string | null;
+    /**
+     * What {@link id} names — `'user'` for a person, `'api_token'` for an
+     * external credential.
+     *
+     * A client needs it: the two ids come from different tables and lead to
+     * different pages, and without it a token's label is indistinguishable
+     * from a colleague's email address. Optional because a row written before
+     * the column existed carries none, and those are all people.
+     */
+    type?: string;
 } | null;
 
 /** One audit event — a row of the Activity Log table. */
@@ -29,6 +43,11 @@ export type ActivityEvent = {
     actor: ActivityActor;
     /** Per-kind extra payload, or `null` when the kind carries none. */
     meta: ActivityMeta | null;
+    /**
+     * The workspace the action happened in, or `null` when it belongs to none
+     * (an invite, a role change, the creation of a workspace itself).
+     */
+    workspaceId: string | null;
     /** When it happened. */
     at: Date;
 };

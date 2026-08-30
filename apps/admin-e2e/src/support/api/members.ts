@@ -178,6 +178,12 @@ function applyFilter(members: MemberSeed[], filter: string): MemberSeed[] {
     return members.filter((m) => matchesNode(m, node));
 }
 
+/** Handle returned by {@link mockMembers} for asserting the read fired — or didn't. */
+export interface MembersMock {
+    /** How many `GET /api/users` requests this route answered. */
+    readonly count: number;
+}
+
 /**
  * Stub `GET /api/users` with a deterministic roster, applying the same
  * search + pagination the server does so the page's controls behave for real.
@@ -186,20 +192,40 @@ function applyFilter(members: MemberSeed[], filter: string): MemberSeed[] {
  *
  * Registered per-`page`, so it resets between tests with the browser context.
  * Pass `delayMs` to hold the response open, so a test can observe the table's
- * loading skeleton before the rows land.
+ * loading skeleton before the rows land, or `status` for a roster the API
+ * cannot serve — the page's error branch is otherwise unreachable. A `5xx` is
+ * retried three times with backoff by the shared query client, so an assertion
+ * on the resulting alert needs a generous timeout.
+ *
+ * The returned counter is what proves a read did **not** happen: the query is
+ * gated behind an `enabled` flag, and "no rows on screen" cannot tell a
+ * suppressed request apart from an empty answer.
  */
 export async function mockMembers(
     page: Page,
     members: MemberSeed[] = DEFAULT_MEMBERS,
-    { delayMs }: { delayMs?: number } = {}
-): Promise<void> {
+    { delayMs, status = 200 }: { delayMs?: number; status?: number } = {}
+): Promise<MembersMock> {
+    let count = 0;
     await page.route('**/api/users?*', async (route) => {
         if (route.request().method() !== 'GET') {
             await route.fallback();
             return;
         }
+        count += 1;
         if (delayMs) {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        if (status !== 200) {
+            await route.fulfill({
+                status,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    statusCode: status,
+                    message: 'Internal Server Error'
+                })
+            });
+            return;
         }
         const { search, filter, page: pageNum, pageSize } = paramsOf(route);
         const searched = search
@@ -226,6 +252,11 @@ export async function mockMembers(
             })
         });
     });
+    return {
+        get count() {
+            return count;
+        }
+    };
 }
 
 /**
@@ -342,27 +373,41 @@ export async function spyRevokeInvite(
 /**
  * Stub `POST /api/users/:id/disable` and `/enable`, echoing the member back
  * with the new status and counting each call.
+ *
+ * Pass `status` for a write the server refuses. The call still counts — the
+ * request was made, it just failed — which is what lets a test tell the
+ * mutation's `onError` path (a toast, a closed dialog, focus put back) apart
+ * from a click that never reached the network at all.
  */
 export async function spySetMemberStatus(
     page: Page,
-    member: MemberSeed
+    member: MemberSeed,
+    { status = 200 }: { status?: number } = {}
 ): Promise<{ readonly disabled: number; readonly enabled: number }> {
     let disabled = 0;
     let enabled = 0;
+    /** The body for whichever direction was asked for — or the refusal. */
+    const answer = (next: 'disabled' | 'active') =>
+        status === 200
+            ? JSON.stringify({ ...member, status: next })
+            : JSON.stringify({
+                  statusCode: status,
+                  message: 'Internal Server Error'
+              });
     await page.route('**/api/users/*/disable', async (route) => {
         disabled += 1;
         await route.fulfill({
-            status: 200,
+            status,
             contentType: 'application/json',
-            body: JSON.stringify({ ...member, status: 'disabled' })
+            body: answer('disabled')
         });
     });
     await page.route('**/api/users/*/enable', async (route) => {
         enabled += 1;
         await route.fulfill({
-            status: 200,
+            status,
             contentType: 'application/json',
-            body: JSON.stringify({ ...member, status: 'active' })
+            body: answer('active')
         });
     });
     return {

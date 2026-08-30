@@ -51,6 +51,22 @@ export interface BuildTestPluginsOptions {
      * from a refusal on the cookie setting alone.
      */
     ssoProviders?: 'fake' | 'none';
+    /**
+     * Boot the **contentless** host: database, identity, workspaces, activity
+     * and users, and nothing else.
+     *
+     * It is not a filter over the full list. Every remaining plugin composes
+     * over content — views and GraphQL take the `ContentPlugin` instance
+     * itself, alarms evaluates through content's match query, segments and i18n
+     * register into content's ports — so "the list minus content" is not a host
+     * anyone could deploy, and would fail to resolve rather than reproduce
+     * anything. What a contentless deployment actually looks like is this: the
+     * workspaces plugin standing alone, with `CONTENT_ENTRY_COUNTER` unbound
+     * (it is injected `@Optional()` precisely so this boots) and the
+     * `content_*` tables still sitting in the database from the migrations that
+     * created them.
+     */
+    omitContent?: boolean;
 }
 
 /**
@@ -74,6 +90,27 @@ export function buildTestPlugins(
     config: OrthaConfig,
     options: BuildTestPluginsOptions = {}
 ): ServerPlugin[] {
+    if (options.omitContent) {
+        return [
+            DatabasePlugin({ connectionString: config.database.url }),
+            IdentityPlugin(config.plugins.identity, {
+                sso: {
+                    providers:
+                        options.ssoProviders === 'none'
+                            ? []
+                            : [{ name: 'fake', provider: fakeSsoProvider }],
+                    resolveRole: ssoRoleResolver
+                }
+            }),
+            WorkspacesPlugin(),
+            // Kept because the workspaces routes drain their domain events
+            // through it: dropping it would change what a delete *records*,
+            // which is not what this shape is for.
+            ActivityPlugin(),
+            UsersPlugin()
+        ];
+    }
+
     const content = ContentPlugin({
         types: testContentTypes,
         // The e2e harness OWNS these generated tables: drizzle.config.ts

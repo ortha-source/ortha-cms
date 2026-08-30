@@ -97,7 +97,9 @@ export class ActivityService implements ActivityRecorder {
                     subjectType: activityEvents.subjectType,
                     subjectId: activityEvents.subjectId,
                     actorId: activityEvents.actorId,
+                    actorType: activityEvents.actorType,
                     actorEmail: activityEvents.actorEmail,
+                    workspaceId: activityEvents.workspaceId,
                     meta: activityEvents.meta,
                     at: activityEvents.at
                 })
@@ -154,6 +156,12 @@ export class ActivityService implements ActivityRecorder {
                 : undefined,
             query.actorId
                 ? eq(activityEvents.actorId, query.actorId)
+                : undefined,
+            query.actorType
+                ? eq(activityEvents.actorType, query.actorType)
+                : undefined,
+            query.workspaceId
+                ? eq(activityEvents.workspaceId, query.workspaceId)
                 : undefined,
             query.kind && query.kind.length > 0
                 ? inArray(activityEvents.kind, query.kind)

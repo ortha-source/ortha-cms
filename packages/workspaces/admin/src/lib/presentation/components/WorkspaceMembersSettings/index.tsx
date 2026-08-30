@@ -15,6 +15,7 @@ import type {
     WorkspaceMember
 } from '../../../domain/types/workspace';
 import type { DirectoryUser } from '../../../domain/types/wizard';
+import { isConflict } from '../../../infrastructure/isConflict';
 import { useAddWorkspaceMember } from '../../../application/useAddWorkspaceMember';
 import { useRemoveWorkspaceMember } from '../../../application/useRemoveWorkspaceMember';
 import { MemberDirectorySearch } from './MemberDirectorySearch';
@@ -53,6 +54,11 @@ const messages = defineMessages({
     removeError: {
         id: 'workspaces.settings.members.removeError',
         defaultMessage: 'Couldn’t remove that member. Please try again.'
+    },
+    lastMember: {
+        id: 'workspaces.settings.members.lastMember',
+        defaultMessage:
+            'A workspace needs at least one member. Add someone else first, or delete the workspace.'
     },
     confirmTitle: {
         id: 'workspaces.settings.members.confirmTitle',
@@ -97,6 +103,8 @@ export function WorkspaceMembersSettings({
     const rosterLabelRef = useRef<HTMLSpanElement>(null);
     // Index whose Remove button focus should land on once the roster re-renders.
     const focusAfterRemoval = useRef<number | null>(null);
+    // Which row opened the confirm dialog, so a dismissal can hand focus back.
+    const dismissedId = useRef<string | null>(null);
 
     // Radix restores focus to the dialog's trigger on close — but the mutation
     // has just unmounted that trigger along with its row, so focus fell to
@@ -148,8 +156,20 @@ export function WorkspaceMembersSettings({
             toast.success(
                 intl.formatMessage(messages.removed, { name: member.name })
             );
-        } catch {
-            toast.error(intl.formatMessage(messages.removeError));
+        } catch (error) {
+            // The server answers 409 `LastMemberError` for the one member who
+            // cannot go — a workspace with nobody in it is unreachable, so the
+            // rule is absolute. "Please try again" is the one thing that will
+            // never work here, and it is what every caller got: the catch was
+            // blind to the status. Both sibling dialogs in this package already
+            // narrow the same 409 (content revoke, workspace delete).
+            (isConflict(error) ? toast.warning : toast.error)(
+                intl.formatMessage(
+                    isConflict(error)
+                        ? messages.lastMember
+                        : messages.removeError
+                )
+            );
         } finally {
             setPendingRemoval(null);
         }
@@ -195,7 +215,10 @@ export function WorkspaceMembersSettings({
                                 <MemberListRow
                                     member={member}
                                     canRemove={canUpdate}
-                                    onRemove={() => setPendingRemoval(member)}
+                                    onRemove={() => {
+                                        dismissedId.current = member.id;
+                                        setPendingRemoval(member);
+                                    }}
                                 />
                             </li>
                         ))}
@@ -216,6 +239,26 @@ export function WorkspaceMembersSettings({
                 confirmVariant="destructive"
                 busy={removeMember.isPending}
                 onConfirm={confirmRemoval}
+                onCloseAutoFocus={(event) => {
+                    // Radix hands focus back to the `DialogTrigger` it holds in
+                    // context — and this dialog has none, because it is opened
+                    // from state rather than wrapped around a trigger. Its
+                    // default therefore focuses nothing and a keyboard user is
+                    // dropped on <body>, at the top of the document (WCAG
+                    // 2.4.3). Aim at the row that opened it.
+                    //
+                    // Only on a dismissal: after a successful removal that row
+                    // is gone, and the effect above has already claimed the
+                    // slot that replaced it.
+                    if (focusAfterRemoval.current !== null) return;
+                    const button =
+                        rosterRef.current?.querySelector<HTMLElement>(
+                            `[data-remove-member][data-member-id="${dismissedId.current}"]`
+                        );
+                    if (!button) return;
+                    event.preventDefault();
+                    button.focus();
+                }}
             />
         </Card>
     );

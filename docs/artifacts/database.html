@@ -1,4 +1,4 @@
-<title>Паспорт плагина Database</title>
+<title>Database Plugin Dossier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
@@ -237,293 +237,294 @@ footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
-
 <header class="masthead">
   <div class="wrap">
-    <p class="eyebrow">Пакет · packages/database</p>
+    <p class="eyebrow">Package · packages/database</p>
     <h1 class="title">Database
-      <small>Одно соединение на весь сервер и транзакционный outbox под ним</small>
+      <small>One connection for the whole server, and a transactional outbox underneath it</small>
     </h1>
-    <p class="lede">Database — это <strong>инфраструктурный</strong> плагин: он не знает ни одной предметной таблицы, не выставляет ни одного HTTP-маршрута и не решает ни одного бизнес-вопроса. Он делает две вещи. Первая — открывает <strong>единственный</strong> пул к PostgreSQL и раздаёт его всем остальным плагинам. Вторая — даёт им общий набор тактических примитивов: границу транзакции (<code>UnitOfWork</code>), конверт факта (<code>DomainEvent</code>) и <strong>транзакционный outbox</strong>, благодаря которому событие о произошедшем изменении не может ни потеряться, ни пережить откат.</p>
+    <p class="lede">Database is an <strong>infrastructure</strong> plugin: it knows not a single domain table, exposes not a single HTTP route and decides not a single business question. It does two things. First, it opens the <strong>one and only</strong> pool to PostgreSQL and hands it out to every other plugin. Second, it gives them a shared set of tactical primitives: the transaction boundary (<code>UnitOfWork</code>), the envelope for a fact (<code>DomainEvent</code>) and the <strong>transactional outbox</strong>, thanks to which an event about a change that happened can neither be lost nor outlive a rollback.</p>
     <ul class="facts">
-      <li><b>1</b> таблица БД</li>
-      <li><b>2</b> миграции</li>
-      <li><b>4</b> тактических примитива</li>
-      <li><b>25</b> публичных экспортов</li>
-      <li><b>44</b> вида событий в репозитории</li>
-      <li><b>6</b> плагинов-издателей</li>
-      <li><b>2</b> подписчика</li>
-      <li><b>0</b> HTTP-маршрутов</li>
+      <li><b>1</b> database table</li>
+      <li><b>3</b> migrations</li>
+      <li><b>4</b> tactical primitives</li>
+      <li><b>28</b> public exports</li>
+      <li><b>62</b> event kinds in the repository</li>
+      <li><b>9</b> publishing plugins</li>
+      <li><b>2</b> subscribers</li>
+      <li><b>0</b> HTTP routes</li>
     </ul>
   </div>
 </header>
 
 <div class="wrap shell">
-<nav class="toc" aria-label="Содержание">
-  <h2>Содержание</h2>
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
   <ol>
-    <li><a href="#business">Бизнес-описание</a></li>
-    <li><a href="#composition">Состав и место в системе</a></li>
-    <li><a href="#connection">Соединение и жизненный цикл</a></li>
-    <li><a href="#data">Модель данных</a></li>
+    <li><a href="#business">Business description</a></li>
+    <li><a href="#composition">Composition and place in the system</a></li>
+    <li><a href="#connection">The connection and its lifecycle</a></li>
+    <li><a href="#data">Data model</a></li>
     <li><a href="#uow">Unit of Work</a></li>
-    <li><a href="#outbox">Транзакционный outbox</a></li>
-    <li><a href="#events">Контракт DomainEvent</a></li>
-    <li><a href="#flows">Сценарии</a></li>
-    <li><a href="#config">Конфигурация</a></li>
-    <li><a href="#reliability">Надёжность и производительность</a></li>
-    <li><a href="#invariants">Инварианты</a></li>
-    <li><a href="#qa">Чек-лист тестирования</a></li>
-    <li><a href="#bounds">Границы</a></li>
-    <li><a href="#gaps">Расхождения</a></li>
+    <li><a href="#outbox">The transactional outbox</a></li>
+    <li><a href="#events">The DomainEvent contract</a></li>
+    <li><a href="#flows">Scenarios</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#reliability">Reliability and performance</a></li>
+    <li><a href="#invariants">Invariants</a></li>
+    <li><a href="#qa">Testing checklist</a></li>
+    <li><a href="#bounds">Boundaries</a></li>
+    <li><a href="#gaps">Discrepancies</a></li>
   </ol>
 </nav>
 
 <main>
 
 <section id="business">
-  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+  <h2 class="sec"><span class="num">01</span>Business description</h2>
 
-  <p>Database не видно ни одному пользователю CMS. Его ценность целиком в том, что он снимает с остальных плагинов три решения, которые каждый из них принял бы по-своему — и разошёлся бы.</p>
+  <p>No CMS user ever sees Database. Its entire value lies in taking three decisions off every other plugin's hands — decisions each of them would have made differently, and diverged on.</p>
 
-  <h3>Зачем один общий доступ к базе</h3>
+  <h3>Why one shared access to the database</h3>
   <ul>
-    <li><b>Один пул — предсказуемая нагрузка на СУБД.</b> Если бы каждый плагин открывал своё соединение, число подключений к PostgreSQL росло бы с числом установленных плагинов, а не с числом процессов приложения. Здесь потолок один и он назван явно: <code>max = 10</code> клиентов на процесс.</li>
-    <li><b>Одна транзакция на запрос.</b> Пул мало раздать — нужно, чтобы запись контента, запись прав и запись события о них попали в <em>одну</em> транзакцию. Это делает <code>UnitOfWork</code>: он раздаёт не соединение, а <em>исполнителя</em> — активную транзакцию, если она есть.</li>
-    <li><b>Один способ сказать «это произошло».</b> Конверт <code>DomainEvent</code> и таблица <code>outbox_events</code> — общий язык между плагином, который пишет, и плагином, который реагирует. Издатель не знает подписчиков, подписчик не знает издателей.</li>
-    <li><b>Смена диалекта — правка в одном файле.</b> Все потребители аннотируют клиента типом <code>Database</code> из этого пакета, а не диалектным <code>NodePgDatabase</code>. Замена драйвера — одна строка здесь, а не обход всех плагинов.</li>
+    <li><b>One pool means predictable load on the DBMS.</b> If every plugin opened its own connection, the number of PostgreSQL connections would grow with the number of installed plugins rather than with the number of application processes. Here there is one ceiling and it is named explicitly: <code>max = 10</code> clients per process.</li>
+    <li><b>One transaction per request.</b> Handing out the pool is not enough — a content write, a permissions write and the event about them must land in <em>one</em> transaction. That is what <code>UnitOfWork</code> does: it hands out not a connection but an <em>executor</em> — the active transaction, if there is one.</li>
+    <li><b>One way to say “this happened”.</b> The <code>DomainEvent</code> envelope and the <code>outbox_events</code> table are the shared language between the plugin that writes and the plugin that reacts. The publisher knows no subscribers, the subscriber knows no publishers.</li>
+    <li><b>Changing dialect is an edit in one file.</b> Every consumer annotates its client with the <code>Database</code> type from this package rather than the dialect-specific <code>NodePgDatabase</code>. Replacing the driver is one line here, not a tour of every plugin.</li>
   </ul>
 
-  <h3>Какую бизнес-задачу это закрывает</h3>
-  <p>Формулировка без техники: <b>ни одно последствие не должно наступить без причины, и ни одна причина не должна остаться без последствия.</b></p>
+  <h3>What business problem this closes</h3>
+  <p>Put without the technology: <b>no consequence must occur without a cause, and no cause must be left without a consequence.</b></p>
   <ul>
-    <li>Если приглашение сотрудника <em>не</em> сохранилось — в журнале активности не должно быть строки «пригласил». Событие пишется в той же транзакции, значит откат уносит его с собой.</li>
-    <li>Если приглашение сохранилось, а журнал в этот момент лежал — строка всё равно появится, когда журнал поднимется. Событие уже лежит в таблице и ждёт доставки.</li>
-    <li>Если запись контента сохранилась, а проверка алармов упала — сохранение не откатывается. Аларм досчитается позже, и это осознанный компромисс: реакция не имеет права ломать первичную запись.</li>
+    <li>If inviting an employee did <em>not</em> save, the activity log must not contain an “invited” row. The event is written in the same transaction, so a rollback takes it away too.</li>
+    <li>If the invitation saved but the log happened to be down at that moment, the row will still appear once the log comes back. The event is already in the table, waiting to be delivered.</li>
+    <li>If a content entry saved but the alarm check failed, the save is not rolled back. The alarm will be recomputed later, and that is a deliberate trade-off: a reaction has no right to break the primary write.</li>
   </ul>
 
   <div class="note">
-    <span class="label">Ключевая идея архитектуры</span>
-    <p>Событие — это <b>строка в той же транзакции</b>, а не сообщение, отправленное в очередь. Внешнего брокера в системе нет вообще: PostgreSQL одновременно и хранилище состояния, и хранилище исходящих событий. Отсюда и главная гарантия, и её цена — доставка <b>как минимум один раз</b>, поэтому каждый подписчик обязан быть идемпотентным.</p>
+    <span class="label">The key architectural idea</span>
+    <p>An event is <b>a row in the same transaction</b>, not a message sent to a queue. There is no external broker in the system at all: PostgreSQL is simultaneously the state store and the outgoing-event store. Hence both the main guarantee and its price — delivery is <b>at least once</b>, so every subscriber must be idempotent.</p>
   </div>
 
-  <h3>Чем Database не является</h3>
+  <h3>What Database is not</h3>
   <ul>
-    <li><b>Это не ORM и не слой репозиториев.</b> Пакет отдаёт клиент Drizzle как есть. Репозитории, мапперы и агрегаты живут внутри своих плагинов (<a href="#bounds">ADR-0003</a>).</li>
-    <li><b>Это не владелец схемы.</b> Ни одной предметной таблицы здесь нет. Единственная собственная таблица — <code>outbox_events</code>, и это <em>санкционированное исключение</em>: outbox — общая инфраструктура, а не данные какого-то домена.</li>
-    <li><b>Это не брокер сообщений.</b> Нет топиков, нет порядка доставки между агрегатами, нет подтверждений от потребителя, нет доставки между процессами по сети. Есть таблица и опрос.</li>
-    <li><b>Это не миграционный инструмент.</b> Цели <code>db:generate</code> / <code>db:migrate</code> принадлежат <code>@orthacms/nx</code> и <code>@orthacms/cli</code>; здесь только собственный дескриптор миграций.</li>
-    <li><b>Это не доменный слой.</b> Папки <code>domain/</code> в пакете нет и по замыслу быть не должно — это инфраструктура, которую доменные слои <em>используют</em>.</li>
+    <li><b>It is not an ORM and not a repository layer.</b> The package hands out the Drizzle client as it is. Repositories, mappers and aggregates live inside their own plugins (<a href="#bounds">ADR-0003</a>).</li>
+    <li><b>It is not the schema's owner.</b> There is not a single domain table here. Its only table of its own is <code>outbox_events</code>, and that is a <em>sanctioned exception</em>: the outbox is shared infrastructure, not any domain's data.</li>
+    <li><b>It is not a message broker.</b> There are no topics, no delivery ordering between aggregates, no consumer acknowledgements, no cross-process delivery over the network. There is a table and a poll.</li>
+    <li><b>It is not a migration tool.</b> The <code>db:generate</code> / <code>db:migrate</code> targets belong to <code>@orthacms/nx</code> and <code>@orthacms/cli</code>; there is only its own migrations descriptor here.</li>
+    <li><b>It is not a domain layer.</b> There is no <code>domain/</code> folder in the package and by design there should not be — this is infrastructure that domain layers <em>use</em>.</li>
   </ul>
 
-  <h3>Кому это видно</h3>
+  <h3>Who sees it</h3>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">Автор плагина</h4>
-      <p class="small sub">Инжектит <code>@InjectDatabase()</code>, оборачивает use-case в <code>uow.run(...)</code>, кладёт события через <code>outbox.append(...)</code>. Больше про базу ему знать нечего.</p>
+      <h4 style="margin-top:0">A plugin author</h4>
+      <p class="small sub">Injects <code>@InjectDatabase()</code>, wraps a use case in <code>uow.run(...)</code>, and appends events through <code>outbox.append(...)</code>. There is nothing else about the database they need to know.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Автор реакции</h4>
-      <p class="small sub">Пишет класс с полем <code>kinds</code> и методом <code>handle</code>, регистрируется в диспетчере на старте приложения. Не знает, кто и когда породил событие.</p>
+      <h4 style="margin-top:0">A reaction's author</h4>
+      <p class="small sub">Writes a class with a <code>kinds</code> field and a <code>handle</code> method and registers it with the dispatcher at application startup. Knows neither who raised the event nor when.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Оператор развёртывания</h4>
-      <p class="small sub">Задаёт <code>DATABASE_URL</code>, при необходимости — потолок пула и <code>statement_timeout</code>. Смотрит на «мёртвые письма» запросом по <code>outbox_events</code>.</p>
+      <h4 style="margin-top:0">A deployment operator</h4>
+      <p class="small sub">Sets <code>DATABASE_URL</code> and, if needed, the pool ceiling and <code>statement_timeout</code>. Looks at “dead letters” with a query over <code>outbox_events</code>.</p>
     </div>
   </div>
 </section>
 
 <section id="composition">
-  <h2 class="sec"><span class="num">02</span>Состав и место в системе</h2>
+  <h2 class="sec"><span class="num">02</span>Composition and place in the system</h2>
 
-  <p>Пакет <b>плоский</b> — <code>packages/database</code>, без пары <code>admin</code>/<code>server</code>: у него нет и не может быть админской половины. Публикуется как <code>@orthacms/database</code>, потребляется из исходников (<code>exports</code> указывают на <code>./src/index.ts</code>).</p>
+  <p>The package is <b>flat</b> — <code>packages/database</code>, with no <code>admin</code>/<code>server</code> pair: it has no admin half and cannot have one. It is published as <code>@orthacms/database</code> and consumed from source (its <code>exports</code> point at <code>./src/index.ts</code>).</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Файл</th><th>Что там</th><th>Роль</th></tr></thead>
+    <thead><tr><th>File</th><th>What is in it</th><th>Role</th></tr></thead>
     <tbody>
-      <tr><td class="mono">lib/utils/db.ts</td><td><code>initDatabase</code>, <code>getDatabase</code>, <code>getPool</code>, <code>closeDatabase</code>, <code>releaseDatabase</code></td><td>Синглтон соединения уровня модуля + счётчик держателей</td></tr>
-      <tr><td class="mono">lib/utils/database-plugin.ts</td><td><code>DatabasePlugin(config)</code></td><td>Фабрика плагина: <code>onPluginInit</code>, модуль, дескриптор миграций</td></tr>
-      <tr><td class="mono">lib/database.module.ts</td><td><code>DatabaseModule.forRoot()</code>, <code>DatabaseShutdown</code></td><td>Глобальный динамический модуль Nest + провайдер закрытия пула</td></tr>
-      <tr><td class="mono">lib/database.tokens.ts</td><td><code>DATABASE_TOKEN</code>, <code>InjectDatabase</code></td><td>Токены без зависимостей — разрыв цикла импорта</td></tr>
-      <tr><td class="mono">lib/types/index.ts</td><td><code>Database</code>, <code>DatabasePluginConfig</code></td><td>Единственный источник правды «что такое клиент БД»</td></tr>
-      <tr><td class="mono">lib/events/domain-event.ts</td><td><code>DomainEvent</code>, <code>createDomainEvent</code>, <code>attachActor</code>, <code>DomainEventSubscriber</code></td><td>Конверт факта и контракт реактора. Без фреймворков</td></tr>
-      <tr><td class="mono">lib/uow/unit-of-work.ts</td><td><code>UnitOfWork</code></td><td>Граница транзакции поверх <code>AsyncLocalStorage</code></td></tr>
-      <tr><td class="mono">lib/outbox/outbox-writer.ts</td><td><code>OutboxWriter</code></td><td>Запись событий в активную транзакцию</td></tr>
-      <tr><td class="mono">lib/outbox/outbox-dispatcher.ts</td><td><code>OutboxDispatcher</code>, <code>MAX_DELIVERY_ATTEMPTS</code>, <code>nextAttemptAfter</code></td><td>Слив очереди, доставка, повторы, backoff</td></tr>
-      <tr><td class="mono">lib/schema/outbox-events.ts</td><td><code>outboxEvents</code></td><td>Единственная таблица пакета</td></tr>
-      <tr><td class="mono">migrations/</td><td><code>0000_init</code>, <code>0001_outbox_retry_backoff</code></td><td>Собственные SQL-миграции, применяются хостом</td></tr>
+      <tr><td class="mono">lib/utils/db.ts</td><td><code>initDatabase</code>, <code>getDatabase</code>, <code>getPool</code>, <code>closeDatabase</code>, <code>releaseDatabase</code></td><td>The module-level connection singleton + a holder counter</td></tr>
+      <tr><td class="mono">lib/utils/database-plugin.ts</td><td><code>DatabasePlugin(config)</code></td><td>The plugin factory: <code>onPluginInit</code>, the module, the migrations descriptor</td></tr>
+      <tr><td class="mono">lib/database.module.ts</td><td><code>DatabaseModule.forRoot()</code>, <code>DatabaseShutdown</code></td><td>The global dynamic Nest module + the pool-closing provider</td></tr>
+      <tr><td class="mono">lib/database.tokens.ts</td><td><code>DATABASE_TOKEN</code>, <code>InjectDatabase</code></td><td>Dependency-free tokens — breaking the import cycle</td></tr>
+      <tr><td class="mono">lib/types/index.ts</td><td><code>Database</code>, <code>DatabasePluginConfig</code></td><td>The single source of truth for “what a database client is”</td></tr>
+      <tr><td class="mono">lib/events/domain-event.ts</td><td><code>DomainEvent</code>, <code>createDomainEvent</code>, <code>attachActor</code>, <code>DomainEventSubscriber</code></td><td>The fact envelope and the reactor contract. Framework-free</td></tr>
+      <tr><td class="mono">lib/uow/unit-of-work.ts</td><td><code>UnitOfWork</code></td><td>The transaction boundary over <code>AsyncLocalStorage</code></td></tr>
+      <tr><td class="mono">lib/outbox/outbox-writer.ts</td><td><code>OutboxWriter</code></td><td>Writing events into the active transaction</td></tr>
+      <tr><td class="mono">lib/outbox/outbox-dispatcher.ts</td><td><code>OutboxDispatcher</code>, <code>MAX_DELIVERY_ATTEMPTS</code>, <code>nextAttemptAfter</code></td><td>Draining the queue, delivery, retries, backoff</td></tr>
+      <tr><td class="mono">lib/schema/outbox-events.ts</td><td><code>outboxEvents</code></td><td>The package's only table</td></tr>
+      <tr><td class="mono">migrations/</td><td><code>0000_init</code>, <code>0001_outbox_retry_backoff</code></td><td>Its own SQL migrations, applied by the host</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Зависимости пакета</h3>
-  <p>Скромные и осмысленные: <code>@nestjs/common</code>, <code>@orthacms/bootstrap-server</code> (только за типом <code>ServerPlugin</code>), <code>drizzle-orm</code>, <code>pg</code>. Ни одного плагина-потребителя в зависимостях нет и быть не может — граф направлен строго от плагинов к базе.</p>
+  <h3>The package's dependencies</h3>
+  <p>Modest and deliberate: <code>@nestjs/common</code>, <code>@orthacms/bootstrap-server</code> (only for the <code>ServerPlugin</code> type), <code>drizzle-orm</code>, <code>pg</code>. There is not, and cannot be, a single consuming plugin among the dependencies — the graph points strictly from the plugins to the database.</p>
 
-  <h3>Кто чем пользуется</h3>
+  <h3>Who uses what</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Примитив</th><th>Потребители в репозитории</th><th class="center">Кол-во</th></tr></thead>
+    <thead><tr><th>Primitive</th><th>Consumers in the repository</th><th class="center">Count</th></tr></thead>
     <tbody>
-      <tr><td class="mono">UnitOfWork / OutboxWriter</td><td><code>identity/server</code>, <code>users/server</code>, <code>workspaces/server</code>, <code>content/server</code>, <code>media/server</code>, <code>transfer/server</code></td><td class="center num-col">6</td></tr>
+      <tr><td class="mono">UnitOfWork / OutboxWriter</td><td><code>identity/server</code>, <code>users/server</code>, <code>workspaces/server</code>, <code>content/server</code>, <code>media/server</code>, <code>transfer/server</code>, <code>segments/server</code>, <code>alarms/server</code>, <code>copilot/server</code></td><td class="center num-col">9</td></tr>
       <tr><td class="mono">OutboxDispatcher.register</td><td><code>activity/server</code> (<code>AuditEventSubscriber</code>), <code>alarms/server</code> (<code>EntryEventSubscriber</code>)</td><td class="center num-col">2</td></tr>
-      <tr><td class="mono">@InjectDatabase()</td><td>практически каждый серверный плагин</td><td class="center">—</td></tr>
-      <tr><td class="mono">getDatabase() / getPool()</td><td>только вне DI: тесты <code>apps/server-e2e</code>, сидеры</td><td class="center">—</td></tr>
+      <tr><td class="mono">@InjectDatabase()</td><td>practically every server plugin</td><td class="center">—</td></tr>
+      <tr><td class="mono">getDatabase() / getPool()</td><td>outside DI only: the <code>apps/server-e2e</code> tests, seeders</td><td class="center">—</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note">
-    <span class="label">Место в графе плагинов</span>
-    <p><code>DatabasePlugin(...)</code> стоит <b>первым</b> в массиве <code>plugins</code> хоста. Комментарий в <code>apps/server/src/plugins.ts</code> честно уточняет: на DI это не влияет (все модули глобальные, а <code>createServer</code> прогоняет все <code>onPluginInit</code> до создания Nest-приложения — перестановка проверялась и сервер поднимается). Порядок реально решает <b>порядок применения миграций</b>: <code>applyPluginMigrations</code> идёт по массиву без общей транзакции. Первым он стоит потому, что это единственный плагин, открывающий ресурс в <code>onPluginInit</code>, — и как только появится второй, порядок станет несущим.</p>
+    <span class="label">Its place in the plugin graph</span>
+    <p><code>DatabasePlugin(...)</code> comes <b>first</b> in the host's <code>plugins</code> array. The comment in <code>apps/server/src/plugins.ts</code> honestly clarifies: this does not affect DI (every module is global, and <code>createServer</code> runs every <code>onPluginInit</code> before creating the Nest application — reordering was tested and the server comes up). What the order really decides is the <b>order in which migrations are applied</b>: <code>applyPluginMigrations</code> walks the array with no overarching transaction. It comes first because it is the only plugin that opens a resource in <code>onPluginInit</code> — and the moment a second one appears, the order becomes load-bearing.</p>
   </div>
 </section>
 
 <section id="connection">
-  <h2 class="sec"><span class="num">03</span>Соединение и жизненный цикл</h2>
+  <h2 class="sec"><span class="num">03</span>The connection and its lifecycle</h2>
 
-  <p>Соединение — это <b>синглтон уровня модуля</b>: две переменные <code>pool</code> и <code>database</code> в <code>db.ts</code> плюс счётчик <code>holders</code>. Всё остальное — правила обращения с ними.</p>
+  <p>The connection is a <b>module-level singleton</b>: the two variables <code>pool</code> and <code>database</code> in <code>db.ts</code> plus a <code>holders</code> counter. Everything else is the rules for handling them.</p>
 
-  <h3>Два способа получить клиента — и когда какой</h3>
-  <p>Способов ровно два, и они не дублируют друг друга: они рассчитаны на разные миры.</p>
+  <h3>Two ways to get a client — and when to use which</h3>
+  <p>There are exactly two, and they do not duplicate each other: they are meant for different worlds.</p>
 
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0"><code>@InjectDatabase()</code> — внутри Nest</h4>
-      <p class="small sub">Параметр-декоратор поверх <code>@Inject(DATABASE_TOKEN)</code>. Токен предоставляется фабрикой <code>useFactory: () =&gt; getDatabase()</code> в <b>глобальном</b> динамическом модуле, поэтому плагину не нужно импортировать <code>DatabaseModule</code>. Это способ по умолчанию: клиент участвует в DI, его можно подменить в тесте, а тип аннотируется как <code>Database</code>.</p>
+      <h4 style="margin-top:0"><code>@InjectDatabase()</code> — inside Nest</h4>
+      <p class="small sub">A parameter decorator over <code>@Inject(DATABASE_TOKEN)</code>. The token is provided by a <code>useFactory: () =&gt; getDatabase()</code> in a <b>global</b> dynamic module, so a plugin need not import <code>DatabaseModule</code>. This is the default: the client takes part in DI, it can be substituted in a test, and its type is annotated as <code>Database</code>.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0"><code>getDatabase()</code> / <code>getPool()</code> — вне Nest</h4>
-      <p class="small sub">Обычные функции без DI. Нужны там, где контейнера просто нет: скрипты, сидеры, тестовые ассерты. <code>getPool()</code> вдобавок отдаёт <em>сырой</em> <code>pg.Pool</code> — единственный способ выполнить произвольный SQL или посмотреть на счётчики пула (<code>idleCount</code>, <code>waitingCount</code>, <code>options.max</code>), чего клиент Drizzle не показывает. Обе бросают исключение, если <code>initDatabase</code> ещё не вызывали.</p>
+      <h4 style="margin-top:0"><code>getDatabase()</code> / <code>getPool()</code> — outside Nest</h4>
+      <p class="small sub">Ordinary functions with no DI. They are needed where there simply is no container: scripts, seeders, test assertions. <code>getPool()</code> additionally hands out the <em>raw</em> <code>pg.Pool</code> — the only way to run arbitrary SQL or to look at the pool's counters (<code>idleCount</code>, <code>waitingCount</code>, <code>options.max</code>), which the Drizzle client does not expose. Both throw if <code>initDatabase</code> has not been called yet.</p>
     </div>
   </div>
 
-  <p><b>Правило выбора.</b> Внутри плагина — только <code>@InjectDatabase()</code>. <code>getDatabase()</code>/<code>getPool()</code> — сознательный выход за DI; в исходниках плагинов их нет ни разу, все вызовы находятся в <code>apps/server-e2e</code>. Третьего способа — «взять транзакцию» — в этом ряду нет: транзакцию раздаёт <code>UnitOfWork.current()</code>, и именно поэтому репозиторий не должен брать клиента напрямую.</p>
+  <p><b>The rule for choosing.</b> Inside a plugin — only <code>@InjectDatabase()</code>. <code>getDatabase()</code>/<code>getPool()</code> are a deliberate step outside DI; they appear not once in the plugins' sources, and every call sits in <code>apps/server-e2e</code>. There is no third option — “take a transaction” — in this row: the transaction is handed out by <code>UnitOfWork.current()</code>, and that is precisely why a repository must not take the client directly.</p>
 
   <div class="note warn">
-    <span class="label">Тонкость</span>
-    <p><code>@InjectDatabase()</code> и <code>getDatabase()</code> возвращают <b>один и тот же объект</b> — фабрика провайдера просто вызывает <code>getDatabase()</code>. Разница не в клиенте, а в том, кто им управляет. Ни тот, ни другой <b>не</b> знают об активной транзакции: запрос через них всегда идёт мимо неё, на отдельном соединении из пула.</p>
+    <span class="label">A subtlety</span>
+    <p><code>@InjectDatabase()</code> and <code>getDatabase()</code> return <b>the same object</b> — the provider's factory simply calls <code>getDatabase()</code>. The difference is not in the client but in who manages it. Neither of them <b>knows</b> about an active transaction: a query through them always goes past it, on a separate connection from the pool.</p>
   </div>
 
-  <h3>Настройки пула</h3>
+  <h3>Pool settings</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Параметр</th><th>Значение по умолчанию</th><th>Почему выписано явно</th></tr></thead>
+    <thead><tr><th>Parameter</th><th>Default value</th><th>Why it is written out explicitly</th></tr></thead>
     <tbody>
-      <tr><td class="mono">max</td><td class="mono num-col">10</td><td>Совпадает с дефолтом <code>pg</code>, но записано как решение: рядом с ним виден запас, который нужен сливу outbox (слив держит клиента на весь батч, а каждый подписчик берёт своего)</td></tr>
-      <tr><td class="mono">connectionTimeoutMillis</td><td class="mono num-col">10 000</td><td><b>Главное.</b> <code>pg</code> ставит <code>0</code> — «ждать вечно». С этим дефолтом исчерпанный пул не падает, а <em>останавливается</em>: запросы висят на промисе, который никогда не разрешится, в логах пусто, процесс выглядит живым</td></tr>
-      <tr><td class="mono">statement_timeout</td><td class="mono">не задан</td><td>Выключен намеренно: легитимная массовая запись здесь бывает долгой. Включается в развёртывании, которое предпочтёт убить запрос, чем отдать ему клиента навсегда</td></tr>
+      <tr><td class="mono">max</td><td class="mono num-col">10</td><td>Matches <code>pg</code>'s default, but is recorded as a decision: next to it you can see the headroom the outbox drain needs (the drain holds a client for the whole batch, and each subscriber takes its own)</td></tr>
+      <tr><td class="mono">connectionTimeoutMillis</td><td class="mono num-col">10,000</td><td><b>The important one.</b> <code>pg</code> sets <code>0</code> — “wait forever”. With that default an exhausted pool does not fail, it <em>stalls</em>: requests hang on a promise that will never resolve, the logs are empty, and the process looks alive</td></tr>
+      <tr><td class="mono">statement_timeout</td><td class="mono">not set</td><td>Deliberately off: a legitimate bulk write here can be long. It is turned on by a deployment that would rather kill a query than let it hold a client forever</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Все три переопределяются через <code>DatabasePluginConfig</code>. Пул подключается <b>лениво</b> — первое реальное соединение открывается на первом запросе, поэтому загрузка процесса не требует живой БД.</p>
+  <p class="small sub">All three can be overridden through <code>DatabasePluginConfig</code>. The pool connects <b>lazily</b> — the first real connection opens on the first query, so booting the process does not require a live database.</p>
 
-  <h3>Жизненный цикл</h3>
+  <h3>The lifecycle</h3>
   <ol class="flow">
-    <li><b>Открытие — в <code>onPluginInit</code>.</b> <code>createServer</code> прогоняет хук <em>до</em> <code>NestFactory.create</code>, поэтому к моменту, когда собирается любой провайдер, соединение уже есть.
+    <li><b>Opening — in <code>onPluginInit</code>.</b> <code>createServer</code> runs the hook <em>before</em> <code>NestFactory.create</code>, so by the time any provider is constructed the connection already exists.
       <span class="meta">initDatabase(config) → holders = 1</span></li>
-    <li><b>Повторный вызов — не открытие, а присоединение.</b> <code>initDatabase</code> идемпотентен: если <code>database</code> уже есть, он лишь увеличивает <code>holders</code> и выходит. Второе приложение в том же процессе делит пул с первым — и <em>молча наследует его конфигурацию</em>.
+    <li><b>A repeat call is not an opening but a join.</b> <code>initDatabase</code> is idempotent: if <code>database</code> already exists, it merely increments <code>holders</code> and returns. A second application in the same process shares the pool with the first — and <em>silently inherits its configuration</em>.
       <span class="meta">holders += 1</span></li>
-    <li><b>Раздача.</b> <code>DatabaseModule.forRoot()</code> регистрируется глобально и отдаёт <code>DATABASE_TOKEN</code> вместе с тремя примитивами.
+    <li><b>Handing it out.</b> <code>DatabaseModule.forRoot()</code> is registered globally and provides <code>DATABASE_TOKEN</code> along with the three primitives.
       <span class="meta">global: true</span></li>
-    <li><b>Остановка подписчиков.</b> Nest сначала выполняет все <code>onModuleDestroy</code> — там <code>OutboxDispatcher</code> гасит таймер опроса и <b>дожидается</b> слива, который идёт прямо сейчас.
+    <li><b>Stopping the subscribers.</b> Nest first runs every <code>onModuleDestroy</code> — there <code>OutboxDispatcher</code> stops the polling timer and <b>waits out</b> the drain currently in progress.
       <span class="meta">OutboxDispatcher.onModuleDestroy()</span></li>
-    <li><b>Отдача claim'а на пул.</b> Затем срабатывает <code>onApplicationShutdown</code> провайдера <code>DatabaseShutdown</code> → <code>releaseDatabase()</code>: счётчик уменьшается, и только последний вышедший реально закрывает пул.
+    <li><b>Releasing the claim on the pool.</b> Then the <code>DatabaseShutdown</code> provider's <code>onApplicationShutdown</code> fires → <code>releaseDatabase()</code>: the counter decrements, and only the last one out actually closes the pool.
       <span class="meta">holders -= 1; if (holders === 0) closeDatabase()</span></li>
   </ol>
 
   <div class="note">
-    <span class="label">Три решения в закрытии, каждое несущее</span>
-    <p><b>1. <code>onApplicationShutdown</code>, а не <code>onModuleDestroy</code>.</b> Порядок фаз Nest — сначала все <code>onModuleDestroy</code>, потом <code>onApplicationShutdown</code>, — это то, что даёт диспетчеру дожить свой батч до того, как из-под него уберут соединения.</p>
-    <p><b>2. Провайдер, а не хук на классе модуля.</b> У <code>DatabaseModule</code> есть и голый <code>@Module({})</code>, и динамическая форма <code>forRoot()</code>. Плагин, написавший <code>imports: [DatabaseModule]</code> (так делает <code>copilot/server</code>, чтобы задокументировать зависимость), даёт контейнеру <b>второй хост того же класса</b> — хук на классе сработал бы дважды за одно выключение. Провайдер существует только в динамическом модуле, значит ровно один на приложение.</p>
-    <p><b>3. <code>releaseDatabase</code>, а не <code>closeDatabase</code>.</b> Пул — синглтон <em>процесса</em>. Безусловное закрытие обрывает базу под приложением, которое ещё отвечает, а поскольку мемо тоже очищается, выживший падает с «Database not initialized» — сообщением, не называющим причину. <code>closeDatabase</code> сохраняет своё безусловное значение для стенда, который именно этого и хочет.</p>
+    <span class="label">Three decisions in the shutdown, each of them load-bearing</span>
+    <p><b>1. <code>onApplicationShutdown</code>, not <code>onModuleDestroy</code>.</b> Nest's phase order — every <code>onModuleDestroy</code> first, then <code>onApplicationShutdown</code> — is what lets the dispatcher finish its batch before the connections are pulled out from under it.</p>
+    <p><b>2. A provider, not a hook on the module class.</b> <code>DatabaseModule</code> has both a bare <code>@Module({})</code> and the dynamic <code>forRoot()</code> form. A plugin that wrote <code>imports: [DatabaseModule]</code> (as <code>copilot/server</code> does, to document the dependency) gives the container <b>a second host of the same class</b> — a hook on the class would fire twice per shutdown. The provider exists only in the dynamic module, so there is exactly one per application.</p>
+    <p><b>3. <code>releaseDatabase</code>, not <code>closeDatabase</code>.</b> The pool is a <em>process</em> singleton. Closing it unconditionally rips the database out from under an application that is still answering, and since the memo is cleared too, the survivor fails with “Database not initialized” — a message that does not name the cause. <code>closeDatabase</code> keeps its unconditional meaning for a harness that wants exactly that.</p>
   </div>
 
   <div class="note crit">
-    <span class="label">Ловушка, которую закрывает closeDatabase</span>
-    <p>Завершить пул, не очистив мемо, — худший из вариантов: <code>initDatabase</code> идемпотентен по <code>database</code>, поэтому следующий вызов вернётся рано и отдаст <b>завершённый</b> пул. Каждый запрос после этого падает с «Cannot use a pool after calling end on the pool» — сообщением, которое не называет ни виновника, ни причину. Поэтому <code>closeDatabase</code> обнуляет <code>pool</code>, <code>database</code> и <code>holders</code> <em>до</em> <code>await end()</code>.</p>
+    <span class="label">The trap closeDatabase closes</span>
+    <p>Ending the pool without clearing the memo is the worst of all worlds: <code>initDatabase</code> is idempotent on <code>database</code>, so the next call returns early and hands out an <b>ended</b> pool. Every query after that fails with “Cannot use a pool after calling end on the pool” — a message that names neither the culprit nor the cause. That is why <code>closeDatabase</code> nulls <code>pool</code>, <code>database</code> and <code>holders</code> <em>before</em> the <code>await end()</code>.</p>
   </div>
 </section>
 
 <section id="data">
-  <h2 class="sec"><span class="num">04</span>Модель данных</h2>
+  <h2 class="sec"><span class="num">04</span>Data model</h2>
 
-  <p>Одна таблица. Это и есть всё, чем пакет владеет в базе.</p>
+  <p>One table. That is everything the package owns in the database.</p>
 
   <h3><code>outbox_events</code></h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Колонка</th><th>Тип</th><th>Ограничения</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td class="mono">id</td><td class="mono">uuid</td><td>PK, <code>DEFAULT gen_random_uuid()</code></td><td>Это <code>eventId</code> конверта. Он же <b>ключ идемпотентности</b>: подписчик активности кладёт строку журнала с этим же PK</td></tr>
-      <tr><td class="mono">kind</td><td class="mono">text</td><td>NOT NULL</td><td>Что произошло, точечное имя: <code>workspace.created</code></td></tr>
-      <tr><td class="mono">aggregate_type</td><td class="mono">text</td><td>NOT NULL</td><td>Тип корня агрегата: <code>user</code>, <code>workspace</code>, <code>content_entry</code>…</td></tr>
-      <tr><td class="mono">aggregate_id</td><td class="mono">text</td><td>NOT NULL</td><td>Идентификатор корня. <code>text</code>, а не <code>uuid</code>, — идентификаторы контекстов разные</td></tr>
-      <tr><td class="mono">payload</td><td class="mono">jsonb</td><td>NOT NULL</td><td>Данные факта. Сюда же <code>attachActor</code> кладёт ключ <code>actor</code></td></tr>
-      <tr><td class="mono">occurred_at</td><td class="mono">timestamptz</td><td>NOT NULL</td><td><b>Доменное</b> время, не время доставки. Задаёт порядок слива</td></tr>
-      <tr><td class="mono">dispatched_at</td><td class="mono">timestamptz</td><td>NULL до доставки</td><td>Проставляется, когда <em>все</em> подходящие подписчики отработали</td></tr>
-      <tr><td class="mono">attempts</td><td class="mono">integer</td><td>NOT NULL, DEFAULT 0</td><td>Счётчик неудачных доставок. Читается потолком и backoff'ом</td></tr>
-      <tr><td class="mono">next_attempt_at</td><td class="mono">timestamptz</td><td>NULL = «можно сейчас»</td><td>Раньше этого времени строка не берётся. Ставится на каждом провале</td></tr>
+      <tr><td class="mono">id</td><td class="mono">uuid</td><td>PK, <code>DEFAULT gen_random_uuid()</code></td><td>This is the envelope's <code>eventId</code>. It is also the <b>idempotency key</b>: the activity subscriber inserts its log row with the very same PK</td></tr>
+      <tr><td class="mono">kind</td><td class="mono">text</td><td>NOT NULL</td><td>What happened, as a dotted name: <code>workspace.created</code></td></tr>
+      <tr><td class="mono">aggregate_type</td><td class="mono">text</td><td>NOT NULL</td><td>The aggregate root's type: <code>user</code>, <code>workspace</code>, <code>content_entry</code>…</td></tr>
+      <tr><td class="mono">aggregate_id</td><td class="mono">text</td><td>NOT NULL</td><td>The root's identifier. <code>text</code> rather than <code>uuid</code> — different contexts have different identifiers</td></tr>
+      <tr><td class="mono">payload</td><td class="mono">jsonb</td><td>NOT NULL</td><td>The fact's data. This is also where <code>attachActor</code> puts the <code>actor</code> key — now <code>{ id, email, type, label, via }</code> rather than a bare pair, see “The actor, and how it was performed” below</td></tr>
+      <tr><td class="mono">occurred_at</td><td class="mono">timestamptz</td><td>NOT NULL</td><td><b>Domain</b> time, not delivery time. It sets the drain order</td></tr>
+      <tr><td class="mono">dispatched_at</td><td class="mono">timestamptz</td><td>NULL until delivered</td><td>Stamped when <em>every</em> matching subscriber has finished</td></tr>
+      <tr><td class="mono">attempts</td><td class="mono">integer</td><td>NOT NULL, DEFAULT 0</td><td>The count of failed deliveries. Read by the ceiling and by the backoff</td></tr>
+      <tr><td class="mono">next_attempt_at</td><td class="mono">timestamptz</td><td>NULL = “eligible now”</td><td>The row is not picked up before this time. Set on every failure</td></tr>
+      <tr><td class="mono">last_error</td><td class="mono">text</td><td>NULL until a failure</td><td>Why the most recent attempt failed, truncated to 1,000 characters. It exists so that a parked row can <em>answer for itself</em>: the row is a dead letter — an event that should have been recorded and could not be — and its parking is logged, but a log line is loud only to whoever is tailing logs at that moment. Afterwards the single question worth asking (“is anything parked, and why”) had no answer short of a <code>psql</code> session. Diagnostic text from an arbitrary subscriber, so <code>name: message</code> rather than a stack trace</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h4>Индекс</h4>
+  <h4>The index</h4>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>CREATE INDEX "outbox_events_pending_idx"
   ON "outbox_events" USING btree ("occurred_at")
   WHERE "outbox_events"."dispatched_at" is null;</code></pre></div>
-  <p><b>Частичный</b> индекс по <code>occurred_at</code> только над неразобранными строками. Обычный индекс по <code>dispatched_at</code> (так было в <code>0000_init</code>) обслуживал бы фильтр и оставлял Postgres сортировать совпадения; частичный обслуживает фильтр, порядок и лимит <em>вместе</em> и остаётся маленьким — доставленные строки выпадают из него, как только их проштамповали. Это и держит слив дешёвым на таблице, которую никто не чистит.</p>
+  <p>A <b>partial</b> index on <code>occurred_at</code> over undelivered rows only. An ordinary index on <code>dispatched_at</code> (as in <code>0000_init</code>) would serve the filter and leave Postgres to sort the matches; the partial one serves the filter, the ordering and the limit <em>together</em> and stays small — delivered rows fall out of it the moment they are stamped. That is what keeps the drain cheap on a table nobody prunes.</p>
 
-  <h4>Миграции</h4>
+  <h4>Migrations</h4>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Тег</th><th>Что делает</th></tr></thead>
+    <thead><tr><th>Tag</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="mono">0000_init</td><td>Создаёт таблицу (8 колонок) и индекс <code>outbox_events_dispatched_at_idx</code></td></tr>
-      <tr><td class="mono">0001_outbox_retry_backoff</td><td>Удаляет прежний индекс, добавляет <code>next_attempt_at</code>, создаёт частичный <code>outbox_events_pending_idx</code></td></tr>
+      <tr><td class="mono">0000_init</td><td>Creates the table (8 columns) and the <code>outbox_events_dispatched_at_idx</code> index</td></tr>
+      <tr><td class="mono">0001_outbox_retry_backoff</td><td>Drops the old index, adds <code>next_attempt_at</code>, creates the partial <code>outbox_events_pending_idx</code></td></tr>
+      <tr><td class="mono">0002_outbox_last_error</td><td>Adds <code>last_error</code>, so a parked row records why it stopped being retried</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Отслеживаются в собственной таблице <code>__drizzle_migrations_database</code>, ровно как у любого другого плагина. Генерируются <code>nx run @orthacms/database:db:generate --name=&lt;change&gt;</code> (без подключения к БД), применяются хостом через <code>nx run server:db:migrate</code>.</p>
+  <p class="small sub">Tracked in their own <code>__drizzle_migrations_database</code> table, exactly as for any other plugin. Generated with <code>nx run @orthacms/database:db:generate --name=&lt;change&gt;</code> (with no database connection) and applied by the host through <code>nx run server:db:migrate</code>.</p>
 
   <div class="note warn">
-    <span class="label">Чего в таблице нет</span>
-    <p>Нет <b>очистки</b>. Доставленные строки остаются навсегда — ни задания на удаление, ни партиционирования, ни TTL в коде нет. Частичный индекс делает это терпимым для <em>чтения</em> (индекс не растёт), но таблица растёт монотонно, и уборка — задача эксплуатации, а не пакета. Нет также ограничения уникальности по <code>(kind, aggregate_id)</code> — повторные факты об одном агрегате абсолютно легальны.</p>
+    <span class="label">What the table does not have</span>
+    <p>There is no <b>pruning</b>. Delivered rows stay forever — there is no deletion job, no partitioning and no TTL in the code. The partial index makes that tolerable for <em>reading</em> (the index does not grow), but the table grows monotonically, and cleanup is an operations task, not the package's. There is also no uniqueness constraint over <code>(kind, aggregate_id)</code> — repeated facts about one aggregate are perfectly legal.</p>
   </div>
 </section>
 
 <section id="uow">
-  <h2 class="sec"><span class="num">05</span>Unit of Work — контракт и правила</h2>
+  <h2 class="sec"><span class="num">05</span>Unit of Work — the contract and the rules</h2>
 
-  <p><code>UnitOfWork</code> — это граница транзакции для одного use-case. Весь его контракт — три метода, и вся его хитрость — в том, что транзакция передаётся <b>неявно</b>, через <code>AsyncLocalStorage</code>, а не аргументом <code>tx</code> сквозь весь стек вызовов.</p>
+  <p><code>UnitOfWork</code> is the transaction boundary for a single use case. Its whole contract is three methods, and its whole trick is that the transaction is passed <b>implicitly</b>, through <code>AsyncLocalStorage</code>, rather than as a <code>tx</code> argument threaded through the entire call stack.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Метод</th><th>Что делает</th><th>Что важно помнить</th></tr></thead>
+    <thead><tr><th>Method</th><th>What it does</th><th>What to keep in mind</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">run&lt;T&gt;(fn)</td>
-        <td>Выполняет <code>fn</code> внутри транзакции. Если вызов <b>вложенный</b> (мы уже внутри <code>run</code>) — просто <code>await fn()</code>: присоединяется к внешней транзакции, новой не открывает</td>
-        <td>Всё дерево коммитится или откатывается целиком. После коммита <b>самой внешней</b> транзакции вызывается слив outbox</td>
+        <td>Runs <code>fn</code> inside a transaction. If the call is <b>nested</b> (we are already inside a <code>run</code>) it is simply <code>await fn()</code>: it joins the outer transaction and opens no new one</td>
+        <td>The whole tree commits or rolls back as a unit. After the <b>outermost</b> transaction commits, the outbox drain is invoked</td>
       </tr>
       <tr>
         <td class="mono">current()</td>
-        <td>Возвращает исполнителя: активную транзакцию внутри <code>run</code>, иначе — базовое соединение пула</td>
-        <td><b>Не бросает</b> вне <code>run</code>. Это намеренно: чтение вне единицы работы — обычное дело и не должно требовать церемонии</td>
+        <td>Returns an executor: the active transaction inside a <code>run</code>, otherwise the pool's base connection</td>
+        <td><b>Does not throw</b> outside a <code>run</code>. That is deliberate: reading outside a unit of work is routine and should not require ceremony</td>
       </tr>
       <tr>
         <td class="mono">isActive()</td>
-        <td>Есть ли транзакция на этом дереве вызовов</td>
-        <td>Существует ровно для одного потребителя — <code>OutboxWriter.append</code>, который обязан отказаться работать вне транзакции</td>
+        <td>Whether there is a transaction on this call tree</td>
+        <td>It exists for exactly one consumer — <code>OutboxWriter.append</code>, which must refuse to work outside a transaction</td>
       </tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Почему проверку вынесли из <code>current()</code></h3>
-  <p>Это ключевое проектное решение, и оно асимметрично по замыслу: <b>чтение</b> вне единицы работы законно, <b>запись события</b> — нет. Если бы <code>current()</code> бросал вне <code>run</code>, каждый простой <code>SELECT</code> в сервисе пришлось бы оборачивать в транзакцию. Поэтому проверка предлагается (<code>isActive()</code>) и <em>принуждается тем, кому она нужна</em>.</p>
+  <h3>Why the check was moved out of <code>current()</code></h3>
+  <p>This is the key design decision, and it is asymmetric by intent: <b>reading</b> outside a unit of work is legitimate, <b>writing an event</b> is not. If <code>current()</code> threw outside a <code>run</code>, every simple <code>SELECT</code> in a service would have to be wrapped in a transaction. So the check is offered (<code>isActive()</code>) and <em>enforced by whoever needs it</em>.</p>
 
-  <h3>Что происходит после коммита</h3>
+  <h3>What happens after the commit</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>const result = await this.db.transaction((tx) =&gt; this.als.run({ tx }, fn));
 
 // Post-commit, best-effort drain. Swallow — the poll backstop retries.
@@ -534,68 +535,68 @@ try {
 }
 
 return result;</code></pre></div>
-  <p>Слив вызывается <b>после</b> коммита и <b>ожидается</b> (<code>await</code>) — поэтому в норме к моменту возврата ответа строка журнала уже есть. При этом любая ошибка слива <b>проглатывается</b>: состояние уже надёжно записано, а события подберёт опрос. Отказ доставки не имеет права откатить бизнес-запись — это и есть смысл всей конструкции.</p>
+  <p>The drain is invoked <b>after</b> the commit and is <b>awaited</b> (<code>await</code>) — so under normal conditions the log row already exists by the time the response is returned. At the same time any drain error is <b>swallowed</b>: the state is already durably written, and the poll will pick the events up. A delivery failure has no right to roll back a business write — that is the entire point of the construction.</p>
 
   <div class="note warn">
-    <span class="label">Наблюдаемость</span>
-    <p>Блок <code>catch</code> в <code>UnitOfWork.run</code> — пустой: <b>ни одной строки в лог</b>. Сам <code>drainOnce</code> логирует провал каждой отдельной доставки, а <code>pollOnce</code> логирует провал слива целиком, так что молчание здесь не абсолютное — но провал именно пост-коммитного слива (например, невозможность взять клиента из пула) виден только через отставание опроса.</p>
+    <span class="label">Observability</span>
+    <p>The <code>catch</code> block in <code>UnitOfWork.run</code> is empty: <b>not a single log line</b>. <code>drainOnce</code> itself logs the failure of each individual delivery, and <code>pollOnce</code> logs a failure of the drain as a whole, so the silence is not absolute — but a failure of the post-commit drain specifically (an inability to take a client from the pool, say) is visible only through the poll falling behind.</p>
   </div>
 
-  <h3>Правила использования</h3>
+  <h3>Rules for use</h3>
   <ul>
-    <li><b>Границу открывает use-case, а не репозиторий и не контроллер.</b> Репозиторий обязан ходить через <code>uow.current()</code>, иначе он не попадёт в транзакцию — он получит базовый пул и запишет мимо.</li>
-    <li><b>Вложенный <code>run</code> безопасен.</b> Use-case, вызывающий другой use-case, не открывает вторую транзакцию и не рискует получить взаимную блокировку с самим собой.</li>
-    <li><b><code>append</code> — последним шагом.</b> События вынимаются из агрегата (<code>pullEvents()</code>), при необходимости обогащаются актором и кладутся в outbox <em>внутри</em> той же <code>run</code>.</li>
-    <li><b>Не держать <code>run</code> вокруг внешних вызовов.</b> Транзакция занимает клиента из пула на 10 мест; HTTP-запрос к внешнему сервису внутри неё — это удержанный клиент и удержанные блокировки.</li>
-    <li><b>Не полагаться на побочные эффекты подписчиков внутри <code>run</code>.</b> Слив идёт строго после коммита, значит внутри транзакции журнал ещё пуст.</li>
+    <li><b>The boundary is opened by the use case, not by a repository and not by a controller.</b> A repository must go through <code>uow.current()</code>, otherwise it will not land in the transaction — it will get the base pool and write past it.</li>
+    <li><b>A nested <code>run</code> is safe.</b> A use case calling another use case does not open a second transaction and does not risk deadlocking against itself.</li>
+    <li><b><code>append</code> comes last.</b> Events are pulled out of the aggregate (<code>pullEvents()</code>), enriched with the actor if needed, and put into the outbox <em>inside</em> the same <code>run</code>.</li>
+    <li><b>Do not hold a <code>run</code> around external calls.</b> A transaction occupies one of the pool's 10 clients; an HTTP request to an external service inside it means a held client and held locks.</li>
+    <li><b>Do not rely on subscribers' side effects inside a <code>run</code>.</b> The drain happens strictly after the commit, so inside the transaction the log is still empty.</li>
   </ul>
 </section>
 
 <section id="outbox">
-  <h2 class="sec"><span class="num">06</span>Транзакционный outbox</h2>
+  <h2 class="sec"><span class="num">06</span>The transactional outbox</h2>
 
-  <p>Главный раздел. Задача паттерна формулируется одной фразой: <b>записать состояние и намерение сообщить о нём атомарно, не имея распределённой транзакции</b>. Здесь нет ни брокера, ни двухфазного коммита — только таблица в той же базе и фоновая доставка из неё.</p>
+  <p>The main section. The pattern's task can be put in one sentence: <b>record the state and the intent to announce it atomically, without having a distributed transaction</b>. There is no broker here and no two-phase commit — only a table in the same database and background delivery out of it.</p>
 
-  <h3>Числа, зашитые в код</h3>
+  <h3>The numbers baked into the code</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Константа</th><th>Значение</th><th>Что означает</th></tr></thead>
+    <thead><tr><th>Constant</th><th>Value</th><th>What it means</th></tr></thead>
     <tbody>
-      <tr><td class="mono">DRAIN_BATCH_SIZE</td><td class="mono num-col">100</td><td>Сколько строк один слив забирает и доставляет за раз</td></tr>
-      <tr><td class="mono">POLL_INTERVAL_MS</td><td class="mono num-col">5 000</td><td>Период страховочного опроса, мс</td></tr>
-      <tr><td class="mono">MAX_DELIVERY_ATTEMPTS</td><td class="mono num-col">15</td><td>Потолок неудачных доставок; после него строка не берётся вовсе</td></tr>
-      <tr><td class="mono">RETRY_BASE_DELAY_MS</td><td class="mono num-col">1 000</td><td>Пауза после первого провала; далее удваивается</td></tr>
-      <tr><td class="mono">RETRY_MAX_DELAY_MS</td><td class="mono num-col">300 000</td><td>Потолок паузы — 5 минут, дальше плато</td></tr>
+      <tr><td class="mono">DRAIN_BATCH_SIZE</td><td class="mono num-col">100</td><td>How many rows one drain takes and delivers at a time</td></tr>
+      <tr><td class="mono">POLL_INTERVAL_MS</td><td class="mono num-col">5,000</td><td>The backstop poll's period, in ms</td></tr>
+      <tr><td class="mono">MAX_DELIVERY_ATTEMPTS</td><td class="mono num-col">15</td><td>The ceiling on failed deliveries; past it the row is not picked up at all</td></tr>
+      <tr><td class="mono">RETRY_BASE_DELAY_MS</td><td class="mono num-col">1,000</td><td>The pause after the first failure; doubled thereafter</td></tr>
+      <tr><td class="mono">RETRY_MAX_DELAY_MS</td><td class="mono num-col">300,000</td><td>The pause ceiling — 5 minutes, a plateau beyond that</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Как писатель кладёт событие</h3>
-  <p><code>OutboxWriter.append(events)</code> — три правила и одна вставка:</p>
+  <h3>How a writer appends an event</h3>
+  <p><code>OutboxWriter.append(events)</code> — three rules and one insert:</p>
   <ol class="flow">
-    <li><b>Пустой массив — тихий выход.</b> Ни запроса, ни ошибки.
+    <li><b>An empty array is a silent return.</b> No query and no error.
       <span class="meta">if (events.length === 0) return;</span></li>
-    <li><b>Вне <code>UnitOfWork.run</code> — исключение.</b> Не предупреждение, не лог, а отказ. Вне единицы работы <code>uow.current()</code> вернул бы базовый пул, вставка закоммитилась бы на собственном соединении, и событие пережило бы откатившееся изменение состояния — ровно то, ради предотвращения чего паттерн существует.
+    <li><b>Outside a <code>UnitOfWork.run</code> — an exception.</b> Not a warning, not a log line, but a refusal. Outside a unit of work <code>uow.current()</code> would return the base pool, the insert would commit on its own connection, and the event would outlive a rolled-back state change — precisely what the pattern exists to prevent.
       <span class="meta">if (!this.uow.isActive()) throw new Error(...)</span></li>
-    <li><b>Вставка через <code>uow.current()</code>.</b> Значит — в ту же транзакцию, что и изменение состояния. Строки создаются как <code>dispatchedAt: null</code>, <code>attempts: 0</code>; <code>next_attempt_at</code> не задаётся и остаётся <code>NULL</code>, что для слива означает «можно брать прямо сейчас».
+    <li><b>The insert goes through <code>uow.current()</code>.</b> Which means into the same transaction as the state change. Rows are created with <code>dispatchedAt: null</code>, <code>attempts: 0</code>; <code>next_attempt_at</code> is not set and stays <code>NULL</code>, which for the drain means “eligible right now”.
       <span class="meta">insert(outboxEvents).values(...)</span></li>
   </ol>
-  <p><code>id</code> строки берётся из <code>event.eventId</code>, а не генерируется базой. Следствие: <b>повтор одного <code>eventId</code> внутри одной единицы работы валит всю единицу работы</b> нарушением первичного ключа — что и проверяется отдельным e2e-тестом. Это скорее защита, чем ограничение: два разных факта с одним идентификатором сломали бы идемпотентность подписчиков.</p>
+  <p>A row's <code>id</code> is taken from <code>event.eventId</code> rather than generated by the database. The consequence: <b>repeating one <code>eventId</code> within a single unit of work fails the whole unit of work</b> on a primary-key violation — which a dedicated e2e test checks. This is protection more than a limitation: two different facts sharing one identifier would break subscribers' idempotency.</p>
 
-  <h3>Два триггера слива</h3>
+  <h3>Two drain triggers</h3>
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">Быстрый путь — после коммита</h4>
-      <p class="small sub"><code>UnitOfWork.run</code> вызывает <code>dispatcher.drain()</code> сразу после коммита и дожидается его. Это нормальный режим: событие доставлено ещё до того, как HTTP-ответ ушёл клиенту.</p>
+      <h4 style="margin-top:0">The fast path — after the commit</h4>
+      <p class="small sub"><code>UnitOfWork.run</code> calls <code>dispatcher.drain()</code> right after the commit and awaits it. This is the normal mode: the event is delivered before the HTTP response has even gone out to the client.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Страховка — опрос раз в 5 секунд</h4>
-      <p class="small sub"><code>setInterval</code>, запускается в <code>onApplicationBootstrap</code>, снабжён <code>unref()</code> — не удерживает процесс живым. Ловит всё, что быстрый путь потерял: падение процесса между коммитом и сливом, проглоченную ошибку, строку, ожидавшую <code>next_attempt_at</code>. Тик защищён флагом <code>draining</code> и пропускается, если слив уже идёт.</p>
+      <h4 style="margin-top:0">The backstop — a poll every 5 seconds</h4>
+      <p class="small sub">A <code>setInterval</code>, started in <code>onApplicationBootstrap</code> and given an <code>unref()</code> — it does not keep the process alive. It catches everything the fast path lost: a process crash between the commit and the drain, a swallowed error, a row waiting on <code>next_attempt_at</code>. A tick is guarded by the <code>draining</code> flag and is skipped if a drain is already under way.</p>
     </div>
   </div>
 
-  <h3>Механика одного слива (<code>drainOnce</code>)</h3>
-  <p>Весь батч выполняется <b>внутри одной транзакции</b> диспетчера — отдельной от той, в которой событие было записано.</p>
+  <h3>The mechanics of one drain (<code>drainOnce</code>)</h3>
+  <p>The whole batch runs <b>inside one transaction</b> of the dispatcher's — separate from the one the event was written in.</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>SELECT * FROM outbox_events
 WHERE dispatched_at IS NULL
   AND attempts &lt; 15
@@ -603,172 +604,205 @@ WHERE dispatched_at IS NULL
 ORDER BY occurred_at
 LIMIT 100
 FOR UPDATE SKIP LOCKED;</code></pre></div>
-  <p>Три условия выборки и каждое несёт свой смысл: <code>dispatched_at IS NULL</code> — ещё не доставлено; <code>attempts &lt; 15</code> — не «мёртвое письмо»; <code>next_attempt_at</code> — пауза backoff'а истекла. Сортировка по <b>доменному</b> времени, лимит 100, и <code>FOR UPDATE SKIP LOCKED</code>.</p>
-  <p>Дальше для каждой строки по порядку:</p>
+  <p>Three selection conditions, each carrying its own meaning: <code>dispatched_at IS NULL</code> — not yet delivered; <code>attempts &lt; 15</code> — not a “dead letter”; <code>next_attempt_at</code> — the backoff pause has elapsed. Ordering is by <b>domain</b> time, the limit is 100, and there is a <code>FOR UPDATE SKIP LOCKED</code>.</p>
+  <p>Then, for each row in order:</p>
   <ol class="flow">
-    <li><b>Восстановление конверта.</b> Строка разворачивается обратно в <code>DomainEvent</code>: <code>eventId = row.id</code>, <code>payload</code> приводится к <code>Record&lt;string, unknown&gt;</code>. Обратите внимание: <code>attempts</code> и <code>nextAttemptAt</code> в конверт <b>не попадают</b> — подписчик не знает, какая это попытка.
+    <li><b>Reconstructing the envelope.</b> The row is unfolded back into a <code>DomainEvent</code>: <code>eventId = row.id</code>, and <code>payload</code> is cast to <code>Record&lt;string, unknown&gt;</code>. Note: <code>attempts</code> and <code>nextAttemptAt</code> do <b>not</b> make it into the envelope — a subscriber does not know which attempt this is.
       <span class="meta">row → DomainEvent</span></li>
-    <li><b>Подбор подписчиков.</b> <code>subscribersFor(kind)</code> объединяет статически внедрённых (токен <code>DOMAIN_EVENT_SUBSCRIBERS</code>, по умолчанию пустой массив) и зарегистрированных в рантайме, и фильтрует по <code>kinds === '*' || kinds.includes(kind)</code>.
+    <li><b>Selecting subscribers.</b> <code>subscribersFor(kind)</code> combines the statically injected ones (the <code>DOMAIN_EVENT_SUBSCRIBERS</code> token, an empty array by default) with those registered at runtime, and filters by <code>kinds === '*' || kinds.includes(kind)</code>.
       <span class="meta">injected ++ registered</span></li>
-    <li><b>Последовательная доставка.</b> Подписчики вызываются в цикле <code>await</code>, один за другим. Параллельности нет — это осознанно: каждый берёт собственного клиента из пула на 10 мест.
+    <li><b>Sequential delivery.</b> Subscribers are called in an <code>await</code> loop, one after another. There is no parallelism — deliberately: each takes its own client from a pool of 10.
       <span class="meta">for (const s of subs) await s.handle(event)</span></li>
-    <li><b>Успех — штамп.</b> Если <em>все</em> подписчики отработали без исключения, строке проставляется <code>dispatched_at = now</code> той же транзакцией слива.
+    <li><b>Success — the stamp.</b> If <em>every</em> subscriber finished without throwing, the row is stamped <code>dispatched_at = now</code> in the drain's own transaction.
       <span class="meta">UPDATE ... SET dispatched_at = now</span></li>
-    <li><b>Провал — счётчик и пауза.</b> Первое же исключение прерывает доставку этой строки (остальные подписчики этого события в этой попытке уже не вызываются). Пишется лог уровня <code>error</code>, затем <code>attempts += 1</code> и <code>next_attempt_at = nextAttemptAfter(attempts, now)</code>. Строка остаётся <code>dispatched_at IS NULL</code>.
+    <li><b>Failure — the counter and the pause.</b> The very first exception aborts delivery of that row (the event's remaining subscribers are not called on this attempt). An <code>error</code>-level log line is written, then <code>attempts += 1</code> and <code>next_attempt_at = nextAttemptAfter(attempts, now)</code>. The row stays <code>dispatched_at IS NULL</code>.
       <span class="meta">UPDATE ... SET attempts, next_attempt_at</span></li>
-    <li><b>Следующая строка.</b> Провал одной строки не прерывает батч — цикл идёт дальше. Один плохой подписчик не блокирует чужие события.
+    <li><b>The next row.</b> One row's failure does not abort the batch — the loop moves on. One bad subscriber does not block other people's events.
       <span class="meta">continue</span></li>
   </ol>
 
-  <h3>Backoff: почему без него потолок ничего не значит</h3>
+  <h3>Backoff: why the ceiling means nothing without it</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function nextAttemptAfter(attempts: number, now: Date): Date {
     const delay = Math.min(1_000 * 2 ** (attempts - 1), 5 * 60_000);
     return new Date(now.getTime() + delay);
 }</code></pre></div>
-  <p>Слив запускается <em>коммитами</em>, а на нагруженном сервере коммиты идут вплотную. Потолок в 15 попыток без пауз был бы исчерпан за миллисекунды, и подписчик, недоступный одно мгновение, увидел бы все свои события уже «мёртвыми» к моменту возвращения.</p>
+  <p>The drain is triggered by <em>commits</em>, and on a busy server commits come back to back. A ceiling of 15 attempts without pauses would be spent in milliseconds, and a subscriber unavailable for a single instant would find all of its events already “dead” by the time it came back.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th class="center">Провал №</th><th>Пауза до следующей попытки</th><th class="center">Провал №</th><th>Пауза до следующей попытки</th></tr></thead>
+    <thead><tr><th class="center">Failure #</th><th>Pause before the next attempt</th><th class="center">Failure #</th><th>Pause before the next attempt</th></tr></thead>
     <tbody>
-      <tr><td class="center num-col">1</td><td class="mono">1 с</td><td class="center num-col">9</td><td class="mono">256 с</td></tr>
-      <tr><td class="center num-col">2</td><td class="mono">2 с</td><td class="center num-col">10</td><td class="mono">300 с (плато)</td></tr>
-      <tr><td class="center num-col">3</td><td class="mono">4 с</td><td class="center num-col">11</td><td class="mono">300 с</td></tr>
-      <tr><td class="center num-col">4</td><td class="mono">8 с</td><td class="center num-col">12</td><td class="mono">300 с</td></tr>
-      <tr><td class="center num-col">5</td><td class="mono">16 с</td><td class="center num-col">13</td><td class="mono">300 с</td></tr>
-      <tr><td class="center num-col">6</td><td class="mono">32 с</td><td class="center num-col">14</td><td class="mono">300 с</td></tr>
-      <tr><td class="center num-col">7</td><td class="mono">64 с</td><td class="center num-col">15</td><td class="mono">строка припаркована</td></tr>
-      <tr><td class="center num-col">8</td><td class="mono">128 с</td><td class="center">—</td><td class="sub">суммарно ≈ 33 минуты до «мёртвого письма»</td></tr>
+      <tr><td class="center num-col">1</td><td class="mono">1 s</td><td class="center num-col">9</td><td class="mono">256 s</td></tr>
+      <tr><td class="center num-col">2</td><td class="mono">2 s</td><td class="center num-col">10</td><td class="mono">300 s (plateau)</td></tr>
+      <tr><td class="center num-col">3</td><td class="mono">4 s</td><td class="center num-col">11</td><td class="mono">300 s</td></tr>
+      <tr><td class="center num-col">4</td><td class="mono">8 s</td><td class="center num-col">12</td><td class="mono">300 s</td></tr>
+      <tr><td class="center num-col">5</td><td class="mono">16 s</td><td class="center num-col">13</td><td class="mono">300 s</td></tr>
+      <tr><td class="center num-col">6</td><td class="mono">32 s</td><td class="center num-col">14</td><td class="mono">300 s</td></tr>
+      <tr><td class="center num-col">7</td><td class="mono">64 s</td><td class="center num-col">15</td><td class="mono">the row is parked</td></tr>
+      <tr><td class="center num-col">8</td><td class="mono">128 s</td><td class="center">—</td><td class="sub">≈ 33 minutes in total before it becomes a “dead letter”</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Юнит-тест закрепляет это как диапазон, а не как точное число: сумма пауз больше 20 и меньше 60 минут — «примерно полчаса». И отдельно проверяется, что пауза никогда не отрицательна: <code>nextAttemptAfter(n, now) &gt; now</code> для всех <code>n</code> от 1 до 15.</p>
+  <p class="small sub">A unit test pins this down as a range rather than an exact number: the sum of the pauses is more than 20 and less than 60 minutes — “about half an hour”. And it is separately checked that a pause is never negative: <code>nextAttemptAfter(n, now) &gt; now</code> for every <code>n</code> from 1 to 15.</p>
 
-  <h3>Потолок попыток: зачем он вообще</h3>
+  <h3>The attempt ceiling: why it exists at all</h3>
   <div class="note crit">
-    <span class="label">Дефект, который закрыл потолок</span>
-    <p>Без потолка поле <code>attempts</code> писалось и <b>никогда не читалось</b>. Выборка — <code>ORDER BY occurred_at LIMIT 100</code>, то есть строка, чей подписчик не может отработать никогда, переизбиралась на каждом тике вечно. Стоило накопиться сотне таких строк — и они навсегда занимали голову очереди: <b>ни одно новое событие больше не доставлялось</b>. Потолок паркует строку и пропускает очередь дальше.</p>
+    <span class="label">The defect the ceiling closed</span>
+    <p>Without a ceiling the <code>attempts</code> field was written and <b>never read</b>. The selection is <code>ORDER BY occurred_at LIMIT 100</code>, so a row whose subscriber can never succeed was re-selected on every tick forever. Let a hundred such rows accumulate and they permanently occupied the head of the queue: <b>no new event was ever delivered again</b>. The ceiling parks the row and lets the queue move on.</p>
   </div>
   <div class="states">
     <span class="state pending">dispatched_at IS NULL, attempts = 0</span>
     <span class="arrow">→</span>
-    <span class="state pending">attempts 1…14, ждёт next_attempt_at</span>
+    <span class="state pending">attempts 1…14, waiting on next_attempt_at</span>
     <span class="arrow">→</span>
     <span class="state active">dispatched_at = now</span>
   </div>
   <div class="states">
     <span class="state pending">attempts 1…14</span>
     <span class="arrow">→</span>
-    <span class="state disabled">attempts ≥ 15 — мёртвое письмо, не берётся</span>
+    <span class="state disabled">attempts ≥ 15 — a dead letter, never picked up</span>
     <span class="arrow">→</span>
-    <span class="state pending">оператор обнулил attempts — снова в очереди</span>
+    <span class="state pending">an operator zeroed attempts — back in the queue</span>
   </div>
-  <p><b>Запрос мёртвых писем</b> — тот же предикат, что в коде:</p>
-  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>-- посмотреть
-SELECT id, kind, aggregate_type, aggregate_id, attempts, occurred_at
+  <p><b>The dead-letter query</b> — the same predicate as in the code, and now also as a method:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>-- have a look
+SELECT id, kind, aggregate_type, aggregate_id, attempts, last_error, occurred_at
 FROM outbox_events
 WHERE dispatched_at IS NULL AND attempts &gt;= 15
-ORDER BY occurred_at;
+ORDER BY occurred_at DESC;
 
--- проиграть заново, после того как причина устранена
+-- replay, once the cause has been fixed
 UPDATE outbox_events SET attempts = 0, next_attempt_at = NULL
 WHERE id = '...';</code></pre></div>
-  <p class="small sub">Ни экрана в админке, ни HTTP-маршрута для этого нет — только SQL. Лог на 15-й неудаче печатает и сам запрос, и объясняет, что строка больше не берётся.</p>
 
-  <h3>Конкурентность: один слив на процесс, много процессов подряд</h3>
+  <p><code>OutboxDispatcher.deadLetters({ limit, newerThan })</code> is that query as a method, returning <code>{ total, items }</code> — <code>total</code> separate from <code>items</code> so a caller can render “3 events could not be recorded” without paging. The payload is deliberately left out of a <code>DeadLetter</code>: it is arbitrary domain data, some of it user-authored, and the caller is an operator asking <em>what</em> is stuck rather than replaying it.</p>
+
+  <div class="note">
+    <span class="label">Why this stopped being SQL-only</span>
+    <p>A parked row is very often an <b>audit row that was never written</b>, and a hole in an audit trail that is only visible to somebody who thinks to run a query is barely a hole that has been noticed. So <code>@orthacms/activity-server</code> serves this method at <code>GET /api/activity/dead-letters</code> under <code>activity:read</code>, and its admin page renders a non-zero <code>total</code> as a notice above the log — on the page whose whole job is being the record of record.</p>
+    <p>The route <b>reports rather than repairs</b>: replaying still means the <code>UPDATE</code> above, a deliberate operator action against a fixed cause, not a button that re-runs whatever failed fifteen times. Database owns the query and the column; it owns no HTTP route, here as everywhere.</p>
+  </div>
+
+  <h3>Concurrency: one drain per process, many processes side by side</h3>
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">Между процессами — <code>SKIP LOCKED</code></h4>
-      <p class="small sub">Две реплики сервера берут <b>непересекающиеся</b> наборы строк и не блокируют друг друга. Горизонтальное масштабирование не требует ни лидера, ни координации.</p>
+      <h4 style="margin-top:0">Between processes — <code>SKIP LOCKED</code></h4>
+      <p class="small sub">Two server replicas take <b>disjoint</b> sets of rows and do not block each other. Horizontal scaling requires neither a leader nor coordination.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Внутри процесса — схлопывание вызовов</h4>
-      <p class="small sub"><code>drain()</code> держит максимум два слива: активный и <b>один</b> в очереди. Все, кто пришёл, пока идёт активный, присоединяются к одному и тому же отложенному сливу. Тот стартует после того, как все они закоммитили, — значит каждый всё равно получает свою гарантию «мои строки слиты до возврата <code>await</code>», но без слива на каждого вызывающего.</p>
+      <h4 style="margin-top:0">Within a process — call coalescing</h4>
+      <p class="small sub"><code>drain()</code> holds at most two drains: the active one and <b>one</b> queued. Everyone who arrives while the active one is running joins that same deferred drain. It starts after all of them have committed — so each still gets its guarantee that “my rows were drained before the <code>await</code> returned”, but without one drain per caller.</p>
     </div>
   </div>
   <div class="note crit">
-    <span class="label">Почему нельзя иначе</span>
-    <p>Слив держит клиента пула <b>на весь батч</b>, а каждый подписчик, которого он вызывает, берёт своего. Запусти достаточно сливов одновременно — и весь пул из 10 клиентов занят сливами, каждый из которых ждёт клиента, который никогда не освободится. Взаимная блокировка <b>без таймаута, без лога и без восстановления</b>, воспроизводимо достижимая с дюжины параллельных запросов поверх накопившейся очереди. Отсюда и правило «один слив на процесс», и отдельный e2e-тест, проверяющий <code>getPool().waitingCount === 0</code>.</p>
+    <span class="label">Why it cannot be otherwise</span>
+    <p>A drain holds a pool client <b>for the whole batch</b>, and every subscriber it calls takes one of its own. Start enough drains at once and the entire pool of 10 clients is occupied by drains, each waiting for a client that will never be freed. A deadlock <b>with no timeout, no log line and no recovery</b>, reproducibly reachable from a dozen parallel requests on top of an accumulated queue. Hence both the “one drain per process” rule and a dedicated e2e test asserting <code>getPool().waitingCount === 0</code>.</p>
   </div>
 
-  <h3>Гарантии — и чего гарантий нет</h3>
+  <h3>The guarantees — and what is not guaranteed</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Свойство</th><th class="center">Есть?</th><th>Как обеспечено</th></tr></thead>
+    <thead><tr><th>Property</th><th class="center">Present?</th><th>How it is ensured</th></tr></thead>
     <tbody>
-      <tr><td>Атомарность события и изменения состояния</td><td class="center yes">да</td><td>Одна транзакция; <code>append</code> вне <code>run</code> запрещён исключением</td></tr>
-      <tr><td>Доставка как минимум один раз</td><td class="center yes">да</td><td>Строка не штампуется, пока все подписчики не отработали; при провале — повтор</td></tr>
-      <tr><td>Доставка ровно один раз</td><td class="center no">нет</td><td>Побочный эффект подписчика коммитится на <em>своём</em> соединении, а штамп <code>dispatched_at</code> — в транзакции слива. Разрыв между ними — это и есть повторная доставка</td></tr>
-      <tr><td>Идемпотентность подписчиков</td><td class="center no">не гарантируется пакетом</td><td>Требование к автору подписчика. Оба поставляемых подписчика ему следуют</td></tr>
-      <tr><td>Порядок доставки</td><td class="center no">частично</td><td>Внутри одного батча — по <code>occurred_at</code>. Между батчами, репликами и после провала с паузой — не гарантирован</td></tr>
-      <tr><td>Доставка после исчерпания попыток</td><td class="center no">нет</td><td>Строка паркуется. Ручной повтор через обнуление <code>attempts</code></td></tr>
-      <tr><td>Сохранность при остановке процесса</td><td class="center yes">да</td><td><code>onModuleDestroy</code> дожидается слива в полёте — не более одного батча</td></tr>
+      <tr><td>Atomicity of the event and the state change</td><td class="center yes">yes</td><td>One transaction; <code>append</code> outside a <code>run</code> is forbidden by an exception</td></tr>
+      <tr><td>At-least-once delivery</td><td class="center yes">yes</td><td>The row is not stamped until every subscriber has finished; on failure it is retried</td></tr>
+      <tr><td>Exactly-once delivery</td><td class="center no">no</td><td>A subscriber's side effect commits on <em>its own</em> connection, while the <code>dispatched_at</code> stamp lands in the drain's transaction. The gap between them is precisely a repeat delivery</td></tr>
+      <tr><td>Subscriber idempotency</td><td class="center no">not guaranteed by the package</td><td>A requirement on the subscriber's author. Both shipped subscribers honour it</td></tr>
+      <tr><td>Delivery order</td><td class="center no">partly</td><td>Within one batch, by <code>occurred_at</code>. Between batches, across replicas and after a failure with a pause — not guaranteed</td></tr>
+      <tr><td>Delivery after the attempts are exhausted</td><td class="center no">no</td><td>The row is parked. A manual retry means zeroing <code>attempts</code></td></tr>
+      <tr><td>Durability across a process shutdown</td><td class="center yes">yes</td><td><code>onModuleDestroy</code> waits out the in-flight drain — at most one batch</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Идемпотентность на практике</h3>
-  <p>Ключ идемпотентности — <code>eventId</code>, он же PK строки outbox. Как им пользуются два поставляемых подписчика:</p>
+  <h3>Idempotency in practice</h3>
+  <p>The idempotency key is the <code>eventId</code>, which is also the outbox row's PK. How the two shipped subscribers use it:</p>
   <ul>
-    <li><b><code>activity/server</code>, <code>AuditEventSubscriber</code>.</b> Первичный ключ строки журнала — это <code>event.eventId</code>, вставка идёт с <code>ON CONFLICT DO NOTHING</code>. Повторная доставка не создаёт второй записи в аудите.</li>
-    <li><b><code>alarms/server</code>, <code>EntryEventSubscriber</code>.</b> Идемпотентность структурная: находка апсертится по ключу <code>(rule_id, entry_id)</code>, а пути удаления и закрытия — операции над множествами, повтор которых ничего не меняет.</li>
+    <li><b><code>activity/server</code>, <code>AuditEventSubscriber</code>.</b> The log row's primary key is the <code>event.eventId</code>, and the insert carries <code>ON CONFLICT DO NOTHING</code>. A repeat delivery creates no second audit record.</li>
+    <li><b><code>alarms/server</code>, <code>EntryEventSubscriber</code>.</b> Its idempotency is structural: a finding is upserted on the <code>(rule_id, entry_id)</code> key, and the deletion and closing paths are set operations that a repeat changes nothing about.</li>
   </ul>
-  <p>Отдельно стоит различие, которое делает маппер аудита: <code>null</code> означает «событие не наше, пропустить» и строка помечается доставленной; <b>исключение</b> означает «событие должно было попасть в аудит, но не может» — строка остаётся неразобранной, уходит в повторы с backoff'ом и в конце паркуется как мёртвое письмо, а не превращается в запись, которую никто не сможет прочитать.</p>
+  <p>Worth calling out separately is the distinction the audit mapper draws: <code>null</code> means “not our event, skip it” and the row is marked delivered; an <b>exception</b> means “this event should have reached the audit log but cannot” — the row stays undelivered, goes into retries with backoff and is eventually parked as a dead letter rather than turning into a record nobody will be able to read.</p>
 </section>
 
 <section id="events">
-  <h2 class="sec"><span class="num">07</span>Контракт DomainEvent и каталог видов</h2>
+  <h2 class="sec"><span class="num">07</span>The DomainEvent contract and the catalogue of kinds</h2>
 
-  <p>Конверт нарочно беден: шесть полей, ноль зависимостей от фреймворков. Его может собрать любой слой, включая <code>domain/</code>, которому по правилу ADR-0003 запрещено видеть Nest и Drizzle.</p>
+  <p>The envelope is deliberately poor: six fields and zero framework dependencies. Any layer can build one, including <code>domain/</code>, which under ADR-0003's rule is forbidden to see Nest and Drizzle.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Поле</th><th>Тип</th><th>Заполняет</th><th>Назначение</th></tr></thead>
+    <thead><tr><th>Field</th><th>Type</th><th>Filled by</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td class="mono">eventId</td><td class="mono">string (uuid)</td><td><code>createDomainEvent</code>, если не задан</td><td>Ключ идемпотентности для доставки «как минимум один раз»</td></tr>
-      <tr><td class="mono">kind</td><td class="mono">string</td><td>вызывающий</td><td>Точечное имя факта: <code>entry.published</code></td></tr>
-      <tr><td class="mono">aggregateType</td><td class="mono">string</td><td>хелпер контекста</td><td>Тип корня агрегата</td></tr>
-      <tr><td class="mono">aggregateId</td><td class="mono">string</td><td>хелпер контекста</td><td>Идентификатор корня</td></tr>
-      <tr><td class="mono">occurredAt</td><td class="mono">Date</td><td><code>createDomainEvent</code>, если не задан</td><td>Доменное время. <b>Не</b> время диспетчеризации</td></tr>
-      <tr><td class="mono">payload</td><td class="mono">Record&lt;string, unknown&gt;</td><td>вызывающий</td><td>Данные факта. Обязан быть JSON-сериализуемым — хранится как <code>jsonb</code></td></tr>
+      <tr><td class="mono">eventId</td><td class="mono">string (uuid)</td><td><code>createDomainEvent</code>, if not given</td><td>The idempotency key for at-least-once delivery</td></tr>
+      <tr><td class="mono">kind</td><td class="mono">string</td><td>the caller</td><td>The fact's dotted name: <code>entry.published</code></td></tr>
+      <tr><td class="mono">aggregateType</td><td class="mono">string</td><td>the context's helper</td><td>The aggregate root's type</td></tr>
+      <tr><td class="mono">aggregateId</td><td class="mono">string</td><td>the context's helper</td><td>The root's identifier</td></tr>
+      <tr><td class="mono">occurredAt</td><td class="mono">Date</td><td><code>createDomainEvent</code>, if not given</td><td>Domain time. <b>Not</b> dispatch time</td></tr>
+      <tr><td class="mono">payload</td><td class="mono">Record&lt;string, unknown&gt;</td><td>the caller</td><td>The fact's data. Must be JSON-serialisable — it is stored as <code>jsonb</code></td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3><code>attachActor</code> — зачем актор едет в событии</h3>
-  <p>Агрегат знает, <em>что</em> произошло, но не знает, <em>кто</em> это сделал: пользователь запроса — понятие прикладного слоя, а не доменной модели. Аудиту же нужны оба. <code>attachActor(events, actor)</code> решает это, вмешиваясь в единственную часть конверта, которая переживает круг через outbox, — в <code>payload</code>:</p>
+  <h3><code>attachActor</code> — why the actor travels inside the event</h3>
+  <p>An aggregate knows <em>what</em> happened but not <em>who</em> did it: the request's user is an application-layer notion, not part of the domain model. The audit log needs both. <code>attachActor(events, actor)</code> solves that by touching the one part of the envelope that survives the round trip through the outbox — the <code>payload</code>:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function attachActor(events: DomainEvent[], actor: EventActor): DomainEvent[] {
     return events.map((event) =&gt; ({
         ...event,
-        payload: { ...event.payload, actor: { id: actor.id, email: actor.email } }
+        payload: {
+            ...event.payload,
+            actor: {
+                id: actor.id,
+                email: actor.email,
+                type: actor.type ?? EVENT_ACTOR_TYPE.User,
+                label: actor.label ?? null,
+                via: actor.via ?? null
+            }
+        }
     }));
 }</code></pre></div>
   <ul>
-    <li><b>Не мутирует входные события</b> — возвращает копии.</li>
-    <li><b>Место вызова</b> — прикладной сервис, между <code>aggregate.pullEvents()</code> и <code>outbox.append(...)</code>. Это единственный слой, который одновременно знает и события, и актора запроса.</li>
-    <li><b><code>email</code> — это <em>снимок</em></b> (<code>string | null</code>), а не ссылка. Аудит должен читаться и после того, как аккаунт переименовали или удалили.</li>
-    <li><b>Ключ <code>actor</code> перезаписывается</b>, если издатель уже что-то под ним положил: побеждает актор прикладного слоя. Это зафиксировано юнит-тестом.</li>
-    <li>Подписчик аудита достаёт его обратно как <code>payload.actor</code> и раскладывает в <code>actorId</code> / <code>actorEmail</code>; отсутствие ключа даёт <code>null</code> — «системное событие».</li>
+    <li><b>It does not mutate the input events</b> — it returns copies.</li>
+    <li><b>The call site</b> is the application service, between <code>aggregate.pullEvents()</code> and <code>outbox.append(...)</code>. It is the only layer that knows both the events and the request's actor.</li>
+    <li><b>The <code>email</code> is a <em>snapshot</em></b> (<code>string | null</code>), not a reference. The audit log must still be readable after the account has been renamed or deleted.</li>
+    <li><b>The <code>actor</code> key is overwritten</b> if the publisher had already put something under it: the application layer's actor wins. That is pinned down by a unit test.</li>
+    <li>The audit subscriber pulls it back out as <code>payload.actor</code> and unpacks it into <code>actorId</code> / <code>actorType</code> / <code>actorEmail</code>; a missing key yields <code>null</code> — “a system event”.</li>
   </ul>
 
-  <h3>Контракт подписчика</h3>
+  <h4>The actor, and how it was performed</h4>
+  <p>An actor used to be a pair, <code>{ id, email }</code>, and that carried an unstated assumption: <code>id</code> meant a <code>users</code> row. A write made with an API token therefore had to pass <b>no actor at all</b> rather than name a person who did not do it — so every write over the public REST API, GraphQL and MCP reached the audit log as “System”, and which of a workspace's tokens did it was unrecoverable from anywhere. Three fields fix that, and they answer three different questions:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Field</th><th>Question</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">type</td><td><b>What kind</b> of principal <code>id</code> names</td><td><code>EVENT_ACTOR_TYPE.User</code> or <code>.ApiToken</code>. Omitted means <code>user</code> — every actor predates the field except the token ones that introduced it, so the default is a statement of fact rather than a guess</td></tr>
+      <tr><td class="mono">label</td><td><b>What to call</b> a principal that is not a person</td><td>An API token's name. <code>email</code> is the readable name for a user and a token has none, so without this a token-actored row would show an id and nothing legible</td></tr>
+      <tr><td class="mono">via</td><td><b>How</b> it was performed, when not by hand</td><td>An open <code>{ kind, …ids }</code>. A copilot proposal applies under the authority of the human who accepted it — so the actor is correctly that person — but without this the row was indistinguishable from one they typed. Two mechanisms use it: <code>copilot</code> (with <code>runId</code>, <code>proposalId</code>) and <code>revision_restore</code> (with <code>revisionNumber</code>)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <span class="label">The one thing a consumer must not do with it</span>
+    <p>A token's <code>id</code> is an <code>api_tokens</code> row, and some consumers write an actor into a column that really is a <code>users</code> foreign key — <code>content_entry_revisions.created_by</code>, for one. Naming a credential in the <em>audit</em> path is now correct; putting it in a revision's authorship would make every version resolve to a nonexistent person. The two answers are separated at the consumer (content's <code>revisionActorId</code> yields a user id or nothing), not here: this package states who acted, and each consumer decides which of its columns that is allowed to fill.</p>
+  </div>
+
+  <h3>The subscriber contract</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export interface DomainEventSubscriber {
     readonly kinds: readonly string[] | '*';
     handle(event: DomainEvent): Promise&lt;void&gt;;
 }</code></pre></div>
-  <p>Регистрация — <b>в рантайме</b>, из собственного <code>OnApplicationBootstrap</code> плагина: инжектировать <code>OutboxDispatcher</code> и вызвать <code>register(this)</code>. Причина техническая и названа в коде: Nest не умеет сливать мульти-провайдерный токен между независимыми динамическими модулями. Токен <code>DOMAIN_EVENT_SUBSCRIBERS</code> остался (по умолчанию <code>[]</code>) для статически расположенных рядом подписчиков и объединяется с зарегистрированными в рантайме.</p>
+  <p>Registration happens <b>at runtime</b>, from the plugin's own <code>OnApplicationBootstrap</code>: inject <code>OutboxDispatcher</code> and call <code>register(this)</code>. The reason is technical and stated in the code: Nest cannot merge a multi-provider token across independent dynamic modules. The <code>DOMAIN_EVENT_SUBSCRIBERS</code> token remains (defaulting to <code>[]</code>) for subscribers placed statically alongside, and is merged with those registered at runtime.</p>
 
-  <h3>Каталог видов событий по репозиторию</h3>
-  <p>Пакет <code>database</code> <b>не задаёт ни одного вида</b> — он задаёт только конверт. Виды принадлежат контекстам. По состоянию на текущую ветку их <b>44</b> в шести плагинах-издателях, над восемью типами агрегатов.</p>
+  <h3>The catalogue of event kinds across the repository</h3>
+  <p>The <code>database</code> package <b>defines no kinds at all</b> — it defines only the envelope. Kinds belong to the contexts. As of the current branch there are <b>62</b> of them across nine publishing plugins. The full catalogue, with each kind's meaning and payload, is in the <a href="activity.html">Activity dossier</a> — the sink is where it is worth reading, since a kind matters only where somebody consumes it.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Контекст</th><th class="mono">aggregateType</th><th class="center">Видов</th><th>Виды</th></tr></thead>
+    <thead><tr><th>Context</th><th class="mono">aggregateType</th><th class="center">Kinds</th><th>Kinds</th></tr></thead>
     <tbody>
       <tr>
         <td><code>identity/server</code></td>
         <td class="mono">user, api_token</td>
-        <td class="center num-col">11</td>
-        <td class="small"><code>user.activated</code>, <code>user.disabled</code>, <code>user.enabled</code>, <code>user.password_changed</code>, <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>, <code>auth.signed_in</code>, <code>auth.signed_out</code>, <code>api_token.created</code>, <code>api_token.revoked</code></td>
+        <td class="center num-col">14</td>
+        <td class="small"><code>user.activated</code>, <code>user.disabled</code>, <code>user.enabled</code>, <code>user.password_changed</code>, <code>user.session_revoked</code>, <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>, <code>auth.signed_in</code>, <code>auth.signed_out</code>, <code>auth.sign_in_failed</code>, <code>api_token.created</code>, <code>api_token.revoked</code>, <code>api_token.used</code></td>
       </tr>
       <tr>
         <td><code>workspaces/server</code></td>
@@ -790,9 +824,9 @@ WHERE id = '...';</code></pre></div>
       </tr>
       <tr>
         <td><code>content/server</code></td>
-        <td class="mono">content_entry</td>
-        <td class="center num-col">7</td>
-        <td class="small"><code>entry.created</code>, <code>.updated</code>, <code>.published</code>, <code>.unpublished</code>, <code>.deleted</code>, <code>.restored</code>, <code>.purged</code></td>
+        <td class="mono">content_entry, saved_view</td>
+        <td class="center num-col">10</td>
+        <td class="small"><code>entry.created</code>, <code>.updated</code>, <code>.published</code>, <code>.unpublished</code>, <code>.deleted</code>, <code>.restored</code>, <code>.purged</code>; <code>saved_view.created</code>, <code>.updated</code>, <code>.deleted</code></td>
       </tr>
       <tr>
         <td><code>transfer/server</code></td>
@@ -800,140 +834,157 @@ WHERE id = '...';</code></pre></div>
         <td class="center num-col">2</td>
         <td class="small"><code>transfer.content.exported</code>, <code>transfer.content.imported</code></td>
       </tr>
+      <tr>
+        <td><code>segments/server</code></td>
+        <td class="mono">segment, content_entry</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>segment.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>segment.entry_access_changed</code></td>
+      </tr>
+      <tr>
+        <td><code>alarms/server</code></td>
+        <td class="mono">alarm_rule</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>alarm.rule.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>.rescanned</code></td>
+      </tr>
+      <tr>
+        <td><code>copilot/server</code></td>
+        <td class="mono">copilot_skill, copilot_run</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>copilot.skill.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>copilot.tool_permission.decided</code></td>
+      </tr>
     </tbody>
   </table>
   </div>
-
-  <h3>Кто эти виды слушает</h3>
+  <h3>Who listens to these kinds</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Подписчик</th><th class="mono">kinds</th><th>Что делает</th><th>Идемпотентность</th></tr></thead>
+    <thead><tr><th>Subscriber</th><th class="mono">kinds</th><th>What it does</th><th>Idempotency</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">activity/server<br>AuditEventSubscriber</td>
-        <td class="center num-col">20 видов</td>
-        <td>Превращает событие в строку <code>activity_events</code> — единственный живой писатель журнала аудита</td>
-        <td>PK = <code>eventId</code>, вставка <code>ON CONFLICT DO NOTHING</code></td>
+        <td class="center num-col">20 kinds</td>
+        <td>Turns an event into an <code>activity_events</code> row — the audit log's only live writer</td>
+        <td>PK = <code>eventId</code>, insert with <code>ON CONFLICT DO NOTHING</code></td>
       </tr>
       <tr>
         <td class="mono">alarms/server<br>EntryEventSubscriber</td>
-        <td class="center num-col">7 видов</td>
-        <td>Пересчитывает находки алармов для записи и делает обратный проход по записям, ссылающимся на неё</td>
-        <td>Апсерт по <code>(rule_id, entry_id)</code>, операции над множествами</td>
+        <td class="center num-col">7 kinds</td>
+        <td>Recomputes an entry's alarm findings and makes a reverse pass over the entries that reference it</td>
+        <td>An upsert on <code>(rule_id, entry_id)</code>, plus set operations</td>
       </tr>
     </tbody>
   </table>
   </div>
-  <p class="small sub">Аудируемые 20 видов — это ключи таблицы мапперов в <code>audit-event-mapping.ts</code>: девять <code>workspace.*</code>, восемь <code>member.*</code>, плюс <code>user.password_changed</code>, <code>user.activated</code> и <code>auth.signed_in</code>. Каталог аудита <b>намеренно отделён</b> от каталога доменных событий: подписчик <em>отображает</em> одни строки в другие, а не переиспользует их — поэтому <code>member.removed</code> становится <code>user.invite_revoked</code>, а <code>member.disabled</code> — <code>user.suspended</code>.</p>
+  <p class="small sub">The 20 audited kinds are the keys of the mapper table in <code>audit-event-mapping.ts</code>: nine <code>workspace.*</code>, eight <code>member.*</code>, plus <code>user.password_changed</code>, <code>user.activated</code> and <code>auth.signed_in</code>. The audit catalogue is <b>deliberately separate</b> from the domain-event catalogue: the subscriber <em>maps</em> one set of names onto another rather than reusing them — which is why <code>member.removed</code> becomes <code>user.invite_revoked</code>, and <code>member.disabled</code> becomes <code>user.suspended</code>.</p>
 
   <div class="note warn">
-    <span class="label">Следствие, которое стоит знать</span>
-    <p>Из 44 видов слушается около половины. Остальные — <code>api_token.*</code>, <code>user.sso_*</code>, <code>auth.signed_out</code>, <code>user.disabled</code>/<code>enabled</code>, все <code>media.*</code>, все <code>transfer.*</code> — пишутся в outbox и <b>сразу помечаются доставленными</b>, потому что подходящих подписчиков ноль. Это не потеря и не ошибка: строка остаётся в таблице как факт, и новый подписчик появится без единой правки в издателе. Но и «сообщения» из неё сегодня никто не получает.</p>
+    <span class="label">A consequence worth knowing</span>
+    <p>About half of the 44 kinds are listened to. The rest — <code>api_token.*</code>, <code>user.sso_*</code>, <code>auth.signed_out</code>, <code>user.disabled</code>/<code>enabled</code>, all the <code>media.*</code>, all the <code>transfer.*</code> — are written to the outbox and <b>immediately marked delivered</b>, because the number of matching subscribers is zero. That is neither a loss nor a bug: the row stays in the table as a fact, and a new subscriber can appear without a single edit to the publisher. But nobody is receiving “messages” from it today either.</p>
   </div>
 </section>
 
 <section id="flows">
-  <h2 class="sec"><span class="num">08</span>Сценарии по шагам</h2>
+  <h2 class="sec"><span class="num">08</span>Step-by-step scenarios</h2>
 
-  <h3>Сценарий А. Плагин записывает изменение и событие</h3>
-  <p>Пример: администратор меняет роль участнику.</p>
+  <h3>Scenario A. A plugin records a change and an event</h3>
+  <p>Example: an administrator changes a member's role.</p>
   <ol class="flow">
-    <li><b>Контроллер вызывает use-case.</b> Транзакции ещё нет, <code>uow.isActive()</code> вернул бы <code>false</code>.</li>
-    <li><b>Use-case открывает единицу работы.</b> <code>await this.uow.run(async () =&gt; { ... })</code> — Drizzle открывает транзакцию, её исполнитель кладётся в <code>AsyncLocalStorage</code>.
+    <li><b>The controller calls the use case.</b> There is no transaction yet, and <code>uow.isActive()</code> would return <code>false</code>.</li>
+    <li><b>The use case opens a unit of work.</b> <code>await this.uow.run(async () =&gt; { ... })</code> — Drizzle opens a transaction and its executor is placed into <code>AsyncLocalStorage</code>.
       <span class="meta">BEGIN</span></li>
-    <li><b>Репозиторий грузит агрегат.</b> Через <code>uow.current()</code>, то есть уже внутри транзакции. Никакого <code>tx</code> в сигнатурах.</li>
-    <li><b>Агрегат применяет правило и поднимает факт.</b> <code>member.changeRole(...)</code> проверяет инвариант и накапливает событие внутри себя.</li>
-    <li><b>Репозиторий сохраняет.</b> Тоже через <code>uow.current()</code> — та же транзакция.</li>
-    <li><b>Use-case вынимает события и добавляет актора.</b> <code>attachActor(member.pullEvents(), actor)</code> — теперь в <code>payload</code> есть <code>actor</code>.</li>
-    <li><b>Запись в outbox.</b> <code>await this.outbox.append(events)</code>: <code>isActive()</code> истинно, вставка идёт в ту же транзакцию.
+    <li><b>The repository loads the aggregate.</b> Through <code>uow.current()</code>, so already inside the transaction. No <code>tx</code> in any signature.</li>
+    <li><b>The aggregate applies the rule and raises a fact.</b> <code>member.changeRole(...)</code> checks the invariant and accumulates the event inside itself.</li>
+    <li><b>The repository saves.</b> Also through <code>uow.current()</code> — the same transaction.</li>
+    <li><b>The use case pulls the events and adds the actor.</b> <code>attachActor(member.pullEvents(), actor)</code> — the <code>payload</code> now carries an <code>actor</code>.</li>
+    <li><b>The write into the outbox.</b> <code>await this.outbox.append(events)</code>: <code>isActive()</code> is true, so the insert goes into the same transaction.
       <span class="meta">INSERT INTO outbox_events (dispatched_at = NULL, attempts = 0)</span></li>
-    <li><b>Коммит.</b> Состояние и событие становятся видимы одновременно — или не становятся вовсе.
+    <li><b>The commit.</b> The state and the event become visible at the same moment — or not at all.
       <span class="meta">COMMIT</span></li>
-    <li><b>Слив после коммита.</b> <code>run</code> вызывает <code>dispatcher.drain()</code> и ждёт его. Ошибка слива проглатывается.</li>
-    <li><b>Ответ.</b> В нормальном режиме строка журнала уже существует к моменту возврата HTTP-ответа.</li>
+    <li><b>The post-commit drain.</b> <code>run</code> calls <code>dispatcher.drain()</code> and awaits it. A drain error is swallowed.</li>
+    <li><b>The response.</b> Under normal conditions the log row already exists by the time the HTTP response goes out.</li>
   </ol>
-  <p class="small sub"><b>Ветка отката:</b> если шаг 5 или 7 бросил, транзакция откатывается и <em>событие исчезает вместе с изменением</em>. Отдельный e2e-тест проверяет именно это.</p>
+  <p class="small sub"><b>The rollback branch:</b> if step 5 or 7 throws, the transaction rolls back and <em>the event disappears along with the change</em>. A dedicated e2e test checks exactly that.</p>
 
-  <h3>Сценарий Б. Диспетчер доставляет событие</h3>
+  <h3>Scenario B. The dispatcher delivers an event</h3>
   <ol class="flow">
-    <li><b>Триггер.</b> Либо пост-коммитный <code>drain()</code>, либо тик опроса раз в 5 с.</li>
-    <li><b>Схлопывание.</b> Если слив уже идёт — вызывающий присоединяется к единственному отложенному сливу, нового не создаётся.</li>
-    <li><b>Заявка на строки.</b> Открывается транзакция диспетчера; берутся до 100 строк <code>FOR UPDATE SKIP LOCKED</code>, старейшие по <code>occurred_at</code>, у которых <code>dispatched_at IS NULL</code>, <code>attempts &lt; 15</code> и наступил <code>next_attempt_at</code>.
-      <span class="meta">Другой процесс в этот момент возьмёт другие строки</span></li>
-    <li><b>Восстановление конверта</b> из строки: <code>eventId</code>, <code>kind</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>occurredAt</code>, <code>payload</code>.</li>
-    <li><b>Фильтр подписчиков</b> по <code>kind</code>: внедрённые плюс зарегистрированные, у кого <code>kinds</code> совпал или равен <code>'*'</code>.</li>
-    <li><b>Последовательный вызов</b> <code>handle(event)</code>. Каждый подписчик берёт собственного клиента из пула; слив всё это время держит своего.</li>
-    <li><b>Штамп.</b> Все отработали — <code>dispatched_at = now</code> в транзакции слива.</li>
-    <li><b>Следующая строка</b> батча, и так до конца. Затем транзакция слива коммитится.
+    <li><b>The trigger.</b> Either the post-commit <code>drain()</code> or a poll tick every 5 s.</li>
+    <li><b>Coalescing.</b> If a drain is already running, the caller joins the single deferred drain and no new one is created.</li>
+    <li><b>Claiming rows.</b> The dispatcher's transaction opens; up to 100 rows are taken <code>FOR UPDATE SKIP LOCKED</code>, the oldest by <code>occurred_at</code>, with <code>dispatched_at IS NULL</code>, <code>attempts &lt; 15</code> and <code>next_attempt_at</code> reached.
+      <span class="meta">another process will take different rows at the same moment</span></li>
+    <li><b>Reconstructing the envelope</b> from the row: <code>eventId</code>, <code>kind</code>, <code>aggregateType</code>, <code>aggregateId</code>, <code>occurredAt</code>, <code>payload</code>.</li>
+    <li><b>Filtering subscribers</b> by <code>kind</code>: the injected ones plus the registered ones whose <code>kinds</code> matched or equals <code>'*'</code>.</li>
+    <li><b>Sequential calls</b> to <code>handle(event)</code>. Each subscriber takes its own client from the pool; the drain holds its own throughout.</li>
+    <li><b>The stamp.</b> All finished — <code>dispatched_at = now</code> in the drain's transaction.</li>
+    <li><b>The next row</b> of the batch, and so on to the end. Then the drain's transaction commits.
       <span class="meta">COMMIT</span></li>
   </ol>
 
-  <h3>Сценарий В. Подписчик падает</h3>
+  <h3>Scenario C. A subscriber fails</h3>
   <ol class="flow">
-    <li><b>Исключение в <code>handle</code>.</b> Цикл по подписчикам этой строки прерывается — остальные подписчики этого события в этой попытке не вызываются.</li>
-    <li><b>Лог.</b> <code>error</code> со стеком: «Delivery failed for event &lt;id&gt; (&lt;kind&gt;); will retry».</li>
-    <li><b>Счётчик и пауза.</b> <code>attempts += 1</code>, <code>next_attempt_at = now + min(1000 · 2^(attempts−1), 300000)</code>. <code>dispatched_at</code> остаётся <code>NULL</code>.</li>
-    <li><b>Батч продолжается.</b> Следующие строки доставляются нормально — упавший подписчик не блокирует чужие события.</li>
-    <li><b>Повтор.</b> Через паузу строку заберёт очередной слив — пост-коммитный или опрос.</li>
-    <li><b>На 15-й неудаче — парковка.</b> Лог меняется: «giving up», с указанием запроса для мёртвых писем. Строка больше не попадает в выборку и не мешает очереди.
-      <span class="meta">≈ 33 минуты с первого провала</span></li>
-    <li><b>Восстановление — ручное.</b> Оператор устраняет причину и обнуляет <code>attempts</code> (и, при желании, <code>next_attempt_at</code>). Автоматического воскрешения нет.</li>
+    <li><b>An exception in <code>handle</code>.</b> The loop over that row's subscribers is aborted — the event's remaining subscribers are not called on this attempt.</li>
+    <li><b>The log.</b> An <code>error</code> with a stack: “Delivery failed for event &lt;id&gt; (&lt;kind&gt;); will retry”.</li>
+    <li><b>The counter and the pause.</b> <code>attempts += 1</code>, <code>next_attempt_at = now + min(1000 · 2^(attempts−1), 300000)</code>. <code>dispatched_at</code> stays <code>NULL</code>.</li>
+    <li><b>The batch continues.</b> The following rows are delivered normally — a failing subscriber does not block other people's events.</li>
+    <li><b>The retry.</b> After the pause, the next drain — post-commit or poll — picks the row up.</li>
+    <li><b>On the 15th failure — parking.</b> The log changes: “giving up”, naming the dead-letter query. The row no longer enters the selection and no longer holds up the queue, and <code>last_error</code> holds the reason it stopped — so the row can be read afterwards without the log line that announced it.
+      <span class="meta">≈ 33 minutes from the first failure</span></li>
+    <li><b>Recovery is manual.</b> The operator fixes the cause and zeroes <code>attempts</code> (and, if they wish, <code>next_attempt_at</code>). There is no automatic resurrection.</li>
   </ol>
   <div class="note warn">
-    <span class="label">Важное следствие для авторов подписчиков</span>
-    <p>Повторная попытка начинает доставку строки <b>с первого подписчика</b>. Если событие слушают двое и падает второй, первый получит его снова. Это ровно тот случай, ради которого требование идемпотентности написано в контракте, а не в рекомендациях.</p>
+    <span class="label">An important consequence for subscriber authors</span>
+    <p>A retry restarts the row's delivery <b>from the first subscriber</b>. If two listen to the event and the second one fails, the first will receive it again. This is exactly the case the idempotency requirement is written into the contract for, rather than into the recommendations.</p>
   </div>
 
-  <h3>Сценарий Г. Событие, которое никто не слушает</h3>
+  <h3>Scenario D. An event nobody listens to</h3>
   <ol class="flow">
-    <li><b>Издатель пишет как обычно</b> — он не знает и не спрашивает, есть ли подписчики.</li>
-    <li><b>Слив забирает строку</b> наравне со всеми.</li>
-    <li><b><code>subscribersFor(kind)</code> возвращает пустой массив.</b> Цикл доставки не выполняется ни разу.</li>
-    <li><b>Строка немедленно штампуется</b> <code>dispatched_at = now</code>: формально «доставлена всем, кто её ждал», а ждал никто.
-      <span class="meta">attempts остаётся 0</span></li>
-    <li><b>Строка остаётся в таблице навсегда</b> как исторический факт. Новый подписчик, добавленный завтра, её <b>не</b> увидит — она уже проштампована.</li>
+    <li><b>The publisher writes it as usual</b> — it does not know and does not ask whether there are subscribers.</li>
+    <li><b>The drain picks the row up</b> like any other.</li>
+    <li><b><code>subscribersFor(kind)</code> returns an empty array.</b> The delivery loop does not execute once.</li>
+    <li><b>The row is stamped immediately</b> with <code>dispatched_at = now</code>: formally “delivered to everyone who was waiting for it”, and nobody was.
+      <span class="meta">attempts stays 0</span></li>
+    <li><b>The row stays in the table forever</b> as a historical fact. A new subscriber added tomorrow will <b>not</b> see it — it is already stamped.</li>
   </ol>
-  <p>Комментарий в <code>identity-events.ts</code> формулирует это прямо: «Emitting these to the outbox is harmless until that subscriber exists (no subscriber ⇒ the rows auto-mark dispatched)». То есть издавать события впрок — дёшево и безопасно, но это <b>не</b> механизм отложенной подписки: обратной перемотки нет.</p>
+  <p>The comment in <code>identity-events.ts</code> puts it outright: “Emitting these to the outbox is harmless until that subscriber exists (no subscriber ⇒ the rows auto-mark dispatched)”. That is, publishing events ahead of time is cheap and safe, but it is <b>not</b> a deferred-subscription mechanism: there is no rewind.</p>
 
-  <h3>Сценарий Д. Остановка процесса во время слива</h3>
+  <h3>Scenario E. The process stops mid-drain</h3>
   <ol class="flow">
-    <li><b><code>SIGTERM</code>.</b> <code>createServer</code> включил хуки завершения Nest, HTTP-сервер перестаёт принимать соединения.</li>
-    <li><b>Фаза <code>onModuleDestroy</code>.</b> <code>OutboxDispatcher</code> гасит интервал опроса, затем <code>await</code>'ит <code>queued ?? active</code> — то есть дожидается и отложенного, и активного слива. Оба промиса проглатываются: бросить отсюда значило бы сорвать остальное завершение.
-      <span class="meta">не более одного батча — выборка ограничена 100 строками</span></li>
-    <li><b>Фаза <code>onApplicationShutdown</code>.</b> <code>DatabaseShutdown</code> вызывает <code>releaseDatabase()</code>; последний держатель закрывает пул. Исключение здесь тоже не выпускается наружу — только лог.</li>
+    <li><b><code>SIGTERM</code>.</b> <code>createServer</code> enabled Nest's shutdown hooks, and the HTTP server stops accepting connections.</li>
+    <li><b>The <code>onModuleDestroy</code> phase.</b> <code>OutboxDispatcher</code> stops the poll interval, then <code>await</code>s <code>queued ?? active</code> — that is, it waits out both the deferred and the active drain. Both promises are swallowed: throwing from here would derail the rest of the shutdown.
+      <span class="meta">at most one batch — the selection is capped at 100 rows</span></li>
+    <li><b>The <code>onApplicationShutdown</code> phase.</b> <code>DatabaseShutdown</code> calls <code>releaseDatabase()</code>; the last holder closes the pool. An exception here is not let out either — only logged.</li>
   </ol>
-  <p class="small sub">До этого исправления слив, застигнутый <code>SIGTERM</code>, умирал посреди батча вместе со своим соединением: подписчики, уже отработавшие, не были помечены доставленными, и события переигрывались на следующем старте. Гарантия «как минимум один раз» делает это законным, а единственный поставляемый подписчик идемпотентен — но тратить гарантию на плановое выключение незачем.</p>
+  <p class="small sub">Before this fix, a drain caught by <code>SIGTERM</code> died mid-batch along with its connection: subscribers that had already finished were not marked delivered, and the events were replayed on the next start. The at-least-once guarantee makes that legal, and the single shipped subscriber is idempotent — but there is no reason to spend the guarantee on a planned shutdown.</p>
 </section>
 
 <section id="config">
-  <h2 class="sec"><span class="num">09</span>Конфигурация и окружение</h2>
+  <h2 class="sec"><span class="num">09</span>Configuration and environment</h2>
 
-  <p>Конфигурация плагина — один обязательный параметр и три необязательных. Переменных окружения пакет не читает вовсе: <code>apps/server/ortha.config.ts</code> — единственное место, которое трогает <code>process.env</code>, и оно передаёт плагину уже типизированное значение.</p>
+  <p>The plugin's configuration is one required parameter and three optional ones. The package reads no environment variables at all: <code>apps/server/ortha.config.ts</code> is the only place that touches <code>process.env</code>, and it hands the plugin an already-typed value.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Поле <code>DatabasePluginConfig</code></th><th>Обязательно</th><th>По умолчанию</th><th>Комментарий</th></tr></thead>
+    <thead><tr><th><code>DatabasePluginConfig</code> field</th><th>Required</th><th>Default</th><th>Comment</th></tr></thead>
     <tbody>
-      <tr><td class="mono">connectionString</td><td class="center yes">да</td><td>—</td><td>Строка подключения PostgreSQL. В хосте — <code>config.database.url</code></td></tr>
-      <tr><td class="mono">poolMax</td><td class="center no">нет</td><td class="mono num-col">10</td><td>Потолок клиентов. Обязан оставлять запас сливу outbox</td></tr>
-      <tr><td class="mono">connectionTimeoutMillis</td><td class="center no">нет</td><td class="mono num-col">10 000</td><td>Ожидание свободного клиента. Ноль означал бы «вечно» — поэтому и задано</td></tr>
-      <tr><td class="mono">statementTimeoutMillis</td><td class="center no">нет</td><td class="mono">выключено</td><td>Передаётся в <code>pg</code> как <code>statement_timeout</code> для каждой сессии пула</td></tr>
+      <tr><td class="mono">connectionString</td><td class="center yes">yes</td><td>—</td><td>The PostgreSQL connection string. In the host it is <code>config.database.url</code></td></tr>
+      <tr><td class="mono">poolMax</td><td class="center no">no</td><td class="mono num-col">10</td><td>The client ceiling. It must leave headroom for the outbox drain</td></tr>
+      <tr><td class="mono">connectionTimeoutMillis</td><td class="center no">no</td><td class="mono num-col">10,000</td><td>How long to wait for a free client. Zero would mean “forever” — which is why it is set</td></tr>
+      <tr><td class="mono">statementTimeoutMillis</td><td class="center no">no</td><td class="mono">off</td><td>Passed to <code>pg</code> as <code>statement_timeout</code> for every pool session</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Окружение</h3>
+  <h3>The environment</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Переменная</th><th>Кто читает</th><th>Пример</th></tr></thead>
+    <thead><tr><th>Variable</th><th>Who reads it</th><th>Example</th></tr></thead>
     <tbody>
-      <tr><td class="mono">DATABASE_URL</td><td><code>ortha.config.ts</code> через <code>requireEnv</code> — обязательна, без неё сервер не стартует</td><td class="mono small">postgresql://ortha:ortha@localhost:5432/ortha_cms</td></tr>
+      <tr><td class="mono">DATABASE_URL</td><td><code>ortha.config.ts</code>, through <code>requireEnv</code> — mandatory; without it the server does not start</td><td class="mono small">postgresql://ortha:ortha@localhost:5432/ortha_cms</td></tr>
     </tbody>
   </table>
   </div>
-  <p><code>poolMax</code>, <code>connectionTimeoutMillis</code> и <code>statementTimeoutMillis</code> <b>не имеют переменных окружения</b> — сегодня это литералы в коде хоста, если он вообще их задаёт. Развёртыванию, которому нужен другой потолок пула, придётся править <code>ortha.config.ts</code> или собственный композиционный корень.</p>
+  <p><code>poolMax</code>, <code>connectionTimeoutMillis</code> and <code>statementTimeoutMillis</code> have <b>no environment variables</b> — today they are literals in the host's code, if it sets them at all. A deployment that needs a different pool ceiling will have to edit <code>ortha.config.ts</code> or its own composition root.</p>
 
-  <h3>Подключение в хосте</h3>
+  <h3>Wiring it up in the host</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>// apps/server/src/plugins.ts
 return [
     DatabasePlugin({ connectionString: config.database.url }),
@@ -942,292 +993,292 @@ return [
     ...
 ];</code></pre></div>
 
-  <h3>Параллельные стенды</h3>
-  <p>Несколько рабочих копий делят <b>один</b> контейнер Postgres — изоляцию даёт <code>CREATE DATABASE</code>, а не пять контейнеров, которые не помещаются в память. Слот <em>n</em> фиксирует API на <code>:300n</code>, админку на <code>:420n</code> и базу <code>ortha_cms_an</code>; <code>npm run worktree -- provision &lt;slot&gt;</code> создаёт базу и пишет <code>.env</code> с нужным <code>DATABASE_URL</code>. Для пакета это ничего не меняет — он видит только строку подключения.</p>
+  <h3>Parallel stacks</h3>
+  <p>Several working copies share <b>one</b> Postgres container — isolation comes from <code>CREATE DATABASE</code>, not from five containers that would not fit in memory. Slot <em>n</em> fixes the API on <code>:300n</code>, the admin UI on <code>:420n</code> and the database <code>ortha_cms_an</code>; <code>npm run worktree -- provision &lt;slot&gt;</code> creates the database and writes a <code>.env</code> with the right <code>DATABASE_URL</code>. None of this changes anything for the package — it only ever sees a connection string.</p>
 
-  <h3>Команды</h3>
+  <h3>Commands</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Команда</th><th>Что делает</th></tr></thead>
+    <thead><tr><th>Command</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="mono small">nx run @orthacms/database:db:generate --name=&lt;change&gt;</td><td>Генерирует SQL-миграцию из <code>src/lib/schema/index.ts</code>. К базе <b>не подключается</b> — только диффит со снимком</td></tr>
-      <tr><td class="mono small">nx run server:db:migrate</td><td>Применяет миграции <em>всех</em> плагинов, по порядку массива хоста, каждый — в свою таблицу учёта</td></tr>
-      <tr><td class="mono small">nx test @orthacms/database</td><td>Юнит-спеки без базы: конверт события, синглтон соединения, backoff, порядок промисов при выключении</td></tr>
-      <tr><td class="mono small">nx typecheck / build @orthacms/database</td><td>Проверка типов и сборка</td></tr>
+      <tr><td class="mono small">nx run @orthacms/database:db:generate --name=&lt;change&gt;</td><td>Generates an SQL migration from <code>src/lib/schema/index.ts</code>. It <b>does not connect</b> to the database — it only diffs against a snapshot</td></tr>
+      <tr><td class="mono small">nx run server:db:migrate</td><td>Applies <em>every</em> plugin's migrations, in the host array's order, each into its own tracking table</td></tr>
+      <tr><td class="mono small">nx test @orthacms/database</td><td>Unit specs without a database: the event envelope, the connection singleton, the backoff, the promise ordering at shutdown</td></tr>
+      <tr><td class="mono small">nx typecheck / build @orthacms/database</td><td>Type checking and building</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
 <section id="reliability">
-  <h2 class="sec"><span class="num">10</span>Надёжность и производительность</h2>
+  <h2 class="sec"><span class="num">10</span>Reliability and performance</h2>
 
-  <h3>Бюджет пула</h3>
-  <p>10 клиентов на процесс — это <em>всё</em>, чем располагает приложение. Слив outbox расходует их несимметрично:</p>
+  <h3>The pool budget</h3>
+  <p>10 clients per process is <em>everything</em> the application has. The outbox drain spends them asymmetrically:</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Потребитель</th><th>Сколько клиентов</th><th>Как долго</th></tr></thead>
+    <thead><tr><th>Consumer</th><th>How many clients</th><th>For how long</th></tr></thead>
     <tbody>
-      <tr><td>Обычный запрос вне транзакции</td><td class="center num-col">1</td><td>На время запроса</td></tr>
-      <tr><td><code>UnitOfWork.run</code></td><td class="center num-col">1</td><td>На всю единицу работы, включая все вложенные вызовы</td></tr>
-      <tr><td><code>drainOnce</code></td><td class="center num-col">1</td><td><b>На весь батч</b> — до 100 событий</td></tr>
-      <tr><td>Каждый подписчик внутри слива</td><td class="center num-col">1</td><td>На время своего <code>handle</code>, поверх клиента слива</td></tr>
+      <tr><td>An ordinary query outside a transaction</td><td class="center num-col">1</td><td>For the duration of the query</td></tr>
+      <tr><td><code>UnitOfWork.run</code></td><td class="center num-col">1</td><td>For the whole unit of work, nested calls included</td></tr>
+      <tr><td><code>drainOnce</code></td><td class="center num-col">1</td><td><b>For the whole batch</b> — up to 100 events</td></tr>
+      <tr><td>Every subscriber inside a drain</td><td class="center num-col">1</td><td>For the duration of its <code>handle</code>, on top of the drain's client</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Отсюда правило «один слив на процесс» и отсюда же требование к <code>poolMax</code>: снижать его ниже примерно 4 опасно — слив плюс подписчик плюс обслуживаемый запрос уже занимают три.</p>
+  <p>Hence the “one drain per process” rule, and hence the requirement on <code>poolMax</code>: lowering it below roughly 4 is dangerous — the drain plus a subscriber plus the request being served already take three.</p>
 
-  <h3>Что происходит при исчерпании пула</h3>
+  <h3>What happens when the pool is exhausted</h3>
   <div class="states">
-    <span class="state active">свободные клиенты есть</span>
+    <span class="state active">free clients available</span>
     <span class="arrow">→</span>
-    <span class="state pending">очередь, до 10 с</span>
+    <span class="state pending">queued, up to 10 s</span>
     <span class="arrow">→</span>
-    <span class="state disabled">ошибка «timeout» на одном запросе</span>
+    <span class="state disabled">a “timeout” error on one request</span>
   </div>
-  <p>Ключевое — правый переход существует. С дефолтом <code>pg</code> (<code>0</code>) его бы не было: очередь росла бы бесконечно, ни одна ошибка не всплыла бы, и процесс выглядел бы здоровым для любого внешнего наблюдателя. E2E-тест занимает все 10 клиентов и проверяет, что одиннадцатый запрос падает, и падает <em>примерно через настроенное время</em>, а не сразу — то есть это ограниченное ожидание, а не отказ. Второй тест проверяет обратное: очередь начинает обслуживаться, как только клиент вернулся.</p>
+  <p>The key point is that the right-hand transition exists at all. With <code>pg</code>'s default (<code>0</code>) it would not: the queue would grow without bound, no error would ever surface, and the process would look healthy to any outside observer. An e2e test occupies all 10 clients and checks that the eleventh request fails, and fails <em>roughly after the configured time</em> rather than at once — that is, that this is a bounded wait and not a refusal. A second test checks the converse: the queue starts being served the moment a client is returned.</p>
 
-  <h3>Стоимость слива</h3>
+  <h3>The cost of a drain</h3>
   <ul>
-    <li><b>Выборка дешёвая.</b> Частичный индекс покрывает фильтр, сортировку и лимит; доставленные строки из него выпадают, поэтому его размер определяется длиной очереди, а не размером таблицы.</li>
-    <li><b>Батч ограничен 100.</b> Это же граница ожидания при выключении и граница транзакции слива.</li>
-    <li><b>Доставка последовательная.</b> При медленном подписчике батч из 100 событий занимает 100 его вызовов подряд — и всё это время держит клиента.</li>
-    <li><b>Опрос ленив.</b> Тик раз в 5 с делает один <code>SELECT</code>, который на пустой очереди почти бесплатен; тик пропускается, если слив уже идёт.</li>
-    <li><b><code>unref()</code> на таймере</b> — фоновый опрос не мешает процессу завершиться.</li>
+    <li><b>The selection is cheap.</b> The partial index covers the filter, the ordering and the limit; delivered rows drop out of it, so its size is determined by the queue's length, not by the table's size.</li>
+    <li><b>The batch is capped at 100.</b> That is also the shutdown wait's bound and the drain transaction's bound.</li>
+    <li><b>Delivery is sequential.</b> With a slow subscriber, a batch of 100 events takes 100 of its calls back to back — and holds a client for all of that time.</li>
+    <li><b>The poll is lazy.</b> A tick every 5 s issues one <code>SELECT</code>, which on an empty queue is nearly free; a tick is skipped if a drain is already running.</li>
+    <li><b>An <code>unref()</code> on the timer</b> — the background poll does not stop the process from exiting.</li>
   </ul>
 
-  <h3>Отставание и мониторинг</h3>
-  <p>Метрик пакет не публикует — ни счётчиков, ни healthcheck'а, ни маршрута. Всё наблюдение сводится к SQL и логам:</p>
-  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>-- глубина очереди и возраст самого старого недоставленного события
+  <h3>Lag and monitoring</h3>
+  <p>The package publishes no metrics — no counters, no health check, no route. All observation comes down to SQL and logs:</p>
+  <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>-- queue depth and the age of the oldest undelivered event
 SELECT count(*) AS pending,
        min(occurred_at) AS oldest,
        count(*) FILTER (WHERE attempts &gt;= 15) AS dead_letters,
        count(*) FILTER (WHERE attempts BETWEEN 1 AND 14) AS retrying
 FROM outbox_events
 WHERE dispatched_at IS NULL;</code></pre></div>
-  <p class="small sub">Логи диспетчера: <code>Delivery failed for event &lt;id&gt; (&lt;kind&gt;); will retry</code> на каждой неудаче, отдельная формулировка «giving up» на пятнадцатой, и <code>Outbox poll drain failed</code> при провале тика опроса целиком.</p>
+  <p class="small sub">The dispatcher's logs: <code>Delivery failed for event &lt;id&gt; (&lt;kind&gt;); will retry</code> on every failure, a distinct “giving up” wording on the fifteenth, and <code>Outbox poll drain failed</code> when a poll tick fails as a whole.</p>
 
-  <h3>Многопроцессная работа</h3>
-  <p>Несколько реплик сервера работают с одной очередью корректно и без настройки: <code>FOR UPDATE SKIP LOCKED</code> раздаёт им непересекающиеся строки. Ограничение «один слив за раз» — <b>внутрипроцессное</b> и на реплики не распространяется. Обратная сторона: порядок доставки между репликами не определён, а суммарная нагрузка на пул растёт линейно с числом реплик.</p>
+  <h3>Running multiple processes</h3>
+  <p>Several server replicas work the same queue correctly and without configuration: <code>FOR UPDATE SKIP LOCKED</code> hands them disjoint rows. The “one drain at a time” restriction is <b>per process</b> and does not extend across replicas. The flip side: delivery order between replicas is undefined, and the total load on the pool grows linearly with the number of replicas.</p>
 
   <div class="note warn">
-    <span class="label">Известные шероховатости</span>
-    <p><b>Таблица не чистится.</b> На нагруженной инсталляции <code>outbox_events</code> растёт монотонно. Чтения это не замедляет (индекс частичный), но место и время резервного копирования — да.</p>
-    <p><b>Ограничения на размер <code>payload</code> нет.</b> Это <code>jsonb</code>; чрезмерно большой payload оплачивается на каждом сливе.</p>
-    <p><b>Один медленный подписчик замедляет всех.</b> Доставка последовательна и внутри события, и внутри батча.</p>
+    <span class="label">Known rough edges</span>
+    <p><b>The table is not pruned.</b> On a busy installation <code>outbox_events</code> grows monotonically. That does not slow reads down (the index is partial), but it does cost space and backup time.</p>
+    <p><b>There is no limit on <code>payload</code> size.</b> It is <code>jsonb</code>; an excessively large payload is paid for on every drain.</p>
+    <p><b>One slow subscriber slows everybody down.</b> Delivery is sequential both within an event and within a batch.</p>
   </div>
 </section>
 
 <section id="invariants">
-  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
+  <h2 class="sec"><span class="num">11</span>Invariants</h2>
 
-  <p>Утверждения, которые обязаны оставаться истинными. Нарушение любого из них — дефект, а не изменение поведения.</p>
+  <p>Statements that must remain true. Violating any of them is a defect, not a change of behaviour.</p>
 
   <ul class="inv">
-    <li><span class="id">И-01</span><span>В процессе существует <b>ровно один</b> пул и один клиент Drizzle. <code>initDatabase</code> идемпотентен: повторный вызов не открывает второй пул, а увеличивает счётчик держателей.</span></li>
-    <li><span class="id">И-02</span><span><code>getDatabase()</code> и <code>getPool()</code> до <code>initDatabase</code> <b>бросают исключение с внятным текстом</b>, а не возвращают <code>undefined</code>.</span></li>
-    <li><span class="id">И-03</span><span>Пул всегда открывается с <b>явными</b> <code>max</code> и <code>connectionTimeoutMillis</code>; последний строго больше нуля. Исчерпание пула обязано давать ошибку на одном запросе, а не бесконечное ожидание всех.</span></li>
-    <li><span class="id">И-04</span><span>Пул закрывает <b>последний</b> вышедший держатель. Приложение, завершающееся при живом соседе в том же процессе, не отбирает у него базу.</span></li>
-    <li><span class="id">И-05</span><span><code>closeDatabase</code> очищает мемо <em>до</em> завершения пула: после него <code>initDatabase</code> открывает по-настоящему новый пул, а не отдаёт завершённый.</span></li>
-    <li><span class="id">И-06</span><span>Хук завершения <b>никогда</b> не выбрасывает исключение наружу — ошибка только логируется, остальная часть остановки выполняется.</span></li>
-    <li><span class="id">И-07</span><span>Вложенный <code>UnitOfWork.run</code> <b>присоединяется</b> к внешней транзакции и никогда не открывает новую.</span></li>
-    <li><span class="id">И-08</span><span><code>uow.current()</code> вне <code>run</code> возвращает базовое соединение и <b>не</b> бросает — чтение вне единицы работы законно.</span></li>
-    <li><span class="id">И-09</span><span><code>OutboxWriter.append</code> вне <code>UnitOfWork.run</code> <b>бросает исключение</b>. Событие не может быть записано на отдельном соединении.</span></li>
-    <li><span class="id">И-10</span><span>Событие коммитится <b>тогда и только тогда</b>, когда коммитится породившее его изменение состояния. Откат уносит события с собой.</span></li>
-    <li><span class="id">И-11</span><span><code>append</code> с пустым массивом — тихий no-op: ни запроса, ни ошибки.</span></li>
-    <li><span class="id">И-12</span><span>Повтор одного <code>eventId</code> внутри единицы работы <b>валит всю единицу работы</b> — <code>eventId</code> является первичным ключом строки outbox.</span></li>
-    <li><span class="id">И-13</span><span>Провал слива после коммита <b>никогда</b> не откатывает изменение состояния — исключение проглатывается, событие подберёт опрос.</span></li>
-    <li><span class="id">И-14</span><span>Строка штампуется <code>dispatched_at</code> только после того, как <b>все</b> подходящие подписчики отработали без исключения.</span></li>
-    <li><span class="id">И-15</span><span>Провал одного подписчика увеличивает <code>attempts</code> и ставит <code>next_attempt_at</code>, оставляя строку неразобранной; <b>остальные строки батча доставляются нормально</b>.</span></li>
-    <li><span class="id">И-16</span><span>Строка с <code>attempts ≥ 15</code> больше не попадает в выборку — полный батч «отравленных» строк <b>не может</b> заблокировать голову очереди.</span></li>
-    <li><span class="id">И-17</span><span><code>nextAttemptAfter(n, now) &gt; now</code> для любого <code>n</code>; задержка растёт вдвое от 1 секунды и упирается в плато 5 минут.</span></li>
-    <li><span class="id">И-18</span><span>Внутри процесса одновременно выполняется <b>не более одного</b> слива, плюс не более одного отложенного. Пул не может быть исчерпан сливами.</span></li>
-    <li><span class="id">И-19</span><span>Сливы в <b>разных процессах</b> берут непересекающиеся строки и не блокируют друг друга (<code>FOR UPDATE SKIP LOCKED</code>).</span></li>
-    <li><span class="id">И-20</span><span><code>onModuleDestroy</code> дожидается слива в полёте и не выбрасывает исключение; ожидание ограничено одним батчем.</span></li>
-    <li><span class="id">И-21</span><span>Событие, у которого нет ни одного подписчика, помечается доставленным <b>немедленно</b>, с <code>attempts = 0</code>.</span></li>
-    <li><span class="id">И-22</span><span><code>attachActor</code> не мутирует входные события, кладёт актора под ключом <code>actor</code> и <b>перезаписывает</b> актора, положенного издателем.</span></li>
-    <li><span class="id">И-23</span><span>Пакет владеет ровно <b>одной</b> таблицей. Появление второй — изменение архитектурного решения, а не рядовая правка.</span></li>
-    <li><span class="id">И-24</span><span>Модуль <code>domain/</code> в этом пакете отсутствует и не должен появиться: это инфраструктура.</span></li>
+    <li><span class="id">I-01</span><span>There is <b>exactly one</b> pool and one Drizzle client per process. <code>initDatabase</code> is idempotent: a repeat call does not open a second pool, it increments the holder counter.</span></li>
+    <li><span class="id">I-02</span><span><code>getDatabase()</code> and <code>getPool()</code> before <code>initDatabase</code> <b>throw with an intelligible message</b> rather than returning <code>undefined</code>.</span></li>
+    <li><span class="id">I-03</span><span>The pool is always opened with <b>explicit</b> <code>max</code> and <code>connectionTimeoutMillis</code>; the latter is strictly greater than zero. Exhausting the pool must produce an error on one request, not an unbounded wait for all of them.</span></li>
+    <li><span class="id">I-04</span><span>The pool is closed by the <b>last</b> holder to leave. An application shutting down while a neighbour in the same process is alive does not take the database away from it.</span></li>
+    <li><span class="id">I-05</span><span><code>closeDatabase</code> clears the memo <em>before</em> ending the pool: afterwards <code>initDatabase</code> opens a genuinely new pool rather than handing out an ended one.</span></li>
+    <li><span class="id">I-06</span><span>The shutdown hook <b>never</b> lets an exception out — the error is only logged and the rest of the shutdown runs.</span></li>
+    <li><span class="id">I-07</span><span>A nested <code>UnitOfWork.run</code> <b>joins</b> the outer transaction and never opens a new one.</span></li>
+    <li><span class="id">I-08</span><span><code>uow.current()</code> outside a <code>run</code> returns the base connection and does <b>not</b> throw — reading outside a unit of work is legitimate.</span></li>
+    <li><span class="id">I-09</span><span><code>OutboxWriter.append</code> outside a <code>UnitOfWork.run</code> <b>throws</b>. An event cannot be written on a separate connection.</span></li>
+    <li><span class="id">I-10</span><span>An event commits <b>if and only if</b> the state change that raised it commits. A rollback takes the events with it.</span></li>
+    <li><span class="id">I-11</span><span><code>append</code> with an empty array is a silent no-op: no query and no error.</span></li>
+    <li><span class="id">I-12</span><span>Repeating one <code>eventId</code> within a unit of work <b>fails the whole unit of work</b> — the <code>eventId</code> is the outbox row's primary key.</span></li>
+    <li><span class="id">I-13</span><span>A post-commit drain failure <b>never</b> rolls back the state change — the exception is swallowed and the poll picks the event up.</span></li>
+    <li><span class="id">I-14</span><span>A row is stamped <code>dispatched_at</code> only after <b>every</b> matching subscriber has finished without throwing.</span></li>
+    <li><span class="id">I-15</span><span>One subscriber's failure increments <code>attempts</code> and sets <code>next_attempt_at</code>, leaving the row undelivered; <b>the batch's other rows are delivered normally</b>.</span></li>
+    <li><span class="id">I-16</span><span>A row with <code>attempts ≥ 15</code> no longer enters the selection — a full batch of “poisoned” rows <b>cannot</b> block the head of the queue.</span></li>
+    <li><span class="id">I-17</span><span><code>nextAttemptAfter(n, now) &gt; now</code> for every <code>n</code>; the delay doubles from 1 second and plateaus at 5 minutes.</span></li>
+    <li><span class="id">I-18</span><span>Within a process, <b>no more than one</b> drain runs at a time, plus at most one deferred. The pool cannot be exhausted by drains.</span></li>
+    <li><span class="id">I-19</span><span>Drains in <b>different processes</b> take disjoint rows and do not block each other (<code>FOR UPDATE SKIP LOCKED</code>).</span></li>
+    <li><span class="id">I-20</span><span><code>onModuleDestroy</code> waits out the in-flight drain and throws no exception; the wait is bounded by one batch.</span></li>
+    <li><span class="id">I-21</span><span>An event with no subscribers at all is marked delivered <b>immediately</b>, with <code>attempts = 0</code>.</span></li>
+    <li><span class="id">I-22</span><span><code>attachActor</code> does not mutate the input events, puts the actor under the <code>actor</code> key and <b>overwrites</b> an actor placed there by the publisher.</span></li>
+    <li><span class="id">I-23</span><span>The package owns exactly <b>one</b> table. A second one appearing is a change of architectural decision, not a routine edit.</span></li>
+    <li><span class="id">I-24</span><span>There is no <code>domain/</code> module in this package and none should appear: this is infrastructure.</span></li>
   </ul>
 </section>
 
 <section id="qa">
-  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
+  <h2 class="sec"><span class="num">12</span>Testing checklist</h2>
 
-  <p>Разделение проверок закреплено в самом пакете и стоит того, чтобы его соблюдать: без фреймворка и без базы — юнит-спеки здесь; всё, что требует настоящей транзакции, настоящего пула или настоящего слива, — в <code>apps/server-e2e/src/server/database/</code>, «потому что мок взаимной блокировки не доказывает ничего».</p>
+  <p>The split of checks is fixed in the package itself and is worth honouring: no framework and no database — those are the unit specs here; everything that needs a real transaction, a real pool or a real drain goes into <code>apps/server-e2e/src/server/database/</code>, “because a mocked deadlock proves nothing”.</p>
 
-  <h3>Соединение и пул</h3>
+  <h3>The connection and the pool</h3>
   <ul class="check">
-    <li><b>Вызвать <code>getDatabase()</code> до <code>initDatabase</code></b> → <span class="exp">исключение с текстом «Database not initialized», а не <code>undefined</code>.</span></li>
-    <li><b>Проверить <code>getPool().options</code></b> → <span class="exp"><code>max = 10</code>, <code>connectionTimeoutMillis = 10000</code> и строго больше нуля.</span></li>
-    <li><b>Передать свои <code>poolMax</code> / <code>connectionTimeoutMillis</code> / <code>statementTimeoutMillis</code></b> → <span class="exp">попадают в пул; <code>statement_timeout</code> отсутствует, если не задан.</span></li>
-    <li><b>Занять все 10 клиентов и выполнить одиннадцатый запрос</b> → <span class="exp">отказ с «timeout» примерно через 10 секунд — не мгновенно и не никогда.</span></li>
-    <li><b>Освободить клиента при ожидающей очереди</b> → <span class="exp">ожидающий запрос немедленно обслуживается.</span></li>
-    <li><b>Вызвать <code>initDatabase</code> дважды с разным конфигом</b> → <span class="exp">пул остаётся первым, второй конфиг <b>молча</b> игнорируется.</span></li>
-    <li><b>Завершить одно из двух приложений в процессе</b> → <span class="exp">пул жив, второе приложение продолжает отвечать.</span></li>
-    <li><b>Завершить последнее приложение</b> → <span class="exp">пул закрыт, мемо очищено, следующий <code>initDatabase</code> открывает новый пул.</span></li>
-    <li><b>Прислать лишний хук завершения после закрытия</b> → <span class="exp">no-op, закрытый пул не «воскресает».</span></li>
-    <li><b>Заставить <code>releaseDatabase</code> упасть</b> → <span class="exp">хук логирует и не бросает.</span></li>
+    <li><b>Call <code>getDatabase()</code> before <code>initDatabase</code></b> → <span class="exp">an exception reading “Database not initialized”, not <code>undefined</code>.</span></li>
+    <li><b>Check <code>getPool().options</code></b> → <span class="exp"><code>max = 10</code>, <code>connectionTimeoutMillis = 10000</code>, and strictly greater than zero.</span></li>
+    <li><b>Pass your own <code>poolMax</code> / <code>connectionTimeoutMillis</code> / <code>statementTimeoutMillis</code></b> → <span class="exp">they reach the pool; <code>statement_timeout</code> is absent when not set.</span></li>
+    <li><b>Occupy all 10 clients and issue an eleventh query</b> → <span class="exp">a “timeout” refusal after roughly 10 seconds — neither instantly nor never.</span></li>
+    <li><b>Release a client while the queue is waiting</b> → <span class="exp">the waiting query is served immediately.</span></li>
+    <li><b>Call <code>initDatabase</code> twice with different configs</b> → <span class="exp">the pool stays the first one, and the second config is <b>silently</b> ignored.</span></li>
+    <li><b>Shut down one of two applications in the process</b> → <span class="exp">the pool is alive and the second application keeps answering.</span></li>
+    <li><b>Shut down the last application</b> → <span class="exp">the pool is closed, the memo cleared, and the next <code>initDatabase</code> opens a new pool.</span></li>
+    <li><b>Fire a stray shutdown hook after closing</b> → <span class="exp">a no-op; a closed pool does not “resurrect”.</span></li>
+    <li><b>Make <code>releaseDatabase</code> fail</b> → <span class="exp">the hook logs and does not throw.</span></li>
   </ul>
 
-  <h3>Unit of Work и запись в outbox</h3>
+  <h3>Unit of Work and writing to the outbox</h3>
   <ul class="check">
-    <li><b>Вложенный <code>run</code> внутри внешнего</b> → <span class="exp">одна транзакция на всё дерево, второй <code>BEGIN</code> не выполняется.</span></li>
-    <li><b>Бросить исключение после <code>append</code></b> → <span class="exp">и изменение состояния, и строки outbox откачены — в таблице ничего нет.</span></li>
-    <li><b>Успешная единица работы</b> → <span class="exp">изменение и события видны одновременно.</span></li>
-    <li><b><code>append([])</code></b> → <span class="exp">no-op, запрос не отправлен.</span></li>
-    <li><b>Дважды один <code>eventId</code> в одной единице работы</b> → <span class="exp">вся единица работы отвергнута (нарушение PK).</span></li>
-    <li><b><code>append</code> вне <code>run</code></b> → <span class="exp">исключение; строка <b>не</b> появляется в таблице.</span></li>
-    <li><b><code>isActive()</code> и <code>current()</code> вне <code>run</code></b> → <span class="exp"><code>false</code> и базовое соединение соответственно.</span></li>
+    <li><b>A nested <code>run</code> inside an outer one</b> → <span class="exp">one transaction for the whole tree; no second <code>BEGIN</code> is issued.</span></li>
+    <li><b>Throw after <code>append</code></b> → <span class="exp">both the state change and the outbox rows are rolled back — the table holds nothing.</span></li>
+    <li><b>A successful unit of work</b> → <span class="exp">the change and the events become visible at the same moment.</span></li>
+    <li><b><code>append([])</code></b> → <span class="exp">a no-op; no query is sent.</span></li>
+    <li><b>The same <code>eventId</code> twice in one unit of work</b> → <span class="exp">the whole unit of work is rejected (a PK violation).</span></li>
+    <li><b><code>append</code> outside a <code>run</code></b> → <span class="exp">an exception; the row does <b>not</b> appear in the table.</span></li>
+    <li><b><code>isActive()</code> and <code>current()</code> outside a <code>run</code></b> → <span class="exp"><code>false</code> and the base connection, respectively.</span></li>
   </ul>
 
-  <h3>Диспетчер: доставка, повторы, конкурентность</h3>
+  <h3>The dispatcher: delivery, retries, concurrency</h3>
   <ul class="check">
-    <li><b>Очередь длиннее батча</b> → <span class="exp">взяты старейшие по <code>occurred_at</code>, не более 100, и проштампованы именно они.</span></li>
-    <li><b>Узкий подписчик и подписчик <code>'*'</code></b> → <span class="exp">узкий получает только свои виды, <code>'*'</code> — все; каждый по одному разу на регистрацию.</span></li>
-    <li><b>Подписчик бросает</b> → <span class="exp"><code>attempts = 1</code>, <code>dispatched_at</code> остаётся <code>NULL</code>, <code>next_attempt_at</code> в будущем.</span></li>
-    <li><b>Повторные сливы подряд при падающем подписчике</b> → <span class="exp">попытки <b>не</b> сгорают пачкой — строка не берётся, пока не истекла пауза.</span></li>
-    <li><b>Довести <code>attempts</code> до 15</b> → <span class="exp">строка больше не выбирается; лог содержит «giving up» и запрос мёртвых писем.</span></li>
-    <li><b>Полный батч «отравленных» строк плюс свежее событие</b> → <span class="exp">свежее доставляется — голова очереди не заблокирована.</span></li>
-    <li><b>Много параллельных вызовов <code>drain()</code></b> → <span class="exp">выполнено максимум два слива (активный + отложенный), а не по одному на вызывающего.</span></li>
-    <li><b>Дюжина параллельных единиц работы поверх накопленной очереди</b> → <span class="exp">пул не заблокирован: <code>getPool().waitingCount === 0</code>, подписчики, берущие собственное соединение, отрабатывают.</span></li>
-    <li><b>Ничего не вызывать и подождать</b> → <span class="exp">опрос сам подбирает строку в пределах 5 секунд.</span></li>
-    <li><b>Событие вида, который никто не слушает</b> → <span class="exp">строка проштампована сразу, <code>attempts = 0</code>.</span></li>
-    <li><b>Выключение во время слива</b> → <span class="exp"><code>onModuleDestroy</code> ждёт активный и отложенный слив; при падении слива не бросает; при отсутствии слива возвращается сразу.</span></li>
-    <li><b>Повторная доставка того же события</b> → <span class="exp">подписчик аудита не создаёт второй строки (<code>ON CONFLICT DO NOTHING</code>).</span></li>
+    <li><b>A queue longer than a batch</b> → <span class="exp">the oldest by <code>occurred_at</code> are taken, no more than 100, and it is exactly those that get stamped.</span></li>
+    <li><b>A narrow subscriber and a <code>'*'</code> subscriber</b> → <span class="exp">the narrow one receives only its kinds and <code>'*'</code> receives all of them; each once per registration.</span></li>
+    <li><b>A subscriber throws</b> → <span class="exp"><code>attempts = 1</code>, <code>dispatched_at</code> stays <code>NULL</code>, and <code>next_attempt_at</code> is in the future.</span></li>
+    <li><b>Repeated drains back to back with a failing subscriber</b> → <span class="exp">the attempts are <b>not</b> burned in one go — the row is not picked up until the pause has elapsed.</span></li>
+    <li><b>Drive <code>attempts</code> to 15</b> → <span class="exp">the row is no longer selected; the log contains “giving up” and the dead-letter query.</span></li>
+    <li><b>A full batch of “poisoned” rows plus a fresh event</b> → <span class="exp">the fresh one is delivered — the head of the queue is not blocked.</span></li>
+    <li><b>Many parallel <code>drain()</code> calls</b> → <span class="exp">at most two drains ran (the active one + the deferred one), not one per caller.</span></li>
+    <li><b>A dozen parallel units of work on top of an accumulated queue</b> → <span class="exp">the pool is not deadlocked: <code>getPool().waitingCount === 0</code>, and subscribers that take their own connection complete.</span></li>
+    <li><b>Call nothing and wait</b> → <span class="exp">the poll picks the row up by itself within 5 seconds.</span></li>
+    <li><b>An event of a kind nobody listens to</b> → <span class="exp">the row is stamped at once, <code>attempts = 0</code>.</span></li>
+    <li><b>Shutdown during a drain</b> → <span class="exp"><code>onModuleDestroy</code> waits for the active and the deferred drain; it does not throw when a drain fails; with no drain running it returns immediately.</span></li>
+    <li><b>Re-delivery of the same event</b> → <span class="exp">the audit subscriber creates no second row (<code>ON CONFLICT DO NOTHING</code>).</span></li>
   </ul>
 
-  <h3>Конверт события</h3>
+  <h3>The event envelope</h3>
   <ul class="check">
-    <li><b><code>createDomainEvent</code> без <code>eventId</code>/<code>occurredAt</code></b> → <span class="exp">заполнены свежим uuid и текущим временем; у двух событий подряд id разные.</span></li>
-    <li><b>С явными <code>eventId</code>/<code>occurredAt</code></b> → <span class="exp">сохранены дословно.</span></li>
-    <li><b><code>attachActor</code></b> → <span class="exp">входные объекты не изменены; <code>email: null</code> сохраняется как ключ, а не выпадает; остальной конверт не тронут; пустой массив даёт пустой массив.</span></li>
+    <li><b><code>createDomainEvent</code> without an <code>eventId</code>/<code>occurredAt</code></b> → <span class="exp">filled with a fresh uuid and the current time; two consecutive events have different ids.</span></li>
+    <li><b>With explicit <code>eventId</code>/<code>occurredAt</code></b> → <span class="exp">preserved verbatim.</span></li>
+    <li><b><code>attachActor</code></b> → <span class="exp">the input objects are unmodified; <code>email: null</code> is preserved as a key rather than dropped; the rest of the envelope is untouched; an empty array yields an empty array.</span></li>
   </ul>
 
-  <h3>Миграции</h3>
+  <h3>Migrations</h3>
   <ul class="check">
-    <li><b><code>db:migrate</code> на чистой базе</b> → <span class="exp">таблица <code>outbox_events</code>, частичный индекс <code>outbox_events_pending_idx</code>, учёт в <code>__drizzle_migrations_database</code>.</span></li>
-    <li><b>Повторный <code>db:migrate</code></b> → <span class="exp">ничего не применяется, ошибок нет.</span></li>
-    <li><b><code>db:generate</code> без запущенной БД</b> → <span class="exp">отрабатывает — генерация только диффит схему со снимком.</span></li>
+    <li><b><code>db:migrate</code> on a clean database</b> → <span class="exp">the <code>outbox_events</code> table, the partial <code>outbox_events_pending_idx</code> index, and tracking in <code>__drizzle_migrations_database</code>.</span></li>
+    <li><b>A repeat <code>db:migrate</code></b> → <span class="exp">nothing is applied and there are no errors.</span></li>
+    <li><b><code>db:generate</code> with no database running</b> → <span class="exp">it works — generation only diffs the schema against a snapshot.</span></li>
   </ul>
 </section>
 
 <section id="bounds">
-  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <h2 class="sec"><span class="num">13</span>Boundaries of responsibility</h2>
 
-  <p>Пакет намеренно узкий. Всё, что можно было отдать наружу, отдано.</p>
+  <p>The package is deliberately narrow. Everything that could be handed outwards has been.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Вопрос</th><th class="center">Здесь?</th><th>Где на самом деле</th></tr></thead>
+    <thead><tr><th>Question</th><th class="center">Here?</th><th>Where it really lives</th></tr></thead>
     <tbody>
-      <tr><td>Открыть соединение и раздать его</td><td class="center yes">да</td><td>—</td></tr>
-      <tr><td>Граница транзакции, конверт события, outbox</td><td class="center yes">да</td><td>—</td></tr>
-      <tr><td>Таблица <code>outbox_events</code> и её миграции</td><td class="center yes">да</td><td>Санкционированное исключение из «плагин не владеет чужой схемой»</td></tr>
-      <tr><td>Любая предметная таблица</td><td class="center no">нет</td><td>Плагин своего контекста: <code>identity</code>, <code>content</code>, <code>media</code>, <code>alarms</code>, <code>segments</code>…</td></tr>
-      <tr><td>Агрегаты, репозитории, мапперы</td><td class="center no">нет</td><td>Слои <code>domain/</code> и <code>infrastructure/</code> внутри плагинов (ADR-0003)</td></tr>
-      <tr><td>Виды событий и их payload</td><td class="center no">нет</td><td>Хелперы событий шести контекстов-издателей</td></tr>
-      <tr><td>Реакции на события</td><td class="center no">нет</td><td><code>activity/server</code>, <code>alarms/server</code> — регистрируются в рантайме</td></tr>
-      <tr><td>Аудит и журнал активности</td><td class="center no">нет</td><td><code>activity/server</code>: подписчик + таблица <code>activity_events</code></td></tr>
-      <tr><td>Цели <code>db:generate</code> / <code>db:migrate</code></td><td class="center no">нет</td><td><code>@orthacms/nx</code> (инференция целей) поверх <code>@orthacms/cli</code> (<code>applyPluginMigrations</code>)</td></tr>
-      <tr><td>Порядок применения миграций</td><td class="center no">нет</td><td>Массив <code>plugins</code> хоста — <code>apps/server/src/plugins.ts</code></td></tr>
-      <tr><td>Чтение переменных окружения</td><td class="center no">нет</td><td><code>apps/server/ortha.config.ts</code> — единственное место, читающее <code>process.env</code></td></tr>
-      <tr><td>Включение хуков завершения Nest</td><td class="center no">нет</td><td><code>createServer</code> в <code>@orthacms/bootstrap-server</code></td></tr>
-      <tr><td>Очистка старых строк outbox</td><td class="center no">нет</td><td>Никем. Задача эксплуатации</td></tr>
-      <tr><td>Метрики, healthcheck, UI очереди</td><td class="center no">нет</td><td>Отсутствуют. Только логи и SQL</td></tr>
+      <tr><td>Opening a connection and handing it out</td><td class="center yes">yes</td><td>—</td></tr>
+      <tr><td>The transaction boundary, the event envelope, the outbox</td><td class="center yes">yes</td><td>—</td></tr>
+      <tr><td>The <code>outbox_events</code> table and its migrations</td><td class="center yes">yes</td><td>A sanctioned exception to “a plugin does not own someone else's schema”</td></tr>
+      <tr><td>Any domain table</td><td class="center no">no</td><td>Its own context's plugin: <code>identity</code>, <code>content</code>, <code>media</code>, <code>alarms</code>, <code>segments</code>…</td></tr>
+      <tr><td>Aggregates, repositories, mappers</td><td class="center no">no</td><td>The <code>domain/</code> and <code>infrastructure/</code> layers inside the plugins (ADR-0003)</td></tr>
+      <tr><td>Event kinds and their payloads</td><td class="center no">no</td><td>The event helpers of the six publishing contexts</td></tr>
+      <tr><td>Reactions to events</td><td class="center no">no</td><td><code>activity/server</code>, <code>alarms/server</code> — registered at runtime</td></tr>
+      <tr><td>Auditing and the activity log</td><td class="center no">no</td><td><code>activity/server</code>: the subscriber + the <code>activity_events</code> table</td></tr>
+      <tr><td>The <code>db:generate</code> / <code>db:migrate</code> targets</td><td class="center no">no</td><td><code>@orthacms/nx</code> (target inference) on top of <code>@orthacms/cli</code> (<code>applyPluginMigrations</code>)</td></tr>
+      <tr><td>The order in which migrations are applied</td><td class="center no">no</td><td>The host's <code>plugins</code> array — <code>apps/server/src/plugins.ts</code></td></tr>
+      <tr><td>Reading environment variables</td><td class="center no">no</td><td><code>apps/server/ortha.config.ts</code> — the only place that reads <code>process.env</code></td></tr>
+      <tr><td>Enabling Nest's shutdown hooks</td><td class="center no">no</td><td><code>createServer</code> in <code>@orthacms/bootstrap-server</code></td></tr>
+      <tr><td>Pruning old outbox rows</td><td class="center no">no</td><td>Nobody's. An operations task</td></tr>
+      <tr><td>Metrics, health checks, a queue UI</td><td class="center no">no</td><td>Absent. Only logs and SQL</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Отношение к ADR-0003</h3>
-  <p>ADR «Tactical DDD inside plugins» перечисляет восемь решений; этот пакет реализует <b>шестое</b> целиком и является фундаментом для пятого:</p>
+  <h3>Its relationship to ADR-0003</h3>
+  <p>The “Tactical DDD inside plugins” ADR lists eight decisions; this package implements the <b>sixth</b> in full and is the foundation for the fifth:</p>
   <ul>
-    <li><b>Решение 5</b> — «use-case владеет границей транзакции через общий Unit of Work». Общий <code>UnitOfWork</code> живёт здесь.</li>
-    <li><b>Решение 6</b> — «заменить внутриполосную запись аудита на доменные события плюс outbox». Дословно: «<code>UnitOfWork</code>, outbox и контракт <code>DomainEvent</code> живут один раз — в <code>@orthacms/database</code>».</li>
-    <li><b>Правило зависимостей</b> — <code>domain/</code> не импортирует Nest, Drizzle, React. Именно поэтому конверт события и его билдер лежат в файле без единого фреймворкового импорта: агрегату <em>можно</em> их использовать.</li>
-    <li><b>Что осталось «follow-up»</b> — ADR обещает ESLint-правила границ модулей, выводимые <code>@orthacms/nx</code> на слоистые пакеты. К этому пакету они неприменимы: слоёв здесь нет по определению.</li>
+    <li><b>Decision 5</b> — “the use case owns the transaction boundary through a shared Unit of Work”. The shared <code>UnitOfWork</code> lives here.</li>
+    <li><b>Decision 6</b> — “replace in-band audit writes with domain events plus an outbox”. Verbatim: “the <code>UnitOfWork</code>, the outbox and the <code>DomainEvent</code> contract live once — in <code>@orthacms/database</code>”.</li>
+    <li><b>The dependency rule</b> — <code>domain/</code> imports no Nest, no Drizzle, no React. That is exactly why the event envelope and its builder sit in a file with not a single framework import: an aggregate <em>is allowed</em> to use them.</li>
+    <li><b>What was left as “follow-up”</b> — the ADR promises ESLint module-boundary rules inferred by <code>@orthacms/nx</code> for layered packages. They do not apply to this package: there are no layers here by definition.</li>
   </ul>
 
   <div class="note">
-    <span class="label">Как читать «инфраструктура без домена»</span>
-    <p>Это не пропуск и не долг. У пакета нет ни одного бизнес-правила, которое можно было бы нарушить, — значит нечего моделировать агрегатом. Все его инварианты (раздел 11) касаются <em>механики</em>: соединений, транзакций, доставки. Появление здесь папки <code>domain/</code> означало бы, что в инфраструктуру просочилась предметная область, и это следовало бы откатить.</p>
+    <span class="label">How to read “infrastructure without a domain”</span>
+    <p>This is neither an omission nor a debt. The package has not a single business rule that could be broken — so there is nothing for an aggregate to model. All of its invariants (section 11) concern <em>mechanics</em>: connections, transactions, delivery. A <code>domain/</code> folder appearing here would mean the subject area had leaked into the infrastructure, and it should be reverted.</p>
   </div>
 </section>
 
 <section id="gaps">
-  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
+  <h2 class="sec"><span class="num">14</span>Discrepancies between the code and the documentation</h2>
 
-  <p>Каждое утверждение документации сверено с реализацией. Ниже то, что не сошлось.</p>
+  <p>Every statement in the documentation was checked against the implementation. Below is what did not match.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <thead><tr><th>Where</th><th>What it says</th><th>How it actually is</th></tr></thead>
     <tbody>
       <tr>
-        <td class="mono">ARCHITECTURE.md, §4 «The data layer»</td>
-        <td>«It owns <b>no schemas and no migrations</b>»</td>
-        <td>Владеет таблицей <code>outbox_events</code> и везёт <b>две</b> собственные миграции с таблицей учёта <code>__drizzle_migrations_database</code>. Об этом исключении честно говорят и <code>AGENTS.md</code> пакета, и корневой <code>AGENTS.md</code>, и <code>drizzle.config.ts</code> — не обновлён только этот абзац</td>
+        <td class="mono">ARCHITECTURE.md, §4 “The data layer”</td>
+        <td>“It owns <b>no schemas and no migrations</b>”</td>
+        <td>It owns the <code>outbox_events</code> table and carries <b>three</b> migrations of its own, with a <code>__drizzle_migrations_database</code> tracking table. The package's <code>AGENTS.md</code>, the root <code>AGENTS.md</code> and <code>drizzle.config.ts</code> all state that exception honestly — only this paragraph was not updated</td>
       </tr>
       <tr>
-        <td class="mono">CONTEXT-MAP.md, строка про <code>database</code></td>
-        <td>«One Drizzle/<code>pg</code> connection via DI. <b>Owns no schema</b>»</td>
-        <td>То же самое расхождение. Плюс формулировка «via DI» умалчивает о втором, не-DI способе доступа (<code>getDatabase()</code>/<code>getPool()</code>), который пакет экспортирует специально</td>
+        <td class="mono">CONTEXT-MAP.md, the <code>database</code> row</td>
+        <td>“One Drizzle/<code>pg</code> connection via DI. <b>Owns no schema</b>”</td>
+        <td>The same discrepancy. On top of that, the phrase “via DI” says nothing about the second, non-DI access route (<code>getDatabase()</code>/<code>getPool()</code>), which the package exports deliberately</td>
       </tr>
       <tr>
         <td class="mono">packages/database/AGENTS.md</td>
-        <td>Заголовок «<b>Two</b> things the outbox deliberately bounds»</td>
-        <td>Под заголовком <b>три</b> пункта: потолок с backoff'ом, дожидание слива при выключении и «один слив на процесс». Третий дописали, заголовок не поправили</td>
+        <td>The heading “<b>Two</b> things the outbox deliberately bounds”</td>
+        <td>There are <b>three</b> items under the heading: the ceiling with backoff, waiting out the drain at shutdown, and “one drain per process”. The third was added and the heading was not fixed</td>
       </tr>
       <tr>
-        <td class="mono">packages/database/AGENTS.md, «Key exports»</td>
-        <td>Перечисляет экспорты пакета</td>
-        <td>Список неполон: не упомянуты <code>attachActor</code> и <code>EventActor</code> (притом что <code>attachActor</code> обязателен для аудита), <code>closeDatabase</code>, <code>DEFAULT_POOL_MAX</code>, <code>DEFAULT_CONNECTION_TIMEOUT_MS</code>, <code>MAX_DELIVERY_ATTEMPTS</code></td>
+        <td class="mono">packages/database/AGENTS.md, “Key exports”</td>
+        <td>Lists the package's exports</td>
+        <td>The list is incomplete: it omits <code>attachActor</code> and <code>EventActor</code> (even though <code>attachActor</code> is mandatory for auditing), <code>closeDatabase</code>, <code>DEFAULT_POOL_MAX</code>, <code>DEFAULT_CONNECTION_TIMEOUT_MS</code> and <code>MAX_DELIVERY_ATTEMPTS</code></td>
       </tr>
       <tr>
-        <td class="mono">packages/database/AGENTS.md, «Architecture → Lifecycle»</td>
-        <td>Подробно объясняет, почему используется <code>releaseDatabase</code>, а не <code>closeDatabase</code>, как часть публичного поведения</td>
-        <td><code>releaseDatabase</code> <b>не экспортируется</b> из <code>src/index.ts</code> — это внутренняя функция, доступная только провайдеру <code>DatabaseShutdown</code>. Наружу отдан лишь безусловный <code>closeDatabase</code>. Описание верно по смыслу, но читается как описание доступного API</td>
+        <td class="mono">packages/database/AGENTS.md, “Architecture → Lifecycle”</td>
+        <td>Explains in detail why <code>releaseDatabase</code> is used rather than <code>closeDatabase</code>, as part of the public behaviour</td>
+        <td><code>releaseDatabase</code> is <b>not exported</b> from <code>src/index.ts</code> — it is an internal function available only to the <code>DatabaseShutdown</code> provider. Only the unconditional <code>closeDatabase</code> is handed outwards. The description is right in substance but reads as a description of an available API</td>
       </tr>
       <tr>
-        <td class="mono">packages/database/AGENTS.md, «Configuration»</td>
-        <td>Пример подключения плагина подписан как <code>apps/server/src/main.ts</code></td>
-        <td><code>main.ts</code> вызывает <code>buildPlugins(config)</code>; сам <code>DatabasePlugin({...})</code> находится в <code>apps/server/src/plugins.ts</code></td>
+        <td class="mono">packages/database/AGENTS.md, “Configuration”</td>
+        <td>The plugin-wiring example is captioned <code>apps/server/src/main.ts</code></td>
+        <td><code>main.ts</code> calls <code>buildPlugins(config)</code>; the <code>DatabasePlugin({...})</code> itself is in <code>apps/server/src/plugins.ts</code></td>
       </tr>
       <tr>
         <td class="mono">docs/adr/0003-tactical-ddd-inside-plugins.md</td>
-        <td>Статус <b>Proposed</b>, с пометкой «flips to Accepted once the workspaces pilot (Wave 1) merges»</td>
-        <td>Фундамент (<code>UnitOfWork</code> + outbox + <code>DomainEvent</code>) поставлен, пакет <code>workspaces/server</code> выделен и работает по слоям, аудит переехал на подписчика. Статус не переключён</td>
+        <td>Status <b>Proposed</b>, noting that it “flips to Accepted once the workspaces pilot (Wave 1) merges”</td>
+        <td>The foundation (<code>UnitOfWork</code> + outbox + <code>DomainEvent</code>) is in place, the <code>workspaces/server</code> package has been carved out and works in layers, and the audit log has moved to a subscriber. The status was never flipped</td>
       </tr>
       <tr>
         <td class="mono">identity/server, <code>identity-events.ts</code></td>
-        <td>Комментарий говорит о переносе аудита на подписчика outbox как о будущем («Wave 3's move…»), и что издавать события «безвредно, <b>пока такой подписчик не существует</b>»</td>
-        <td>Подписчик существует — <code>AuditEventSubscriber</code> в <code>activity/server</code>, и он уже слушает три из этих видов (<code>user.password_changed</code>, <code>user.activated</code>, <code>auth.signed_in</code>). Утверждение про «нет подписчика» осталось верным лишь для остальных восьми видов</td>
+        <td>The comment speaks of moving the audit log onto an outbox subscriber as something in the future (“Wave 3's move…”), and says that emitting events is “harmless <b>until that subscriber exists</b>”</td>
+        <td>The subscriber exists — <code>AuditEventSubscriber</code> in <code>activity/server</code> — and it already listens to three of these kinds (<code>user.password_changed</code>, <code>user.activated</code>, <code>auth.signed_in</code>). The “no subscriber” claim remains true only for the other eight kinds</td>
       </tr>
       <tr>
-        <td class="mono">ARCHITECTURE.md, §5, шаг 4</td>
-        <td>Описывает пост-коммитный слив и 5-секундный опрос</td>
-        <td>Верно, но не упомянуты два ограничителя, определяющие поведение под нагрузкой: потолок в 15 попыток с экспоненциальным backoff'ом и правило «один слив на процесс». Читатель этого абзаца не узнает, что событие может быть припарковано навсегда</td>
+        <td class="mono">ARCHITECTURE.md, §5, step 4</td>
+        <td>Describes the post-commit drain and the 5-second poll</td>
+        <td>Correct, but it does not mention the two limiters that define behaviour under load: the ceiling of 15 attempts with exponential backoff, and the “one drain per process” rule. A reader of that paragraph will not learn that an event can be parked forever</td>
       </tr>
       <tr>
-        <td class="mono">Документация в целом</td>
+        <td class="mono">The documentation as a whole</td>
         <td>—</td>
-        <td>Нигде не описано <b>отсутствие очистки</b> <code>outbox_events</code> и отсутствие какого-либо инструментария для мёртвых писем, кроме SQL. Обе вещи — эксплуатационные, и обе всплывут не на разработке, а в проде</td>
+        <td>Nowhere does it describe the <b>absence of pruning</b> for <code>outbox_events</code>, nor the absence of any dead-letter tooling beyond SQL. Both are operational matters, and both will surface in production rather than in development</td>
       </tr>
     </tbody>
   </table>
   </div>
 
   <details>
-    <summary>Мелочи, не поднявшиеся до строки таблицы</summary>
-    <p><code>nextAttemptAfter</code> экспортируется из <code>outbox-dispatcher.ts</code>, но не из бочки пакета — она видна только юнит-тесту внутри пакета. Это осознанно, но означает, что развёртывание не может ни прочитать, ни переопределить кривую backoff'а.</p>
-    <p>Пустой <code>catch</code> в <code>UnitOfWork.run</code> не пишет в лог вообще. Комментарий объясняет почему, и опрос действительно подберёт события, — но провал именно пост-коммитного слива нигде не виден как отдельный факт.</p>
-    <p><code>DatabaseServerPlugin</code> носит поле <code>databaseConfig</code>, но в репозитории его никто не читает: тип существует ради того, чтобы конфиг был доступен хосту, который захочет его посмотреть.</p>
+    <summary>Minor points that did not rise to a table row</summary>
+    <p><code>nextAttemptAfter</code> is exported from <code>outbox-dispatcher.ts</code> but not from the package's barrel — it is visible only to a unit test inside the package. That is deliberate, but it means a deployment can neither read nor override the backoff curve.</p>
+    <p>The empty <code>catch</code> in <code>UnitOfWork.run</code> logs nothing at all. The comment explains why, and the poll really does pick the events up — but a failure of the post-commit drain specifically is nowhere visible as a fact of its own.</p>
+    <p><code>DatabaseServerPlugin</code> carries a <code>databaseConfig</code> field that nobody in the repository reads: the type exists so that the config is available to a host that wants to look at it.</p>
   </details>
 </section>
 
 <footer class="end">
-  <p><b>Второй артефакт серии.</b> Сделан по пакету <code>packages/database</code> в том же каркасе, что и паспорт Identity: бизнес-описание → состав → соединение → данные → примитивы → сценарии → конфигурация → надёжность → инварианты → чек-лист → границы → расхождения. Разделы, которых у пакета нет (права, HTTP API, админка), выпали — у него нет ни одного маршрута и ни одного экрана.</p>
-  <p>Источник — исходный код: <code>src/lib/utils/db.ts</code>, <code>database.module.ts</code>, <code>uow/unit-of-work.ts</code>, <code>outbox/outbox-writer.ts</code>, <code>outbox/outbox-dispatcher.ts</code>, <code>events/domain-event.ts</code>, <code>schema/outbox-events.ts</code>, обе миграции, юнит-спеки пакета и три e2e-набора в <code>apps/server-e2e/src/server/database/</code>; плюс подписчики в <code>activity/server</code> и <code>alarms/server</code> и все шесть каталогов событий. <code>AGENTS.md</code>, <code>ARCHITECTURE.md</code> и ADR-0003 использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+  <p><b>The second dossier in the series.</b> Written for the <code>packages/database</code> package in the same skeleton as the Identity dossier: business description → composition → the connection → data → primitives → scenarios → configuration → reliability → invariants → checklist → boundaries → discrepancies. The sections the package does not have (permissions, HTTP API, admin UI) have dropped out — it has not a single route and not a single screen.</p>
+  <p>The source is the code: <code>src/lib/utils/db.ts</code>, <code>database.module.ts</code>, <code>uow/unit-of-work.ts</code>, <code>outbox/outbox-writer.ts</code>, <code>outbox/outbox-dispatcher.ts</code>, <code>events/domain-event.ts</code>, <code>schema/outbox-events.ts</code>, both migrations, the package's unit specs and the three e2e suites in <code>apps/server-e2e/src/server/database/</code>; plus the subscribers in <code>activity/server</code> and <code>alarms/server</code> and all six event catalogues. <code>AGENTS.md</code>, <code>ARCHITECTURE.md</code> and ADR-0003 were used as a skeleton, but every statement was verified against the implementation — the divergences are collected in section 14.</p>
 </footer>
 
 </main>

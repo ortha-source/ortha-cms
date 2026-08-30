@@ -75,7 +75,8 @@ Your own profile: sidebar Account menu → "My profile".
 `@orthacms/identity-admin` (`useHasPermission`, `useAuth`, `useLogoutMutation`),
 `@orthacms/shell-admin` (`PageTopBar`, the slots), `@orthacms/design-system`
 (`Table`, `Dialog`, `ConfirmDialog`, `DropdownMenu`, `RadioGroup`, `Pagination`, `toast`,
-`useAppearance`), `@orthacms/query-builder-admin` (`QueryBuilderDrawer`),
+`useAppearance`), `@orthacms/query-builder-admin` (`QueryBuilderPanel`,
+`QueryBuilderSummary`),
 `@orthacms/utils-admin` (`apiClient`, `useTableUrlState`, `toApiError`, `HTTP_STATUS`,
 `initialsOf`, `avatarColorForId`), `@orthacms/activity-admin` (the Activity tab).
 
@@ -86,7 +87,7 @@ Your own profile: sidebar Account menu → "My profile".
 | F1 | Members roster: avatar, name, email, role chip, status pill, workspaces, joined, row menu | `presentation/components/MembersTable/index.tsx:57-146` | ✅ E2E |
 | F2 | Row click → detail; the name is a real link for keyboard users | `MembersTable/index.tsx:92,103-111` | ✅ E2E |
 | F3 | Debounced search, deep-linked to `?search=` | `pages/MembersPage/index.tsx:93-96`, `components/MembersToolbar` | ✅ E2E |
-| F4 | Query-builder filter drawer, deep-linked to `?filter=` | `MembersPage/index.tsx:99-104,138-143`, `presentation/membersFilterFields` | ✅ E2E |
+| F4 | Query-builder filter panel (inline accordion), deep-linked to `?filter=` | `MembersPage/index.tsx:113-118,153-172,278-293`, `presentation/membersFilterFields` | ✅ E2E |
 | F5 | Pagination + selectable page size, deep-linked | `components/MembersPagination`, `MembersPage/index.tsx:268-278` | ✅ E2E |
 | F6 | Page clamped to `pageCount` after a mutation or a narrowing filter | `MembersPage/index.tsx:129-136` | ⚠️ PARTIAL |
 | F7 | Four distinct states: skeleton / error+retry / empty / table | `MembersPage/index.tsx:242-281` | ✅ E2E |
@@ -148,8 +149,8 @@ header is `sr-only` "Actions".
 | 1 | Type `grac` into the search box | after the debounce the URL gains `?search=grac` and the table narrows |
 | 2 | Reload the page | the search survives (the URL is the source of truth) |
 | 3 | Open **Filters**, add `role is admin`, Apply | the URL gains `?filter=…`; the trigger reads "Filters (1)" |
-| 4 | Copy the URL into a new tab | the drawer rehydrates the same rule |
-| 5 | Press **Reset** in the drawer | the filter clears and the full roster returns |
+| 4 | Copy the URL into a new tab | the panel rehydrates the same rule; collapsed, it reads out as a chip |
+| 5 | Press **Reset** in the panel | the filter clears and the full roster returns |
 | 6 | Set the page size to 5 and go to page 3 | `?page=3&pageSize=5` |
 | 7 | With 11 members on page 3 (1 row), revoke that member's invite | the page **clamps to 2** and refetches — the user is not stranded on an empty page |
 | 8 | Deep-link `?page=4` when only 2 pages exist | after the first response lands, the page clamps to 2 (guarded on `data`, so a deep link is not reset to 1 before the fetch) |
@@ -433,7 +434,7 @@ the previous rows on screen through a refetch.
 - **EC-27 — Revoke the invite of the member whose detail page you are on.** `❌ NONE` — the
   row is deleted server-side; the next `GET /api/users/:id` 404s. Verify the detail page
   shows a not-found state rather than a blank shell.
-- **EC-28 — Filters survive a refetch.** `✅ E2E` (`members-filter.spec.ts:67`) — the URL is
+- **EC-28 — Filters survive a refetch.** `✅ E2E` (`members-filter.spec.ts:86`) — the URL is
   the source of truth, so an invalidation cannot drop them.
 
 ### Failure & partiality
@@ -479,7 +480,7 @@ to 2.1 AA with the 508 provision cited alongside. Chapter 5 provisions assessed:
 **Do not trust axe.** This unit has the repo's best automated a11y coverage —
 `apps/admin-e2e/src/users/a11y.spec.ts` scans seven states (table `:18`, skeleton `:24`,
 invite details step `:37`, invite workspaces step `:44`, **open row menu** `:59`, empty
-`:66`, no-access `:73`), `members-filter.spec.ts:81` scans the open filter drawer with a
+`:66`, no-access `:73`), `members-filter.spec.ts:119` scans the open filter panel with a
 rule, and `preferences.spec.ts:112,124` scans the theme picker in **both** light and dark.
 That is genuinely strong. It still proves nothing about focus restoration after a
 destructive action, whether a confirmation dialog's name identifies its target, whether a
@@ -818,7 +819,8 @@ the 24 px minimum. **Supports**.
 | F1 Roster | `apps/admin-e2e/src/users/members.spec.ts:31,48` | names, emails, status pills; the count in the header subtitle | ✅ E2E |
 | F2 Row → detail | `apps/admin-e2e/src/users/user-detail.spec.ts:40` | opens when the row is clicked | ⚠️ PARTIAL — the **name link** path (the keyboard route) is unasserted |
 | F3 Search | `members.spec.ts:58`, `keyboard.spec.ts:16` | filters by a term; filters as you type from the keyboard | ✅ E2E |
-| F4 Filter drawer | `apps/admin-e2e/src/users/members-filter.spec.ts:18,28,54,67,93` | opens, filters by status + deep-links, condition count on the trigger, restores from a deep link, Reset restores the roster | ✅ E2E |
+| F4 Filter panel | `apps/admin-e2e/src/users/members-filter.spec.ts:26,40,73,86,100,131` | expands, filters by status + deep-links, condition count on the trigger, restores from a deep link, Esc collapses and restores focus, Reset restores the roster | ✅ E2E |
+| F4a Applied-filter chips | `members-filter.spec.ts:168,181,194` | the collapsed summary reads the condition back (enum value resolved to its label), removing a chip re-commits, "Clear all" drops everything | ✅ E2E |
 | F5 Pagination | `members.spec.ts:162` | paginates with a selectable page size | ✅ E2E |
 | F6 Page clamp | — | — | ⚠️ PARTIAL — **the clamp is implemented but nothing drives a mutation that shrinks the list while on the last page**, which is the BUGBOT trap it exists for |
 | F7 States | `members.spec.ts:66`, `a11y.spec.ts:24` | empty state on a no-match search; the loading skeleton renders | ⚠️ PARTIAL — **the error+Retry state has no test at all** |
@@ -851,7 +853,7 @@ the 24 px minimum. **Supports**.
 | F34 Invalidation scope | — | — | ⚠️ PARTIAL — behaviourally invisible; needs a request-count assertion |
 | F35 Sessions cache | `user-detail.spec.ts:92` | the revoked row drops off | ✅ E2E |
 | **a11y — roster & wizard** | `apps/admin-e2e/src/users/a11y.spec.ts:18,24,37,44,59,66,73` | axe on the table, skeleton, both wizard steps, the **open row menu**, empty and no-access states | ⚠️ PARTIAL — light theme only; no dialogs, no detail page, no post-action focus |
-| **a11y — filter drawer** | `members-filter.spec.ts:81` | axe on the open drawer with a rule applied | ✅ E2E for that state |
+| **a11y — filter panel** | `members-filter.spec.ts:119` | axe on the open panel with a rule applied | ⚠️ PARTIAL — the collapsed **summary chips** are never in the scanned DOM |
 | **a11y — preferences** | `preferences.spec.ts:112,124` | axe on the theme picker in **light and dark** | ✅ E2E — the only dark-theme scan in the repo |
 | **keyboard** | `apps/admin-e2e/src/users/keyboard.spec.ts:16,25,39` | search filters as you type; the invite wizard opens from the keyboard; the row menu opens from the keyboard | ⚠️ PARTIAL — nothing on Esc, focus restoration, or focus after a row is removed |
 

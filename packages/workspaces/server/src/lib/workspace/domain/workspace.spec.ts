@@ -159,6 +159,66 @@ describe('Workspace aggregate', () => {
         });
     });
 
+    describe('a no-op raises nothing (the other half of idempotence)', () => {
+        // Every mutator returns whether it *actually* changed anything, and the
+        // application layer drains `pullEvents()` into the outbox on the way
+        // out — where the activity subscriber turns each one into an audit row.
+        // So a mutator that returned `false` but still raised would write "Grace
+        // added a member" for a member who was already there: an audit log
+        // recording work that never happened, in a store nobody diffs against
+        // reality. The `false` return is asserted above; that no event went with
+        // it is not, and it is the half that leaks.
+        it('addMember on an existing member', () => {
+            const workspace = rehydrated();
+
+            expect(workspace.addMember(CREATOR)).toBe(false);
+            expect(workspace.pullEvents()).toEqual([]);
+            expect(workspace.changes().addedMemberIds).toEqual([]);
+        });
+
+        it('removeMember on someone who was never a member', () => {
+            const workspace = rehydrated();
+            workspace.addMember(OTHER);
+            workspace.pullEvents();
+
+            expect(workspace.removeMember(UNKNOWN)).toBe(false);
+            expect(workspace.pullEvents()).toEqual([]);
+        });
+
+        it('grantContent for a type already granted', () => {
+            const workspace = rehydrated();
+
+            expect(workspace.grantContent('collection', 'blog_post')).toBe(
+                false
+            );
+            expect(workspace.pullEvents()).toEqual([]);
+            expect(workspace.changes().addedGrants).toEqual([]);
+        });
+
+        it('revokeContent for a grant the workspace never held', () => {
+            const workspace = rehydrated();
+
+            expect(workspace.revokeContent('product', 0)).toBe(false);
+            expect(workspace.pullEvents()).toEqual([]);
+            expect(workspace.changes().removedGrantSlugs).toEqual([]);
+        });
+
+        it('a refused change raises nothing either', () => {
+            // A throw leaves the aggregate untouched: the caller may well
+            // catch, and a stray event drained afterwards would record a
+            // revoke that was refused.
+            const workspace = rehydrated();
+
+            expect(() => workspace.revokeContent('blog_post', 3)).toThrow(
+                ContentTypeNotEmptyError
+            );
+            expect(() => workspace.removeMember(CREATOR)).toThrow(
+                LastMemberError
+            );
+            expect(workspace.pullEvents()).toEqual([]);
+        });
+    });
+
     describe('assertDeletable (no-orphaned-content)', () => {
         it('throws while the workspace still holds entries', () => {
             const workspace = rehydrated();

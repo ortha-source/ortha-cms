@@ -361,6 +361,33 @@ export async function mockWorkspacesApi(
 /** The path segments of a routed request (`['', 'api', 'workspaces', …]`). */
 const segments = (url: string): string[] => new URL(url).pathname.split('/');
 
+/**
+ * Answer a per-workspace `GET /api/workspaces/:id` **differently** for each id
+ * in `answers` (`{ ws_ghost: 404, ws_private: 403 }`) and count the calls.
+ *
+ * Nothing in the admin asks: the shell resolves `:id` against the
+ * membership-scoped list it already holds, so "no such workspace" and "not
+ * yours" are the same unresolved id and get the same screen. This route exists
+ * so a future existence probe would have something to leak — the id that
+ * exists answering differently from the one that doesn't — which is what makes
+ * "both screens say the same thing" a test with teeth rather than a tautology.
+ * Any other id falls through to the surrounding mocks.
+ */
+export async function spyWorkspaceProbe(
+    page: Page,
+    answers: Record<string, number>
+): Promise<{ count: number }> {
+    const probe = { count: 0 };
+    await page.route(/\/api\/workspaces\/([^/?]+)$/, async (route) => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        const status = answers[segments(route.request().url())[3]];
+        if (status === undefined) return route.fallback();
+        probe.count += 1;
+        return route.fulfill(jsonError(status, 'No answer for you'));
+    });
+    return probe;
+}
+
 /** Options for {@link mockWorkspaceSettingsApi}. */
 export interface WorkspaceSettingsApiOptions {
     /**
@@ -376,6 +403,27 @@ export interface WorkspaceSettingsApiOptions {
      * blocks deletion while it's non-zero. Defaults to `0`.
      */
     workspaceEntryCount?: Record<string, number>;
+    /**
+     * Hold **both** entry-count reads open this long, so a test can observe the
+     * "still checking" state of a destructive dialog — the window in which the
+     * count is genuinely unknown and the destructive button must stay disabled.
+     * Mirrors `mockWorkspaces`' `delayMs`.
+     */
+    entryCountDelayMs?: number;
+    /**
+     * Fail **both** entry-count reads with this status instead of answering.
+     * The other half of "we do not actually know": a pre-check that cannot be
+     * read has to block the action rather than fall through to a zero. Note a
+     * `5xx` costs the query's full retry ladder (~7s) before `isError`, so a
+     * `4xx` is the faster way to reach the state (see the AGENTS.md gotcha).
+     */
+    entryCountStatus?: number;
+    /**
+     * Force `DELETE /:id/members/:userId` to answer with this status instead of
+     * `204` — `409` is the server's `LastMemberError`, the one removal that can
+     * never succeed, so the client has to say why rather than invite a retry.
+     */
+    memberRemoveStatus?: number;
 }
 
 /**
@@ -398,7 +446,10 @@ export async function mockWorkspaceSettingsApi(
     initial: WorkspaceView[],
     {
         lockedContent = {},
-        workspaceEntryCount = {}
+        workspaceEntryCount = {},
+        entryCountDelayMs,
+        entryCountStatus,
+        memberRemoveStatus
     }: WorkspaceSettingsApiOptions = {}
 ): Promise<void> {
     const store = initial.map((w) => ({
@@ -409,6 +460,26 @@ export async function mockWorkspaceSettingsApi(
     const find = (id: string) => store.find((w) => w.id === id);
     const view = (route: Route, w: WorkspaceView, status = 200) =>
         route.fulfill({ ...json(w), status });
+
+    /**
+     * The delay and the failure both entry-count reads share — the two ways a
+     * pre-check ends up not knowing the count. Answers the route and returns
+     * `true` when the read is meant to fail, so the caller stops.
+     */
+    const entryCountUnanswerable = async (route: Route): Promise<boolean> => {
+        if (entryCountDelayMs) {
+            await new Promise((resolve) =>
+                setTimeout(resolve, entryCountDelayMs)
+            );
+        }
+        if (entryCountStatus) {
+            await route.fulfill(
+                jsonError(entryCountStatus, 'Entry count unavailable')
+            );
+            return true;
+        }
+        return false;
+    };
 
     // Add a member: POST /api/workspaces/:id/members
     await page.route(/\/api\/workspaces\/([^/?]+)\/members$/, async (route) => {
@@ -430,6 +501,16 @@ export async function mockWorkspaceSettingsApi(
         async (route) => {
             if (route.request().method() !== 'DELETE') return route.fallback();
             const [, , , id, , userId] = segments(route.request().url());
+            if (memberRemoveStatus) {
+                // The roster is left untouched: a refused removal must leave
+                // the member exactly where they were.
+                return route.fulfill(
+                    jsonError(
+                        memberRemoveStatus,
+                        'A workspace must keep at least one member'
+                    )
+                );
+            }
             const workspace = find(id);
             if (workspace) {
                 workspace.members = workspace.members.filter(
@@ -461,6 +542,7 @@ export async function mockWorkspaceSettingsApi(
         async (route) => {
             if (route.request().method() !== 'GET') return route.fallback();
             const [, , , id, , slug] = segments(route.request().url());
+            if (await entryCountUnanswerable(route)) return;
             // A "locked" slug reports a non-zero count, so the dialog blocks it.
             const count = (lockedContent[id] ?? []).includes(slug) ? 3 : 0;
             await route.fulfill(json({ count }));
@@ -505,6 +587,7 @@ export async function mockWorkspaceSettingsApi(
         async (route) => {
             if (route.request().method() !== 'GET') return route.fallback();
             const id = segments(route.request().url())[3];
+            if (await entryCountUnanswerable(route)) return;
             await route.fulfill(json({ count: workspaceEntryCount[id] ?? 0 }));
         }
     );

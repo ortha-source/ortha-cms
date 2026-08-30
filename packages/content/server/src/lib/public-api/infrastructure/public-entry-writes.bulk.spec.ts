@@ -195,7 +195,10 @@ describe('PublicEntryWritesService.bulkSave', () => {
             expect.anything(),
             'ws',
             GRANTED,
-            'de'
+            'de',
+            // The batch forwards its actor to every item, so one bulk write is
+            // attributed exactly as the single-entry writes it stands in for.
+            undefined
         );
     });
 
@@ -218,6 +221,7 @@ describe('PublicEntryWritesService.bulkSave', () => {
             expect.anything(),
             'ws',
             GRANTED,
+            undefined,
             undefined
         );
     });

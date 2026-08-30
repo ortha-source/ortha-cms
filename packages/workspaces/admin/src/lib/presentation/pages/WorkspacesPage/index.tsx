@@ -70,8 +70,8 @@ function matchesSearch(workspace: Workspace, query: string): boolean {
 }
 
 /**
- * The Workspaces management page: a searchable, status-filterable grid of
- * workspace cards with a create flow. Rendered at `/workspaces` inside the
+ * The Workspaces management page: a searchable, status-filterable **table** of
+ * workspaces with a create flow. Rendered at `/workspaces` inside the
  * authenticated shell.
  */
 export function WorkspacesPage() {
@@ -117,7 +117,7 @@ export function WorkspacesPage() {
     // `Active`) so it reveals every workspace — including archived ones the
     // default view hides — matching the empty-state's "see them all" copy. This
     // also unsticks the all-archived case, where resetting to `Active` would
-    // leave the grid empty and the clear button a no-op.
+    // leave the table empty and the clear button a no-op.
     const clearFilters = () => {
         setSearch('');
         setStatus('All');

@@ -12,9 +12,12 @@ import { ApiHeader, ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import {
     ApiTokenGuard,
     ApiTokenWorkspaceGuard,
+    CurrentApiToken,
     InjectContentRegistry,
+    toTokenActor,
     WorkspaceGrantsQuery,
-    type ContentTypeRegistry
+    type ContentTypeRegistry,
+    type PublicApiToken
 } from '@orthacms/content-server';
 import {
     PERMISSIONS,
@@ -112,7 +115,8 @@ export class PublicEntryAccessController {
         @Param('typeName') typeName: string,
         @Param('id', ParseUUIDPipe) entryId: string,
         @Body() body: PublicEntryAccessDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentApiToken() token: PublicApiToken
     ): Promise<PublicEntryAccess> {
         const type = await this.assertGranted(typeName, workspaceId);
         const written = await this.access.setForGroup({
@@ -120,7 +124,11 @@ export class PublicEntryAccessController {
             type,
             entryId,
             allow: body.allow,
-            deny: body.deny
+            deny: body.deny,
+            // The token is the actor, exactly as it is on a content write —
+            // `activity_events.actor_type` is what lets a credential be named
+            // instead of the row reading "System".
+            actor: toTokenActor(token)
         });
         return {
             entryId,

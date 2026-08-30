@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import { UnitOfWork, type Database } from '@orthacms/database';
 import { and, asc, eq, or, sql } from 'drizzle-orm';
 import { savedViewDefaults, savedViews } from '../schema/saved-views';
 import type {
@@ -43,7 +43,19 @@ function toRecord(row: {
 /** Drizzle adapter for {@link SavedViewRepository}. */
 @Injectable()
 export class DrizzleSavedViewRepository implements SavedViewRepository {
-    constructor(@InjectDatabase() private readonly db: Database) {}
+    constructor(private readonly uow: UnitOfWork) {}
+
+    /**
+     * The executor to run against: the ambient transaction when a caller opened
+     * one, the base connection otherwise.
+     *
+     * It exists so a view write and the `saved_view.*` event describing it
+     * commit together. Outside a unit of work this is the old behaviour
+     * exactly — `UnitOfWork.current()` falls back to the pool.
+     */
+    private get db(): Database {
+        return this.uow.current();
+    }
 
     async listVisible(
         workspaceId: string,

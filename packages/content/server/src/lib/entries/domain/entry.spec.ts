@@ -3,15 +3,8 @@ import { Entry } from './entry';
 import { EntryPublishBlockedError } from './entry-publish-blocked.error';
 import { ENTRY_EVENT_KINDS } from './events/entry-events';
 
-const WORKSPACE = 'ws-1';
-
 const rehydrate = (status: 'draft' | 'published') =>
-    Entry.rehydrate({
-        id: 'e1',
-        contentType: 'post',
-        workspaceId: WORKSPACE,
-        status
-    });
+    Entry.rehydrate({ id: 'e1', contentType: 'post', status });
 
 const okGate = { valid: true, issues: [] };
 
@@ -25,11 +18,14 @@ describe('Entry publish lifecycle', () => {
             ENTRY_EVENT_KINDS.PUBLISHED
         ]);
         expect(events[0].aggregateId).toBe('e1');
+        // The subject fields ride on every entry event: `workspaceId` fills the
+        // audit row's column, `title` is the frozen label that keeps the row
+        // readable after the entry is gone. Both are null here because this
+        // rehydrate names neither.
         expect(events[0].payload).toEqual({
             contentType: 'post',
-            // Carried so a subscriber can route the fact without going back to
-            // the row — which for a purged entry is no longer possible at all.
-            workspaceId: WORKSPACE
+            workspaceId: null,
+            title: null
         });
     });
 

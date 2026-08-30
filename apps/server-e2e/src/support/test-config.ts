@@ -192,6 +192,19 @@ export interface TestConfigOverrides {
      * excludes it, and the app it seeds into has already booted.
      */
     orphanedLocales?: OrphanedLocalePolicy;
+    /**
+     * Boot **without** the content plugin — the shape a host has when its
+     * content plugin was removed (or was never installed) while the
+     * `content_*` tables its migrations created are still in the database.
+     *
+     * A wiring choice, not a config value, so it is forwarded to
+     * `buildTestPlugins` rather than into `OrthaConfig`. It is the only way to
+     * reach the workspaces plugin's fail-closed branch: `CONTENT_ENTRY_COUNTER`
+     * is bound by `ContentPlugin`, and with nothing bound the counter reports
+     * `0` for a workspace whose entries may very much exist — so the two
+     * destructive routes refuse (503) rather than trusting it.
+     */
+    omitContent?: boolean;
 }
 
 export function buildTestConfig(

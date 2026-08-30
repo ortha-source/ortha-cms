@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { type BrowserGlobals } from '../browserGlobals';
 
@@ -96,45 +96,6 @@ export class ContentLibraryPage extends BasePage {
     async publishRevision(n: number) {
         await this.revisionPublish(n).click();
         await this.confirmPublishButton.click();
-    }
-
-    /**
-     * The records page mounts the query builder as an **inline accordion panel**
-     * (a `region` labelled by the "Filters" toggle), not the modal drawer the
-     * other list pages use — so override the shared filter helpers' surface.
-     */
-    override filterSurface(): Locator {
-        return this.page.getByRole('region', { name: /Filters/ });
-    }
-
-    /**
-     * Collapse the inline filter panel. The panel stays open after Apply (so
-     * further edits don't need a re-open), and the applied-conditions summary
-     * only renders while it's collapsed — so a summary assertion has to close
-     * it first.
-     */
-    async closeFilters() {
-        await this.filterTrigger().click();
-        await expect(this.filterTrigger()).toHaveAttribute(
-            'aria-expanded',
-            'false'
-        );
-    }
-
-    /**
-     * Remove one applied condition from the summary. `label` is the chip's
-     * "<path> <operator>" text — the remove button's accessible name is
-     * "Remove condition <path> <operator>".
-     */
-    async removeFilterChip(label: string) {
-        await this.page
-            .getByRole('button', { name: `Remove condition ${label}` })
-            .click();
-    }
-
-    /** Drop every applied condition from the summary in one action. */
-    async clearAllFilters() {
-        await this.page.getByRole('button', { name: 'Clear all' }).click();
     }
 
     /**

@@ -1,3 +1,4 @@
+import { proposalEventActor } from '@orthacms/copilot-server';
 import { Injectable } from '@nestjs/common';
 import { and, eq, isNull, type AnyColumn } from 'drizzle-orm';
 import { InjectDatabase, type Database } from '@orthacms/database';
@@ -119,7 +120,7 @@ export class TranslationProposalApplier implements ProposalApplier {
             undefined,
             locale,
             localeGroupId,
-            { id: actor.userId, email: actor.actorEmail }
+            proposalEventActor(actor)
         );
         return {
             entityId: entry.id,
@@ -285,7 +286,7 @@ export class BulkTranslationProposalApplier implements ProposalApplier {
                     undefined,
                     locale,
                     localeGroupId,
-                    { id: actor.userId, email: actor.actorEmail }
+                    proposalEventActor(actor)
                 );
                 created.push(entry.id);
                 locales.push(locale);

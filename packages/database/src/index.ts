@@ -17,13 +17,16 @@ export {
 export {
     createDomainEvent,
     attachActor,
+    EVENT_ACTOR_TYPE,
     DOMAIN_EVENT_SUBSCRIBERS
 } from './lib/events/domain-event';
 export type {
     DomainEvent,
     CreateDomainEventParams,
     DomainEventSubscriber,
-    EventActor
+    EventActor,
+    EventActorType,
+    EventOrigin
 } from './lib/events/domain-event';
 export { UnitOfWork } from './lib/uow/unit-of-work';
 export { OutboxWriter } from './lib/outbox/outbox-writer';
@@ -32,3 +35,4 @@ export {
     MAX_DELIVERY_ATTEMPTS
 } from './lib/outbox/outbox-dispatcher';
 export { outboxEvents } from './lib/schema';
+export type { DeadLetter } from './lib/outbox/outbox-dispatcher';

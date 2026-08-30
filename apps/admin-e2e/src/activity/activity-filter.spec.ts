@@ -47,8 +47,14 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.fillValue('user.suspended');
         await activityLogPage.applyFilters();
 
-        // Drawer closed; only the suspension event (actor grace) survives.
-        await expect(activityLogPage.filterDrawer()).toHaveCount(0);
+        // Only the suspension event (actor grace) survives. The panel stays
+        // expanded after Apply — asserting a drawer's absence here passed
+        // trivially, since this page has mounted no drawer since it migrated.
+        await expect(activityLogPage.filterSurface()).toBeVisible();
+        await expect(activityLogPage.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'true'
+        );
         await expect(
             activityLogPage.row('grace@ortha.dev').first()
         ).toBeVisible();
@@ -148,10 +154,10 @@ test.describe('Activity filter (query builder)', () => {
         await activityLogPage.openFilters();
         await activityLogPage.resetFilters();
 
-        await expect(activityLogPage.filterDrawer()).toHaveCount(0);
         await expect(
             activityLogPage.row('ada@ortha.dev').first()
         ).toBeVisible();
         await expect(page).not.toHaveURL(/filter=/);
+        await expect(activityLogPage.filterTrigger()).toHaveText(/^Filters$/);
     });
 });

@@ -121,15 +121,30 @@ rows mean, not of where they live:
 
 | Mechanism        | Tables                                                                                 | Why                                                                                                                                                             |
 | ---------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cascade**      | `memberships`, `workspace_content`, `copilot_conversations` / `_proposals` / `_skills` | They already have an FK; the database does it.                                                                                                                  |
+| **Cascade**      | `memberships`, `workspace_content`, `saved_views` (+ `saved_view_defaults` via `view_id`), `copilot_conversations` / `_proposals` / `_skills` | They already have an FK; the database does it.                                                                                                                  |
 | **Refuse** (409) | every `content_*` table                                                                | Entries are **authored records**. A user deletes their content deliberately — we never do it for them, so `assertDeletable` blocks the delete while any remain. |
-| **Purge**        | `media_asset`, `media_folder`, `api_token_workspaces`                                  | Pure **scoping** rows with no independent meaning once the workspace is gone: a folder tree, a token's workspace bucket.                                        |
+| **Purge**        | `media_asset`, `media_folder`, `api_token_workspaces`, `alarm_rules` + `alarm_findings`, `entry_access`, `content_entry_revisions` | Pure **scoping** rows with no independent meaning once the workspace is gone: a folder tree, a token's workspace bucket, a rule about content that no longer exists. |
 
-The purge closes a real gap: those three tables have no FK by design (a
-cross-plugin FK would couple their schemas to this one), and nothing removed
-them, so a delete left rows pointing at an id that resolved to nothing — a
-credential still scoped to a dead workspace, and media rows whose blobs no later
-request could reach to reclaim.
+The purge closes a real gap: those tables have no FK by design (a cross-plugin
+FK would couple their schemas to this one), and nothing removed them, so a
+delete left rows pointing at an id that resolved to nothing — a credential still
+scoped to a dead workspace, and media rows whose blobs no later request could
+reach to reclaim. An alarm rule was the worst of them, because it is not inert:
+the sweep reads `allActive()` without asking whether the workspace still exists,
+so an orphan is re-evaluated forever while being unreachable from an editor that
+no longer opens. Revisions escape the **Refuse** column in both directions —
+`countWorkspaceEntries` sums live entry tables only, so a workspace whose entries
+were all deleted counts as empty and strands its whole version timeline.
+
+**One table is deliberately left dangling: `segments.workspace_ids`.** It is an
+array, so it can carry no FK, and its own docblock records the reasoning — an id
+that matches nothing *narrows* the audience, while removing it would silently
+widen who may read an entry. Fail-safe beats tidy here.
+
+Adding a workspace-scoped table means choosing one of these three. If it is
+neither cascading nor covered by the refusal, it needs a `WorkspacePurger` — see
+`application/ports/workspace-purger.port.ts` for where the implementation lives
+(dependency direction decides, not taste).
 
 `WorkspacePurgeRegistry` (`application/`) is the fan-out, and
 `WorkspacePurger` (`application/ports/`) is what a contributing plugin

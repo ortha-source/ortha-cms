@@ -4,9 +4,19 @@ import {
     manyWorkspaces,
     mockWorkspaceSettingsApi,
     mockWorkspaces,
-    mockWorkspacesApi
+    mockWorkspacesApi,
+    mockWorkspacesUnavailable,
+    spyWorkspaceProbe
 } from '../support/api/workspaces';
 import { mockContentSchema } from '../support/api/content';
+
+/**
+ * A `5xx` is not the query's final answer: the shared client retries it three
+ * times with exponential backoff (~7s) before a hook reports `isError`. An
+ * outage is what these tests mean, so the wait is budgeted rather than traded
+ * for a fast-failing `4xx`.
+ */
+const AFTER_RETRIES = { timeout: 15_000 };
 
 /**
  * The Workspaces page (`@orthacms/workspaces-admin`). The table reads
@@ -153,6 +163,108 @@ test.describe('Workspaces page', () => {
             .getByRole('link', { name: 'Back to workspaces' })
             .click();
         await expect(page).toHaveURL('/workspaces');
+    });
+
+    // И-03 on the admin side. The server answers a workspace you may not see
+    // the same way whether or not it exists; the admin has to keep that
+    // promise, and it does so by never asking — the shell resolves `:id`
+    // against the membership-scoped list it already holds.
+    test('a missing workspace and one you are not in read identically', async ({
+        page,
+        workspacesPage
+    }) => {
+        // Two ids the server would answer differently, so an existence probe
+        // would have something to leak.
+        const probe = await spyWorkspaceProbe(page, {
+            ws_ghost: 404,
+            ws_private: 403
+        });
+
+        await page.goto('/workspaces/ws_ghost');
+        await expect(workspacesPage.shellMessage()).toContainText(
+            'You don’t have access to this workspace'
+        );
+        // Captured rather than compared to a literal: what matters is that the
+        // second screen says *the same thing*, whatever that is.
+        const ghost = await workspacesPage.shellMessageText();
+
+        await page.goto('/workspaces/ws_private');
+        // Word for word: a "does it exist?" probe that softened the copy for
+        // one of the two would fail here rather than ship.
+        await expect(workspacesPage.shellMessage()).toHaveText(ghost);
+
+        // And nothing was asked, so nothing could leak.
+        expect(probe.count).toBe(0);
+    });
+
+    // И-31 — a failed read is not an empty membership. Every surface that lists
+    // workspaces degrades to "none" when the list query fails, and "none" is a
+    // sentence the operator will act on.
+    test.describe('a broken list is not an empty one', () => {
+        test.beforeEach(async ({ page }) => {
+            // Registered after the outer mock, so this endpoint breaks and the
+            // rest of the seed stands.
+            await mockWorkspacesUnavailable(page);
+        });
+
+        test('the list page alerts, withholds the empty copy, and retries', async ({
+            page,
+            workspacesPage
+        }) => {
+            await workspacesPage.goto();
+
+            await expect(workspacesPage.errorAlert()).toContainText(
+                'Couldn’t load workspaces. Please try again.',
+                AFTER_RETRIES
+            );
+            // The misreading this exists to prevent: an admin told the account
+            // has no workspaces starts creating one.
+            await expect(
+                workspacesPage.emptyText('No workspaces yet')
+            ).toBeHidden();
+
+            // Retry refetches rather than decorating a dead page: point the
+            // endpoint back at the seed and the rows arrive without a reload.
+            await mockWorkspaces(page);
+            await workspacesPage.retryButton().click();
+
+            await expect(workspacesPage.card('Marketing site')).toBeVisible();
+            await expect(workspacesPage.errorAlert()).toBeHidden();
+        });
+
+        test('the workspace shell says the load failed, not that access is denied', async ({
+            page,
+            workspacesPage
+        }) => {
+            // The shell resolves `:id` against the list; when the list itself
+            // failed, "not in it" is unknown, not false — so a member of this
+            // very workspace must not be told they are not a member of it.
+            await page.goto('/workspaces/ws_marketing');
+
+            await expect(workspacesPage.shellMessage()).toContainText(
+                'Couldn’t load workspaces',
+                AFTER_RETRIES
+            );
+            await expect(workspacesPage.shellMessage()).not.toContainText(
+                'You don’t have access to this workspace'
+            );
+        });
+
+        test('the sidebar quick-list says so instead of collapsing to a heading', async ({
+            workspacesPage
+        }) => {
+            await workspacesPage.goto();
+
+            // The nav aid is the surface with the least room to explain itself,
+            // which is exactly how it came to say nothing: on error `data` is
+            // undefined, so every branch rendered what a genuinely empty
+            // membership renders — a bare heading, or no section at all.
+            await expect(workspacesPage.sidebarWorkspacesError()).toBeVisible(
+                AFTER_RETRIES
+            );
+            // And no disclosure pretending there are rows behind it.
+            await expect(workspacesPage.sidebarWorkspacesToggle).toBeHidden();
+        });
     });
 
     // ORT-174 — the quick-list grew with the user's membership and pushed the

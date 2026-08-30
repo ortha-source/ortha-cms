@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import type { EventActor } from '@orthacms/database';
 import type { AnyContentType } from '../../types/content-type';
 import { toRecord } from '../../entries/infrastructure/persistence/entry-row';
 import { EntryWriterService } from '../../entries/infrastructure/persistence/entry-writer.service';
@@ -76,7 +77,8 @@ export class PublicEntryWritesService {
         type: AnyContentType,
         body: PublicSaveEntryDto,
         workspaceId: string,
-        grantedTypes: ReadonlySet<string>
+        grantedTypes: ReadonlySet<string>,
+        actor?: EventActor
     ): Promise<PublicEntry> {
         const record = await this.writer.create(
             type,
@@ -85,12 +87,11 @@ export class PublicEntryWritesService {
             body.relations,
             body.locale,
             body.localeGroupId,
-            // Revisions record a *user* id, and a token is not a user. Writing
-            // the token id into that column would make the history resolve it to
-            // a nonexistent person; null is the honest answer for "not a user".
-            // Attributing a token's writes is a real gap — it wants its own
-            // column, not a misused one.
-            null
+            // The **token** is the actor. Its id never reaches the revision's
+            // `created_by` — that column really is a `users` FK, and the writer's
+            // `revisionActorId` is what keeps the two apart — but it does reach
+            // the audit row, which carries an `actor_type` saying what it names.
+            actor ?? null
         );
         return this.readBack(type, record.id, workspaceId, grantedTypes, body);
     }
@@ -126,7 +127,8 @@ export class PublicEntryWritesService {
         body: PublicSaveEntryDto,
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
-        locale?: string
+        locale?: string,
+        actor?: EventActor
     ): Promise<PublicEntry> {
         const row = await this.entries.resolveWritableRow(
             type,
@@ -146,7 +148,7 @@ export class PublicEntryWritesService {
             this.mergedValues(type, row, body),
             workspaceId,
             body.relations,
-            null
+            actor ?? null
         );
         return this.readBack(type, id, workspaceId, grantedTypes, { locale });
     }
@@ -184,7 +186,8 @@ export class PublicEntryWritesService {
         type: AnyContentType,
         items: readonly PublicBulkSaveItemDto[],
         workspaceId: string,
-        grantedTypes: ReadonlySet<string>
+        grantedTypes: ReadonlySet<string>,
+        actor?: EventActor
     ): Promise<PublicBulkSaveResult> {
         const results: PublicBulkSaveItemResult[] = [];
 
@@ -204,7 +207,8 @@ export class PublicEntryWritesService {
                               type,
                               item,
                               workspaceId,
-                              grantedTypes
+                              grantedTypes,
+                              actor
                           )
                         : await this.update(
                               type,
@@ -212,7 +216,8 @@ export class PublicEntryWritesService {
                               item,
                               workspaceId,
                               grantedTypes,
-                              resolved.locale
+                              resolved.locale,
+                              actor
                           );
                 results.push({ index, op: resolved.op, ok: true, entry });
             } catch (error) {
@@ -288,9 +293,10 @@ export class PublicEntryWritesService {
     bulkPublish(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor
     ): Promise<BulkPublishResult> {
-        return this.bulkPublishEntries.execute(type, ids, workspaceId);
+        return this.bulkPublishEntries.execute(type, ids, workspaceId, actor);
     }
 
     /**
@@ -305,9 +311,10 @@ export class PublicEntryWritesService {
     bulkUnpublish(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor
     ): Promise<BulkActionResult> {
-        return this.bulkUnpublishEntries.execute(type, ids, workspaceId);
+        return this.bulkUnpublishEntries.execute(type, ids, workspaceId, actor);
     }
 
     /**
@@ -321,9 +328,10 @@ export class PublicEntryWritesService {
     bulkRemove(
         type: AnyContentType,
         ids: string[],
-        workspaceId: string
+        workspaceId: string,
+        actor?: EventActor
     ): Promise<BulkActionResult> {
-        return this.writer.bulkRemove(type, ids, workspaceId);
+        return this.writer.bulkRemove(type, ids, workspaceId, actor);
     }
 
     /** Take an entry live. 422 when the stored draft no longer validates. */
@@ -332,7 +340,8 @@ export class PublicEntryWritesService {
         locator: EntryLocator,
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
-        locale?: string
+        locale?: string,
+        actor?: EventActor
     ): Promise<PublicEntry> {
         const row = await this.entries.resolveWritableRow(
             type,
@@ -341,7 +350,7 @@ export class PublicEntryWritesService {
             locale
         );
         const id = row['id'] as string;
-        await this.publishEntry.execute(type, id, workspaceId);
+        await this.publishEntry.execute(type, id, workspaceId, actor);
         return this.readBack(type, id, workspaceId, grantedTypes, { locale });
     }
 
@@ -351,7 +360,8 @@ export class PublicEntryWritesService {
         locator: EntryLocator,
         workspaceId: string,
         grantedTypes: ReadonlySet<string>,
-        locale?: string
+        locale?: string,
+        actor?: EventActor
     ): Promise<PublicEntry> {
         const row = await this.entries.resolveWritableRow(
             type,
@@ -360,7 +370,7 @@ export class PublicEntryWritesService {
             locale
         );
         const id = row['id'] as string;
-        await this.unpublishEntry.execute(type, id, workspaceId);
+        await this.unpublishEntry.execute(type, id, workspaceId, actor);
         return this.readBack(type, id, workspaceId, grantedTypes, { locale });
     }
 
@@ -377,7 +387,8 @@ export class PublicEntryWritesService {
         type: AnyContentType,
         locator: EntryLocator,
         workspaceId: string,
-        locale?: string
+        locale?: string,
+        actor?: EventActor
     ): Promise<void> {
         const row = await this.entries.resolveWritableRow(
             type,
@@ -385,7 +396,12 @@ export class PublicEntryWritesService {
             workspaceId,
             locale
         );
-        await this.writer.remove(type, row['id'] as string, workspaceId);
+        await this.writer.remove(
+            type,
+            row['id'] as string,
+            workspaceId,
+            actor
+        );
     }
 
     /**

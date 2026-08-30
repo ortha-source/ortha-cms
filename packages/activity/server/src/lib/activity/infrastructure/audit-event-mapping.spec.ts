@@ -5,12 +5,17 @@ import {
     type EventActor
 } from '@orthacms/database';
 import { IDENTITY_ACTIVITY_KINDS } from '@orthacms/identity-server';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
+    AUDIT_KINDS,
+    AUDIT_SUBJECT_TYPES,
     AUDITED_EVENT_KINDS,
     toAuditRow,
     UnmappableAuditEventError,
     type AuditRow
 } from './audit-event-mapping';
+
 
 /**
  * Parity safety net (DB-free): for every audited domain event, the row
@@ -57,15 +62,78 @@ function event(
     return enriched;
 }
 
-/** The fixed fields shared by every produced row. */
-function base(): Pick<AuditRow, 'id' | 'actorId' | 'actorEmail' | 'at'> {
+/**
+ * The fixed fields shared by every produced row.
+ *
+ * `actorType` is `'user'` on all of them: `attachActor` defaults it, because
+ * until API tokens could act nothing but a person ever could. `workspaceId` is
+ * `null` unless the event's own payload names one — the column is filled from
+ * `payload.workspaceId`, and most of these kinds belong to no workspace at all.
+ */
+function base(): Pick<
+    AuditRow,
+    'id' | 'actorId' | 'actorType' | 'actorEmail' | 'workspaceId' | 'at'
+> {
     return {
         id: EVENT_ID,
         actorId: ACTOR.id,
+        actorType: 'user',
         actorEmail: ACTOR.email,
+        workspaceId: null,
         at: AT
     };
 }
+
+/**
+ * The **admin's** catalogue, read out of its source file as text.
+ *
+ * Text rather than an import, and that is the whole point. The admin restates
+ * the server's kind strings because it genuinely cannot import a server plugin
+ * — the SPA would pull NestJS into its bundle — so something has to keep the
+ * two lists in step. An `import` across the package boundary would do it and
+ * would also put `@orthacms/activity-admin` in this package's **project
+ * graph**: `nx sync` immediately adds a TypeScript project reference, and the
+ * audit-log plugin starts depending on a React package. Reading the file
+ * creates no such edge.
+ *
+ * Until now nothing checked this at all. `apps/admin-e2e`'s catalogue suite
+ * builds its fixture from the admin's own list, so it proves that list is
+ * self-consistent and can never notice the server having moved ahead of it:
+ * three `user.sso_*` kinds shipped rendering as raw dotted tokens, absent from
+ * the filter, with every test green.
+ *
+ * The parse is deliberately dumb — every single-quoted literal inside the named
+ * `as const` array. It is safe because the file is exactly that shape and holds
+ * nothing else, and its failure mode is loud: a reformat that defeats the regex
+ * yields an empty list and fails every assertion below rather than passing
+ * silently.
+ */
+function adminCatalogue(name: string): string[] {
+    const source = readFileSync(
+        join(
+            __dirname,
+            '../../../../../admin/src/lib/types/activityKinds/index.ts'
+        ),
+        'utf8'
+    );
+    const block = new RegExp(
+        `export const ${name} = \\[([\\s\\S]*?)\\] as const;`
+    ).exec(source);
+    if (!block) {
+        throw new Error(
+            `Could not find "${name}" in the admin's activityKinds module. ` +
+                'If it moved, point this test at its new home rather than ' +
+                'deleting the check.'
+        );
+    }
+    return [...block[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+}
+
+/** Every audit kind the admin knows how to render. */
+const ACTIVITY_KINDS = adminCatalogue('ACTIVITY_KINDS');
+
+/** Every subject type the admin knows how to name. */
+const ACTIVITY_SUBJECT_TYPES = adminCatalogue('ACTIVITY_SUBJECT_TYPES');
 
 describe('toAuditRow — event → audit-row parity', () => {
     describe('workspaces (event kind === audit kind)', () => {
@@ -360,8 +428,13 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'me@example.com',
-                meta: null,
+                // Where the sign-in came from. Both are null on an event that
+                // carried no session context — "not captured", which a reader
+                // should be able to tell from "not looked at".
+                meta: { ipAddress: null, userAgent: null },
                 at: AT
             });
         });
@@ -385,6 +458,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'me@example.com',
                 meta: { sessionsRevoked: 3 },
                 at: AT
@@ -425,6 +500,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'invited@example.com',
                 meta: null,
                 at: AT
@@ -450,6 +527,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'user',
                 subjectId: TARGET_USER_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: null,
                 meta: null,
                 at: AT
@@ -482,6 +561,8 @@ describe('toAuditRow — event → audit-row parity', () => {
                 subjectType: 'api_token',
                 subjectId: TOKEN_ID,
                 actorId: TARGET_USER_ID,
+                actorType: 'user',
+                workspaceId: null,
                 actorEmail: 'admin@example.com',
                 meta: {
                     name: 'CI',
@@ -720,13 +801,23 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 40 expected kinds', () => {
+        it('audits exactly the 62 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
+                    'alarm.rule.created',
+                    'alarm.rule.deleted',
+                    'alarm.rule.rescanned',
+                    'alarm.rule.updated',
                     'api_token.created',
                     'api_token.revoked',
+                    'api_token.used',
+                    'auth.sign_in_failed',
                     'auth.signed_in',
                     'auth.signed_out',
+                    'copilot.skill.created',
+                    'copilot.skill.deleted',
+                    'copilot.skill.updated',
+                    'copilot.tool_permission.decided',
                     'media.asset.deleted',
                     'media.asset.moved',
                     'media.asset.updated',
@@ -734,8 +825,20 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'media.folder.created',
                     'media.folder.deleted',
                     'media.folder.renamed',
+                    'saved_view.created',
+                    'saved_view.deleted',
+                    'saved_view.updated',
+                    'segment.created',
+                    'segment.deleted',
+                    'segment.entry_access_changed',
+                    'segment.updated',
+                    'transfer.content.exported',
+                    'transfer.content.imported',
                     'user.activated',
+                    'user.disabled',
+                    'user.enabled',
                     'user.password_changed',
+                    'user.session_revoked',
                     'user.sso_linked',
                     'user.sso_provisioned',
                     'user.sso_role_mapped',
@@ -765,6 +868,138 @@ describe('toAuditRow — event → audit-row parity', () => {
                     'workspace.updated'
                 ].sort()
             );
+        });
+    });
+
+    /**
+     * The catalogue, in both directions.
+     *
+     * `AUDIT_KINDS` and `AUDIT_SUBJECT_TYPES` are declared by hand — deriving
+     * them would mean running every mapper, and several legitimately throw on a
+     * payload that cannot name their subject — so something has to prove the
+     * declaration matches what the mappers actually emit. That is what this
+     * does: it drives **every** mapper once, with a payload rich enough to
+     * satisfy the ones that refuse, and checks the produced kind and subject
+     * type are declared, then checks nothing declared is unreachable.
+     */
+    describe('the produced catalogue', () => {
+        /**
+         * A payload carrying every field any mapper reads. One bag for all of
+         * them, so adding a mapper needs no fixture of its own unless it reads
+         * something genuinely new — and if it does, the `throw` it raises here
+         * is the failure, which is the right outcome.
+         */
+        const RICH_PAYLOAD: Record<string, unknown> = {
+            userId: TARGET_USER_ID,
+            email: 'someone@example.com',
+            name: 'a name',
+            slug: 'a-slug',
+            kind: 'a-kind',
+            from: 'a',
+            to: 'b',
+            fields: ['title'],
+            contentType: 'article',
+            title: 'An article',
+            workspaceId: WORKSPACE_ID,
+            provider: 'google',
+            role: 'editor',
+            scope: 'read',
+            workspaceIds: [WORKSPACE_ID],
+            lookupPrefix: 'orthacms_abc123',
+            sessionsRevoked: 1,
+            sessionId: 'session-1',
+            method: 'password',
+            reason: 'bad_password',
+            soft: true,
+            callId: 'call-1',
+            decision: 'allow'
+        };
+
+        function rowFor(kind: string): AuditRow {
+            const row = toAuditRow(
+                event(kind, 'whatever', TARGET_USER_ID, RICH_PAYLOAD)
+            );
+            if (!row) throw new Error(`No row produced for "${kind}".`);
+            return row;
+        }
+
+        it('produces only kinds the catalogue declares', () => {
+            const produced = new Set(
+                AUDITED_EVENT_KINDS.map((kind) => rowFor(kind).kind)
+            );
+            const undeclared = [...produced].filter(
+                (kind) => !(AUDIT_KINDS as readonly string[]).includes(kind)
+            );
+            // Compared as a joined string rather than an array: jest prints
+            // the whole diff either way, but this puts the offending kinds in
+            // the assertion's own message, which is the line a reader sees
+            // first.
+            expect(`emitted but not declared: ${undeclared.join(', ')}`).toBe(
+                'emitted but not declared: '
+            );
+        });
+
+        it('declares no kind no mapper can emit', () => {
+            const produced = new Set(
+                AUDITED_EVENT_KINDS.map((kind) => rowFor(kind).kind)
+            );
+            const unreachable = AUDIT_KINDS.filter(
+                (kind) => !produced.has(kind)
+            );
+            expect(`declared but unreachable: ${unreachable.join(', ')}`).toBe(
+                'declared but unreachable: '
+            );
+        });
+
+        it('stamps only subject types the catalogue declares', () => {
+            const produced = new Set(
+                AUDITED_EVENT_KINDS.map((kind) => rowFor(kind).subjectType)
+            );
+            const undeclared = [...produced].filter(
+                (type) =>
+                    !(AUDIT_SUBJECT_TYPES as readonly string[]).includes(type)
+            );
+            expect(undeclared).toEqual([]);
+        });
+    });
+
+    /**
+     * The **admin** side of the same catalogue.
+     *
+     * This is the check that was missing. `apps/admin-e2e`'s
+     * `activity-kinds.spec.ts` pins every kind the admin lists — against a
+     * fixture built from the admin's own list, so it proves the list is
+     * self-consistent and can never notice the server having moved ahead of it.
+     * That is exactly how three `user.sso_*` kinds shipped rendering as raw
+     * dotted tokens with no filter entry.
+     *
+     * The admin cannot import a server plugin, so it restates these strings.
+     * A **test** can read both, because the admin's catalogue module imports
+     * nothing at all — see the fixture's own note.
+     */
+    describe('the admin catalogue', () => {
+        it('lists every kind the server can produce', () => {
+            const missing = AUDIT_KINDS.filter(
+                (kind) => !ACTIVITY_KINDS.includes(kind)
+            );
+            expect(`rendered as raw wire tokens: ${missing.join(', ')}`).toBe(
+                'rendered as raw wire tokens: '
+            );
+        });
+
+        it('lists no kind the server cannot produce', () => {
+            const extra = ACTIVITY_KINDS.filter(
+                (kind) => !(AUDIT_KINDS as readonly string[]).includes(kind)
+            );
+            expect(`dead labels: ${extra.join(', ')}`).toBe('dead labels: ');
+        });
+
+        it('names every subject type the server can stamp', () => {
+            const missing = AUDIT_SUBJECT_TYPES.filter(
+                (type) =>
+                    !ACTIVITY_SUBJECT_TYPES.includes(type)
+            );
+            expect(missing).toEqual([]);
         });
     });
 });

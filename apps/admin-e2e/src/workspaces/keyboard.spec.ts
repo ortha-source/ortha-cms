@@ -1,6 +1,11 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
-import { mockWorkspaces, mockWorkspacesApi } from '../support/api/workspaces';
+import {
+    mockWorkspaceSettingsApi,
+    mockWorkspaces,
+    mockWorkspacesApi,
+    WORKSPACES_SEED
+} from '../support/api/workspaces';
 
 /**
  * Keyboard operability of the Workspaces page and its create wizard — the part
@@ -103,6 +108,82 @@ test.describe('Workspaces keyboard accessibility', () => {
 
         await page.keyboard.press('Enter');
         await expect(page).toHaveURL(/\/workspaces\/new$/);
+    });
+
+    /**
+     * The settings page had no keyboard coverage at all, and it is where the
+     * destructive actions live: a tab bar that is a run of links rather than a
+     * roving tablist, and dialogs that must hold focus while they are up and
+     * hand it back when they close.
+     */
+    test.describe('workspace settings', () => {
+        const WORKSPACE_ID = 'ws_marketing';
+
+        test.beforeEach(async ({ page }) => {
+            // Registered after the outer list mock, so the settings page reads
+            // the stateful store.
+            await mockWorkspaceSettingsApi(page, WORKSPACES_SEED);
+        });
+
+        test('the tab bar is walked with Tab and opens on Enter', async ({
+            page,
+            workspaceSettingsPage
+        }) => {
+            await workspaceSettingsPage.goto(WORKSPACE_ID);
+
+            // A `<nav>` of links, not a Radix tablist: every tab is its own tab
+            // stop and Enter follows it. Asserting the run in order is what
+            // would catch a stray focusable slipped between two tabs.
+            await workspaceSettingsPage.navItem('General').focus();
+            await expect(
+                workspaceSettingsPage.navItem('General')
+            ).toBeFocused();
+
+            for (const next of ['Members', 'Content', 'Danger zone']) {
+                await page.keyboard.press('Tab');
+                await expect(workspaceSettingsPage.navItem(next)).toBeFocused();
+            }
+
+            await page.keyboard.press('Enter');
+            await expect(page).toHaveURL(
+                `/workspaces/${WORKSPACE_ID}/settings/danger`
+            );
+            await expect(workspaceSettingsPage.deleteButton).toBeVisible();
+        });
+
+        test('a confirm dialog holds focus and hands it back on Escape', async ({
+            page,
+            workspaceSettingsPage
+        }) => {
+            await workspaceSettingsPage.goto(WORKSPACE_ID);
+            await workspaceSettingsPage.openSection('Members');
+
+            const remove =
+                workspaceSettingsPage.memberRemoveButton('Grace Hopper');
+            await remove.focus();
+            await page.keyboard.press('Enter');
+            await workspaceSettingsPage.dialog.waitFor();
+
+            // Focus moved *into* the dialog rather than being left on the page
+            // behind it — where a keyboard user would be tabbing through
+            // controls the modal has covered.
+            const focusedInDialog = workspaceSettingsPage.focusInsideDialog();
+            await expect(focusedInDialog).toHaveCount(1);
+
+            // And it stays: Tab cycles the dialog's own three controls (close,
+            // Cancel, Remove) instead of escaping into the page.
+            for (let step = 0; step < 5; step += 1) {
+                await page.keyboard.press('Tab');
+                await expect(focusedInDialog).toHaveCount(1);
+            }
+
+            await page.keyboard.press('Escape');
+            await expect(workspaceSettingsPage.dialog).toHaveCount(0);
+            // Dismissing removes nobody, so the control that opened the dialog
+            // is still there to take focus back.
+            await expect(remove).toBeFocused();
+            await expect(page.locator('body:focus')).toHaveCount(0);
+        });
     });
 
     test.describe('create wizard', () => {

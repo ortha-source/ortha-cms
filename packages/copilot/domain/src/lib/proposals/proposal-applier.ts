@@ -19,6 +19,16 @@ export interface ProposalActor {
     workspaceId: string;
     /** The run that produced it, recorded as provenance on the effect. */
     runId: string;
+    /**
+     * The proposal being applied, recorded alongside {@link runId}.
+     *
+     * Provenance, like `runId`: an applier stamps the pair onto the domain
+     * event its write raises (see `proposalEventActor` in
+     * `@orthacms/copilot-server`), so the audit row can say the change came
+     * from an agent turn rather than from the person typing. The actor stays
+     * the human either way — there is no copilot identity.
+     */
+    proposalId?: string;
 }
 
 /** What an applier hands back after carrying a proposal out. */

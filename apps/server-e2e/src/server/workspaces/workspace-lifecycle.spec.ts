@@ -8,6 +8,9 @@ import {
     getActivityRows,
     resetDb,
     seedActiveUser,
+    seedArticles,
+    seedMembership,
+    seedUserWithPermissions,
     type SeededUser,
     type SystemRoleKey
 } from '../../support/seed';
@@ -154,6 +157,35 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
             );
             await outsider.post(`/api/workspaces/${id}/archive`).expect(403);
         });
+
+        it('still accepts content writes while archived', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+            await agent.post(`/api/workspaces/${id}/archive`).expect(201);
+
+            // Archiving is a **label**: it hides a workspace from the switcher
+            // and says "we are done with this", and that is the whole of it.
+            // Nothing in the write path reads `status` — no guard, no writer —
+            // so an archived workspace still takes entries. Worth pinning
+            // because the word invites the opposite assumption, and a
+            // read-only-when-archived rule would have to be a decision, not an
+            // accident.
+            await agent
+                .post('/api/content/test_article')
+                .set('X-Workspace-Id', id)
+                .send({
+                    values: {
+                        text: 'Written after archiving',
+                        select: 'article'
+                    }
+                })
+                .expect(201);
+
+            const after = await agent
+                .get(`/api/workspaces/${id}/content/test_article/entry-count`)
+                .expect(200);
+            expect(after.body).toEqual({ count: 1 });
+        });
     });
 
     describe('DELETE /api/workspaces/:id', () => {
@@ -165,9 +197,9 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
 
             // It's gone from the list.
             const list = await agent.get('/api/workspaces').expect(200);
-            expect(
-                list.body.some((ws: { id: string }) => ws.id === id)
-            ).toBe(false);
+            expect(list.body.some((ws: { id: string }) => ws.id === id)).toBe(
+                false
+            );
 
             const deleted = (await getActivityRows()).find(
                 (row) => row.kind === 'workspace.deleted'
@@ -221,9 +253,7 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 'admin',
                 'wsl-outsider3@example.com'
             );
-            await outsider
-                .get(`/api/workspaces/${id}/entry-count`)
-                .expect(403);
+            await outsider.get(`/api/workspaces/${id}/entry-count`).expect(403);
         });
 
         it('refuses (409) to delete a workspace that still has content entries', async () => {
@@ -259,9 +289,9 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
 
             // It's still there.
             const list = await agent.get('/api/workspaces').expect(200);
-            expect(
-                list.body.some((ws: { id: string }) => ws.id === id)
-            ).toBe(true);
+            expect(list.body.some((ws: { id: string }) => ws.id === id)).toBe(
+                true
+            );
         });
 
         it('forbids the entry-count read for a contributor (lacks workspaces:delete) with 403', async () => {
@@ -272,6 +302,98 @@ describe('Workspace lifecycle (archive / unarchive / delete)', () => {
                 'wsl-contrib3@example.com'
             );
             await agent.get(`/api/workspaces/${id}/entry-count`).expect(403);
+        });
+    });
+
+    describe('the two counters are gated separately', () => {
+        it('serves the per-type count to workspaces:update and refuses the workspace count', async () => {
+            const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(admin);
+
+            // No system role expresses this split — `admin` holds both keys and
+            // `contributor` holds neither — so the role is built for the test.
+            // The split is the point: the per-type count backs the *revoke*
+            // pre-check (`workspaces:update`) and the workspace count backs the
+            // *delete* pre-check (`workspaces:delete`), and each read is gated
+            // by the change it is a pre-check for. A single "workspace reads"
+            // permission would hand a revoker the delete UI's answer.
+            const editor = await seedUserWithPermissions(harness.app, {
+                email: 'wsl-updater@example.com',
+                password: PASSWORD,
+                roleKey: 'wsl-updater',
+                permissions: ['workspaces:update']
+            });
+            await seedMembership(editor.id, id);
+
+            const agent = request.agent(harness.server);
+            await agent
+                .post('/api/auth/login')
+                .send({ email: 'wsl-updater@example.com', password: PASSWORD })
+                .expect(201);
+
+            await agent.get(`/api/workspaces/${id}/entry-count`).expect(403);
+            const perType = await agent
+                .get(`/api/workspaces/${id}/content/test_article/entry-count`)
+                .expect(200);
+            expect(perType.body).toEqual({ count: 0 });
+        });
+    });
+
+    describe('with no content plugin bound', () => {
+        it('refuses both destructive routes with 503 while the counters read 0', async () => {
+            const { agent } = await loginAs('admin', ADMIN_EMAIL);
+            const id = await createWorkspace(agent);
+            // Real rows, written while the content plugin was installed. The
+            // `content_*` tables are created by migrations and outlive any one
+            // boot's plugin list, which is exactly how a host ends up asking a
+            // question it can no longer answer.
+            await seedArticles([{ text: 'still here', select: 'a' }], id);
+
+            // The same database, booted without the content plugin — so
+            // `CONTENT_ENTRY_COUNTER` is unbound.
+            const contentless = await createTestApp({ omitContent: true });
+            try {
+                const offline = request.agent(contentless.server);
+                await offline
+                    .post('/api/auth/login')
+                    .send({ email: ADMIN_EMAIL, password: PASSWORD })
+                    .expect(201);
+
+                // The reads keep their documented fallback: `0` is a fine
+                // answer for a pre-check that only ever enables a button.
+                await offline
+                    .get(`/api/workspaces/${id}/entry-count`)
+                    .expect(200)
+                    .expect({ count: 0 });
+                await offline
+                    .get(
+                        `/api/workspaces/${id}/content/test_article/entry-count`
+                    )
+                    .expect(200)
+                    .expect({ count: 0 });
+
+                // The writes must not: a destructive change that trusted that
+                // `0` would delete a workspace whose rows are sitting in the
+                // database it is connected to. Fail closed — 503, not 204.
+                await offline.delete(`/api/workspaces/${id}`).expect(503);
+                await offline
+                    .delete(`/api/workspaces/${id}/content/test_article`)
+                    .expect(503);
+            } finally {
+                // `app.close()`, not `closeTestApp`: the database handle is a
+                // module singleton shared with this file's own harness, and
+                // `closeDatabase` would end the pool underneath it.
+                await contentless.app.close();
+            }
+
+            // Nothing changed — the workspace and its grant are both intact
+            // for the app that can still count.
+            const list = await agent.get('/api/workspaces').expect(200);
+            const workspace = list.body.find(
+                (ws: { id: string }) => ws.id === id
+            );
+            expect(workspace).toBeDefined();
+            expect(workspace.content).toContain('test_article');
         });
     });
 });

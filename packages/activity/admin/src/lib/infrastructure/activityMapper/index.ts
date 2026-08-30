@@ -15,7 +15,9 @@ export type ActivityEventResponse = {
     subjectType: string;
     subjectId: string;
     actorId: string | null;
+    actorType: string | null;
     actorEmail: string | null;
+    workspaceId: string | null;
     meta: Record<string, unknown> | null;
     at: string;
 };
@@ -39,7 +41,18 @@ export function toActivityEvent(dto: ActivityEventResponse): ActivityEvent {
         kind: dto.kind as ActivityKind,
         subjectType: dto.subjectType,
         subjectId: dto.subjectId,
-        actor: dto.actorId ? { id: dto.actorId, email: dto.actorEmail } : null,
+        actor: dto.actorId
+            ? {
+                  id: dto.actorId,
+                  email: dto.actorEmail,
+                  // `?? undefined`, not `?? 'user'`: defaulting belongs on the
+                  // server, which knows that a row predating the column was
+                  // written by a person. Inventing that answer here would be
+                  // the same mapper fallback `at` is deliberately spared.
+                  type: dto.actorType ?? undefined
+              }
+            : null,
+        workspaceId: dto.workspaceId ?? null,
         meta: dto.meta ?? null,
         at: new Date(dto.at)
     };

@@ -1,6 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import {
+    attachActor,
+    InjectDatabase,
+    OutboxWriter,
+    UnitOfWork,
+    type Database,
+    type EventActor
+} from '@orthacms/database';
 import type { AnyContentType } from '@orthacms/content-server';
 import {
     isOfferedIn,
@@ -11,6 +18,7 @@ import {
 import { entryAccess } from '../schema/entry-access';
 import { localeGroupIds } from '../infrastructure/locale-group.query';
 import { SegmentCatalogService } from './segment-catalog.service';
+import { entryAccessEvent } from '../segments.events';
 
 /** One entry's two lists, as the editor reads and writes them. */
 export interface EntryAccessView extends EntryAccess {
@@ -47,6 +55,8 @@ export type AccessExecutor = Pick<
 export class EntryAccessService {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly catalog: SegmentCatalogService
     ) {}
 
@@ -198,8 +208,35 @@ export class EntryAccessService {
         allow: readonly string[];
         deny: readonly string[];
         executor?: AccessExecutor;
+        /**
+         * The acting principal, stamped on the `segment.entry_access_changed`
+         * event. Optional because a caller may genuinely have none; a change
+         * with no actor is still recorded, as "System".
+         */
+        actor?: EventActor;
     }): Promise<{ access: EntryAccessView; entryIds: string[] }> {
-        const executor = input.executor ?? this.db;
+        return this.uow.run(() => this.writeGroup(input));
+    }
+
+    /**
+     * The body of {@link setForGroup}, inside its unit of work.
+     *
+     * Split out so the `uow.run` wrapper reads as one line. The run is what
+     * lets the change and its audit event commit together on **both** paths:
+     * the `PUT` route opens the transaction here, while the entry-write
+     * extension is already inside the save's own — and a nested `run` joins
+     * the outer one rather than opening a second.
+     */
+    private async writeGroup(input: {
+        workspaceId: string;
+        type: AnyContentType;
+        entryId: string;
+        allow: readonly string[];
+        deny: readonly string[];
+        executor?: AccessExecutor;
+        actor?: EventActor;
+    }): Promise<{ access: EntryAccessView; entryIds: string[] }> {
+        const executor = input.executor ?? this.uow.current();
         const ids = await localeGroupIds(
             executor,
             input.type,
@@ -227,6 +264,24 @@ export class EntryAccessService {
             });
             if (entryId === input.entryId) view = written;
         }
+
+        // One event for the **named** entry, not one per locale. The change is
+        // a decision about the record, and a row per translation would report
+        // one editorial act as four — the same rule the entry events follow
+        // when a shared field fans out.
+        const event = entryAccessEvent(input.entryId, {
+            workspaceId: input.workspaceId,
+            contentType: input.type.name,
+            allow: view.allow,
+            deny: view.deny,
+            // What it reached, so a reader can see the fan-out without
+            // reconstructing the locale group.
+            entryIds: ids
+        });
+        await this.outbox.append(
+            input.actor ? attachActor([event], input.actor) : [event]
+        );
+
         return { access: view, entryIds: ids };
     }
 

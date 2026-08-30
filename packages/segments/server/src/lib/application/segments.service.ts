@@ -4,10 +4,22 @@ import {
     NotFoundException
 } from '@nestjs/common';
 import { and, asc, count, eq, ilike, inArray, or, sql } from 'drizzle-orm';
-import { InjectDatabase, type Database } from '@orthacms/database';
+import {
+    attachActor,
+    InjectDatabase,
+    OutboxWriter,
+    UnitOfWork,
+    type Database,
+    type DomainEvent,
+    type EventActor
+} from '@orthacms/database';
 import { segments } from '../schema/segments';
 import { entryAccess } from '../schema/entry-access';
 import { SegmentCatalogService } from './segment-catalog.service';
+import {
+    SEGMENT_EVENT_KINDS,
+    segmentEvent
+} from '../segments.events';
 
 /** One segment as the admin sees it. */
 export interface SegmentView {
@@ -84,6 +96,8 @@ export interface ListSegmentsParams {
 export class SegmentsService {
     constructor(
         @InjectDatabase() private readonly db: Database,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly catalog: SegmentCatalogService
     ) {}
 
@@ -172,12 +186,24 @@ export class SegmentsService {
         return { ...toView(row), usageCount: usage.get(row.id) ?? 0 };
     }
 
+    /**
+     * Append one segment event to the outbox from inside the active unit of
+     * work, stamped with the acting administrator when there is one.
+     */
+    private async emit(
+        event: DomainEvent,
+        actor?: EventActor
+    ): Promise<void> {
+        await this.outbox.append(actor ? attachActor([event], actor) : [event]);
+    }
+
     /** Create a segment. */
     async create(input: {
         key: string;
         label: string;
         tags?: readonly string[];
         workspaceIds?: readonly string[];
+        actor?: EventActor;
     }): Promise<SegmentView> {
         const [existing] = await this.db
             .select({ id: segments.id })
@@ -195,15 +221,28 @@ export class SegmentsService {
         // administrator meant in every case but the one where they say
         // otherwise. Workspaces get no such default — empty already means
         // "every one", which is the right starting point.
-        const [row] = await this.db
-            .insert(segments)
-            .values({
-                key: input.key,
-                label: input.label,
-                tags: input.tags?.length ? [...input.tags] : [input.key],
-                workspaceIds: dedupe(input.workspaceIds)
-            })
-            .returning();
+        const row = await this.uow.run(async () => {
+            const [created] = await this.uow
+                .current()
+                .insert(segments)
+                .values({
+                    key: input.key,
+                    label: input.label,
+                    tags: input.tags?.length ? [...input.tags] : [input.key],
+                    workspaceIds: dedupe(input.workspaceIds)
+                })
+                .returning();
+            await this.emit(
+                segmentEvent(SEGMENT_EVENT_KINDS.CREATED, created.id, {
+                    key: created.key,
+                    label: created.label,
+                    tags: created.tags,
+                    workspaceIds: created.workspaceIds
+                }),
+                input.actor
+            );
+            return created;
+        });
         await this.catalog.reload();
         return { ...toView(row), usageCount: 0 };
     }
@@ -229,21 +268,41 @@ export class SegmentsService {
             label?: string;
             tags?: readonly string[];
             workspaceIds?: readonly string[];
+            actor?: EventActor;
         }
     ): Promise<SegmentView> {
         const current = await this.byId(id);
-        const [row] = await this.db
-            .update(segments)
-            .set({
-                label: input.label ?? current.label,
-                tags: input.tags ? [...input.tags] : current.tags,
-                workspaceIds: input.workspaceIds
-                    ? dedupe(input.workspaceIds)
-                    : current.workspaceIds,
-                updatedAt: new Date()
-            })
-            .where(eq(segments.id, id))
-            .returning();
+        const row = await this.uow.run(async () => {
+            const [updated] = await this.uow
+                .current()
+                .update(segments)
+                .set({
+                    label: input.label ?? current.label,
+                    tags: input.tags ? [...input.tags] : current.tags,
+                    workspaceIds: input.workspaceIds
+                        ? dedupe(input.workspaceIds)
+                        : current.workspaceIds,
+                    updatedAt: new Date()
+                })
+                .where(eq(segments.id, id))
+                .returning();
+            // Both sides of the tag list, because this is the change that keeps
+            // an audience's name and its entries while replacing the readers it
+            // resolves to — invisible from anywhere else afterwards.
+            await this.emit(
+                segmentEvent(SEGMENT_EVENT_KINDS.UPDATED, id, {
+                    key: updated.key,
+                    label: updated.label,
+                    tags: { from: current.tags, to: updated.tags },
+                    workspaceIds: {
+                        from: current.workspaceIds,
+                        to: updated.workspaceIds
+                    }
+                }),
+                input.actor
+            );
+            return updated;
+        });
         await this.catalog.reload();
         const usage = await this.usageCounts();
         return { ...toView(row), usageCount: usage.get(row.id) ?? 0 };
@@ -260,9 +319,10 @@ export class SegmentsService {
      * An entry left with two empty lists loses its row entirely, which is the
      * same "no row means open" the writer maintains.
      */
-    async remove(id: string): Promise<void> {
-        await this.byId(id);
-        await this.db.transaction(async (tx) => {
+    async remove(id: string, actor?: EventActor): Promise<void> {
+        const current = await this.byId(id);
+        await this.uow.run(async () => {
+            const tx = this.uow.current();
             await tx.delete(segments).where(eq(segments.id, id));
             await tx
                 .update(entryAccess)
@@ -279,6 +339,18 @@ export class SegmentsService {
                 .where(
                     sql`cardinality(${entryAccess.allow}) = 0 AND cardinality(${entryAccess.deny}) = 0`
                 );
+            // The audience's own details are recorded here because after this
+            // commits there is nowhere left to look them up — and the entries
+            // that named it lost the mention without any screen saying so.
+            await this.emit(
+                segmentEvent(SEGMENT_EVENT_KINDS.DELETED, id, {
+                    key: current.key,
+                    label: current.label,
+                    tags: current.tags,
+                    workspaceIds: current.workspaceIds
+                }),
+                actor
+            );
         });
         await this.catalog.reload();
     }

@@ -4,6 +4,39 @@
 > **Source of truth:** `packages/activity/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
+> **Amended:** 2026-08-30 — see “Since this artifact was generated” below
+
+## 0. Since this artifact was generated
+
+The plugin gained two surfaces and the catalogue it renders grew by twenty kinds. Read
+these before re-running anything below.
+
+**New surfaces, neither covered by the plan:**
+
+| Surface | What it is | Gate |
+| --- | --- | --- |
+| `EntryActivityWidget` | An **Activity** block in the content editor's Properties rail (`ENTRY_SIDEBAR_WIDGET_SLOT`, order 60) — the six most recent actions on the open record. It reads `GET /activity/entries/:id`, a different route from the rest of this plugin | `content:read`, **not** `activity:read` |
+| `DeadLetterNotice` | A notice above the log table saying how many events could **not** be recorded, and the kinds of the most recent ones. Renders nothing when the count is zero, and nothing while loading or on error | `activity:read` |
+
+The permission story is now two-tier, and that is the point of the widget: the log page
+stays admin-only, while an **editor** can see the history of a record they may already
+open. A contributor/viewer test that asserts "sees no activity anywhere" is now wrong —
+assert they see no *log page* and no *sidebar item*, but do see the entry block.
+
+**The catalogue grew from 37 to 60 kinds** and the subject types from 6 to 13. Both lists
+in `types/activityKinds` are complete, every kind has a label, and
+`apps/admin-e2e/src/support/api/activity.ts`'s `ALL_KINDS_ACTIVITY` seed was extended to
+match. The three `user.sso_*` kinds this plan's catalogue test could not catch (its seed
+was built from the admin's own list) are covered by a new server-side check that compares
+the two lists directly — see `audit-event-mapping.spec.ts`.
+
+**Two model changes** reach the UI: `ActivityActor` gains `type` (`user` / `api_token`,
+so a token's *label* is not mistaken for a colleague's address), and `ActivityEvent` gains
+`workspaceId`.
+
+**Keep `types/activityKinds` import-free.** The server-side drift check reads that module
+as text; an import there would put this React package in the audit plugin's TypeScript
+project graph.
 
 ## 1. Scope & Preconditions
 
@@ -518,7 +551,7 @@ the artifact spec's premise understates it.** The spec's note that axe suites
 exist "only [for] auth, content, copilot, insights, users and workspaces" is
 **wrong for activity**: `apps/admin-e2e/src/activity/audit-log.spec.ts:136-179`
 is a five-state axe describe block (table initial, **expanded row**, loading
-skeleton, filtered-empty, no-access), `activity-filter.spec.ts:122-131` scans the
+skeleton, filtered-empty, no-access), `activity-filter.spec.ts:131-140` scans the
 **open filter panel with a rule**, and `audit-log.spec.ts:186-213` is a real
 keyboard suite (type-to-filter, and expanding a row with Enter). No rules are
 disabled — `apps/admin-e2e/src/support/a11y.ts:12-23` only formats violations, and
@@ -730,8 +763,8 @@ Every citation is from a spec file I read; none is inferred from a filename.
 | F5 actor-email search | `audit-log.spec.ts:83-94`, `:96-104`; `:192-203` | filling the box narrows the table and only the matching actor survives; `?actorEmail=` lands in the URL; typing key-by-key filters as you go | ✅ E2E |
 | F6 filter panel | `apps/admin-e2e/src/activity/activity-filter.spec.ts:19-33`, `:35-61`, `:77-93`, `:95-120`, `:133-153` | the panel is a `region` named "Filters" and reports `aria-expanded`; a Kind rule narrows the log and serialises to `?filter=`; a deep link rehydrates it; a non-UUID "is one of" is blocked client-side with the rule error and no URL write; Reset clears it | ✅ E2E |
 | F7 summary chips | — | — | ❌ NONE — `QueryBuilderSummary` renders only when the panel is **closed** with rules, and no spec closes it with rules |
-| F8 rule count | `activity-filter.spec.ts:63-75` | the toggle reads "Filters (1)" after applying | ✅ E2E |
-| F9 URL state | `audit-log.spec.ts:96`; `activity-filter.spec.ts:77` | `actorEmail` and `filter` round-trip | ⚠️ PARTIAL — `?page=` / `?pageSize=` are never deep-linked or asserted, which is why EC-11 is undetected |
+| F8 rule count | `activity-filter.spec.ts:69-81` | the toggle reads "Filters (1)" after applying | ✅ E2E |
+| F9 URL state | `audit-log.spec.ts:96`; `activity-filter.spec.ts:83` | `actorEmail` and `filter` round-trip | ⚠️ PARTIAL — `?page=` / `?pageSize=` are never deep-linked or asserted, which is why EC-11 is undetected |
 | F10 table columns | `audit-log.spec.ts:27` (`getByRole('table', { name: 'Activity log' })`) | the table exists under its accessible name | ⚠️ PARTIAL — none of the four column headers is asserted, nor the empty fifth |
 | F11 detail panel | `audit-log.spec.ts:45-69`; `:148-153` | collapsed by default; expand reveals "viewer → contributor" and sets `aria-expanded=true`; re-toggling returns it to `false`; axe scans the **expanded** state | ✅ E2E |
 | F12 row-body click | `audit-log.spec.ts:71-81` | clicking the row body (not the button) expands it | ✅ E2E |
@@ -749,7 +782,7 @@ Every citation is from a spec file I read; none is inferred from a filename.
 | F24 gateway/mapper | `audit-log.spec.ts:36-43` | the null-actor mapping surfaces as "System" | ⚠️ PARTIAL — `ApiError` normalisation is untested (see F20), and `at` mapping is never asserted |
 | F25 `activityKeys` | — | — | ❌ NONE |
 | F26 result-count live region | — | — | ❌ NONE — axe cannot see it, and no spec reads the sr-only text |
-| **a11y** | `audit-log.spec.ts:136-179` (5 states), `activity-filter.spec.ts:122-131` (open panel + rule) | axe, no violations, on: table initial, **expanded row**, loading skeleton, filtered-empty, no-access, and the open filter panel | ⚠️ PARTIAL — **one theme only**; nothing asserts announcement timing, focus after Clear filters, or the doubled row count |
+| **a11y** | `audit-log.spec.ts:136-179` (5 states), `activity-filter.spec.ts:131-140` (open panel + rule) | axe, no violations, on: table initial, **expanded row**, loading skeleton, filtered-empty, no-access, and the open filter panel | ⚠️ PARTIAL — **one theme only**; nothing asserts announcement timing, focus after Clear filters, or the doubled row count |
 | **keyboard** | `audit-log.spec.ts:186-213` | the search box filters as you type; a row expands from focus + Enter | ⚠️ PARTIAL — no Tab-order pass, no Escape on the filter panel, no keyboard path through pagination |
 
 **Coverage tally:** `26 features · 10 ✅ · 9 ⚠️ · 7 ❌`

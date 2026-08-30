@@ -5,7 +5,7 @@ import {
     type OnApplicationBootstrap,
     type OnModuleDestroy
 } from '@nestjs/common';
-import { and, eq, isNull, lt, lte, or } from 'drizzle-orm';
+import { and, count, desc, eq, gte, isNull, lt, lte, or } from 'drizzle-orm';
 import type { Database } from '../types';
 import { InjectDatabase } from '../database.tokens';
 import {
@@ -14,6 +14,49 @@ import {
     type DomainEventSubscriber
 } from '../events/domain-event';
 import { outboxEvents } from '../schema/outbox-events';
+
+/**
+ * One event that gave up — what {@link OutboxDispatcher.deadLetters} reports.
+ *
+ * The payload is deliberately absent: it is arbitrary domain data, some of it
+ * user-authored, and this is read over an HTTP route by an operator asking
+ * *what* is stuck rather than replaying it. The id is enough to fetch one.
+ */
+export interface DeadLetter {
+    /** The event id — the handle for a manual replay (`attempts = 0`). */
+    id: string;
+    /** The event kind that could not be delivered. */
+    kind: string;
+    /** The aggregate root's type. */
+    aggregateType: string;
+    /** The aggregate root's id. */
+    aggregateId: string;
+    /** When the fact occurred. */
+    occurredAt: Date;
+    /** How many delivery attempts were spent before it parked. */
+    attempts: number;
+    /** Why the last attempt failed, truncated. */
+    lastError: string | null;
+}
+
+/**
+ * How much of a failure's text is worth keeping on the row.
+ *
+ * A stack trace is diagnostics, and diagnostics belong in logs; what the row
+ * needs is enough to tell one cause from another at a glance.
+ */
+const MAX_LAST_ERROR_CHARS = 1_000;
+
+/** The failure, as the one line stored on the row. */
+function describeFailure(error: unknown): string {
+    const text =
+        error instanceof Error
+            ? `${error.name}: ${error.message}`
+            : String(error);
+    return text.length > MAX_LAST_ERROR_CHARS
+        ? `${text.slice(0, MAX_LAST_ERROR_CHARS - 1)}…`
+        : text;
+}
 
 /** How many pending events a single drain claims and delivers. */
 const DRAIN_BATCH_SIZE = 100;
@@ -235,12 +278,64 @@ export class OutboxDispatcher
                             nextAttemptAt: nextAttemptAfter(
                                 attempts,
                                 new Date()
-                            )
+                            ),
+                            lastError: describeFailure(error)
                         })
                         .where(eq(outboxEvents.id, row.id));
                 }
             }
         });
+    }
+
+    /**
+     * The events that have given up — `dispatched_at IS NULL AND attempts >=
+     * {@link MAX_DELIVERY_ATTEMPTS}`, newest first, with the reason each one
+     * parked.
+     *
+     * This is the query the parking log line has always told an operator to
+     * run, offered as a method so something other than `psql` can ask it. That
+     * matters more here than for a typical queue: a parked row is very often an
+     * **audit** row that could not be written, and a gap in the trail that is
+     * only visible to somebody who thinks to go looking is barely a gap that
+     * exists. `total` is separate from `items` so a caller can render "3 events
+     * could not be recorded" without paging.
+     *
+     * `newerThan` narrows to recent failures, for a caller that has already
+     * acknowledged older ones.
+     */
+    async deadLetters(options: { limit?: number; newerThan?: Date } = {}): Promise<{
+        total: number;
+        items: DeadLetter[];
+    }> {
+        const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+        const where = and(
+            isNull(outboxEvents.dispatchedAt),
+            gte(outboxEvents.attempts, MAX_DELIVERY_ATTEMPTS),
+            options.newerThan
+                ? gte(outboxEvents.occurredAt, options.newerThan)
+                : undefined
+        );
+        const [[counted], rows] = await Promise.all([
+            this.db
+                .select({ total: count() })
+                .from(outboxEvents)
+                .where(where),
+            this.db
+                .select({
+                    id: outboxEvents.id,
+                    kind: outboxEvents.kind,
+                    aggregateType: outboxEvents.aggregateType,
+                    aggregateId: outboxEvents.aggregateId,
+                    occurredAt: outboxEvents.occurredAt,
+                    attempts: outboxEvents.attempts,
+                    lastError: outboxEvents.lastError
+                })
+                .from(outboxEvents)
+                .where(where)
+                .orderBy(desc(outboxEvents.occurredAt))
+                .limit(limit)
+        ]);
+        return { total: counted?.total ?? 0, items: rows };
     }
 
     /** Starts the poll backstop once the app is up. */
