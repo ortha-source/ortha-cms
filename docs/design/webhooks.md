@@ -40,11 +40,11 @@ dead-lettering an event the activity log and the alarms evaluator also needed.
 Three sets, intersected. **An empty set means "everything", including things
 that do not exist yet.**
 
-| Filter        | Empty means                                       |
-| ------------- | ------------------------------------------------- |
-| Workspaces    | every workspace, including ones created later     |
-| Event kinds   | every kind, including ones added to the catalogue |
-| Content types | every type                                        |
+| Filter        | Empty means                                        |
+| ------------- | -------------------------------------------------- |
+| Workspaces    | every workspace, including ones created later      |
+| Event kinds   | every kind, including ones added to the catalogue  |
+| Content types | every type, including ones added to the code later |
 
 That is the opposite of an API token's workspace bucket, which forbids an empty
 set — but a token's set is the bounds of its authority, where "all" would be a
@@ -55,6 +55,16 @@ document and a second place for a rule to mean something the UI does not.
 
 **A record with no workspace** (`content_*.workspace_id` is nullable) can only
 satisfy an endpoint that takes them all. The editor says so next to the field.
+
+**Content types are named, not enumerated.** The editor's picker is filled from
+content's own registry (`GET /api/content-schema`), but a name that is not in it
+is still accepted and still saved: a type is code, so an endpoint is routinely
+configured before the type it subscribes to is written. The server validates the
+field as a bounded list of strings for the same reason — a closed enum here
+would make "subscribe to the type I am about to add" inexpressible. The cost is
+that a typo cannot be rejected, only shown: the editor marks a subscribed name
+the running build does not define, which is the one place an endpoint silently
+receiving nothing becomes visible.
 
 ## What a receiver gets
 

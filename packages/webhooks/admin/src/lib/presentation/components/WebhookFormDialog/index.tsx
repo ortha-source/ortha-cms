@@ -11,6 +11,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    Input,
     InputField,
     Label,
     MultiSelect
@@ -19,7 +20,13 @@ import type {
     WebhookEndpoint,
     WebhookEventOption
 } from '../../../domain/types/webhook';
+import type { ContentTypeOption } from '../../../domain/types/contentTypeOption';
 import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
+import {
+    addContentTypeNames,
+    contentTypeChoices,
+    parseContentTypeNames
+} from '../../../domain/contentTypeChoices';
 import type { SaveWebhookInput } from '../../../infrastructure/webhookGateway';
 
 const messages = defineMessages({
@@ -78,12 +85,34 @@ const messages = defineMessages({
     },
     allContentTypes: {
         id: 'webhooks.form.allContentTypes',
-        defaultMessage: 'Every content type'
+        defaultMessage: 'Every content type, including ones added later'
+    },
+    contentTypesPlaceholder: {
+        id: 'webhooks.form.contentTypesPlaceholder',
+        defaultMessage: 'Choose content types'
     },
     contentTypesHint: {
         id: 'webhooks.form.contentTypesHint',
         defaultMessage:
-            'One per line, using the machine name — for example, article.'
+            'Pick from the types this build defines, or add one by machine name — a type you are about to create can be subscribed to before it exists.'
+    },
+    noContentTypes: {
+        id: 'webhooks.form.noContentTypes',
+        defaultMessage:
+            'Nothing chosen yet, so this endpoint still receives every type.'
+    },
+    addContentType: {
+        id: 'webhooks.form.addContentType',
+        defaultMessage: 'Add a type that isn’t listed'
+    },
+    addContentTypePlaceholder: {
+        id: 'webhooks.form.addContentTypePlaceholder',
+        defaultMessage: 'article'
+    },
+    add: { id: 'webhooks.form.add', defaultMessage: 'Add' },
+    unknownContentType: {
+        id: 'webhooks.form.unknownContentType',
+        defaultMessage: '{name} (not defined here)'
     },
     enabled: {
         id: 'webhooks.form.enabled',
@@ -116,6 +145,7 @@ export type WebhookFormValues = {
     workspaceIds: string[];
     allEvents: boolean;
     eventKinds: string[];
+    allContentTypes: boolean;
     contentTypes: string[];
 };
 
@@ -133,6 +163,9 @@ function emptyValues(): WebhookFormValues {
         // events is not a safer endpoint, it is a broken one.
         allEvents: true,
         eventKinds: [],
+        // Same reasoning as events: a subscription narrowed to nothing is not
+        // a safer one, so the default is the whole registry.
+        allContentTypes: true,
         contentTypes: []
     };
 }
@@ -147,6 +180,7 @@ function valuesOf(endpoint: WebhookEndpoint): WebhookFormValues {
         workspaceIds: endpoint.workspaceIds,
         allEvents: endpoint.eventKinds.length === 0,
         eventKinds: endpoint.eventKinds,
+        allContentTypes: endpoint.contentTypes.length === 0,
         contentTypes: endpoint.contentTypes
     };
 }
@@ -166,6 +200,7 @@ export function WebhookFormDialog({
     endpoint,
     events,
     workspaces,
+    contentTypes,
     pending,
     error,
     onSubmit
@@ -176,6 +211,12 @@ export function WebhookFormDialog({
     endpoint?: WebhookEndpoint;
     events: WebhookEventOption[];
     workspaces: WorkspaceOption[];
+    /**
+     * The code-defined content types. Empty is a legitimate state — an
+     * unreachable catalogue, or a build with no types yet — and the picker
+     * still accepts a typed-in machine name.
+     */
+    contentTypes: ContentTypeOption[];
     pending: boolean;
     /** A server-side refusal to show above the footer (a rejected URL, say). */
     error: string | null;
@@ -184,6 +225,8 @@ export function WebhookFormDialog({
     const intl = useIntl();
     const [values, setValues] = useState<WebhookFormValues>(emptyValues);
     const [touched, setTouched] = useState(false);
+    /** What is typed into the "add a type that isn't listed" field. */
+    const [typeDraft, setTypeDraft] = useState('');
     const contentRef = useRef<HTMLDivElement>(null);
 
     // Reset whenever the dialog opens, so a cancelled edit is not inherited by
@@ -192,6 +235,7 @@ export function WebhookFormDialog({
         if (open) {
             setValues(endpoint ? valuesOf(endpoint) : emptyValues());
             setTouched(false);
+            setTypeDraft('');
         }
     }, [open, endpoint]);
 
@@ -213,6 +257,35 @@ export function WebhookFormDialog({
             })),
         [workspaces]
     );
+
+    // The registry's types plus any selected name it does not know. The unknown
+    // ones are labelled as such rather than hidden: an endpoint subscribed to a
+    // type that has been removed, or to one with a typo in its name, is
+    // receiving nothing and this is the only place that shows.
+    const contentTypeOptions = useMemo(
+        () =>
+            contentTypeChoices(contentTypes, values.contentTypes).map(
+                (choice) => ({
+                    value: choice.value,
+                    label: choice.known
+                        ? choice.label
+                        : intl.formatMessage(messages.unknownContentType, {
+                              name: choice.value
+                          })
+                })
+            ),
+        [contentTypes, values.contentTypes, intl]
+    );
+
+    const addTypedContentTypes = () => {
+        const names = parseContentTypeNames(typeDraft);
+        if (names.length === 0) return;
+        setValues((prev) => ({
+            ...prev,
+            contentTypes: addContentTypeNames(prev.contentTypes, names)
+        }));
+        setTypeDraft('');
+    };
 
     const nameError =
         touched && values.name.trim().length === 0
@@ -240,7 +313,7 @@ export function WebhookFormDialog({
             workspaceIds: values.allWorkspaces ? [] : values.workspaceIds,
             // An empty list is how "all" is spelled on the wire, for both.
             eventKinds: values.allEvents ? [] : values.eventKinds,
-            contentTypes: values.contentTypes
+            contentTypes: values.allContentTypes ? [] : values.contentTypes
         });
     };
 
@@ -413,32 +486,106 @@ export function WebhookFormDialog({
                         ) : null}
                     </fieldset>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="webhook-content-types">
+                    <fieldset className="flex flex-col gap-2">
+                        <legend className="text-sm font-medium">
                             {intl.formatMessage(messages.contentTypes)}
-                        </Label>
-                        <textarea
-                            id="webhook-content-types"
-                            rows={2}
-                            value={values.contentTypes.join('\n')}
-                            placeholder={intl.formatMessage(
-                                messages.allContentTypes
-                            )}
-                            onChange={(event) =>
-                                setValues((prev) => ({
-                                    ...prev,
-                                    contentTypes: event.target.value
-                                        .split('\n')
-                                        .map((line) => line.trim())
-                                        .filter(Boolean)
-                                }))
-                            }
-                            className="rounded-md border bg-transparent px-3 py-2 font-mono text-sm"
-                        />
+                        </legend>
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="webhook-all-content-types"
+                                checked={values.allContentTypes}
+                                onCheckedChange={(checked) =>
+                                    setValues((prev) => ({
+                                        ...prev,
+                                        allContentTypes: checked === true
+                                    }))
+                                }
+                            />
+                            <Label
+                                htmlFor="webhook-all-content-types"
+                                className="text-sm font-normal"
+                            >
+                                {intl.formatMessage(messages.allContentTypes)}
+                            </Label>
+                        </div>
+                        {!values.allContentTypes ? (
+                            <>
+                                <Label
+                                    htmlFor="webhook-content-types"
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.contentTypes)}
+                                </Label>
+                                <MultiSelect
+                                    id="webhook-content-types"
+                                    options={contentTypeOptions}
+                                    value={values.contentTypes}
+                                    onChange={(next) =>
+                                        setValues((prev) => ({
+                                            ...prev,
+                                            contentTypes: next
+                                        }))
+                                    }
+                                    placeholder={intl.formatMessage(
+                                        messages.contentTypesPlaceholder
+                                    )}
+                                    container={contentRef.current}
+                                />
+                                <div className="flex items-center gap-2">
+                                    <Label
+                                        htmlFor="webhook-content-type-add"
+                                        className="sr-only"
+                                    >
+                                        {intl.formatMessage(
+                                            messages.addContentType
+                                        )}
+                                    </Label>
+                                    <Input
+                                        id="webhook-content-type-add"
+                                        value={typeDraft}
+                                        placeholder={intl.formatMessage(
+                                            messages.addContentTypePlaceholder
+                                        )}
+                                        className="font-mono text-sm"
+                                        onChange={(event) =>
+                                            setTypeDraft(event.target.value)
+                                        }
+                                        onKeyDown={(event) => {
+                                            // Enter here means "add this one",
+                                            // not "submit the dialog" — the
+                                            // footer button is the only way to
+                                            // save.
+                                            if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                                addTypedContentTypes();
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={addTypedContentTypes}
+                                        disabled={
+                                            parseContentTypeNames(typeDraft)
+                                                .length === 0
+                                        }
+                                    >
+                                        {intl.formatMessage(messages.add)}
+                                    </Button>
+                                </div>
+                                {values.contentTypes.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        {intl.formatMessage(
+                                            messages.noContentTypes
+                                        )}
+                                    </p>
+                                ) : null}
+                            </>
+                        ) : null}
                         <p className="text-xs text-muted-foreground">
                             {intl.formatMessage(messages.contentTypesHint)}
                         </p>
-                    </div>
+                    </fieldset>
 
                     <div className="flex items-center gap-2">
                         <Checkbox

@@ -7,6 +7,7 @@ import type {
     WebhookEventOption,
     WebhookTestResult
 } from '../../domain/types/webhook';
+import type { ContentTypeOption } from '../../domain/types/contentTypeOption';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
 import type { DeliveriesListParams } from '../webhooksKeys';
 
@@ -63,4 +64,11 @@ export type WebhookGateway = {
     listEvents(): Promise<WebhookEventOption[]>;
     /** Every workspace, for the editor's workspace picker. */
     listWorkspaceOptions(): Promise<WorkspaceOption[]>;
+    /**
+     * The code-defined content types, for the editor's type picker.
+     *
+     * A convenience over a free-text filter rather than the set of legal
+     * values: an endpoint may name a type this build does not define.
+     */
+    listContentTypeOptions(): Promise<ContentTypeOption[]>;
 };

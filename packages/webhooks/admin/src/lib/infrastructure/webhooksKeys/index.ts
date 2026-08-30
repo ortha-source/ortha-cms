@@ -30,5 +30,7 @@ export const webhooksKeys = {
     deliveries: (id: string, params: DeliveriesListParams) =>
         ['webhooks', 'deliveries', id, params] as const,
     /** The subscribable event catalogue. */
-    events: () => ['webhooks', 'events'] as const
+    events: () => ['webhooks', 'events'] as const,
+    /** The code-defined content-type catalogue, for the editor's picker. */
+    contentTypes: () => ['webhooks', 'content-types'] as const
 };

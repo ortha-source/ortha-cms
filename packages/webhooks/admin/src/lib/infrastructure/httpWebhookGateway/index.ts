@@ -8,6 +8,7 @@ import type {
     WebhookEventOption,
     WebhookTestResult
 } from '../../domain/types/webhook';
+import type { ContentTypeOption } from '../../domain/types/contentTypeOption';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
 import type { SaveWebhookInput, WebhookGateway } from '../webhookGateway';
 import type { DeliveriesListParams } from '../webhooksKeys';
@@ -15,12 +16,14 @@ import {
     toWebhookDelivery,
     toWebhookDeliveryDetail,
     toWebhookEndpoint,
+    toContentTypeOption,
     toWebhookEventOption,
     toWorkspaceOption,
     type CreatedWebhookEndpointResponse,
     type WebhookDeliveryDetailResponse,
     type WebhookDeliveryResponse,
     type WebhookEndpointResponse,
+    type ContentTypeSummaryResponse,
     type WebhookEventResponse,
     type WorkspaceOptionResponse
 } from '../webhookMapper';
@@ -188,6 +191,21 @@ export const httpWebhookGateway: WebhookGateway = {
             const { data } =
                 await apiClient.get<WorkspaceOptionResponse[]>('/workspaces');
             return data.map(toWorkspaceOption);
+        } catch (error) {
+            throw toApiError(error);
+        }
+    },
+
+    async listContentTypeOptions(): Promise<ContentTypeOption[]> {
+        try {
+            // The registry the Content Library reads, not a webhooks-owned
+            // list: there is one source of truth for what types exist, and it
+            // is code, so this plugin borrows it rather than storing its own.
+            const { data } =
+                await apiClient.get<ContentTypeSummaryResponse[]>(
+                    '/content-schema'
+                );
+            return data.map(toContentTypeOption);
         } catch (error) {
             throw toApiError(error);
         }

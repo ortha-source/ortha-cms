@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
+import { mockContentSchema } from '../support/api/content';
 import { mockWebhooksApi, WEBHOOKS_SEED } from '../support/api/webhooks';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -20,6 +21,7 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page);
+        await mockContentSchema(page);
     });
 
     test('list — populated', async ({ page, webhooksPage, makeAxe }) => {
@@ -60,6 +62,25 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
+    test('the editor dialog, every picker revealed', async ({
+        page,
+        webhooksPage,
+        makeAxe
+    }) => {
+        await mockWebhooksApi(page);
+        await webhooksPage.goto();
+        await webhooksPage.table.waitFor();
+        await webhooksPage.newWebhookButton.click();
+        await webhooksPage.dialog().waitFor();
+        // Each picker exists only while its "All …" toggle is off, so the
+        // default scan above never sees two of the three controls — including
+        // the free-entry field and its button.
+        await webhooksPage.allEventsToggle().click();
+        await webhooksPage.allContentTypesToggle().click();
+        await webhooksPage.contentTypesPicker().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
     test('the reveal-once dialog', async ({ page, webhooksPage, makeAxe }) => {
         await mockWebhooksApi(page);
         await webhooksPage.goto();
@@ -70,6 +91,13 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await webhooksPage.allWorkspacesToggle().click();
         await webhooksPage.submitButton().click();
         await webhooksPage.secretField().waitFor();
+        // Let the "Webhook created" toast expire first. Sonner's own surface
+        // fails contrast — a design-system issue, not this dialog's, and the
+        // same reason the content suite waits it out — and it would otherwise
+        // mask the state this case exists to scan.
+        await page
+            .locator('[data-sonner-toast]')
+            .waitFor({ state: 'detached', timeout: 15_000 });
         await expectNoA11yViolations(makeAxe());
     });
 

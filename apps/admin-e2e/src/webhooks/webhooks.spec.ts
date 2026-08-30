@@ -1,6 +1,7 @@
 import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
+import { mockContentSchema } from '../support/api/content';
 import {
     mockWebhooksApi,
     REVEALED_SECRET,
@@ -23,6 +24,9 @@ test.describe('Webhooks', () => {
     test.beforeEach(async ({ page }) => {
         await mockSignedIn(page);
         await mockWorkspaces(page);
+        // The editor's type picker reads content's registry
+        // (`GET /api/content-schema`) rather than a webhooks-owned list.
+        await mockContentSchema(page);
     });
 
     test.describe('the endpoint list', () => {
@@ -276,9 +280,145 @@ test.describe('Webhooks', () => {
             ).toBeVisible();
             await expect(webhooksPage.eventOption('Test ping')).toBeHidden();
         });
+
+        test('offers the types this build defines', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.openContentTypePicker();
+
+            await expect(webhooksPage.eventOption('Blog posts')).toBeVisible();
+            await expect(webhooksPage.eventOption('Products')).toBeVisible();
+        });
+
+        test('takes a type name the registry does not list', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.nameField().fill('Cache purge');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.allContentTypesToggle().click();
+            // A type that is about to be added: the picker cannot list it, and
+            // an endpoint has to be able to subscribe to it before it exists.
+            await webhooksPage.contentTypeDraftField().fill('landing_page');
+            await webhooksPage.addContentTypeButton().click();
+            await webhooksPage.submitButton().click();
+
+            expect((await posted).postDataJSON()).toMatchObject({
+                contentTypes: ['landing_page']
+            });
+        });
+
+        test('reads a pasted list as several types', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.nameField().fill('Cache purge');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.allContentTypesToggle().click();
+            await webhooksPage
+                .contentTypeDraftField()
+                .fill('landing_page, campaign');
+            await webhooksPage.addContentTypeButton().click();
+            await webhooksPage.submitButton().click();
+
+            expect((await posted).postDataJSON()).toMatchObject({
+                contentTypes: ['landing_page', 'campaign']
+            });
+        });
+
+        test('sends no content-type filter when every type is chosen', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.nameField().fill('Cache purge');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.submitButton().click();
+
+            // Empty is how "every type, including ones added later" is spelled
+            // on the wire.
+            expect((await posted).postDataJSON()).toMatchObject({
+                contentTypes: []
+            });
+        });
     });
 
     test.describe('one endpoint', () => {
+        test('keeps a subscribed type this build no longer defines', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            // `wh_paused` subscribes to `article`, which is deliberately absent
+            // from the registry seed — the type was removed, or is a typo, or
+            // has not been written yet.
+            await webhooksPage.gotoDetail('wh_paused');
+
+            const saved = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks/wh_paused') &&
+                    request.method() === 'PATCH'
+            );
+
+            await webhooksPage.editButton().click();
+            await webhooksPage.dialog().waitFor();
+            // Shown, and shown as unrecognised — an endpoint filtered to a type
+            // that does not exist receives nothing, and this is where that is
+            // visible.
+            await expect(
+                webhooksPage.pickedValue('article (not defined here)')
+            ).toBeVisible();
+
+            await webhooksPage.saveButton().click();
+
+            // The real regression this guards: dropping the unknown name would
+            // widen the endpoint from one type to every type.
+            expect((await saved).postDataJSON()).toMatchObject({
+                contentTypes: ['article']
+            });
+        });
+
         test('opens on the delivery log', async ({ page, webhooksPage }) => {
             await mockWebhooksApi(page);
             await webhooksPage.gotoDetail(WEBHOOKS_SEED[0].id);

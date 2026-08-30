@@ -6,6 +6,7 @@ import type {
     WebhookEventOption,
     WebhookLastDelivery
 } from '../../domain/types/webhook';
+import type { ContentTypeOption } from '../../domain/types/contentTypeOption';
 import type { WorkspaceOption } from '../../domain/types/workspaceOption';
 
 /**
@@ -86,6 +87,11 @@ export type WebhookEventResponse = {
 };
 
 /** Only the fields the workspace picker needs from `GET /api/workspaces`. */
+export type ContentTypeSummaryResponse = {
+    name: string;
+    label: string;
+};
+
 export type WorkspaceOptionResponse = {
     id: string;
     name: string;
@@ -137,4 +143,17 @@ export function toWorkspaceOption(
     dto: WorkspaceOptionResponse
 ): WorkspaceOption {
     return { id: dto.id, name: dto.name, description: dto.description };
+}
+
+/**
+ * Maps one content type from the registry.
+ *
+ * Only the two fields the picker needs — the rest of a summary (kind, path,
+ * `i18n`, …) describes how the type behaves, which the subscription filter has
+ * no opinion about.
+ */
+export function toContentTypeOption(
+    dto: ContentTypeSummaryResponse
+): ContentTypeOption {
+    return { name: dto.name, label: dto.label };
 }

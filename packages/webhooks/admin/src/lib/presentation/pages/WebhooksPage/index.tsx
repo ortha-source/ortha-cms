@@ -15,6 +15,7 @@ import {
 import { useWebhookEndpoints } from '../../../application/useWebhookEndpoints';
 import { useWebhookEvents } from '../../../application/useWebhookEvents';
 import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
+import { useContentTypeOptions } from '../../../application/useContentTypeOptions';
 import { useCreateWebhook } from '../../../application/useWebhookMutations';
 import { WebhooksTable } from '../../components/WebhooksTable';
 import { WebhooksEmpty } from '../../components/WebhooksEmpty';
@@ -71,10 +72,13 @@ export function WebhooksPage() {
     const [formError, setFormError] = useState<string | null>(null);
 
     const { data, isPending, isError, refetch } = useWebhookEndpoints(canRead);
-    // Both pickers are only needed once the dialog is open, so neither fetches
-    // before then.
+    // All three pickers are only needed once the dialog is open, so none of
+    // them fetches before then.
     const { data: events } = useWebhookEvents(canManage && createOpen);
     const { data: workspaces } = useWorkspaceOptions(canManage && createOpen);
+    const { data: contentTypes } = useContentTypeOptions(
+        canManage && createOpen
+    );
     const create = useCreateWebhook();
 
     if (!canRead) {
@@ -175,6 +179,7 @@ export function WebhooksPage() {
                 }}
                 events={events ?? []}
                 workspaces={workspaces ?? []}
+                contentTypes={contentTypes ?? []}
                 pending={create.isPending}
                 error={formError}
                 onSubmit={(input) => {

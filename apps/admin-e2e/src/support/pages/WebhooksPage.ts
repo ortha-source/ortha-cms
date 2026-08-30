@@ -106,6 +106,33 @@ export class WebhooksPage extends BasePage {
         return this.dialog().getByRole('checkbox', { name: /Every event/ });
     }
 
+    /** The "Every content type" toggle. */
+    allContentTypesToggle(): Locator {
+        return this.dialog().getByRole('checkbox', {
+            name: /Every content type/
+        });
+    }
+
+    /** The content-type picker, which only exists once that toggle is off. */
+    contentTypesPicker(): Locator {
+        return this.dialog().getByRole('combobox', { name: 'Content types' });
+    }
+
+    /** The free-entry field for a type the registry does not list. */
+    contentTypeDraftField(): Locator {
+        return this.dialog().getByLabel(/Add a type that isn/);
+    }
+
+    /** The button that commits what is typed in that field. */
+    addContentTypeButton(): Locator {
+        return this.dialog().getByRole('button', { name: 'Add' });
+    }
+
+    /** A selected filter value, as the picker's trigger shows it. */
+    pickedValue(label: string): Locator {
+        return this.dialog().getByText(label, { exact: true });
+    }
+
     /** The dialog's submit button. */
     submitButton(): Locator {
         return this.dialog().getByRole('button', { name: 'Create webhook' });
@@ -128,6 +155,16 @@ export class WebhooksPage extends BasePage {
     /** The delivery log's table. */
     deliveriesTable(): Locator {
         return this.page.getByRole('table', { name: 'Delivery log' });
+    }
+
+    /** The detail page's Edit action, which opens the editor on this endpoint. */
+    editButton(): Locator {
+        return this.page.getByRole('button', { name: 'Edit' });
+    }
+
+    /** The editor's submit button when editing rather than creating. */
+    saveButton(): Locator {
+        return this.dialog().getByRole('button', { name: 'Save' });
     }
 
     /** The Settings tab trigger. */
@@ -170,7 +207,18 @@ export class WebhooksPage extends BasePage {
     /** Opens the event picker, which only exists once "Every event" is off. */
     async openEventPicker() {
         await this.allEventsToggle().click();
-        await this.dialog().getByRole('combobox').last().click();
+        // By name, not by position: the dialog holds three pickers now, and
+        // which one is last depends on which "All …" toggles are off.
+        await this.dialog().getByRole('combobox', { name: 'Events' }).click();
+    }
+
+    /**
+     * Opens the content-type picker, which only exists once "Every content
+     * type" is off.
+     */
+    async openContentTypePicker() {
+        await this.allContentTypesToggle().click();
+        await this.contentTypesPicker().click();
     }
 
     /** The reveal dialog's "you haven't copied it" guard. */

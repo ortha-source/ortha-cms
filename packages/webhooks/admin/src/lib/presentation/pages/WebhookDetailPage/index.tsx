@@ -22,6 +22,7 @@ import {
 import { useWebhookEndpoint } from '../../../application/useWebhookEndpoints';
 import { useWebhookEvents } from '../../../application/useWebhookEvents';
 import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
+import { useContentTypeOptions } from '../../../application/useContentTypeOptions';
 import {
     useDeleteWebhook,
     useRotateWebhookSecret,
@@ -172,6 +173,7 @@ export function WebhookDetailPage() {
     } = useWebhookEndpoint(id, canRead && id.length > 0);
     const { data: events } = useWebhookEvents(canManage && editOpen);
     const { data: workspaces } = useWorkspaceOptions(canManage && editOpen);
+    const { data: contentTypes } = useContentTypeOptions(canManage && editOpen);
 
     const update = useUpdateWebhook();
     const remove = useDeleteWebhook();
@@ -396,6 +398,7 @@ export function WebhookDetailPage() {
                 endpoint={endpoint}
                 events={events ?? []}
                 workspaces={workspaces ?? []}
+                contentTypes={contentTypes ?? []}
                 pending={update.isPending}
                 error={formError}
                 onSubmit={(input) => {
