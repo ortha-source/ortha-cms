@@ -52,6 +52,37 @@ export class UserDetailPage extends BasePage {
         return this.page.getByRole('button', { name: 'Save changes' });
     }
 
+    /**
+     * The layout's failure alert. The 404 and the generic error share this one
+     * element, so the copy — not the role — is what tells them apart; see
+     * {@link notFoundAlert}.
+     */
+    errorAlert(): Locator {
+        return this.page.getByRole('alert');
+    }
+
+    /**
+     * The alert for a member id that matches nobody. Distinct copy on purpose:
+     * a deleted member is a settled answer, and offering the retry the generic
+     * message implies would send the admin round a loop that cannot succeed.
+     */
+    notFoundAlert(): Locator {
+        return this.errorAlert().filter({
+            hasText: 'This member no longer exists.'
+        });
+    }
+
+    /**
+     * The Sessions card's header — the anchor the tab hands focus back to when
+     * a revoked card unmounts. It is a `div` with `tabIndex={-1}` rather than a
+     * heading element, so it is located by the copy it carries.
+     */
+    sessionsCardHeader(): Locator {
+        return this.page
+            .locator('div[tabindex="-1"]')
+            .filter({ hasText: 'Devices currently signed in as this member.' });
+    }
+
     /** A confirm-dialog button by label (e.g. "Revoke", "Suspend member"). */
     confirmButton(label: string): Locator {
         return this.page

@@ -135,6 +135,13 @@ test.describe('User preferences (theme)', () => {
         await mockPreferences(page, { theme: 'dark' });
         await page.goto('/users/u_ada/general');
         await expect.poll(() => userDetailPage.isDark()).toBe(true);
+        // `.dark` only means ThemeSync's own request came back — it says
+        // nothing about the member's. Those are two independent reads, and the
+        // preferences one usually wins, so without this the scan can land on
+        // the loading skeleton: no `<h1>`, none of the semantic surfaces this
+        // test exists to check, and a `page-has-heading-one` violation whenever
+        // the member read is slow enough.
+        await expect(userDetailPage.heading('Ada Lovelace')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
     });

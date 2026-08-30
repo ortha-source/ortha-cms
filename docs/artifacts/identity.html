@@ -1,4 +1,4 @@
-<title>Паспорт плагина Identity</title>
+<title>Identity Plugin Dossier</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap">
@@ -237,402 +237,401 @@ footer.end{border-top:1px solid var(--hairline);margin-top:1rem;padding:2rem 0 3
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 html{scroll-behavior:smooth}
 </style>
-
 <header class="masthead">
   <div class="wrap">
-    <p class="eyebrow">Пакетная группа · packages/identity</p>
+    <p class="eyebrow">Package group · packages/identity</p>
     <h1 class="title">Identity
-      <small>Кто это такой и что ему можно — фундамент доступа OrthaCMS</small>
+      <small>Who this is and what they may do — the foundation of access in OrthaCMS</small>
     </h1>
-    <p class="lede">Identity отвечает на два вопроса, без которых не работает ни один другой плагин: <strong>кто пришёл</strong> (аутентификация) и <strong>что ему разрешено</strong> (роли и права). Он владеет учётными записями, сессиями, ролями, одноразовыми ссылками, внешними API-токенами и входом через корпоративный провайдер. Регистрации «с улицы» нет: единственный путь в систему — приглашение администратора.</p>
+    <p class="lede">Identity answers the two questions without which no other plugin works: <strong>who has arrived</strong> (authentication) and <strong>what they are allowed to do</strong> (roles and permissions). It owns accounts, sessions, roles, one-time links, external API tokens and sign-in through a corporate provider. There is no signing up off the street: the only way into the system is an administrator's invitation.</p>
     <ul class="facts">
-      <li><b>7</b> пакетов в группе</li>
-      <li><b>19</b> HTTP-маршрутов</li>
-      <li><b>11</b> таблиц БД</li>
-      <li><b>7</b> миграций</li>
-      <li><b>30</b> ключей прав</li>
-      <li><b>3</b> системные роли</li>
-      <li><b>3</b> публичных экрана админки</li>
+      <li><b>7</b> packages in the group</li>
+      <li><b>19</b> HTTP routes</li>
+      <li><b>11</b> database tables</li>
+      <li><b>7</b> migrations</li>
+      <li><b>30</b> permission keys</li>
+      <li><b>3</b> system roles</li>
+      <li><b>3</b> public admin screens</li>
     </ul>
   </div>
 </header>
 
 <div class="wrap shell">
-<nav class="toc" aria-label="Содержание">
-  <h2>Содержание</h2>
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
   <ol>
-    <li><a href="#business">Бизнес-описание</a></li>
-    <li><a href="#packages">Состав группы</a></li>
-    <li><a href="#roles">Роли и права</a></li>
-    <li><a href="#data">Модель данных</a></li>
-    <li><a href="#lifecycle">Жизненный цикл</a></li>
-    <li><a href="#flows">Сценарии</a></li>
+    <li><a href="#business">Business description</a></li>
+    <li><a href="#packages">Group composition</a></li>
+    <li><a href="#roles">Roles and permissions</a></li>
+    <li><a href="#data">Data model</a></li>
+    <li><a href="#lifecycle">Lifecycle</a></li>
+    <li><a href="#flows">Flows</a></li>
     <li><a href="#api">HTTP API</a></li>
-    <li><a href="#admin">Админка</a></li>
-    <li><a href="#config">Конфигурация</a></li>
-    <li><a href="#security">Безопасность</a></li>
-    <li><a href="#invariants">Инварианты</a></li>
-    <li><a href="#qa">Чек-лист QA</a></li>
-    <li><a href="#bounds">Границы</a></li>
-    <li><a href="#gaps">Расхождения</a></li>
+    <li><a href="#admin">Admin UI</a></li>
+    <li><a href="#config">Configuration</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#invariants">Invariants</a></li>
+    <li><a href="#qa">QA checklist</a></li>
+    <li><a href="#bounds">Boundaries</a></li>
+    <li><a href="#gaps">Discrepancies</a></li>
   </ol>
 </nav>
 
 <main>
 
 <section id="business">
-  <h2 class="sec"><span class="num">01</span>Бизнес-описание</h2>
+  <h2 class="sec"><span class="num">01</span>Business description</h2>
 
-  <p>Identity — это «служба пропусков» CMS. Всё остальное (контент, медиа, воркспейсы, копайлот, публичный API) исходит из того, что кто-то уже проверен и наделён правами. Если Identity не работает, не работает ничего.</p>
+  <p>Identity is the CMS's "pass office". Everything else (content, media, workspaces, the copilot, the public API) proceeds from the assumption that somebody has already been verified and granted permissions. If Identity does not work, nothing works.</p>
 
-  <h3>Какую задачу решает</h3>
+  <h3>The problem it solves</h3>
   <ul>
-    <li><b>Закрытая редакция.</b> Публичной регистрации нет вообще. Аккаунт появляется только тогда, когда администратор выписал приглашение. Это осознанный продуктовый выбор: CMS — рабочий инструмент организации, а не сервис самообслуживания.</li>
-    <li><b>Мгновенная отзывность доступа.</b> Сессия — это строка в базе, а не подписанный токен. Значит, доступ можно отобрать сразу: отключили сотрудника — его сессии умирают в той же транзакции, а не «когда-нибудь протухнут».</li>
-    <li><b>Понятная модель прав.</b> Три роли из коробки (администратор, контрибьютор, наблюдатель) и плоский список из 30 прав. Одна роль на человека, никаких пересечений и наследования — чтобы на вопрос «почему он это увидел?» всегда был короткий ответ.</li>
-    <li><b>Машинный доступ отдельно от человеческого.</b> Внешние интеграции (сборка сайта, скрипты) ходят по bearer-токенам с ограниченной областью и списком воркспейсов, а не под чьей-то учёткой.</li>
-    <li><b>Корпоративный вход.</b> Организация может подключить свой провайдер (Google, Okta, Entra, Keycloak, Auth0, GitHub, SAML) и выключить пароли — при этом остаётся аварийный вход для root-администратора.</li>
+    <li><b>A closed editorial team.</b> There is no public registration at all. An account appears only when an administrator has written an invitation. This is a deliberate product choice: a CMS is an organisation's working tool, not a self-service product.</li>
+    <li><b>Instantly revocable access.</b> A session is a row in the database, not a signed token. So access can be taken away at once: disable an employee and their sessions die in the same transaction rather than "expiring sometime".</li>
+    <li><b>A comprehensible permission model.</b> Three roles out of the box (administrator, contributor, viewer) and a flat list of 30 permissions. One role per person, no overlaps and no inheritance — so that "why could they see that?" always has a short answer.</li>
+    <li><b>Machine access separate from human access.</b> External integrations (a site build, scripts) call with bearer tokens carrying a limited scope and a workspace list, rather than under somebody's account.</li>
+    <li><b>Corporate sign-in.</b> An organisation can connect its own provider (Google, Okta, Entra, Keycloak, Auth0, GitHub, SAML) and switch passwords off — while an emergency login for the root administrator remains.</li>
   </ul>
 
-  <h3>Кому это видно</h3>
+  <h3>Who sees it</h3>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">Приглашённый сотрудник</h4>
-      <p class="small sub">Получает ссылку, придумывает пароль, сразу оказывается внутри. Ни email, ни имя, ни роль он поменять не может — это уже решил администратор.</p>
+      <h4 style="margin-top:0">An invited employee</h4>
+      <p class="small sub">Receives a link, chooses a password, and is inside immediately. They can change neither their email, nor their name, nor their role — an administrator has already decided those.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Администратор</h4>
-      <p class="small sub">Приглашает, отключает, выписывает ссылку сброса пароля, смотрит и гасит чужие сессии, выпускает API-токены. Все действия попадают в журнал активности.</p>
+      <h4 style="margin-top:0">Administrator</h4>
+      <p class="small sub">Invites, disables, issues a password-reset link, views and kills other people's sessions, issues API tokens. Every action reaches the activity log.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Интеграция / внешний агент</h4>
-      <p class="small sub">Живёт по API-токену: только чтение или полный CRUD контента, только в разрешённых воркспейсах, с возможностью отзыва в один клик.</p>
+      <h4 style="margin-top:0">Integration / external agent</h4>
+      <p class="small sub">Lives by an API token: read-only or full content CRUD, only in the permitted workspaces, revocable in one click.</p>
     </div>
   </div>
 
-  <h3>Чем Identity не является</h3>
-  <p>Границы важнее возможностей — они объясняют, почему в интерфейсе нет вещей, которых от него ждут:</p>
+  <h3>What Identity is not</h3>
+  <p>The boundaries matter more than the capabilities — they explain why the interface lacks things people expect of it:</p>
   <ul>
-    <li><b>Это не управление пользователями.</b> Список участников, приглашение, отключение, выписка ссылки сброса — это плагин <code>users</code>. Identity владеет только <em>погашением</em> одноразовых ссылок и самой моделью аккаунта.</li>
-    <li><b>Это не почта.</b> Ничего никуда не отправляется. Ссылка приглашения и ссылка сброса возвращаются администратору в ответе API, и он передаёт их человеку сам. Отсюда же следствие: <b>самостоятельного «забыли пароль?» не существует</b> — публичная форма выписывала бы ссылку захвата аккаунта и не имела бы куда её отправить.</li>
-    <li><b>Это не воркспейсы.</b> Права глобальны для роли; принадлежность к воркспейсу проверяется отдельным плагином.</li>
-    <li><b>Это не аудит.</b> Identity порождает события; строки журнала пишет плагин <code>activity</code>.</li>
+    <li><b>It is not user management.</b> The member list, inviting, disabling and issuing a reset link are the <code>users</code> plugin. Identity owns only the <em>redemption</em> of one-time links and the account model itself.</li>
+    <li><b>It is not email.</b> Nothing is sent anywhere. The invitation link and the reset link are returned to the administrator in the API response, and they pass them to the person themselves. A consequence follows: <b>there is no self-service "forgot your password?"</b> — a public form would issue an account-takeover link and would have nowhere to send it.</li>
+    <li><b>It is not workspaces.</b> Permissions are global to a role; workspace membership is checked by a separate plugin.</li>
+    <li><b>It is not the audit log.</b> Identity produces events; the log rows are written by the <code>activity</code> plugin.</li>
   </ul>
 
   <div class="note">
-    <span class="label">Ключевая идея архитектуры</span>
-    <p>Сессия и API-токен — это <b>256 бит случайности, проверяемые по строке в БД</b>. Подписи и секретного ключа подписи нет, и это решение, а не упущение: отзыв сводится к <code>DELETE</code>, а не к ротации ключа, которая выкинет всех сразу. В самой БД лежат только SHA-256-хэши, поэтому утечка дампа не даёт рабочих сессий.</p>
+    <span class="label">The key architectural idea</span>
+    <p>A session and an API token are <b>256 bits of randomness verified against a row in the database</b>. There is no signature and no signing key, and that is a decision rather than an omission: revocation reduces to a <code>DELETE</code> rather than to a key rotation that throws everybody out at once. The database holds only SHA-256 hashes, so a leaked dump yields no working sessions.</p>
   </div>
 </section>
 
 <section id="packages">
-  <h2 class="sec"><span class="num">02</span>Состав группы пакетов</h2>
-  <p>Группа <code>packages/identity</code> — это семь пакетов. Разделение не косметическое: адаптер провайдера обязан уметь зависеть от порта, <em>не</em> утаскивая за собой NestJS, Drizzle и bcrypt.</p>
+  <h2 class="sec"><span class="num">02</span>Composition of the package group</h2>
+  <p>The <code>packages/identity</code> group is seven packages. The split is not cosmetic: a provider adapter has to be able to depend on the port <em>without</em> dragging NestJS, Drizzle and bcrypt along with it.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Пакет</th><th>npm-имя</th><th>Роль</th><th>Чем владеет</th></tr></thead>
+    <thead><tr><th>Package</th><th>npm name</th><th>Role</th><th>What it owns</th></tr></thead>
     <tbody>
-      <tr><td class="mono">server</td><td class="mono">@orthacms/identity-server</td><td>Плагин NestJS: маршруты, use-case&#39;ы, guard&#39;ы, схема БД, миграции, сидеры</td><td>11 таблиц, 19 маршрутов, RBAC, сессии, API-токены, ядро SSO</td></tr>
-      <tr><td class="mono">admin</td><td class="mono">@orthacms/identity-admin</td><td>Плагин админки: экраны входа и одноразовых ссылок + «набор авторизации» (контекст, провайдер, шлюз маршрутов)</td><td><code>/identity/*</code>, <code>AuthProvider</code>, <code>RequireAuth</code>, <code>useHasPermission</code></td></tr>
-      <tr><td class="mono">domain</td><td class="mono">@orthacms/identity-domain</td><td>Framework-free ядро SSO-шва: порт <code>SsoProvider</code>, профиль, защита от open-redirect, набор conformance-проверок</td><td>Контракт, который обязан выполнить любой адаптер. <b>Ноль зависимостей</b> в <code>package.json</code></td></tr>
-      <tr><td class="mono">provider-oidc</td><td class="mono">@orthacms/identity-provider-oidc</td><td>Универсальный OpenID Connect + 5 пресетов (Google, Entra, Okta, Auth0, Keycloak)</td><td>Authorization Code + PKCE, проверка id-token через <code>jose</code>/JWKS</td></tr>
-      <tr><td class="mono">provider-github</td><td class="mono">@orthacms/identity-provider-github</td><td>GitHub и GitHub Enterprise — OAuth2 без id-token</td><td>Обмен кода на токен, чтение <code>/user/emails</code>, subject = числовой id</td></tr>
-      <tr><td class="mono">provider-saml</td><td class="mono">@orthacms/identity-provider-saml</td><td>SAML 2.0: запрос через redirect, ответ через POST-форму</td><td>Проверка XML-подписи (<code>@node-saml/node-saml</code>), <code>RelayState</code> вместо <code>state</code></td></tr>
-      <tr><td class="mono">provider-fake</td><td class="mono">@orthacms/identity-provider-fake</td><td>Скриптуемый провайдер для e2e и локальной разработки</td><td>Детерминированный рукопожатие целиком, но с настоящими проверками подписи и nonce</td></tr>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/identity-server</td><td>The NestJS plugin: routes, use cases, guards, the database schema, migrations, seeders</td><td>11 tables, 19 routes, RBAC, sessions, API tokens, the SSO core</td></tr>
+      <tr><td class="mono">admin</td><td class="mono">@orthacms/identity-admin</td><td>The admin plugin: the sign-in and one-time-link screens plus the "auth kit" (context, provider, route gate)</td><td><code>/identity/*</code>, <code>AuthProvider</code>, <code>RequireAuth</code>, <code>useHasPermission</code></td></tr>
+      <tr><td class="mono">domain</td><td class="mono">@orthacms/identity-domain</td><td>The framework-free core of the SSO seam: the <code>SsoProvider</code> port, the profile, open-redirect protection, a conformance test set</td><td>The contract every adapter must fulfil. <b>Zero dependencies</b> in its <code>package.json</code></td></tr>
+      <tr><td class="mono">provider-oidc</td><td class="mono">@orthacms/identity-provider-oidc</td><td>Generic OpenID Connect plus 5 presets (Google, Entra, Okta, Auth0, Keycloak)</td><td>Authorization Code + PKCE, id-token verification through <code>jose</code>/JWKS</td></tr>
+      <tr><td class="mono">provider-github</td><td class="mono">@orthacms/identity-provider-github</td><td>GitHub and GitHub Enterprise — OAuth2 with no id token</td><td>Exchanging the code for a token, reading <code>/user/emails</code>, subject = the numeric id</td></tr>
+      <tr><td class="mono">provider-saml</td><td class="mono">@orthacms/identity-provider-saml</td><td>SAML 2.0: the request by redirect, the response by POST form</td><td>XML signature verification (<code>@node-saml/node-saml</code>), <code>RelayState</code> instead of <code>state</code></td></tr>
+      <tr><td class="mono">provider-fake</td><td class="mono">@orthacms/identity-provider-fake</td><td>A scriptable provider for e2e and local development</td><td>The whole handshake is deterministic, but the signature and nonce checks are real</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note warn">
-    <span class="label">Соседи, которых легко перепутать</span>
-    <p><b><code>@orthacms/users-server</code> / <code>users-admin</code></b> — выпуск приглашений (<code>POST /api/users/invites</code>), отключение/включение участника, выписка ссылки сброса (<code>POST /api/users/:id/password-reset</code>), экран участников. <b><code>@orthacms/api-tokens-admin</code></b> — интерфейс токенов; сервер токенов при этом внутри <code>identity-server</code>. <b><code>@orthacms/shell-admin</code></b> — именно он собирает <code>AuthProvider</code> + <code>RequireAuth</code> в layout; сам хост про авторизацию ничего не знает.</p>
+    <span class="label">Neighbours that are easy to confuse</span>
+    <p><b><code>@orthacms/users-server</code> / <code>users-admin</code></b> — issuing invitations (<code>POST /api/users/invites</code>), disabling and re-enabling a member, issuing a reset link (<code>POST /api/users/:id/password-reset</code>), the members screen. <b><code>@orthacms/api-tokens-admin</code></b> — the token UI; the token server, meanwhile, lives inside <code>identity-server</code>. <b><code>@orthacms/shell-admin</code></b> — it is what assembles <code>AuthProvider</code> + <code>RequireAuth</code> into the layout; the host itself knows nothing about authorisation.</p>
   </div>
 </section>
 
 <section id="roles">
-  <h2 class="sec"><span class="num">03</span>Роли и права</h2>
+  <h2 class="sec"><span class="num">03</span>Roles and permissions</h2>
 
-  <p>Модель предельно плоская: <b>у аккаунта ровно одна роль</b>, роль — это именованный набор прав, право — строка вида <code>область:действие</code>. Ни наследования, ни отрицаний, ни прав на отдельный объект. Администратор держит <b>перечисленный полностью</b> набор всех прав — подстановочного <code>*</code> нет намеренно, чтобы новое право не «приезжало» админу молча.</p>
+  <p>The model is as flat as it gets: <b>an account has exactly one role</b>, a role is a named set of permissions, and a permission is a string of the form <code>area:action</code>. There is no inheritance, no negation and no per-object permission. The administrator holds the <b>fully enumerated</b> set of every permission — there is deliberately no wildcard <code>*</code>, so that a new permission does not silently "arrive" for the admin.</p>
 
-  <p>Три системные роли создаются при старте приложения идемпотентно (<code>ON CONFLICT DO NOTHING</code> в одной транзакции) и <b>защищены от удаления</b> SQL-условием <code>is_system = false</code> — то есть проверка атомарна, а не «сначала прочитали, потом удалили».</p>
+  <p>The three system roles are created at application start idempotently (<code>ON CONFLICT DO NOTHING</code> in one transaction) and are <b>protected from deletion</b> by the SQL condition <code>is_system = false</code> — so the check is atomic rather than "read first, then delete".</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Право</th><th>Что открывает</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
+    <thead><tr><th>Permission</th><th>What it opens</th><th class="center">admin</th><th class="center">contributor</th><th class="center">viewer</th></tr></thead>
     <tbody>
-      <tr><td class="mono">workspaces:create</td><td>создать воркспейс</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">workspaces:read</td><td>видеть список воркспейсов</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">workspaces:update</td><td>править воркспейс, состав участников, гранты контента; <b>а также список и отзыв сессий участника</b></td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">workspaces:delete</td><td>удалить воркспейс</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">users:read</td><td>справочник участников</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">users:create</td><td>пригласить, переотправить приглашение</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">users:update</td><td>править участника, отключить/включить, выписать сброс, <b>сессии</b></td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">users:delete</td><td>отозвать приглашение / удалить</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">activity:read</td><td>журнал действий</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">content:read</td><td>читать записи</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">content:create / update / publish</td><td>создавать, править, публиковать</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
-      <tr><td class="mono">content:delete</td><td>удалять записи</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">content:export / import</td><td>перенос контента</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
-      <tr><td class="mono">media:read</td><td>смотреть медиатеку</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">media:create / update</td><td>загружать и править файлы</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
-      <tr><td class="mono">media:delete</td><td>удалять файлы</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">tokens:read / create / delete</td><td>внешние API-токены</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">copilot:use</td><td>обращаться к копайлоту</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">copilot:skills:manage</td><td>управлять навыками копайлота</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">alarms:read</td><td>видеть находки проверок (в редакторе записи)</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">alarms:manage</td><td>писать правила проверок</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
-      <tr><td class="mono">views:share</td><td>делиться сохранёнными представлениями</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
-      <tr><td class="mono">segments:read</td><td>видеть аудитории</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
-      <tr><td class="mono">segments:manage</td><td>управлять аудиториями</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">workspaces:create</td><td>create a workspace</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">workspaces:read</td><td>see the workspace list</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">workspaces:update</td><td>edit a workspace, its membership and content grants; <b>and also list and revoke a member's sessions</b></td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">workspaces:delete</td><td>delete a workspace</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">users:read</td><td>the member directory</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">users:create</td><td>invite, resend an invitation</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">users:update</td><td>edit a member, disable/enable, issue a reset, <b>sessions</b></td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">users:delete</td><td>revoke an invitation / delete</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">activity:read</td><td>the activity log</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:read</td><td>read entries</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">content:create / update / publish</td><td>create, edit, publish</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:delete</td><td>delete entries</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">content:export / import</td><td>content transfer</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">media:read</td><td>view the media library</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">media:create / update</td><td>upload and edit files</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">media:delete</td><td>delete files</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">tokens:read / create / delete</td><td>external API tokens</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">copilot:use</td><td>talk to the copilot</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">copilot:skills:manage</td><td>manage the copilot's skills</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">alarms:read</td><td>see check findings (in the entry editor)</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">alarms:manage</td><td>write check rules</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
+      <tr><td class="mono">views:share</td><td>share saved views</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center no">—</td></tr>
+      <tr><td class="mono">segments:read</td><td>see audiences</td><td class="center yes">✓</td><td class="center yes">✓</td><td class="center yes">✓</td></tr>
+      <tr><td class="mono">segments:manage</td><td>manage audiences</td><td class="center yes">✓</td><td class="center no">—</td><td class="center no">—</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note crit">
-    <span class="label">Осознанное ужесточение · BUG-identity-server-04</span>
-    <p>Просмотр сессий участника требует <code>users:update</code>, а не более слабого <code>users:read</code>. Строка сессии содержит IP и <code>User-Agent</code> — это данные о том, откуда и с чего человек работает, то есть слежка за коллегой, а не справочник. <code>users:read</code> есть у всех трёх ролей, включая наблюдателя, — с ним любой залогиненный видел бы чужое местоположение.</p>
+    <span class="label">A deliberate tightening · BUG-identity-server-04</span>
+    <p>Viewing a member's sessions requires <code>users:update</code> rather than the weaker <code>users:read</code>. A session row contains an IP and a <code>User-Agent</code> — data about where a person works from and on what, which is surveillance of a colleague rather than a directory. <code>users:read</code> is held by all three roles, the viewer included — with it, any logged-in user would see a colleague's location.</p>
   </div>
 
-  <h3>Как право доходит до кода</h3>
+  <h3>How a permission reaches the code</h3>
   <ul>
-    <li><b>На сервере:</b> <code>@UseGuards(PermissionsGuard)</code> + <code>@RequirePermissions('users:update')</code>. Guard достаёт права роли через <code>PermissionsService.forRole</code> и <b>делегирует решение</b> чистому доменному объекту <code>AccessPolicy</code> — чтобы «можно ли этому актору вот это?» имело в кодовой базе ровно одну реализацию. Есть и <code>@RequireAnyPermission(...)</code> — достаточно любого из перечисленных.</li>
-    <li><b>Для bearer-токена:</b> охранник публичного контент-API живёт в <code>content-server</code>, но использует те же <code>PERMISSIONS_KEY</code>, <code>Permission</code>, <code>AccessPolicy</code> — так что проверка области токена <em>является</em> тем же самым решением.</li>
-    <li><b>В админке:</b> <code>useHasPermission('workspaces:create')</code> читает список прав из <code>GET /api/auth/me</code>. Хук <b>fail-closed</b>: любое состояние кроме «аутентифицирован» возвращает <code>false</code>. Это только честность интерфейса — настоящая проверка всегда на сервере.</li>
+    <li><b>On the server:</b> <code>@UseGuards(PermissionsGuard)</code> + <code>@RequirePermissions('users:update')</code>. The guard pulls the role's permissions through <code>PermissionsService.forRole</code> and <b>delegates the decision</b> to the pure domain object <code>AccessPolicy</code> — so that "may this actor do this?" has exactly one implementation in the codebase. There is also <code>@RequireAnyPermission(...)</code> — any one of those listed is enough.</li>
+    <li><b>For a bearer token:</b> the public content API's guard lives in <code>content-server</code>, but uses the same <code>PERMISSIONS_KEY</code>, <code>Permission</code> and <code>AccessPolicy</code> — so checking a token's scope <em>is</em> that same decision.</li>
+    <li><b>In the admin UI:</b> <code>useHasPermission('workspaces:create')</code> reads the permission list from <code>GET /api/auth/me</code>. The hook is <b>fail-closed</b>: any state other than "authenticated" returns <code>false</code>. This is only the interface being honest — the real check is always on the server.</li>
   </ul>
 </section>
 
 <section id="data">
-  <h2 class="sec"><span class="num">04</span>Модель данных</h2>
-  <p>Identity владеет одиннадцатью таблицами и <b>везёт свои миграции сам</b> (<code>drizzle.config.ts</code> + закоммиченные <code>migrations/*.sql</code>, применяются хостом через <code>nx run server:db:migrate</code>, отдельная таблица журнала миграций <code>__drizzle_migrations_identity</code>). Соединение к БД плагин не открывает — клиент внедряется из <code>@orthacms/database</code>.</p>
+  <h2 class="sec"><span class="num">04</span>Data model</h2>
+  <p>Identity owns eleven tables and <b>carries its own migrations</b> (<code>drizzle.config.ts</code> plus committed <code>migrations/*.sql</code>, applied by the host through <code>nx run server:db:migrate</code>, with its own migration journal table <code>__drizzle_migrations_identity</code>). The plugin opens no database connection — the client is injected from <code>@orthacms/database</code>.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Таблица</th><th>Назначение</th><th>Ключевые поля и ограничения</th></tr></thead>
+    <thead><tr><th>Table</th><th>Purpose</th><th>Key columns and constraints</th></tr></thead>
     <tbody>
       <tr>
-        <td class="mono">users</td><td>Учётная запись</td>
-        <td><code>id</code> uuid PK · <code>email</code> · <code>name</code> nullable · <code>password_hash</code> <b>nullable</b> (нет у приглашённого и у заведённого через SSO) · <code>role_id</code> → roles · <code>status</code> = pending&nbsp;|&nbsp;active&nbsp;|&nbsp;disabled.<br><b>Уникальность email — регистронезависимая</b>, через уникальный индекс по <code>lower(email)</code>, без расширения citext.</td>
+        <td class="mono">users</td><td>An account</td>
+        <td><code>id</code> uuid PK · <code>email</code> · <code>name</code> nullable · <code>password_hash</code> <b>nullable</b> (absent for an invitee and for an SSO-provisioned account) · <code>role_id</code> → roles · <code>status</code> = pending&nbsp;|&nbsp;active&nbsp;|&nbsp;disabled.<br><b>Email uniqueness is case-insensitive</b>, through a unique index on <code>lower(email)</code>, with no citext extension.</td>
       </tr>
-      <tr><td class="mono">roles</td><td>Роль</td><td><code>key</code> unique · <code>name</code> · <code>is_system</code> — флаг защиты от удаления</td></tr>
-      <tr><td class="mono">permissions</td><td>Каталог прав</td><td><code>key</code> unique — заполняется сидером из <code>PERMISSIONS</code></td></tr>
-      <tr><td class="mono">role_permissions</td><td>Связка роль↔право</td><td>PK <code>(role_id, permission_id)</code>, каскад по обеим сторонам</td></tr>
+      <tr><td class="mono">roles</td><td>A role</td><td><code>key</code> unique · <code>name</code> · <code>is_system</code> — the delete-protection flag</td></tr>
+      <tr><td class="mono">permissions</td><td>The permission catalogue</td><td><code>key</code> unique — filled by a seeder from <code>PERMISSIONS</code></td></tr>
+      <tr><td class="mono">role_permissions</td><td>The role↔permission link</td><td>PK <code>(role_id, permission_id)</code>, cascading on both sides</td></tr>
       <tr>
-        <td class="mono">sessions</td><td>Живая сессия</td>
-        <td><code>id</code> = <b>SHA-256 самого токена</b> (не токен!) · <code>user_id</code> каскадом · <code>expires_at</code> · <code>revoked_at</code> · <code>last_used_at</code> · <code>user_agent</code> · <code>ip_address</code> · <code>sso_provider</code> + <code>sso_session_id</code>.<br>Индексы: по <code>user_id</code> (массовый отзыв) и по паре SSO-полей (back-channel logout).</td>
+        <td class="mono">sessions</td><td>A live session</td>
+        <td><code>id</code> = <b>the SHA-256 of the token itself</b> (not the token!) · <code>user_id</code> with cascade · <code>expires_at</code> · <code>revoked_at</code> · <code>last_used_at</code> · <code>user_agent</code> · <code>ip_address</code> · <code>sso_provider</code> + <code>sso_session_id</code>.<br>Indexes: on <code>user_id</code> (bulk revocation) and on the SSO field pair (back-channel logout).</td>
       </tr>
       <tr>
-        <td class="mono">tokens</td><td>Одноразовые ссылки</td>
-        <td><code>type</code> = invite&nbsp;|&nbsp;reset · <code>token_hash</code> unique · <code>expires_at</code> · <code>consumed_at</code>.<br>Разделение по <code>type</code> — <b>несущее</b>: токен приглашения не должен открывать путь сброса.</td>
+        <td class="mono">tokens</td><td>One-time links</td>
+        <td><code>type</code> = invite&nbsp;|&nbsp;reset · <code>token_hash</code> unique · <code>expires_at</code> · <code>consumed_at</code>.<br>The split by <code>type</code> is <b>load-bearing</b>: an invitation token must not open the reset path.</td>
       </tr>
-      <tr><td class="mono">user_preferences</td><td>Личные настройки</td><td>PK = <code>user_id</code> · <code>theme</code> = light | dark | system (по умолчанию system)</td></tr>
+      <tr><td class="mono">user_preferences</td><td>Personal settings</td><td>PK = <code>user_id</code> · <code>theme</code> = light | dark | system (system by default)</td></tr>
       <tr>
-        <td class="mono">api_tokens</td><td>Внешний ключ доступа</td>
-        <td><code>token_hash</code> unique (только SHA-256) · <code>lookup_prefix</code> — несекретный префикс для показа · <code>scope</code> = read | full · <code>expires_at</code> nullable · <code>revoked_at</code> · <code>last_used_at</code> · <code>created_by</code></td>
+        <td class="mono">api_tokens</td><td>An external access key</td>
+        <td><code>token_hash</code> unique (a SHA-256 only) · <code>lookup_prefix</code> — the non-secret prefix for display · <code>scope</code> = read | full · <code>expires_at</code> nullable · <code>revoked_at</code> · <code>last_used_at</code> · <code>created_by</code></td>
       </tr>
-      <tr><td class="mono">api_token_workspaces</td><td>Область токена</td><td>PK <code>(token_id, workspace_id)</code>, каскад по токену. <b>FK на воркспейс нет</b> — плагины не связаны схемой; существование проверяется через порт <code>WORKSPACE_DIRECTORY</code></td></tr>
-      <tr><td class="mono">sso_identities</td><td>Связь аккаунта с внешним провайдером</td><td>Уникальность и по <code>(provider, subject)</code>, и по <code>(provider, user_id)</code> · <code>last_login_at</code></td></tr>
-      <tr><td class="mono">sso_auth_requests</td><td>Одна попытка входа через SSO</td><td><code>id</code> = SHA-256 браузерного токена · <code>state</code> unique · <code>nonce</code> · <code>code_verifier</code> · <code>redirect_to</code> · <code>invite_token_hash</code> nullable · <code>consumed_at</code></td></tr>
+      <tr><td class="mono">api_token_workspaces</td><td>The token's scope</td><td>PK <code>(token_id, workspace_id)</code>, cascading on the token. <b>There is no FK onto the workspace</b> — plugins are not bound by schema; existence is checked through the <code>WORKSPACE_DIRECTORY</code> port</td></tr>
+      <tr><td class="mono">sso_identities</td><td>The link between an account and an external provider</td><td>Unique both on <code>(provider, subject)</code> and on <code>(provider, user_id)</code> · <code>last_login_at</code></td></tr>
+      <tr><td class="mono">sso_auth_requests</td><td>One SSO sign-in attempt</td><td><code>id</code> = the SHA-256 of the browser token · <code>state</code> unique · <code>nonce</code> · <code>code_verifier</code> · <code>redirect_to</code> · <code>invite_token_hash</code> nullable · <code>consumed_at</code></td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note">
-    <span class="label">Правило хранения секретов</span>
-    <p>Ни один секрет не лежит в базе в открытом виде. Пароль — bcrypt (cost 12, соль внутри хэша). Токен сессии, токен приглашения, токен сброса, API-токен, дескриптор SSO-попытки — SHA-256 без соли (значение и так высокоэнтропийное, а детерминированный хэш нужен для поиска по ключу). Секрет API-токена показывается <b>один раз</b> при выпуске и больше нигде не восстановим.</p>
+    <span class="label">The secret-storage rule</span>
+    <p>Not one secret sits in the database in plaintext. A password is bcrypt (cost 12, the salt inside the hash). A session token, an invitation token, a reset token, an API token and an SSO attempt descriptor are all unsalted SHA-256 (the value is high-entropy anyway, and a deterministic hash is needed for key lookup). An API token's secret is shown <b>once</b> at issue time and is nowhere recoverable afterwards.</p>
   </div>
 </section>
 
 <section id="lifecycle">
-  <h2 class="sec"><span class="num">05</span>Жизненный цикл учётной записи</h2>
+  <h2 class="sec"><span class="num">05</span>Account lifecycle</h2>
 
   <div class="states">
     <span class="state pending">pending</span>
-    <span class="arrow">— принял приглашение →</span>
+    <span class="arrow">— accepted the invitation →</span>
     <span class="state active">active</span>
-    <span class="arrow">⇄ отключение / включение ⇄</span>
+    <span class="arrow">⇄ disable / enable ⇄</span>
     <span class="state disabled">disabled</span>
   </div>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Статус</th><th>Что это значит</th><th>Может войти?</th><th>Есть пароль?</th></tr></thead>
+    <thead><tr><th>Status</th><th>What it means</th><th>Can sign in?</th><th>Has a password?</th></tr></thead>
     <tbody>
-      <tr><td><span class="state pending">pending</span></td><td>Администратор пригласил, человек ещё не принял</td><td class="no">Нет</td><td class="no">Нет (<code>password_hash</code> = null)</td></tr>
-      <tr><td><span class="state active">active</span></td><td>Полноценный участник</td><td class="yes">Да</td><td>Да — или связь с SSO вместо него</td></tr>
-      <tr><td><span class="state disabled">disabled</span></td><td>Администратор закрыл доступ</td><td class="no">Нет</td><td>Хэш сохраняется, но бесполезен</td></tr>
+      <tr><td><span class="state pending">pending</span></td><td>An administrator invited them, the person has not accepted yet</td><td class="no">No</td><td class="no">No (<code>password_hash</code> = null)</td></tr>
+      <tr><td><span class="state active">active</span></td><td>A full member</td><td class="yes">Yes</td><td>Yes — or an SSO link instead of one</td></tr>
+      <tr><td><span class="state disabled">disabled</span></td><td>An administrator closed their access</td><td class="no">No</td><td>The hash is kept but useless</td></tr>
     </tbody>
   </table>
   </div>
 
-  <p>Переходы описаны на агрегате <code>UserAccount</code> и охраняются им же: <code>activate</code> (pending → active, ставит первый пароль), <code>activateWithoutCredential</code> (то же, но через SSO), <code>disable</code> (active → disabled), <code>enable</code> (disabled → active), <code>changeCredential</code> (для любого не-отключённого). Каждый переход поднимает доменное событие <code>user.*</code>.</p>
+  <p>The transitions are described on the <code>UserAccount</code> aggregate and guarded by it: <code>activate</code> (pending → active, setting the first password), <code>activateWithoutCredential</code> (the same, but through SSO), <code>disable</code> (active → disabled), <code>enable</code> (disabled → active), <code>changeCredential</code> (for anything not disabled). Every transition raises a <code>user.*</code> domain event.</p>
 
   <div class="note crit">
-    <span class="label">Три точки блокировки отключённого</span>
-    <p>Отключённый сотрудник не проходит <b>в трёх независимых местах</b>: (1) вход отказывается открыть сессию не-<code>active</code> аккаунту; (2) отключение в <code>users-server</code> отзывает его живые сессии в той же транзакции; (3) <code>AuthService.currentUser</code> резолвит сессию <b>только</b> в <code>active</code> пользователя. Третья точка — защита в глубину: сессия, зафиксированная параллельно с отключением, окажется вставленной после снимка отзыва. Снаружи всё это выглядит как обычный <code>401</code>, так что отключённый аккаунт неотличим от протухшей сессии.</p>
+    <span class="label">Three blocking points for a disabled account</span>
+    <p>A disabled employee is stopped in <b>three independent places</b>: (1) sign-in refuses to open a session for a non-<code>active</code> account; (2) disabling in <code>users-server</code> revokes their live sessions in the same transaction; (3) <code>AuthService.currentUser</code> resolves a session <b>only</b> into an <code>active</code> user. The third point is defence in depth: a session committed concurrently with the disabling would be inserted after the revocation's snapshot. From the outside all of this looks like an ordinary <code>401</code>, so a disabled account is indistinguishable from an expired session.</p>
   </div>
 
-  <h3>Правила пароля</h3>
+  <h3>Password rules</h3>
   <ul>
-    <li><b>Минимум 12 символов</b>, без требований к составу. Длина — то, что реально сопротивляется офлайн-перебору, а «одна цифра и один символ» толкает людей к предсказуемым подстановкам.</li>
-    <li><b>Максимум 72 <em>байта</em> UTF-8</b> — точка усечения bcrypt. Единицы разные <b>намеренно</b>: пол — в символах, потолок — в байтах. Проверять потолок нужно через <code>@MaxByteLength</code>, а не <code>@MaxLength</code> из class-validator: тот считает единицы UTF-16 и пропустит <code>'é'.repeat(72)</code> — 72 символа и 144 байта, из которых bcrypt захэширует ровно половину.</li>
-    <li>Мы <b>отказываем, а не усекаем</b>: то, что человек ввёл, должно быть тем, что его защищает. <code>HashingService.hashPassword</code> бросает <code>PasswordTooLongError</code> как страховка для путей без DTO (смена пароля из кода, root-администратор из переменной окружения).</li>
-    <li>Клиентская сторона зеркалит то же правило (<code>PASSWORD_MIN_LENGTH</code> = 12, <code>PASSWORD_MAX_BYTES</code> = 72, счёт через <code>TextEncoder</code>).</li>
+    <li><b>A minimum of 12 characters</b>, with no composition requirements. Length is what actually resists offline cracking, while "one digit and one symbol" pushes people towards predictable substitutions.</li>
+    <li><b>A maximum of 72 UTF-8 <em>bytes</em></b> — bcrypt's truncation point. The units differ <b>deliberately</b>: the floor is in characters, the ceiling in bytes. The ceiling must be checked with <code>@MaxByteLength</code> rather than class-validator's <code>@MaxLength</code>: that one counts UTF-16 units and would let through <code>'é'.repeat(72)</code> — 72 characters and 144 bytes, exactly half of which bcrypt would hash.</li>
+    <li>We <b>refuse rather than truncate</b>: what a person typed must be what protects them. <code>HashingService.hashPassword</code> throws <code>PasswordTooLongError</code> as insurance for the paths with no DTO (a password change from code, the root administrator from an environment variable).</li>
+    <li>The client side mirrors the same rule (<code>PASSWORD_MIN_LENGTH</code> = 12, <code>PASSWORD_MAX_BYTES</code> = 72, counted through <code>TextEncoder</code>).</li>
   </ul>
 </section>
 
 <section id="flows">
-  <h2 class="sec"><span class="num">06</span>Сценарии — как это работает по шагам</h2>
+  <h2 class="sec"><span class="num">06</span>Flows — how it works, step by step</h2>
 
-  <h3>6.1 Приглашение и его принятие</h3>
-  <p class="sub small">Выпуск ссылки — плагин <code>users</code>; погашение — Identity. Между ними: администратор передаёт ссылку человеку вручную, потому что почтовой отправки в системе нет.</p>
+  <h3>6.1 An invitation and its acceptance</h3>
+  <p class="sub small">Issuing the link is the <code>users</code> plugin; redeeming it is Identity. In between: the administrator passes the link to the person by hand, because the system has no email sending.</p>
   <ol class="flow">
-    <li><b>Администратор приглашает.</b> <code>POST /api/users/invites</code> (право <code>users:create</code>): создаётся <code>users</code>-строка со статусом <code>pending</code> и заранее назначенной ролью, плюс строка <code>tokens</code> с <code>type='invite'</code>. Срок жизни берётся из конфигурации Identity (<code>token.inviteTtlSeconds</code>).<span class="meta">ответ содержит сырой токен — единственный момент, когда он существует в открытом виде</span></li>
-    <li><b>Человек открывает ссылку</b> <code>/identity/accept-invite?token=…</code>. Токен — в query, никогда не в сегменте пути, чтобы секрет не стал частью шаблона маршрута.</li>
-    <li><b>Экран узнаёт, для кого ссылка.</b> <code>GET /api/auth/invite/:token</code> → <code>{ email, name }</code>. Операция только на чтение, поэтому открыть ссылку дважды — нормально.<span class="meta">публичный маршрут, под rate limit</span></li>
-    <li><b>Форма собирает только пароль, дважды.</b> Email и имя показаны как <code>readOnly</code> (не <code>disabled</code> — чтобы оставались фокусируемыми и озвучивались). Возможность отредактировать email означала бы возможность присвоить себе чужую личность на входе.</li>
-    <li><b>Отправка.</b> <code>POST /api/auth/invite/accept</code> с <code>{ token, password, confirmPassword }</code>. Любое лишнее поле отвергается глобальным <code>ValidationPipe</code> (<code>whitelist</code> + <code>forbidNonWhitelisted</code>) ещё до контроллера.</li>
-    <li><b>Сервер гасит токен первым делом.</b> Внутри одной транзакции: найти непогашенный и непросроченный токен → <b>условный</b> <code>UPDATE … WHERE consumed_at IS NULL RETURNING</code> → если строка не вернулась, значит кто-то опередил, и это отказ. Только после этого считается bcrypt-хэш (чтобы негодная ссылка не стоила ~250 мс CPU).<span class="meta">это и есть гарантия одноразовости — не «прочитали и записали»</span></li>
-    <li><b>Аккаунт активируется и сразу выдаётся сессия.</b> Ответ <code>{ ok: true }</code> + кука <code>ortha_session</code>. Приглашённый оказывается внутри приложения без отдельного входа.</li>
-    <li><b>Админка чистит кэш и уходит на «/».</b> <code>resetSessionCache</code> удаляет всё, кроме своего пространства <code>auth</code>, чтобы вкладка не унаследовала данные предыдущего пользователя.</li>
+    <li><b>The administrator invites.</b> <code>POST /api/users/invites</code> (permission <code>users:create</code>): a <code>users</code> row is created with status <code>pending</code> and a pre-assigned role, plus a <code>tokens</code> row with <code>type='invite'</code>. The lifetime comes from Identity's configuration (<code>token.inviteTtlSeconds</code>).<span class="meta">the response contains the raw token — the only moment it exists in plaintext</span></li>
+    <li><b>The person opens the link</b> <code>/identity/accept-invite?token=…</code>. The token is in the query, never in a path segment, so that a secret does not become part of a route template.</li>
+    <li><b>The screen learns who the link is for.</b> <code>GET /api/auth/invite/:token</code> → <code>{ email, name }</code>. A read-only operation, so opening the link twice is fine.<span class="meta">a public route, under a rate limit</span></li>
+    <li><b>The form collects only the password, twice.</b> Email and name are shown as <code>readOnly</code> (not <code>disabled</code> — so they stay focusable and are announced). Being able to edit the email would mean being able to assume somebody else's identity on the way in.</li>
+    <li><b>Submission.</b> <code>POST /api/auth/invite/accept</code> with <code>{ token, password, confirmPassword }</code>. Any extra field is rejected by the global <code>ValidationPipe</code> (<code>whitelist</code> + <code>forbidNonWhitelisted</code>) before the controller.</li>
+    <li><b>The server consumes the token first of all.</b> Inside one transaction: find an unconsumed, unexpired token → a <b>conditional</b> <code>UPDATE … WHERE consumed_at IS NULL RETURNING</code> → if no row came back, somebody got there first and this is a refusal. Only then is the bcrypt hash computed (so that a useless link does not cost ~250 ms of CPU).<span class="meta">that is the single-use guarantee — not "read, then write"</span></li>
+    <li><b>The account is activated and a session is issued straight away.</b> The response is <code>{ ok: true }</code> plus the <code>ortha_session</code> cookie. The invitee is inside the application with no separate sign-in.</li>
+    <li><b>The admin UI clears its cache and goes to "/".</b> <code>resetSessionCache</code> removes everything except its own <code>auth</code> namespace, so the tab does not inherit the previous user's data.</li>
   </ol>
   <div class="note warn">
-    <span class="label">Все отказы выглядят одинаково</span>
-    <p>Неизвестный, просроченный, уже использованный, отозванный токен — один и тот же <code>InvalidInviteTokenError</code>, который рендерится как <b>голый 404 без тела</b>. Иначе эндпоинт стал бы инструментом для перебора живых приглашений.</p>
+    <span class="label">Every refusal looks identical</span>
+    <p>An unknown, expired, already used or revoked token gives one and the same <code>InvalidInviteTokenError</code>, rendered as a <b>bare 404 with no body</b>. Otherwise the endpoint would become a tool for enumerating live invitations.</p>
   </div>
 
-  <h3>6.2 Вход по паролю</h3>
+  <h3>6.2 Signing in with a password</h3>
   <ol class="flow">
-    <li><b>Форма отправляет</b> <code>POST /api/auth/login</code> с <code>{ email, password }</code>.<span class="meta">@Public + ThrottlerGuard (10 запросов / 60 с по умолчанию) + OriginGuard</span></li>
-    <li><b>Проверка «выключены ли пароли».</b> Если <code>sso.allowPasswordLogin: false</code>, пароли принимаются <b>только для root-администратора</b>. При этом отказ всё равно выполняет одно bcrypt-сравнение — иначе аварийный адрес можно было бы найти по времени ответа.</li>
-    <li><b>Поиск пользователя и сравнение.</b> Сравнение выполняется <b>всегда</b>: если пользователя нет или у него нет хэша, берётся заранее посчитанный «пустой» хэш. Время ответа не должно отличать «нет такого адреса» от «неверный пароль».</li>
-    <li><b>Единый отказ.</b> Неизвестный email, ожидающий приглашения (<code>password_hash = null</code>), отключённый статус, неверный пароль — один <code>InvalidCredentialsError</code> → <code>401 Invalid credentials</code>. Сессия не создаётся.</li>
-    <li><b>Успех: одна транзакция.</b> Выпускается сессия (случайные 32 байта; в БД — их SHA-256) и в транзакционный outbox кладётся событие <code>auth.signed_in</code> с актором. Событие фиксируется тогда и только тогда, когда зафиксирована сессия.</li>
-    <li><b>Кука ставится контроллером.</b> <code>ortha_session</code>: <code>httpOnly</code>, <code>secure</code> и <code>sameSite</code> из конфигурации, <code>maxAge</code> = TTL сессии, <code>path=/</code>.</li>
-    <li><b>Админка обновляет «кто я» и уходит туда, куда шли.</b> Инвалидация <code>['auth','me']</code>, затем переход на адрес, сохранённый шлюзом <code>RequireAuth</code>, или на <code>/</code>.</li>
+    <li><b>The form sends</b> <code>POST /api/auth/login</code> with <code>{ email, password }</code>.<span class="meta">@Public + ThrottlerGuard (10 requests / 60 s by default) + OriginGuard</span></li>
+    <li><b>The "are passwords switched off" check.</b> If <code>sso.allowPasswordLogin: false</code>, passwords are accepted <b>only for the root administrator</b>. Even then the refusal still performs one bcrypt comparison — otherwise the emergency address could be found by response timing.</li>
+    <li><b>Finding the user and comparing.</b> The comparison is <b>always</b> performed: if there is no user, or they have no hash, a pre-computed "empty" hash is used. Response time must not distinguish "no such address" from "wrong password".</li>
+    <li><b>A single refusal.</b> An unknown email, a pending invitee (<code>password_hash = null</code>), a disabled status, a wrong password — one <code>InvalidCredentialsError</code> → <code>401 Invalid credentials</code>. No session is created.</li>
+    <li><b>Success: one transaction.</b> A session is issued (32 random bytes; the database holds their SHA-256) and an <code>auth.signed_in</code> event with the actor goes into the transactional outbox. The event is committed if and only if the session is.</li>
+    <li><b>The cookie is set by the controller.</b> <code>ortha_session</code>: <code>httpOnly</code>, with <code>secure</code> and <code>sameSite</code> from the configuration, <code>maxAge</code> = the session TTL, <code>path=/</code>.</li>
+    <li><b>The admin UI refreshes "who am I" and goes where it was heading.</b> It invalidates <code>['auth','me']</code>, then navigates to the address the <code>RequireAuth</code> gate saved, or to <code>/</code>.</li>
   </ol>
 
-  <h3>6.3 Проверка сессии на каждом запросе</h3>
-  <p>Глобальный <code>AuthGuard</code> зарегистрирован как <code>APP_GUARD</code>, то есть <b>защищено всё по умолчанию</b>, а исключения помечаются <code>@Public()</code>.</p>
+  <h3>6.3 Checking the session on every request</h3>
+  <p>The global <code>AuthGuard</code> is registered as an <code>APP_GUARD</code>, so <b>everything is protected by default</b> and exceptions are marked <code>@Public()</code>.</p>
   <ol class="flow">
-    <li><b>Маршрут публичный?</b> Если на обработчике или классе есть <code>@Public()</code> — пропуск без проверок.</li>
-    <li><b>Читается кука</b> из сырого заголовка <code>Cookie</code> (без <code>cookie-parser</code>, чтобы фича оставалась самодостаточной).</li>
-    <li><b>Токен резолвится в пользователя.</b> <code>RefreshSessionUseCase</code> ищет живую сессию (не отозвана, не просрочена) по SHA-256 токена и, если <code>last_used_at</code> старше 60 секунд, обновляет его — троттлинг, чтобы не писать в БД на каждый запрос.</li>
-    <li><b>Пользователь обязан быть <code>active</code>.</b> Иначе — <code>null</code> и <code>401</code>. Хэш пароля в этой выборке не участвует вовсе, так что утечь этим путём не может.</li>
-    <li><b>Пользователь кладётся в запрос</b> и читается обработчиком через <code>@CurrentUser()</code>.</li>
+    <li><b>Is the route public?</b> If the handler or the class carries <code>@Public()</code> — through with no checks.</li>
+    <li><b>The cookie is read</b> from the raw <code>Cookie</code> header (with no <code>cookie-parser</code>, so the feature stays self-contained).</li>
+    <li><b>The token resolves to a user.</b> <code>RefreshSessionUseCase</code> looks up a live session (not revoked, not expired) by the token's SHA-256 and, if <code>last_used_at</code> is older than 60 seconds, updates it — throttled so as not to write to the database on every request.</li>
+    <li><b>The user must be <code>active</code>.</b> Otherwise <code>null</code> and a <code>401</code>. The password hash takes no part in that select at all, so it cannot leak by this path.</li>
+    <li><b>The user is placed on the request</b> and read by the handler through <code>@CurrentUser()</code>.</li>
   </ol>
 
-  <h3>6.4 Выход</h3>
+  <h3>6.4 Signing out</h3>
   <ol class="flow">
-    <li><code>POST /api/auth/logout</code> — <b>публичный</b> (иначе выйти из уже мёртвой сессии было бы нельзя) и защищённый <code>OriginGuard</code>.</li>
-    <li><b>Отзывается только предъявленная сессия.</b> Другие устройства продолжают работать — это выход с устройства, а не «отовсюду».</li>
-    <li><b>Идемпотентность.</b> Нет куки или сессия уже мертва — всё равно <code>200</code> и кука очищается. Событие <code>auth.signed_out</code> пишется только если что-то действительно отозвано.</li>
-    <li><b>Админка обнуляет «кто я» и чистит кэш</b> (<code>resetSessionCache</code>). Если запрос упал — интерфейс остаётся залогиненным и показывает тост: сессия ведь не отозвана, врать об этом нельзя.</li>
+    <li><code>POST /api/auth/logout</code> — <b>public</b> (otherwise you could not sign out of an already dead session) and protected by <code>OriginGuard</code>.</li>
+    <li><b>Only the presented session is revoked.</b> Other devices keep working — this is signing out of a device, not "everywhere".</li>
+    <li><b>Idempotency.</b> No cookie, or a session already dead — it is still a <code>200</code> and the cookie is cleared. An <code>auth.signed_out</code> event is written only if something was actually revoked.</li>
+    <li><b>The admin UI clears "who am I" and wipes the cache</b> (<code>resetSessionCache</code>). If the request failed, the interface stays logged in and shows a toast: the session was not revoked, and lying about that is not allowed.</li>
   </ol>
 
-  <h3>6.5 Сброс пароля</h3>
-  <p class="sub small">Флоу целиком администраторский: <code>POST /api/users/:id/password-reset</code> (право <code>users:update</code>) выписывает ссылку, Identity её гасит.</p>
+  <h3>6.5 Resetting a password</h3>
+  <p class="sub small">The flow is entirely administrative: <code>POST /api/users/:id/password-reset</code> (permission <code>users:update</code>) issues the link, and Identity redeems it.</p>
   <ol class="flow">
-    <li><b>Экран узнаёт, чей аккаунт.</b> <code>GET /api/auth/reset/:token</code> → <code>{ email, name }</code>. Только чтение; открыть дважды не страшно.</li>
-    <li><b>Предпроверка вне транзакции.</b> Токен читается <em>до</em> открытия транзакции: bcrypt стоит ~250 мс, и хэшировать под блокировкой строки — значит держать её всё это время; а хэшировать до взгляда на токен — значит разрешить кому угодно жечь этот CPU мусорной ссылкой. Предпроверка носит рекомендательный характер.</li>
-    <li><b>Транзакция:</b> повторный поиск → условное погашение → аккаунт обязан быть <code>active</code>.<span class="meta">pending нечего ротировать (это путь приглашения), disabled закрыт намеренно — сброс тихо открыл бы дверь, которую администратор закрыл</span></li>
-    <li><b>Новый пароль и полный отзыв сессий.</b> Отзываются <b>все</b> живые сессии аккаунта, без исключений: у неаутентифицированного вызывающего нет «своего устройства».</li>
-    <li><b>Сессия НЕ выдаётся.</b> Человек доказал только владение ссылкой, поэтому заканчивает на форме входа — с паролем, который только что выбрал.</li>
-    <li><b>Ответ — просто <code>{ ok: true }</code>.</b> Количество выброшенных сессий в ответ не попадает: это не то, что анонимный вызывающий вправе узнать. Число уезжает в событие и оттуда в журнал.</li>
+    <li><b>The screen learns whose account it is.</b> <code>GET /api/auth/reset/:token</code> → <code>{ email, name }</code>. Read-only; opening it twice is harmless.</li>
+    <li><b>A pre-check outside the transaction.</b> The token is read <em>before</em> the transaction opens: bcrypt costs ~250 ms, and hashing under a row lock means holding it for all that time; while hashing before looking at the token means letting anybody burn that CPU with a junk link. The pre-check is advisory.</li>
+    <li><b>The transaction:</b> a repeat lookup → conditional consumption → the account must be <code>active</code>.<span class="meta">a pending account has nothing to rotate (that is the invitation path), and a disabled one is closed deliberately — a reset would quietly open a door the administrator shut</span></li>
+    <li><b>The new password and a full session revocation.</b> <b>All</b> of the account's live sessions are revoked, with no exceptions: an unauthenticated caller has no "own device".</li>
+    <li><b>No session is issued.</b> The person proved only possession of the link, so they end on the sign-in form — with the password they have just chosen.</li>
+    <li><b>The response is simply <code>{ ok: true }</code>.</b> The number of discarded sessions does not reach the response: that is not something an anonymous caller is entitled to learn. The number goes into the event and from there into the log.</li>
   </ol>
 
-  <h3>6.6 Смена пароля изнутри</h3>
-  <p><code>ChangePasswordUseCase</code> существует и полностью работает, но <b>HTTP-маршрута у него ещё нет</b> — самообслуживание запланировано отдельно. Правило, которое он несёт: смена пароля отзывает живые сессии аккаунта в той же единице работы, кроме сессии самого вызывающего (<code>keepSessionId</code>). Логика простая: сессия — это предъявительский ключ, открытый <em>старым</em> паролем, и живёт он ещё весь свой TTL; без отзыва смена скомпрометированного пароля оставила бы злоумышленника внутри на неделю. Экспорт из барреля сделан для того, чтобы e2e-набор гонял этот сценарий из DI, пока маршрута нет.</p>
+  <h3>6.6 Changing a password from inside</h3>
+  <p><code>ChangePasswordUseCase</code> exists and works fully, but <b>it has no HTTP route yet</b> — self-service is planned separately. The rule it carries: changing a password revokes the account's live sessions in the same unit of work, except the caller's own session (<code>keepSessionId</code>). The logic is simple: a session is a bearer key opened by the <em>old</em> password, and it lives on for its whole TTL; without revocation, changing a compromised password would leave an attacker inside for a week. The barrel export exists so that the e2e suite can drive this scenario from DI while there is no route.</p>
 
-  <h3>6.7 Вход через внешнего провайдера (SSO)</h3>
+  <h3>6.7 Signing in through an external provider (SSO)</h3>
   <ol class="flow">
-    <li><b>Страница входа показывает кнопки.</b> <code>GET /api/auth/sso</code> отдаёт зарегистрированных провайдеров; пустой список — это <b>ответ</b>, а не 404. Кнопки не зависят от введённого адреса: эндпоинт, который менялся бы от email, был бы оракулом для перебора аккаунтов.</li>
-    <li><b>Старт попытки.</b> <code>GET /api/auth/sso/:provider/start?redirect=…&amp;invite=…</code>: ядро (не адаптер!) генерирует <code>state</code>, <code>nonce</code> и PKCE-verifier, пишет строку <code>sso_auth_requests</code>, ставит короткоживущую куку <code>ortha_sso_request</code> и делает <code>302</code> к провайдеру.<span class="meta">redirect проходит через safeRedirectPath — принимается только абсолютный путь того же origin</span></li>
-    <li><b>Провайдер возвращает человека.</b> <code>GET …/callback</code> — или <code>POST …/callback</code> для SAML, где ответ приходит формой. Оба обработчика отличаются ровно одним: откуда взяты параметры.</li>
-    <li><b>Проверки ядра по порядку:</b> кука есть → попытка жива → провайдер тот же → эхо <code>state</code> совпадает → <b>попытка гасится до обмена токена</b>. Порядок несущий: гасить после обмена — значит разрешить повтор, а обменивать внутри транзакции — держать блокировку записи на время вызова третьей стороны.</li>
-    <li><b>Адаптер проверяет и возвращает профиль.</b> Контракт из трёх пунктов: <code>complete</code> либо проверяет, либо бросает; <code>subject</code> стабилен, привязан к issuer и <b>никогда не равен email</b>; <code>emailVerified</code> сообщает ровно то, что заявил провайдер.</li>
-    <li><b>Аккаунт находится или создаётся.</b> Есть связь <code>sso_identities</code> → вход. Нет связи, но есть <code>invite</code> → сверка адреса и погашение приглашения. Нет ни того, ни другого → присвоение существующего аккаунта <b>только при подтверждённом email</b>, либо JIT-создание, если оно включено.</li>
-    <li><b>Сессия, кука, редирект в админку.</b> Строка сессии дополнительно запоминает <code>sso_provider</code> и <code>sso_session_id</code>.</li>
+    <li><b>The sign-in page shows the buttons.</b> <code>GET /api/auth/sso</code> returns the registered providers; an empty list is an <b>answer</b>, not a 404. The buttons do not depend on the address entered: an endpoint that changed with the email would be an oracle for enumerating accounts.</li>
+    <li><b>Starting an attempt.</b> <code>GET /api/auth/sso/:provider/start?redirect=…&amp;invite=…</code>: the core (not the adapter!) generates the <code>state</code>, the <code>nonce</code> and the PKCE verifier, writes an <code>sso_auth_requests</code> row, sets the short-lived <code>ortha_sso_request</code> cookie and issues a <code>302</code> to the provider.<span class="meta">the redirect goes through safeRedirectPath — only an absolute path on the same origin is accepted</span></li>
+    <li><b>The provider sends the person back.</b> <code>GET …/callback</code> — or <code>POST …/callback</code> for SAML, where the response arrives as a form. The two handlers differ in exactly one thing: where the parameters were taken from.</li>
+    <li><b>The core's checks, in order:</b> the cookie exists → the attempt is alive → the provider is the same one → the <code>state</code> echo matches → <b>the attempt is consumed before the token exchange</b>. The order is load-bearing: consuming after the exchange would allow a replay, and exchanging inside the transaction would hold a row lock for the duration of a third-party call.</li>
+    <li><b>The adapter verifies and returns a profile.</b> A three-point contract: <code>complete</code> either verifies or throws; the <code>subject</code> is stable, bound to the issuer and <b>never equal to the email</b>; <code>emailVerified</code> reports exactly what the provider asserted.</li>
+    <li><b>The account is found or created.</b> An <code>sso_identities</code> link exists → sign in. No link but an <code>invite</code> → the address is checked and the invitation consumed. Neither → claiming an existing account <b>only with a verified email</b>, or JIT creation if it is switched on.</li>
+    <li><b>Session, cookie, redirect into the admin UI.</b> The session row additionally records the <code>sso_provider</code> and <code>sso_session_id</code>.</li>
   </ol>
 
-  <h4>Что вход через SSO вправе сделать с аккаунтом</h4>
-  <p>По умолчанию — <b>ничего</b>: пускает уже существующих и <code>active</code>, никого не создаёт, роли не меняет. Три вещи включаются по отдельности:</p>
+  <h4>What an SSO sign-in is entitled to do to an account</h4>
+  <p>By default, <b>nothing</b>: it lets in accounts that already exist and are <code>active</code>, creates nobody, and changes no roles. Three things are switched on separately:</p>
   <div class="grid g3">
     <div class="card">
-      <h4 style="margin-top:0">JIT-создание</h4>
-      <p class="small sub">Создаёт <code>active</code>-аккаунт без пароля. <b>Список доменов обязателен и непуст</b> — проверяется при сборке приложения. Совпадение точное по домену, не по суффиксу: <code>acme.com</code> никогда не впустит <code>evil-acme.com</code>.</p>
+      <h4 style="margin-top:0">JIT creation</h4>
+      <p class="small sub">Creates an <code>active</code> account with no password. <b>The domain list is required and must be non-empty</b> — checked when the application is assembled. The match is exact on the domain rather than on a suffix: <code>acme.com</code> will never admit <code>evil-acme.com</code>.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Маппинг ролей</h4>
-      <p class="small sub">Обычный код в композиционном корне, возвращающий ключ роли или <code>null</code>. Неизвестный ключ логируется и игнорируется (опечатка не должна запирать всю дирекцию), а <b>аккаунт с ролью admin никогда не понижается</b> маппингом.</p>
+      <h4 style="margin-top:0">Role mapping</h4>
+      <p class="small sub">Ordinary code at the composition root returning a role key or <code>null</code>. An unknown key is logged and ignored (a typo must not lock out the whole department), and <b>an account with the admin role is never demoted</b> by the mapping.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Приглашение через рабочий аккаунт</h4>
-      <p class="small sub"><code>/start?invite=…</code> кладёт токен на строку попытки; колбэк сверяет, что провайдер поручился <b>именно за приглашённый адрес</b>. Повторный проход по потраченной ссылке тем же человеком — просто вход; кем-то другим — отказ.</p>
+      <h4 style="margin-top:0">Invitation through a work account</h4>
+      <p class="small sub"><code>/start?invite=…</code> puts the token on the attempt row; the callback checks that the provider vouched <b>for exactly the invited address</b>. A repeat pass over a spent link by the same person is simply a sign-in; by somebody else, a refusal.</p>
     </div>
   </div>
 
   <div class="note crit">
-    <span class="label">Один отказ на все случаи</span>
-    <p>Любая неудача SSO — это <code>SsoLoginFailedError</code> и редирект на <code>?error=sso</code>. Не 401: человек находится посреди навигации от провайдера, и голый статус оставил бы его на пустой странице. Настоящая причина уходит в лог сервера. Различимые ошибки позволили бы любому, кто умеет аутентифицироваться у публичного провайдера, выяснять, какие адреса имеют здесь аккаунты.</p>
+    <span class="label">One refusal for every case</span>
+    <p>Any SSO failure is an <code>SsoLoginFailedError</code> and a redirect to <code>?error=sso</code>. Not a 401: the person is in the middle of navigation from the provider, and a bare status would leave them on a blank page. The real reason goes into the server log. Distinguishable errors would let anybody who can authenticate with a public provider find out which addresses have accounts here.</p>
   </div>
 
-  <h4>Выход по сигналу провайдера</h4>
-  <p><code>POST /api/auth/sso/:provider/backchannel-logout</code> — единственный механизм, который завершает сессию здесь <em>сразу</em>, когда человека отключили в корпоративном каталоге. Без него честный ответ на «мы его уволили, он вышел?» был бы «в пределах <code>SESSION_TTL_SECONDS</code>».</p>
+  <h4>Signing out on the provider's signal</h4>
+  <p><code>POST /api/auth/sso/:provider/backchannel-logout</code> is the only mechanism that ends a session here <em>immediately</em> when somebody is disabled in the corporate directory. Without it, the honest answer to "we fired them, are they out?" would be "within <code>SESSION_TTL_SECONDS</code>".</p>
   <ul>
-    <li><b><code>sid</code></b> в уведомлении закрывает только сессии, открытые этой сессией провайдера: ноутбук и телефон, вошедшие двумя разными сессиями провайдера, не гасят друг друга.</li>
-    <li><b><code>sub</code> без <code>sid</code></b> закрывает все сессии связанного аккаунта. Это случай увольнения, и грубость здесь — цель.</li>
-    <li><b>Проверку делает адаптер</b> через необязательный <code>verifyLogoutToken</code>. Провайдер, который проверить не умеет, метод не реализует, и маршрут отвечает <code>404</code> вместо того, чтобы притвориться, будто что-то сделал: эндпоинт неаутентифицирован и доступен кому угодно.</li>
-    <li><code>200</code> независимо от того, отозвано что-то или нет (провайдеры ретраят — маршрут обязан быть идемпотентным), <code>400</code> на отказ без подробностей, всегда <code>cache-control: no-store</code>: закэшированный посредником <code>200</code> проглотил бы все последующие уведомления.</li>
-    <li><b>Субъект без аккаунта — не ошибка.</b> Провайдер законно уведомляет и о тех, кто здесь никогда не входил; иной ответ сделал бы маршрут оракулом «кто из наших сотрудников пользуется этой CMS».</li>
+    <li><b><code>sid</code></b> in the notification closes only the sessions opened by that provider session: a laptop and a phone signed in through two different provider sessions do not kill each other.</li>
+    <li><b><code>sub</code> without <code>sid</code></b> closes every session of the linked account. That is the termination case, and the bluntness is the point.</li>
+    <li><b>The adapter does the verification</b> through the optional <code>verifyLogoutToken</code>. A provider that cannot verify does not implement the method, and the route answers <code>404</code> rather than pretending it did something: the endpoint is unauthenticated and open to anyone.</li>
+    <li><code>200</code> whether or not anything was revoked (providers retry — the route has to be idempotent), <code>400</code> on a refusal with no details, and always <code>cache-control: no-store</code>: a <code>200</code> cached by an intermediary would swallow every subsequent notification.</li>
+    <li><b>A subject with no account is not an error.</b> A provider legitimately notifies about people who never signed in here; any other answer would make the route an oracle for "which of our employees uses this CMS".</li>
   </ul>
 
-  <h3>6.8 Внешние API-токены</h3>
+  <h3>6.8 External API tokens</h3>
   <ol class="flow">
-    <li><b>Выпуск.</b> <code>POST /api/api-tokens</code> (право <code>tokens:create</code>): имя (1–120 символов), <b>непустой</b> список <code>workspaceIds</code> (до 100, дубликаты схлопываются), область <code>read</code> либо <code>full</code>, необязательный <code>expiresAt</code> в будущем.</li>
-    <li><b>Проверка воркспейсов через порт.</b> Внешнего ключа нет, поэтому идентификаторы сверяются с <code>WORKSPACE_DIRECTORY</code>. Проверяется <b>существование, а не статус</b> — архивный воркспейс это законная область. Если порт никем не связан (нет плагина воркспейсов), проверка пропускается.</li>
-    <li><b>Секрет отдаётся один раз.</b> В ответе <code>secret</code>; в базе — только SHA-256 и несекретный <code>lookup_prefix</code> для отображения.</li>
-    <li><b>Событие обязательно.</b> Выпуск и отзыв идут через единицу работы с событием <code>api_token.created</code> / <code>api_token.revoked</code> → строка журнала. Долгоживущий ключ к контенту обязан быть подотчётным. В нагрузке события — имя, область, список воркспейсов и префикс, <b>никогда</b> секрет или его хэш.</li>
-    <li><b>Использование.</b> Охранник публичного контент-API проверяет <code>Authorization: Bearer</code>; неизвестный, отозванный и просроченный токены отвергаются одинаково. <code>last_used_at</code> обновляется «выстрелил и забыл» с троттлингом 60 с.</li>
-    <li><b>Отзыв.</b> <code>DELETE /api/api-tokens/:id</code> → <code>204</code>. Повторный отзыв события не добавляет: событием является только тот вызов, который действительно убил живой токен.</li>
+    <li><b>Issue.</b> <code>POST /api/api-tokens</code> (permission <code>tokens:create</code>): a name (1–120 characters), a <b>non-empty</b> <code>workspaceIds</code> list (up to 100, duplicates collapsed), a scope of <code>read</code> or <code>full</code>, and an optional <code>expiresAt</code> in the future.</li>
+    <li><b>Workspaces checked through the port.</b> There is no foreign key, so the ids are checked against <code>WORKSPACE_DIRECTORY</code>. What is checked is <b>existence, not status</b> — an archived workspace is a legitimate scope. If nothing is bound to the port (no workspaces plugin), the check is skipped.</li>
+    <li><b>The secret is handed over once.</b> The response carries the <code>secret</code>; the database holds only the SHA-256 and the non-secret <code>lookup_prefix</code> for display.</li>
+    <li><b>The event is mandatory.</b> Issue and revoke go through a unit of work with an <code>api_token.created</code> / <code>api_token.revoked</code> event → a log row. A long-lived key to the content must be accountable. The event payload carries the name, the scope, the workspace list and the prefix, <b>never</b> the secret or its hash.</li>
+    <li><b>Use.</b> The public content API's guard checks <code>Authorization: Bearer</code>; unknown, revoked and expired tokens are rejected identically. <code>last_used_at</code> is updated fire-and-forget, throttled to 60 s.</li>
+    <li><b>Revoke.</b> <code>DELETE /api/api-tokens/:id</code> → <code>204</code>. A repeat revoke adds no event: only the call that actually killed a live token is an event.</li>
   </ol>
   <div class="note warn">
-    <span class="label">Маршруты управления токенами — сессионные</span>
-    <p><code>POST</code>/<code>GET</code>/<code>DELETE /api/api-tokens</code> требуют <code>tokens:create|read|delete</code>, которые есть только у администратора, и <b>недостижимы по bearer-токену</b>. Токен не может выпустить себе другой токен.</p>
+    <span class="label">The token management routes are session-only</span>
+    <p><code>POST</code>/<code>GET</code>/<code>DELETE /api/api-tokens</code> require <code>tokens:create|read|delete</code>, which only an administrator holds, and are <b>unreachable with a bearer token</b>. A token cannot issue itself another token.</p>
   </div>
 
-  <h3>6.9 Личные настройки</h3>
-  <p><code>GET</code>/<code>PUT /api/preferences</code> — тема оформления (<code>light</code>/<code>dark</code>/<code>system</code>) текущего пользователя. Маршрут привязан к <code>@CurrentUser()</code>, а не к идентификатору в пути, — это форма, в которой самообслуживание вообще возможно в этой системе.</p>
+  <h3>6.9 Personal preferences</h3>
+  <p><code>GET</code>/<code>PUT /api/preferences</code> — the current user's theme (<code>light</code>/<code>dark</code>/<code>system</code>). The route is bound to <code>@CurrentUser()</code> rather than to an id in the path — that is the form in which self-service is possible at all in this system.</p>
 
-  <h3>6.10 Сессии участника глазами администратора</h3>
+  <h3>6.10 A member's sessions as an administrator sees them</h3>
   <ol class="flow">
-    <li><code>GET /api/users/:id/sessions</code> (<code>users:update</code>) отдаёт живые сессии: id, <code>userAgent</code>, <code>ipAddress</code>, <code>createdAt</code>, <code>lastUsedAt</code>, <code>expiresAt</code> и флаг <code>current</code>.</li>
-    <li><b>Флаг <code>current</code></b> вычисляется хэшированием куки самого вызывающего — то есть истинен только когда администратор смотрит собственные сессии, и нужен, чтобы он не выгнал сам себя с рабочего устройства.</li>
-    <li><code>DELETE /api/users/:id/sessions/:sessionId</code> (<code>users:update</code> + <code>OriginGuard</code>) → <code>204</code>. <b>Идемпотентно:</b> неизвестная, уже отозванная или принадлежащая другому пользователю сессия тоже даёт 204.</li>
+    <li><code>GET /api/users/:id/sessions</code> (<code>users:update</code>) returns the live sessions: the id, <code>userAgent</code>, <code>ipAddress</code>, <code>createdAt</code>, <code>lastUsedAt</code>, <code>expiresAt</code> and a <code>current</code> flag.</li>
+    <li><b>The <code>current</code> flag</b> is computed by hashing the caller's own cookie — so it is true only when an administrator is looking at their own sessions, and it exists so they do not throw themselves off their working device.</li>
+    <li><code>DELETE /api/users/:id/sessions/:sessionId</code> (<code>users:update</code> + <code>OriginGuard</code>) → <code>204</code>. <b>Idempotent:</b> an unknown session, an already revoked one, or one belonging to another user also gives 204.</li>
   </ol>
 </section>
 
 <section id="api">
   <h2 class="sec"><span class="num">07</span>HTTP API</h2>
-  <p class="sub">Все пути — с глобальным префиксом <code>/api</code>, который ставит хост. Легенда доступа: <span class="pill pill-pub">public</span> — без сессии, <span class="pill pill-ses">session</span> — нужна валидная сессия, <span class="pill pill-perm">право</span> — нужна сессия и указанное право.</p>
+  <p class="sub">All paths carry the global <code>/api</code> prefix the host applies. Access legend: <span class="pill pill-pub">public</span> — no session, <span class="pill pill-ses">session</span> — a valid session is required, <span class="pill pill-perm">permission</span> — a session plus the named permission.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Метод и путь</th><th>Доступ и охрана</th><th>Вход</th><th>Успех</th><th>Отказы</th></tr></thead>
+    <thead><tr><th>Method and path</th><th>Access and guards</th><th>Input</th><th>Success</th><th>Failures</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">POST /auth/login</td>
         <td><span class="pill pill-pub">public</span> Throttler, Origin</td>
         <td><code>{ email, password }</code></td>
         <td><code>200 { ok: true }</code> + <code>Set-Cookie: ortha_session</code></td>
-        <td><code>401</code> на всё; <code>403</code> чужой Origin; <code>429</code> лимит; <code>400</code> невалидный DTO</td>
+        <td><code>401</code> for everything; <code>403</code> a foreign Origin; <code>429</code> the rate limit; <code>400</code> an invalid DTO</td>
       </tr>
       <tr>
         <td class="mono">POST /auth/logout</td>
         <td><span class="pill pill-pub">public</span> Origin</td>
-        <td>— (читает куку)</td>
-        <td><code>200 { ok: true }</code>, кука очищена</td>
-        <td><code>403</code> чужой Origin. Без сессии — всё равно 200</td>
+        <td>— (reads the cookie)</td>
+        <td><code>200 { ok: true }</code>, the cookie cleared</td>
+        <td><code>403</code> a foreign Origin. With no session it is still a 200</td>
       </tr>
       <tr>
         <td class="mono">GET /auth/me</td>
@@ -644,79 +643,79 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">GET /auth/invite/:token</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
-        <td>токен в пути</td>
+        <td>the token in the path</td>
         <td><code>{ email, name }</code></td>
-        <td><code>404</code> — единая форма для неизвестного / просроченного / погашенного</td>
+        <td><code>404</code> — one shape for unknown / expired / consumed</td>
       </tr>
       <tr>
         <td class="mono">POST /auth/invite/accept</td>
         <td><span class="pill pill-pub">public</span> Throttler, Origin</td>
         <td><code>{ token, password, confirmPassword }</code></td>
-        <td><code>200 { ok: true }</code> + сессия</td>
-        <td><code>404</code> токен; <code>400</code> длина пароля или несовпадение подтверждения; <code>403</code>; <code>429</code></td>
+        <td><code>200 { ok: true }</code> + a session</td>
+        <td><code>404</code> the token; <code>400</code> the password length or a confirmation mismatch; <code>403</code>; <code>429</code></td>
       </tr>
       <tr>
         <td class="mono">GET /auth/reset/:token</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
-        <td>токен в пути</td>
+        <td>the token in the path</td>
         <td><code>{ email, name }</code></td>
-        <td><code>404</code> — включая случай «аккаунт больше не active»</td>
+        <td><code>404</code> — including the "the account is no longer active" case</td>
       </tr>
       <tr>
         <td class="mono">POST /auth/reset</td>
         <td><span class="pill pill-pub">public</span> Throttler, Origin</td>
         <td><code>{ token, password, confirmPassword }</code></td>
-        <td><code>200 { ok: true }</code>, <b>куки нет</b>, все сессии отозваны</td>
+        <td><code>200 { ok: true }</code>, <b>no cookie</b>, every session revoked</td>
         <td><code>404</code>; <code>400</code>; <code>403</code>; <code>429</code></td>
       </tr>
       <tr>
         <td class="mono">GET /auth/sso</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
         <td>—</td>
-        <td><code>[{ name, label, kind }]</code>, возможно <code>[]</code></td>
+        <td><code>[{ name, label, kind }]</code>, possibly <code>[]</code></td>
         <td>—</td>
       </tr>
       <tr>
         <td class="mono">GET /auth/sso/:provider/start</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
         <td><code>?redirect=</code>, <code>?invite=</code></td>
-        <td><code>302</code> к провайдеру + кука <code>ortha_sso_request</code></td>
-        <td><code>404</code> незарегистрированный провайдер</td>
+        <td><code>302</code> to the provider + the <code>ortha_sso_request</code> cookie</td>
+        <td><code>404</code> an unregistered provider</td>
       </tr>
       <tr>
         <td class="mono">GET /auth/sso/:provider/callback</td>
-        <td><span class="pill pill-pub">public</span> Throttler; <b>Origin намеренно нет</b></td>
-        <td>query от провайдера</td>
-        <td><code>302</code> в админку + сессия</td>
-        <td><code>302</code> на <code>?error=sso</code> — на любую неудачу</td>
+        <td><span class="pill pill-pub">public</span> Throttler; <b>deliberately no Origin</b></td>
+        <td>the provider's query</td>
+        <td><code>302</code> into the admin UI + a session</td>
+        <td><code>302</code> to <code>?error=sso</code> — on any failure</td>
       </tr>
       <tr>
         <td class="mono">POST /auth/sso/:provider/callback</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
-        <td>form-post (SAML)</td>
-        <td>то же, что GET-колбэк</td>
-        <td>то же</td>
+        <td>a form post (SAML)</td>
+        <td>the same as the GET callback</td>
+        <td>the same</td>
       </tr>
       <tr>
         <td class="mono">POST /auth/sso/:provider/backchannel-logout</td>
         <td><span class="pill pill-pub">public</span> Throttler</td>
         <td><code>{ logout_token }</code></td>
         <td><code>200 { revoked: N }</code>, <code>cache-control: no-store</code></td>
-        <td><code>400 { error: "invalid_request" }</code>; <code>404</code> если провайдер не умеет проверять</td>
+        <td><code>400 { error: "invalid_request" }</code>; <code>404</code> if the provider cannot verify</td>
       </tr>
       <tr>
         <td class="mono">GET /users/:id/sessions</td>
         <td><span class="pill pill-perm">users:update</span></td>
-        <td>uuid в пути</td>
-        <td>массив сессий с флагом <code>current</code></td>
-        <td><code>401</code>; <code>403</code>; <code>400</code> не-uuid</td>
+        <td>a uuid in the path</td>
+        <td>an array of sessions with a <code>current</code> flag</td>
+        <td><code>401</code>; <code>403</code>; <code>400</code> non-uuid</td>
       </tr>
       <tr>
         <td class="mono">DELETE /users/:id/sessions/:sessionId</td>
         <td><span class="pill pill-perm">users:update</span> Origin</td>
-        <td>uuid + id сессии</td>
+        <td>a uuid + the session id</td>
         <td><code>204</code></td>
-        <td><code>401</code>; <code>403</code>. Неизвестная сессия — тоже 204</td>
+        <td><code>401</code>; <code>403</code>. An unknown session is also a 204</td>
       </tr>
       <tr>
         <td class="mono">GET /preferences</td>
@@ -730,389 +729,389 @@ html{scroll-behavior:smooth}
         <td><span class="pill pill-ses">session</span> Origin</td>
         <td><code>{ theme: light|dark|system }</code></td>
         <td><code>{ theme }</code></td>
-        <td><code>400</code> иное значение; <code>401</code>; <code>403</code></td>
+        <td><code>400</code> any other value; <code>401</code>; <code>403</code></td>
       </tr>
       <tr>
         <td class="mono">POST /api-tokens</td>
         <td><span class="pill pill-perm">tokens:create</span> Origin</td>
         <td><code>{ name, workspaceIds[], scope, expiresAt? }</code></td>
-        <td><code>{ …токен, secret }</code> — секрет один раз</td>
-        <td><code>400</code> несуществующий воркспейс, прошедший <code>expiresAt</code>, пустой список; <code>403</code></td>
+        <td><code>{ …the token, secret }</code> — the secret once</td>
+        <td><code>400</code> a non-existent workspace, a past <code>expiresAt</code>, an empty list; <code>403</code></td>
       </tr>
       <tr>
         <td class="mono">GET /api-tokens</td>
         <td><span class="pill pill-perm">tokens:read</span></td>
-        <td><code>?workspaceId=&amp;page=&amp;pageSize=</code> (25 по умолчанию, максимум 100)</td>
+        <td><code>?workspaceId=&amp;page=&amp;pageSize=</code> (25 by default, 100 maximum)</td>
         <td><code>{ items, total, page, pageSize }</code></td>
-        <td><code>400</code> невалидные параметры; <code>403</code></td>
+        <td><code>400</code> invalid parameters; <code>403</code></td>
       </tr>
       <tr>
         <td class="mono">DELETE /api-tokens/:id</td>
         <td><span class="pill pill-perm">tokens:delete</span> Origin</td>
-        <td>uuid</td>
+        <td>a uuid</td>
         <td><code>204</code></td>
-        <td><code>403</code>; повторный отзыв — тоже 204, но без события</td>
+        <td><code>403</code>; a repeat revoke is also 204, but with no event</td>
       </tr>
     </tbody>
   </table>
   </div>
 
-  <p class="small sub">Живой сервер отдаёт сгенерированный OpenAPI на <code>/reference</code> (сырой JSON — <code>/reference/json</code>). Обе схемы безопасности — <code>session</code> (кука) и <code>apiToken</code> (bearer) — объявляет именно Identity: он владеет аутентификацией, значит владеет и её описанием.</p>
+  <p class="small sub">A live server serves the generated OpenAPI at <code>/reference</code> (raw JSON at <code>/reference/json</code>). Both security schemes — <code>session</code> (the cookie) and <code>apiToken</code> (the bearer) — are declared by Identity: it owns authentication, so it owns its description too.</p>
 </section>
 
 <section id="admin">
-  <h2 class="sec"><span class="num">08</span>Админка: экраны, состояния, поведение</h2>
+  <h2 class="sec"><span class="num">08</span>Admin UI: screens, states, behaviour</h2>
 
-  <p>Плагин админки контрибьютит <b>один</b> маршрут-шаблон <code>/identity/*</code>, помеченный <code>public</code>, а внутри него — свой вложенный роутер. Все страницы загружаются лениво (<code>React.lazy</code>), потому что залогиненному пользователю они не нужны никогда.</p>
+  <p>The admin plugin contributes <b>one</b> route template, <code>/identity/*</code>, marked <code>public</code>, with its own nested router inside it. Every page loads lazily (<code>React.lazy</code>), because a logged-in user never needs them.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Маршрут</th><th>Экран</th><th>Что делает</th></tr></thead>
+    <thead><tr><th>Route</th><th>Screen</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td class="mono">/identity</td><td>—</td><td>Редирект на <code>signin</code></td></tr>
-      <tr><td class="mono">/identity/signin</td><td><code>LoginPage</code></td><td>Форма входа + блок провайдеров SSO + плашка «сессия завершилась»</td></tr>
-      <tr><td class="mono">/identity/accept-invite?token=…</td><td><code>AcceptInvitePage</code></td><td>Принятие приглашения; заканчивается <b>внутри</b> приложения</td></tr>
-      <tr><td class="mono">/identity/reset-password?token=…</td><td><code>ResetPasswordPage</code></td><td>Смена пароля по ссылке; заканчивается <b>подтверждением и уходом на вход</b></td></tr>
+      <tr><td class="mono">/identity</td><td>—</td><td>A redirect to <code>signin</code></td></tr>
+      <tr><td class="mono">/identity/signin</td><td><code>LoginPage</code></td><td>The sign-in form plus the SSO provider block plus the "your session ended" banner</td></tr>
+      <tr><td class="mono">/identity/accept-invite?token=…</td><td><code>AcceptInvitePage</code></td><td>Accepting an invitation; ends up <b>inside</b> the application</td></tr>
+      <tr><td class="mono">/identity/reset-password?token=…</td><td><code>ResetPasswordPage</code></td><td>Changing a password by link; ends with <b>a confirmation and a move to sign-in</b></td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Четыре состояния авторизации, а не три</h3>
-  <p>Это самая важная деталь клиентской части. <code>AuthState</code> различает:</p>
+  <h3>Four authorisation states, not three</h3>
+  <p>This is the most important detail of the client side. <code>AuthState</code> distinguishes:</p>
   <div class="grid g2">
-    <div class="card"><h4 style="margin-top:0"><code>loading</code></h4><p class="small sub">Проба в полёте — начальная загрузка или перепроверка после входа/выхода. Шлюз показывает брендированный лоадер, а не форму входа, чтобы она не мигала залогиненному.</p></div>
-    <div class="card"><h4 style="margin-top:0"><code>authenticated</code></h4><p class="small sub">Пользователь получен; его права опубликованы в контекст.</p></div>
-    <div class="card"><h4 style="margin-top:0"><code>unauthenticated</code></h4><p class="small sub">Сервер ответил «никто» (<code>401</code> → <code>data === null</code>). Редирект на вход с сохранением адреса, куда шли.</p></div>
-    <div class="card"><h4 style="margin-top:0"><code>unavailable</code></h4><p class="small sub"><b>Проба не удалась</b> — 500, таймаут, обрыв. Показывается карточка «не можем связаться с сервером» с повтором. Схлопывание этого состояния с предыдущим сообщало пользователю с валидной кукой, что он вышел, и вело его на форму, которая стучится в тот же мёртвый API.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>loading</code></h4><p class="small sub">The probe is in flight — the initial load or a re-check after signing in or out. The gate shows a branded loader rather than the sign-in form, so it does not flash at somebody already logged in.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>authenticated</code></h4><p class="small sub">The user was returned; their permissions are published into the context.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>unauthenticated</code></h4><p class="small sub">The server answered "nobody" (<code>401</code> → <code>data === null</code>). A redirect to sign-in, saving the address they were heading to.</p></div>
+    <div class="card"><h4 style="margin-top:0"><code>unavailable</code></h4><p class="small sub"><b>The probe failed</b> — a 500, a timeout, a dropped connection. A "we cannot reach the server" card with a retry is shown. Collapsing this state into the previous one told a user with a valid cookie that they had been signed out and led them to a form that knocks on the same dead API.</p></div>
   </div>
 
-  <h3>Сессия умерла, пока вкладка была открыта</h3>
-  <p>Это случается регулярно: администратор отключил аккаунт, срок истёк, сессию погасили с другого устройства. Ловится двумя механизмами, и оба сходятся в одно состояние:</p>
+  <h3>The session died while the tab was open</h3>
+  <p>This happens regularly: an administrator disabled the account, the term expired, the session was killed from another device. It is caught by two mechanisms, and both converge on one state:</p>
   <ul>
-    <li><b>Глобальный обработчик 401.</b> <code>AuthProvider</code> на время жизни ставит <code>setUnauthorizedHandler</code>: любой <code>401</code> записывает <code>null</code> в ключ текущего пользователя. Он <b>намеренно не удаляет</b> запросы из кэша — у них есть смонтированные наблюдатели, каждый бы перезапросил и получил новый 401. Приватное дерево размонтирует сам редирект.</li>
-    <li><b>Перепроверка при фокусе окна.</b> Простаивавшая вкладка проверяется при возврате к ней, а не только при следующем действии. Перезапрос невидим: пока он в полёте, публикуется закэшированный пользователь, поэтому фокус не мигает лоадером.</li>
+    <li><b>A global 401 handler.</b> For its lifetime <code>AuthProvider</code> installs <code>setUnauthorizedHandler</code>: any <code>401</code> writes <code>null</code> into the current user's key. It <b>deliberately does not remove</b> queries from the cache — they have mounted observers, and each would refetch and get another 401. The private tree is unmounted by the redirect itself.</li>
+    <li><b>A re-check on window focus.</b> An idle tab is checked when it is returned to, not only on the next action. The refetch is invisible: while it is in flight the cached user is published, so focus does not flash a loader.</li>
   </ul>
 
   <div class="note">
-    <span class="label">Принудительный выход обязан объясниться</span>
-    <p>Редирект заменяет весь экран: фокус был на элементе, которого больше нет, и браузер сбрасывает его на <code>&lt;body&gt;</code>; в буфере скринридера остаётся размонтированная страница; всё, что было набрано в форме, пропало. Поэтому: (1) тост в live-регион хоста — он живёт вне роутера и переживает смену вида; (2) одноразовый флаг, который страница входа защёлкивает в состояние и показывает как <code>AuthNotice</code> — то, что останется читаемым после исчезновения тоста; (3) <code>AuthLayout</code> переводит фокус на <code>&lt;h1&gt;</code>, так что человек попадает на заголовок, а объяснение стоит следующим по порядку чтения. Тост срабатывает <b>только если пользователь только что был в кэше</b> — 401 на вкладке, где сессии никогда не было, это обычное «вы не вошли», и утверждать иное значит врать тому, кто просто открыл закладку.</p>
+    <span class="label">A forced sign-out has to explain itself</span>
+    <p>The redirect replaces the whole screen: focus was on an element that no longer exists, and the browser drops it onto <code>&lt;body&gt;</code>; the screen reader's buffer holds an unmounted page; everything typed into the form is gone. Hence: (1) a toast into the host's live region — it lives outside the router and survives a view change; (2) a one-shot flag the sign-in page latches into state and renders as an <code>AuthNotice</code> — the thing that stays readable after the toast disappears; (3) <code>AuthLayout</code> moves focus to the <code>&lt;h1&gt;</code>, so a person lands on the heading with the explanation next in reading order. The toast fires <b>only if the user was in the cache a moment ago</b> — a 401 in a tab that never had a session is the ordinary "you are not signed in", and claiming otherwise means lying to somebody who simply opened a bookmark.</p>
   </div>
 
-  <h3>Состояния экранов приглашения и сброса</h3>
+  <h3>The states of the invitation and reset screens</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Состояние</th><th>Когда</th><th>Что показывается</th></tr></thead>
+    <thead><tr><th>State</th><th>When</th><th>What is shown</th></tr></thead>
     <tbody>
-      <tr><td>Нет токена</td><td>В URL нет <code>?token=</code></td><td>Карточка «ссылка не работает» с отдельным текстом про отсутствующий токен</td></tr>
-      <tr><td>Загрузка</td><td>Проба ссылки в полёте</td><td>Скелетон + визуально скрытый <code>&lt;h1&gt;</code> и <code>role="status"</code>; <b>фокус на заголовок не переводится</b> (<code>focusHeading={false}</code>), иначе он уехал бы на заголовок, который вот-вот заменят</td></tr>
-      <tr><td>Мёртвая ссылка</td><td>Ответ <code>404</code></td><td>Карточка «попросите новую ссылку». Одна форма отказа, потому что сервер отдаёт один 404 на все причины</td></tr>
-      <tr><td>Сбой связи</td><td>Ошибка <b>не</b> 404</td><td>Карточка сбоя с кнопкой «повторить». Токен-то в порядке — плох сервер; отправлять человека за новой ссылкой было бы вредно, тем более что новая убила бы имеющуюся</td></tr>
-      <tr><td>Форма</td><td>Ссылка описана</td><td>Приглашение: email и имя <code>readOnly</code> + пароль дважды. Сброс: адрес аккаунта + пароль дважды</td></tr>
-      <tr><td>Готово (только сброс)</td><td>Мутация успешна</td><td>Подтверждение с переходом на вход. Проверяется <b>раньше</b> состояний ссылки: токен по определению уже потрачен, и перезапрос заменил бы поздравление на «ссылка больше не работает»</td></tr>
+      <tr><td>No token</td><td>There is no <code>?token=</code> in the URL</td><td>A "this link does not work" card with its own text about the missing token</td></tr>
+      <tr><td>Loading</td><td>The link probe is in flight</td><td>A skeleton plus a visually hidden <code>&lt;h1&gt;</code> and <code>role="status"</code>; <b>focus is not moved to the heading</b> (<code>focusHeading={false}</code>), or it would land on a heading about to be replaced</td></tr>
+      <tr><td>A dead link</td><td>A <code>404</code> response</td><td>An "ask for a new link" card. One refusal shape, because the server returns one 404 for every cause</td></tr>
+      <tr><td>A connection failure</td><td>An error that is <b>not</b> a 404</td><td>A failure card with a "retry" button. The token is fine — the server is not; sending the person for a new link would be harmful, all the more so since a new one would kill the existing one</td></tr>
+      <tr><td>The form</td><td>The link is described</td><td>Invitation: email and name <code>readOnly</code> plus the password twice. Reset: the account's address plus the password twice</td></tr>
+      <tr><td>Done (reset only)</td><td>The mutation succeeded</td><td>A confirmation with a link to sign-in. Checked <b>before</b> the link states: the token is by definition already spent, and a refetch would replace the congratulation with "this link no longer works"</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Блок SSO на странице входа</h3>
+  <h3>The SSO block on the sign-in page</h3>
   <ul>
-    <li><b>Это ссылки, а не кнопки с обработчиками.</b> Вход через провайдера — полностраничная навигация на <code>/api/auth/sso/:name/start</code>, отвечающий 302. Якорь <em>и есть</em> навигация: работают средняя кнопка мыши и «открыть в новой вкладке», и между человеком и редиректом не стоит JavaScript. E2e-набор проверяет роль <code>link</code> именно чтобы это не деградировало в скриптовый клик.</li>
-    <li><b>Ничего не рисуется</b> при загрузке, при ошибке и при пустом списке. Форма пароля <em>и есть</em> страница входа, а это дополнение к ней: спиннер заставил бы каждого ждать функцию, которой у большинства нет.</li>
-    <li><b>Блок идёт после формы</b> в DOM и в порядке табуляции: пришедший вводить пароль не должен протабать мимо списка провайдеров.</li>
-    <li><b>Адрес назначения едет на самой ссылке</b> (<code>?redirect=/workspaces</code>), а не в состоянии роутера: SSO уводит из приложения, значит цель должна уехать вместе с ним. Сервер валидирует её как путь того же origin.</li>
+    <li><b>These are links, not buttons with handlers.</b> Signing in through a provider is a full-page navigation to <code>/api/auth/sso/:name/start</code>, which answers with a 302. The anchor <em>is</em> the navigation: the middle mouse button and "open in a new tab" work, and no JavaScript stands between the person and the redirect. The e2e suite checks for the <code>link</code> role precisely so this does not degrade into a scripted click.</li>
+    <li><b>Nothing is rendered</b> while loading, on an error, and for an empty list. The password form <em>is</em> the sign-in page, and this is an addition to it: a spinner would make everybody wait for a feature most of them do not have.</li>
+    <li><b>The block comes after the form</b> in the DOM and in tab order: somebody who came to type a password should not have to tab past a provider list.</li>
+    <li><b>The destination address travels on the link itself</b> (<code>?redirect=/workspaces</code>) rather than in router state: SSO leads out of the application, so the target has to leave with it. The server validates it as a same-origin path.</li>
   </ul>
 
-  <h3>Одна вкладка — одна личность</h3>
-  <p>Любая смена личности (вход, выход, принятие приглашения, сброс) вызывает <code>resetSessionCache</code>: из кэша удаляется всё, кроме пространства <code>auth</code>. Кука — не единственное, что накапливает сессия: список участников, воркспейсы, активность и настройки лежат в кэше на всё время жизни страницы, и без чистки следующий вошедший унаследовал бы их до первого перезапроса.</p>
+  <h3>One tab, one identity</h3>
+  <p>Any change of identity (signing in, signing out, accepting an invitation, a reset) calls <code>resetSessionCache</code>: everything except the <code>auth</code> namespace is removed from the cache. The cookie is not the only thing a session accumulates: the member list, workspaces, activity and settings sit in the cache for the page's whole lifetime, and without a wipe the next person to sign in would inherit them until the first refetch.</p>
 
-  <p class="small sub">Прочие детали, которые легко сломать: заголовок вкладки идёт через общий <code>useDocumentTitle</code> (реестр складывает «Страница · Приложение» и уживается с бейджем непрочитанного от копайлота); <code>AuthErrorBoundary</code> оборачивает <code>Suspense</code>, чтобы деплой во время открытой вкладки не превращал страницу входа в белый экран, когда старый чанк уже исчез; <code>AuthAlert</code> (ошибка отправки) <b>забирает фокус</b> и потому должен рендериться условно, а <code>AuthNotice</code> (объяснение, как вы сюда попали) фокус <b>не</b> забирает, чтобы не драться с переводом фокуса на заголовок.</p>
+  <p class="small sub">Other details that are easy to break: the tab title goes through the shared <code>useDocumentTitle</code> (the registry composes "Page · Application" and coexists with the copilot's unread badge); <code>AuthErrorBoundary</code> wraps the <code>Suspense</code> so that a deploy while a tab is open does not turn the sign-in page into a white screen once the old chunk is gone; <code>AuthAlert</code> (a submission error) <b>takes focus</b> and so must be rendered conditionally, while <code>AuthNotice</code> (the explanation of how you got here) does <b>not</b> take focus, so as not to fight the move of focus to the heading.</p>
 </section>
 
 <section id="config">
-  <h2 class="sec"><span class="num">09</span>Конфигурация</h2>
-  <p>Конфигурация течёт из <code>apps/server/ortha.config.ts</code> (секция <code>plugins.identity</code>, значения из переменных окружения) в фабрику <code>IdentityPlugin(config, options)</code>. Первый аргумент — типизированный взгляд на окружение; второй — то, что окружением не является (экземпляры адаптеров SSO и обработчик маппинга ролей).</p>
+  <h2 class="sec"><span class="num">09</span>Configuration</h2>
+  <p>Configuration flows from <code>apps/server/ortha.config.ts</code> (the <code>plugins.identity</code> section, with values from environment variables) into the <code>IdentityPlugin(config, options)</code> factory. The first argument is a typed view of the environment; the second is what is not environment at all (SSO adapter instances and the role-mapping handler).</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Поле</th><th>Тип / по умолчанию</th><th>Смысл</th></tr></thead>
+    <thead><tr><th>Field</th><th>Type / default</th><th>Meaning</th></tr></thead>
     <tbody>
-      <tr><td class="mono">allowedOrigins</td><td><code>string[]</code></td><td>Белый список Origin для <code>OriginGuard</code>. Запрос без Origin (не-браузерный клиент) проходит</td></tr>
-      <tr><td class="mono">session.ttlSeconds</td><td><code>number</code></td><td>Срок жизни сессии; он же <code>maxAge</code> куки</td></tr>
-      <tr><td class="mono">session.cookieSecure</td><td><code>boolean</code></td><td>Атрибут <code>Secure</code></td></tr>
-      <tr><td class="mono">session.cookieSameSite</td><td><code>lax | strict | none</code></td><td><b>С зарегистрированными SSO-провайдерами <code>strict</code> запрещён</b> — плагин откажется стартовать</td></tr>
-      <tr><td class="mono">token.inviteTtlSeconds</td><td><code>number</code></td><td>Срок жизни ссылки приглашения (читается и выпускающим плагином <code>users</code>)</td></tr>
-      <tr><td class="mono">token.resetTtlSeconds</td><td><code>number</code></td><td>Срок жизни ссылки сброса</td></tr>
-      <tr><td class="mono">rateLimit.ttlSeconds / limit</td><td>по умолчанию <code>60</code> / <code>10</code></td><td>Лимит на публичные маршруты. <b>In-memory, на инстанс</b> — при масштабировании нужен общий стор</td></tr>
-      <tr><td class="mono">rootAdmin.email / password / name?</td><td>необязательно</td><td>Идемпотентная выдача root-администратора на старте. Неразрушающе: существующий адрес не трогается, <code>name</code> пишется только при первом создании</td></tr>
-      <tr><td class="mono">sso.publicBaseUrl / apiPathPrefix / signInPath</td><td>необязательно</td><td>Из чего собираются точный callback-URL и адреса редиректов</td></tr>
-      <tr><td class="mono">sso.requestTtlSeconds</td><td>необязательно</td><td>Срок жизни строки попытки входа</td></tr>
-      <tr><td class="mono">sso.provisioning.domains / defaultRole</td><td>необязательно</td><td>JIT-создание. <b>Список доменов обязан быть непустым</b>, роль — непустой строкой; проверяется при сборке, а не при первом входе</td></tr>
-      <tr><td class="mono">sso.allowPasswordLogin</td><td><code>true</code></td><td><code>false</code> выключает пароли всем, кроме root-администратора</td></tr>
-      <tr><td class="mono">sso.sessionTtlSeconds</td><td>необязательно</td><td>Укороченный TTL специально для SSO-сессий — частичная мера для провайдеров без back-channel logout</td></tr>
+      <tr><td class="mono">allowedOrigins</td><td><code>string[]</code></td><td>The Origin whitelist for <code>OriginGuard</code>. A request with no Origin (a non-browser client) passes</td></tr>
+      <tr><td class="mono">session.ttlSeconds</td><td><code>number</code></td><td>The session's lifetime; also the cookie's <code>maxAge</code></td></tr>
+      <tr><td class="mono">session.cookieSecure</td><td><code>boolean</code></td><td>The <code>Secure</code> attribute</td></tr>
+      <tr><td class="mono">session.cookieSameSite</td><td><code>lax | strict | none</code></td><td><b>With SSO providers registered, <code>strict</code> is forbidden</b> — the plugin refuses to start</td></tr>
+      <tr><td class="mono">token.inviteTtlSeconds</td><td><code>number</code></td><td>The invitation link's lifetime (also read by the issuing <code>users</code> plugin)</td></tr>
+      <tr><td class="mono">token.resetTtlSeconds</td><td><code>number</code></td><td>The reset link's lifetime</td></tr>
+      <tr><td class="mono">rateLimit.ttlSeconds / limit</td><td><code>60</code> / <code>10</code> by default</td><td>The limit on public routes. <b>In-memory, per instance</b> — scaling out needs a shared store</td></tr>
+      <tr><td class="mono">rootAdmin.email / password / name?</td><td>optional</td><td>Idempotent provisioning of the root administrator at start. Non-destructive: an existing address is left alone, and <code>name</code> is written only on first creation</td></tr>
+      <tr><td class="mono">sso.publicBaseUrl / apiPathPrefix / signInPath</td><td>optional</td><td>What the exact callback URL and the redirect addresses are assembled from</td></tr>
+      <tr><td class="mono">sso.requestTtlSeconds</td><td>optional</td><td>The lifetime of a sign-in attempt row</td></tr>
+      <tr><td class="mono">sso.provisioning.domains / defaultRole</td><td>optional</td><td>JIT creation. <b>The domain list must be non-empty</b> and the role a non-empty string; checked at assembly rather than on the first sign-in</td></tr>
+      <tr><td class="mono">sso.allowPasswordLogin</td><td><code>true</code></td><td><code>false</code> switches passwords off for everybody except the root administrator</td></tr>
+      <tr><td class="mono">sso.sessionTtlSeconds</td><td>optional</td><td>A shortened TTL specifically for SSO sessions — a partial measure for providers with no back-channel logout</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note warn">
-    <span class="label">Хостовая настройка, за которую отвечает Identity</span>
-    <p>Лимит запросов считает по <code>req.ip</code>, а это <em>клиентский</em> адрес только если хост включил <code>trust proxy</code> (опция <code>trustProxy</code> у <code>createServer</code>, из переменной <code>TRUST_PROXY</code>). Забыли — за прокси все вызывающие выглядят одним адресом, деплой делит одно ведро, и десять запросов одного злоумышленника в минуту <b>запирают вход всем</b>. Покрыто e2e-набором, который поднимает приложение обоими способами.</p>
+    <span class="label">A host setting Identity is answerable for</span>
+    <p>The rate limit counts by <code>req.ip</code>, and that is the <em>client's</em> address only if the host enabled <code>trust proxy</code> (the <code>trustProxy</code> option of <code>createServer</code>, from the <code>TRUST_PROXY</code> variable). Forget it and, behind a proxy, every caller looks like one address, the deployment shares one bucket, and ten requests a minute from one attacker <b>lock sign-in for everyone</b>. Covered by an e2e suite that boots the application both ways.</p>
   </div>
 
   <div class="note">
-    <span class="label">Секретов подписи здесь нет — и не потеряны</span>
-    <p><code>sessionSecret</code> и <code>tokenSecret</code> когда-то были в конфигурации и были задокументированы как подписывающие. <b>Их никто не читал.</b> Измерено: старт с пустыми значениями выдаёт рабочую сессию, а кука, выпущенная под «настоящим» секретом, продолжает приниматься после перезапуска. Оба поля удалены из типа, из конфигурации хоста, из <code>.env.example</code> и из генератора приложений. Дефект был не в механизме, а в поверхности конфигурации, описывавшей другой механизм: оператор завёл бы два высокоэнтропийных значения, положил их в менеджер секретов и внёс «ротировать секрет сессии» в свой инцидент-ранбук — и всё это было бы бездействующим.</p>
+    <span class="label">There are no signing secrets here — and none were lost</span>
+    <p><code>sessionSecret</code> and <code>tokenSecret</code> were once in the configuration and were documented as signing keys. <b>Nobody read them.</b> Measured: starting with empty values issues a working session, and a cookie issued under a "real" secret keeps being accepted after a restart. Both fields have been removed from the type, from the host configuration, from <code>.env.example</code> and from the app generator. The defect was not in the mechanism but in a configuration surface describing a different mechanism: an operator would set up two high-entropy values, put them in a secret manager and add "rotate the session secret" to their incident runbook — and all of it would have been inert.</p>
   </div>
 
   <details>
-    <summary>Порядок регистрации плагинов и запуска</summary>
-    <p><code>IdentityPlugin</code> регистрируется <b>после</b> <code>DatabasePlugin</code> — клиент БД внедряется из его глобального модуля. Сидеры реализуют <code>OnApplicationBootstrap</code>, то есть срабатывают внутри <code>app.init()</code>: после сборки всех модулей и до того, как сервер начал слушать. Значит, посев завершается раньше первого запроса, а его падение прерывает старт. <code>RootAdminSeeder</code> объявлен <b>после</b> <code>SystemRolesSeeder</code>, чтобы роль <code>admin</code> уже существовала.</p>
+    <summary>Plugin registration order and startup</summary>
+    <p><code>IdentityPlugin</code> is registered <b>after</b> <code>DatabasePlugin</code> — the database client is injected from its global module. The seeders implement <code>OnApplicationBootstrap</code>, so they run inside <code>app.init()</code>: after every module is assembled and before the server starts listening. That means seeding finishes before the first request, and a failure in it aborts startup. <code>RootAdminSeeder</code> is declared <b>after</b> <code>SystemRolesSeeder</code> so that the <code>admin</code> role already exists.</p>
   </details>
 </section>
 
 <section id="security">
-  <h2 class="sec"><span class="num">10</span>Безопасность: что и почему сделано именно так</h2>
+  <h2 class="sec"><span class="num">10</span>Security: what was done and why</h2>
   <div class="grid g2">
     <div class="card">
-      <h4 style="margin-top:0">Нет перечисления аккаунтов</h4>
-      <p class="small sub">Неверный email и неверный пароль отказывают одинаково <b>и по телу, и по времени</b>: сравнение bcrypt выполняется всегда, при отсутствии пользователя — против заранее посчитанного «пустого» хэша. То же правило у отказа при выключенных паролях: иначе аварийный root-адрес находился бы замером времени.</p>
+      <h4 style="margin-top:0">No account enumeration</h4>
+      <p class="small sub">A wrong email and a wrong password refuse identically <b>in both body and timing</b>: the bcrypt comparison is always performed, against a pre-computed "empty" hash when there is no user. The same rule governs the refusal when passwords are switched off: otherwise the emergency root address could be found by timing.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Одноразовость через условную запись</h4>
-      <p class="small sub">Приглашение, сброс, SSO-попытка гасятся одним <code>UPDATE … WHERE consumed_at IS NULL RETURNING</code>. Из двух одновременных попыток строку получает ровно одна. Никакого «прочитать, проверить, записать».</p>
+      <h4 style="margin-top:0">Single use through a conditional write</h4>
+      <p class="small sub">An invitation, a reset and an SSO attempt are consumed with a single <code>UPDATE … WHERE consumed_at IS NULL RETURNING</code>. Of two concurrent attempts exactly one gets the row. No "read, check, write".</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Защита от CSRF на вход</h4>
-      <p class="small sub"><code>OriginGuard</code> отклоняет изменяющие состояние запросы с чужим <code>Origin</code>. Запросы без заголовка проходят — браузер всегда добавляет его к кросс-сайтовому POST, а это и есть перекрываемый случай. Полноценный CSRF-токен для более дорогих мутаций <b>отложен</b>.</p>
+      <h4 style="margin-top:0">CSRF protection on sign-in</h4>
+      <p class="small sub"><code>OriginGuard</code> rejects state-changing requests with a foreign <code>Origin</code>. Requests with no header pass — a browser always adds one to a cross-site POST, and that is the case being covered. A full CSRF token for more expensive mutations is <b>deferred</b>.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Кука не подписана, токен хэширован</h4>
-      <p class="small sub">В куке только непрозрачные 256 бит; валидность каждый раз перепроверяется по БД (<code>revoked_at</code>/<code>expires_at</code>), так что подделывать нечего. PK таблицы сессий — SHA-256 токена, поэтому read-only утечка дампа не даёт рабочих сессий.</p>
+      <h4 style="margin-top:0">The cookie is unsigned, the token is hashed</h4>
+      <p class="small sub">The cookie holds only 256 opaque bits; validity is re-checked against the database each time (<code>revoked_at</code>/<code>expires_at</code>), so there is nothing to forge. The session table's PK is the token's SHA-256, so a read-only dump leak yields no working sessions.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Один origin в разработке</h4>
-      <p class="small sub">Админка (<code>:4200</code>) и API (<code>:3000</code>) сведены dev-прокси Vite (<code>/api</code> → <code>:3000</code>), поэтому браузер видит один origin, а кука первосторонняя без CORS. Отвергнутая альтернатива — разные origin с CORS и <code>SameSite=none</code>.</p>
+      <h4 style="margin-top:0">One origin in development</h4>
+      <p class="small sub">The admin UI (<code>:4200</code>) and the API (<code>:3000</code>) are brought together by Vite's dev proxy (<code>/api</code> → <code>:3000</code>), so the browser sees one origin and the cookie is first-party with no CORS. The rejected alternative was different origins with CORS and <code>SameSite=none</code>.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Открытый редирект закрыт функцией</h4>
-      <p class="small sub"><code>safeRedirectPath</code> — чистая функция со своим спеком, а не три строки в контроллере. Принимается только абсолютный путь того же origin; <code>//host</code>, обратные слэши, управляющие символы и абсолютные URL отбрасываются на дефолт.</p>
+      <h4 style="margin-top:0">The open redirect is closed by a function</h4>
+      <p class="small sub"><code>safeRedirectPath</code> is a pure function with its own spec, not three lines in a controller. Only an absolute same-origin path is accepted; <code>//host</code>, backslashes, control characters and absolute URLs fall back to the default.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">PKCE и state минтит ядро</h4>
-      <p class="small sub">Адаптеры не генерируют ни <code>state</code>, ни <code>nonce</code>, ни verifier. Защита от CSRF и повтора — одно правило, реализованное и протестированное один раз. Conformance-проверка следит, чтобы адаптер <b>не клал verifier в URL</b> — там место только его S256-вызову.</p>
+      <h4 style="margin-top:0">PKCE and state are minted by the core</h4>
+      <p class="small sub">The adapters generate neither the <code>state</code>, nor the <code>nonce</code>, nor the verifier. Protection against CSRF and replay is one rule, implemented and tested once. A conformance check makes sure an adapter <b>does not put the verifier in the URL</b> — only its S256 challenge belongs there.</p>
     </div>
     <div class="card">
-      <h4 style="margin-top:0">Состояние попытки — строка, не подписанная кука</h4>
-      <p class="small sub">Плагин документирует отсутствие секрета подписи как решение, и состояние рукопожатия не должно было стать тем, что его вернёт. <code>id</code> строки — SHA-256 браузерного токена, ровно как у сессий.</p>
+      <h4 style="margin-top:0">Attempt state is a row, not a signed cookie</h4>
+      <p class="small sub">The plugin documents the absence of a signing secret as a decision, and handshake state must not have been the thing that brought one back. The row's <code>id</code> is the SHA-256 of the browser token, exactly as for sessions.</p>
     </div>
   </div>
 
-  <h3>Отложено сознательно</h3>
+  <h3>Deliberately deferred</h3>
   <ul>
-    <li>CSRF-токен для дорогих мутаций (сейчас — <code>OriginGuard</code> + <code>SameSite</code>).</li>
-    <li>Заголовки безопасности <code>helmet</code> — забота хоста, не плагина.</li>
-    <li>Уборка просроченных сессий (строки остаются, но невалидны).</li>
-    <li>Общий стор для лимита запросов — нужен при более чем одном инстансе.</li>
-    <li>Интерактивный CLI / break-glass-команда: root-администратор поднимается только из конфигурации и окружения.</li>
+    <li>A CSRF token for expensive mutations (currently <code>OriginGuard</code> + <code>SameSite</code>).</li>
+    <li><code>helmet</code>'s security headers — the host's business, not the plugin's.</li>
+    <li>Cleanup of expired sessions (the rows remain but are invalid).</li>
+    <li>A shared store for the rate limit — needed with more than one instance.</li>
+    <li>An interactive CLI / break-glass command: the root administrator is provisioned only from configuration and the environment.</li>
   </ul>
 </section>
 
 <section id="invariants">
-  <h2 class="sec"><span class="num">11</span>Инварианты</h2>
-  <p>Утверждения, которые обязаны выполняться всегда. Это одновременно список для ревью и заготовка утверждений для тестов.</p>
+  <h2 class="sec"><span class="num">11</span>Invariants</h2>
+  <p>Statements that must always hold. This doubles as a review list and as a starting set of test assertions.</p>
 
   <ul class="inv">
-    <li><span class="id">И-01</span><span>Все маршруты закрыты по умолчанию: <code>AuthGuard</code> зарегистрирован как <code>APP_GUARD</code>, публичность — только явная, через <code>@Public()</code>.</span></li>
-    <li><span class="id">И-02</span><span>Сессию получает только аккаунт со статусом <code>active</code>; проверка статуса повторяется на <b>каждом</b> запросе, а не только при входе.</span></li>
-    <li><span class="id">И-03</span><span>Все причины неудачного входа неразличимы — и по ответу, и по времени.</span></li>
-    <li><span class="id">И-04</span><span>Все причины негодного одноразового токена рендерятся как один голый <code>404</code> без тела.</span></li>
-    <li><span class="id">И-05</span><span>Одноразовый токен активирует аккаунт или меняет пароль <b>ровно один раз</b> даже при одновременных запросах.</span></li>
-    <li><span class="id">И-06</span><span>Погашение сброса отзывает <b>все</b> сессии аккаунта и <b>не выдаёт</b> новую.</span></li>
-    <li><span class="id">И-07</span><span>Выход отзывает <b>только</b> предъявленную сессию и всегда завершается успехом (идемпотентность).</span></li>
-    <li><span class="id">И-08</span><span>Смена пароля отзывает живые сессии аккаунта, сохраняя, при указании, сессию самого вызывающего.</span></li>
-    <li><span class="id">И-09</span><span>Ни один секрет не хранится в открытом виде: пароль — bcrypt(12); токены сессий, ссылок, API и SSO-попыток — SHA-256.</span></li>
-    <li><span class="id">И-10</span><span>Секрет API-токена возвращается ровно один раз, при выпуске, и никогда не попадает ни в событие, ни в лог, ни в повторный ответ.</span></li>
-    <li><span class="id">И-11</span><span>Пароль принимается при длине ≥ 12 <b>символов</b> и ≤ 72 <b>байт UTF-8</b>; превышение потолка — отказ, а не молчаливое усечение.</span></li>
-    <li><span class="id">И-12</span><span>Email уникален регистронезависимо на уровне БД.</span></li>
-    <li><span class="id">И-13</span><span>Системные роли невозможно удалить (SQL-условие <code>is_system = false</code>), а посев ролей идемпотентен и безопасен при одновременном старте нескольких инстансов.</span></li>
-    <li><span class="id">И-14</span><span>Роль <code>admin</code> держит полный набор прав <b>перечислением</b>; подстановочных прав в системе нет.</span></li>
-    <li><span class="id">И-15</span><span>Решение «можно ли этому актору это действие» принимает единственная реализация — <code>AccessPolicy</code>; и сессионный guard, и bearer-guard контент-API делегируют ей.</span></li>
-    <li><span class="id">И-16</span><span>Список и отзыв чужих сессий требуют <code>users:update</code>, а не <code>users:read</code>.</span></li>
-    <li><span class="id">И-17</span><span>Флаг <code>current</code> в списке сессий истинен только для собственной сессии вызывающего.</span></li>
-    <li><span class="id">И-18</span><span>Область API-токена — непустой набор воркспейсов; несуществующий идентификатор даёт <code>400</code>, а не выпущенный «в никуда» токен.</span></li>
-    <li><span class="id">И-19</span><span>Маршруты управления API-токенами достижимы только по сессии администратора и никогда по bearer-токену.</span></li>
-    <li><span class="id">И-20</span><span>Любая неудача SSO — один и тот же редирект на <code>?error=sso</code>; различимых причин наружу не выходит.</span></li>
-    <li><span class="id">И-21</span><span>SSO-попытка гасится <b>до</b> обмена токена, и обмен идёт вне транзакции.</span></li>
-    <li><span class="id">И-22</span><span>Первый вход через SSO присваивает существующий аккаунт только при <code>emailVerified: true</code>; <code>pending</code> и <code>disabled</code> отвергаются так же, как на парольном пути.</span></li>
-    <li><span class="id">И-23</span><span>Маппинг ролей никогда не понижает аккаунт, уже имеющий роль <code>admin</code>; неизвестный ключ роли логируется и игнорируется.</span></li>
-    <li><span class="id">И-24</span><span>JIT-создание невозможно без непустого списка доменов; совпадение — точное по домену, не по суффиксу.</span></li>
-    <li><span class="id">И-25</span><span>Back-channel logout идемпотентен, всегда <code>cache-control: no-store</code>, и отвечает <code>404</code> у провайдера, не умеющего проверять токен выхода.</span></li>
-    <li><span class="id">И-26</span><span>Приложение отказывается стартовать при зарегистрированных SSO-провайдерах и <code>cookieSameSite: 'strict'</code>.</span></li>
-    <li><span class="id">И-27</span><span>Пакет <code>identity-domain</code> не имеет зависимостей; слой <code>domain/</code> в <code>identity-server</code> не импортирует ни NestJS, ни Drizzle, ни class-validator.</span></li>
-    <li><span class="id">И-28</span><span>В админке отказ пробы «кто я» по причине, отличной от <code>401</code>, даёт состояние <code>unavailable</code>, а не редирект на вход.</span></li>
-    <li><span class="id">И-29</span><span><code>useHasPermission</code> — fail-closed: <code>false</code> во всех состояниях, кроме <code>authenticated</code>.</span></li>
-    <li><span class="id">И-30</span><span>Смена личности во вкладке очищает весь кэш запросов, кроме пространства <code>auth</code>.</span></li>
+    <li><span class="id">I-01</span><span>Every route is closed by default: <code>AuthGuard</code> is registered as an <code>APP_GUARD</code>, and being public is only ever explicit, through <code>@Public()</code>.</span></li>
+    <li><span class="id">I-02</span><span>Only an account with status <code>active</code> gets a session; the status check is repeated on <b>every</b> request, not only at sign-in.</span></li>
+    <li><span class="id">I-03</span><span>Every reason for a failed sign-in is indistinguishable — in the response and in timing alike.</span></li>
+    <li><span class="id">I-04</span><span>Every reason for an invalid one-time token renders as one bare <code>404</code> with no body.</span></li>
+    <li><span class="id">I-05</span><span>A one-time token activates an account or changes a password <b>exactly once</b>, even under concurrent requests.</span></li>
+    <li><span class="id">I-06</span><span>Consuming a reset revokes <b>all</b> of the account's sessions and issues <b>no</b> new one.</span></li>
+    <li><span class="id">I-07</span><span>Signing out revokes <b>only</b> the presented session and always succeeds (idempotency).</span></li>
+    <li><span class="id">I-08</span><span>Changing a password revokes the account's live sessions, keeping the caller's own session when one is named.</span></li>
+    <li><span class="id">I-09</span><span>Not one secret is stored in plaintext: passwords are bcrypt(12); session, link, API and SSO-attempt tokens are SHA-256.</span></li>
+    <li><span class="id">I-10</span><span>An API token's secret is returned exactly once, at issue time, and never reaches an event, a log or a repeat response.</span></li>
+    <li><span class="id">I-11</span><span>A password is accepted at ≥ 12 <b>characters</b> and ≤ 72 <b>UTF-8 bytes</b>; exceeding the ceiling is a refusal, not silent truncation.</span></li>
+    <li><span class="id">I-12</span><span>Email is unique case-insensitively at the database level.</span></li>
+    <li><span class="id">I-13</span><span>System roles cannot be deleted (the SQL condition <code>is_system = false</code>), and role seeding is idempotent and safe when several instances start at once.</span></li>
+    <li><span class="id">I-14</span><span>The <code>admin</code> role holds the full permission set <b>by enumeration</b>; there are no wildcard permissions in the system.</span></li>
+    <li><span class="id">I-15</span><span>The decision "may this actor perform this action" is made by a single implementation — <code>AccessPolicy</code>; both the session guard and the content API's bearer guard delegate to it.</span></li>
+    <li><span class="id">I-16</span><span>Listing and revoking somebody else's sessions requires <code>users:update</code>, not <code>users:read</code>.</span></li>
+    <li><span class="id">I-17</span><span>The <code>current</code> flag in the session list is true only for the caller's own session.</span></li>
+    <li><span class="id">I-18</span><span>An API token's scope is a non-empty workspace set; a non-existent id gives <code>400</code> rather than a token issued "into nowhere".</span></li>
+    <li><span class="id">I-19</span><span>The API-token management routes are reachable only with an administrator's session and never with a bearer token.</span></li>
+    <li><span class="id">I-20</span><span>Any SSO failure is one and the same redirect to <code>?error=sso</code>; no distinguishable reason leaves the system.</span></li>
+    <li><span class="id">I-21</span><span>An SSO attempt is consumed <b>before</b> the token exchange, and the exchange happens outside the transaction.</span></li>
+    <li><span class="id">I-22</span><span>A first SSO sign-in claims an existing account only with <code>emailVerified: true</code>; <code>pending</code> and <code>disabled</code> are rejected exactly as on the password path.</span></li>
+    <li><span class="id">I-23</span><span>Role mapping never demotes an account that already holds the <code>admin</code> role; an unknown role key is logged and ignored.</span></li>
+    <li><span class="id">I-24</span><span>JIT creation is impossible without a non-empty domain list; the match is exact on the domain, not on a suffix.</span></li>
+    <li><span class="id">I-25</span><span>Back-channel logout is idempotent, always carries <code>cache-control: no-store</code>, and answers <code>404</code> for a provider that cannot verify a logout token.</span></li>
+    <li><span class="id">I-26</span><span>The application refuses to start with SSO providers registered and <code>cookieSameSite: 'strict'</code>.</span></li>
+    <li><span class="id">I-27</span><span>The <code>identity-domain</code> package has no dependencies; the <code>domain/</code> layer in <code>identity-server</code> imports neither NestJS, nor Drizzle, nor class-validator.</span></li>
+    <li><span class="id">I-28</span><span>In the admin UI, a "who am I" probe failing for any reason other than <code>401</code> gives the <code>unavailable</code> state rather than a redirect to sign-in.</span></li>
+    <li><span class="id">I-29</span><span><code>useHasPermission</code> is fail-closed: <code>false</code> in every state except <code>authenticated</code>.</span></li>
+    <li><span class="id">I-30</span><span>A change of identity in a tab clears the whole query cache except the <code>auth</code> namespace.</span></li>
   </ul>
 </section>
 
 <section id="qa">
-  <h2 class="sec"><span class="num">12</span>Чек-лист тестирования</h2>
-  <p class="sub small">Формулировки — «действие → ожидаемый результат», чтобы их можно было брать в тест-кейс без переписывания. Серверная часть проверяется <code>curl</code> + <code>psql</code>, админская — браузером; существующие наборы: <code>apps/server-e2e/src/server/auth/*</code> (15 файлов) и <code>apps/admin-e2e/src/auth/*</code> (13 файлов, включая <code>a11y</code>, <code>keyboard</code>, <code>reflow</code>, <code>reduced-motion</code>).</p>
+  <h2 class="sec"><span class="num">12</span>Testing checklist</h2>
+  <p class="sub small">Phrased as "action → expected result", so they can go into a test case without rewriting. The server side is exercised with <code>curl</code> + <code>psql</code> and the admin side with a browser; the existing suites are <code>apps/server-e2e/src/server/auth/*</code> (15 files) and <code>apps/admin-e2e/src/auth/*</code> (13 files, including <code>a11y</code>, <code>keyboard</code>, <code>reflow</code> and <code>reduced-motion</code>).</p>
 
-  <h3>Вход и сессия</h3>
+  <h3>Sign-in and sessions</h3>
   <ul class="check">
-    <li><b>Верные учётные данные</b> → <span class="exp">200, кука <code>ortha_session</code> с <code>HttpOnly</code>, в БД появилась строка <code>sessions</code>, значение куки ≠ <code>sessions.id</code>.</span></li>
-    <li><b>Несуществующий email и верный по форме пароль</b> → <span class="exp">401 с тем же телом и сопоставимым временем, что и у существующего email с неверным паролем.</span></li>
-    <li><b>Аккаунт в статусе <code>pending</code></b> → <span class="exp">401, сессия не создана.</span></li>
-    <li><b>Аккаунт <code>disabled</code></b> → <span class="exp">401.</span></li>
-    <li><b>11 запросов входа за минуту</b> → <span class="exp">одиннадцатый даёт 429.</span></li>
-    <li><b>POST с посторонним <code>Origin</code></b> → <span class="exp">403.</span></li>
-    <li><b>Запрос без <code>Origin</code> (curl)</b> → <span class="exp">проходит.</span></li>
-    <li><b>Лишнее поле в теле</b> → <span class="exp">400 от <code>ValidationPipe</code>.</span></li>
-    <li><b>Отключить пользователя, пока он работает</b> → <span class="exp">его следующий запрос даёт 401; вкладка показывает тост и уводит на вход с объяснением.</span></li>
-    <li><b>Изменить <code>expires_at</code> сессии в прошлое</b> → <span class="exp"><code>GET /auth/me</code> даёт 401.</span></li>
-    <li><b>Два запроса подряд в пределах 60 с</b> → <span class="exp"><code>last_used_at</code> обновляется не чаще раза в минуту.</span></li>
+    <li><b>Correct credentials</b> → <span class="exp">200, an <code>ortha_session</code> cookie with <code>HttpOnly</code>, a <code>sessions</code> row in the database, and the cookie's value ≠ <code>sessions.id</code>.</span></li>
+    <li><b>A non-existent email with a well-formed password</b> → <span class="exp">401 with the same body and comparable timing as an existing email with a wrong password.</span></li>
+    <li><b>An account in status <code>pending</code></b> → <span class="exp">401, no session created.</span></li>
+    <li><b>A <code>disabled</code> account</b> → <span class="exp">401.</span></li>
+    <li><b>11 sign-in requests in a minute</b> → <span class="exp">the eleventh gives 429.</span></li>
+    <li><b>A POST with a foreign <code>Origin</code></b> → <span class="exp">403.</span></li>
+    <li><b>A request with no <code>Origin</code> (curl)</b> → <span class="exp">passes.</span></li>
+    <li><b>An extra field in the body</b> → <span class="exp">400 from <code>ValidationPipe</code>.</span></li>
+    <li><b>Disable a user while they are working</b> → <span class="exp">their next request gives 401; the tab shows a toast and leads to sign-in with an explanation.</span></li>
+    <li><b>Set a session's <code>expires_at</code> into the past</b> → <span class="exp"><code>GET /auth/me</code> gives 401.</span></li>
+    <li><b>Two requests in a row within 60 s</b> → <span class="exp"><code>last_used_at</code> is updated no more than once a minute.</span></li>
   </ul>
 
-  <h3>Приглашение</h3>
+  <h3>Invitations</h3>
   <ul class="check">
-    <li><b>Открыть <code>GET /auth/invite/:token</code> дважды</b> → <span class="exp">оба раза 200 с одинаковым телом.</span></li>
-    <li><b>Мусорный токен / просроченный / уже погашенный</b> → <span class="exp">во всех случаях 404 с пустым телом.</span></li>
-    <li><b>Принять приглашение</b> → <span class="exp">200 + кука; <code>users.status</code> = <code>active</code>; <code>tokens.consumed_at</code> заполнен.</span></li>
-    <li><b>Принять повторно тем же токеном</b> → <span class="exp">404.</span></li>
-    <li><b>Два одновременных <code>accept</code> одним токеном</b> → <span class="exp">ровно один успех, второй — 404, состояние согласовано.</span></li>
-    <li><b>Пароль из 11 символов</b> → <span class="exp">400.</span></li>
-    <li><b>Пароль из 72 символов «é» (144 байта)</b> → <span class="exp">400, а не молчаливое усечение.</span></li>
-    <li><b><code>confirmPassword</code> не совпадает</b> → <span class="exp">400 с ошибкой поля.</span></li>
-    <li><b>Попытка передать в теле другой <code>email</code></b> → <span class="exp">400 (незадекларированное поле).</span></li>
-    <li><b>Экран: URL без <code>?token=</code></b> → <span class="exp">карточка «ссылка не работает» с текстом про отсутствующий токен, без сетевого запроса.</span></li>
-    <li><b>Экран: API отвечает 500</b> → <span class="exp">карточка сбоя с кнопкой «повторить», <b>не</b> «ссылка мертва».</span></li>
+    <li><b>Open <code>GET /auth/invite/:token</code> twice</b> → <span class="exp">200 both times with the same body.</span></li>
+    <li><b>A junk token / an expired one / an already consumed one</b> → <span class="exp">404 with an empty body in every case.</span></li>
+    <li><b>Accept the invitation</b> → <span class="exp">200 + a cookie; <code>users.status</code> = <code>active</code>; <code>tokens.consumed_at</code> filled in.</span></li>
+    <li><b>Accept again with the same token</b> → <span class="exp">404.</span></li>
+    <li><b>Two concurrent <code>accept</code>s with one token</b> → <span class="exp">exactly one success, the second a 404, and consistent state.</span></li>
+    <li><b>An 11-character password</b> → <span class="exp">400.</span></li>
+    <li><b>A password of 72 "é" characters (144 bytes)</b> → <span class="exp">400, not silent truncation.</span></li>
+    <li><b><code>confirmPassword</code> does not match</b> → <span class="exp">400 with a field error.</span></li>
+    <li><b>An attempt to send a different <code>email</code> in the body</b> → <span class="exp">400 (an undeclared field).</span></li>
+    <li><b>The screen: a URL with no <code>?token=</code></b> → <span class="exp">the "this link does not work" card with the missing-token text, and no network request.</span></li>
+    <li><b>The screen: the API answers 500</b> → <span class="exp">a failure card with a "retry" button, <b>not</b> "the link is dead".</span></li>
   </ul>
 
-  <h3>Сброс пароля</h3>
+  <h3>Password reset</h3>
   <ul class="check">
-    <li><b>Погашение ссылки</b> → <span class="exp">200, <b>куки нет</b>, все строки <code>sessions</code> этого пользователя отозваны.</span></li>
-    <li><b>Ссылка для <code>pending</code>-аккаунта</b> → <span class="exp">404.</span></li>
-    <li><b>Ссылка для <code>disabled</code>-аккаунта</b> → <span class="exp">404.</span></li>
-    <li><b>Подставить токен приглашения в <code>POST /auth/reset</code></b> → <span class="exp">404 (предикат <code>type='reset'</code>).</span></li>
-    <li><b>Экран: после успеха обновить страницу состояния</b> → <span class="exp">подтверждение остаётся, а не сменяется на «ссылка больше не работает».</span></li>
-    <li><b>Войти старым паролем после сброса</b> → <span class="exp">401.</span></li>
+    <li><b>Redeeming the link</b> → <span class="exp">200, <b>no cookie</b>, every <code>sessions</code> row for that user revoked.</span></li>
+    <li><b>A link for a <code>pending</code> account</b> → <span class="exp">404.</span></li>
+    <li><b>A link for a <code>disabled</code> account</b> → <span class="exp">404.</span></li>
+    <li><b>Feed an invitation token into <code>POST /auth/reset</code></b> → <span class="exp">404 (the <code>type='reset'</code> predicate).</span></li>
+    <li><b>The screen: refresh the state after success</b> → <span class="exp">the confirmation remains rather than turning into "this link no longer works".</span></li>
+    <li><b>Sign in with the old password after a reset</b> → <span class="exp">401.</span></li>
   </ul>
 
-  <h3>Права и роли</h3>
+  <h3>Permissions and roles</h3>
   <ul class="check">
-    <li><b><code>GET /auth/me</code> под каждой из трёх ролей</b> → <span class="exp">список <code>permissions</code> совпадает с матрицей раздела 3.</span></li>
-    <li><b>Наблюдатель запрашивает <code>GET /users/:id/sessions</code></b> → <span class="exp">403.</span></li>
-    <li><b>Контрибьютор запрашивает <code>GET /api-tokens</code></b> → <span class="exp">403.</span></li>
-    <li><b>Попытка удалить системную роль</b> → <span class="exp">отказ; строка в БД на месте.</span></li>
-    <li><b>Двойной старт приложения</b> → <span class="exp">роли и права не дублируются.</span></li>
-    <li><b>Кнопки, закрытые правом, под наблюдателем</b> → <span class="exp">не отрисованы; прямой запрос к API всё равно даёт 403.</span></li>
+    <li><b><code>GET /auth/me</code> under each of the three roles</b> → <span class="exp">the <code>permissions</code> list matches the matrix in section 3.</span></li>
+    <li><b>A viewer calls <code>GET /users/:id/sessions</code></b> → <span class="exp">403.</span></li>
+    <li><b>A contributor calls <code>GET /api-tokens</code></b> → <span class="exp">403.</span></li>
+    <li><b>An attempt to delete a system role</b> → <span class="exp">refusal; the row is still in the database.</span></li>
+    <li><b>Starting the application twice</b> → <span class="exp">roles and permissions are not duplicated.</span></li>
+    <li><b>Permission-gated buttons under a viewer</b> → <span class="exp">not rendered; a direct API call still gives 403.</span></li>
   </ul>
 
-  <h3>API-токены</h3>
+  <h3>API tokens</h3>
   <ul class="check">
-    <li><b>Выпуск</b> → <span class="exp">в ответе <code>secret</code>; в БД только хэш и префикс; в журнале активности строка <code>token.created</code>.</span></li>
-    <li><b>Повторный просмотр списка</b> → <span class="exp"><code>secret</code> отсутствует.</span></li>
-    <li><b>Пустой <code>workspaceIds</code></b> → <span class="exp">400.</span></li>
-    <li><b>Несуществующий воркспейс в списке</b> → <span class="exp">400, токен не создан.</span></li>
-    <li><b><code>expiresAt</code> в прошлом</b> → <span class="exp">400.</span></li>
-    <li><b>Токен на два воркспейса, фильтр <code>?workspaceId=</code></b> → <span class="exp">появляется под каждым, по одному разу.</span></li>
-    <li><b>Отзыв, затем повторный отзыв</b> → <span class="exp">оба 204; событие ровно одно.</span></li>
-    <li><b>Обращение к контент-API отозванным / просроченным / выдуманным токеном</b> → <span class="exp">одинаковый отказ во всех трёх случаях.</span></li>
+    <li><b>Issue</b> → <span class="exp">the response holds a <code>secret</code>; the database holds only the hash and the prefix; the activity log holds a <code>token.created</code> row.</span></li>
+    <li><b>Viewing the list again</b> → <span class="exp">no <code>secret</code>.</span></li>
+    <li><b>An empty <code>workspaceIds</code></b> → <span class="exp">400.</span></li>
+    <li><b>A non-existent workspace in the list</b> → <span class="exp">400, no token created.</span></li>
+    <li><b>An <code>expiresAt</code> in the past</b> → <span class="exp">400.</span></li>
+    <li><b>A two-workspace token, filtered by <code>?workspaceId=</code></b> → <span class="exp">it appears under each, once each.</span></li>
+    <li><b>Revoke, then revoke again</b> → <span class="exp">204 both times; exactly one event.</span></li>
+    <li><b>Call the content API with a revoked / expired / invented token</b> → <span class="exp">an identical refusal in all three cases.</span></li>
   </ul>
 
   <h3>SSO</h3>
   <ul class="check">
-    <li><b>Провайдеры не настроены</b> → <span class="exp"><code>GET /auth/sso</code> = <code>[]</code>, страница входа не показывает блок и не мигает спиннером.</span></li>
-    <li><b>Кнопка провайдера</b> → <span class="exp">это элемент с ролью <code>link</code>, ведущий на <code>/api/auth/sso/:name/start</code>; открывается в новой вкладке средней кнопкой.</span></li>
-    <li><b>Колбэк с чужим <code>state</code></b> → <span class="exp">редирект на <code>?error=sso</code>, сессия не создана.</span></li>
-    <li><b>Колбэк без куки попытки</b> → <span class="exp">то же самое.</span></li>
-    <li><b>Повторный колбэк с теми же параметрами</b> → <span class="exp">отказ (попытка уже погашена).</span></li>
-    <li><b>Профиль с <code>emailVerified: false</code>, аккаунт существует</b> → <span class="exp">отказ, присвоения не происходит.</span></li>
-    <li><b>JIT включён, домен вне списка</b> → <span class="exp">отказ, аккаунт не создан.</span></li>
-    <li><b>Маппинг возвращает роль для аккаунта-администратора</b> → <span class="exp">роль <code>admin</code> сохраняется.</span></li>
-    <li><b>Маппинг возвращает несуществующий ключ</b> → <span class="exp">вход проходит, роль не меняется, в логе предупреждение.</span></li>
-    <li><b><code>?redirect=//evil.example</code></b> → <span class="exp">после входа переход на безопасный путь по умолчанию.</span></li>
-    <li><b>Back-channel logout с <code>sid</code></b> → <span class="exp">гаснут только сессии этой сессии провайдера.</span></li>
-    <li><b>То же с <code>sub</code> без <code>sid</code></b> → <span class="exp">гаснут все сессии аккаунта.</span></li>
-    <li><b>Повторное уведомление</b> → <span class="exp">200, <code>revoked: 0</code>, заголовок <code>cache-control: no-store</code>.</span></li>
-    <li><b>Уведомление о субъекте без аккаунта</b> → <span class="exp">200, не ошибка.</span></li>
-    <li><b>Старт со <code>strict</code>-кукой и провайдерами</b> → <span class="exp">приложение не стартует, сообщение объясняет причину.</span></li>
+    <li><b>No providers configured</b> → <span class="exp"><code>GET /auth/sso</code> = <code>[]</code>, and the sign-in page shows no block and flashes no spinner.</span></li>
+    <li><b>A provider button</b> → <span class="exp">it is an element with the <code>link</code> role pointing at <code>/api/auth/sso/:name/start</code>; the middle mouse button opens it in a new tab.</span></li>
+    <li><b>A callback with a foreign <code>state</code></b> → <span class="exp">a redirect to <code>?error=sso</code>, no session created.</span></li>
+    <li><b>A callback with no attempt cookie</b> → <span class="exp">the same.</span></li>
+    <li><b>A repeat callback with the same parameters</b> → <span class="exp">refusal (the attempt is already consumed).</span></li>
+    <li><b>A profile with <code>emailVerified: false</code> and an existing account</b> → <span class="exp">refusal, no claiming happens.</span></li>
+    <li><b>JIT on, a domain outside the list</b> → <span class="exp">refusal, no account created.</span></li>
+    <li><b>The mapping returns a role for an administrator account</b> → <span class="exp">the <code>admin</code> role is kept.</span></li>
+    <li><b>The mapping returns a non-existent key</b> → <span class="exp">the sign-in goes through, the role does not change, and a warning appears in the log.</span></li>
+    <li><b><code>?redirect=//evil.example</code></b> → <span class="exp">after sign-in, a move to the safe default path.</span></li>
+    <li><b>Back-channel logout with a <code>sid</code></b> → <span class="exp">only that provider session's sessions die.</span></li>
+    <li><b>The same with a <code>sub</code> and no <code>sid</code></b> → <span class="exp">every session of the account dies.</span></li>
+    <li><b>A repeat notification</b> → <span class="exp">200, <code>revoked: 0</code>, with the <code>cache-control: no-store</code> header.</span></li>
+    <li><b>A notification about a subject with no account</b> → <span class="exp">200, not an error.</span></li>
+    <li><b>Starting with a <code>strict</code> cookie and providers</b> → <span class="exp">the application does not start, and the message explains why.</span></li>
   </ul>
 
-  <h3>Админка: доступность и устойчивость</h3>
+  <h3>Admin UI: accessibility and resilience</h3>
   <ul class="check">
-    <li><b>Приход на любой экран авторизации</b> → <span class="exp">фокус на <code>&lt;h1&gt;</code> экрана; у состояний загрузки — свой скрытый заголовок и <code>role="status"</code>.</span></li>
-    <li><b>Ошибка отправки формы</b> → <span class="exp">баннер появляется и <b>забирает фокус</b>; повторная ошибка с другим текстом снова забирает.</span></li>
-    <li><b>Принудительный выход</b> → <span class="exp">тост в live-регионе + плашка на странице входа, которая переживает исчезновение тоста.</span></li>
-    <li><b>401 на вкладке, где сессии не было</b> → <span class="exp">тост «сессия завершилась» <b>не</b> показывается.</span></li>
-    <li><b>API недоступен (500 / таймаут)</b> → <span class="exp">карточка «не можем связаться» с повтором, а не редирект на вход.</span></li>
-    <li><b>Вернуться на простоявшую вкладку после отключения аккаунта</b> → <span class="exp">перепроверка при фокусе ловит это без действий пользователя; лоадер не мигает.</span></li>
-    <li><b>Деплой при открытой вкладке, затем переход на <code>/identity/signin</code></b> → <span class="exp">карточка с предложением перезагрузить, а не белый экран.</span></li>
-    <li><b>Выйти и войти другим пользователем в той же вкладке</b> → <span class="exp">никаких данных предыдущего аккаунта в интерфейсе.</span></li>
-    <li><b>Полностью клавиатурный проход формы входа</b> → <span class="exp">блок SSO идёт после полей; все элементы имеют видимый фокус.</span></li>
-    <li><b>Заголовок вкладки</b> → <span class="exp">формат «Страница · Приложение», после потери и восстановления сессии не остаётся заголовок прошлой страницы.</span></li>
+    <li><b>Arriving on any auth screen</b> → <span class="exp">focus on the screen's <code>&lt;h1&gt;</code>; the loading states have their own hidden heading and <code>role="status"</code>.</span></li>
+    <li><b>A form submission error</b> → <span class="exp">the banner appears and <b>takes focus</b>; a second error with different text takes it again.</span></li>
+    <li><b>A forced sign-out</b> → <span class="exp">a toast in the live region plus a banner on the sign-in page that outlives the toast.</span></li>
+    <li><b>A 401 in a tab that never had a session</b> → <span class="exp">the "your session ended" toast is <b>not</b> shown.</span></li>
+    <li><b>The API is unreachable (500 / timeout)</b> → <span class="exp">a "we cannot reach the server" card with a retry, not a redirect to sign-in.</span></li>
+    <li><b>Return to an idle tab after the account was disabled</b> → <span class="exp">the focus re-check catches it with no user action; no loader flash.</span></li>
+    <li><b>A deploy with the tab open, then navigating to <code>/identity/signin</code></b> → <span class="exp">a card suggesting a reload, not a white screen.</span></li>
+    <li><b>Sign out and sign in as a different user in the same tab</b> → <span class="exp">no data from the previous account anywhere in the interface.</span></li>
+    <li><b>A fully keyboard-driven pass over the sign-in form</b> → <span class="exp">the SSO block comes after the fields; every element has a visible focus ring.</span></li>
+    <li><b>The tab title</b> → <span class="exp">the "Page · Application" format, with no leftover title from the previous page after the session is lost and restored.</span></li>
   </ul>
 </section>
 
 <section id="bounds">
-  <h2 class="sec"><span class="num">13</span>Границы ответственности</h2>
+  <h2 class="sec"><span class="num">13</span>Boundaries of responsibility</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Область</th><th>Кто владеет</th><th>Что делает Identity</th></tr></thead>
+    <thead><tr><th>Area</th><th>Who owns it</th><th>What Identity does</th></tr></thead>
     <tbody>
-      <tr><td>Подключение к БД и запуск миграций</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Владеет <b>файлами</b> схемы и миграций, но не соединением и не шагом применения</td></tr>
-      <tr><td>Выпуск приглашений и ссылок сброса, список участников</td><td><code>users-server</code> / <code>users-admin</code></td><td>Владеет таблицей <code>tokens</code> и <b>погашением</b> ссылок</td></tr>
-      <tr><td>Отправка писем</td><td>никто (не реализовано)</td><td>Отдаёт сырой токен вызывающему администратору; сам не отправляет ничего</td></tr>
-      <tr><td>Журнал действий</td><td><code>activity</code></td><td>Порождает события и владеет портом <code>ACTIVITY_RECORDER</code></td></tr>
-      <tr><td>Проверка принадлежности воркспейсу</td><td><code>workspaces-server</code></td><td>Проверяет только существование — через порт <code>WORKSPACE_DIRECTORY</code></td></tr>
-      <tr><td>Интерфейс API-токенов</td><td><code>api-tokens-admin</code></td><td>Владеет серверной частью токенов целиком</td></tr>
-      <tr><td>Монтирование шлюза авторизации</td><td><code>shell-admin</code></td><td>Поставляет <code>AuthProvider</code> и <code>RequireAuth</code>, но не решает, где они стоят</td></tr>
-      <tr><td>Bearer-охранник публичного контент-API</td><td><code>content-server</code></td><td>Даёт ему <code>ApiTokenService</code> и примитивы RBAC, чтобы решение было тем же самым</td></tr>
+      <tr><td>The database connection and running migrations</td><td><code>@orthacms/database</code> + <code>@orthacms/nx</code></td><td>Owns the schema and migration <b>files</b>, but not the connection and not the apply step</td></tr>
+      <tr><td>Issuing invitations and reset links, the member list</td><td><code>users-server</code> / <code>users-admin</code></td><td>Owns the <code>tokens</code> table and the <b>redemption</b> of links</td></tr>
+      <tr><td>Sending email</td><td>nobody (not implemented)</td><td>Hands the raw token to the calling administrator; sends nothing itself</td></tr>
+      <tr><td>The activity log</td><td><code>activity</code></td><td>Produces the events and owns the <code>ACTIVITY_RECORDER</code> port</td></tr>
+      <tr><td>Checking workspace membership</td><td><code>workspaces-server</code></td><td>Checks existence only — through the <code>WORKSPACE_DIRECTORY</code> port</td></tr>
+      <tr><td>The API-token UI</td><td><code>api-tokens-admin</code></td><td>Owns the entire server side of tokens</td></tr>
+      <tr><td>Mounting the authorisation gate</td><td><code>shell-admin</code></td><td>Supplies <code>AuthProvider</code> and <code>RequireAuth</code>, but does not decide where they stand</td></tr>
+      <tr><td>The public content API's bearer guard</td><td><code>content-server</code></td><td>Gives it <code>ApiTokenService</code> and the RBAC primitives so that the decision is the same one</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>Чего ещё нет</h3>
+  <h3>What is still missing</h3>
   <ul>
-    <li><b>Самостоятельной смены пароля</b> — сценарий реализован, маршрута нет.</li>
-    <li><b>Публичного «забыли пароль»</b> — невозможно без почты (см. раздел 1).</li>
-    <li><b>Экранов пользователей и ролей внутри этого плагина</b> — они в <code>users-admin</code>.</li>
-    <li><b>Своего экрана «мои сессии»</b> — сегодня список сессий доступен только администратору по идентификатору участника.</li>
-    <li><b>Прав в разрезе воркспейса</b> — параметр <code>scope</code> в <code>AccessPolicy</code> зарезервирован, но решение пока глобальное.</li>
+    <li><b>Self-service password change</b> — the use case is implemented, the route is not.</li>
+    <li><b>A public "forgot password"</b> — impossible without email (see section 1).</li>
+    <li><b>User and role screens inside this plugin</b> — they are in <code>users-admin</code>.</li>
+    <li><b>Its own "my sessions" screen</b> — today the session list is available only to an administrator, by member id.</li>
+    <li><b>Permissions scoped to a workspace</b> — the <code>scope</code> parameter in <code>AccessPolicy</code> is reserved, but the decision is still global.</li>
   </ul>
 </section>
 
 <section id="gaps">
-  <h2 class="sec"><span class="num">14</span>Расхождения кода и документации</h2>
-  <p>Найдено при сверке этого артефакта с исходниками. Само по себе не баги продукта, но они дезориентируют и разработчика, и тестировщика.</p>
+  <h2 class="sec"><span class="num">14</span>Discrepancies between code and documentation</h2>
+  <p>Found while checking this dossier against the source. Not product bugs in themselves, but they mislead developer and tester alike.</p>
 
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Где</th><th>Что написано</th><th>Как на самом деле</th></tr></thead>
+    <thead><tr><th>Where</th><th>What it says</th><th>How it actually is</th></tr></thead>
     <tbody>
       <tr>
         <td class="mono">packages/identity/server/AGENTS.md</td>
-        <td>Описывает внутри <code>identity-server</code> фичи <code>workspaces/</code>, <code>users/</code> (кроме поиска) и <code>content/</code> с десятком маршрутов на <code>/api/workspaces</code></td>
-        <td>Таких папок в <code>src/lib</code> <b>нет</b>. Присутствуют: <code>auth</code>, <code>rbac</code>, <code>root-admin</code>, <code>api-tokens</code>, <code>preferences</code>, <code>sso</code>, <code>activity</code>, <code>schema</code> + слои <code>domain/application/infrastructure</code>. Воркспейсы и участники давно живут в собственных пакетах</td>
+        <td>Describes <code>workspaces/</code>, <code>users/</code> (except search) and <code>content/</code> features inside <code>identity-server</code>, with a dozen routes on <code>/api/workspaces</code></td>
+        <td>Those folders <b>do not exist</b> in <code>src/lib</code>. What is there: <code>auth</code>, <code>rbac</code>, <code>root-admin</code>, <code>api-tokens</code>, <code>preferences</code>, <code>sso</code>, <code>activity</code>, <code>schema</code> plus the <code>domain/application/infrastructure</code> layers. Workspaces and members moved into packages of their own long ago</td>
       </tr>
       <tr>
         <td class="mono">provider-oidc/AGENTS.md</td>
-        <td>Ссылка <code>[ADR-0012](…/0012-sso-provider-port.md)</code></td>
-        <td>ADR-0012 — это «one storage provider per deployment». SSO-порт описан в <b>ADR-0013</b>; файла <code>0012-sso-provider-port.md</code> не существует, ссылка битая</td>
+        <td>The link <code>[ADR-0012](…/0012-sso-provider-port.md)</code></td>
+        <td>ADR-0012 is "one storage provider per deployment". The SSO port is described in <b>ADR-0013</b>; the file <code>0012-sso-provider-port.md</code> does not exist and the link is broken</td>
       </tr>
       <tr>
         <td class="mono">provider-saml/AGENTS.md</td>
-        <td>Дважды упоминает «ставку ADR-0012» и разрешение зависимости в нём</td>
-        <td>То же самое: подразумевается ADR-0013</td>
+        <td>Mentions "the ADR-0012 bet" twice, and the dependency permitted by it</td>
+        <td>The same thing: ADR-0013 is meant</td>
       </tr>
       <tr>
-        <td class="mono">server/AGENTS.md, шапка</td>
-        <td>«Behaviour is still partly pending: tokens and full user management land in later tickets»</td>
-        <td>API-токены реализованы полностью (сервис, маршруты, таблицы, события), управление участниками — в <code>users</code>. Формулировка устарела</td>
+        <td class="mono">server/AGENTS.md, the header</td>
+        <td>"Behaviour is still partly pending: tokens and full user management land in later tickets"</td>
+        <td>API tokens are fully implemented (service, routes, tables, events), and member management is in <code>users</code>. The wording is stale</td>
       </tr>
       <tr>
-        <td class="mono">admin/AGENTS.md, «Conventions»</td>
-        <td>Раскладка описана как <code>components/ pages/ api/ router/ utils/</code> под <code>src/lib</code></td>
-        <td>Пакет уже переведён на слои: <code>domain / application / infrastructure / presentation</code>, и компоненты со страницами лежат внутри <code>presentation/</code>. Соседний раздел «Layout — layered» это описывает верно, то есть документ противоречит сам себе</td>
+        <td class="mono">admin/AGENTS.md, "Conventions"</td>
+        <td>The layout is described as <code>components/ pages/ api/ router/ utils/</code> under <code>src/lib</code></td>
+        <td>The package has already moved to layers: <code>domain / application / infrastructure / presentation</code>, with the components and pages inside <code>presentation/</code>. The neighbouring "Layout — layered" section describes it correctly, so the document contradicts itself</td>
       </tr>
     </tbody>
   </table>
@@ -1120,8 +1119,8 @@ html{scroll-behavior:smooth}
 </section>
 
 <footer class="end">
-  <p><b>Пилотный артефакт.</b> Сделан по группе <code>packages/identity</code> как образец структуры: бизнес-описание → состав → права → данные → жизненный цикл → сценарии → API → админка → конфигурация → безопасность → инварианты → чек-лист → границы → расхождения. Остальные плагины описываются по этому же каркасу; разделы, которых у плагина нет (например, SSO или таблицы БД), просто выпадают.</p>
-  <p>Источник — исходный код на ветке <code>claude/plugin-artifacts-descriptions-pgiou1</code>: контроллеры, DTO, guard&#39;ы, use-case&#39;ы, схема Drizzle, хуки и страницы админки. Файлы <code>AGENTS.md</code> использованы как каркас, но каждое утверждение сверено с реализацией — расхождения вынесены в раздел 14.</p>
+  <p><b>The pilot artifact.</b> Written from the <code>packages/identity</code> group as a model for the structure: business description → composition → permissions → data → lifecycle → flows → API → admin UI → configuration → security → invariants → checklist → boundaries → discrepancies. The other plugins are described in the same frame; sections a plugin does not have (SSO or database tables, say) simply drop out.</p>
+  <p>The source is the source code on the <code>claude/plugin-artifacts-descriptions-pgiou1</code> branch: controllers, DTOs, guards, use cases, the Drizzle schema, and the admin UI's hooks and pages. The <code>AGENTS.md</code> files were used as a skeleton, but every claim was checked against the implementation — discrepancies went into section 14.</p>
 </footer>
 
 </main>

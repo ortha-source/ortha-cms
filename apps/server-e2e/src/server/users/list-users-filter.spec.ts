@@ -150,6 +150,68 @@ describe('GET /api/users (query-builder filter)', () => {
         expect(res.body.items[0].email).toBe('active-viewer@example.com');
     });
 
+    it('AND-composes the filter with the existing search param', async () => {
+        // `status` is covered above; `search` is the other structured param
+        // and it composes differently — it is an ILIKE over two columns rather
+        // than an equality. Both members below satisfy the filter on their
+        // own, so a `search` the filter replaced (rather than intersected)
+        // would return two.
+        await seedUser(harness.app, {
+            email: 'grace@example.com',
+            role: 'viewer',
+            status: 'active',
+            name: 'Grace Hopper'
+        });
+        await seedUser(harness.app, {
+            email: 'linus@example.com',
+            role: 'viewer',
+            status: 'active',
+            name: 'Linus Torvalds'
+        });
+        const agent = await adminAgent();
+
+        const res = await agent
+            .get('/api/users')
+            .query({
+                search: 'hopper',
+                filter: JSON.stringify({
+                    field: 'role.key',
+                    op: 'eq',
+                    value: 'viewer'
+                })
+            })
+            .expect(200);
+
+        expect(res.body.total).toBe(1);
+        expect(res.body.items[0].email).toBe('grace@example.com');
+    });
+
+    it('rejects a filter past the DTO length cap with 400', async () => {
+        const agent = await adminAgent();
+        // The same tree twice, so only its length differs: the short one is a
+        // 200, which is what makes the long one's 400 a statement about
+        // `@MaxLength(4096)` rather than about the tree being malformed.
+        // Kept just over the cap — a query string past Node's ~16KB header
+        // limit resets the socket before any handler runs, the same caveat the
+        // oversized-`in` case notes.
+        await getFiltered(agent, {
+            field: 'email',
+            op: 'eq',
+            value: 'nobody@example.com'
+        }).expect(200);
+
+        const res = await getFiltered(agent, {
+            field: 'email',
+            op: 'eq',
+            value: 'x'.repeat(4100)
+        }).expect(400);
+
+        // The DTO refused it before the filter engine saw it: every rejection
+        // from the engine carries a `FILTER_*` code, and this one carries no
+        // code at all.
+        expect(res.body.code).toBeUndefined();
+    });
+
     it('rejects an unknown field with 400 (whitelist)', async () => {
         const agent = await adminAgent();
         await getFiltered(agent, {

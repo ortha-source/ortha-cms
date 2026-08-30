@@ -2,8 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * Common base for all page objects: holds the Playwright `page` and the shared
- * query-builder **filter drawer** helpers (`@orthacms/query-builder-admin`),
- * since the drawer is the same component wherever a list page mounts it.
+ * query-builder filter helpers (`@orthacms/query-builder-admin`), since the
+ * builder is the same component wherever a list page mounts it. Each page
+ * points {@link BasePage.filterSurface} at the surface it mounts — every list
+ * page now uses the inline panel — and the helpers below work unchanged.
  */
 export abstract class BasePage {
     constructor(protected readonly page: Page) {}
@@ -72,18 +74,27 @@ export abstract class BasePage {
         return this.page.getByRole('button', { name: /^Filters/ });
     }
 
-    /** The query-builder drawer surface (a modal dialog titled "Query Builder"). */
+    /**
+     * The `QueryBuilderDrawer` surface (a modal dialog titled "Query Builder").
+     *
+     * **No page in this repo mounts it** — Members was the last consumer and
+     * has migrated to the inline panel. Kept for a consumer that mounts the
+     * still-published drawer; it is not the default surface, because a default
+     * nothing renders would fail a page that forgot to override with a locator
+     * timeout instead of a useful message.
+     */
     filterDrawer(): Locator {
         return this.page.getByRole('dialog', { name: 'Query Builder' });
     }
 
     /**
-     * The surface hosting the query builder. The **drawer** (a dialog) by
-     * default; a page that mounts the builder as an **inline panel** overrides
-     * this to return that region, so the shared helpers below work for both.
+     * The surface hosting the query builder: the inline **panel** (a `region`
+     * labelled by the "Filters" toggle), which is what every list page mounts.
+     * A page whose region is named something else — the alarms rule editor —
+     * overrides this, and the shared helpers below then work unchanged.
      */
     filterSurface(): Locator {
-        return this.filterDrawer();
+        return this.page.getByRole('region', { name: /Filters/ });
     }
 
     /** Open the filter surface (drawer or inline panel). */
@@ -227,5 +238,35 @@ export abstract class BasePage {
         await this.filterSurface()
             .getByRole('button', { name: 'Reset' })
             .click();
+    }
+
+    /**
+     * Collapse the inline filter panel. The panel stays open after Apply (so
+     * further edits don't need a re-open), and the applied-conditions summary
+     * only renders while it's collapsed — so a summary assertion has to close
+     * it first.
+     */
+    async closeFilters() {
+        await this.filterTrigger().click();
+        await expect(this.filterTrigger()).toHaveAttribute(
+            'aria-expanded',
+            'false'
+        );
+    }
+
+    /**
+     * Remove one applied condition from the summary. `label` is the chip's
+     * "<path> <operator>" text — the remove button's accessible name is
+     * "Remove condition <path> <operator>".
+     */
+    async removeFilterChip(label: string) {
+        await this.page
+            .getByRole('button', { name: `Remove condition ${label}` })
+            .click();
+    }
+
+    /** Drop every applied condition from the summary in one action. */
+    async clearAllFilters() {
+        await this.page.getByRole('button', { name: 'Clear all' }).click();
     }
 }

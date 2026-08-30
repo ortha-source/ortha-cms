@@ -65,6 +65,77 @@ export class MembersPage extends BasePage {
         return this.page.getByText(label, { exact: true });
     }
 
+    /** A primary-nav entry by label — rendered only for the permission it declares. */
+    navItem(label: string): Locator {
+        return this.nav.getByRole('link', { name: label });
+    }
+
+    /**
+     * The list's retryable failure — an alert in place of the table, not an
+     * empty table. `role="alert"` is unique on this page (the toolbar and
+     * pagination carry none), so the bare role is a safe anchor.
+     */
+    errorAlert(): Locator {
+        return this.page.getByRole('alert');
+    }
+
+    /** The error alert's own Retry, which refetches without a reload. */
+    retryButton(): Locator {
+        return this.errorAlert().getByRole('button', { name: 'Retry' });
+    }
+
+    /**
+     * The result area's empty state. Both empties render through it — the
+     * search miss and the genuinely empty roster — so scoping here is what
+     * separates its "Invite member" button from the header's, which carries the
+     * identical accessible name and would otherwise be a second match.
+     */
+    emptyState(): Locator {
+        return this.page.locator('[data-slot="empty"]');
+    }
+
+    /** The empty roster's call to action (absent without `users:create`). */
+    emptyInviteButton(): Locator {
+        return this.emptyState().getByRole('button', {
+            name: 'Invite member'
+        });
+    }
+
+    /** The search miss's way back to the full roster. */
+    clearSearchButton(): Locator {
+        return this.emptyState().getByRole('button', { name: 'Clear search' });
+    }
+
+    /**
+     * The polite live region that restates how many members matched. A `<p>`,
+     * unlike the loading skeleton's `role="status"` `<div>`, and matched on the
+     * sentence it always ends with so a live region elsewhere in the shell (the
+     * copilot dock composer's) can never be picked up instead.
+     */
+    resultsStatus(): Locator {
+        return this.page
+            .locator('p[role="status"]')
+            .filter({ hasText: /members? found\./ });
+    }
+
+    /**
+     * The tooltip a guarded row action opens. Radix draws the bubble and, for
+     * assistive tech, a `role="tooltip"` copy of the same text — so this handle
+     * is the one that proves the reason reached both.
+     */
+    actionTooltip(): Locator {
+        return this.page.getByRole('tooltip');
+    }
+
+    /**
+     * A sonner toast by its text. The shell keeps one live region for the whole
+     * app, so a row action's failure notice lands here rather than anywhere near
+     * the row it came from.
+     */
+    toast(text: string | RegExp): Locator {
+        return this.page.getByText(text);
+    }
+
     /** The kebab actions trigger in a member's row. */
     actionsTrigger(name: string): Locator {
         return this.page.getByRole('button', { name: `Actions for ${name}` });
@@ -213,6 +284,15 @@ export class MembersPage extends BasePage {
     /** The "{from}–{to} of {total}" readout in the pagination bar. */
     paginationRange(): Locator {
         return this.page.getByText(/^\d+.\d+ of \d+$/);
+    }
+
+    /**
+     * The "Page {n} of {count}" readout between the prev/next controls, shown
+     * only once there is more than one page. The clamp's visible effect, so it
+     * is what a resilience test reads rather than the row range.
+     */
+    pageReadout(): Locator {
+        return this.page.getByText(/^Page \d+ of \d+$/);
     }
 
     /** Pick a rows-per-page value from the page-size select. */

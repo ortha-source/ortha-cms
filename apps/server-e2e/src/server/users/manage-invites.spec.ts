@@ -4,13 +4,16 @@ import {
     createTestApp,
     type TestApp
 } from '../../support/test-app';
+import { drainOutbox } from '../../support/outbox';
 import {
     ageInviteTokens,
+    getActivityRows,
     getInviteTokenHashes,
     getUserByEmail,
+    getWorkspaceIdsForUser,
     resetDb,
     seedActiveUser,
-    seedUser
+    seedWorkspace
 } from '../../support/seed';
 
 const ADMIN_EMAIL = 'invites-admin@example.com';
@@ -105,6 +108,23 @@ describe('manage pending invites', () => {
             const agent = await login('contributor@example.com');
             await agent.post(`/api/users/${id}/invites/resend`).expect(403);
         });
+
+        it('returns 400 for a non-uuid id', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent
+                .post('/api/users/not-a-uuid/invites/resend')
+                .expect(400);
+        });
+
+        it('rejects an unauthenticated request with 401', async () => {
+            // Rotating a token destroys the live link, so this is a
+            // state-changing route and must never be reachable anonymously —
+            // knowing an id would otherwise be enough to kill an invite.
+            const id = await invite('pending@example.com');
+            await request(harness.server)
+                .post(`/api/users/${id}/invites/resend`)
+                .expect(401);
+        });
     });
 
     describe('DELETE /api/users/:id/invites', () => {
@@ -148,6 +168,82 @@ describe('manage pending invites', () => {
             const agent = await login('contributor@example.com');
             await agent.delete(`/api/users/${id}/invites`).expect(403);
         });
+
+        it('forbids a viewer (lacks users:delete) with 403', async () => {
+            const id = await invite('pending@example.com');
+            await seedActiveUser(harness.app, {
+                email: 'viewer@example.com',
+                password: PASSWORD,
+                role: 'viewer'
+            });
+            const agent = await login('viewer@example.com');
+            await agent.delete(`/api/users/${id}/invites`).expect(403);
+        });
+
+        it('returns 400 for a non-uuid id', async () => {
+            const agent = await login(ADMIN_EMAIL);
+            await agent.delete('/api/users/not-a-uuid/invites').expect(400);
+        });
+
+        it('rejects an unauthenticated request with 401', async () => {
+            // This route deletes a row. An anonymous caller must not get as
+            // far as the id being valid or not.
+            const id = await invite('pending@example.com');
+            await request(harness.server)
+                .delete(`/api/users/${id}/invites`)
+                .expect(401);
+        });
+
+        it('drops the invite token and any pre-issued memberships', async () => {
+            const ws = await seedWorkspace({
+                name: 'Support',
+                slug: 'support'
+            });
+            const agent = await login(ADMIN_EMAIL);
+            const res = await agent
+                .post('/api/users/invites')
+                .send({
+                    email: 'cascade@example.com',
+                    role: 'viewer',
+                    workspaceIds: [ws.id]
+                })
+                .expect(201);
+            const id = res.body.id as string;
+            expect(await getInviteTokenHashes(id)).toHaveLength(1);
+            expect(await getWorkspaceIdsForUser(id)).toEqual([ws.id]);
+
+            await agent.delete(`/api/users/${id}/invites`).expect(204);
+
+            // The placeholder row is what both of these hang off. A revoke
+            // that left either behind would leave a live activation link, and
+            // workspace access waiting for whoever redeems it.
+            expect(await getInviteTokenHashes(id)).toEqual([]);
+            expect(await getWorkspaceIdsForUser(id)).toEqual([]);
+        });
+
+        it('leaves an audit row that outlives the account it names', async () => {
+            const id = await invite('revoked@example.com');
+            const agent = await login(ADMIN_EMAIL);
+            await agent.delete(`/api/users/${id}/invites`).expect(204);
+            await drainOutbox(harness.app);
+
+            expect(await getUserByEmail('revoked@example.com')).toBeNull();
+
+            const row = (await getActivityRows()).find(
+                (each) => each.kind === 'user.invite_revoked'
+            );
+            // The one audit row whose subject is deleted underneath it.
+            // `subject_id` is text with no FK, so the row survives — but on
+            // its own it is a uuid that resolves to nothing. The email
+            // snapshot in `meta` is the only reason the line still says who
+            // the revoked invite was for.
+            expect(row).toMatchObject({
+                subjectType: 'user',
+                subjectId: id,
+                actorEmail: ADMIN_EMAIL,
+                meta: { email: 'revoked@example.com' }
+            });
+        });
     });
 
     describe('resend cooldown (INVITE_RECENTLY_SENT)', () => {
@@ -166,6 +262,12 @@ describe('manage pending invites', () => {
 
             expect(res.body.code).toBe('INVITE_RECENTLY_SENT');
             expect(res.body.retryAfterSeconds).toBeGreaterThan(0);
+            // Bounded by the window itself, not merely positive. A client
+            // renders this as a countdown, so a value above the cooldown
+            // would tell the admin to wait longer than the server will
+            // actually refuse them — and one derived from the wrong clock
+            // would sail past a `> 0` assertion unnoticed.
+            expect(res.body.retryAfterSeconds).toBeLessThanOrEqual(60);
             // The crucial part: the link the admin already holds still works.
             expect(await getInviteTokenHashes(id)).toEqual(before);
         });

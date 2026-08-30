@@ -528,6 +528,23 @@ export async function getUserByEmail(email: string): Promise<UserRow | null> {
     return row ?? null;
 }
 
+/**
+ * A user's `updated_at`, or `null` when no such user exists.
+ *
+ * The column is `$onUpdate`-stamped, so it is the only outward difference
+ * between a request that merely re-read the row and one that rewrote it. A
+ * patch asking for the value a member already holds answers `200` either way,
+ * and the response body is identical — the timestamp is what says whether an
+ * UPDATE actually ran.
+ */
+export async function getUserUpdatedAt(userId: string): Promise<Date | null> {
+    const [row] = await getDatabase()
+        .select({ updatedAt: users.updatedAt })
+        .from(users)
+        .where(eq(users.id, userId));
+    return row?.updatedAt ?? null;
+}
+
 /** Count user rows — used to assert the bootstrap inserts exactly one. */
 export async function countUsers(): Promise<number> {
     const rows = await getDatabase().select({ id: users.id }).from(users);

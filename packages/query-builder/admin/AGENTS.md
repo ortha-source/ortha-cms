@@ -10,7 +10,7 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 ## Package
 
 - Name: `@orthacms/query-builder-admin`
-- Import: `import { QueryBuilder, QueryBuilderDrawer, type FilterField } from '@orthacms/query-builder-admin'`
+- Import: `import { QueryBuilder, QueryBuilderPanel, type FilterField } from '@orthacms/query-builder-admin'`
 - Pure UI library — depends only on `@orthacms/design-system`,
   `lucide-react`, `react-intl` (+ React peers). No router / data layer.
 
@@ -30,15 +30,21 @@ end-to-end. Each group owns an AND/OR toggle and an Add group action.
 - `QueryBuilder` — headless controlled component over a `FilterTree`
 - `QueryBuilderDrawer` — drawer wrapper owning open state, a staged
   draft, JSON preview, and the Apply/Reset footer; consumer passes a
-  `trigger` (used by the members / activity list pages)
-- `QueryBuilderPanel` — the **inline** alternative to the drawer: a
-  full-width accordion the consumer mounts between a toolbar and a table.
-  The consumer owns the toggle button + `open` state; the panel owns the
-  staged draft, JSON preview, and Apply/Reset footer, collapses on Apply /
-  Esc, animates its height (`grid-template-rows 0fr → 1fr`, ~150ms,
-  reduced-motion-aware), caps the rules list and scrolls it internally, and
-  is a `role="region"` labelled by the toggle (used by the **content records**
-  page). No portal container is needed — an inline panel isn't scroll-locked.
+  `trigger`. **No consumer in this repo** — every list page mounts the panel
+  instead. Kept because it is published API, but nothing exercises it: an
+  in-repo change to it is unverified by the e2e suite.
+- `QueryBuilderPanel` — the **inline** surface every list page mounts, and the
+  alternative to the drawer: a full-width accordion the consumer mounts between
+  a toolbar and a table. The consumer owns the toggle button + `open` state; the
+  panel owns the staged draft, JSON preview, and Apply/Reset footer. **Apply
+  does not collapse it** — the URL and table update while the builder stays up
+  for further edits; the toggle and Esc are what close it (Esc hands focus back
+  to the toggle named by `labelledBy`). It animates its height
+  (`grid-template-rows 0fr → 1fr`, ~150ms, reduced-motion-aware), caps the rules
+  list and scrolls it internally, and is a `role="region"` labelled by the
+  toggle (used by **members**, the **activity log**, the **content records**
+  page, and the alarms rule editor). No portal container is needed — an inline
+  panel isn't scroll-locked.
   Takes `fieldsPending` / `fieldsError` / `onRetryFields` for a consumer whose
   `fields` are **fetched**: it renders a loading or error state in place of the
   builder and disables Apply. Required, not optional polish — the Apply gate
