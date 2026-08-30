@@ -55,16 +55,23 @@ const WorkspaceSettingsPage = lazy(() =>
 export type WorkspacesAdminPlugin = AdminPlugin;
 
 /**
- * Creates the admin-side workspaces plugin. It owns two things:
+ * Creates the admin-side workspaces plugin. It owns two areas and fills six
+ * slots.
  *
  * 1. **The workspaces management area** — the private `/workspaces` list and
- *    `/workspaces/new` create wizard, plus the `Layers` toolbar nav entry
- *    contributed to the shell's {@link NAVBAR_START_SLOT} at `order: 20`.
+ *    `/workspaces/new` create wizard, plus the `Layers` entry contributed to
+ *    {@link SIDEBAR_NAV_SLOT} at `order: 10`.
  * 2. **The workspace shell** — the `/workspaces/:id/*` layout (left rail +
- *    switcher) that opens when a workspace card is clicked. The plugin owns the
- *    rail slots; feature plugins (Content/Media/Insights) contribute their rail
- *    buttons + routes there. Workspaces itself contributes the last-section
- *    **Settings** entry + its `/workspaces/:id/settings` page.
+ *    switcher) that opens when a workspace row is clicked. The plugin owns the
+ *    rail slots ({@link WORKSPACE_NAV_SLOT}, {@link WORKSPACE_ROUTE_SLOT});
+ *    feature plugins (Content/Media/Insights) contribute their rail buttons +
+ *    routes there. Workspaces itself contributes the last-section **Settings**
+ *    entry + its `/workspaces/:id/settings` page.
+ *
+ * It also reaches two surfaces outside those areas: the workspace quick-list
+ * and switcher in {@link SIDEBAR_SECTION_SLOT}, and the command palette's
+ * workspace results in {@link COMMAND_SLOT}, plus the home tiles and panel in
+ * {@link HOME_SECTION_SLOT}.
  *
  * @example
  * ```typescript
