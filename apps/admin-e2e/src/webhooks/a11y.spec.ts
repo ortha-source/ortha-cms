@@ -53,25 +53,21 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('the editor dialog', async ({ page, webhooksPage, makeAxe }) => {
+    test('the editor page', async ({ page, webhooksPage, makeAxe }) => {
         await mockWebhooksApi(page);
-        await webhooksPage.goto();
-        await webhooksPage.table.waitFor();
-        await webhooksPage.newWebhookButton.click();
-        await webhooksPage.dialog().waitFor();
+        await webhooksPage.gotoNew();
+        await webhooksPage.editorHeading('New webhook').waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 
-    test('the editor dialog, every picker revealed', async ({
+    test('the editor page, every picker revealed', async ({
         page,
         webhooksPage,
         makeAxe
     }) => {
         await mockWebhooksApi(page);
-        await webhooksPage.goto();
-        await webhooksPage.table.waitFor();
-        await webhooksPage.newWebhookButton.click();
-        await webhooksPage.dialog().waitFor();
+        await webhooksPage.gotoNew();
+        await webhooksPage.editorHeading('New webhook').waitFor();
         // Each picker exists only while its "All …" toggle is off, so the
         // default scan above never sees two of the three controls — including
         // the free-entry field and its button. The type controls need a
@@ -85,9 +81,8 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
 
     test('the reveal-once dialog', async ({ page, webhooksPage, makeAxe }) => {
         await mockWebhooksApi(page);
-        await webhooksPage.goto();
-        await webhooksPage.table.waitFor();
-        await webhooksPage.newWebhookButton.click();
+        await webhooksPage.gotoNew();
+        await webhooksPage.editorHeading('New webhook').waitFor();
         await webhooksPage.nameField().fill('Cache purge');
         await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
         await webhooksPage.allWorkspacesToggle().click();

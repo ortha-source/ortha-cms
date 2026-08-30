@@ -77,38 +77,61 @@ export class WebhooksPage extends BasePage {
         });
     }
 
-    // --- the editor dialog -------------------------------------------------
+    // --- the editor page ---------------------------------------------------
 
-    /** The create/edit dialog. */
+    /**
+     * The editor is a **page**, not a dialog (`/webhooks/new`,
+     * `/webhooks/:id/edit`), so its controls are scoped to the page rather than
+     * to a modal. `dialog()` below is the reveal-once secret and the delivery
+     * sheet, which are still modals.
+     */
+    editorHeading(name: 'New webhook' | 'Edit webhook'): Locator {
+        return this.page.getByRole('heading', { name, level: 1 });
+    }
+
+    /** Opens the create form directly. */
+    async gotoNew() {
+        await this.page.goto('/webhooks/new');
+    }
+
+    /** Opens one endpoint's edit form directly. */
+    async gotoEdit(id: string) {
+        await this.page.goto(`/webhooks/${id}/edit`);
+    }
+
+    /** A refusal the server wrote, shown in the form rather than as a toast. */
+    formError(text: string | RegExp): Locator {
+        return this.page.getByRole('alert').filter({ hasText: text });
+    }
+
+    /** The reveal-once secret dialog and the delivery sheet. */
     dialog(): Locator {
         return this.page.getByRole('dialog');
     }
 
-    /** The dialog's name field. */
+    /** The editor's name field. */
     nameField(): Locator {
-        return this.dialog().getByLabel('Name');
+        return this.page.getByLabel('Name');
     }
 
-    /** The dialog's URL field. */
+    /** The editor's URL field. */
     urlField(): Locator {
-        return this.dialog().getByLabel('URL');
+        return this.page.getByLabel('URL');
     }
 
     /** The "All workspaces" toggle — the difference between "all" and "none". */
     allWorkspacesToggle(): Locator {
-        return this.dialog().getByRole('checkbox', {
-            name: /All workspaces/
-        });
+        return this.page.getByRole('checkbox', { name: /All workspaces/ });
     }
 
     /** The "Every event" toggle. */
     allEventsToggle(): Locator {
-        return this.dialog().getByRole('checkbox', { name: /Every event/ });
+        return this.page.getByRole('checkbox', { name: /Every event/ });
     }
 
     /** The workspace picker, which only exists once "All workspaces" is off. */
     workspacesPicker(): Locator {
-        return this.dialog().getByRole('combobox', { name: 'Workspaces' });
+        return this.page.getByRole('combobox', { name: 'Workspaces' });
     }
 
     /** Chooses one workspace by name and closes the popover. */
@@ -123,24 +146,24 @@ export class WebhooksPage extends BasePage {
      * chosen — which types exist is a question about the workspaces.
      */
     contentTypesGateHint(): Locator {
-        return this.dialog().getByText(/Choose a workspace first/);
+        return this.page.getByText(/Choose a workspace first/);
     }
 
     /** The line shown when the chosen workspaces were granted no types. */
     noGrantsHint(): Locator {
-        return this.dialog().getByText(/granted no content types/);
+        return this.page.getByText(/granted no content types/);
     }
 
     /** The "Every content type" toggle. */
     allContentTypesToggle(): Locator {
-        return this.dialog().getByRole('checkbox', {
+        return this.page.getByRole('checkbox', {
             name: /Every content type/
         });
     }
 
     /** The content-type picker, which only exists once that toggle is off. */
     contentTypesPicker(): Locator {
-        return this.dialog().getByRole('combobox', { name: 'Content types' });
+        return this.page.getByRole('combobox', { name: 'Content types' });
     }
 
     /**
@@ -164,12 +187,12 @@ export class WebhooksPage extends BasePage {
 
     /** A selected filter value, as the picker's trigger shows it. */
     pickedValue(label: string): Locator {
-        return this.dialog().getByText(label, { exact: true });
+        return this.page.getByText(label, { exact: true });
     }
 
-    /** The dialog's submit button. */
+    /** The editor's submit button when creating. */
     submitButton(): Locator {
-        return this.dialog().getByRole('button', { name: 'Create webhook' });
+        return this.page.getByRole('button', { name: 'Create webhook' });
     }
 
     // --- the one-time secret ------------------------------------------------
@@ -198,7 +221,7 @@ export class WebhooksPage extends BasePage {
 
     /** The editor's submit button when editing rather than creating. */
     saveButton(): Locator {
-        return this.dialog().getByRole('button', { name: 'Save' });
+        return this.page.getByRole('button', { name: 'Save', exact: true });
     }
 
     /** The Settings tab trigger. */
@@ -241,9 +264,9 @@ export class WebhooksPage extends BasePage {
     /** Opens the event picker, which only exists once "Every event" is off. */
     async openEventPicker() {
         await this.allEventsToggle().click();
-        // By name, not by position: the dialog holds three pickers now, and
-        // which one is last depends on which "All …" toggles are off.
-        await this.dialog().getByRole('combobox', { name: 'Events' }).click();
+        // By name, not by position: the form holds three pickers, and which one
+        // is last depends on which "All …" toggles are off.
+        await this.page.getByRole('combobox', { name: 'Events' }).click();
     }
 
     /**

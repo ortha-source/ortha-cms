@@ -8,11 +8,21 @@ presentation`, with a gateway port over `apiClient`.
 
 ## What it is
 
-Two routes in the sidebar's `directory` group, beside API tokens:
+Four routes under one sidebar entry in the `directory` group, beside API tokens:
 
-- `/webhooks` — the endpoint list, the create dialog, the one-time secret reveal.
+- `/webhooks` — the endpoint list.
+- `/webhooks/new` and `/webhooks/:id/edit` — the editor, one component in two
+  modes (`WebhookEditorPage`), as in the alarms rule editor.
 - `/webhooks/:id` — one endpoint, in two tabs: **Deliveries** (the default) and
   **Settings**.
+
+**The editor is a page, not a dialog.** It asks eight questions across three
+filters, two of which open their own popovers; in a modal that meant a scrolling
+box with popovers portalled into it to survive the scroll lock. On a page the
+two halves — where deliveries go, and what is worth sending — sit side by side,
+the popovers need no `container` escape hatch, and the browser's back button is
+the way out. Creating still ends on the one-time secret: the reveal opens on the
+editor, and only when it is dismissed does the page move to the new endpoint.
 
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.

@@ -20,17 +20,11 @@ import {
     toast
 } from '@orthacms/design-system';
 import { useWebhookEndpoint } from '../../../application/useWebhookEndpoints';
-import { useWebhookEvents } from '../../../application/useWebhookEvents';
-import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
-import { useContentTypeOptions } from '../../../application/useContentTypeOptions';
 import {
     useDeleteWebhook,
     useRotateWebhookSecret,
-    useTestWebhook,
-    useUpdateWebhook
+    useTestWebhook
 } from '../../../application/useWebhookMutations';
-import { serverMessageOf } from '../../../infrastructure/serverMessageOf';
-import { WebhookFormDialog } from '../../components/WebhookFormDialog';
 import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 import { WebhookDeliveriesPanel } from '../../components/WebhookDeliveriesPanel';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
@@ -87,11 +81,6 @@ const messages = defineMessages({
         defaultMessage: 'That webhook no longer exists.'
     },
     back: { id: 'webhooks.detail.back', defaultMessage: 'Back to webhooks' },
-    saved: { id: 'webhooks.detail.saved', defaultMessage: 'Webhook updated' },
-    saveFailed: {
-        id: 'webhooks.detail.saveFailed',
-        defaultMessage: 'Couldn’t save the webhook. Please try again.'
-    },
     deleted: {
         id: 'webhooks.detail.deleted',
         defaultMessage: 'Webhook deleted'
@@ -161,8 +150,6 @@ export function WebhookDetailPage() {
     const canRead = useHasPermission('webhooks:read');
     const canManage = useHasPermission('webhooks:manage');
 
-    const [editOpen, setEditOpen] = useState(false);
-    const [formError, setFormError] = useState<string | null>(null);
     const [secret, setSecret] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -171,11 +158,6 @@ export function WebhookDetailPage() {
         isPending,
         isError
     } = useWebhookEndpoint(id, canRead && id.length > 0);
-    const { data: events } = useWebhookEvents(canManage && editOpen);
-    const { data: workspaces } = useWorkspaceOptions(canManage && editOpen);
-    const { data: contentTypes } = useContentTypeOptions(canManage && editOpen);
-
-    const update = useUpdateWebhook();
     const remove = useDeleteWebhook();
     const rotate = useRotateWebhookSecret();
     const test = useTestWebhook();
@@ -276,7 +258,11 @@ export function WebhookDetailPage() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setEditOpen(true)}
+                                    onClick={() =>
+                                        navigate(
+                                            `/webhooks/${endpoint.id}/edit`
+                                        )
+                                    }
                                 >
                                     <Pencil aria-hidden />
                                     {intl.formatMessage(messages.edit)}
@@ -388,43 +374,6 @@ export function WebhookDetailPage() {
                     </TabsContent>
                 </Tabs>
             </Container>
-
-            <WebhookFormDialog
-                open={editOpen}
-                onOpenChange={(next) => {
-                    setEditOpen(next);
-                    if (!next) setFormError(null);
-                }}
-                endpoint={endpoint}
-                events={events ?? []}
-                workspaces={workspaces ?? []}
-                contentTypes={contentTypes ?? []}
-                pending={update.isPending}
-                error={formError}
-                onSubmit={(input) => {
-                    setFormError(null);
-                    update.mutate(
-                        { id: endpoint.id, input },
-                        {
-                            onSuccess: () => {
-                                setEditOpen(false);
-                                toast.success(
-                                    intl.formatMessage(messages.saved)
-                                );
-                            },
-                            onError: (error) => {
-                                // The server's own message when it wrote one —
-                                // a refused URL says why, and that belongs in
-                                // the form rather than behind a generic toast.
-                                setFormError(
-                                    serverMessageOf(error) ??
-                                        intl.formatMessage(messages.saveFailed)
-                                );
-                            }
-                        }
-                    );
-                }}
-            />
 
             <RevealWebhookSecretDialog
                 secret={secret}

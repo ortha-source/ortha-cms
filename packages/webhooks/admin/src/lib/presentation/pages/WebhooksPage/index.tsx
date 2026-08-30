@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Webhook } from 'lucide-react';
 import { PageTopBar } from '@orthacms/shell-admin';
 import { useHasPermission } from '@orthacms/identity-admin';
@@ -9,21 +9,13 @@ import {
     AlertDescription,
     Button,
     Container,
-    ContainerHeader,
-    toast
+    ContainerHeader
 } from '@orthacms/design-system';
 import { useWebhookEndpoints } from '../../../application/useWebhookEndpoints';
-import { useWebhookEvents } from '../../../application/useWebhookEvents';
-import { useWorkspaceOptions } from '../../../application/useWorkspaceOptions';
-import { useContentTypeOptions } from '../../../application/useContentTypeOptions';
-import { useCreateWebhook } from '../../../application/useWebhookMutations';
 import { WebhooksTable } from '../../components/WebhooksTable';
 import { WebhooksEmpty } from '../../components/WebhooksEmpty';
 import { WebhooksNoAccess } from '../../components/WebhooksNoAccess';
 import { WebhooksSkeleton } from '../../components/WebhooksSkeleton';
-import { serverMessageOf } from '../../../infrastructure/serverMessageOf';
-import { WebhookFormDialog } from '../../components/WebhookFormDialog';
-import { RevealWebhookSecretDialog } from '../../components/RevealWebhookSecretDialog';
 
 const messages = defineMessages({
     title: { id: 'webhooks.page.title', defaultMessage: 'Webhooks' },
@@ -37,14 +29,6 @@ const messages = defineMessages({
         defaultMessage: 'Couldn’t load webhooks. Please try again.'
     },
     retry: { id: 'webhooks.page.retry', defaultMessage: 'Retry' },
-    created: {
-        id: 'webhooks.page.created',
-        defaultMessage: 'Webhook created'
-    },
-    createFailed: {
-        id: 'webhooks.page.createFailed',
-        defaultMessage: 'Couldn’t create the webhook. Please try again.'
-    },
     count: {
         id: 'webhooks.page.count',
         defaultMessage: '{count, plural, one {# webhook} other {# webhooks}}'
@@ -67,19 +51,8 @@ export function WebhooksPage() {
     const canRead = useHasPermission('webhooks:read');
     const canManage = useHasPermission('webhooks:manage');
 
-    const [createOpen, setCreateOpen] = useState(false);
-    const [secret, setSecret] = useState<string | null>(null);
-    const [formError, setFormError] = useState<string | null>(null);
-
+    const navigate = useNavigate();
     const { data, isPending, isError, refetch } = useWebhookEndpoints(canRead);
-    // All three pickers are only needed once the dialog is open, so none of
-    // them fetches before then.
-    const { data: events } = useWebhookEvents(canManage && createOpen);
-    const { data: workspaces } = useWorkspaceOptions(canManage && createOpen);
-    const { data: contentTypes } = useContentTypeOptions(
-        canManage && createOpen
-    );
-    const create = useCreateWebhook();
 
     if (!canRead) {
         return (
@@ -123,7 +96,7 @@ export function WebhooksPage() {
                     subtitle={intl.formatMessage(messages.subtitle)}
                     actions={
                         canManage && (data?.length ?? 0) > 0 ? (
-                            <Button onClick={() => setCreateOpen(true)}>
+                            <Button onClick={() => navigate('/webhooks/new')}>
                                 <Plus />
                                 {intl.formatMessage(messages.create)}
                             </Button>
@@ -154,7 +127,9 @@ export function WebhooksPage() {
                 {data && data.length === 0 ? (
                     <WebhooksEmpty
                         onCreate={
-                            canManage ? () => setCreateOpen(true) : undefined
+                            canManage
+                                ? () => navigate('/webhooks/new')
+                                : undefined
                         }
                     />
                 ) : null}
@@ -170,49 +145,6 @@ export function WebhooksPage() {
                     </>
                 ) : null}
             </Container>
-
-            <WebhookFormDialog
-                open={createOpen}
-                onOpenChange={(next) => {
-                    setCreateOpen(next);
-                    if (!next) setFormError(null);
-                }}
-                events={events ?? []}
-                workspaces={workspaces ?? []}
-                contentTypes={contentTypes ?? []}
-                pending={create.isPending}
-                error={formError}
-                onSubmit={(input) => {
-                    setFormError(null);
-                    create.mutate(input, {
-                        onSuccess: ({ secret: minted }) => {
-                            setCreateOpen(false);
-                            // The secret exists nowhere else from this moment
-                            // on, so the reveal opens as the dialog closes.
-                            setSecret(minted);
-                            toast.success(intl.formatMessage(messages.created));
-                        },
-                        onError: (error) => {
-                            // A refused URL comes back with a message written
-                            // for whoever typed it; show that rather than a
-                            // generic failure, and keep the dialog open so it
-                            // can be corrected in place.
-                            setFormError(
-                                serverMessageOf(error) ??
-                                    intl.formatMessage(messages.createFailed)
-                            );
-                        }
-                    });
-                }}
-            />
-
-            <RevealWebhookSecretDialog
-                secret={secret}
-                open={secret !== null}
-                onOpenChange={(next) => {
-                    if (!next) setSecret(null);
-                }}
-            />
         </>
     );
 }

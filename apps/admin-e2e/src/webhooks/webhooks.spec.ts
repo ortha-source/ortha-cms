@@ -239,7 +239,7 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.secretField()).toBeVisible();
         });
 
-        test('shows a refused URL in the form and keeps it open', async ({
+        test('shows a refused URL in the form and stays on it', async ({
             page,
             webhooksPage
         }) => {
@@ -256,11 +256,13 @@ test.describe('Webhooks', () => {
             await webhooksPage.submitButton().click();
 
             // The server writes that message for whoever typed the URL, so it
-            // belongs in the dialog — and the dialog stays open to be fixed.
-            await expect(
-                webhooksPage.dialog().getByText(refusal)
-            ).toBeVisible();
-            await expect(webhooksPage.dialog()).toBeVisible();
+            // belongs in the form — and the form stays put, with what was
+            // typed intact, so the URL is corrected in place.
+            await expect(webhooksPage.formError(refusal)).toBeVisible();
+            await expect(page).toHaveURL(/\/webhooks\/new$/);
+            await expect(webhooksPage.urlField()).toHaveValue(
+                'https://127.0.0.1/hooks'
+            );
         });
 
         test('does not offer ping as something to subscribe to', async ({
@@ -290,7 +292,7 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             await webhooksPage.newWebhookButton.click();
-            await webhooksPage.dialog().waitFor();
+            await webhooksPage.editorHeading('New webhook').waitFor();
 
             // Which types exist is a question about the workspaces, so it
             // cannot be answered before they are picked.
@@ -486,7 +488,7 @@ test.describe('Webhooks', () => {
             );
 
             await webhooksPage.editButton().click();
-            await webhooksPage.dialog().waitFor();
+            await webhooksPage.editorHeading('Edit webhook').waitFor();
             // Shown, and shown as unrecognised — an endpoint filtered to a type
             // that does not exist receives nothing, and this is where that is
             // visible.
