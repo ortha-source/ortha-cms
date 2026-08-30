@@ -4,6 +4,42 @@
 > **Source of truth:** `packages/activity/server/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 7 confirmed · 0 deleted · 1 corrected · 0 unverified
 > **Generated:** 2026-08-11
+> **Amended:** 2026-08-30 — see “Since this artifact was generated” below
+
+## 0. Since this artifact was generated
+
+This plan was written against a much smaller catalogue and a single route, and the audit
+package has changed underneath it. Read the amendments before re-running anything.
+
+**Three of the five potential bugs are fixed in code** and are kept below as a record
+rather than as work:
+
+| Finding | Status |
+| --- | --- |
+| BUG-03 — `user.password_changed` has no mapper | **Fixed.** The mapper exists |
+| BUG-04 — no attempt cap, no dead letters | **Fixed**, and now also surfaced: `MAX_DELIVERY_ATTEMPTS = 15` with exponential backoff, `outbox_events.last_error` records why a row parked, and `GET /api/activity/dead-letters` plus a notice on the log page answer "is anything missing" without `psql` |
+| BUG-05 — an empty `subject_id` instead of a refusal | **Fixed.** `UnmappableAuditEventError` parks the event instead |
+
+BUG-01 (documentation asserting the audit row commits in the mutation's transaction) and
+BUG-02 (the subscriber's insert not joining the dispatcher's transaction) are unchanged.
+
+**What else moved:**
+
+- **The catalogue is 62 source events → 60 audit kinds**, across **nine** producing
+  plugins. `F13` below says 20. New: `transfer.*`, `segment.*`, `alarm.rule.*`,
+  `saved_view.*`, `copilot.*`, plus `auth.sign_in_failed`, `user.session_revoked`,
+  `api_token.used` and the two identity lifecycle kinds.
+- **Two new routes.** `GET /activity/entries/:entryId` (gated `content:read` +
+  `WorkspaceGuard`, one record's trail) and `GET /activity/dead-letters` (gated
+  `activity:read`). The permission matrix in §4 covers neither.
+- **Two new columns.** `actor_type` (`user` / `api_token`) and `workspace_id`, both
+  nullable, both filterable; the filter schema is eight fields, not six. `subject_type`
+  now has 13 values, not six.
+- **`meta` may carry `via`** — how an action was performed (`copilot`,
+  `revision_restore`) as distinct from who performed it.
+- **The catalogue is pinned in both directions** by `audit-event-mapping.spec.ts`, which
+  also compares the server's `AUDIT_KINDS` with the admin's `ACTIVITY_KINDS`. A test that
+  asserts a fixed kind count will need updating, not the catalogue.
 
 ## 1. Scope & Preconditions
 
@@ -17,13 +53,18 @@ with **no aggregate** and no `domain/` layer — that is compliance, not a gap.
 
 It does **NOT** own:
 
-- Any of the events. Identity emits `auth.*`, users emits `member.*`, workspaces emits
-  `workspace.*`, content emits `entry.*`. Activity only maps them.
+- Any of the events. Identity emits `auth.*` and `user.*`, users emits `member.*`,
+  workspaces emits `workspace.*`, content emits `entry.*` and `saved_view.*`, media
+  `media.*`, transfer `transfer.content.*`, segments `segment.*`, alarms `alarm.rule.*`
+  and copilot `copilot.*`. Activity only maps them.
 - The `ACTIVITY_RECORDER` port — that symbol lives in `@orthacms/identity-server`
   (activity merely binds it) and is `@deprecated`: **nothing writes through it**
   (`activity.service.ts:52-55`).
 - The outbox itself, its dispatcher, or its retry policy — `@orthacms/database`.
-- Any workspace scoping. `activity_events` has no `workspace_id` column, by design.
+- Any workspace scoping **of the log itself**. `activity_events` now carries a nullable
+  `workspace_id`, but the log stays deployment-wide and `activity:read` is what bounds it;
+  the column exists so a *narrow* question can be asked — which is what
+  `GET /activity/entries/:entryId` does, and what lets that route fail closed.
 
 ### Entry points
 
@@ -100,13 +141,19 @@ Admin UI: `http://localhost:4200/activity`.
 | F10 | `created_at` never reaches the wire | `activity.service.ts:94-103`, `activity-view.ts:8-25` | ❌ NONE |
 | F11 | Count and page run concurrently over one `where` | `activity.service.ts:88-109` | ❌ NONE |
 | F12 | `AuditEventSubscriber` self-registers with the dispatcher | `audit-event.subscriber.ts:36-38` | ✅ E2E (indirect) |
-| F13 | Event-kind → audit-row mapping (20 kinds) | `audit-event-mapping.ts:143-206` | 🧪 UNIT + ✅ E2E |
+| F13 | Event-kind → audit-row mapping (**62** source kinds → 60 audit kinds) | `audit-event-mapping.ts` (`FACET_MAPPERS`) | 🧪 UNIT + ✅ E2E |
+| F13b | `AUDIT_KINDS` / `AUDIT_SUBJECT_TYPES` — the produced catalogue, checked against the mappers **and** against the admin's list in both directions | `audit-event-mapping.ts`, `audit-event-mapping.spec.ts` | 🧪 UNIT |
 | F14 | Actor recovered from the event payload (`attachActor`) | `audit-event-mapping.ts:217-228` | ✅ E2E |
 | F15 | Idempotent insert — PK is the source event id, `ON CONFLICT DO NOTHING` | `audit-event.subscriber.ts:50-53` | ❌ NONE |
 | F16 | Unmapped kinds are silently ignored | `audit-event-mapping.ts:236-239`, `audit-event.subscriber.ts:46-49` | ❌ NONE |
 | F17 | Audit row commits iff the mutation does (transactional outbox) | `unit-of-work.ts`, each producer's `outbox.append` | ✅ E2E |
 | F18 | `activity_events` isolation: no FK on `actor_id`, text `subject_id`, frozen `actor_email` | `schema/activity-events.ts:23-33` | ✅ E2E (indirect) |
-| F19 | Three composite indexes for the three query shapes | `schema/activity-events.ts:36-42` | ❌ NONE |
+| F19 | **Four** composite indexes for the four query shapes | `schema/activity-events.ts` | ❌ NONE |
+| F23 | `GET /activity/entries/:entryId` — one record's trail, gated `content:read` + `WorkspaceGuard`, workspace-matched (fails closed) | `controllers/entry-activity.controller.ts` | ❌ NONE |
+| F24 | `GET /activity/dead-letters` — events that exhausted delivery, with `last_error` | `controllers/dead-letters.controller.ts`, `outbox-dispatcher.ts` (`deadLetters`) | ❌ NONE |
+| F25 | `actor_type` distinguishes a user from an API token; a token's id never reaches a revision's `created_by` | `schema/activity-events.ts`, content's `revisionActorId` | ❌ NONE |
+| F26 | `workspace_id` filled from `payload.workspaceId`; `?workspaceId=` narrows and excludes workspace-less rows | `audit-event-mapping.ts` (`toAuditRow`), `activity.service.ts` | ❌ NONE |
+| F27 | `meta.via` records how an action was performed (`copilot` / `revision_restore`) without changing who the actor is | `domain-event.ts` (`EventActor.via`), `audit-event-mapping.ts` | ❌ NONE |
 | F20 | `ActivityService.record` + `ACTIVITY_RECORDER` retained but deprecated | `activity.service.ts:57-70`, `activity.module.ts:33` | ❌ NONE |
 | F21 | `activity_recent` copilot tool, `activity:read`-gated, `surfaces:['copilot']` | `copilot/activity-tool.provider.ts:52-170` | ⚠️ PARTIAL |
 | F22 | Tool page size clamped to 25 in the handler as well as the schema | `activity-tool.provider.ts:136-139` | ❌ NONE |
@@ -661,6 +708,8 @@ the assumption is pinned. Do NOT implement.
 
 ### 🐞 BUG-activity-server-03 — `user.password_changed` is emitted but has no mapper, so a credential change would be unauditable · Severity: Medium · 🔒
 
+> ✅ **FIXED — the mapper exists.** Kept as a record; see §0.
+
 **Location:** `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:143-206`
 (the `FACET_MAPPERS` table), against the emitter at
 `packages/identity/server/src/lib/application/use-cases/change-password.use-case.ts:44-46`
@@ -702,6 +751,8 @@ will drain "successfully" every time.
 ---
 
 ### 🐞 BUG-activity-server-04 — A permanently-failing audit event is retried forever with no attempt cap or dead-letter state · Severity: Medium
+
+> ✅ **FIXED — cap, backoff, `last_error`, and a route that surfaces them.** Kept as a record; see §0.
 
 **Location:** `packages/database/src/lib/outbox/outbox-dispatcher.ts:104-113` (the
 mechanism), consumed by `packages/activity/server/src/lib/activity/infrastructure/audit-event.subscriber.ts:45-54`
@@ -759,6 +810,8 @@ in the insights/health surface. Do NOT implement.
 ---
 
 ### 🐞 BUG-activity-server-05 — A membership event with no `userId` writes an audit row with an empty-string subject instead of failing · Severity: Low
+
+> ✅ **FIXED — `UnmappableAuditEventError` refuses instead.** Kept as a record; see §0.
 
 **Location:** `packages/activity/server/src/lib/activity/infrastructure/audit-event-mapping.ts:97-109`
 **Category:** correctness

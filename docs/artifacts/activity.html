@@ -186,9 +186,11 @@ td.center,th.center{text-align:center}
 .note{border-left:3px solid var(--accent);background:var(--surface);padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1.2rem 0}
 .note.warn{border-left-color:var(--warn)}
 .note.crit{border-left-color:var(--crit)}
+.note.ok{border-left-color:var(--ok)}
 .note .label{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:.25rem}
 .note.warn .label{color:var(--warn)}
 .note.crit .label{color:var(--crit)}
+.note.ok .label{color:var(--ok)}
 .note p{margin:.3rem 0}
 .note p:first-of-type{margin-top:0}
 
@@ -246,13 +248,13 @@ html{scroll-behavior:smooth}
     <p class="lede">Activity is the <strong>shared audit sink</strong>. It knows nothing about content, the media library or accounts: it subscribes to the transactional outbox and turns other plugins' domain events into rows of a single <code>activity_events</code> table. The schema is deliberately open — <code>kind</code> and <code>meta</code> — because the catalogue of event kinds belongs to whoever produces them, not to whoever stores them. Hence the package's main rule: <strong>adding a producer means adding a mapper here</strong>, and an event with no mapper is lost silently.</p>
     <ul class="facts">
       <li><b>2</b> packages in the group</li>
-      <li><b>1</b> HTTP route</li>
+      <li><b>3</b> HTTP routes</li>
       <li><b>1</b> database table</li>
-      <li><b>1</b> migration</li>
-      <li><b>40</b> event kinds</li>
-      <li><b>6</b> subject types</li>
-      <li><b>5</b> producing plugins</li>
-      <li><b>1</b> screen + <b>2</b> admin slots</li>
+      <li><b>2</b> migrations</li>
+      <li><b>62</b> source events → <b>60</b> audit kinds</li>
+      <li><b>13</b> subject types</li>
+      <li><b>9</b> producing plugins</li>
+      <li><b>1</b> screen + <b>3</b> admin slots</li>
       <li><b>1</b> copilot tool</li>
     </ul>
   </div>
@@ -303,7 +305,7 @@ html{scroll-behavior:smooth}
     </div>
     <div class="card">
       <h4 style="margin-top:0">Contributor and viewer</h4>
-      <p class="small sub">Do not see the log at all: the sidebar item is hidden, the home panel is not rendered, the route refuses, and the tool is not offered to the copilot when its catalogue is assembled.</p>
+      <p class="small sub">Do not see the <em>log</em>: the sidebar item is hidden, the home panel is not rendered, <code>GET /activity</code> refuses, and the tool is not offered to the copilot when its catalogue is assembled. They <em>do</em> see <b>one entry's own trail</b> in the editor's Properties rail — a separate route under <code>content:read</code>, returning only rows about a record they may already open.</p>
     </div>
     <div class="card">
       <h4 style="margin-top:0">Plugin developer</h4>
@@ -313,10 +315,10 @@ html{scroll-behavior:smooth}
 
   <h3>What Activity is not</h3>
   <ul>
-    <li><b>It is not a per-workspace view.</b> <code>activity_events</code> has <em>no</em> workspace column, deliberately: invitations, role changes and the workspace's own lifecycle belong to no workspace. That is why both the page and the copilot tool's description say "across this deployment" — they used to say "across the workspace", which lied to the administrator of a multi-workspace installation on the very page whose job is to be the source of truth.</li>
+    <li><b>It is not a per-workspace view.</b> The page and the copilot tool both read the whole installation, and their copy says "across this deployment" — it used to say "across the workspace", which lied to the administrator of a multi-workspace installation on the very page whose job is to be the source of truth. <code>activity_events</code> <em>does</em> now carry a nullable <code>workspace_id</code> and the route accepts a <code>workspaceId</code> filter, so a scoped view became <em>buildable</em> — but it is deliberately not built for the page: invitations, role changes, sign-in failures and the workspace's own lifecycle belong to no workspace, and a filter that silently drops them would be worse than its absence. The column exists so a narrow question can be asked (see the entry-scoped route), not to scope the log.</li>
     <li><b>It is not the source of truth about permissions.</b> Permissions live in identity; Activity only reads the <code>PERMISSIONS.ACTIVITY_READ</code> constant and the <code>PermissionsGuard</code>.</li>
     <li><b>It is not a debugging tool.</b> Technical logs, HTTP errors and stack traces never reach the log — only business facts somebody deliberately decided to record as an event kind.</li>
-    <li><b>It is not an alerting system.</b> Nothing is sent anywhere, there are no rules, no subscriptions and no export. There is a table and one read route.</li>
+    <li><b>It is not an alerting system.</b> Nothing is sent anywhere, there are no rules, no subscriptions and no export. There is a table and three read routes — and the third of them, <code>/dead-letters</code>, is the closest the package comes to raising its hand: it reports events that <em>failed</em> to be recorded, so a reader can tell an empty log from an incomplete one.</li>
   </ul>
 
   <div class="note">
@@ -333,7 +335,7 @@ html{scroll-behavior:smooth}
   <table>
     <thead><tr><th>Package</th><th>npm name</th><th>Role</th><th>What it owns</th></tr></thead>
     <tbody>
-      <tr><td class="mono">server</td><td class="mono">@orthacms/activity-server</td><td>The NestJS plugin: the outbox subscriber, a pure mapper, the read service, the controller, the schema and migrations</td><td>1 table, 1 route, <code>FACET_MAPPERS</code> over 40 kinds, the <code>activity_recent</code> copilot tool</td></tr>
+      <tr><td class="mono">server</td><td class="mono">@orthacms/activity-server</td><td>The NestJS plugin: the outbox subscriber, a pure mapper, the read service, the controller, the schema and migrations</td><td>1 table, 3 routes, <code>FACET_MAPPERS</code> over 62 event kinds, the <code>activity_recent</code> copilot tool</td></tr>
       <tr><td class="mono">admin</td><td class="mono">@orthacms/activity-admin</td><td>The admin plugin: the log page, the sidebar item, the home panel, a reusable hook</td><td><code>/activity</code>, <code>useActivityLog</code>, <code>ACTIVITY_KINDS</code>, <code>formatActivityAction</code></td></tr>
     </tbody>
   </table>
@@ -380,9 +382,15 @@ html{scroll-behavior:smooth}
 <section id="catalog">
   <h2 class="sec"><span class="num">03</span>The catalogue of event kinds</h2>
 
-  <p>This is the dossier's most valuable part and at the same time the only place in the repository where the whole catalogue is gathered together. The source is <code>FACET_MAPPERS</code> in <code>audit-event-mapping.ts</code>: <b>40 incoming domain events</b>, each mapping to exactly one audit kind, with no collisions — so <b>40 distinct <code>kind</code> values</b> can occur in the table.</p>
+  <p>This is the dossier's most valuable part and at the same time the only place in the repository where the whole catalogue is gathered together in prose. The source is <code>FACET_MAPPERS</code> in <code>audit-event-mapping.ts</code>: <b>62 incoming domain events</b> mapping onto <b>60 distinct <code>kind</code> values</b> — the two collisions are deliberate, since <code>user.disabled</code> and <code>user.enabled</code> land on the same audit kinds as their <code>member.*</code> counterparts.</p>
 
   <p>Read the table like this: <b>"Kind in the log"</b> is what sits in the <code>kind</code> column and what the UI filters on; <b>"Source event"</b> is the <code>kind</code> in <code>outbox_events</code>. They do not always match: <code>member.*</code> is renamed to <code>user.*</code>, <code>auth.signed_in</code> to <code>user.signed_in</code>, and <code>api_token.*</code> to <code>token.*</code>. The two catalogues are kept apart deliberately: a domain event names a fact in its own context, and an audit kind names it in the terms a person reads.</p>
+
+  <div class="note">
+    <span class="label">The catalogue is now checked, in both directions</span>
+    <p>Two lists are exported and pinned by <code>audit-event-mapping.spec.ts</code>. <code>AUDITED_EVENT_KINDS</code> is what the mappers <em>consume</em>; <code>AUDIT_KINDS</code> and <code>AUDIT_SUBJECT_TYPES</code> are what they <em>produce</em> — the client contract. The spec drives every mapper once to prove the declaration honest, then compares it with the admin's <code>ACTIVITY_KINDS</code>, so a kind the server can write and the admin would render as a raw dotted token is a failing test, and so is a dead label the server can no longer produce.</p>
+    <p>It reads the admin's catalogue module <em>as text</em> rather than importing it: an import would put a React package in the audit plugin's TypeScript project graph. This closed the gap that let the three <code>user.sso_*</code> kinds ship rendering literally — see §15.</p>
+  </div>
 
   <h3>3.1 Identity and accounts</h3>
   <div class="tablewrap">
@@ -399,8 +407,12 @@ html{scroll-behavior:smooth}
       <tr><td class="mono">user.suspended</td><td class="mono">member.disabled</td><td>users</td><td class="mono">user</td><td>A member was disabled; their sessions die along with it</td><td class="sub">none (null)</td></tr>
       <tr><td class="mono">user.reactivated</td><td class="mono">member.reactivated</td><td>users</td><td class="mono">user</td><td>A disabled member was switched back on</td><td class="sub">none (null)</td></tr>
       <tr><td class="mono">user.password_changed</td><td class="mono">user.password_changed</td><td>identity</td><td class="mono">user</td><td>A credential rotation — a self-service change or the redemption of a reset link. The actor in both cases is the account's owner: an administrator issued the link, but the person chose the password</td><td class="mono">sessionsRevoked</td></tr>
-      <tr><td class="mono">user.signed_in</td><td class="mono">auth.signed_in</td><td>identity</td><td class="mono">user</td><td>A sign-in. A password sign-in carries no <code>meta</code>; a provider sign-in records the method and the provider — the first question once a provider is broken or decommissioned</td><td class="mono">null or {method:'sso', provider}</td></tr>
+      <tr><td class="mono">user.signed_in</td><td class="mono">auth.signed_in</td><td>identity</td><td class="mono">user</td><td>A sign-in, and <b>where from</b>. The IP and User-Agent used to be stored on the <code>sessions</code> row and nowhere else, so the log could say somebody signed in and never from where — and a session is eventually pruned while the audit row is not. A provider sign-in additionally records the method and the provider, the first question once a provider is broken or decommissioned</td><td class="mono">ipAddress, userAgent (+ method:'sso', provider)</td></tr>
       <tr><td class="mono">user.signed_out</td><td class="mono">auth.signed_out</td><td>identity</td><td class="mono">user</td><td>A sign-out. Only the presented session is revoked</td><td class="sub">none (null) — see the note below</td></tr>
+      <tr><td class="mono">user.sign_in_failed</td><td class="mono">auth.sign_in_failed</td><td>identity</td><td class="mono">login_attempt</td><td>A password sign-in was <b>refused</b>. The one authentication fact the log did not record: <code>auth.signed_in</code> fires on success only, so a log full of successful sign-ins was equally consistent with nobody ever guessing and with a sustained attack. The subject is the <b>address</b>, not a user — the failures worth reading are exactly the ones with no account behind them. The HTTP response is unchanged, in body and in timing; the <code>reason</code> exists only in an <code>activity:read</code> store</td><td class="mono">reason, userId, ipAddress, userAgent</td></tr>
+      <tr><td class="mono">user.session_revoked</td><td class="mono">user.session_revoked</td><td>identity</td><td class="mono">user</td><td>An administrator ended <b>another member's</b> session. Distinct from <code>user.signed_out</code>, which is somebody ending their own: the subject here is the member who was signed out and the actor is the admin who did it. This was the one route under <code>/users/:id</code> that wrote nothing at all</td><td class="mono">sessionId</td></tr>
+      <tr><td class="mono">user.suspended</td><td class="mono">user.disabled</td><td>identity</td><td class="mono">user</td><td>The identity aggregate's own lifecycle pair, mapped onto the same audit kinds as <code>member.*</code>. Nothing in the product calls <code>UserAccount.disable()</code> today, but the methods are public API of a published package, and an unmapped kind would reproduce this package's signature failure — an account silently locked out with nothing in the log</td><td class="sub">none (null)</td></tr>
+      <tr><td class="mono">user.reactivated</td><td class="mono">user.enabled</td><td>identity</td><td class="mono">user</td><td>The other half of the pair, for the same reason</td><td class="sub">none (null)</td></tr>
       <tr><td class="mono">user.sso_linked</td><td class="mono">user.sso_linked</td><td>identity</td><td class="mono">user</td><td>An external provider's subject was linked to an existing account — a <b>second</b> way in now exists. Written once per link, not on every sign-in</td><td class="mono">provider</td></tr>
       <tr><td class="mono">user.sso_provisioned</td><td class="mono">user.sso_provisioned</td><td>identity</td><td class="mono">user</td><td>An account was created from a verified profile — with no invitation and no password. The only path in the product by which an account nobody explicitly invited comes into being</td><td class="mono">provider, role</td></tr>
       <tr><td class="mono">user.sso_role_mapped</td><td class="mono">user.sso_role_mapped</td><td>identity</td><td class="mono">user</td><td>The role-mapping handler changed a role at sign-in — that is, permissions were changed by something other than an administrator. Written only on an actual change, or the row would appear on every sign-in for the rest of the account's life</td><td class="mono">provider, role</td></tr>
@@ -409,8 +421,8 @@ html{scroll-behavior:smooth}
   </div>
 
   <div class="note warn">
-    <span class="label">Two losses of information visible only in the code</span>
-    <p><b>Back-channel logout.</b> <code>sso-backchannel-logout.use-case.ts</code> puts <code>{ method: 'sso_backchannel', provider }</code> into the event, but the <code>auth.signed_out</code> mapper hardcodes <code>meta: null</code>. In the log a provider-initiated sign-out looks exactly like an ordinary user sign-out. <code>auth.signed_in</code> has the symmetric branch; <code>signed_out</code> does not.</p>
+    <span class="label">Two losses of information visible only in the code — both still open</span>
+    <p><b>Back-channel logout.</b> <code>sso-backchannel-logout.use-case.ts</code> puts <code>{ method: 'sso_backchannel', provider }</code> into the event, but the <code>auth.signed_out</code> mapper hardcodes <code>meta: null</code>. In the log a provider-initiated sign-out looks exactly like an ordinary user sign-out. The asymmetry got sharper rather than smaller: <code>auth.signed_in</code> now carries the IP, the User-Agent <em>and</em> the method; <code>signed_out</code> still carries nothing.</p>
     <p><b>The back-channel sign-out's actor.</b> In the same place the actor is given <code>email ?? ''</code> — an empty string instead of an address snapshot, so the log row gets an actor with no readable name.</p>
   </div>
 
@@ -439,19 +451,25 @@ html{scroll-behavior:smooth}
   <table>
     <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
     <tbody>
-      <tr><td class="mono">entry.created</td><td class="mono">content_entry</td><td>A new entry appeared</td><td class="mono">contentType</td></tr>
-      <tr><td class="mono">entry.updated</td><td class="mono">content_entry</td><td>The entry's values changed. <code>fields</code> is what turns the row from a fact into a review: "edited the heading and the body" rather than "somebody saved". A save that changed nothing produces <b>no event at all</b>, so the log counts editorial changes rather than visits to the editor</td><td class="mono">contentType, fields: string[]</td></tr>
-      <tr><td class="mono">entry.published</td><td class="mono">content_entry</td><td>The entry was published (re-publishing is idempotent and produces no event)</td><td class="mono">contentType</td></tr>
-      <tr><td class="mono">entry.unpublished</td><td class="mono">content_entry</td><td>The entry was unpublished (unpublishing an already-draft entry is a no-op with no event)</td><td class="mono">contentType</td></tr>
-      <tr><td class="mono">entry.deleted</td><td class="mono">content_entry</td><td>The entry was deleted. <code>soft</code> distinguishes two very different facts: a tombstone recoverable from the bin, and a row that left the table at commit time</td><td class="mono">contentType, soft: boolean</td></tr>
-      <tr><td class="mono">entry.restored</td><td class="mono">content_entry</td><td>The tombstone was lifted and the entry came back</td><td class="mono">contentType</td></tr>
-      <tr><td class="mono">entry.purged</td><td class="mono">content_entry</td><td>The entry was destroyed for good. The only content action after which there is nothing left to investigate — which is why this row is the entire remaining trace</td><td class="mono">contentType</td></tr>
+      <tr><td class="mono">entry.created</td><td class="mono">content_entry</td><td>A new entry appeared</td><td class="mono">contentType, title</td></tr>
+      <tr><td class="mono">entry.updated</td><td class="mono">content_entry</td><td>The entry's values changed. <code>fields</code> is what turns the row from a fact into a review: "edited the heading and the body" rather than "somebody saved". A save that changed nothing produces <b>no event at all</b>, so the log counts editorial changes rather than visits to the editor</td><td class="mono">contentType, title, fields: string[]</td></tr>
+      <tr><td class="mono">entry.published</td><td class="mono">content_entry</td><td>The entry was published (re-publishing is idempotent and produces no event)</td><td class="mono">contentType, title</td></tr>
+      <tr><td class="mono">entry.unpublished</td><td class="mono">content_entry</td><td>The entry was unpublished (unpublishing an already-draft entry is a no-op with no event)</td><td class="mono">contentType, title</td></tr>
+      <tr><td class="mono">entry.deleted</td><td class="mono">content_entry</td><td>The entry was deleted. <code>soft</code> distinguishes two very different facts: a tombstone recoverable from the bin, and a row that left the table at commit time</td><td class="mono">contentType, title, soft: boolean</td></tr>
+      <tr><td class="mono">entry.restored</td><td class="mono">content_entry</td><td>The tombstone was lifted and the entry came back</td><td class="mono">contentType, title</td></tr>
+      <tr><td class="mono">entry.purged</td><td class="mono">content_entry</td><td>The entry was destroyed for good. The only content action after which there is nothing left to investigate — which is why this row is the entire remaining trace, and why <code>title</code> matters most here</td><td class="mono">contentType, title</td></tr>
     </tbody>
   </table>
   </div>
 
+  <div class="note">
+    <span class="label">Every entry row now names the record and its workspace</span>
+    <p><code>title</code> is a <b>frozen snapshot</b> of the entry's label at the moment of the event, taken by the writer from the row it is writing — not a lookup. An audit row keeps no foreign key and no denormalised name, so its whole handle on the subject was a uuid: survivable while the entry exists, and permanently unreadable after <code>entry.purged</code>, which is precisely the row this is the last remaining record of.</p>
+    <p><code>workspaceId</code> rides the same payload and is lifted into the row's own column. Entries are the most-produced audited fact in the product, so an entry event that omitted it would have left that column mostly empty and the workspace-shaped question mostly unanswerable.</p>
+  </div>
+
   <h3>3.4 The media library</h3>
-  <p>The audit kind equals the event kind, and <code>meta</code> is <b>the event's whole payload minus the <code>actor</code> key</b>. It works that way because media payloads are fundamentally different in shape: an upload carries the file's name and kind, an update only the field that changed, a move the destination folder, and a delete the storage key. Flattening that into one shape would lose exactly what the row is read for.</p>
+  <p>The audit kind equals the event kind, and <code>meta</code> is <b>the event's whole payload minus the <code>actor</code> key</b> (which now includes <code>workspaceId</code> on every one of them, since both aggregates hold it). It works that way because media payloads are fundamentally different in shape: an upload carries the file's name and kind, an update only the field that changed, a move the destination folder, and a delete the storage key. Flattening that into one shape would lose exactly what the row is read for.</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
@@ -474,6 +492,7 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr><td class="mono">token.created</td><td class="mono">api_token.created</td><td class="mono">api_token</td><td>A long-lived bearer token to workspaces' content was issued. The subject is the token itself, and the issuing administrator arrives as the actor</td><td class="mono">name, scope, workspaceIds, lookupPrefix</td></tr>
       <tr><td class="mono">token.revoked</td><td class="mono">api_token.revoked</td><td class="mono">api_token</td><td>The token was revoked</td><td class="mono">name, scope, workspaceIds, lookupPrefix</td></tr>
+      <tr><td class="mono">token.used</td><td class="mono">api_token.used</td><td class="mono">api_token</td><td>The token authenticated a request. <b>Throttled, not per request</b>: it rides the same schedule as the token's <code>last_used_at</code> touch — at most one row per token per minute — because the question worth answering is "was this credential live, and over what period", not "how many requests did it make". <code>last_used_at</code> already answers "when was it last used"; what it cannot answer is the <em>shape</em> over time, and a token dormant for six months that woke up on Tuesday reads identically to one in daily use. <code>previousUseAt</code> is the gap, and the touch overwrites the only other copy of it</td><td class="mono">name, scope, workspaceIds, lookupPrefix, previousUseAt</td></tr>
     </tbody>
   </table>
   </div>
@@ -483,28 +502,102 @@ html{scroll-behavior:smooth}
     <p><code>api_tokens</code> stores only a SHA-256 — precisely so that reading <em>another</em> table yields no working credential. The log is another table, and one deliberately lower in trust: every administrator sees it and the copilot reads it. So <code>meta</code> carries only the non-secret <code>lookupPrefix</code> — enough to match the log row against a row on the tokens screen, and nothing more.</p>
   </div>
 
-  <h3>3.6 Kinds that never reach the log</h3>
-  <p>Two identity domain events are declared but <b>not mapped</b> and, more importantly, raised by nobody: <code>UserAccount.disable()</code> / <code>enable()</code> have not one caller in product code — disabling a member goes through the <code>Member</code> aggregate in the users plugin.</p>
+  <h3>3.6 Content transfer</h3>
+  <p>The audit kind equals the event kind, and the subject is the <b>content type</b> that moved — there is no single entry to point at, since an export names a selection and an import names a file, and both fan out across relations, files and locales.</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>Event kind</th><th>Where declared</th><th>Status</th></tr></thead>
+    <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
     <tbody>
-      <tr><td class="mono">user.disabled</td><td class="mono">IDENTITY_EVENT_KINDS</td><td>Raised only by the <code>UserAccount</code> aggregate, which has no callers; absent from <code>FACET_MAPPERS</code>. Effectively dead code, but the day a caller appears the action will go silent</td></tr>
-      <tr><td class="mono">user.enabled</td><td class="mono">IDENTITY_EVENT_KINDS</td><td>The same</td></tr>
+      <tr><td class="mono">transfer.content.exported</td><td class="mono">content_type</td><td>Content left the system in bulk, files included. <b>An export is a read that raises an audit event</b>, which is unusual enough to say why: nothing in the content tables changes, so this row is the only record that it happened. It is written <em>before</em> a byte streams — a download interrupted halfway still moved data, and recording only completed transfers would leave the most interesting case with no trace</td><td class="mono">workspaceId, format, selected, counts</td></tr>
+      <tr><td class="mono">transfer.content.imported</td><td class="mono">content_type</td><td>Content was written in from a file. The individual writes also appear as <code>entry.created</code>/<code>entry.updated</code> — an import goes through <code>EntryWriterService</code> like any other write — but those rows say a hundred entries changed, not that one person imported a file. Different facts, and an operator asks about the second</td><td class="mono">workspaceId, counts</td></tr>
     </tbody>
   </table>
   </div>
 
-  <div class="note crit">
-    <span class="label">The server's and the admin UI's catalogues have diverged</span>
-    <p>The server writes <b>40</b> kinds; the admin UI's <code>ACTIVITY_KINDS</code> list knows <b>37</b>. It does not know three SSO kinds: <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>. This is neither a compile error nor a runtime one: the mapper casts <code>dto.kind as ActivityKind</code> unchecked, <code>formatActivityAction</code> finds no descriptor and prints the raw token — so the "Action" column on screen will literally read <code>user.sso_provisioned</code>. The <code>apps/admin-e2e/src/activity/activity-kinds.spec.ts</code> test, which exists specifically to catch this, will not: its <code>ALL_KINDS_ACTIVITY</code> seed contains the same 37 strings.</p>
+  <h3>3.7 Reader entitlements (segments)</h3>
+  <p>Segments answer <b>who may read published content</b>. Four access-control decisions that produced no event of any kind until recently, so the log could not answer "when did this article stop being public, and who decided that": an entry's revisions carry its access, but only for entries saved afterwards, and a segment's tag list is in no revision at all.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">segment.created</td><td class="mono">segment</td><td>An audience came into existence</td><td class="mono">key, label, tags, workspaceIds</td></tr>
+      <tr><td class="mono">segment.updated</td><td class="mono">segment</td><td>An audience was renamed, re-tagged or re-scoped. <b>Re-tagging is the one that matters most and is the least visible</b>: the audience keeps its name and its entries while the set of readers it resolves to changes completely, so the row records the tags on both sides</td><td class="mono">key, label, tags:{from,to}, workspaceIds:{from,to}</td></tr>
+      <tr><td class="mono">segment.deleted</td><td class="mono">segment</td><td>An audience was deleted — and with it, its mention on every entry that named it. That second half is a bulk change to stored access with no screen for it, and after the commit there is nowhere left to look the audience up</td><td class="mono">key, label, tags, workspaceIds</td></tr>
+      <tr><td class="mono">segment.entry_access_changed</td><td class="mono">content_entry</td><td>An entry's allow/deny lists were replaced, on every locale of the record — access travels with the record rather than the translation. <b>The subject is the entry, not the segment</b>, deliberately: "who may read this" is a fact about the record, so the row belongs in that entry's own history beside its edits and publishes, which is where somebody asking why nobody can read it will look. One row per decision, not one per locale</td><td class="mono">workspaceId, contentType, allow, deny, entryIds</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.8 Content checks (alarms)</h3>
+  <p>The <b>rules</b>, never the findings. An alarm never gates a write (ADR-0015), which is exactly why its configuration is worth a row: disable a rule and everything downstream — the entry rail's checks block, the records column, the alarms page — simply goes quiet, with nothing saying a person chose the silence, and after a delete the rule that would have explained it is gone. Findings stay unaudited: one per matching entry per sweep would make the trail a metrics feed.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">alarm.rule.created</td><td class="mono">alarm_rule</td><td>A rule was written</td><td class="mono">workspaceId, name, contentType, severity, enabled</td></tr>
+      <tr><td class="mono">alarm.rule.updated</td><td class="mono">alarm_rule</td><td>A rule was edited. <code>enabled</code> is called out on both sides because a disabled rule is indistinguishable from a rule that finds nothing</td><td class="mono">workspaceId, name, fields, enabled:{from,to}, severity:{from,to}</td></tr>
+      <tr><td class="mono">alarm.rule.deleted</td><td class="mono">alarm_rule</td><td>A rule was deleted, taking every finding it produced with it by FK cascade</td><td class="mono">workspaceId, name, contentType, severity</td></tr>
+      <tr><td class="mono">alarm.rule.rescanned</td><td class="mono">alarm_rule</td><td>A rule was re-run across its whole collection by hand — the manual recovery path, so this row is what explains a jump in a workspace's finding counts that no rule edit accounts for. Recorded after the scan, carrying its result</td><td class="mono">workspaceId, name, scanned, opened, resolved, open</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>3.9 Saved list views</h3>
+  <p>A view is a bookmark rather than a grant — it replays through the ordinary list query with the reader's own permissions, so it can never show anyone a row they could not already reach. It is audited because a <code>workspace</code>-visible view is genuinely shared state: it is in every member's switcher, sharing it is its own permission (<code>views:share</code>), and deleting one takes it away from everybody.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">saved_view.created</td><td class="mono">saved_view</td><td>A slice was saved under a name</td><td class="mono">workspaceId, scope, name, visibility</td></tr>
+      <tr><td class="mono">saved_view.updated</td><td class="mono">saved_view</td><td>Renamed, re-captured, or shared/unshared. <code>visibility</code> is on both sides: unsharing takes a view out of every member's switcher without telling them</td><td class="mono">workspaceId, scope, name, fields, visibility:{from,to}</td></tr>
+      <tr><td class="mono">saved_view.deleted</td><td class="mono">saved_view</td><td>A view was deleted</td><td class="mono">workspaceId, scope, name, visibility</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub"><b>Setting a personal default raises nothing, deliberately.</b> It is the reader's own landing choice — the same class of thing as <code>PUT /preferences</code> — and it is set by clicking a view. A row per click would be a usage metric wearing an audit row's clothes, in a log with no way to filter it out.</p>
+
+  <h3>3.10 Copilot</h3>
+  <p>Authority a human hands the agent, and nothing else. A <b>skill</b> is standing instruction: it changes what the copilot does in a workspace on every future run, and one set to <code>auto</code> runs without being asked for. A <b>tool permission</b> is the same decision at one moment — a person allowing one parked call to proceed, bounded by human interaction rather than by traffic.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Kind (= event)</th><th>Subject</th><th>What it means</th><th>meta fields</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">copilot.skill.created</td><td class="mono">copilot_skill</td><td>A skill was written into a workspace</td><td class="mono">workspaceId, name, title, mode, enabled</td></tr>
+      <tr><td class="mono">copilot.skill.updated</td><td class="mono">copilot_skill</td><td>A skill was edited. <code>mode</code> and <code>enabled</code> are the two that matter: <code>auto</code> means it applies without being asked for, and a disabled skill is indistinguishable from one that never matched</td><td class="mono">workspaceId, name, fields, mode:{from,to}, enabled:{from,to}</td></tr>
+      <tr><td class="mono">copilot.skill.deleted</td><td class="mono">copilot_skill</td><td>A skill was deleted; its details are frozen here because there is nowhere left to look them up</td><td class="mono">workspaceId, name, title, mode</td></tr>
+      <tr><td class="mono">copilot.tool_permission.decided</td><td class="mono">copilot_run</td><td>A person allowed or refused one tool call in a running turn. The subject is the <b>run</b>, which is the handle a reviewer has — a transcript is read by run id. Recorded only when the decision was actually <em>delivered</em>: a late answer to a run that already gave up had no effect, and a row for it would report authority that was never granted. The run's own transcript records it too, but a transcript is a conversation its author can delete, not an audit store</td><td class="mono">workspaceId, callId, decision</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="small sub"><b>Starting a run is not audited, and neither is renaming a conversation.</b> Everything a run <em>does</em> is already recorded where it happens — under ADR-0009 an applied change is an <code>entry.*</code> row, and it now carries the run that produced it (see <code>via</code> in §05). A row per run would be a usage metric with no way to filter it out.</p>
+
+  <h3>3.11 Facts that are still not events</h3>
+  <p>The catalogue's remaining holes, as of this revision. Neither is a mapper problem — there is no event to map.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>What is not recorded</th><th>Where</th><th>Why it is worth knowing</th></tr></thead>
+    <tbody>
+      <tr><td>Setting a <b>personal default</b> view</td><td class="mono">SetDefaultViewUseCase</td><td>Deliberate — see §3.9. A landing choice set by clicking, not a change to shared state</td></tr>
+      <tr><td>Starting a copilot <b>run</b>; renaming a conversation</td><td class="mono">copilot/server</td><td>Deliberate — see §3.10. What a run does is audited where it happens</td></tr>
+      <tr><td>Alarm <b>findings</b></td><td class="mono">AlarmEvaluator</td><td>Deliberate — see §3.8. One per matching entry per sweep is a metric, not an audit fact</td></tr>
+      <tr><td><b>Reads</b> of content</td><td>—</td><td>Not deliberate so much as unaddressed. Who viewed a record is nowhere; the closest thing is <code>transfer.content.exported</code>, which covers only the bulk case</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note ok">
+    <span class="label">The catalogues no longer diverge — and cannot, silently</span>
+    <p>Until recently the server wrote <b>40</b> kinds while the admin's <code>ACTIVITY_KINDS</code> knew <b>37</b>: it did not know <code>user.sso_linked</code>, <code>user.sso_provisioned</code> or <code>user.sso_role_mapped</code>, and the "Action" column rendered those literally. Neither a compile error nor a runtime one — the mapper casts <code>dto.kind as ActivityKind</code> unchecked and <code>formatActivityAction</code> falls back to the raw string. The <code>apps/admin-e2e</code> suite written to catch exactly this could not: its <code>ALL_KINDS_ACTIVITY</code> seed was built from the same 37 strings, so it proved the list self-consistent and nothing more.</p>
+    <p>Both halves are now covered, by three different mechanisms: <code>Record&lt;ActivityKind, …&gt;</code> makes a missing <em>label</em> a compile error inside the admin; the e2e suite proves each kind actually <em>renders</em>; and <code>audit-event-mapping.spec.ts</code> compares the server's <code>AUDIT_KINDS</code> with the admin's list <b>in both directions</b>, so a kind the server can write and the admin cannot render, and a dead label the server can no longer produce, are both failing tests.</p>
   </div>
 </section>
 
 <section id="roles">
   <h2 class="sec"><span class="num">04</span>Roles and permissions</h2>
 
-  <p>The package has <b>one</b> permission — <code>activity:read</code> (the <code>PERMISSIONS.ACTIVITY_READ</code> constant, declared in <code>identity-server</code>, in <code>rbac/system-roles.ts</code>). There is no write permission and there cannot be one: the log is not written by a person but by a subscriber.</p>
+  <p>The package has <b>one</b> permission of its own — <code>activity:read</code> (the <code>PERMISSIONS.ACTIVITY_READ</code> constant, declared in <code>identity-server</code>, in <code>rbac/system-roles.ts</code>). There is no write permission and there cannot be one: the log is not written by a person but by a subscriber.</p>
+
+  <p>It also <em>borrows</em> one. <code>GET /activity/entries/:entryId</code> is gated on <b><code>content:read</code></b>, not on <code>activity:read</code>, and that is the whole point of it existing separately: the full log is admin-only for good reasons — it carries invitations, role changes and sign-in failures across the deployment — with the consequence that an <b>editor could not see the history of their own content</b>. Every row that route can return is about a record the caller may already open, so it needs no authority beyond having opened it.</p>
 
   <div class="tablewrap">
   <table>
@@ -516,7 +609,16 @@ html{scroll-behavior:smooth}
   </div>
 
   <p>The <code>admin</code> role gets the permission not as "activity" specifically but because its set is a <b>full enumeration</b> of <code>PERMISSION_KEYS</code>. Neither <code>contributor</code> nor <code>viewer</code> enumerates it.</p>
-  <h3>The four places the permission is checked</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Permission</th><th>What it opens</th><th>admin</th><th>contributor</th><th>viewer</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">content:read</td><td><code>GET /api/activity/entries/:id</code> and the Activity block in the entry editor's rail — one record's own trail, scoped to the open workspace</td><td>✓</td><td>✓</td><td>✓</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The four places <code>activity:read</code> is checked</h3>
   <ul class="check">
     <li><b>The route</b> → <span class="exp"><code>@UseGuards(PermissionsGuard)</code> + <code>@RequirePermissions(PERMISSIONS.ACTIVITY_READ)</code> on the controller class. This is the only real check.</span></li>
     <li><b>The sidebar item</b> → <span class="exp">the slot descriptor names <code>permission: 'activity:read'</code>, and the shell's <code>SidebarNavButton</code> hides the item. Cosmetic, but honest.</span></li>
@@ -533,7 +635,7 @@ html{scroll-behavior:smooth}
 <section id="data">
   <h2 class="sec"><span class="num">05</span>Data model</h2>
 
-  <p>One table, one migration (<code>0000_init</code>), and its own journal table <code>__drizzle_migrations_activity</code>. The plugin opens no connection — the Drizzle client is injected from <code>@orthacms/database</code> through <code>@InjectDatabase()</code>.</p>
+  <p>One table, two migrations (<code>0000_init</code> and <code>0001_actor_type_and_workspace</code>), and its own journal table <code>__drizzle_migrations_activity</code>. The plugin opens no connection — the Drizzle client is injected from <code>@orthacms/database</code> through <code>@InjectDatabase()</code>.</p>
 
   <div class="tablewrap">
   <table>
@@ -541,18 +643,26 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr><td class="mono">id</td><td class="mono">uuid PK</td><td>Defaults to <code>gen_random_uuid()</code>, but the subscriber <b>always supplies the event's id</b>. That is the idempotency key</td></tr>
       <tr><td class="mono">kind</td><td class="mono">text NOT NULL</td><td>An open string of the form <code>domain.action</code>. Not an enum and not a foreign key onto a dictionary: the catalogue belongs to the producers, not to the sink</td></tr>
-      <tr><td class="mono">subject_type</td><td class="mono">text NOT NULL</td><td>Six actual values: <code>user</code>, <code>workspace</code>, <code>content_entry</code>, <code>api_token</code>, <code>media_asset</code>, <code>media_folder</code></td></tr>
+      <tr><td class="mono">subject_type</td><td class="mono">text NOT NULL</td><td>Thirteen actual values, exported as <code>AUDIT_SUBJECT_TYPES</code>: <code>user</code>, <code>workspace</code>, <code>content_entry</code>, <code>content_type</code>, <code>api_token</code>, <code>media_asset</code>, <code>media_folder</code>, <code>login_attempt</code>, <code>segment</code>, <code>alarm_rule</code>, <code>saved_view</code>, <code>copilot_skill</code>, <code>copilot_run</code></td></tr>
       <tr><td class="mono">subject_id</td><td class="mono">text NOT NULL</td><td><b>text rather than uuid</b>: subjects are not always users and are not always keyed by a uuid. The only handle the row keeps on its subject — no foreign key and no denormalised name</td></tr>
       <tr><td class="mono">actor_id</td><td class="mono">uuid NULL</td><td><b>No foreign key</b> — the actor may later be deleted, and the row must remain. <code>null</code> means a system event</td></tr>
-      <tr><td class="mono">actor_email</td><td class="mono">text NULL</td><td>A frozen snapshot of the address at write time: the log stays readable after the account is deleted or renamed</td></tr>
-      <tr><td class="mono">meta</td><td class="mono">jsonb NULL</td><td>An open payload; each kind's shape is owned by the producer. Not indexed and not part of the filterable surface</td></tr>
+      <tr><td class="mono">actor_type</td><td class="mono">text NULL</td><td>What <code>actor_id</code> <em>names</em> — <code>user</code> or <code>api_token</code>. It used to mean "a <code>users</code> row" and nothing else, so a write made with a bearer token had to pass <b>no actor at all</b> rather than name a person who did not do it: every write over the public REST API, GraphQL and MCP recorded as "System", and which of a workspace's tokens did it was unrecoverable from anywhere. Nullable, because a system-initiated event still has no actor; the migration backfills <code>'user'</code> for every existing actored row, which is a statement of fact rather than a guess</td></tr>
+      <tr><td class="mono">actor_email</td><td class="mono">text NULL</td><td>A frozen snapshot of the address at write time: the log stays readable after the account is deleted or renamed. For an <code>api_token</code> actor it carries the token's <b>label</b> instead — a token has no address, and a row showing a bare uuid names nothing a reader recognises</td></tr>
+      <tr><td class="mono">workspace_id</td><td class="mono">uuid NULL</td><td>Where it happened, or <code>null</code> when it belongs to no workspace. <b>Not a scoping boundary</b> — <code>activity:read</code> still is. What it buys is the ability to <em>ask</em> a workspace-shaped question, which previously had no answer at any price, and it is what lets the entry-scoped route fail closed. Filled from the emitting event's own <code>payload.workspaceId</code>, so a producer that has one puts it there</td></tr>
+      <tr><td class="mono">meta</td><td class="mono">jsonb NULL</td><td>An open payload; each kind's shape is owned by the producer. Not indexed and not part of the filterable surface. May additionally carry a <code>via</code> key — see the note below</td></tr>
       <tr><td class="mono">at</td><td class="mono">timestamptz NOT NULL</td><td>The fact's <b>logical</b> time — taken from <code>event.occurredAt</code>, that is, when it happened rather than when it was delivered</td></tr>
       <tr><td class="mono">created_at</td><td class="mono">timestamptz NOT NULL</td><td>The time of the physical write. <b>Never selected</b> in <code>list</code> and never sent over the wire — an internal detail</td></tr>
     </tbody>
   </table>
   </div>
 
-  <h3>The indexes — for exactly three query shapes</h3>
+  <div class="note">
+    <span class="label"><code>meta.via</code> — <em>how</em>, as against <em>who</em></span>
+    <p>A copilot proposal applies under the authority of the person who accepted it, so the actor is correctly that human — there is no copilot identity and there must not be one. What was missing is that the resulting row was then indistinguishable from one they typed: under <b>ADR-0009</b> a proposal applies as it is drafted, so "Ada updated three articles" could equally mean Ada edited three articles or that Ada accepted one agent turn that rewrote them.</p>
+    <p><code>via</code> rides on the actor (<code>attachActor</code>) and is lifted into <code>meta</code> by the mapper, merged with the kind's own payload rather than replacing it — a copilot-applied entry update is still an entry update, and a reader wants the changed fields <em>and</em> the run that changed them. Two mechanisms use it today: <code>{ kind:'copilot', runId, proposalId }</code> and <code>{ kind:'revision_restore', revisionNumber }</code>, the latter so a restore says which version it put back rather than reading as a plain edit. Absent on the overwhelming majority of rows.</p>
+  </div>
+
+  <h3>The indexes — for exactly four query shapes</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>Index</th><th>Columns</th><th>Which question it serves</th></tr></thead>
@@ -560,6 +670,7 @@ html{scroll-behavior:smooth}
       <tr><td class="mono">activity_events_subject_idx</td><td class="mono">(subject_type, subject_id, at)</td><td>"This subject's history" — the member tab, an entry's history</td></tr>
       <tr><td class="mono">activity_events_actor_idx</td><td class="mono">(actor_id, at)</td><td>"What did this person do"</td></tr>
       <tr><td class="mono">activity_events_kind_idx</td><td class="mono">(kind, at)</td><td>"Every publication", "every token issue"</td></tr>
+      <tr><td class="mono">activity_events_workspace_idx</td><td class="mono">(workspace_id, at)</td><td>"What happened in this workspace" — a question the table could not answer at all before</td></tr>
     </tbody>
   </table>
   </div>
@@ -642,7 +753,7 @@ html{scroll-behavior:smooth}
   <h2 class="sec"><span class="num">07</span>Flows — how it works, step by step</h2>
 
   <h3>7.1 The general pipeline: from an action to a log row</h3>
-  <p class="sub small">This is the skeleton shared by all 40 kinds. The flows that follow cover the cases where the specifics matter.</p>
+  <p class="sub small">This is the skeleton shared by every kind. The flows that follow cover the cases where the specifics matter.</p>
   <ol class="flow">
     <li><b>A user performs an action.</b> Any writing route of any plugin — publishing an entry, an invitation, a file upload.</li>
     <li><b>An aggregate or a use case raises a domain event.</b> The aggregate names the fact (<code>entry.published</code>), and the use case adds what the aggregate cannot know (<code>sessionsRevoked</code> — the aggregate has no idea sessions exist; a member's previous name — only the use case knows it).<span class="meta">an event is a fact, not a command: the past tense in the name is no accident</span></li>
@@ -767,7 +878,7 @@ html{scroll-behavior:smooth}
 <section id="api">
   <h2 class="sec"><span class="num">08</span>HTTP API</h2>
 
-  <p>One route. It is also the entire surface available from outside.</p>
+  <p>Three routes, all reads. Together they are the entire surface available from outside — and the second and third exist because the first one's permission is the right answer to a different question than the one they answer.</p>
 
   <div class="tablewrap">
   <table>
@@ -778,8 +889,32 @@ html{scroll-behavior:smooth}
         <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">activity:read</span></td>
         <td class="mono">{ items[], total, page, pageSize }</td>
       </tr>
+      <tr>
+        <td class="mono">GET /api/activity/entries/:entryId</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">content:read</span> <span class="pill">X-Workspace-Id</span></td>
+        <td class="mono">{ items[], total, page, pageSize }</td>
+      </tr>
+      <tr>
+        <td class="mono">GET /api/activity/dead-letters</td>
+        <td><span class="pill pill-ses">session</span> <span class="pill pill-perm">activity:read</span></td>
+        <td class="mono">{ total, items[] }</td>
+      </tr>
     </tbody>
   </table>
+  </div>
+
+  <h3>The two narrow routes</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4 style="margin-top:0"><code>/entries/:entryId</code> — one record's own trail</h4>
+      <p class="small sub">Paging only: the subject is the URL, the workspace is the header, and every other filter the full log offers would be a way of asking a narrower question about a history short enough to read.</p>
+      <p class="small sub"><b>It fails closed.</b> <code>WorkspaceGuard</code> proves membership and the query requires the row's <code>workspace_id</code> to match, so an entry id from another workspace reads as an empty history rather than as somebody else's. Rows written before that column existed carry <code>null</code> and are therefore excluded — losing old history on a narrow route is the right side to err on, and the full log still has them.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0"><code>/dead-letters</code> — what could <em>not</em> be recorded</h4>
+      <p class="small sub"><code>dispatched_at IS NULL AND attempts &gt;= MAX_DELIVERY_ATTEMPTS</code>, newest first, each with the reason it parked (<code>outbox_events.last_error</code>). <code>total</code> is separate from <code>items</code> so a caller can render "3 events could not be recorded" without paging; <code>limit</code> caps at 200 and <code>since</code> narrows to recent failures.</p>
+      <p class="small sub"><b>It reports rather than repairs.</b> Replaying a parked row means clearing its <code>attempts</code> — a deliberate operator action against a fixed cause, not a button that re-runs whatever failed fifteen times.</p>
+    </div>
   </div>
 
   <h3>Query parameters</h3>
@@ -787,12 +922,14 @@ html{scroll-behavior:smooth}
   <table>
     <thead><tr><th>Parameter</th><th>Type and constraints</th><th>Semantics</th></tr></thead>
     <tbody>
-      <tr><td class="mono">subjectType</td><td>a string, at most 255</td><td>Exact equality. One of the six subject types</td></tr>
+      <tr><td class="mono">subjectType</td><td>a string, at most 255</td><td>Exact equality. One of the thirteen subject types</td></tr>
       <tr><td class="mono">subjectId</td><td>a string, at most 255</td><td>Exact equality. One subject's history</td></tr>
-      <tr><td class="mono">actorId</td><td>uuid</td><td>Exact equality. What one person did</td></tr>
+      <tr><td class="mono">actorId</td><td>uuid</td><td>Exact equality. What one person — or one token — did</td></tr>
+      <tr><td class="mono">actorType</td><td>a string, at most 255</td><td>Exact equality: <code>user</code> or <code>api_token</code>. Free text rather than an enum for the same reason <code>kind</code> is — the values are owned by <code>@orthacms/database</code>'s <code>EVENT_ACTOR_TYPE</code>, and a copy here would be a second catalogue to keep in step</td></tr>
+      <tr><td class="mono">workspaceId</td><td>uuid</td><td>Exact equality. Narrows, never widens — and excludes every row that belongs to no workspace, which is the point and also the reason the page does not offer it</td></tr>
       <tr><td class="mono">kind</td><td>a comma-separated list, each item at most 255</td><td>Matched with <code>IN</code>. Validated as free text, <b>not</b> against a central dictionary — the kinds belong to the producers</td></tr>
       <tr><td class="mono">actorEmail</td><td>a string, at most 255</td><td>A case-insensitive substring search over the frozen address snapshot; LIKE metacharacters are escaped</td></tr>
-      <tr><td class="mono">filter</td><td>a JSON string, at most 4096 characters</td><td>A query-builder tree; validated against a six-field schema, at most 50 nodes, depth at most 3. Combined with the rest by <code>AND</code></td></tr>
+      <tr><td class="mono">filter</td><td>a JSON string, at most 4096 characters</td><td>A query-builder tree; validated against an <b>eight</b>-field schema (the six original plus <code>actorType</code> and <code>workspaceId</code>), at most 50 nodes, depth at most 3. Combined with the rest by <code>AND</code></td></tr>
       <tr><td class="mono">from</td><td>ISO 8601</td><td>An inclusive lower bound on <code>at</code></td></tr>
       <tr><td class="mono">to</td><td>ISO 8601</td><td>An inclusive upper bound on <code>at</code></td></tr>
       <tr><td class="mono">page</td><td>an integer of at least 1, default 1</td><td>One-based; the offset is computed by the service</td></tr>
@@ -804,7 +941,7 @@ html{scroll-behavior:smooth}
   </div>
 
   <h3>The item's shape</h3>
-  <p>Exactly the table row <b>minus <code>created_at</code></b>: <code>id</code>, <code>kind</code>, <code>subjectType</code>, <code>subjectId</code>, <code>actorId</code>, <code>actorEmail</code>, <code>meta</code>, <code>at</code>. The actor is returned as two flat fields; collapsing them into an <code>actor</code> object (or into <code>null</code> for a system event) is done by the admin-side mapper.</p>
+  <p>Exactly the table row <b>minus <code>created_at</code></b>: <code>id</code>, <code>kind</code>, <code>subjectType</code>, <code>subjectId</code>, <code>actorId</code>, <code>actorType</code>, <code>actorEmail</code>, <code>workspaceId</code>, <code>meta</code>, <code>at</code>. The actor is returned as three flat fields; collapsing them into an <code>actor</code> object (or into <code>null</code> for a system event) is done by the admin-side mapper, which passes <code>actorType</code> through as <code>undefined</code> rather than defaulting it — defaulting belongs on the server, which knows that a row predating the column was written by a person.</p>
 
   <details>
     <summary>Response codes to expect</summary>
@@ -822,7 +959,7 @@ html{scroll-behavior:smooth}
 <section id="admin">
   <h2 class="sec"><span class="num">09</span>Admin UI</h2>
 
-  <p>The package provides <b>one route</b> and <b>two slot contributions</b>; a third surface is a tab in another package, living on a hook exported from here.</p>
+  <p>The package provides <b>one route</b> and <b>three slot contributions</b>; a fifth surface is a tab in another package, living on a hook exported from here.</p>
 
   <div class="tablewrap">
   <table>
@@ -831,6 +968,8 @@ html{scroll-behavior:smooth}
       <tr><td>The log page</td><td class="mono">/activity</td><td>A "When · Actor · Action · Subject" table with expandable rows, search, the filter builder and pagination</td><td><code>useHasPermission</code>, otherwise <code>ActivityNoAccess</code></td></tr>
       <tr><td>The sidebar item</td><td class="mono">SIDEBAR_NAV_SLOT</td><td>Group <code>overview</code>, order 20, the <code>Activity</code> icon</td><td><code>permission: 'activity:read'</code> in the slot descriptor</td></tr>
       <tr><td>The home panel</td><td class="mono">HOME_SECTION_SLOT</td><td><code>RecentActivityPanel</code>: the 6 most recent events, the <code>panel</code> region, order 20, a "View all" link</td><td>without the permission it renders <code>null</code> rather than an empty card</td></tr>
+      <tr><td>The entry's Activity block</td><td class="mono">ENTRY_SIDEBAR_WIDGET_SLOT</td><td><code>EntryActivityWidget</code>: the 6 most recent actions on the open record, order 60 — last in the rail, because history is context you go looking for rather than the reason you opened the editor</td><td><code>content:read</code>, and it reads a different route; without the permission it renders <code>null</code> and makes no request</td></tr>
+      <tr><td>The dead-letter notice</td><td class="mono">on the log page</td><td><code>DeadLetterNotice</code>: how many events could <b>not</b> be recorded, and the kinds of the most recent ones</td><td><code>activity:read</code>; renders nothing when the count is zero, and nothing while loading or on error</td></tr>
       <tr><td>The member tab</td><td class="mono">users-admin</td><td>A personal log: events about a person or performed by them</td><td>the rail hides the tab without the permission</td></tr>
     </tbody>
   </table>
@@ -852,6 +991,11 @@ html{scroll-behavior:smooth}
   </div>
   <p>The skeleton is the same one for the lazy route's fallback and for the loading state — otherwise navigating to the page would give two different placeholders in a row. The empty state distinguishes "the filter found nothing" (offering to clear it) from "the log really is empty" (explaining that rows appear as actions are taken).</p>
 
+  <div class="note">
+    <span class="label">Why the entry widget and the notice both render nothing on failure</span>
+    <p>Both are <b>caveats about somebody else's content</b>, and a caveat that fails must not take that content down with it. A page rendering no rows because the <em>warning</em> about the rows errored is strictly worse than one rendering the rows without the warning; an editor seeing "the history could not be loaded" is being told something true, but an editor seeing an empty Activity block would be told something false. Hence the split: the widget says so out loud on error (silence there would read as "nothing has happened"), and the notice stays silent (a failed warning is not itself news).</p>
+  </div>
+
   <h3>Accessibility — what is not obvious here</h3>
   <ul>
     <li><b>The live region carries a range, not just a count.</b> The count is invariant across pages: pressing "Next" changed all 25 rows while the region's text stayed the same — so no announcement happened at all. Hence "showing N–M, page X of Y" was added to the text.</li>
@@ -863,7 +1007,8 @@ html{scroll-behavior:smooth}
   </ul>
 
   <h3>How "Action" becomes human-readable text</h3>
-  <p><code>ACTION_MESSAGES</code> is typed as a record keyed by the <code>ActivityKind</code> type, so a string added to <code>ACTIVITY_KINDS</code> without a label is a <b>compile error</b>. The two halves of the catalogue cannot drift apart inside the package. The cross-package half is supposed to be pinned by the <code>activity-kinds.spec.ts</code> e2e suite — and today it pins it incompletely (see section 15).</p>
+  <p><code>ACTION_MESSAGES</code> is typed as a record keyed by the <code>ActivityKind</code> type, so a string added to <code>ACTIVITY_KINDS</code> without a label is a <b>compile error</b>. The two halves of the catalogue cannot drift apart inside the package. The cross-package half is pinned twice over: <code>activity-kinds.spec.ts</code> proves each kind actually renders, and <code>audit-event-mapping.spec.ts</code> compares this list against the server's <code>AUDIT_KINDS</code> in both directions (see §3.11).</p>
+  <p class="small sub"><b>Keep <code>types/activityKinds</code> free of imports.</b> The server-side check reads that module as text rather than importing it, because an import would put this React package in the audit plugin's TypeScript project graph. Two bare <code>as const</code> arrays is what makes that work.</p>
   <p>The "Details" line reads <b>one</b> descriptive field per kind rather than a common shape: media payloads differ by design, and the full record is visible in the expanded row anyway. Three kinds (<code>media.asset.updated</code>, <code>media.asset.moved</code>, <code>media.folder.deleted</code>) have no short summary at all — only the expanded panel.</p>
 </section>
 
@@ -945,16 +1090,16 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-04</span><span>A row's <code>at</code> equals the event's <code>occurredAt</code>, that is, the fact's logical time rather than its delivery time. <code>created_at</code> is never selected on a read.</span></li>
     <li><span class="id">I-05</span><span><code>toAuditRow</code> is a pure function with no database access; returning <code>null</code> means "not our kind", and an exception means "our kind, but there is nothing to name the subject with". The two outcomes are never conflated.</span></li>
     <li><span class="id">I-06</span><span>A row with an empty <code>subject_id</code> is never written: the membership mapper refuses rather than substituting a default.</span></li>
-    <li><span class="id">I-07</span><span>The actor is lifted off <code>payload.actor</code> into the <code>actor_id</code> and <code>actor_email</code> columns and is never duplicated inside <code>meta</code>.</span></li>
+    <li><span class="id">I-07</span><span>The actor is lifted off <code>payload.actor</code> into the <code>actor_id</code>, <code>actor_type</code> and <code>actor_email</code> columns and is never duplicated inside <code>meta</code>. Its <code>via</code> — <em>how</em>, not who — is the one part that does land in <code>meta</code>, merged with the kind's own payload rather than replacing it.</span></li>
     <li><span class="id">I-08</span><span>Not one mapper carries a secret into <code>meta</code>: no password, no hash, no token value and no token hash. For an API token the field set is given by enumeration rather than by copying the payload wholesale.</span></li>
     <li><span class="id">I-09</span><span>The subscriber accepts exactly the kinds listed in <code>FACET_MAPPERS</code>: <code>AUDITED_EVENT_KINDS</code> is its <code>kinds</code>, computed from that same table.</span></li>
     <li><span class="id">I-10</span><span>An event of a kind absent from <code>FACET_MAPPERS</code> produces an error nowhere: it is stamped delivered and never reaches the log.</span></li>
-    <li><span class="id">I-11</span><span>Every audit kind maps from exactly one event kind; there are no name collisions among the 40 mappings.</span></li>
+    <li><span class="id">I-11</span><span>Every audit kind maps from exactly one event kind, with <b>one deliberate exception</b>: <code>user.disabled</code>/<code>user.enabled</code> land on the same audit kinds as <code>member.disabled</code>/<code>member.reactivated</code>, so 62 mappings produce 60 distinct kinds. Which aggregate performed the change is an internal fact; the reader wants "this account was suspended".</span></li>
     <li><span class="id">I-12</span><span>A kind is renamed only where the two catalogues historically diverged: <code>member.*</code> to <code>user.*</code>, <code>auth.signed_in</code>/<code>auth.signed_out</code> to <code>user.signed_in</code>/<code>user.signed_out</code>, and <code>api_token.*</code> to <code>token.*</code>. The rest pass straight through.</span></li>
     <li><span class="id">I-13</span><span>The subject of a workspace-membership event is the <b>user</b>, not the workspace; the workspace's id travels in <code>meta.workspaceId</code>.</span></li>
-    <li><span class="id">I-14</span><span><code>GET /api/activity</code> is reachable only with a session and only with the <code>activity:read</code> permission; it is unreachable with an external API bearer token.</span></li>
+    <li><span class="id">I-14</span><span><code>GET /api/activity</code> and <code>/dead-letters</code> are reachable only with a session and only with the <code>activity:read</code> permission; they are unreachable with an external API bearer token. <code>/entries/:id</code> takes a session and <code>content:read</code>, and additionally requires membership of the workspace named in <code>X-Workspace-Id</code>.</span></li>
     <li><span class="id">I-15</span><span>All filters intersect with <code>AND</code>, the <code>?filter=</code> tree included; the absence of filters gives the full set rather than an empty one.</span></li>
-    <li><span class="id">I-16</span><span>The filterable surface is six columns; <code>meta</code> and <code>created_at</code> are not in it under any parameters.</span></li>
+    <li><span class="id">I-16</span><span>The filterable surface is eight columns; <code>meta</code> and <code>created_at</code> are not in it under any parameters.</span></li>
     <li><span class="id">I-17</span><span>The sort column is picked from an allow-list (<code>at</code>, <code>kind</code>), and an <code>id desc</code> tiebreaker is always appended, so pagination is deterministic with identical timestamps.</span></li>
     <li><span class="id">I-18</span><span>A <code>pageSize</code> above <code>MAX_PAGE_SIZE = 100</code> is rejected by the server as a <code>400</code>; the log page clamps the value before sending so that such a refusal is not unrecoverable from the interface.</span></li>
     <li><span class="id">I-19</span><span>Search by the actor's address is case-insensitive and escapes LIKE metacharacters.</span></li>
@@ -969,6 +1114,12 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-28</span><span>Without the <code>activity:read</code> permission the admin UI makes no request at all: the hook's enablement equals the permission, and the home panel returns <code>null</code>.</span></li>
     <li><span class="id">I-29</span><span>The page does not stay beyond the last page after a filter narrows the result, but neither does it discard a deep <code>?page=N</code> link before the first response arrives.</span></li>
     <li><span class="id">I-30</span><span>The address bar is the single source of truth for every filter and for the page; any filtered state is reproducible from a link.</span></li>
+    <li><span class="id">I-31</span><span><code>actor_type</code> is <code>null</code> if and only if <code>actor_id</code> is: an actored row never claims an unknown kind of principal, and an actor that says nothing about its kind is read as a user.</span></li>
+    <li><span class="id">I-32</span><span>A token's id never reaches a revision's <code>created_by</code>. The audit path and the revision path take the same <code>EventActor</code> and read it differently — <code>revisionActorId</code> yields a user id or nothing — so naming a credential in the log cannot corrupt a version's authorship.</span></li>
+    <li><span class="id">I-33</span><span><code>GET /activity/entries/:id</code> returns only rows whose <code>workspace_id</code> equals the open workspace. An entry id from another workspace yields an empty history, never somebody else's; a row with a <code>null</code> workspace is excluded rather than assumed harmless.</span></li>
+    <li><span class="id">I-34</span><span>The server's <code>AUDIT_KINDS</code> and the admin's <code>ACTIVITY_KINDS</code> are equal as sets, and every declared kind is reachable from some mapper. Both directions are asserted by a unit test that drives every mapper.</span></li>
+    <li><span class="id">I-35</span><span><code>auth.sign_in_failed</code> changes nothing a caller can observe: every refusal path still returns the same error after the same single bcrypt comparison and the same one insert, and a failure to record is swallowed rather than turned into a 500.</span></li>
+    <li><span class="id">I-36</span><span><code>api_token.used</code> is raised only when <code>last_used_at</code> is actually touched, so a token produces at most one row per <code>LAST_USED_TOUCH_INTERVAL_MS</code> however much traffic it carries.</span></li>
   </ul>
 </section>
 
@@ -978,7 +1129,7 @@ html{scroll-behavior:smooth}
 
   <h3>Write-path coverage — the main thing</h3>
   <ul class="check">
-    <li><b>For each of the 40 kinds: perform the action and look in the database</b> → <span class="exp">a row of the right kind appeared in <code>outbox_events</code> <b>and</b> a row appeared in <code>activity_events</code>. Both halves must be checked: either on its own passes with an empty log.</span></li>
+    <li><b>For each of the 60 audit kinds: perform the action and look in the database</b> → <span class="exp">a row of the right kind appeared in <code>outbox_events</code> <b>and</b> a row appeared in <code>activity_events</code>. Both halves must be checked: either on its own passes with an empty log.</span></li>
     <li><b>Compare <code>select distinct kind from outbox_events</code> against <code>AUDITED_EVENT_KINDS</code></b> → <span class="exp">the difference is empty. That is the one-query check for silent losses.</span></li>
     <li><b>Upload, rename, retag, move and delete a file; create, rename and delete a folder</b> → <span class="exp">eight actions, eight log rows with <code>media_asset</code> and <code>media_folder</code> subjects.</span></li>
     <li><b>Save an entry without changing anything in it</b> → <span class="exp">no event and no log row — the expected behaviour rather than an omission.</span></li>
@@ -1023,7 +1174,7 @@ html{scroll-behavior:smooth}
     <li><b>Select an id in a row with the mouse and release the button</b> → <span class="exp">the row does not collapse and the selection is kept.</span></li>
     <li><b>Clear the filters with the button in the empty state</b> → <span class="exp">focus lands in the search field rather than on the document body.</span></li>
     <li><b>Feed an unparseable <code>at</code> value into the response</b> → <span class="exp">the row renders, the time element has no <code>datetime</code> attribute, and the application does not fall into a white screen.</span></li>
-    <li><b>Show one row of each of the 40 kinds at a page size of 100</b> → <span class="exp">no "Action" cell contains a dot, that is, no raw token leaked through. <b>Today this check fails on the three SSO kinds</b> — see section 15.</span></li>
+    <li><b>Show one row of each of the 60 audit kinds at a page size of 100</b> → <span class="exp">no "Action" cell contains a dot, that is, no raw token leaked through. <b>Today this check fails on the three SSO kinds</b> — see section 15.</span></li>
     <li><b>Open the "Activity" tab on a member's card</b> → <span class="exp">both events about them and events performed by them are visible; the action labels are the same as on the main page.</span></li>
   </ul>
 
@@ -1044,8 +1195,8 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr><td>The transactional outbox, the dispatcher, the <code>DomainEvent</code> contract, <code>attachActor</code></td><td class="mono">@orthacms/database</td><td>Delivery parameters, retries, dead letters and the growth of <code>outbox_events</code> are not Activity's territory</td></tr>
       <tr><td>The <code>activity:read</code> permission, <code>PermissionsGuard</code>, the <code>ACTIVITY_RECORDER</code> port, the <code>IDENTITY_ACTIVITY_KINDS</code> catalogue</td><td class="mono">@orthacms/identity-server</td><td>Activity imports the constants and the guard but defines none of them</td></tr>
-      <tr><td>Event kinds and the shape of their payloads</td><td>each producing plugin</td><td>identity, users, workspaces, content, media. The sink neither dictates nor validates the shape</td></tr>
-      <tr><td>Parsing and translating the <code>?filter=</code> tree</td><td class="mono">@orthacms/utils-server</td><td>Activity supplies only the six-field schema</td></tr>
+      <tr><td>Event kinds and the shape of their payloads</td><td>each producing plugin</td><td>identity, users, workspaces, content, media, transfer, segments, alarms, copilot. The sink neither dictates nor validates the shape</td></tr>
+      <tr><td>Parsing and translating the <code>?filter=</code> tree</td><td class="mono">@orthacms/utils-server</td><td>Activity supplies only the eight-field schema</td></tr>
       <tr><td>The filter builder in the interface</td><td class="mono">@orthacms/query-builder-admin</td><td>Activity supplies the field list and their labels</td></tr>
       <tr><td>The sidebar and home slots, the shell</td><td class="mono">@orthacms/shell-admin</td><td>Hiding the item by permission is done by <code>SidebarNavButton</code></td></tr>
       <tr><td>The tool registry, call authorisation, the untrusted-content fence</td><td class="mono">@orthacms/tools-server, @orthacms/copilot-server</td><td>Activity only declares one tool</td></tr>
@@ -1070,6 +1221,11 @@ html{scroll-behavior:smooth}
   <h2 class="sec"><span class="num">15</span>Discrepancies between code and documentation</h2>
   <p>Found while checking this dossier against the source. Some are stale phrasings, some are real holes in the catalogue that mislead developer and tester alike.</p>
 
+  <div class="note ok">
+    <span class="label">Closed since the previous revision</span>
+    <p>Four of the entries below have been fixed and are kept here as a record rather than as work. <b>The catalogue drift</b> — three SSO kinds the admin could not render, the same three missing from the mapper's own JSDoc table, and the e2e seed that could not notice either — is closed, and a two-directional check now makes a recurrence a failing test. <b><code>user.disabled</code>/<code>user.enabled</code></b> are mapped, so the day a caller appears the action will not go silent. Rows marked <span class="mono">closed</span> below carry the detail.</p>
+  </div>
+
   <div class="tablewrap">
   <table>
     <thead><tr><th>Where</th><th>What it says</th><th>How it actually is</th></tr></thead>
@@ -1077,12 +1233,12 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">activity/admin/src/lib/types/activityKinds/index.ts</td>
         <td>The <code>ACTIVITY_KINDS</code> list is declared as a catalogue that "must keep pace with <code>FACET_MAPPERS</code>"</td>
-        <td><b>It lags by three kinds.</b> The server writes <code>user.sso_linked</code>, <code>user.sso_provisioned</code> and <code>user.sso_role_mapped</code>, the admin UI knows nothing of them, and the "Action" column will show a raw token. The same gap exists in the <code>ALL_KINDS_ACTIVITY</code> seed in <code>apps/admin-e2e/src/support/api/activity.ts</code> — so the test written specifically to catch this misses it</td>
+        <td><span class="mono">closed</span> — it lagged by three kinds (<code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>), and the <code>ALL_KINDS_ACTIVITY</code> seed lagged identically, so the test written to catch it could not. Both lists are complete, and <code>audit-event-mapping.spec.ts</code> now compares the admin's list against the server's <code>AUDIT_KINDS</code> in both directions — reading the admin module <em>as text</em>, so no project-graph edge is created</td>
       </tr>
       <tr>
         <td class="mono">activity/server/.../audit-event-mapping.ts</td>
         <td>The JSDoc "event → audit kind" table above <code>FACET_MAPPERS</code></td>
-        <td>It holds <b>37</b> rows out of <b>40</b>: the three SSO kinds that exist in the mapping table itself are missing from the documenting table. Exactly the same three the admin UI lacks</td>
+        <td><span class="mono">closed</span> — it held 37 rows out of 40. It now documents every mapper, and the machine-readable <code>AUDIT_KINDS</code> beside it is what the specs check, so the prose table is no longer the only record</td>
       </tr>
       <tr>
         <td class="mono">CONTEXT-MAP.md, the glossary</td>
@@ -1102,7 +1258,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">packages/activity/server/AGENTS.md</td>
         <td>The route description lists the filters: subject, actor, kind, address search, date range, pagination, sorting</td>
-        <td>The <b>structural <code>?filter=</code> filter</b> is not mentioned — the second full filtering surface, the one the member tab in <code>users-admin</code> rests on. Nor are its limits (4,096 characters, a six-field schema, the node and depth ceilings)</td>
+        <td>The <b>structural <code>?filter=</code> filter</b> is not mentioned — the second full filtering surface, the one the member tab in <code>users-admin</code> rests on. Nor are its limits (4,096 characters, an eight-field schema, the node and depth ceilings)</td>
       </tr>
       <tr>
         <td class="mono">packages/activity/admin/AGENTS.md</td>
@@ -1122,27 +1278,27 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">packages/activity/server/AGENTS.md</td>
         <td>"That failure is completely silent, and it has happened three times (API tokens, entry publishes, and the whole media library)"</td>
-        <td>True in substance but incomplete: <code>user.password_changed</code> and <code>user.activated</code> were silent the same way, and the whole ordinary editorial cycle (<code>entry.created</code>, <code>entry.updated</code>, <code>entry.deleted</code>, <code>entry.restored</code>, <code>entry.purged</code>) raised no events at all until entries moved onto the unit of work. Those are different ailments with the same symptom, and both are worth naming</td>
+        <td><span class="mono">partly closed</span> — the count is now <b>four</b> (content export/import was the fourth), and the note points at the catalogue check. Still incomplete in the same way as before: <code>user.password_changed</code> and <code>user.activated</code> were silent identically, and the whole ordinary editorial cycle raised no events at all until entries moved onto the unit of work. Those are different ailments with the same symptom, and both are worth naming</td>
       </tr>
       <tr>
         <td class="mono">packages/activity/server/AGENTS.md, the Schema section</td>
         <td>Lists the columns and the indexes</td>
-        <td>Not a word about there being <b>no retention</b> and the table growing without bound — even though for <code>outbox_events</code> that is stated explicitly in the neighbouring package's documentation</td>
+        <td><b>Still open.</b> The Schema section now documents <code>actor_type</code>, <code>workspace_id</code> and <code>meta.via</code>, but still says not a word about there being <b>no retention</b> and the table growing without bound — even though for <code>outbox_events</code> that is stated explicitly in the neighbouring package's documentation</td>
       </tr>
       <tr>
         <td class="mono">The kind catalogue, <code>auth.signed_out</code></td>
         <td>Symmetry with <code>auth.signed_in</code>, where the sign-in method is recorded into <code>meta</code></td>
-        <td>The <code>auth.signed_out</code> mapper sets <code>meta: null</code> unconditionally, even though a back-channel sign-out puts the method and the provider into the event. A provider-initiated sign-out is indistinguishable in the log from an ordinary one; and the actor there is given an empty string instead of an address snapshot</td>
+        <td><b>Still open, and now more visible.</b> The <code>auth.signed_out</code> mapper sets <code>meta: null</code> unconditionally, even though a back-channel sign-out puts the method and the provider into the event. A provider-initiated sign-out is indistinguishable in the log from an ordinary one; the actor there is given <code>email ?? ''</code>, an empty string instead of an address snapshot. The asymmetry widened rather than closed: <code>auth.signed_in</code> now carries the IP, the User-Agent <em>and</em> the method</td>
       </tr>
       <tr>
         <td class="mono">identity/server/.../identity-events.ts</td>
         <td><code>USER_DISABLED</code> and <code>USER_ENABLED</code> are declared as event kinds of the identity context</td>
-        <td>They are raised only by the <code>UserAccount.disable()</code> and <code>enable()</code> methods, which have not one caller in product code, and there are no mappers for them. Should a caller ever appear, the action will go silent per flow 7.5</td>
+        <td><span class="mono">closed</span> — they are still raised only by <code>UserAccount.disable()</code>/<code>enable()</code>, which have no callers in product code, but they are now <b>mapped</b>, onto the same audit kinds as their <code>member.*</code> counterparts. The methods are public API of a published package; leaving them unmapped meant the first caller to appear would reproduce this package's signature failure with nothing failing anywhere</td>
       </tr>
       <tr>
         <td class="mono">docs/testing/activity-server.md</td>
         <td>The "Potential Bugs" section holds BUG-03 (no mapper for <code>user.password_changed</code>), BUG-04 (no attempt ceiling and no dead letters), BUG-05 (an empty <code>subject_id</code> instead of a refusal)</td>
-        <td>All three are fixed in the code: the mapper exists, the 15-attempt ceiling with exponential backoff exists, and <code>UnmappableAuditEventError</code> exists. The testing artifact has fallen behind the implementation and misleads a re-check</td>
+        <td>All three are fixed in the code: the mapper exists, the 15-attempt ceiling with exponential backoff exists, and <code>UnmappableAuditEventError</code> exists. The testing artifact has fallen behind the implementation and misleads a re-check — and has now fallen further behind: it knows nothing of the twenty new kinds, the two new routes, or the dead-letter surface that answers BUG-04's original complaint</td>
       </tr>
     </tbody>
   </table>
@@ -1150,8 +1306,8 @@ html{scroll-behavior:smooth}
 </section>
 
 <footer class="end">
-  <p><b>A dossier of the <code>packages/activity</code> group.</b> Written in the same frame as the Identity dossier: business description, composition, the catalogue of event kinds, permissions, data, lifecycle, flows, API, admin UI, configuration, security, invariants, checklist, boundaries, discrepancies. The "Catalogue of event kinds" section was added for this package specifically: it is the only place in the repository that gathers all 40 kinds together.</p>
-  <p>The source is the source code: <code>audit-event-mapping.ts</code>, <code>audit-event.subscriber.ts</code>, <code>activity.service.ts</code>, the DTOs and the controller, the Drizzle schema and the migration, the event files of the five producing plugins, the outbox dispatcher in <code>@orthacms/database</code>, and the admin UI's pages, components and hooks. The <code>AGENTS.md</code> files were used as a skeleton, but every claim was checked against the implementation — discrepancies went into section 15.</p>
+  <p><b>A dossier of the <code>packages/activity</code> group.</b> Written in the same frame as the Identity dossier: business description, composition, the catalogue of event kinds, permissions, data, lifecycle, flows, API, admin UI, configuration, security, invariants, checklist, boundaries, discrepancies. The "Catalogue of event kinds" section was added for this package specifically: it is the only place in the repository that gathers the whole catalogue together in prose.</p>
+  <p>The source is the source code: <code>audit-event-mapping.ts</code>, <code>audit-event.subscriber.ts</code>, <code>activity.service.ts</code>, the DTOs and the controller, the Drizzle schema and the migration, the event files of the nine producing plugins, the outbox dispatcher in <code>@orthacms/database</code>, and the admin UI's pages, components and hooks. The <code>AGENTS.md</code> files were used as a skeleton, but every claim was checked against the implementation — discrepancies went into section 15.</p>
 </footer>
 
 </main>

@@ -246,11 +246,11 @@ html{scroll-behavior:smooth}
     <p class="lede">Database is an <strong>infrastructure</strong> plugin: it knows not a single domain table, exposes not a single HTTP route and decides not a single business question. It does two things. First, it opens the <strong>one and only</strong> pool to PostgreSQL and hands it out to every other plugin. Second, it gives them a shared set of tactical primitives: the transaction boundary (<code>UnitOfWork</code>), the envelope for a fact (<code>DomainEvent</code>) and the <strong>transactional outbox</strong>, thanks to which an event about a change that happened can neither be lost nor outlive a rollback.</p>
     <ul class="facts">
       <li><b>1</b> database table</li>
-      <li><b>2</b> migrations</li>
+      <li><b>3</b> migrations</li>
       <li><b>4</b> tactical primitives</li>
-      <li><b>25</b> public exports</li>
-      <li><b>44</b> event kinds in the repository</li>
-      <li><b>6</b> publishing plugins</li>
+      <li><b>28</b> public exports</li>
+      <li><b>62</b> event kinds in the repository</li>
+      <li><b>9</b> publishing plugins</li>
       <li><b>2</b> subscribers</li>
       <li><b>0</b> HTTP routes</li>
     </ul>
@@ -364,7 +364,7 @@ html{scroll-behavior:smooth}
   <table>
     <thead><tr><th>Primitive</th><th>Consumers in the repository</th><th class="center">Count</th></tr></thead>
     <tbody>
-      <tr><td class="mono">UnitOfWork / OutboxWriter</td><td><code>identity/server</code>, <code>users/server</code>, <code>workspaces/server</code>, <code>content/server</code>, <code>media/server</code>, <code>transfer/server</code></td><td class="center num-col">6</td></tr>
+      <tr><td class="mono">UnitOfWork / OutboxWriter</td><td><code>identity/server</code>, <code>users/server</code>, <code>workspaces/server</code>, <code>content/server</code>, <code>media/server</code>, <code>transfer/server</code>, <code>segments/server</code>, <code>alarms/server</code>, <code>copilot/server</code></td><td class="center num-col">9</td></tr>
       <tr><td class="mono">OutboxDispatcher.register</td><td><code>activity/server</code> (<code>AuditEventSubscriber</code>), <code>alarms/server</code> (<code>EntryEventSubscriber</code>)</td><td class="center num-col">2</td></tr>
       <tr><td class="mono">@InjectDatabase()</td><td>practically every server plugin</td><td class="center">—</td></tr>
       <tr><td class="mono">getDatabase() / getPool()</td><td>outside DI only: the <code>apps/server-e2e</code> tests, seeders</td><td class="center">—</td></tr>
@@ -458,11 +458,12 @@ html{scroll-behavior:smooth}
       <tr><td class="mono">kind</td><td class="mono">text</td><td>NOT NULL</td><td>What happened, as a dotted name: <code>workspace.created</code></td></tr>
       <tr><td class="mono">aggregate_type</td><td class="mono">text</td><td>NOT NULL</td><td>The aggregate root's type: <code>user</code>, <code>workspace</code>, <code>content_entry</code>…</td></tr>
       <tr><td class="mono">aggregate_id</td><td class="mono">text</td><td>NOT NULL</td><td>The root's identifier. <code>text</code> rather than <code>uuid</code> — different contexts have different identifiers</td></tr>
-      <tr><td class="mono">payload</td><td class="mono">jsonb</td><td>NOT NULL</td><td>The fact's data. This is also where <code>attachActor</code> puts the <code>actor</code> key</td></tr>
+      <tr><td class="mono">payload</td><td class="mono">jsonb</td><td>NOT NULL</td><td>The fact's data. This is also where <code>attachActor</code> puts the <code>actor</code> key — now <code>{ id, email, type, label, via }</code> rather than a bare pair, see “The actor, and how it was performed” below</td></tr>
       <tr><td class="mono">occurred_at</td><td class="mono">timestamptz</td><td>NOT NULL</td><td><b>Domain</b> time, not delivery time. It sets the drain order</td></tr>
       <tr><td class="mono">dispatched_at</td><td class="mono">timestamptz</td><td>NULL until delivered</td><td>Stamped when <em>every</em> matching subscriber has finished</td></tr>
       <tr><td class="mono">attempts</td><td class="mono">integer</td><td>NOT NULL, DEFAULT 0</td><td>The count of failed deliveries. Read by the ceiling and by the backoff</td></tr>
       <tr><td class="mono">next_attempt_at</td><td class="mono">timestamptz</td><td>NULL = “eligible now”</td><td>The row is not picked up before this time. Set on every failure</td></tr>
+      <tr><td class="mono">last_error</td><td class="mono">text</td><td>NULL until a failure</td><td>Why the most recent attempt failed, truncated to 1,000 characters. It exists so that a parked row can <em>answer for itself</em>: the row is a dead letter — an event that should have been recorded and could not be — and its parking is logged, but a log line is loud only to whoever is tailing logs at that moment. Afterwards the single question worth asking (“is anything parked, and why”) had no answer short of a <code>psql</code> session. Diagnostic text from an arbitrary subscriber, so <code>name: message</code> rather than a stack trace</td></tr>
     </tbody>
   </table>
   </div>
@@ -480,6 +481,7 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr><td class="mono">0000_init</td><td>Creates the table (8 columns) and the <code>outbox_events_dispatched_at_idx</code> index</td></tr>
       <tr><td class="mono">0001_outbox_retry_backoff</td><td>Drops the old index, adds <code>next_attempt_at</code>, creates the partial <code>outbox_events_pending_idx</code></td></tr>
+      <tr><td class="mono">0002_outbox_last_error</td><td>Adds <code>last_error</code>, so a parked row records why it stopped being retried</td></tr>
     </tbody>
   </table>
   </div>
@@ -661,17 +663,24 @@ FOR UPDATE SKIP LOCKED;</code></pre></div>
     <span class="arrow">→</span>
     <span class="state pending">an operator zeroed attempts — back in the queue</span>
   </div>
-  <p><b>The dead-letter query</b> — the same predicate as in the code:</p>
+  <p><b>The dead-letter query</b> — the same predicate as in the code, and now also as a method:</p>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>-- have a look
-SELECT id, kind, aggregate_type, aggregate_id, attempts, occurred_at
+SELECT id, kind, aggregate_type, aggregate_id, attempts, last_error, occurred_at
 FROM outbox_events
 WHERE dispatched_at IS NULL AND attempts &gt;= 15
-ORDER BY occurred_at;
+ORDER BY occurred_at DESC;
 
 -- replay, once the cause has been fixed
 UPDATE outbox_events SET attempts = 0, next_attempt_at = NULL
 WHERE id = '...';</code></pre></div>
-  <p class="small sub">There is no admin screen and no HTTP route for this — only SQL. The log line on the 15th failure prints the query itself and explains that the row will no longer be picked up.</p>
+
+  <p><code>OutboxDispatcher.deadLetters({ limit, newerThan })</code> is that query as a method, returning <code>{ total, items }</code> — <code>total</code> separate from <code>items</code> so a caller can render “3 events could not be recorded” without paging. The payload is deliberately left out of a <code>DeadLetter</code>: it is arbitrary domain data, some of it user-authored, and the caller is an operator asking <em>what</em> is stuck rather than replaying it.</p>
+
+  <div class="note">
+    <span class="label">Why this stopped being SQL-only</span>
+    <p>A parked row is very often an <b>audit row that was never written</b>, and a hole in an audit trail that is only visible to somebody who thinks to run a query is barely a hole that has been noticed. So <code>@orthacms/activity-server</code> serves this method at <code>GET /api/activity/dead-letters</code> under <code>activity:read</code>, and its admin page renders a non-zero <code>total</code> as a notice above the log — on the page whose whole job is being the record of record.</p>
+    <p>The route <b>reports rather than repairs</b>: replaying still means the <code>UPDATE</code> above, a deliberate operator action against a fixed cause, not a button that re-runs whatever failed fifteen times. Database owns the query and the column; it owns no HTTP route, here as everywhere.</p>
+  </div>
 
   <h3>Concurrency: one drain per process, many processes side by side</h3>
   <div class="grid g2">
@@ -738,7 +747,16 @@ WHERE id = '...';</code></pre></div>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export function attachActor(events: DomainEvent[], actor: EventActor): DomainEvent[] {
     return events.map((event) =&gt; ({
         ...event,
-        payload: { ...event.payload, actor: { id: actor.id, email: actor.email } }
+        payload: {
+            ...event.payload,
+            actor: {
+                id: actor.id,
+                email: actor.email,
+                type: actor.type ?? EVENT_ACTOR_TYPE.User,
+                label: actor.label ?? null,
+                via: actor.via ?? null
+            }
+        }
     }));
 }</code></pre></div>
   <ul>
@@ -746,8 +764,25 @@ WHERE id = '...';</code></pre></div>
     <li><b>The call site</b> is the application service, between <code>aggregate.pullEvents()</code> and <code>outbox.append(...)</code>. It is the only layer that knows both the events and the request's actor.</li>
     <li><b>The <code>email</code> is a <em>snapshot</em></b> (<code>string | null</code>), not a reference. The audit log must still be readable after the account has been renamed or deleted.</li>
     <li><b>The <code>actor</code> key is overwritten</b> if the publisher had already put something under it: the application layer's actor wins. That is pinned down by a unit test.</li>
-    <li>The audit subscriber pulls it back out as <code>payload.actor</code> and unpacks it into <code>actorId</code> / <code>actorEmail</code>; a missing key yields <code>null</code> — “a system event”.</li>
+    <li>The audit subscriber pulls it back out as <code>payload.actor</code> and unpacks it into <code>actorId</code> / <code>actorType</code> / <code>actorEmail</code>; a missing key yields <code>null</code> — “a system event”.</li>
   </ul>
+
+  <h4>The actor, and how it was performed</h4>
+  <p>An actor used to be a pair, <code>{ id, email }</code>, and that carried an unstated assumption: <code>id</code> meant a <code>users</code> row. A write made with an API token therefore had to pass <b>no actor at all</b> rather than name a person who did not do it — so every write over the public REST API, GraphQL and MCP reached the audit log as “System”, and which of a workspace's tokens did it was unrecoverable from anywhere. Three fields fix that, and they answer three different questions:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Field</th><th>Question</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">type</td><td><b>What kind</b> of principal <code>id</code> names</td><td><code>EVENT_ACTOR_TYPE.User</code> or <code>.ApiToken</code>. Omitted means <code>user</code> — every actor predates the field except the token ones that introduced it, so the default is a statement of fact rather than a guess</td></tr>
+      <tr><td class="mono">label</td><td><b>What to call</b> a principal that is not a person</td><td>An API token's name. <code>email</code> is the readable name for a user and a token has none, so without this a token-actored row would show an id and nothing legible</td></tr>
+      <tr><td class="mono">via</td><td><b>How</b> it was performed, when not by hand</td><td>An open <code>{ kind, …ids }</code>. A copilot proposal applies under the authority of the human who accepted it — so the actor is correctly that person — but without this the row was indistinguishable from one they typed. Two mechanisms use it: <code>copilot</code> (with <code>runId</code>, <code>proposalId</code>) and <code>revision_restore</code> (with <code>revisionNumber</code>)</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <span class="label">The one thing a consumer must not do with it</span>
+    <p>A token's <code>id</code> is an <code>api_tokens</code> row, and some consumers write an actor into a column that really is a <code>users</code> foreign key — <code>content_entry_revisions.created_by</code>, for one. Naming a credential in the <em>audit</em> path is now correct; putting it in a revision's authorship would make every version resolve to a nonexistent person. The two answers are separated at the consumer (content's <code>revisionActorId</code> yields a user id or nothing), not here: this package states who acted, and each consumer decides which of its columns that is allowed to fill.</p>
+  </div>
 
   <h3>The subscriber contract</h3>
   <div class="tablewrap"><pre style="margin:0;padding:1rem;overflow-x:auto"><code>export interface DomainEventSubscriber {
@@ -757,7 +792,7 @@ WHERE id = '...';</code></pre></div>
   <p>Registration happens <b>at runtime</b>, from the plugin's own <code>OnApplicationBootstrap</code>: inject <code>OutboxDispatcher</code> and call <code>register(this)</code>. The reason is technical and stated in the code: Nest cannot merge a multi-provider token across independent dynamic modules. The <code>DOMAIN_EVENT_SUBSCRIBERS</code> token remains (defaulting to <code>[]</code>) for subscribers placed statically alongside, and is merged with those registered at runtime.</p>
 
   <h3>The catalogue of event kinds across the repository</h3>
-  <p>The <code>database</code> package <b>defines no kinds at all</b> — it defines only the envelope. Kinds belong to the contexts. As of the current branch there are <b>44</b> of them across six publishing plugins, over eight aggregate types.</p>
+  <p>The <code>database</code> package <b>defines no kinds at all</b> — it defines only the envelope. Kinds belong to the contexts. As of the current branch there are <b>62</b> of them across nine publishing plugins. The full catalogue, with each kind's meaning and payload, is in the <a href="activity.html">Activity dossier</a> — the sink is where it is worth reading, since a kind matters only where somebody consumes it.</p>
 
   <div class="tablewrap">
   <table>
@@ -766,8 +801,8 @@ WHERE id = '...';</code></pre></div>
       <tr>
         <td><code>identity/server</code></td>
         <td class="mono">user, api_token</td>
-        <td class="center num-col">11</td>
-        <td class="small"><code>user.activated</code>, <code>user.disabled</code>, <code>user.enabled</code>, <code>user.password_changed</code>, <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>, <code>auth.signed_in</code>, <code>auth.signed_out</code>, <code>api_token.created</code>, <code>api_token.revoked</code></td>
+        <td class="center num-col">14</td>
+        <td class="small"><code>user.activated</code>, <code>user.disabled</code>, <code>user.enabled</code>, <code>user.password_changed</code>, <code>user.session_revoked</code>, <code>user.sso_linked</code>, <code>user.sso_provisioned</code>, <code>user.sso_role_mapped</code>, <code>auth.signed_in</code>, <code>auth.signed_out</code>, <code>auth.sign_in_failed</code>, <code>api_token.created</code>, <code>api_token.revoked</code>, <code>api_token.used</code></td>
       </tr>
       <tr>
         <td><code>workspaces/server</code></td>
@@ -789,15 +824,33 @@ WHERE id = '...';</code></pre></div>
       </tr>
       <tr>
         <td><code>content/server</code></td>
-        <td class="mono">content_entry</td>
-        <td class="center num-col">7</td>
-        <td class="small"><code>entry.created</code>, <code>.updated</code>, <code>.published</code>, <code>.unpublished</code>, <code>.deleted</code>, <code>.restored</code>, <code>.purged</code></td>
+        <td class="mono">content_entry, saved_view</td>
+        <td class="center num-col">10</td>
+        <td class="small"><code>entry.created</code>, <code>.updated</code>, <code>.published</code>, <code>.unpublished</code>, <code>.deleted</code>, <code>.restored</code>, <code>.purged</code>; <code>saved_view.created</code>, <code>.updated</code>, <code>.deleted</code></td>
       </tr>
       <tr>
         <td><code>transfer/server</code></td>
         <td class="mono">transfer.content</td>
         <td class="center num-col">2</td>
         <td class="small"><code>transfer.content.exported</code>, <code>transfer.content.imported</code></td>
+      </tr>
+      <tr>
+        <td><code>segments/server</code></td>
+        <td class="mono">segment, content_entry</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>segment.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>segment.entry_access_changed</code></td>
+      </tr>
+      <tr>
+        <td><code>alarms/server</code></td>
+        <td class="mono">alarm_rule</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>alarm.rule.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>.rescanned</code></td>
+      </tr>
+      <tr>
+        <td><code>copilot/server</code></td>
+        <td class="mono">copilot_skill, copilot_run</td>
+        <td class="center num-col">4</td>
+        <td class="small"><code>copilot.skill.created</code>, <code>.updated</code>, <code>.deleted</code>, <code>copilot.tool_permission.decided</code></td>
       </tr>
     </tbody>
   </table>
@@ -873,7 +926,7 @@ WHERE id = '...';</code></pre></div>
     <li><b>The counter and the pause.</b> <code>attempts += 1</code>, <code>next_attempt_at = now + min(1000 · 2^(attempts−1), 300000)</code>. <code>dispatched_at</code> stays <code>NULL</code>.</li>
     <li><b>The batch continues.</b> The following rows are delivered normally — a failing subscriber does not block other people's events.</li>
     <li><b>The retry.</b> After the pause, the next drain — post-commit or poll — picks the row up.</li>
-    <li><b>On the 15th failure — parking.</b> The log changes: “giving up”, naming the dead-letter query. The row no longer enters the selection and no longer holds up the queue.
+    <li><b>On the 15th failure — parking.</b> The log changes: “giving up”, naming the dead-letter query. The row no longer enters the selection and no longer holds up the queue, and <code>last_error</code> holds the reason it stopped — so the row can be read afterwards without the log line that announced it.
       <span class="meta">≈ 33 minutes from the first failure</span></li>
     <li><b>Recovery is manual.</b> The operator fixes the cause and zeroes <code>attempts</code> (and, if they wish, <code>next_attempt_at</code>). There is no automatic resurrection.</li>
   </ol>
@@ -1164,7 +1217,7 @@ WHERE dispatched_at IS NULL;</code></pre></div>
       <tr>
         <td class="mono">ARCHITECTURE.md, §4 “The data layer”</td>
         <td>“It owns <b>no schemas and no migrations</b>”</td>
-        <td>It owns the <code>outbox_events</code> table and carries <b>two</b> migrations of its own, with a <code>__drizzle_migrations_database</code> tracking table. The package's <code>AGENTS.md</code>, the root <code>AGENTS.md</code> and <code>drizzle.config.ts</code> all state that exception honestly — only this paragraph was not updated</td>
+        <td>It owns the <code>outbox_events</code> table and carries <b>three</b> migrations of its own, with a <code>__drizzle_migrations_database</code> tracking table. The package's <code>AGENTS.md</code>, the root <code>AGENTS.md</code> and <code>drizzle.config.ts</code> all state that exception honestly — only this paragraph was not updated</td>
       </tr>
       <tr>
         <td class="mono">CONTEXT-MAP.md, the <code>database</code> row</td>

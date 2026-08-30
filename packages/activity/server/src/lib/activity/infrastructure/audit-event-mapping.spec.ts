@@ -801,7 +801,7 @@ describe('toAuditRow — event → audit-row parity', () => {
          * list is the only place that omission is visible, so it is pinned
          * exhaustively rather than sampled.
          */
-        it('audits exactly the 61 expected kinds', () => {
+        it('audits exactly the 62 expected kinds', () => {
             expect([...AUDITED_EVENT_KINDS].sort()).toEqual(
                 [
                     'alarm.rule.created',
