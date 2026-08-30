@@ -95,9 +95,27 @@ describe('the wire → view mapping', () => {
             toWorkspaceOption({
                 id: 'ws_1',
                 name: 'Marketing',
-                description: null
+                description: null,
+                content: ['article']
             })
-        ).toEqual({ id: 'ws_1', name: 'Marketing', description: null });
+        ).toEqual({
+            id: 'ws_1',
+            name: 'Marketing',
+            description: null,
+            contentTypes: ['article']
+        });
+    });
+
+    it('reads an absent grant list as “granted nothing”', () => {
+        // Not as "everything": an empty grant set is the server's own spelling
+        // of no access, and the type picker narrows by it.
+        expect(
+            toWorkspaceOption({
+                id: 'ws_1',
+                name: 'Marketing',
+                description: null
+            }).contentTypes
+        ).toEqual([]);
     });
 });
 

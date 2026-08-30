@@ -1,4 +1,5 @@
 import type { ContentTypeOption } from '../types/contentTypeOption';
+import type { WorkspaceOption } from '../types/workspaceOption';
 
 /**
  * One row of the content-type picker.
@@ -68,4 +69,44 @@ export function addContentTypeNames(
         if (!next.includes(name)) next.push(name);
     }
     return next;
+}
+
+/** The endpoint's workspace filter, as the form holds it. */
+export type WorkspaceSelection = {
+    /** Every workspace, including ones created later. */
+    allWorkspaces: boolean;
+    /** The chosen workspace ids, when `allWorkspaces` is off. */
+    workspaceIds: readonly string[];
+};
+
+/**
+ * The types worth offering for a given workspace filter.
+ *
+ * A delivery needs both halves of the filter to match — the event's workspace
+ * **and** its content type — so a type none of the chosen workspaces was granted
+ * can never fire for this endpoint. Offering it is offering a filter that
+ * guarantees silence, which is the mistake the editor exists to prevent.
+ *
+ * Two cases deliberately fall back to the whole registry rather than to
+ * nothing:
+ *
+ * - **`allWorkspaces`** — the endpoint covers workspaces that do not exist yet,
+ *   and those may be granted anything.
+ * - **no workspace chosen at all** — there is nothing to narrow by. The caller
+ *   decides whether to show the picker at all in that state; narrowing to an
+ *   empty list here would be a guess dressed up as a rule.
+ */
+export function grantedContentTypes(
+    catalogue: readonly ContentTypeOption[],
+    workspaces: readonly WorkspaceOption[],
+    { allWorkspaces, workspaceIds }: WorkspaceSelection
+): ContentTypeOption[] {
+    if (allWorkspaces || workspaceIds.length === 0) return [...catalogue];
+
+    const granted = new Set(
+        workspaces
+            .filter((workspace) => workspaceIds.includes(workspace.id))
+            .flatMap((workspace) => workspace.contentTypes)
+    );
+    return catalogue.filter((type) => granted.has(type.name));
 }

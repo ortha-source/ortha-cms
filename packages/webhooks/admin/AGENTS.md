@@ -41,7 +41,25 @@ accepting it.
 be something someone chose, while an endpoint subscribed to no events is not a
 safer endpoint, it is a broken one.
 
-### 3. The content-type picker is open, not closed
+### 3. The content-type picker is scoped by the workspace filter
+
+The section does not exist until the workspace question is answered — "All
+workspaces", or at least one workspace chosen. Which types are on offer is a
+question about the workspaces, and a delivery needs **both** halves of the
+filter to match, so a type none of the chosen workspaces was granted could only
+ever produce silence. `grantedContentTypes()` therefore narrows the registry to
+the union of those workspaces' `workspace_content` grants, which ride along on
+`GET /api/workspaces` (the list the workspace picker already fetches — no second
+request). Two cases fall back to the whole registry rather than to nothing:
+`allWorkspaces` (workspaces created later may be granted anything) and no
+workspace chosen at all (nothing to narrow by — the form hides the picker
+instead of guessing).
+
+An endpoint that already carries a type filter keeps its controls visible even
+with no workspace chosen: hiding them would leave a saved subscription
+invisible and uneditable.
+
+### 3b. …and it is open, not closed
 
 Its options come from content's registry (`GET /api/content-schema`, via
 `useContentTypeOptions`), but a name that is not in them is still selectable and

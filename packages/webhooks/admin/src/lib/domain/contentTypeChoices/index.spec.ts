@@ -1,6 +1,7 @@
 import {
     addContentTypeNames,
     contentTypeChoices,
+    grantedContentTypes,
     parseContentTypeNames
 } from './index';
 
@@ -82,5 +83,101 @@ describe('adding names to a selection', () => {
         expect(addContentTypeNames([], ['article', 'article'])).toEqual([
             'article'
         ]);
+    });
+});
+
+describe('narrowing the catalogue to the chosen workspaces', () => {
+    const WORKSPACES = [
+        {
+            id: 'ws_marketing',
+            name: 'Marketing',
+            description: null,
+            contentTypes: ['article']
+        },
+        {
+            id: 'ws_docs',
+            name: 'Docs',
+            description: null,
+            contentTypes: ['product']
+        },
+        {
+            id: 'ws_empty',
+            name: 'Empty',
+            description: null,
+            contentTypes: []
+        }
+    ];
+
+    it('offers only what one workspace was granted', () => {
+        // A type the workspace cannot hold can never produce an event for this
+        // endpoint — both halves of the filter have to match.
+        expect(
+            grantedContentTypes(CATALOGUE, WORKSPACES, {
+                allWorkspaces: false,
+                workspaceIds: ['ws_marketing']
+            })
+        ).toEqual([{ name: 'article', label: 'Articles' }]);
+    });
+
+    it('unions the grants of several workspaces', () => {
+        expect(
+            grantedContentTypes(CATALOGUE, WORKSPACES, {
+                allWorkspaces: false,
+                workspaceIds: ['ws_marketing', 'ws_docs']
+            }).map((type) => type.name)
+        ).toEqual(['article', 'product']);
+    });
+
+    it('offers the whole registry for “all workspaces”', () => {
+        // The endpoint covers workspaces that do not exist yet, and those may
+        // be granted anything.
+        expect(
+            grantedContentTypes(CATALOGUE, WORKSPACES, {
+                allWorkspaces: true,
+                workspaceIds: []
+            })
+        ).toEqual(CATALOGUE);
+    });
+
+    it('offers the whole registry when nothing is chosen', () => {
+        // Nothing to narrow by. Narrowing to an empty list here would be a
+        // guess dressed up as a rule; the form hides the picker instead.
+        expect(
+            grantedContentTypes(CATALOGUE, WORKSPACES, {
+                allWorkspaces: false,
+                workspaceIds: []
+            })
+        ).toEqual(CATALOGUE);
+    });
+
+    it('offers nothing for a workspace granted nothing', () => {
+        // Empty grants mean "granted nothing", never "no filtering" — the same
+        // rule the server states.
+        expect(
+            grantedContentTypes(CATALOGUE, WORKSPACES, {
+                allWorkspaces: false,
+                workspaceIds: ['ws_empty']
+            })
+        ).toEqual([]);
+    });
+
+    it('ignores a granted slug the registry does not define', () => {
+        expect(
+            grantedContentTypes(
+                CATALOGUE,
+                [
+                    {
+                        id: 'ws_stale',
+                        name: 'Stale',
+                        description: null,
+                        contentTypes: ['removed_type']
+                    }
+                ],
+                {
+                    allWorkspaces: false,
+                    workspaceIds: ['ws_stale']
+                }
+            )
+        ).toEqual([]);
     });
 });

@@ -106,6 +106,31 @@ export class WebhooksPage extends BasePage {
         return this.dialog().getByRole('checkbox', { name: /Every event/ });
     }
 
+    /** The workspace picker, which only exists once "All workspaces" is off. */
+    workspacesPicker(): Locator {
+        return this.dialog().getByRole('combobox', { name: 'Workspaces' });
+    }
+
+    /** Chooses one workspace by name and closes the popover. */
+    async chooseWorkspace(name: string) {
+        await this.workspacesPicker().click();
+        await this.page.getByRole('option', { name }).click();
+        await this.page.keyboard.press('Escape');
+    }
+
+    /**
+     * The line shown in place of the type controls before any workspace is
+     * chosen — which types exist is a question about the workspaces.
+     */
+    contentTypesGateHint(): Locator {
+        return this.dialog().getByText(/Choose a workspace first/);
+    }
+
+    /** The line shown when the chosen workspaces were granted no types. */
+    noGrantsHint(): Locator {
+        return this.dialog().getByText(/granted no content types/);
+    }
+
     /** The "Every content type" toggle. */
     allContentTypesToggle(): Locator {
         return this.dialog().getByRole('checkbox', {

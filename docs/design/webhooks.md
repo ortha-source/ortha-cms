@@ -56,6 +56,13 @@ document and a second place for a rule to mean something the UI does not.
 **A record with no workspace** (`content_*.workspace_id` is nullable) can only
 satisfy an endpoint that takes them all. The editor says so next to the field.
 
+**The type filter is scoped by the workspace filter.** The editor only asks
+about content types once the workspaces are decided, and then offers the union
+of what those workspaces were granted (`workspace_content`) — a delivery needs
+both halves to match, so a type none of them can hold would produce nothing but
+silence. "All workspaces" widens it back to the whole registry, since a
+workspace created later may be granted anything.
+
 **Content types are named, not enumerated.** The editor's picker is filled from
 content's own registry (`GET /api/content-schema`), but a name that is not in it
 is still accepted and still saved: a type is code, so an endpoint is routinely

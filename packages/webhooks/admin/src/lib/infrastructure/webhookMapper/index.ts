@@ -96,6 +96,8 @@ export type WorkspaceOptionResponse = {
     id: string;
     name: string;
     description: string | null;
+    /** Granted content-type slugs; absent on an older server. */
+    content?: string[];
 };
 
 /** Maps an endpoint from the wire. */
@@ -142,7 +144,15 @@ export function toWebhookEventOption(
 export function toWorkspaceOption(
     dto: WorkspaceOptionResponse
 ): WorkspaceOption {
-    return { id: dto.id, name: dto.name, description: dto.description };
+    return {
+        id: dto.id,
+        name: dto.name,
+        description: dto.description,
+        // Absent is read as "granted nothing", which is what an empty grant set
+        // means on the server too. The picker degrades to free entry rather
+        // than to a wrong list.
+        contentTypes: dto.content ?? []
+    };
 }
 
 /**

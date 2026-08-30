@@ -74,7 +74,9 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await webhooksPage.dialog().waitFor();
         // Each picker exists only while its "All …" toggle is off, so the
         // default scan above never sees two of the three controls — including
-        // the free-entry field and its button.
+        // the free-entry field and its button. The type controls need a
+        // workspace decision before they exist at all.
+        await webhooksPage.allWorkspacesToggle().click();
         await webhooksPage.allEventsToggle().click();
         await webhooksPage.allContentTypesToggle().click();
         await webhooksPage.contentTypesPicker().waitFor();

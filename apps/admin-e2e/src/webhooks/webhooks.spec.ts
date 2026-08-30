@@ -281,7 +281,7 @@ test.describe('Webhooks', () => {
             await expect(webhooksPage.eventOption('Test ping')).toBeHidden();
         });
 
-        test('offers the types this build defines', async ({
+        test('does not ask about types before a workspace is chosen', async ({
             page,
             webhooksPage
         }) => {
@@ -290,10 +290,67 @@ test.describe('Webhooks', () => {
             await webhooksPage.table.waitFor();
 
             await webhooksPage.newWebhookButton.click();
+            await webhooksPage.dialog().waitFor();
+
+            // Which types exist is a question about the workspaces, so it
+            // cannot be answered before they are picked.
+            await expect(webhooksPage.contentTypesGateHint()).toBeVisible();
+            await expect(webhooksPage.allContentTypesToggle()).toBeHidden();
+        });
+
+        test('offers the types the chosen workspace was granted', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.newWebhookButton.click();
+            // Marketing site is granted blog_post / product / home / about in
+            // the workspace seed; nothing else can reach this endpoint.
+            await webhooksPage.chooseWorkspace('Marketing site');
             await webhooksPage.openContentTypePicker();
 
             await expect(webhooksPage.eventOption('Blog posts')).toBeVisible();
             await expect(webhooksPage.eventOption('Products')).toBeVisible();
+        });
+
+        test('offers nothing for a workspace granted nothing', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.newWebhookButton.click();
+            // Product docs has no grants in the seed. An empty picker without
+            // a reason reads as broken, so the form says why — and free entry
+            // still works.
+            await webhooksPage.chooseWorkspace('Product docs');
+            await webhooksPage.allContentTypesToggle().click();
+
+            await expect(webhooksPage.noGrantsHint()).toBeVisible();
+            await expect(webhooksPage.contentTypeDraftField()).toBeVisible();
+        });
+
+        test('offers every type when the endpoint takes all workspaces', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.goto();
+            await webhooksPage.table.waitFor();
+
+            await webhooksPage.newWebhookButton.click();
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.openContentTypePicker();
+
+            // Workspaces created later may be granted anything, so narrowing
+            // to today's grants would be wrong here.
+            await expect(webhooksPage.eventOption('Blog posts')).toBeVisible();
+            await expect(webhooksPage.eventOption('About')).toBeVisible();
         });
 
         test('takes a type name the registry does not list', async ({

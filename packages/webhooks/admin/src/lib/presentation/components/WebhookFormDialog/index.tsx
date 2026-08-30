@@ -25,6 +25,7 @@ import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
 import {
     addContentTypeNames,
     contentTypeChoices,
+    grantedContentTypes,
     parseContentTypeNames
 } from '../../../domain/contentTypeChoices';
 import type { SaveWebhookInput } from '../../../infrastructure/webhookGateway';
@@ -113,6 +114,20 @@ const messages = defineMessages({
     unknownContentType: {
         id: 'webhooks.form.unknownContentType',
         defaultMessage: '{name} (not defined here)'
+    },
+    contentTypesNeedWorkspace: {
+        id: 'webhooks.form.contentTypesNeedWorkspace',
+        defaultMessage:
+            'Choose a workspace first — which types exist depends on what those workspaces were granted.'
+    },
+    contentTypesNoneGranted: {
+        id: 'webhooks.form.contentTypesNoneGranted',
+        defaultMessage:
+            'The chosen workspaces were granted no content types, so there is nothing to pick. A name can still be added by hand.'
+    },
+    contentTypesScoped: {
+        id: 'webhooks.form.contentTypesScoped',
+        defaultMessage: 'Listing only what the chosen workspaces were granted.'
     },
     enabled: {
         id: 'webhooks.form.enabled',
@@ -262,9 +277,21 @@ export function WebhookFormDialog({
     // ones are labelled as such rather than hidden: an endpoint subscribed to a
     // type that has been removed, or to one with a typo in its name, is
     // receiving nothing and this is the only place that shows.
+    // Narrowed to what the chosen workspaces were actually granted: a delivery
+    // needs the event's workspace *and* its type to match, so a type none of
+    // them can hold would never fire here.
+    const offeredContentTypes = useMemo(
+        () =>
+            grantedContentTypes(contentTypes, workspaces, {
+                allWorkspaces: values.allWorkspaces,
+                workspaceIds: values.workspaceIds
+            }),
+        [contentTypes, workspaces, values.allWorkspaces, values.workspaceIds]
+    );
+
     const contentTypeOptions = useMemo(
         () =>
-            contentTypeChoices(contentTypes, values.contentTypes).map(
+            contentTypeChoices(offeredContentTypes, values.contentTypes).map(
                 (choice) => ({
                     value: choice.value,
                     label: choice.known
@@ -274,8 +301,23 @@ export function WebhookFormDialog({
                           })
                 })
             ),
-        [contentTypes, values.contentTypes, intl]
+        [offeredContentTypes, values.contentTypes, intl]
     );
+
+    // Which types are on offer is a question about the workspaces, so it cannot
+    // be asked before they are chosen. An endpoint that already carries a type
+    // filter is the exception — hiding it would leave a saved subscription
+    // invisible and uneditable.
+    const workspaceChosen =
+        values.allWorkspaces || values.workspaceIds.length > 0;
+    const contentTypesAnswerable =
+        workspaceChosen || values.contentTypes.length > 0;
+    // Chosen workspaces that were granted nothing: the picker is empty for a
+    // reason worth stating, rather than looking broken.
+    const noGrants =
+        workspaceChosen &&
+        !values.allWorkspaces &&
+        offeredContentTypes.length === 0;
 
     const addTypedContentTypes = () => {
         const names = parseContentTypeNames(typeDraft);
@@ -490,25 +532,36 @@ export function WebhookFormDialog({
                         <legend className="text-sm font-medium">
                             {intl.formatMessage(messages.contentTypes)}
                         </legend>
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                id="webhook-all-content-types"
-                                checked={values.allContentTypes}
-                                onCheckedChange={(checked) =>
-                                    setValues((prev) => ({
-                                        ...prev,
-                                        allContentTypes: checked === true
-                                    }))
-                                }
-                            />
-                            <Label
-                                htmlFor="webhook-all-content-types"
-                                className="text-sm font-normal"
-                            >
-                                {intl.formatMessage(messages.allContentTypes)}
-                            </Label>
-                        </div>
-                        {!values.allContentTypes ? (
+                        {!contentTypesAnswerable ? (
+                            <p className="text-xs text-muted-foreground">
+                                {intl.formatMessage(
+                                    messages.contentTypesNeedWorkspace
+                                )}
+                            </p>
+                        ) : null}
+                        {contentTypesAnswerable ? (
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="webhook-all-content-types"
+                                    checked={values.allContentTypes}
+                                    onCheckedChange={(checked) =>
+                                        setValues((prev) => ({
+                                            ...prev,
+                                            allContentTypes: checked === true
+                                        }))
+                                    }
+                                />
+                                <Label
+                                    htmlFor="webhook-all-content-types"
+                                    className="text-sm font-normal"
+                                >
+                                    {intl.formatMessage(
+                                        messages.allContentTypes
+                                    )}
+                                </Label>
+                            </div>
+                        ) : null}
+                        {contentTypesAnswerable && !values.allContentTypes ? (
                             <>
                                 <Label
                                     htmlFor="webhook-content-types"
@@ -573,7 +626,15 @@ export function WebhookFormDialog({
                                         {intl.formatMessage(messages.add)}
                                     </Button>
                                 </div>
-                                {values.contentTypes.length === 0 ? (
+                                {noGrants ? (
+                                    <p className="text-xs text-muted-foreground">
+                                        {intl.formatMessage(
+                                            messages.contentTypesNoneGranted
+                                        )}
+                                    </p>
+                                ) : null}
+                                {!noGrants &&
+                                values.contentTypes.length === 0 ? (
                                     <p className="text-xs text-muted-foreground">
                                         {intl.formatMessage(
                                             messages.noContentTypes
@@ -582,9 +643,18 @@ export function WebhookFormDialog({
                                 ) : null}
                             </>
                         ) : null}
-                        <p className="text-xs text-muted-foreground">
-                            {intl.formatMessage(messages.contentTypesHint)}
-                        </p>
+                        {contentTypesAnswerable && !noGrants ? (
+                            <p className="text-xs text-muted-foreground">
+                                {intl.formatMessage(messages.contentTypesHint)}
+                                {!values.allContentTypes &&
+                                !values.allWorkspaces &&
+                                values.workspaceIds.length > 0
+                                    ? ` ${intl.formatMessage(
+                                          messages.contentTypesScoped
+                                      )}`
+                                    : ''}
+                            </p>
+                        ) : null}
                     </fieldset>
 
                     <div className="flex items-center gap-2">
