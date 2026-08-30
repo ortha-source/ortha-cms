@@ -44,6 +44,15 @@ type MultiSelectProps = {
     /** Ids of the hint/error elements describing the trigger. */
     'aria-describedby'?: string;
     /**
+     * Accessible name for the **popover**, which Radix renders as a
+     * `role="dialog"`. Without one a screen-reader user who opens the selector
+     * is told only "dialog" — the trigger's own label is outside it and no
+     * longer read. Defaults to the trigger's `placeholder`, so the common case
+     * needs nothing; pass this when the placeholder is not a good name for the
+     * list ("Select workspaces" is, "Choose…" is not).
+     */
+    popoverLabel?: string;
+    /**
      * Where the popover portals. Pass the DOM node of a **scroll-locking**
      * ancestor — a Radix `Dialog`'s content, a vaul `Drawer` — when this is
      * rendered inside one. react-remove-scroll allow-lists only that ancestor's
@@ -70,6 +79,7 @@ function MultiSelect({
     onChange,
     placeholder = 'Select…',
     searchPlaceholder = 'Search…',
+    popoverLabel,
     emptyText = 'No results.',
     id,
     invalid,
@@ -132,6 +142,7 @@ function MultiSelect({
                 </Button>
             </PopoverTrigger>
             <PopoverContent
+                aria-label={popoverLabel ?? placeholder}
                 className="w-[var(--radix-popover-trigger-width)] max-w-[300px] overflow-hidden p-0"
                 align="start"
                 container={container}
