@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { defineMessages, useIntl } from 'react-intl';
 import {
     Alert,
@@ -171,6 +171,25 @@ export function CreateApiTokenDialog({
         });
     };
 
+    // Reset on the way *in*, not only on the way out. Closing happens four
+    // ways and one of them — a successful mint — flips the controlled `open`
+    // prop from the page, which never reaches Radix's `onOpenChange`. Keying
+    // off the opening edge is the one place that catches every path, so the
+    // dialog cannot present a previous draft as a fresh form.
+    const wasOpen = useRef(open);
+    useEffect(() => {
+        if (open && !wasOpen.current) {
+            reset();
+        }
+        wasOpen.current = open;
+    });
+
+    /** The one way out of this dialog, so every path resets the form. */
+    const requestClose = () => {
+        reset();
+        onOpenChange(false);
+    };
+
     return (
         <Dialog
             open={open}
@@ -324,7 +343,15 @@ export function CreateApiTokenDialog({
                 <DialogFooter>
                     <Button
                         variant="outline"
-                        onClick={() => onOpenChange(false)}
+                        // `requestClose`, not `onOpenChange` directly: the reset
+                        // lives in the Dialog's own handler, which Esc, the
+                        // backdrop and the corner X all go through — and this
+                        // button did not, so Cancel left the name, workspaces,
+                        // scope and expiry in place for the next open. An admin
+                        // who cancelled "Production website" and reopened was
+                        // one click from minting a second live credential under
+                        // the same name.
+                        onClick={requestClose}
                         disabled={submitting}
                     >
                         {intl.formatMessage(messages.cancel)}

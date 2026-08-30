@@ -96,7 +96,12 @@ describe('activity coverage — which write paths produce an audit row', () => {
                 .expect(200);
             await agent.delete(`/api/media/folders/${folderId}`).expect(204);
 
-            expect(await rowsOfKind('media.folder.created')).toEqual([
+            // `toMatchObject`, not `toEqual`: the audit `meta` also carries the
+            // producing workspace since the audit-trail rework, and this test is
+            // about *which write paths produce a row* — pinning the whole meta
+            // shape here duplicates `audit-event-mapping.spec.ts`, which owns it,
+            // and goes stale the moment a producer adds a field.
+            expect(await rowsOfKind('media.folder.created')).toMatchObject([
                 {
                     kind: 'media.folder.created',
                     subjectType: 'media_folder',
@@ -206,7 +211,10 @@ describe('activity coverage — which write paths produce an audit row', () => {
                 .post(`/api/content/test_article/${id}/restore`)
                 .expect(201);
 
-            expect(await rowsOfKind('entry.created')).toEqual([
+            // `toMatchObject` for the same reason as the media row above: the
+            // entry's meta also carries its title now, and this suite asks which
+            // paths audit, not what each producer packs into `meta`.
+            expect(await rowsOfKind('entry.created')).toMatchObject([
                 {
                     kind: 'entry.created',
                     subjectType: 'content_entry',

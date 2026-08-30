@@ -322,16 +322,28 @@ test.describe('Activity Log assistive-technology semantics', () => {
         await activityLogPage.goto();
 
         const status = activityLogPage.resultsStatus();
+        // Both the page *count* and the last row's index come from the fixture.
+        // The count used to be written out as "2" and went stale the moment the
+        // catalogue grew past 50 kinds — which is the very thing the fixture is
+        // derived from, so a literal here contradicts the reason it is derived.
+        const PAGE_SIZE = 25;
+        const pages = Math.ceil(ALL_KINDS_ACTIVITY.length / PAGE_SIZE);
+        expect(pages).toBeGreaterThan(1);
+
         // The region used to carry only the total — which is invariant across
         // pages — so Next page replaced all 25 rows and the announced text did
-        // not change at all. "Page 2 of 2" is a plain <span> with no live
-        // region, so a screen-reader user got silence.
-        await expect(status).toContainText('page 1 of 2');
-        await expect(status).toContainText('1–25');
+        // not change at all. The "page N of M" span carries no live region, so a
+        // screen-reader user got silence.
+        await expect(status).toContainText(`page 1 of ${pages}`);
+        await expect(status).toContainText(`1–${PAGE_SIZE}`);
 
-        await activityLogPage.pageButton('Next page').click();
-        await expect(status).toContainText('page 2 of 2');
-        await expect(status).toContainText(`26–${ALL_KINDS_ACTIVITY.length}`);
+        for (let step = 1; step < pages; step += 1) {
+            await activityLogPage.pageButton('Next page').click();
+            await expect(status).toContainText(`page ${step + 1} of ${pages}`);
+        }
+        await expect(status).toContainText(
+            `${(pages - 1) * PAGE_SIZE + 1}–${ALL_KINDS_ACTIVITY.length}`
+        );
     });
 });
 

@@ -177,6 +177,31 @@ export function ApiTokensPage() {
         });
     }, [revokeToken.isPending]);
 
+    // The same anchor for the reveal dialog, which needed it more and had it
+    // less. It is opened programmatically with no `DialogTrigger`, and the
+    // element that was focused when it opened — the create dialog's submit
+    // button — was unmounted in the very same tick by `setCreateOpen(false)`.
+    // Radix therefore has neither a trigger nor a live element to restore to,
+    // and focus lands on `<body>`: a keyboard user who has just been handed a
+    // credential is dropped at the top of the document (WCAG 2.4.3).
+    const hadSecret = useRef(false);
+    useEffect(() => {
+        if (secret) {
+            hadSecret.current = true;
+            return;
+        }
+        if (!hadSecret.current) {
+            return;
+        }
+        hadSecret.current = false;
+        requestAnimationFrame(() => {
+            const active = document.activeElement;
+            if (!active || active === document.body) {
+                resultsRef.current?.focus();
+            }
+        });
+    }, [secret]);
+
     const total = data?.total ?? 0;
     const effectivePageSize = data?.pageSize ?? DEFAULT_PAGE_SIZE;
     const pageCount = Math.max(1, Math.ceil(total / effectivePageSize));

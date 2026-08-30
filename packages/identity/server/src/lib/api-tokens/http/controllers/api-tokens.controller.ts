@@ -127,14 +127,30 @@ export class ApiTokensController {
 
 /**
  * Parses the optional ISO expiry into a `Date`, rejecting a timestamp in the
- * past (a token that is born expired is always a client mistake). `undefined`
- * passes through as "never expires".
+ * past (a token that is born expired is always a client mistake). An absent
+ * expiry passes through as "never expires".
+ *
+ * `null` counts as absent, not as a value. `@IsOptional()` skips the rest of
+ * the chain for `null` as well as `undefined`, so an explicit `null` reaches
+ * this function — and a `=== undefined` guard let it through to `new Date(null)`,
+ * which is the epoch, so the one spelling that most plainly says "no expiry" was
+ * refused as being in the past. The admin never sends it, but the field is
+ * documented as optional in the published OpenAPI and an integrator writing
+ * `{"expiresAt": null}` got a 400 telling them to pick a future date.
  */
-function parseExpiry(iso: string | undefined): Date | undefined {
-    if (iso === undefined) {
+function parseExpiry(iso: string | null | undefined): Date | undefined {
+    if (iso === undefined || iso === null) {
         return undefined;
     }
     const at = new Date(iso);
+    // `NaN <= Date.now()` is false, so the past-check below waves an Invalid
+    // Date straight through to `mint`. `@IsISO8601()` on the DTO makes that
+    // unreachable over HTTP today — but this function is the last thing between
+    // a bad expiry and the database, and "the decorator will catch it" is a
+    // guarantee that lives in a different file.
+    if (Number.isNaN(at.getTime())) {
+        throw new BadRequestException('expiresAt must be an ISO 8601 date.');
+    }
     if (at.getTime() <= Date.now()) {
         throw new BadRequestException('expiresAt must be in the future.');
     }

@@ -32,8 +32,41 @@ function recordFrom(
 describe('ApiTokenService', () => {
     const hashing = new HashingService();
 
-    /** A `UnitOfWork` that just runs the callback — one logical transaction. */
-    const uow = { run: (fn: () => Promise<unknown>) => fn() } as UnitOfWork;
+    /**
+     * How deep we currently are inside `uow.run`.
+     *
+     * A `run: (fn) => fn()` fake is invisible: deleting the wrapper in
+     * `ApiTokenService` would leave every test in this file green while the
+     * token row and its audit event quietly stopped committing together — which
+     * is the one thing the transaction exists to guarantee. The depth is the
+     * witness that makes the wrapper's absence fail something.
+     */
+    let uowDepth = 0;
+
+    /** Every collaborator call that must commit transactionally, in order. */
+    const committed: { call: string; insideUow: boolean }[] = [];
+
+    beforeEach(() => {
+        uowDepth = 0;
+        committed.length = 0;
+    });
+
+    /** Records a collaborator call together with the transaction witness. */
+    function witness(call: string): void {
+        committed.push({ call, insideUow: uowDepth > 0 });
+    }
+
+    /** A `UnitOfWork` that runs the callback and tracks the nesting. */
+    const uow = {
+        run: async (fn: () => Promise<unknown>) => {
+            uowDepth += 1;
+            try {
+                return await fn();
+            } finally {
+                uowDepth -= 1;
+            }
+        }
+    } as UnitOfWork;
 
     /** An outbox that collects appended events for assertion. */
     function makeOutbox() {
@@ -42,6 +75,7 @@ describe('ApiTokenService', () => {
             events,
             outbox: {
                 append: async (batch: DomainEvent[]) => {
+                    witness('outbox.append');
                     events.push(...batch);
                 }
             } as OutboxWriter
@@ -70,12 +104,25 @@ describe('ApiTokenService', () => {
         };
     }
 
-    /** A repo stub that records the last insert and serves a fixed record. */
-    function makeRepo(row: ApiTokenRecord | null) {
-        const touchLastUsed = jest.fn().mockResolvedValue(undefined);
+    /**
+     * A repo stub that records the last insert and serves a fixed record.
+     * `touch` replaces `touchLastUsed`'s body — the fire-and-forget refresh is
+     * the one call whose *failure* the service is supposed to swallow.
+     */
+    function makeRepo(
+        row: ApiTokenRecord | null,
+        touch: (id: string, at: Date) => Promise<void> = async () => undefined
+    ) {
+        const touchLastUsed = jest.fn(async (id: string, at: Date) => {
+            witness('repo.touchLastUsed');
+            return touch(id, at);
+        });
         return {
             repo: {
-                insert: jest.fn(async (v: NewApiToken) => recordFrom(v)),
+                insert: jest.fn(async (v: NewApiToken) => {
+                    witness('repo.insert');
+                    return recordFrom(v);
+                }),
                 findByHash: jest.fn(async () => row),
                 findById: jest.fn(),
                 list: jest.fn(),
@@ -201,6 +248,28 @@ describe('ApiTokenService', () => {
             });
         });
 
+        it('writes the row and its audit event inside one transaction', async () => {
+            // The pair is the invariant, not either half: a token that existed
+            // while its audit row did not would be exactly the credential
+            // nobody can account for, and an audit row for a token that failed
+            // to insert is a phantom in the log. Only the nesting proves it —
+            // both calls succeed just as happily outside a transaction.
+            const { repo } = makeRepo(null);
+            const { service } = makeService(repo);
+
+            await service.mint({
+                name: 'CI',
+                workspaceIds: ['ws-1'],
+                scope: 'read',
+                createdBy: 'user-1'
+            });
+
+            expect(committed).toEqual([
+                { call: 'repo.insert', insideUow: true },
+                { call: 'outbox.append', insideUow: true }
+            ]);
+        });
+
         describe('workspace bucket validation', () => {
             const mintInput = (workspaceIds: string[]) => ({
                 name: 'CI',
@@ -284,7 +353,10 @@ describe('ApiTokenService', () => {
                 findByHash: jest.fn(),
                 findById: jest.fn(async () => row),
                 list: jest.fn(),
-                revoke: jest.fn(async () => revoked),
+                revoke: jest.fn(async () => {
+                    witness('repo.revoke');
+                    return revoked;
+                }),
                 touchLastUsed: jest.fn()
             } as unknown as DrizzleApiTokenRepository;
         }
@@ -311,6 +383,21 @@ describe('ApiTokenService', () => {
                     actor: { id: 'user-9', email: 'admin@example.com' }
                 }
             });
+        });
+
+        it('reads, revokes and audits inside one transaction', async () => {
+            // The read is inside on purpose as well as the write: the event
+            // names the token, so reading it outside would let the row change
+            // underneath and produce an audit line describing a token that no
+            // longer looked like that.
+            const { service } = makeService(revokeRepo(true, stored));
+
+            await service.revoke('token-1');
+
+            expect(committed).toEqual([
+                { call: 'repo.revoke', insideUow: true },
+                { call: 'outbox.append', insideUow: true }
+            ]);
         });
 
         it('emits nothing when the token was already revoked', async () => {
@@ -384,6 +471,217 @@ describe('ApiTokenService', () => {
             const { service } = makeService(repo);
             await service.verify(secret);
             expect(touchLastUsed).not.toHaveBeenCalled();
+        });
+    });
+
+    /**
+     * The `last_used_at` refresh: a throttled, fire-and-forget write plus the
+     * `api_token.used` audit row that shares its schedule. Three things here
+     * are load-bearing and none of them were exercised — the 60s boundary that
+     * bounds the audit volume, the fact that the write never blocks the request
+     * it is authenticating, and the `.catch(() => undefined)` that keeps a
+     * failed bookkeeping write from failing a valid API call.
+     */
+    describe('last-used refresh', () => {
+        const secret = 'orthacms_secret';
+        const baseInsert: NewApiToken = {
+            workspaceIds: ['ws-1', 'ws-2'],
+            name: 't',
+            tokenHash: hashing.hashToken(secret),
+            lookupPrefix: 'orthacms_sec',
+            scope: 'read',
+            expiresAt: null,
+            createdBy: 'user-1'
+        };
+
+        /** Lets the un-awaited touch run to completion before asserting. */
+        async function settle(): Promise<void> {
+            for (let i = 0; i < 8; i += 1) {
+                await Promise.resolve();
+            }
+        }
+
+        describe('the 60s throttle, from both sides', () => {
+            const NOW = new Date('2026-06-01T12:00:00.000Z');
+
+            beforeEach(() => {
+                // Real clocks make a boundary test a race: the millisecond that
+                // elapses between building the fixture and the service reading
+                // `new Date()` is exactly the margin under test.
+                jest.useFakeTimers({ now: NOW });
+            });
+
+            afterEach(() => {
+                jest.useRealTimers();
+            });
+
+            it('touches once the recorded use is a full interval old', async () => {
+                const { repo, touchLastUsed } = makeRepo(
+                    recordFrom(baseInsert, {
+                        lastUsedAt: new Date(NOW.getTime() - 60_000)
+                    })
+                );
+                const { service } = makeService(repo);
+
+                await service.verify(secret);
+                await settle();
+
+                expect(touchLastUsed).toHaveBeenCalledWith('token-1', NOW);
+            });
+
+            it('leaves it alone one millisecond short of the interval', async () => {
+                // The staleness check is what bounds the audit volume: a busy
+                // integration authenticates thousands of times an hour and the
+                // log wants one row a minute, not one per request.
+                const { repo, touchLastUsed } = makeRepo(
+                    recordFrom(baseInsert, {
+                        lastUsedAt: new Date(NOW.getTime() - 59_999)
+                    })
+                );
+                const { service } = makeService(repo);
+
+                await service.verify(secret);
+                await settle();
+
+                expect(touchLastUsed).not.toHaveBeenCalled();
+            });
+
+            it('touches a token that has never been used', async () => {
+                const { repo, touchLastUsed } = makeRepo(
+                    recordFrom(baseInsert, { lastUsedAt: null })
+                );
+                const { service } = makeService(repo);
+
+                await service.verify(secret);
+                await settle();
+
+                expect(touchLastUsed).toHaveBeenCalledWith('token-1', NOW);
+            });
+        });
+
+        it('resolves without waiting for the touch to finish', async () => {
+            // The touch is bookkeeping; the request it is authenticating must
+            // not pay for it. A never-settling write would hang `verify` if it
+            // were awaited, so this test times out rather than passing quietly
+            // if the `void` is ever dropped.
+            const { repo } = makeRepo(
+                recordFrom(baseInsert),
+                () => new Promise<void>(() => undefined)
+            );
+            const { service } = makeService(repo);
+
+            await expect(service.verify(secret)).resolves.toMatchObject({
+                id: 'token-1'
+            });
+        });
+
+        it('still returns the token when the touch rejects', async () => {
+            // `.catch(() => undefined)` is dead code as far as the rest of this
+            // suite knows. Without it a failed `last_used_at` write becomes an
+            // unhandled rejection — which, on a host that treats those as
+            // fatal, takes the process down over a statistics column.
+            const unhandled: unknown[] = [];
+            const record = (reason: unknown) => unhandled.push(reason);
+            process.on('unhandledRejection', record);
+            const { repo } = makeRepo(recordFrom(baseInsert), async () => {
+                throw new Error('last_used_at write failed');
+            });
+            const { service } = makeService(repo);
+
+            try {
+                await expect(service.verify(secret)).resolves.toMatchObject({
+                    id: 'token-1'
+                });
+                await new Promise((resolve) => setImmediate(resolve));
+                await new Promise((resolve) => setImmediate(resolve));
+            } finally {
+                process.off('unhandledRejection', record);
+            }
+
+            expect(unhandled).toEqual([]);
+        });
+
+        it('records api_token.used, in the same transaction as the touch', async () => {
+            const { repo } = makeRepo(recordFrom(baseInsert));
+            const { service, events } = makeService(repo);
+
+            await service.verify(secret);
+            await settle();
+
+            expect(events).toHaveLength(1);
+            expect(events[0]).toMatchObject({
+                kind: 'api_token.used',
+                aggregateType: 'api_token',
+                aggregateId: 'token-1',
+                payload: {
+                    name: 't',
+                    scope: 'read',
+                    workspaceIds: ['ws-1', 'ws-2'],
+                    lookupPrefix: 'orthacms_sec'
+                }
+            });
+            // A `last_used_at` that moved without a row, or a row claiming a
+            // use that rolled back, would each be a small lie in the one place
+            // that exists not to tell them.
+            expect(committed).toEqual([
+                { call: 'repo.touchLastUsed', insideUow: true },
+                { call: 'outbox.append', insideUow: true }
+            ]);
+        });
+
+        it('names no actor — the token is the subject', async () => {
+            // Attributing the request to the minting user would credit a person
+            // who may have left the company. `api_tokens.created_by` is already
+            // where "who minted it" lives.
+            const { repo } = makeRepo(recordFrom(baseInsert));
+            const { service, events } = makeService(repo);
+
+            await service.verify(secret);
+            await settle();
+
+            expect(events[0].payload).not.toHaveProperty('actor');
+        });
+
+        it('carries the previous use, which the touch is about to overwrite', async () => {
+            // A six-month gap is the interesting number and it is not
+            // recoverable from the row afterwards.
+            const previous = new Date('2026-01-01T00:00:00.000Z');
+            const { repo } = makeRepo(
+                recordFrom(baseInsert, { lastUsedAt: previous })
+            );
+            const { service, events } = makeService(repo);
+
+            await service.verify(secret);
+            await settle();
+
+            expect(events[0].payload).toMatchObject({
+                previousUseAt: previous
+            });
+        });
+
+        it('lets no event of any kind carry the secret or its hash', async () => {
+            // `api_tokens` stores only a SHA-256 precisely so that no other
+            // table yields a usable credential; `outbox_events` must not become
+            // the table that does. Swept across every event the service emits,
+            // so a new payload field has to be added deliberately.
+            const { repo } = makeRepo(recordFrom(baseInsert));
+            const { service, events } = makeService(repo);
+
+            const minted = await service.mint({
+                name: 'CI',
+                workspaceIds: ['ws-1'],
+                scope: 'full',
+                createdBy: 'user-1'
+            });
+            await service.verify(secret);
+            await settle();
+
+            expect(events.length).toBeGreaterThanOrEqual(2);
+            const serialised = JSON.stringify(events);
+            expect(serialised).not.toContain(minted.secret);
+            expect(serialised).not.toContain(hashing.hashToken(minted.secret));
+            expect(serialised).not.toContain(secret);
+            expect(serialised).not.toContain(hashing.hashToken(secret));
         });
     });
 });

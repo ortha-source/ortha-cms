@@ -49,6 +49,16 @@ export class ApiTokenWorkspaceGuard implements CanActivate {
                 request.workspaceId = token.workspaceIds[0];
                 return true;
             }
+            // A token can end up covering *nothing*: deleting a workspace
+            // narrows every token's bucket and deliberately stops short of
+            // revoking the credential, which is not the purger's call to make.
+            // Asking that caller to name one of zero workspaces is advice they
+            // cannot follow, so say what is actually true instead.
+            if (token.workspaceIds.length === 0) {
+                throw new ForbiddenException(
+                    'This token has no workspaces left — every workspace it covered has been deleted. Issue a new token.'
+                );
+            }
             throw new BadRequestException(
                 `This token covers ${token.workspaceIds.length} workspaces — name the one you want with the X-Workspace-Id header.`
             );

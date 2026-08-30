@@ -5,6 +5,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    expireApiToken,
     resetDb,
     seedActiveUser,
     seedArticles,
@@ -201,6 +202,20 @@ describe('MCP endpoint (/api/v1/mcp)', () => {
 
             const agent = await login();
             await agent.delete(`/api/api-tokens/${id}`).expect(204);
+
+            await rpc(secret, 'tools/list').expect(401);
+        });
+
+        it('401s once the token has expired', async () => {
+            // Expiry kills every surface at once — it is decided in
+            // `ApiTokenService.verify`, upstream of the protocol — and the
+            // refusal is a transport 401 rather than a JSON-RPC error object:
+            // an MCP client that has to parse a 200 to discover its credential
+            // died will report the tool as broken instead of the key as stale.
+            const { id, secret } = await mintToken();
+            await rpc(secret, 'tools/list').expect(200);
+
+            await expireApiToken(id);
 
             await rpc(secret, 'tools/list').expect(401);
         });

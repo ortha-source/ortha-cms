@@ -89,6 +89,26 @@ export class ApiTokensPage extends BasePage {
         });
     }
 
+    /**
+     * Every column header the **loaded** table renders. Scoped to `table`, which
+     * is the only one carrying the `aria-label`: the loading skeleton draws its
+     * own eight-column table regardless of permissions, so a column-count
+     * assertion has to be made against the loaded table or it proves nothing.
+     */
+    columnHeaders(): Locator {
+        return this.table.getByRole('columnheader');
+    }
+
+    /**
+     * The actions column's header, named by the `sr-only` text inside it. It
+     * ships only with `tokens:delete` — a header cell left behind for a column
+     * that renders no controls would offset every row's cells from their
+     * headers for a screen-reader user.
+     */
+    actionsColumnHeader(): Locator {
+        return this.table.getByRole('columnheader', { name: 'Actions' });
+    }
+
     // --- rows --------------------------------------------------------------
 
     /** A table row located by the token name it carries. */
@@ -178,16 +198,41 @@ export class ApiTokensPage extends BasePage {
             .filter({ hasText: 'Couldn’t load the workspaces' });
     }
 
+    /** The retry action inside the selector's alert. */
+    workspacesRetryButton(): Locator {
+        return this.workspacesError().getByRole('button', { name: 'Retry' });
+    }
+
     /** Open the create dialog and wait for it. */
     async openCreate() {
         await this.newTokenButton.click();
         await this.createDialog().waitFor();
     }
 
+    /** One option row inside the workspace selector's popover. */
+    workspaceOption(name: string): Locator {
+        return this.page.getByRole('option', { name, exact: true });
+    }
+
+    /**
+     * The selector's "nothing to pick" line, rendered inside the open popover.
+     * The counterpart to {@link workspacesError}: it means the list arrived and
+     * was empty, which is a different problem from not being able to ask.
+     */
+    workspacesEmpty(): Locator {
+        return this.page.getByText('No workspaces found.');
+    }
+
+    /** Open the workspace selector's popover and leave it open. */
+    async openWorkspacePopover() {
+        await this.workspacesSelect().click();
+        await this.page.getByRole('listbox').waitFor();
+    }
+
     /** Tick a workspace in the `MultiSelect`, then close its popover. */
     async pickWorkspace(name: string) {
         await this.workspacesSelect().click();
-        await this.page.getByRole('option', { name, exact: true }).click();
+        await this.workspaceOption(name).click();
         await this.page.keyboard.press('Escape');
     }
 
@@ -249,6 +294,19 @@ export class ApiTokensPage extends BasePage {
         });
     }
 
+    /**
+     * The reveal dialog's corner X. `exact` matters: "Close without copying"
+     * carries "Close" too, and a substring match would resolve to whichever of
+     * the two is on screen — including the very button this dialog is only
+     * supposed to offer *after* the guard.
+     */
+    revealCloseButton(): Locator {
+        return this.revealDialog().getByRole('button', {
+            name: 'Close',
+            exact: true
+        });
+    }
+
     // --- revoke confirm ----------------------------------------------------
 
     confirmDialog(): Locator {
@@ -271,6 +329,25 @@ export class ApiTokensPage extends BasePage {
     }
 
     // --- browser plumbing --------------------------------------------------
+
+    /**
+     * The modal backdrop behind whichever dialog is open. Radix renders it as
+     * decoration — no role, no name — so it is located by shape, the way
+     * `ContentLibraryPage.propertiesScrim` is. Filtered on `data-state="open"`
+     * so a dialog still playing its exit animation is never the match.
+     */
+    dialogBackdrop(): Locator {
+        return this.page.locator('div.fixed.inset-0.z-50[data-state="open"]');
+    }
+
+    /**
+     * Dismiss by clicking the backdrop — the pointer equivalent of Escape, and
+     * the easiest one to reach by accident. Aimed at the top-left corner rather
+     * than the element's centre, which the dialog panel itself covers.
+     */
+    async clickBackdrop() {
+        await this.dialogBackdrop().click({ position: { x: 5, y: 5 } });
+    }
 
     /**
      * Make `navigator.clipboard.writeText` reject, the way an insecure origin,

@@ -139,6 +139,48 @@ test.describe('API token reveal-once dialog', () => {
         await expect(apiTokensPage.revealDialog()).toBeVisible();
     });
 
+    test('the backdrop asks too — a stray click must not cost a credential', async ({
+        apiTokensPage
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.createToken('Clicked away');
+        await apiTokensPage.secretField().waitFor();
+
+        // The easiest dismissal to reach by accident: the dialog is centred and
+        // the backdrop is the whole rest of the viewport. It reaches
+        // `onOpenChange(false)` exactly like Done and Escape, so it has to hit
+        // the same guard — a click 5 px from the corner cannot be allowed to
+        // destroy the only copy of a token.
+        await apiTokensPage.clickBackdrop();
+
+        await expect(apiTokensPage.uncopiedWarning()).toBeVisible();
+        await expect(apiTokensPage.revealDialog()).toBeVisible();
+        await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
+    });
+
+    test('the corner X asks too, so no exit is unguarded', async ({
+        apiTokensPage
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.createToken('Closed by X');
+        await apiTokensPage.secretField().waitFor();
+
+        // The fourth and last way out. `DialogContent` renders this button
+        // itself, so it is easy to forget it exists — and it is the one exit
+        // that looks like the *intended* way to leave a dialog.
+        await apiTokensPage.revealCloseButton().click();
+
+        await expect(apiTokensPage.uncopiedWarning()).toBeVisible();
+        await expect(apiTokensPage.revealDialog()).toBeVisible();
+        await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
+
+        // And the guard is answerable from here as well, not a dead end.
+        await apiTokensPage.keepOpenButton().click();
+        await expect(apiTokensPage.uncopiedWarning()).toHaveCount(0);
+    });
+
     test('once copied, the dialog closes without argument', async ({
         apiTokensPage,
         context
@@ -154,6 +196,33 @@ test.describe('API token reveal-once dialog', () => {
         await apiTokensPage.doneButton().click();
 
         await expect(apiTokensPage.revealDialog()).toHaveCount(0);
+    });
+
+    test('a second mint does not inherit the first one’s “copied”', async ({
+        apiTokensPage,
+        context
+    }) => {
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+
+        await apiTokensPage.createToken('First mint');
+        await apiTokensPage.secretField().waitFor();
+        await apiTokensPage.copyButton().click();
+        await apiTokensPage.toast('Copied to clipboard').waitFor();
+        await apiTokensPage.doneButton().click();
+        await expect(apiTokensPage.revealDialog()).toHaveCount(0);
+
+        // The dialog stays mounted between mints — only `secret` changes — so a
+        // `copied` flag left standing from the first token would wave the second
+        // one straight out of the door, and that one really has not been copied.
+        await apiTokensPage.createToken('Second mint');
+        await apiTokensPage.secretField().waitFor();
+        await expect(apiTokensPage.secretField()).toHaveValue(REVEALED_SECRET);
+
+        await apiTokensPage.doneButton().click();
+        await expect(apiTokensPage.uncopiedWarning()).toBeVisible();
+        await expect(apiTokensPage.revealDialog()).toBeVisible();
     });
 
     test('the plaintext is gone from the client once the dialog is dismissed', async ({

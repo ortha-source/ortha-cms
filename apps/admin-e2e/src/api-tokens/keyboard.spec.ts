@@ -115,6 +115,29 @@ test.describe('API tokens keyboard operability', () => {
             .not.toBe('BODY');
     });
 
+    test('closing the reveal dialog lands focus somewhere real too', async ({
+        apiTokensPage
+    }) => {
+        await apiTokensPage.goto();
+        await apiTokensPage.table.waitFor();
+        await apiTokensPage.createToken('Focus after reveal');
+        await apiTokensPage.secretField().waitFor();
+
+        await apiTokensPage.doneButton().click();
+        await apiTokensPage.closeWithoutCopyingButton().click();
+        await expect(apiTokensPage.revealDialog()).toHaveCount(0);
+
+        // This dialog is opened programmatically, with no `DialogTrigger`, and
+        // the control that was focused when it opened — the create dialog's
+        // submit — was unmounted in the same tick. Radix therefore has nothing
+        // to restore to and focus fell to `<body>`: the keyboard user who was
+        // just handed a credential is dropped at the top of the document, and
+        // the next Tab restarts above the app sidebar (WCAG 2.4.3).
+        await expect
+            .poll(() => apiTokensPage.focusedDescription())
+            .not.toBe('BODY');
+    });
+
     test('the kebab is named per row, so a menu is never ambiguous', async ({
         apiTokensPage
     }) => {

@@ -147,9 +147,7 @@ export function isDuplicateEmail(error: unknown): boolean {
         if (node.constraint === USERS_EMAIL_UNIQUE) return true;
         current = node.cause;
     }
-    return (
-        error instanceof Error && error.message.includes(USERS_EMAIL_UNIQUE)
-    );
+    return error instanceof Error && error.message.includes(USERS_EMAIL_UNIQUE);
 }
 
 /** Convenience: an active user with valid credentials for `POST /auth/login`. */
@@ -455,6 +453,40 @@ export async function getApiTokenHash(id: string): Promise<string | null> {
         .from(apiTokens)
         .where(eq(apiTokens.id, id));
     return row?.tokenHash ?? null;
+}
+
+/**
+ * An API token's `last_used_at`, or `null` when it has never authenticated a
+ * request.
+ *
+ * The column is written by a **throttled, fire-and-forget** touch inside
+ * `ApiTokenService.verify`, so nothing on the authenticated response carries it
+ * and the management list only shows it on a later call. A spec asserting the
+ * throttle reads the column directly, the same way the session refresh specs
+ * read {@link getUserSessions}.
+ */
+export async function getApiTokenLastUsed(id: string): Promise<Date | null> {
+    const [row] = await getDatabase()
+        .select({ lastUsedAt: apiTokens.lastUsedAt })
+        .from(apiTokens)
+        .where(eq(apiTokens.id, id));
+    return row?.lastUsedAt ?? null;
+}
+
+/**
+ * Push an API token's `last_used_at` `ms` milliseconds into the past. The touch
+ * is throttled to one write a minute, so a spec that wants to observe the
+ * *second* touch back-dates the column instead of sleeping out the real window.
+ * Mirrors {@link backdateSessionLastUsed}.
+ */
+export async function backdateApiTokenLastUsed(
+    id: string,
+    ms: number
+): Promise<void> {
+    await getDatabase()
+        .update(apiTokens)
+        .set({ lastUsedAt: new Date(Date.now() - ms) })
+        .where(eq(apiTokens.id, id));
 }
 
 /** Revoke every session of a user — simulates an explicit logout/kill. */
@@ -798,6 +830,19 @@ const RESET_SQL = [
 /** Postgres `lock_not_available` — a `lock_timeout` expired. */
 const LOCK_NOT_AVAILABLE = '55P03';
 
+/**
+ * `deadlock_detected`. The same transient contention as a lock timeout, wearing
+ * a different code: the truncate and a concurrent outbox drain take the same
+ * tables in different orders, Postgres picks a victim, and the victim is
+ * whichever transaction it chose — sometimes this one. It is retriable by
+ * definition; the whole point of killing one side is that the other proceeds.
+ *
+ * Left out of the retry, it presented as a `resetDb` failure attributed to
+ * whichever test happened to be next — a different one on every run, which is
+ * what made it read as five unrelated flakes rather than one cause.
+ */
+const DEADLOCK_DETECTED = '40P01';
+
 /** How long one attempt waits for the ACCESS EXCLUSIVE lock. */
 const LOCK_TIMEOUT_MS = 4_000;
 
@@ -846,11 +891,13 @@ async function truncateWithBoundedLockWait(): Promise<void> {
         } catch (error) {
             await client.query('ROLLBACK').catch(() => undefined);
             const code = (error as { code?: string }).code;
-            if (code !== LOCK_NOT_AVAILABLE) throw error;
+            const retriable =
+                code === LOCK_NOT_AVAILABLE || code === DEADLOCK_DETECTED;
+            if (!retriable) throw error;
             if (attempt >= LOCK_ATTEMPTS) {
                 throw new Error(
                     `[e2e] resetDb could not lock the tables it truncates after ${LOCK_ATTEMPTS} attempts ` +
-                        `of ${LOCK_TIMEOUT_MS} ms.\n\n` +
+                        `of ${LOCK_TIMEOUT_MS} ms (last code: ${code}).\n\n` +
                         'Something is holding a transaction open on one of them. The likeliest\n' +
                         'candidate is an outbox drain: `OutboxDispatcher` runs subscribers inside\n' +
                         'the transaction that claims their rows, so a slow subscriber holds\n' +

@@ -6,6 +6,7 @@ import {
     type TestApp
 } from '../../support/test-app';
 import {
+    apiTokenExists,
     expireApiToken,
     resetDb,
     seedActiveUser,
@@ -14,6 +15,7 @@ import {
     seedContentGrants,
     seedLanding,
     seedMediaAsset,
+    seedMembership,
     seedPages,
     seedTags,
     seedWorkspace
@@ -203,6 +205,35 @@ describe('Public content API (/api/v1)', () => {
                 .expect(401);
         });
 
+        it('answers unknown, revoked and expired with byte-identical 401s', async () => {
+            // The three refusals above each assert a status code, which is the
+            // weaker half of the claim. "Indistinguishable" is a statement
+            // about the bytes: any difference — a `message`, a header, a
+            // trailing field — is an oracle that turns the public API into a
+            // way to sort leaked strings into "was a token here once" and
+            // "never existed", which is precisely the question an attacker
+            // holding a dump of old CI configs is asking.
+            const revoked = await mintToken({ workspaceIds: [workspaceId] });
+            const expired = await mintToken({ workspaceIds: [workspaceId] });
+
+            const agent = await login();
+            await agent.delete(`/api/api-tokens/${revoked.id}`).expect(204);
+            await expireApiToken(expired.id);
+
+            const refusal = (secret: string) =>
+                request(harness.server)
+                    .get('/api/v1/content/test_article')
+                    .set('Authorization', `Bearer ${secret}`)
+                    .expect(401);
+
+            const unknown = await refusal('orthacms_not-a-real-token');
+            const dead = await refusal(revoked.secret);
+            const stale = await refusal(expired.secret);
+
+            expect(dead.text).toBe(unknown.text);
+            expect(stale.text).toBe(unknown.text);
+        });
+
         it('does not open the management API to a bearer token', async () => {
             const { secret } = await mintToken({
                 workspaceIds: [workspaceId],
@@ -308,6 +339,53 @@ describe('Public content API (/api/v1)', () => {
                 .set('Authorization', `Bearer ${secret}`)
                 .set('X-Workspace-Id', workspaceId)
                 .expect(200);
+        });
+
+        it('403s a token whose every workspace has been deleted', async () => {
+            // Deleting a workspace purges its `api_token_workspaces` rows and
+            // deliberately stops short of revoking the credential — narrowing a
+            // token's reach is one call, killing it is another, and the purger
+            // has no standing to make the second. A token whose *only*
+            // workspace goes that way is left covering nothing.
+            //
+            // It used to be told "this token covers 0 workspaces — name the one
+            // you want with the X-Workspace-Id header": a 400 asking for one of
+            // zero options, advice no caller can act on and a diagnosis that
+            // sends them looking at their client instead of at the workspace
+            // that no longer exists.
+            const doomed = await seedWorkspace({
+                name: 'Doomed',
+                slug: 'doomed'
+            });
+            await seedContentGrants(doomed.id, ['test_article']);
+            const { id, secret } = await mintToken({
+                workspaceIds: [doomed.id]
+            });
+
+            await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(200);
+
+            // Through the real route, because the purge is application-level:
+            // `api_token_workspaces` carries no foreign key to `workspaces`
+            // (identity must not depend on that package), so deleting the row
+            // out of band would leave the bucket behind and prove nothing.
+            const agent = await login();
+            await seedMembership(adminId, doomed.id);
+            await agent.delete(`/api/workspaces/${doomed.id}`).expect(204);
+
+            const res = await request(harness.server)
+                .get('/api/v1/content/test_article')
+                .set('Authorization', `Bearer ${secret}`)
+                .expect(403);
+            expect(res.body.message).toContain('no workspaces left');
+
+            // And the token is emphatically not revoked — the 403 has to be
+            // about the empty bucket, or an operator reading it would conclude
+            // the credential was killed and go and mint a replacement for the
+            // wrong reason.
+            expect(await apiTokenExists(id)).toBe(true);
         });
 
         it('400s a malformed X-Workspace-Id', async () => {

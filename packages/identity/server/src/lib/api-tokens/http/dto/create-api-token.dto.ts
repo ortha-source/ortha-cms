@@ -64,7 +64,7 @@ export class CreateApiTokenDto {
         enum: [...API_TOKEN_SCOPES],
         example: 'read',
         description:
-            'Access level: `read` grants `content:read`; `full` grants the complete content CRUD set.'
+            'Access level. `read` grants content:read, media:read and segments:read; `full` adds the content CRUD set plus media:create and segments:manage. The authoritative mapping is `scopePermissions`.'
     })
     @IsIn([...API_TOKEN_SCOPES])
     scope!: ApiTokenScope;
