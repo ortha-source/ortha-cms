@@ -9,6 +9,7 @@ import type {
 import type { RunLimits } from '@orthacms/copilot-domain';
 import type { LocaleDef, OrphanedLocalePolicy } from '@orthacms/i18n-server';
 import type { TransferLimits } from '@orthacms/transfer-domain';
+import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
 import type { OrthaConfig } from '../../../server/ortha.config';
 
 /**
@@ -56,6 +57,16 @@ export interface TestConfigOverrides {
     bodyLimit?: string | number;
     /** Replace the allow-listed origins. */
     allowedOrigins?: string[];
+    /**
+     * Override the webhooks settings.
+     *
+     * The harness default switches the sender's timer **off** and permits
+     * private addresses: a background tick would post mid-assertion, and the
+     * test receiver lives on `127.0.0.1`, which the shipped policy refuses.
+     * A suite that wants the shipped refusal passes
+     * `{ allowPrivateNetworks: false }`.
+     */
+    webhooks?: Partial<WebhooksPluginConfig>;
     /**
      * Override the session-cookie attributes.
      *
@@ -260,6 +271,23 @@ export function buildTestConfig(
                     maxAssets: 100,
                     ...overrides.transferLimits
                 }
+            },
+            // Webhooks. `deliveryIntervalMs: 0` is the important one: the
+            // sender is a per-process interval, and a tick firing mid-suite
+            // would post a delivery a test is in the middle of asserting on.
+            // The suites drive one batch at a time through `WebhookDeliveryWorker.runOnce()`.
+            webhooks: {
+                deliveryIntervalMs: 0,
+                // The test receiver is on loopback, which the shipped policy
+                // refuses — that refusal has its own assertion, with the flag
+                // turned back off.
+                allowPrivateNetworks: true,
+                allowInsecureUrls: true,
+                // Off: the suites assert what the log holds, and an hourly
+                // prune deleting a row mid-assertion is exactly the kind of
+                // flake that is hard to read afterwards.
+                retentionDays: 0,
+                ...overrides.webhooks
             },
             // The reader resolver is not config — it is an object, registered
             // directly in `buildTestPlugins` like the scripted SSO and copilot

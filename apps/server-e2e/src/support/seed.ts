@@ -824,7 +824,21 @@ const RESET_SQL = [
         'RESTART IDENTITY CASCADE',
     // After the TRUNCATE: `users` is gone, so nothing references these any
     // more. `role_permissions` is ON DELETE CASCADE.
-    'DELETE FROM roles WHERE is_system = false'
+    'DELETE FROM roles WHERE is_system = false',
+    // Webhooks are **deleted, not truncated**, and that is load-bearing.
+    //
+    // `WebhookFanoutSubscriber` runs inside the outbox drain, so the drain now
+    // reads `webhook_endpoints` while holding its lock on `outbox_events`. A
+    // TRUNCATE naming both takes ACCESS EXCLUSIVE on each in an order Postgres
+    // chooses, so it can hold `webhook_endpoints` while waiting for
+    // `outbox_events` — exactly opposite to the drain — and the pair deadlock.
+    // (Measured: `deadlock detected` inside `resetDb`, then a cascade of 401s
+    // in the tests behind it.) `DELETE` takes ROW EXCLUSIVE, which does not
+    // conflict with the drain's ACCESS SHARE, so the two simply queue.
+    //
+    // `webhook_endpoint_workspaces` and `webhook_deliveries` both cascade from
+    // this table, so naming the parent is enough.
+    'DELETE FROM webhook_endpoints'
 ];
 
 /** Postgres `lock_not_available` — a `lock_timeout` expired. */

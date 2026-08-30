@@ -10,6 +10,7 @@ import { InsightsPlugin } from '@orthacms/insights-admin';
 import { UsersPlugin } from '@orthacms/users-admin';
 import { ActivityPlugin } from '@orthacms/activity-admin';
 import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
+import { WebhooksPlugin } from '@orthacms/webhooks-admin';
 import { CopilotPlugin } from '@orthacms/copilot-admin';
 import { transferAdminPlugin } from '@orthacms/transfer-admin';
 import { AlarmsPlugin } from '@orthacms/alarms-admin';
@@ -90,6 +91,10 @@ export function buildPlugins(): AdminPlugin[] {
         ActivityPlugin(),
         // Global token-management page in the main sidebar (no workspace
         // context); backs the external content API.
-        ApiTokensPlugin()
+        ApiTokensPlugin(),
+        // Outgoing webhooks (directory group, beside API tokens): the other
+        // integration surface, and global for the same reason — an endpoint is
+        // not scoped to a workspace.
+        WebhooksPlugin()
     ];
 }

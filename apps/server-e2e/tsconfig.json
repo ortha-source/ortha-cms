@@ -15,19 +15,16 @@
             "path": "../../packages/identity/domain"
         },
         {
-            "path": "../../packages/segments/domain"
+            "path": "../server"
         },
         {
-            "path": "../server"
+            "path": "../../packages/webhooks/server"
         },
         {
             "path": "../../packages/users/server"
         },
         {
             "path": "../../packages/media/provider-local"
-        },
-        {
-            "path": "../../packages/segments/server"
         },
         {
             "path": "../../packages/mcp/server"
@@ -49,6 +46,9 @@
         },
         {
             "path": "../../packages/tools/server"
+        },
+        {
+            "path": "../../packages/webhooks/domain"
         },
         {
             "path": "../../packages/i18n/server"
@@ -76,6 +76,12 @@
         },
         {
             "path": "../../packages/transfer/domain"
+        },
+        {
+            "path": "../../packages/segments/server"
+        },
+        {
+            "path": "../../packages/segments/domain"
         },
         {
             "path": "../../packages/media/provider-memory"

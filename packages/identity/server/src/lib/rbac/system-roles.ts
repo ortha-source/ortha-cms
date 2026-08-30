@@ -35,7 +35,9 @@ export const PERMISSIONS = {
     ALARMS_MANAGE: 'alarms:manage',
     VIEWS_SHARE: 'views:share',
     SEGMENTS_READ: 'segments:read',
-    SEGMENTS_MANAGE: 'segments:manage'
+    SEGMENTS_MANAGE: 'segments:manage',
+    WEBHOOKS_READ: 'webhooks:read',
+    WEBHOOKS_MANAGE: 'webhooks:manage'
 } as const;
 
 /**
@@ -116,6 +118,15 @@ export interface SystemRole {
  * `segments:manage` is **admin-only**: renaming a segment's tags changes who
  * every entry naming it is visible to, which is a configuration decision rather
  * than an editorial one.
+ *
+ * The two `webhooks:*` keys are **both admin-only**, which is stricter than the
+ * read/manage splits above and deliberately so. A webhook endpoint is not
+ * scoped to a workspace, it reaches across every workspace it names, and its
+ * delivery log records where this installation talks to on the network. That is
+ * infrastructure configuration in the same family as an API token, not an
+ * editorial surface — so even reading it is withheld from contributors, unlike
+ * `alarms:read` or `segments:read`, which describe content an editor is already
+ * working on.
  *
  * `copilot:skills:manage` is **admin-only** for the same class of reason
  * ([ADR-0010](../../../../../../docs/adr/0010-copilot-skills.md)): a skill's

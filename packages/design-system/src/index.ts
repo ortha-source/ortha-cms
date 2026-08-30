@@ -132,6 +132,7 @@ export {
     DialogTitle,
     DialogDescription
 } from './lib/components/ui/dialog';
+export { Switch } from './lib/components/ui/switch';
 export { ConfirmDialog } from './lib/components/ui/confirm-dialog';
 export type { ConfirmDialogProps } from './lib/components/ui/confirm-dialog';
 export {

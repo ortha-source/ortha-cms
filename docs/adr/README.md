@@ -39,5 +39,6 @@ routine, easily-reversed changes.
 - [0013 — SSO is a provider port, and the core owns the handshake](0013-sso-provider-port.md)
 - [0014 — Export and import as a separate plugin, one hop deep](0014-transfer-as-a-separate-plugin.md)
 - [0015 — Alarms flag content, and never block a write](0015-alarms-are-non-blocking.md)
+- [0016 — Webhooks deliver from a queue, never from the outbox subscriber](0016-webhooks-deliver-from-a-queue.md)
 
 <!-- Add new ADRs to this index. -->

@@ -241,6 +241,100 @@ describe('MultiSelect', () => {
         expect(trigger().getAttribute('aria-haspopup')).toBe('listbox');
     });
 
+    /**
+     * The open-list mode (`onCreate`). What a page test cannot reach here is
+     * the *absence* of the row — a closed picker must never offer to invent a
+     * value, and a query that already names an option must not produce a
+     * second row toggling a different code path.
+     */
+    describe('with onCreate', () => {
+        const type = (text: string) =>
+            fireEvent.change(screen.getByPlaceholderText('Search…'), {
+                target: { value: text }
+            });
+
+        it('offers to add what was typed', async () => {
+            const onCreate = vi.fn();
+            render(
+                <MultiSelect
+                    options={options}
+                    value={[]}
+                    onChange={() => undefined}
+                    onCreate={onCreate}
+                />
+            );
+
+            open(trigger());
+            await waitFor(() =>
+                expect(screen.getByRole('listbox')).toBeTruthy()
+            );
+            type('deploy');
+
+            const add = await screen.findByText('Add “deploy”');
+            fireEvent.click(add);
+            // The raw query, not a trimmed or split one: what it means is the
+            // caller's decision, and one may name several values.
+            expect(onCreate).toHaveBeenCalledWith('deploy');
+        });
+
+        it('does not offer to add a value the list already has', async () => {
+            render(
+                <MultiSelect
+                    options={options}
+                    value={[]}
+                    onChange={() => undefined}
+                    onCreate={() => undefined}
+                />
+            );
+
+            open(trigger());
+            await waitFor(() =>
+                expect(screen.getByRole('listbox')).toBeTruthy()
+            );
+            type('read');
+
+            expect(screen.queryByText('Add “read”')).toBeNull();
+        });
+
+        it('offers nothing to add on an empty query', async () => {
+            render(
+                <MultiSelect
+                    options={options}
+                    value={[]}
+                    onChange={() => undefined}
+                    onCreate={() => undefined}
+                />
+            );
+
+            open(trigger());
+            await waitFor(() =>
+                expect(screen.getByRole('listbox')).toBeTruthy()
+            );
+
+            expect(screen.queryByText(/^Add /)).toBeNull();
+        });
+
+        it('stays a closed list without the prop', async () => {
+            render(
+                <MultiSelect
+                    options={options}
+                    value={[]}
+                    onChange={() => undefined}
+                />
+            );
+
+            open(trigger());
+            await waitFor(() =>
+                expect(screen.getByRole('listbox')).toBeTruthy()
+            );
+            type('deploy');
+
+            // The default: "No results.", never an invitation to invent one.
+            expect(await screen.findByText('No results.')).toBeTruthy();
+            expect(screen.queryByText(/^Add /)).toBeNull();
+        });
+    });
+
     it('marks the trigger invalid and describes it on request', () => {
         render(
             <MultiSelect

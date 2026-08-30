@@ -1,6 +1,7 @@
 import type { AdminPlugin } from '@orthacms/bootstrap-admin';
 import { ActivityPlugin } from '@orthacms/activity-admin';
 import { ApiTokensPlugin } from '@orthacms/api-tokens-admin';
+import { WebhooksPlugin } from '@orthacms/webhooks-admin';
 import { ContentPlugin } from '@orthacms/content-admin';
 import { I18nPlugin } from '@orthacms/i18n-admin';
 import { IdentityPlugin } from '@orthacms/identity-admin';
@@ -56,6 +57,7 @@ export function buildPlugins(): AdminPlugin[] {
         CopilotPlugin(),
         UsersPlugin(),
         ActivityPlugin(),
-        ApiTokensPlugin()
+        ApiTokensPlugin(),
+        WebhooksPlugin()
     ];
 }

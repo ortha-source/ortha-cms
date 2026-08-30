@@ -36,6 +36,7 @@ import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 import type { TransferPluginConfig } from '@orthacms/transfer-server';
 import type { SegmentsPluginConfig } from '@orthacms/segments-server';
+import type { WebhooksPluginConfig } from '@orthacms/webhooks-server';
 import { readPositiveInt, requireEnv } from '@orthacms/utils-server';
 
 import { bodyLimit, trustProxy } from './config/server';
@@ -48,6 +49,7 @@ import { contentGraphqlConfig } from './config/graphql';
 import { mcpConfig } from './config/mcp';
 import { transferConfig } from './config/transfer';
 import { segmentsConfig } from './config/segments';
+import { webhooksConfig } from './config/webhooks';
 
 /**
  * Re-exported so `import type { OrthaIdentityConfig } from '../ortha.config'`
@@ -102,6 +104,8 @@ export interface OrthaConfig {
         transfer: TransferPluginConfig;
         /** Segments plugin settings — where a reader's tags come from. */
         segments: SegmentsPluginConfig;
+        /** Webhooks plugin settings — delivery pacing and the URL policy. */
+        webhooks: WebhooksPluginConfig;
     };
 }
 
@@ -123,6 +127,7 @@ const config: OrthaConfig = {
         i18n: i18nConfig(),
         transfer: transferConfig(),
         segments: segmentsConfig(),
+        webhooks: webhooksConfig(),
         media: mediaConfig(),
         contentGraphql: contentGraphqlConfig(),
         copilot: copilotConfig(),

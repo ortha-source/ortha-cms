@@ -42,7 +42,8 @@ const EXPECTED_PLUGINS = [
     'segments',
     'users',
     'activity',
-    'api-tokens'
+    'api-tokens',
+    'webhooks'
 ];
 
 describe('buildPlugins()', () => {

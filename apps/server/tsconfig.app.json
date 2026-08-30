@@ -43,7 +43,13 @@
             "path": "../../packages/activity/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/utils/server/tsconfig.lib.json"
+            "path": "../../packages/webhooks/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/transfer/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/segments/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/media/provider-local/tsconfig.lib.json"
@@ -52,16 +58,7 @@
             "path": "../../packages/media/server/tsconfig.lib.json"
         },
         {
-            "path": "../../packages/segments/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/transfer/server/tsconfig.lib.json"
-        },
-        {
             "path": "../../packages/mcp/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/i18n/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/identity/provider-saml/tsconfig.lib.json"
@@ -76,7 +73,16 @@
             "path": "../../packages/identity/server/tsconfig.lib.json"
         },
         {
+            "path": "../../packages/i18n/server/tsconfig.lib.json"
+        },
+        {
             "path": "../../packages/content/graphql/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/bootstrap/server/tsconfig.lib.json"
+        },
+        {
+            "path": "../../packages/utils/server/tsconfig.lib.json"
         },
         {
             "path": "../../packages/copilot/provider-openai/tsconfig.lib.json"
@@ -86,9 +92,6 @@
         },
         {
             "path": "../../packages/copilot/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../packages/bootstrap/server/tsconfig.lib.json"
         }
     ]
 }

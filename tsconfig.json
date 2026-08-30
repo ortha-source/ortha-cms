@@ -188,6 +188,15 @@
         },
         {
             "path": "./packages/segments/admin"
+        },
+        {
+            "path": "./packages/webhooks/domain"
+        },
+        {
+            "path": "./packages/webhooks/server"
+        },
+        {
+            "path": "./packages/webhooks/admin"
         }
     ]
 }

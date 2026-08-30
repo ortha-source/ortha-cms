@@ -20,6 +20,7 @@ import { MediaServerPlugin } from '@orthacms/media-server';
 import { TransferPlugin } from '@orthacms/transfer-server';
 import { AlarmsPlugin } from '@orthacms/alarms-server';
 import { SegmentsPlugin } from '@orthacms/segments-server';
+import { WebhooksPlugin } from '@orthacms/webhooks-server';
 import { createLocalStorageProvider } from '@orthacms/media-provider-local';
 import { UsersPlugin } from '@orthacms/users-server';
 import { WorkspacesPlugin } from '@orthacms/workspaces-server';
@@ -271,6 +272,10 @@ export function buildPlugins(config: OrthaConfig): ServerPlugin[] {
         // means every reader is anonymous, which serves unrestricted content
         // and nothing else.
         SegmentsPlugin(config.plugins.segments),
+        // Last of the content-adjacent plugins: it only subscribes to the
+        // outbox and owns no port anything else binds, so nothing depends on
+        // it being registered earlier.
+        WebhooksPlugin(config.plugins.webhooks),
         // Copilot — registered after workspaces (runs are workspace-scoped)
         // and identity (runs execute as the calling user, gated on
         // `copilot:use`). Like media, the composition root is the single place
