@@ -5,16 +5,26 @@ import {
     AlertDescription,
     Button,
     Checkbox,
+    ConfirmDialog,
+    Input,
     InputField,
     Label,
-    MultiSelect
+    MultiSelect,
+    Switch
 } from '@orthacms/design-system';
 import type {
     WebhookEndpoint,
     WebhookEventOption
 } from '../../../domain/types/webhook';
+import { Plus, X } from 'lucide-react';
 import type { ContentTypeOption } from '../../../domain/types/contentTypeOption';
 import type { WorkspaceOption } from '../../../domain/types/workspaceOption';
+import {
+    fromHeaderRows,
+    rejectionFor,
+    toHeaderRows,
+    type HeaderRow
+} from '../../../domain/headerRules';
 import {
     addContentTypeNames,
     contentTypeChoices,
@@ -116,9 +126,64 @@ const messages = defineMessages({
         id: 'webhooks.form.contentTypesScoped',
         defaultMessage: 'Listing only what the chosen workspaces were granted.'
     },
-    enabled: {
-        id: 'webhooks.form.enabled',
-        defaultMessage: 'Send deliveries to this endpoint'
+    status: { id: 'webhooks.form.status', defaultMessage: 'Status' },
+    enabled: { id: 'webhooks.form.enabled', defaultMessage: 'Enabled' },
+    disabled: { id: 'webhooks.form.disabled', defaultMessage: 'Disabled' },
+    enabledHint: {
+        id: 'webhooks.form.enabledHint',
+        defaultMessage: 'Deliveries are sent as content changes.'
+    },
+    disabledHint: {
+        id: 'webhooks.form.disabledHint',
+        defaultMessage: 'Nothing is sent while this is off.'
+    },
+    disableTitle: {
+        id: 'webhooks.form.disableTitle',
+        defaultMessage: 'Turn this endpoint off?'
+    },
+    disableBody: {
+        id: 'webhooks.form.disableBody',
+        defaultMessage:
+            'Events that happen while it is off are not queued for later — there is nothing to catch up on when you turn it back on. Deliveries already waiting are closed as failed.'
+    },
+    disableConfirm: {
+        id: 'webhooks.form.disableConfirm',
+        defaultMessage: 'Turn it off'
+    },
+    cancelDisable: {
+        id: 'webhooks.form.cancelDisable',
+        defaultMessage: 'Keep it on'
+    },
+    headers: {
+        id: 'webhooks.form.headers',
+        defaultMessage: 'Custom headers'
+    },
+    headersHint: {
+        id: 'webhooks.form.headersHint',
+        defaultMessage:
+            'Sent with every delivery — an Authorization header, say, if the receiver wants one of its own on top of the signature.'
+    },
+    headerName: {
+        id: 'webhooks.form.headerName',
+        defaultMessage: 'Header name'
+    },
+    headerValue: {
+        id: 'webhooks.form.headerValue',
+        defaultMessage: 'Header value'
+    },
+    addHeader: { id: 'webhooks.form.addHeader', defaultMessage: 'Add header' },
+    removeHeader: {
+        id: 'webhooks.form.removeHeader',
+        defaultMessage: 'Remove {name}'
+    },
+    headerReserved: {
+        id: 'webhooks.form.headerReserved',
+        defaultMessage:
+            '“{name}” is reserved for the delivery’s own metadata and can’t be set here.'
+    },
+    headerMalformed: {
+        id: 'webhooks.form.headerMalformed',
+        defaultMessage: '“{name}” is not a valid header name.'
     },
     save: { id: 'webhooks.form.save', defaultMessage: 'Save' },
     create: { id: 'webhooks.form.create', defaultMessage: 'Create webhook' },
@@ -149,6 +214,7 @@ export type WebhookFormValues = {
     eventKinds: string[];
     allContentTypes: boolean;
     contentTypes: string[];
+    headers: HeaderRow[];
 };
 
 /** The values a fresh dialog opens with. */
@@ -168,7 +234,8 @@ function emptyValues(): WebhookFormValues {
         // Same reasoning as events: a subscription narrowed to nothing is not
         // a safer one, so the default is the whole registry.
         allContentTypes: true,
-        contentTypes: []
+        contentTypes: [],
+        headers: []
     };
 }
 
@@ -183,7 +250,8 @@ function valuesOf(endpoint: WebhookEndpoint): WebhookFormValues {
         allEvents: endpoint.eventKinds.length === 0,
         eventKinds: endpoint.eventKinds,
         allContentTypes: endpoint.contentTypes.length === 0,
-        contentTypes: endpoint.contentTypes
+        contentTypes: endpoint.contentTypes,
+        headers: toHeaderRows(endpoint.headers)
     };
 }
 
@@ -226,6 +294,12 @@ export function WebhookForm({
     const intl = useIntl();
     const [values, setValues] = useState<WebhookFormValues>(emptyValues);
     const [touched, setTouched] = useState(false);
+    // Switching an endpoint off is not undoable in the way a form field is:
+    // what happens while it is off is simply not recorded, so the switch asks.
+    const [confirmDisable, setConfirmDisable] = useState(false);
+    // Rows need a key that survives editing the name — using the name itself
+    // would remount the input on every keystroke and lose the caret.
+    const nextRowKey = useRef(0);
 
     // Seed once the endpoint arrives — the page mounts before its query
     // resolves. Keyed on the id rather than the object, so a background refetch
@@ -318,6 +392,23 @@ export function WebhookForm({
         }));
     };
 
+    const setHeaders = (next: HeaderRow[]) =>
+        setValues((prev) => ({ ...prev, headers: next }));
+
+    // Named rows only: an untouched empty row is someone about to type.
+    const headerErrors = values.headers.map((row) => {
+        if (row.name.trim().length === 0) return null;
+        const rejection = rejectionFor(row.name);
+        if (!rejection) return null;
+        return intl.formatMessage(
+            rejection === 'reserved'
+                ? messages.headerReserved
+                : messages.headerMalformed,
+            { name: row.name.trim() }
+        );
+    });
+    const headersValid = headerErrors.every((error) => error === null);
+
     const nameError =
         touched && values.name.trim().length === 0
             ? intl.formatMessage(messages.nameRequired)
@@ -333,7 +424,13 @@ export function WebhookForm({
 
     const submit = () => {
         setTouched(true);
-        if (values.name.trim().length === 0 || values.url.trim().length === 0) {
+        if (
+            values.name.trim().length === 0 ||
+            values.url.trim().length === 0 ||
+            // The server refuses these too; stopping here keeps the message
+            // beside the row that caused it.
+            !headersValid
+        ) {
             return;
         }
         onSubmit({
@@ -344,7 +441,8 @@ export function WebhookForm({
             workspaceIds: values.allWorkspaces ? [] : values.workspaceIds,
             // An empty list is how "all" is spelled on the wire, for both.
             eventKinds: values.allEvents ? [] : values.eventKinds,
-            contentTypes: values.allContentTypes ? [] : values.contentTypes
+            contentTypes: values.allContentTypes ? [] : values.contentTypes,
+            headers: fromHeaderRows(values.headers)
         });
     };
 
@@ -387,24 +485,170 @@ export function WebhookForm({
                     }
                 />
 
-                <div className="flex items-center gap-2">
-                    <Checkbox
-                        id="webhook-enabled"
-                        checked={values.enabled}
-                        onCheckedChange={(checked) =>
-                            setValues((prev) => ({
-                                ...prev,
-                                enabled: checked === true
-                            }))
-                        }
-                    />
-                    <Label
-                        htmlFor="webhook-enabled"
-                        className="text-sm font-normal"
-                    >
-                        {intl.formatMessage(messages.enabled)}
-                    </Label>
-                </div>
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-sm font-medium">
+                        {intl.formatMessage(messages.status)}
+                    </legend>
+                    <div className="flex items-center gap-3">
+                        <Switch
+                            id="webhook-enabled"
+                            checked={values.enabled}
+                            onCheckedChange={(checked) => {
+                                // Turning it on is harmless and immediate;
+                                // turning it off loses whatever happens next,
+                                // so only that direction asks.
+                                if (checked) {
+                                    setValues((prev) => ({
+                                        ...prev,
+                                        enabled: true
+                                    }));
+                                    return;
+                                }
+                                setConfirmDisable(true);
+                            }}
+                        />
+                        <Label
+                            htmlFor="webhook-enabled"
+                            className="text-sm font-normal"
+                        >
+                            {intl.formatMessage(
+                                values.enabled
+                                    ? messages.enabled
+                                    : messages.disabled
+                            )}
+                        </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {intl.formatMessage(
+                            values.enabled
+                                ? messages.enabledHint
+                                : messages.disabledHint
+                        )}
+                    </p>
+                </fieldset>
+
+                <fieldset className="flex flex-col gap-2">
+                    <legend className="text-sm font-medium">
+                        {intl.formatMessage(messages.headers)}
+                    </legend>
+                    {values.headers.map((row, index) => (
+                        <div key={row.key} className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                <Label
+                                    htmlFor={`webhook-header-name-${row.key}`}
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.headerName)}
+                                </Label>
+                                <Input
+                                    id={`webhook-header-name-${row.key}`}
+                                    value={row.name}
+                                    placeholder="Authorization"
+                                    className="font-mono text-sm"
+                                    aria-invalid={
+                                        headerErrors[index] !== null
+                                            ? true
+                                            : undefined
+                                    }
+                                    onChange={(event) =>
+                                        setHeaders(
+                                            values.headers.map((candidate) =>
+                                                candidate.key === row.key
+                                                    ? {
+                                                          ...candidate,
+                                                          name: event.target
+                                                              .value
+                                                      }
+                                                    : candidate
+                                            )
+                                        )
+                                    }
+                                />
+                                <Label
+                                    htmlFor={`webhook-header-value-${row.key}`}
+                                    className="sr-only"
+                                >
+                                    {intl.formatMessage(messages.headerValue)}
+                                </Label>
+                                <Input
+                                    id={`webhook-header-value-${row.key}`}
+                                    value={row.value}
+                                    placeholder="Bearer …"
+                                    className="font-mono text-sm"
+                                    onChange={(event) =>
+                                        setHeaders(
+                                            values.headers.map((candidate) =>
+                                                candidate.key === row.key
+                                                    ? {
+                                                          ...candidate,
+                                                          value: event.target
+                                                              .value
+                                                      }
+                                                    : candidate
+                                            )
+                                        )
+                                    }
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={intl.formatMessage(
+                                        messages.removeHeader,
+                                        {
+                                            name:
+                                                row.name.trim() ||
+                                                intl.formatMessage(
+                                                    messages.headerName
+                                                )
+                                        }
+                                    )}
+                                    onClick={() =>
+                                        setHeaders(
+                                            values.headers.filter(
+                                                (candidate) =>
+                                                    candidate.key !== row.key
+                                            )
+                                        )
+                                    }
+                                >
+                                    <X aria-hidden />
+                                </Button>
+                            </div>
+                            {headerErrors[index] ? (
+                                <p
+                                    role="alert"
+                                    className="text-xs text-destructive"
+                                >
+                                    {headerErrors[index]}
+                                </p>
+                            ) : null}
+                        </div>
+                    ))}
+                    <div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                setHeaders([
+                                    ...values.headers,
+                                    {
+                                        key: `row-${nextRowKey.current++}`,
+                                        name: '',
+                                        value: ''
+                                    }
+                                ])
+                            }
+                        >
+                            <Plus />
+                            {intl.formatMessage(messages.addHeader)}
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {intl.formatMessage(messages.headersHint)}
+                    </p>
+                </fieldset>
             </section>
 
             <section className="flex flex-col gap-4">
@@ -640,6 +884,20 @@ export function WebhookForm({
                     </Button>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmDisable}
+                onOpenChange={setConfirmDisable}
+                title={intl.formatMessage(messages.disableTitle)}
+                description={intl.formatMessage(messages.disableBody)}
+                confirmLabel={intl.formatMessage(messages.disableConfirm)}
+                cancelLabel={intl.formatMessage(messages.cancelDisable)}
+                confirmVariant="destructive"
+                onConfirm={() => {
+                    setValues((prev) => ({ ...prev, enabled: false }));
+                    setConfirmDisable(false);
+                }}
+            />
         </div>
     );
 }

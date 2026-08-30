@@ -265,6 +265,108 @@ test.describe('Webhooks', () => {
             );
         });
 
+        test('asks before turning an endpoint off', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+            await webhooksPage.editorHeading('New webhook').waitFor();
+
+            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+            await webhooksPage.enabledSwitch().click();
+
+            // What happens while an endpoint is off is not recorded anywhere,
+            // so the switch says so before it moves. Declining leaves it on —
+            // the switch is read after the dialog closes, because an open Radix
+            // dialog hides the rest of the page from the accessibility tree.
+            await expect(webhooksPage.disableConfirm()).toBeVisible();
+            await webhooksPage.keepEnabledButton().click();
+            await expect(webhooksPage.disableConfirm()).toBeHidden();
+            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+
+            await webhooksPage.enabledSwitch().click();
+            await webhooksPage.disableConfirmButton().click();
+            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
+        });
+
+        test('turns an endpoint back on without asking', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            // `wh_paused` is switched off in the seed.
+            await webhooksPage.gotoEdit('wh_paused');
+            await webhooksPage.editorHeading('Edit webhook').waitFor();
+
+            await expect(webhooksPage.enabledSwitch()).not.toBeChecked();
+            await webhooksPage.enabledSwitch().click();
+
+            // Turning it on loses nothing, so there is nothing to confirm.
+            await expect(webhooksPage.disableConfirm()).toBeHidden();
+            await expect(webhooksPage.enabledSwitch()).toBeChecked();
+        });
+
+        test('sends a custom header with the endpoint', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+            await webhooksPage.editorHeading('New webhook').waitFor();
+
+            const posted = page.waitForRequest(
+                (request) =>
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+            );
+
+            await webhooksPage.nameField().fill('Authorized');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.addHeaderButton().click();
+            await webhooksPage.headerNameField().fill('Authorization');
+            await webhooksPage.headerValueField().fill('Bearer t0ken');
+            await webhooksPage.submitButton().click();
+
+            expect((await posted).postDataJSON()).toMatchObject({
+                headers: { Authorization: 'Bearer t0ken' }
+            });
+        });
+
+        test('refuses a header the delivery owns, before the server does', async ({
+            page,
+            webhooksPage
+        }) => {
+            await mockWebhooksApi(page);
+            await webhooksPage.gotoNew();
+            await webhooksPage.editorHeading('New webhook').waitFor();
+
+            await webhooksPage.nameField().fill('Spoofer');
+            await webhooksPage.urlField().fill('https://cdn.example.com/hooks');
+            await webhooksPage.allWorkspacesToggle().click();
+            await webhooksPage.addHeaderButton().click();
+            // Overwriting this would let a delivery claim to be signed by
+            // someone else.
+            await webhooksPage.headerNameField().fill('X-Ortha-Signature');
+            await webhooksPage.headerValueField().fill('t=1,v1=deadbeef');
+
+            await expect(webhooksPage.headerError()).toBeVisible();
+
+            let posted = false;
+            page.on('request', (request) => {
+                if (
+                    request.url().endsWith('/api/webhooks') &&
+                    request.method() === 'POST'
+                ) {
+                    posted = true;
+                }
+            });
+            await webhooksPage.submitButton().click();
+            await expect(page).toHaveURL(/\/webhooks\/new$/);
+            expect(posted).toBe(false);
+        });
+
         test('does not offer ping as something to subscribe to', async ({
             page,
             webhooksPage

@@ -73,6 +73,29 @@ that a typo cannot be rejected, only shown: the editor marks a subscribed name
 the running build does not define, which is the one place an endpoint silently
 receiving nothing becomes visible.
 
+## Custom headers
+
+An endpoint may carry static headers sent with every delivery — an
+`Authorization: Bearer …` for a receiver that wants its own credential on top of
+the signature, an `X-Api-Key`, a routing header for a gateway. They are edited
+on the endpoint form and stored on the row.
+
+Two families are refused, in the editor and again on every write
+(`isAllowedCustomHeader`): anything starting with **`X-Ortha-`**, and the
+transport's own (`Host`, `Content-Type`, `Content-Length`,
+`Transfer-Encoding`, `Connection`, `User-Agent`). The first would let a delivery
+claim to be a different event, or to be signed by someone else; `Host` is how a
+request aimed at one virtual host gets served by another.
+
+A header value is a credential for somebody else's system, and the API returns
+it in full to anyone holding `webhooks:read` — which is administrators only, the
+same people who can rotate the signing secret. The endpoint's read-only view
+lists header **names** for that reason; the values live in the editor.
+
+Custom headers are not a substitute for the signature. A receiver still verifies
+`X-Ortha-Signature`: a bearer token proves who sent the request, the HMAC proves
+the body was not changed on the way.
+
 ## What a receiver gets
 
 ```http

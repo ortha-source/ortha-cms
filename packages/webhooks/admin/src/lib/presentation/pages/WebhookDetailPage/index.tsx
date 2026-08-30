@@ -48,6 +48,14 @@ const messages = defineMessages({
     remove: { id: 'webhooks.detail.remove', defaultMessage: 'Delete' },
     url: { id: 'webhooks.detail.url', defaultMessage: 'URL' },
     secret: { id: 'webhooks.detail.secret', defaultMessage: 'Signing secret' },
+    headers: {
+        id: 'webhooks.detail.headers',
+        defaultMessage: 'Custom headers'
+    },
+    noHeaders: {
+        id: 'webhooks.detail.noHeaders',
+        defaultMessage: 'None'
+    },
     secretValue: {
         id: 'webhooks.detail.secretValue',
         defaultMessage: 'Ends in {hint}'
@@ -336,6 +344,18 @@ export function WebhookDetailPage() {
                                 {endpoint.allWorkspaces
                                     ? intl.formatMessage(messages.allWorkspaces)
                                     : endpoint.workspaceIds.length}
+                            </Fact>
+                            <Fact label={intl.formatMessage(messages.headers)}>
+                                {/* Names only. The values are credentials for
+                                    somebody else's system; the editor is where
+                                    they are read and changed. */}
+                                <span className="font-mono text-xs break-all">
+                                    {Object.keys(endpoint.headers).length === 0
+                                        ? intl.formatMessage(messages.noHeaders)
+                                        : Object.keys(endpoint.headers).join(
+                                              ', '
+                                          )}
+                                </span>
                             </Fact>
                             <Fact label={intl.formatMessage(messages.secret)}>
                                 {/* Only the hint: the secret is shown once, on

@@ -27,7 +27,7 @@ editor, and only when it is dismissed does the page move to the new endpoint.
 Deliveries is the default tab on purpose. "What does this send?" is asked once,
 when the endpoint is created; "did it arrive?" is asked every time afterwards.
 
-## The five decisions worth knowing before changing anything here
+## The decisions worth knowing before changing anything here
 
 ### 1. Both permissions are administrator-only
 
@@ -91,7 +91,27 @@ type it subscribes to exists. So:
   answered with an empty catalogue rather than an error**, because free entry
   still works without it.
 
-### 4. The delivery log polls itself, and stops
+### 4. Turning an endpoint off asks first
+
+The status control is a `Switch` reading **Enabled** / **Disabled**, not a
+"send deliveries" checkbox: an endpoint's state is a thing it _is_, and the old
+label read as an action. Turning it **off** opens a `ConfirmDialog`, because it
+is the one control here whose cost is invisible — events that happen while the
+endpoint is off are never queued, so there is nothing to catch up on afterwards,
+and deliveries already waiting are closed as failed. Turning it back **on** asks
+nothing: it loses nothing, and re-enabling also clears the auto-disable state
+server-side.
+
+### 5. Custom headers are validated here as well as on the server
+
+`rejectionFor()` in `domain/headerRules` is a **deliberate copy** of the
+server's `isAllowedCustomHeader`, not an import: `@orthacms/webhooks-domain`'s
+barrel reaches `node:crypto` through the signature helpers, and pulling that
+into the browser bundle takes the whole admin down at load (it did, once). The
+copy exists only to turn a `422` into a message beside the row that caused it —
+the server is still the enforcement point.
+
+### 6. The delivery log polls itself, and stops
 
 `useWebhookDeliveries` sets `refetchInterval` only while a row on the page is
 `pending`, `delivering` or `failed`. A queued delivery becomes a delivered one
@@ -103,7 +123,7 @@ Redelivery invalidates `webhooksKeys.deliveriesOf(endpointId)`, not the root:
 the log is the one actively-polled query here, and invalidating everything would
 refetch every other endpoint's pages for a change that cannot affect them.
 
-### 5. A refused URL is shown in the form, not as a toast
+### 7. A refused URL is shown in the form, not as a toast
 
 The server answers `422` with a message written for whoever typed the URL. The
 page puts it in the dialog and keeps the dialog open, so it can be corrected in
@@ -116,6 +136,7 @@ src/lib/
   utils/webhooksPlugin/           the AdminPlugin factory — routes + nav slot
   domain/types/                   the view models
   domain/contentTypeChoices/      picker options + typed-in names (pure)
+  domain/headerRules/             which custom headers an endpoint may set
   infrastructure/
     webhookGateway/               the port
     httpWebhookGateway/           the only place apiClient is used

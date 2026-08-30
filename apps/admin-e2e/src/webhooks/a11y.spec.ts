@@ -76,6 +76,23 @@ test.describe('Webhooks accessibility (axe, WCAG 2.1 A/AA)', () => {
         await webhooksPage.allEventsToggle().click();
         await webhooksPage.allContentTypesToggle().click();
         await webhooksPage.contentTypesPicker().waitFor();
+        // A header row's two inputs are named by `sr-only` labels and its
+        // remove button by `aria-label` — none of which exist until a row does.
+        await webhooksPage.addHeaderButton().click();
+        await webhooksPage.headerNameField().waitFor();
+        await expectNoA11yViolations(makeAxe());
+    });
+
+    test('the turn-off confirmation', async ({
+        page,
+        webhooksPage,
+        makeAxe
+    }) => {
+        await mockWebhooksApi(page);
+        await webhooksPage.gotoNew();
+        await webhooksPage.editorHeading('New webhook').waitFor();
+        await webhooksPage.enabledSwitch().click();
+        await webhooksPage.disableConfirm().waitFor();
         await expectNoA11yViolations(makeAxe());
     });
 

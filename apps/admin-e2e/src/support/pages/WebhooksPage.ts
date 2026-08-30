@@ -190,6 +190,54 @@ export class WebhooksPage extends BasePage {
         return this.page.getByText(label, { exact: true });
     }
 
+    /** The status switch — enabled or not. */
+    enabledSwitch(): Locator {
+        return this.page.getByRole('switch');
+    }
+
+    /** The confirm shown when the switch is turned off. */
+    disableConfirm(): Locator {
+        return this.page
+            .getByRole('dialog')
+            .filter({ hasText: 'Turn this endpoint off?' });
+    }
+
+    /** That confirm's decline button. */
+    keepEnabledButton(): Locator {
+        return this.disableConfirm().getByRole('button', {
+            name: 'Keep it on'
+        });
+    }
+
+    /** That confirm's accept button. */
+    disableConfirmButton(): Locator {
+        return this.disableConfirm().getByRole('button', {
+            name: 'Turn it off'
+        });
+    }
+
+    /** The "Add header" button in the custom-headers editor. */
+    addHeaderButton(): Locator {
+        return this.page.getByRole('button', { name: 'Add header' });
+    }
+
+    /** The nth header row's name field (0-based). */
+    headerNameField(index = 0): Locator {
+        return this.page.getByLabel('Header name').nth(index);
+    }
+
+    /** The nth header row's value field (0-based). */
+    headerValueField(index = 0): Locator {
+        return this.page.getByLabel('Header value').nth(index);
+    }
+
+    /** The refusal shown beside a header name the delivery owns. */
+    headerError(): Locator {
+        return this.page
+            .getByRole('alert')
+            .filter({ hasText: /reserved for the delivery/ });
+    }
+
     /** The editor's submit button when creating. */
     submitButton(): Locator {
         return this.page.getByRole('button', { name: 'Create webhook' });
