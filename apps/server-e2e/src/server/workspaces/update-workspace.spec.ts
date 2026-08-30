@@ -108,9 +108,9 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
             actorEmail: ADMIN_EMAIL
         });
         // The changed field names ride on `meta.fields`.
-        expect(
-            (updated?.meta as { fields?: string[] } | null)?.fields
-        ).toEqual(expect.arrayContaining(['name', 'description', 'color']));
+        expect((updated?.meta as { fields?: string[] } | null)?.fields).toEqual(
+            expect.arrayContaining(['name', 'description', 'color'])
+        );
     });
 
     it('applies a partial patch, leaving unspecified fields intact', async () => {
@@ -141,10 +141,55 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
         expect(updates).toHaveLength(0);
     });
 
+    it('rejects a color outside the seven-key palette, leaving the old one', async () => {
+        const { agent } = await loginAs('admin', ADMIN_EMAIL);
+        const id = await createWorkspace(agent);
+
+        await agent
+            .patch(`/api/workspaces/${id}`)
+            .send({ color: 'chartreuse' })
+            .expect(400);
+
+        // A rejected patch is not a partial one: the workspace keeps the color
+        // it had, and nothing was recorded.
+        const res = await agent.get('/api/workspaces').expect(200);
+        expect(res.body.find((w: { id: string }) => w.id === id).color).toBe(
+            'violet'
+        );
+        expect(
+            (await getActivityRows()).filter(
+                (row) => row.kind === 'workspace.updated'
+            )
+        ).toHaveLength(0);
+    });
+
+    it('rejects a slug in the patch body and leaves the slug alone', async () => {
+        const { agent } = await loginAs('admin', ADMIN_EMAIL);
+        const id = await createWorkspace(agent);
+
+        // The slug is the workspace's stable URL identifier, so
+        // `UpdateWorkspaceDto` simply does not carry it — and the global pipe
+        // is `forbidNonWhitelisted`, which turns "silently ignored" into 400.
+        // The difference matters: a client that thought it renamed a slug and
+        // got a 200 would be wrong in a way nothing tells it about.
+        await agent
+            .patch(`/api/workspaces/${id}`)
+            .send({ name: 'Renamed', slug: 'renamed' })
+            .expect(400);
+
+        const res = await agent.get('/api/workspaces').expect(200);
+        expect(res.body.find((w: { id: string }) => w.id === id)).toMatchObject(
+            { name: 'Marketing site', slug: 'marketing-site' }
+        );
+    });
+
     it('forbids a contributor (lacks workspaces:update) with 403', async () => {
         const { agent: admin } = await loginAs('admin', ADMIN_EMAIL);
         const id = await createWorkspace(admin);
-        const { agent } = await loginAs('contributor', 'wsu-contrib@example.com');
+        const { agent } = await loginAs(
+            'contributor',
+            'wsu-contrib@example.com'
+        );
         await agent
             .patch(`/api/workspaces/${id}`)
             .send({ name: 'Nope' })
@@ -179,8 +224,8 @@ describe('Update workspace (PATCH /api/workspaces/:id)', () => {
 
         // The workspace is untouched.
         const res = await owner.get('/api/workspaces').expect(200);
-        expect(
-            res.body.find((w: { id: string }) => w.id === id).name
-        ).toBe('Marketing site');
+        expect(res.body.find((w: { id: string }) => w.id === id).name).toBe(
+            'Marketing site'
+        );
     });
 });
