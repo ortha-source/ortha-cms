@@ -46,7 +46,22 @@ export const outboxEvents = pgTable(
          * commits and a transient subscriber failure would exhaust every
          * attempt in milliseconds.
          */
-        nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true })
+        nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+        /**
+         * Why the most recent delivery attempt failed, or null if none has.
+         *
+         * The row it belongs to is a **dead letter** once `attempts` reaches
+         * the ceiling: an event that should have been recorded and could not
+         * be. That parking is logged, but a log line is only loud to somebody
+         * tailing logs at that moment — afterwards the single question worth
+         * asking ("is anything parked, and why") had no answer short of a
+         * `psql` session, which is exactly how a gap in the audit trail stays
+         * invisible. Storing it is what lets the dead-letter route answer it.
+         *
+         * Truncated on write: this is diagnostic text from an arbitrary
+         * subscriber, and a stack trace does not need a whole column.
+         */
+        lastError: text('last_error')
     },
     (table) => [
         // The drain claims `WHERE dispatched_at IS NULL ORDER BY occurred_at

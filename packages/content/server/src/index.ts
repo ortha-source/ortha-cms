@@ -260,3 +260,7 @@ export type {
     RelationDelta,
     RelationDeltaAddressing
 } from './lib/entries/types/entry-list-view';
+export {
+    toTokenActor,
+    toToolEventActor
+} from './lib/public-api/infrastructure/token-actor';

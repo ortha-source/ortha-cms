@@ -1,5 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { PublicUser } from '@orthacms/identity-server';
+import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
+import {
+    SAVED_VIEW_EVENT_KINDS,
+    savedViewEvent
+} from '../../domain/events/saved-view-events';
 import { isUniqueViolation } from '@orthacms/utils-server';
 import type {
     SavedView,
@@ -40,7 +49,9 @@ export class CreateSavedViewUseCase {
     constructor(
         @Inject(SAVED_VIEW_REPOSITORY)
         private readonly repository: SavedViewRepository,
-        private readonly access: SavedViewAccessService
+        private readonly access: SavedViewAccessService,
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter
     ) {}
 
     async execute(
@@ -62,13 +73,36 @@ export class CreateSavedViewUseCase {
         // 409 a sequential duplicate gets.
         let created;
         try {
-            created = await this.repository.create({
-                workspaceId: input.workspaceId,
-                scope: input.scope,
-                ownerId: user.id,
-                visibility: input.visibility,
-                name: input.name,
-                payload: input.payload
+            created = await this.uow.run(async () => {
+                const row = await this.repository.create({
+                    workspaceId: input.workspaceId,
+                    scope: input.scope,
+                    ownerId: user.id,
+                    visibility: input.visibility,
+                    name: input.name,
+                    payload: input.payload
+                });
+                await this.outbox.append(
+                    attachActor(
+                        [
+                            savedViewEvent(
+                                SAVED_VIEW_EVENT_KINDS.CREATED,
+                                row.id,
+                                {
+                                    workspaceId: input.workspaceId,
+                                    scope: input.scope,
+                                    name: input.name,
+                                    // The half that makes the row worth
+                                    // keeping: a `workspace` view is shared
+                                    // state everyone in the switcher sees.
+                                    visibility: input.visibility
+                                }
+                            )
+                        ],
+                        { id: user.id, email: user.email ?? null }
+                    )
+                );
+                return row;
             });
         } catch (error) {
             if (isUniqueViolation(error)) {
@@ -78,6 +112,8 @@ export class CreateSavedViewUseCase {
         }
 
         if (input.makeDefault) {
+            // Outside the run on purpose: a personal default raises no event
+            // (see `saved-view-events.ts`), so it has nothing to commit with.
             await this.repository.setDefault(user.id, input.scope, created.id);
         }
         return toSavedView(

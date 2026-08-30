@@ -3,12 +3,18 @@ import {
     Injectable,
     NotFoundException
 } from '@nestjs/common';
-import { attachActor, OutboxWriter, UnitOfWork } from '@orthacms/database';
+import {
+    attachActor,
+    type EventActor,
+    OutboxWriter,
+    UnitOfWork
+} from '@orthacms/database';
 import { type EntryStatus } from '@orthacms/content-domain';
 import type { AnyContentType } from '../../../types/content-type';
 import { EntryWriterService } from '../../infrastructure/persistence/entry-writer.service';
 import { toRecord } from '../../infrastructure/persistence/entry-row';
 import type { EntryRecord } from '../../types/entry-list-view';
+import { entryTitle } from '../../infrastructure/persistence/entry-row';
 import { Entry } from '../../domain/entry';
 
 /**
@@ -36,7 +42,7 @@ export class UnpublishEntryUseCase {
          * name who did this. Without it every content row in the activity log
          * read "System".
          */
-        actor?: { id: string; email: string | null }
+        actor?: EventActor
     ): Promise<EntryRecord> {
         if (!type.publishable) {
             throw new BadRequestException(
@@ -56,7 +62,11 @@ export class UnpublishEntryUseCase {
             const entry = Entry.rehydrate({
                 id,
                 contentType: type.name,
-                status: current['status'] as EntryStatus
+                status: current['status'] as EntryStatus,
+                workspaceId,
+                // The stored row is already loaded, so the audit row gets a
+                // readable name for free rather than a bare uuid.
+                title: entryTitle(type, current)
             });
             entry.unpublish();
 

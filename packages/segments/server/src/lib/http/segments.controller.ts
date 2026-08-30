@@ -13,11 +13,14 @@ import {
     UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { EventActor } from '@orthacms/database';
 import {
+    CurrentUser,
     OriginGuard,
     PERMISSIONS,
     PermissionsGuard,
-    RequirePermissions
+    RequirePermissions,
+    type PublicUser
 } from '@orthacms/identity-server';
 import {
     SegmentsService,
@@ -99,8 +102,11 @@ export class SegmentsController {
         description:
             'The reader tags default to the key, which is what an installation that never renames anything wants.'
     })
-    create(@Body() body: CreateSegmentDto): Promise<SegmentView> {
-        return this.segments.create(body);
+    create(
+        @Body() body: CreateSegmentDto,
+        @CurrentUser() user?: PublicUser
+    ): Promise<SegmentView> {
+        return this.segments.create({ ...body, actor: toActor(user) });
     }
 
     /** Rename a segment, or change the reader tags it answers to. */
@@ -114,9 +120,10 @@ export class SegmentsController {
     })
     update(
         @Param('id', ParseUUIDPipe) id: string,
-        @Body() body: UpdateSegmentDto
+        @Body() body: UpdateSegmentDto,
+        @CurrentUser() user?: PublicUser
     ): Promise<SegmentView> {
-        return this.segments.update(id, body);
+        return this.segments.update(id, { ...body, actor: toActor(user) });
     }
 
     /** Delete a segment and drop it from every entry that named it. */
@@ -129,7 +136,18 @@ export class SegmentsController {
         description:
             'Also removes it from every entry’s allow and deny list, in one transaction. Leaving the id behind would leave entries governed by a segment that resolves to nobody — silently closing content on the allow side and opening it on the deny side.'
     })
-    remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-        return this.segments.remove(id);
+    remove(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user?: PublicUser
+    ): Promise<void> {
+        return this.segments.remove(id, toActor(user));
     }
+}
+
+/**
+ * The signed-in administrator as the {@link EventActor} a segments write stamps
+ * onto its domain event, or `undefined` when there is nobody to name.
+ */
+function toActor(user?: PublicUser): EventActor | undefined {
+    return user ? { id: user.id, email: user.email ?? null } : undefined;
 }

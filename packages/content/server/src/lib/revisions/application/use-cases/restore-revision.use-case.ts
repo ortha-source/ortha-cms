@@ -73,7 +73,17 @@ export class RestoreRevisionUseCase {
             values,
             workspaceId,
             undefined,
-            actor,
+            // Restoring reaches the log as the `entry.updated` its save raises,
+            // naming the fields it put back — which is right, and used to be
+            // the whole story: nothing said the edit *was* a restore, or of
+            // which version. `via` carries that without inventing a kind, the
+            // same seam a copilot-applied change uses.
+            actor
+                ? {
+                      ...actor,
+                      via: { kind: 'revision_restore', revisionNumber: number }
+                  }
+                : actor,
             {
                 ...options,
                 // Put back whatever the bound extensions held when this version was

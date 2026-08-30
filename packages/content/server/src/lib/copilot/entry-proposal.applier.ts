@@ -1,3 +1,4 @@
+import { proposalEventActor } from '@orthacms/copilot-server';
 import { Injectable } from '@nestjs/common';
 import type {
     ProposalActor,
@@ -110,7 +111,7 @@ export class CreateEntryProposalApplier implements ProposalApplier {
             // The human who accepted is the actor on the write, on its revision
             // and on the domain event it raises — never a copilot identity,
             // which does not exist.
-            { id: actor.userId, email: actor.actorEmail }
+            proposalEventActor(actor)
         );
         return {
             entityId: entry.id,
@@ -177,7 +178,7 @@ export class UpdateEntryProposalApplier implements ProposalApplier {
             merged,
             actor.workspaceId,
             undefined,
-            { id: actor.userId, email: actor.actorEmail }
+            proposalEventActor(actor)
         );
         return {
             entityId: entry.id,
@@ -266,7 +267,7 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                         { ...(current.values ?? {}), ...values },
                         actor.workspaceId,
                         undefined,
-                        { id: actor.userId, email: actor.actorEmail }
+                        proposalEventActor(actor)
                     );
                     updated.push(entry.id);
                 } else {
@@ -281,7 +282,7 @@ export class BulkSaveEntriesProposalApplier implements ProposalApplier {
                             : undefined,
                         // No group to join — see `assertStartsItsOwnGroup`.
                         undefined,
-                        { id: actor.userId, email: actor.actorEmail }
+                        proposalEventActor(actor)
                     );
                     created.push(entry.id);
                 }

@@ -4,6 +4,39 @@
 > **Source of truth:** `packages/activity/admin/AGENTS.md`
 > **Findings verified:** 2026-08-11 — 15 confirmed · 0 deleted · 1 corrected · 1 unverified
 > **Generated:** 2026-08-11
+> **Amended:** 2026-08-30 — see “Since this artifact was generated” below
+
+## 0. Since this artifact was generated
+
+The plugin gained two surfaces and the catalogue it renders grew by twenty kinds. Read
+these before re-running anything below.
+
+**New surfaces, neither covered by the plan:**
+
+| Surface | What it is | Gate |
+| --- | --- | --- |
+| `EntryActivityWidget` | An **Activity** block in the content editor's Properties rail (`ENTRY_SIDEBAR_WIDGET_SLOT`, order 60) — the six most recent actions on the open record. It reads `GET /activity/entries/:id`, a different route from the rest of this plugin | `content:read`, **not** `activity:read` |
+| `DeadLetterNotice` | A notice above the log table saying how many events could **not** be recorded, and the kinds of the most recent ones. Renders nothing when the count is zero, and nothing while loading or on error | `activity:read` |
+
+The permission story is now two-tier, and that is the point of the widget: the log page
+stays admin-only, while an **editor** can see the history of a record they may already
+open. A contributor/viewer test that asserts "sees no activity anywhere" is now wrong —
+assert they see no *log page* and no *sidebar item*, but do see the entry block.
+
+**The catalogue grew from 37 to 60 kinds** and the subject types from 6 to 13. Both lists
+in `types/activityKinds` are complete, every kind has a label, and
+`apps/admin-e2e/src/support/api/activity.ts`'s `ALL_KINDS_ACTIVITY` seed was extended to
+match. The three `user.sso_*` kinds this plan's catalogue test could not catch (its seed
+was built from the admin's own list) are covered by a new server-side check that compares
+the two lists directly — see `audit-event-mapping.spec.ts`.
+
+**Two model changes** reach the UI: `ActivityActor` gains `type` (`user` / `api_token`,
+so a token's *label* is not mistaken for a colleague's address), and `ActivityEvent` gains
+`workspaceId`.
+
+**Keep `types/activityKinds` import-free.** The server-side drift check reads that module
+as text; an import there would put this React package in the audit plugin's TypeScript
+project graph.
 
 ## 1. Scope & Preconditions
 

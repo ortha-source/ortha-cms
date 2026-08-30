@@ -12,6 +12,7 @@ import { PERMISSIONS, PermissionsService } from '@orthacms/identity-server';
 import type { Database } from '@orthacms/database';
 import { isOpen, type EntryAccess } from '@orthacms/segments-domain';
 import { EntryAccessService } from '../application/entry-access.service';
+import type { EventActor } from '@orthacms/database';
 import { PrincipalStore } from '../application/principal.store';
 
 /**
@@ -100,6 +101,20 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
      * No principal in scope is a refusal, not a pass: a caller that cannot be
      * identified cannot be shown to hold the permission.
      */
+    /**
+     * The acting user as an {@link EventActor}, or `undefined`.
+     *
+     * Read from the same {@link PrincipalStore} the permission check uses, so
+     * "who was allowed to do this" and "who the log says did it" cannot
+     * disagree. {@link assertMayManage} has already refused an absent
+     * principal by the time this is called on the write path, so the
+     * `undefined` branch is defensive rather than reachable.
+     */
+    private currentActor(): EventActor | undefined {
+        const user = this.principal.current();
+        return user ? { id: user.id, email: user.email ?? null } : undefined;
+    }
+
     private async assertMayManage(): Promise<void> {
         const user = this.principal.current();
         const granted = user ? await this.permissions.forRole(user.roleId) : [];
@@ -164,7 +179,10 @@ export class EntryAccessWriteExtension implements EntryWriteExtension {
             // The save's own transaction. Writing on the plugin's connection
             // instead would commit separately and give up every property this
             // port exists for.
-            executor: executor as unknown as Database
+            executor: executor as unknown as Database,
+            // The entry save's actor, so setting audiences on Save reaches the
+            // log named the same way the save itself does.
+            actor: this.currentActor()
         });
         return written.entryIds;
     }

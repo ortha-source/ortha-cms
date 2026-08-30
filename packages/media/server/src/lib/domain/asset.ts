@@ -326,7 +326,15 @@ export class Asset {
     }
 
     private raise(kind: string, payload: Record<string, unknown>): void {
-        this.events.push(assetEvent(kind, this._id.value, payload));
+        // Every asset event carries its workspace, which is what fills the
+        // audit row's `workspace_id` — the log's only way to answer a
+        // workspace-shaped question, since it holds no FK to anything.
+        this.events.push(
+            assetEvent(kind, this._id.value, {
+                ...payload,
+                workspaceId: this._workspaceId
+            })
+        );
     }
 }
 

@@ -16,8 +16,25 @@ export interface ActivityEventView {
     subjectId: string;
     /** Who performed it, or `null` for a system-initiated event. */
     actorId: string | null;
-    /** Frozen email snapshot of the actor, or `null`. */
+    /**
+     * What {@link actorId} names — `'user'` for a person, `'api_token'` for an
+     * external credential, `null` when there is no actor. A client rendering
+     * the actor needs this: the two ids come from different tables and lead to
+     * different pages, and an `actorEmail` that is really a token label would
+     * otherwise be indistinguishable from a person's address.
+     */
+    actorType: string | null;
+    /**
+     * Frozen email snapshot of the actor, or `null`. For an `api_token` actor
+     * this carries the token's **label** instead — a token has no email, and a
+     * row showing a bare uuid names nothing a reader recognises.
+     */
     actorEmail: string | null;
+    /**
+     * The workspace the action happened in, or `null` when it belongs to none
+     * (an invite, a role change, the creation of a workspace itself).
+     */
+    workspaceId: string | null;
     /** Open per-kind payload, or `null`. */
     meta: Record<string, unknown> | null;
     /** Logical event time. */

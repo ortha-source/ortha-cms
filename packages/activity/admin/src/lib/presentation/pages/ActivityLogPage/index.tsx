@@ -40,6 +40,7 @@ import {
 } from '../../components/ActivityPagination';
 import { ActivityTable } from '../../components/ActivityTable';
 import { ActivityToolbar } from '../../components/ActivityToolbar';
+import { DeadLetterNotice } from '../../components/DeadLetterNotice';
 import { ACTIVITY_FILTER_FIELDS } from '../../activityFilterFields';
 import type { ActivityListParams } from '../../../infrastructure/activityKeys';
 
@@ -246,6 +247,13 @@ export function ActivityLogPage() {
                         count: total
                     })}
                 />
+
+                {/*
+                  Above the toolbar, not below the table: the caveat is about
+                  everything under it, and a reader who scrolls to the rows has
+                  already started trusting them.
+                */}
+                <DeadLetterNotice />
 
                 <ActivityToolbar
                     email={emailInput}

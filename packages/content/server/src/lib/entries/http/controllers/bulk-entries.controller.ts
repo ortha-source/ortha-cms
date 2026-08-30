@@ -72,10 +72,16 @@ export class BulkEntriesController {
     publish(
         @Param('typeName') typeName: string,
         @Body() body: BulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<BulkPublishResult> {
         const type = resolveType(this.registry, typeName);
-        return this.bulkPublishEntries.execute(type, body.ids, workspaceId);
+        return this.bulkPublishEntries.execute(
+            type,
+            body.ids,
+            workspaceId,
+            toActor(user)
+        );
     }
 
     @Post(':typeName/bulk/unpublish')
@@ -84,10 +90,16 @@ export class BulkEntriesController {
     unpublish(
         @Param('typeName') typeName: string,
         @Body() body: BulkIdsDto,
-        @CurrentWorkspace() workspaceId: string
+        @CurrentWorkspace() workspaceId: string,
+        @CurrentUser() user?: PublicUser
     ): Promise<BulkActionResult> {
         const type = resolveType(this.registry, typeName);
-        return this.bulkUnpublishEntries.execute(type, body.ids, workspaceId);
+        return this.bulkUnpublishEntries.execute(
+            type,
+            body.ids,
+            workspaceId,
+            toActor(user)
+        );
     }
 
     @Post(':typeName/bulk/delete')

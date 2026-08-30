@@ -168,6 +168,61 @@ describe('LoginUseCase', () => {
         expect(issued).toEqual([]);
     });
 
+    it('records a refused attempt keyed on the address, not on a user', async () => {
+        // The failures worth reading are exactly the ones with no account
+        // behind them, so the subject has to be the address. `userId` rides in
+        // the payload only when the address actually resolved.
+        const { useCase, events } = harness({ user: null });
+
+        await expect(
+            useCase.execute('  ADA@Example.com ', PASSWORD)
+        ).rejects.toBeInstanceOf(InvalidCredentialsError);
+
+        expect(events).toHaveLength(1);
+        expect(events[0].kind).toBe('auth.sign_in_failed');
+        expect(events[0].aggregateType).toBe('login_attempt');
+        // Trimmed and lowercased, so one address is one subject.
+        expect(events[0].aggregateId).toBe('ada@example.com');
+        expect(events[0].payload.reason).toBe('unknown_account');
+        expect(events[0].payload.userId).toBeNull();
+        // No actor: a failed sign-in has established who nobody is, and naming
+        // the attempted account would attribute an action to a person who may
+        // have had nothing to do with it.
+        expect(events[0].payload.actor).toBeUndefined();
+    });
+
+    it('records a wrong password against a real account as its own reason', async () => {
+        // The distinction that makes the event worth writing: address guessing
+        // and a person mistyping their password are the same flat 401 to the
+        // caller and completely different facts to an operator.
+        const { useCase, events } = harness({
+            user: credentials(),
+            passwordOk: false
+        });
+
+        await expect(useCase.execute(EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+            InvalidCredentialsError
+        );
+
+        expect(events).toHaveLength(1);
+        expect(events[0].payload.reason).toBe('bad_password');
+        expect(events[0].payload.userId).toBe(USER_ID);
+    });
+
+    it('carries the attempt’s IP and User-Agent, the only handles it has', async () => {
+        const { useCase, events } = harness({ user: null });
+
+        await expect(
+            useCase.execute(EMAIL, PASSWORD, {
+                ipAddress: '203.0.113.7',
+                userAgent: 'curl/8.5.0'
+            })
+        ).rejects.toBeInstanceOf(InvalidCredentialsError);
+
+        expect(events[0].payload.ipAddress).toBe('203.0.113.7');
+        expect(events[0].payload.userAgent).toBe('curl/8.5.0');
+    });
+
     it('refuses a pending invite the same way, opening no session', async () => {
         // `pending` means the invite was never accepted, so there is no hash to
         // compare — the dummy stands in for it.
@@ -183,7 +238,13 @@ describe('LoginUseCase', () => {
             { hashed: DUMMY_HASH, plain: PASSWORD }
         ]);
         expect(issued).toEqual([]);
-        expect(events).toEqual([]);
+        // No session — and one `auth.sign_in_failed`, which is the whole
+        // difference from before: a refusal used to leave no trace at all, so a
+        // log full of successful sign-ins was equally consistent with nobody
+        // guessing and with a sustained attack.
+        expect(events).toHaveLength(1);
+        expect(events[0].kind).toBe('auth.sign_in_failed');
+        expect(events[0].payload.reason).toBe('not_active');
     });
 
     it('refuses a disabled account holding the right password, opening no session', async () => {
@@ -200,7 +261,12 @@ describe('LoginUseCase', () => {
 
         expect(verifications).toEqual([{ hashed: HASH, plain: PASSWORD }]);
         expect(issued).toEqual([]);
-        expect(events).toEqual([]);
+        // A `disabled` account and a `pending` one share one reason bucket:
+        // both mean "this address is not a way in right now", and splitting
+        // them would report an account's lifecycle to whoever reads the log
+        // without telling an operator anything the member page does not.
+        expect(events).toHaveLength(1);
+        expect(events[0].payload.reason).toBe('not_active');
     });
 
     it('still spends a comparison when passwords are switched off for the address', async () => {

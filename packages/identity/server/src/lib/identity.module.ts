@@ -50,6 +50,7 @@ import { DescribeInviteUseCase } from './application/use-cases/describe-invite.u
 import { DescribePasswordResetUseCase } from './application/use-cases/describe-password-reset.use-case';
 import { ResetPasswordUseCase } from './application/use-cases/reset-password.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { RevokeUserSessionUseCase } from './application/use-cases/revoke-user-session.use-case';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
 import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
 import { StartSsoUseCase } from './application/use-cases/start-sso.use-case';
@@ -162,6 +163,7 @@ export class IdentityModule {
                 // Application — auth flows as use-cases over the unit of work.
                 LoginUseCase,
                 LogoutUseCase,
+                RevokeUserSessionUseCase,
                 RefreshSessionUseCase,
                 ChangePasswordUseCase,
                 DescribeInviteUseCase,

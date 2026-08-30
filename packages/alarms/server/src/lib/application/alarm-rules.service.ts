@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import {
+    attachActor,
+    OutboxWriter,
+    UnitOfWork,
+    type EventActor
+} from '@orthacms/database';
+import {
     EntryMatchQuery,
     InjectContentRegistry,
     WorkspaceGrantsQuery,
@@ -10,6 +16,7 @@ import {
     AlarmRuleNotFoundError,
     UnknownAlarmContentTypeError
 } from '../domain/errors';
+import { ALARM_EVENT_KINDS, alarmRuleEvent } from '../alarms.events';
 import { AlarmEvaluator } from '../infrastructure/alarm-evaluator.service';
 import { AlarmRuleRepository } from '../infrastructure/alarm-rule.repository';
 import type { AlarmRuleRecord } from '../infrastructure/alarm-rule.repository';
@@ -43,6 +50,8 @@ import type {
 @Injectable()
 export class AlarmRulesService {
     constructor(
+        private readonly uow: UnitOfWork,
+        private readonly outbox: OutboxWriter,
         private readonly rules: AlarmRuleRepository,
         private readonly evaluator: AlarmEvaluator,
         private readonly matches: EntryMatchQuery,
@@ -50,6 +59,23 @@ export class AlarmRulesService {
         @InjectContentRegistry()
         private readonly registry: ContentTypeRegistry
     ) {}
+
+    /**
+     * Appends one `alarm.rule.*` event from inside the active unit of work.
+     *
+     * `workspaceId` rides in the payload because that is where the audit row
+     * reads its own `workspace_id` from — an alarm rule always belongs to one,
+     * so these are among the rows the column exists to make findable.
+     */
+    private async emit(
+        kind: string,
+        ruleId: string,
+        payload: Record<string, unknown>,
+        actor?: EventActor
+    ): Promise<void> {
+        const event = alarmRuleEvent(kind, ruleId, payload);
+        await this.outbox.append(actor ? attachActor([event], actor) : [event]);
+    }
 
     /** Every rule in the workspace, with its live counts. */
     list(workspaceId: string): Promise<AlarmRuleView[]> {
@@ -67,21 +93,40 @@ export class AlarmRulesService {
     async create(
         workspaceId: string,
         actorId: string | null,
-        dto: CreateAlarmRuleDto
+        dto: CreateAlarmRuleDto,
+        actor?: EventActor
     ): Promise<{ rule: AlarmRuleView; scan: AlarmScanResultView }> {
         const type = await this.resolveType(workspaceId, dto.contentType);
         this.matches.assertParses(type, dto.filter, workspaceId);
 
-        const created = await this.rules.create({
-            workspaceId,
-            contentType: dto.contentType,
-            name: dto.name,
-            findingTitle: dto.findingTitle,
-            description: dto.description ?? null,
-            severity: dto.severity,
-            filter: dto.filter,
-            enabled: dto.enabled,
-            createdBy: actorId
+        // The rule row and its event, and nothing else. The scan below reads
+        // the whole collection, and holding a transaction open across it would
+        // pay for an audit row with a long lock on the content tables.
+        const created = await this.uow.run(async () => {
+            const row = await this.rules.create({
+                workspaceId,
+                contentType: dto.contentType,
+                name: dto.name,
+                findingTitle: dto.findingTitle,
+                description: dto.description ?? null,
+                severity: dto.severity,
+                filter: dto.filter,
+                enabled: dto.enabled,
+                createdBy: actorId
+            });
+            await this.emit(
+                ALARM_EVENT_KINDS.RULE_CREATED,
+                row.id,
+                {
+                    workspaceId,
+                    name: row.name,
+                    contentType: row.contentType,
+                    severity: row.severity,
+                    enabled: row.enabled
+                },
+                actor
+            );
+            return row;
         });
 
         const scan = await this.evaluator.rescan(created);
@@ -96,7 +141,8 @@ export class AlarmRulesService {
     async update(
         workspaceId: string,
         ruleId: string,
-        dto: UpdateAlarmRuleDto
+        dto: UpdateAlarmRuleDto,
+        actor?: EventActor
     ): Promise<AlarmRuleView> {
         const existing = await this.rules.findOrFail(workspaceId, ruleId);
         if (dto.filter !== undefined) {
@@ -107,7 +153,28 @@ export class AlarmRulesService {
             this.matches.assertParses(type, dto.filter, workspaceId);
         }
 
-        const updated = await this.rules.update(workspaceId, ruleId, dto);
+        const updated = await this.uow.run(async () => {
+            const row = await this.rules.update(workspaceId, ruleId, dto);
+            await this.emit(
+                ALARM_EVENT_KINDS.RULE_UPDATED,
+                ruleId,
+                {
+                    workspaceId,
+                    name: row.name,
+                    contentType: row.contentType,
+                    // The keys the caller actually sent — a partial update, so
+                    // "what changed" is the request rather than the row.
+                    fields: Object.keys(dto),
+                    // Called out on its own because a disabled rule is
+                    // indistinguishable from one that finds nothing, and this
+                    // is the only record that somebody chose the silence.
+                    enabled: { from: existing.enabled, to: row.enabled },
+                    severity: { from: existing.severity, to: row.severity }
+                },
+                actor
+            );
+            return row;
+        });
         if (dto.filter !== undefined && updated.enabled) {
             await this.evaluator.rescan(updated);
         }
@@ -115,17 +182,59 @@ export class AlarmRulesService {
     }
 
     /** Deletes a rule. Its findings go with it, by FK cascade. */
-    remove(workspaceId: string, ruleId: string): Promise<void> {
-        return this.rules.remove(workspaceId, ruleId);
+    async remove(
+        workspaceId: string,
+        ruleId: string,
+        actor?: EventActor
+    ): Promise<void> {
+        const existing = await this.rules.findOrFail(workspaceId, ruleId);
+        await this.uow.run(async () => {
+            await this.rules.remove(workspaceId, ruleId);
+            // The rule's own details, because after this commits there is
+            // nowhere left to look them up — and every finding it produced
+            // disappeared with it.
+            await this.emit(
+                ALARM_EVENT_KINDS.RULE_DELETED,
+                ruleId,
+                {
+                    workspaceId,
+                    name: existing.name,
+                    contentType: existing.contentType,
+                    severity: existing.severity
+                },
+                actor
+            );
+        });
     }
 
     /** Re-runs one rule over its whole collection. */
     async rescan(
         workspaceId: string,
-        ruleId: string
+        ruleId: string,
+        actor?: EventActor
     ): Promise<AlarmScanResultView> {
         const rule = await this.rules.findOrFail(workspaceId, ruleId);
-        return this.evaluator.rescan(rule);
+        const scan = await this.evaluator.rescan(rule);
+        // Recorded **after** the scan, and carrying its result: this is the
+        // manual recovery path, so a row here is what explains a jump in a
+        // workspace's finding counts that no rule edit accounts for.
+        await this.uow.run(() =>
+            this.emit(
+                ALARM_EVENT_KINDS.RULE_RESCANNED,
+                ruleId,
+                {
+                    workspaceId,
+                    name: rule.name,
+                    contentType: rule.contentType,
+                    scanned: scan.scanned,
+                    opened: scan.opened,
+                    resolved: scan.resolved,
+                    open: scan.open
+                },
+                actor
+            )
+        );
+        return scan;
     }
 
     /**

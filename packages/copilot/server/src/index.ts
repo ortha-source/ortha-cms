@@ -61,3 +61,4 @@ export type { SkillRecord } from './lib/skills/infrastructure/persistence/skill.
 // The Drizzle tables this plugin owns and migrates.
 export * from './lib/chat/infrastructure/schema';
 export * from './lib/skills/infrastructure/schema';
+export { proposalEventActor } from './lib/chat/application/proposal-event-actor';
