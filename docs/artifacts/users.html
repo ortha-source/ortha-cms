@@ -681,7 +681,7 @@ html{scroll-behavior:smooth}
     <li><b><code>?filter=</code> is parsed against the schema</b> and <b>intersected</b> (AND) with <code>search</code> and <code>status</code>; an invalid tree is a <code>400</code> from the filter engine. The string-length limit is a coarse first line before the engine's node-count and depth limits.</li>
     <li><b>Who passes <code>status</code>.</b> The member grid never does (it shows every status); it is used by the workspace-member typeahead, so as not to offer disabled and unaccepted people.</li>
     <li><b>Sorting is by name with an <code>id</code> tie-break</b>, that is, stable between requests, including rows with an empty name.</li>
-    <li><b><code>GET /users/:id</code> answers with the same <code>MemberView</code></b>; an unknown identifier is a <code>404</code> with no body. The permission is the same as the list's: the directory is open to everyone signed in anyway, so hiding “does this id exist” makes no sense.</li>
+    <li><b><code>GET /users/:id</code> answers with the same <code>MemberView</code></b>; an unknown identifier is a <code>404</code>. The body is not empty — it is Nest's <code>{"message":"Not Found","statusCode":404}</code> — but it is byte-identical whatever the reason, which is the property that matters. The permission is the same as the list's: the directory is open to everyone signed in anyway, so hiding “does this id exist” makes no sense.</li>
   </ol>
 
   <h3>6.9 A member's sessions as an administrator sees them</h3>
@@ -722,7 +722,7 @@ html{scroll-behavior:smooth}
         <td><span class="pill pill-perm">users:read</span></td>
         <td>a uuid in the path</td>
         <td>a <code>MemberView</code></td>
-        <td><code>404</code> an unknown member (with an empty body); <code>400</code> a non-uuid; <code>401</code>; <code>403</code></td>
+        <td><code>404</code> an unknown member (body <code>{"message":"Not Found","statusCode":404}</code>, identical for every cause); <code>400</code> a non-uuid; <code>401</code>; <code>403</code></td>
       </tr>
       <tr>
         <td class="mono">POST /users/invites</td>
@@ -1072,21 +1072,21 @@ html{scroll-behavior:smooth}
 
   <h3>Inviting</h3>
   <ul class="check">
-    <li><b>Invite a free address</b> → <span class="exp">200; a <code>users</code> row with <code>status='pending'</code> and <code>password_hash IS NULL</code>; a <code>tokens</code> row with <code>type='invite'</code>; a non-empty <code>inviteToken</code> in the response.</span></li>
+    <li><b>Invite a free address</b> → <span class="exp">201 (no <code>@HttpCode</code>, so Nest's default for a POST); a <code>users</code> row with <code>status='pending'</code> and <code>password_hash IS NULL</code>; a <code>tokens</code> row with <code>type='invite'</code>; a non-empty <code>inviteToken</code> in the response.</span></li>
     <li><b>Compare the <code>inviteToken</code> with <code>tokens.token_hash</code></b> → <span class="exp">they do not match; the hash equals the SHA-256 of the token.</span></li>
     <li><b>Invite an address in a different case</b> (<code>Grace@…</code> when <code>grace@…</code> exists) → <span class="exp">409 with <code>code: "EMAIL_TAKEN"</code>.</span></li>
     <li><b>Two simultaneous invitations to one address</b> → <span class="exp">exactly one succeeds and the second is a 409 <code>EMAIL_TAKEN</code> (the index fired, not the check).</span></li>
     <li><b>A name of nothing but spaces</b> → <span class="exp">400, rather than a stored empty string.</span></li>
     <li><b>A role outside the three keys</b> → <span class="exp">400 from the <code>@IsIn</code>.</span></li>
     <li><b>An extra field in the body</b> → <span class="exp">400 from the <code>ValidationPipe</code>.</span></li>
-    <li><b>A non-existent <code>workspaceIds</code></b> → <span class="exp">200; the invitation is created, the membership is not, and there is no error.</span></li>
+    <li><b>A non-existent <code>workspaceIds</code></b> → <span class="exp">201; the invitation is created, the membership is not, and there is no error.</span></li>
     <li><b>Duplicates in <code>workspaceIds</code></b> → <span class="exp">400 from the <code>@ArrayUnique</code>.</span></li>
     <li><b>Check the list after inviting</b> → <span class="exp">the new row is visible with the “Invited” status; the <code>inviteToken</code> is <b>absent</b> from the list's body.</span></li>
   </ul>
   <h3>Resending and revoking an invitation</h3>
   <ul class="check">
     <li><b>Resend immediately after inviting</b> → <span class="exp">409 <code>INVITE_RECENTLY_SENT</code> with a <code>retryAfterSeconds</code> in the 1…60 range.</span></li>
-    <li><b>Age the token, then resend</b> → <span class="exp">200; <code>tokens</code> still holds <b>one</b> <code>invite</code> row for the user, with a changed hash.</span></li>
+    <li><b>Age the token, then resend</b> → <span class="exp">201; <code>tokens</code> still holds <b>one</b> <code>invite</code> row for the user, with a changed hash.</span></li>
     <li><b>Try the old link after a resend</b> (<code>GET /api/auth/invite/:token</code>) → <span class="exp">404: the previous link is dead.</span></li>
     <li><b>Two simultaneous resends after the cooldown</b> → <span class="exp">exactly one succeeds; one live token remains.</span></li>
     <li><b>Resend to an active member</b> → <span class="exp">409 <code>INVALID_MEMBER_STATE</code>.</span></li>
@@ -1110,10 +1110,10 @@ html{scroll-behavior:smooth}
 
   <h3>Disabling, enabling, sessions</h3>
   <ul class="check">
-    <li><b>Disable an active member holding a live session</b> → <span class="exp">200; <code>users.status='disabled'</code>; every one of their <code>sessions</code> rows has <code>revoked_at</code> stamped.</span></li>
+    <li><b>Disable an active member holding a live session</b> → <span class="exp">201; <code>users.status='disabled'</code>; every one of their <code>sessions</code> rows has <code>revoked_at</code> stamped.</span></li>
     <li><b>The disabled member's next request</b> → <span class="exp">401; the tab shows a toast and sends them to the sign-in page.</span></li>
     <li><b>Disable someone already disabled</b> → <span class="exp">409 <code>INVALID_MEMBER_STATE</code>.</span></li>
-    <li><b>Enable a disabled member</b> → <span class="exp">200; status <code>active</code>; the revoked sessions do <b>not</b> come back to life.</span></li>
+    <li><b>Enable a disabled member</b> → <span class="exp">201; status <code>active</code>; the revoked sessions do <b>not</b> come back to life.</span></li>
     <li><b>Enable an active or an invited member</b> → <span class="exp">409.</span></li>
     <li><b>An observer opens <code>GET /users/:id/sessions</code></b> → <span class="exp">403 (the <code>users:update</code> permission).</span></li>
     <li><b>Revoke your own session from the card</b> → <span class="exp">the button on the card marked “current” is disabled.</span></li>
@@ -1121,11 +1121,11 @@ html{scroll-behavior:smooth}
 
   <h3>Password reset</h3>
   <ul class="check">
-    <li><b>Issue a link to an active member</b> → <span class="exp">200; the response carries a <code>resetToken</code>; a <code>tokens</code> row with <code>type='reset'</code>; a <code>user.password_reset_issued</code> journal row with the administrator as the actor.</span></li>
+    <li><b>Issue a link to an active member</b> → <span class="exp">201; the response carries a <code>resetToken</code>; a <code>tokens</code> row with <code>type='reset'</code>; a <code>user.password_reset_issued</code> journal row with the administrator as the actor.</span></li>
     <li><b>Issue a second one immediately</b> → <span class="exp">409 <code>PASSWORD_RESET_RECENTLY_SENT</code> with a <code>retryAfterSeconds</code>.</span></li>
     <li><b>Issue one to a <code>pending</code> member</b> → <span class="exp">409 <code>INVALID_MEMBER_STATE</code>.</span></li>
     <li><b>Issue one to a <code>disabled</code> member</b> → <span class="exp">409 <code>INVALID_MEMBER_STATE</code>.</span></li>
-    <li><b>Redeem the link through <code>POST /api/auth/reset</code></b> → <span class="exp">200; every session of the member is revoked; no cookie is issued; a <b>second</b> journal row appears, with the account's owner as the actor.</span></li>
+    <li><b>Redeem the link through <code>POST /api/auth/reset</code></b> → <span class="exp">201; every session of the member is revoked; no cookie is issued; a <b>second</b> journal row appears, with the account's owner as the actor.</span></li>
     <li><b>Feed an invite token to the reset route</b> → <span class="exp">404: the <code>type='reset'</code> predicate keeps the two purposes from being confused.</span></li>
     <li><b>Issue a second link after the cooldown, then open the first</b> → <span class="exp">the first is dead (404), only the latest works.</span></li>
     <li><b>A contributor calls the reset route</b> → <span class="exp">403.</span></li>
@@ -1183,7 +1183,7 @@ html{scroll-behavior:smooth}
 
   <h3>The admin UI: invitations and links</h3>
   <ul class="check">
-    <li><b>Type an invalid address</b> → <span class="exp">the step forward is blocked, and the message appears as you type.</span></li>
+    <li><b>Type an invalid address</b> → <span class="exp">the step forward is blocked immediately; the message itself appears after the field is first left (<code>InviteMemberPage</code> gates it behind <code>emailTouched</code>, set on <code>onBlur</code>) and updates per keystroke thereafter.</span></li>
     <li><b>Finish the wizard</b> → <span class="exp">the page does <b>not</b> navigate back to the list; a screen with the link and a copy button is shown.</span></li>
     <li><b>Try to leave the page without copying the link</b> → <span class="exp">the unsaved-changes guard fires — on internal navigation and on a reload alike.</span></li>
     <li><b>Close the resend dialog without copying</b> → <span class="exp">the first close is intercepted with a warning; once the link is copied the dialog closes freely.</span></li>
@@ -1270,27 +1270,27 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">users/server/AGENTS.md, “Audit transition”</td>
         <td>“Audit is <b>still recorded in-band</b> via the <code>ACTIVITY_RECORDER</code> token inside each use case… <b>Do NOT double-record</b>. Wave 3 moves auditing onto an outbox subscriber”</td>
-        <td>Wave 3 <b>has already happened</b>. The package contains not one mention of <code>ACTIVITY_RECORDER</code> and not one <code>recorder.record(...)</code> call; the use cases write only to the outbox, and the journal rows are created by a subscriber in <code>activity/server</code>. The <code>users.module.ts</code> docstring already says the right thing (“Auditing is no longer in-band”), so the documentation contradicts both the code and itself</td>
+        <td><b>Fixed 2026-08-30.</b> Wave 3 <b>has already happened</b>. The package contains not one mention of <code>ACTIVITY_RECORDER</code> and not one <code>recorder.record(...)</code> call; the use cases write only to the outbox, and the journal rows are created by a subscriber in <code>activity/server</code>. The <code>users.module.ts</code> docstring already says the right thing (“Auditing is no longer in-band”), so the documentation contradicts both the code and itself</td>
       </tr>
       <tr>
         <td class="mono">member/application/member-activity.ts</td>
         <td>Exports <code>USER_ACTIVITY_KINDS</code> as “kinds the users plugin records in-band”</td>
-        <td><b>Dead code.</b> The constant is used nowhere in the package (it is only mentioned in two docstrings); the real catalogue is duplicated in <code>activity/server/…/audit-event-mapping.ts</code>, which says so there in as many words</td>
+        <td><b>Fixed 2026-08-30.</b> <b>Dead code.</b> The constant is used nowhere in the package (it is only mentioned in two docstrings); the real catalogue is duplicated in <code>activity/server/…/audit-event-mapping.ts</code>, which says so there in as many words</td>
       </tr>
       <tr>
         <td class="mono">users/server/AGENTS.md, “The copilot tool”</td>
         <td>“Registered by <code>copilotToolsRegistrar('workspace', …)</code> in <code>UsersModule.forRoot</code>, which injects the copilot registry <b>optionally</b>”</td>
-        <td>No such function <b>exists</b> in the repository (it is mentioned only in other packages' comments, as an analogy). The provider registers the tool itself: <code>WorkspaceCopilotToolProvider</code> implements <code>OnModuleInit</code> and calls <code>this.toolRegistry?.register(this)</code>, with <code>@Optional()</code> on the registry injection. The resulting behaviour is the same, but the named mechanism does not exist</td>
+        <td><b>Fixed 2026-08-30.</b> No such function <b>exists</b> in the repository (it is mentioned only in other packages' comments, as an analogy). The provider registers the tool itself: <code>WorkspaceCopilotToolProvider</code> implements <code>OnModuleInit</code> and calls <code>this.toolRegistry?.register(this)</code>, with <code>@Optional()</code> on the registry injection. The resulting behaviour is the same, but the named mechanism does not exist</td>
       </tr>
       <tr>
         <td class="mono">users/server/AGENTS.md, “Architecture notes”</td>
         <td>“<code>origin-guard.spec.ts</code> pins all <b>five</b> mutations”</td>
-        <td>There are <b>seven</b> mutating routes, and the suite pins all seven: <code>PATCH /users/:id</code>, <code>POST /users/invites</code>, <code>disable</code>, <code>enable</code>, <code>invites/resend</code>, <code>DELETE /users/:id/invites</code>, <code>password-reset</code> (plus a “reads are unaffected” block)</td>
+        <td><b>Fixed 2026-08-30.</b> There are <b>seven</b> mutating routes, and the suite pins all seven: <code>PATCH /users/:id</code>, <code>POST /users/invites</code>, <code>disable</code>, <code>enable</code>, <code>invites/resend</code>, <code>DELETE /users/:id/invites</code>, <code>password-reset</code> (plus a “reads are unaffected” block)</td>
       </tr>
       <tr>
         <td class="mono">users.module.ts, docstring</td>
         <td>“It takes no config: <b>the invite TTL</b> and page sizes are deliberate constants, not host knobs”</td>
-        <td>True of the page sizes, false of the TTL: <code>InviteTokenService</code> and <code>PasswordResetTokenService</code> inject identity's configuration and read <code>token.inviteTtlSeconds</code> / <code>token.resetTtlSeconds</code>. That exact fact is the one <code>AGENTS.md</code> separately calls “load-bearing” — so the docstring reintroduces an already-fixed defect in the form of a claim</td>
+        <td><b>Fixed 2026-08-30.</b> True of the page sizes, false of the TTL: <code>InviteTokenService</code> and <code>PasswordResetTokenService</code> inject identity's configuration and read <code>token.inviteTtlSeconds</code> / <code>token.resetTtlSeconds</code>. That exact fact is the one <code>AGENTS.md</code> separately calls “load-bearing” — so the docstring reintroduces an already-fixed defect in the form of a claim</td>
       </tr>
       <tr>
         <td class="mono">domain/member.ts, the <code>rename</code> and <code>enable</code> docstrings</td>
@@ -1305,12 +1305,12 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">users/admin/AGENTS.md, “Destructive actions…”</td>
         <td>The focus anchor is called <code>MEMBERS_TABLE_ANCHOR_ID</code> — “the table wrapper”</td>
-        <td>In the code it is <code>MEMBERS_RESULTS_ANCHOR_ID</code> (<code>presentation/membersResultsAnchor</code>), and it wraps <b>all four</b> result states rather than the table. The difference matters: an anchor on the table would unmount when the last row is revoked — and that was the one case where focus was still being lost</td>
+        <td><b>Fixed 2026-08-30.</b> In the code it is <code>MEMBERS_RESULTS_ANCHOR_ID</code> (<code>presentation/membersResultsAnchor</code>), and it wraps <b>all four</b> result states rather than the table. The difference matters: an anchor on the table would unmount when the last row is revoked — and that was the one case where focus was still being lost</td>
       </tr>
       <tr>
         <td class="mono">presentation/usersPlugin, docstring</td>
         <td>“…its toolbar nav entry, contributed to the shell&#39;s <code>NAVBAR_START_SLOT</code> at <code>order: 30</code> (after Workspaces)”</td>
-        <td>In the code the contribution goes to <code>SIDEBAR_NAV_SLOT</code> with <code>group: 'directory'</code> and <code>order: 20</code>; <code>NAVBAR_START_SLOT</code> is not imported in the file at all. Beyond that, the docstring speaks only of the <code>/users</code> route, whereas the plugin declares three routes and a second slot</td>
+        <td><b>Fixed 2026-08-30.</b> In the code the contribution goes to <code>SIDEBAR_NAV_SLOT</code> with <code>group: 'directory'</code> and <code>order: 20</code>; <code>NAVBAR_START_SLOT</code> is not imported in the file at all. Beyond that, the docstring speaks only of the <code>/users</code> route, whereas the plugin declares three routes and a second slot</td>
       </tr>
       <tr>
         <td class="mono">users/admin/AGENTS.md, “The pages”</td>
@@ -1320,7 +1320,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">presentation/membersFilterFields, docstring</td>
         <td>“A static mirror of the server&#39;s <code>USERS_FILTER_SCHEMA</code>”</td>
-        <td>The server schema is called <code>MEMBER_FILTER_SCHEMA</code> (<code>member/application/member-filter.ts</code>); the identifier <code>USERS_FILTER_SCHEMA</code> does not exist in the repository</td>
+        <td><b>Fixed 2026-08-30.</b> The server schema is called <code>MEMBER_FILTER_SCHEMA</code> (<code>member/application/member-filter.ts</code>); the identifier <code>USERS_FILTER_SCHEMA</code> does not exist in the repository</td>
       </tr>
       <tr>
         <td class="mono">users/server/AGENTS.md, “Conflict bodies…”</td>
@@ -1335,10 +1335,27 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">apps/server-e2e/src/server/users/</td>
         <td>Nine suites cover the package's routes</td>
-        <td><code>POST /users/:id/password-reset</code> <b>has no suite of its own</b>: it is exercised only in <code>origin-guard.spec.ts</code>. Neither the cooldown window, nor the refusal for <code>pending</code>/<code>disabled</code>, nor the rotation of the previous token is pinned by the server e2e tests (the browser-side <code>password-reset.spec.ts</code> checks the interface over mocks)</td>
+        <td><b>Withdrawn — this entry was itself wrong.</b> <code>POST /users/:id/password-reset</code> is covered in full, including the cooldown, the refusal for <code>pending</code>/<code>disabled</code> and the rotation of the previous token — by <code>apps/server-e2e/src/server/<b>auth</b>/password-reset.spec.ts</code>, where the whole issue&nbsp;→&nbsp;redeem story lives because identity owns the redemption half. Looking only under <code>server/users/</code> found nothing and concluded there was nothing. Coverage does not follow directory names</td>
       </tr>
     </tbody>
   </table>
+
+  <h3>What the QA pass changed (2026-08-30)</h3>
+  <p>This dossier was reconciled against the code and a live stack. Five of its own
+  statements did not survive that check and are corrected above: the success codes
+  (POST answers <b>201</b>, not 200 — Nest's default, since no route sets
+  <code>@HttpCode</code>), the “empty” 404 body, the claim that the password-reset
+  route had no server suite, and the promise that the invite form's email error
+  appears as you type. The drift entries that have since been fixed in the code are
+  marked <b>Fixed</b>.</p>
+  <p>One product defect was found and fixed in the same pass:
+  <code>PATCH /api/users/:id</code> with <code>{"name": null}</code> answered 200
+  and cleared the stored name, while <code>""</code> and <code>"&nbsp;&nbsp;"</code>
+  were 400s. <code>@IsOptional()</code> skips the rest of the validator chain for
+  <code>null</code> as well as <code>undefined</code>, and the use case tested
+  presence with <code>!== undefined</code> — so the two layers disagreed about what
+  counts as a supplied field. Invariant <b>I-11</b> now holds for all four
+  spellings.</p>
   </div>
 </section>
 

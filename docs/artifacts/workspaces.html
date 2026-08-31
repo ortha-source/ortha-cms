@@ -519,14 +519,31 @@ html{scroll-behavior:smooth}
     <tbody>
       <tr><td><b>Cascade</b></td><td><code>memberships</code>, <code>workspace_content</code>, <code>copilot_conversations</code>, <code>copilot_proposals</code>, <code>copilot_skills</code>, <code>saved_views</code></td><td>They already have a foreign key — the database does the cleanup</td></tr>
       <tr><td><b>Refusal (409)</b></td><td>every <code>content_*</code> table</td><td>Entries are <b>authored work</b>. A user deletes their own content deliberately; the system does not do it for them, so <code>assertDeletable</code> blocks deletion while anything is left</td></tr>
-      <tr><td><b>Purge</b></td><td><code>media_asset</code>, <code>media_folder</code>, <code>api_token_workspaces</code></td><td>Pure <b>scopes</b> with no meaning of their own: a folder tree, a token's “basket”. They deliberately have no FK — a cross-plugin key would couple the schemas</td></tr>
+      <tr><td><b>Purge</b></td><td><code>media_asset</code>, <code>media_folder</code>, <code>api_token_workspaces</code>, <code>alarm_rules</code> + <code>alarm_findings</code>, <code>entry_access</code>, <code>content_entry_revisions</code></td><td>Pure <b>scopes</b> with no meaning of their own: a folder tree, a token's “basket”, a rule about content that no longer exists. They deliberately have no FK — a cross-plugin key would couple the schemas</td></tr>
     </tbody>
   </table>
   </div>
 
   <div class="note crit">
-    <span class="label">The uncovered remainder</span>
-    <p>There are tables with a <code>workspace_id</code> column that <b>none</b> of the three mechanisms covers: <code>alarm_rules</code> and <code>alarm_findings</code> (the alarms plugin), <code>entry_access</code> and the <code>segments.workspace_ids</code> array (the segments plugin). They have no foreign key and register no purger — in the whole repository, only <code>media/server</code> and the local <code>ApiTokenGrantsPurger</code> implement <code>WorkspacePurger</code>. After a workspace is deleted those rows will go on pointing nowhere. The table in <code>AGENTS.md</code> lists only the three mechanisms and says nothing about these tables — see section 15.</p>
+    <span class="label">The remainder — closed 2026-08-30, except one</span>
+    <p>This section used to say that four groups of rows survived a delete pointing
+    nowhere, and it was right: at the time only <code>media/server</code> and the
+    local <code>ApiTokenGrantsPurger</code> implemented <code>WorkspacePurger</code>,
+    two purgers for six tables that needed one. Reproduced on a live stack — the
+    workspace, its memberships and its grants went, and the alarm rule stayed.</p>
+    <p>Three purgers now close it: <code>alarms:rules-and-findings</code>,
+    <code>segments:entry-access</code> and <code>content:entry-revisions</code>.
+    That last table was <b>missing from this list</b>: <code>content_entry_revisions</code>
+    escapes the refusal from the other side, because <code>countWorkspaceEntries</code>
+    sums the live entry tables only — a workspace whose entries were all deleted counts
+    as empty, deletes cleanly, and stranded its whole version history.</p>
+    <p><b><code>segments.workspace_ids</code> is deliberately left dangling</b>, and
+    listing it here as an oversight was this dossier's own mistake. It is an array, so
+    it can carry no FK, and its column docblock records the reasoning: an id matching
+    nothing <em>narrows</em> the audience, while an empty array means <em>every</em>
+    workspace — so pruning it would walk the audience toward “offered everywhere”.
+    Fail-safe beats tidy for a visibility rule, and a unit test now pins that choice so
+    a later clean-up cannot reverse it in silence.</p>
   </div>
 </section>
 
@@ -1048,7 +1065,7 @@ html{scroll-behavior:smooth}
 
   <ul class="inv">
     <li><span class="id">I-01</span><span>Permission and membership are checked <b>independently</b>, and both checks are mandatory: holding <code>workspaces:update</code> never opens access to a workspace the caller does not belong to.</span></li>
-    <li><span class="id">I-02</span><span>Both guards delegate the decision to the single <code>authorizeWorkspaceAccess</code> function; there is no other implementation of “has access” in the codebase.</span></li>
+    <li><span class="id">I-02</span><span>Both guards delegate the decision to the single <code>authorizeWorkspaceAccess</code> function. One documented exception: <code>media/server</code>'s download controller asks the same membership probe directly and answers <b>404</b> rather than 403, because it derives the workspace from the asset id and a 403 would confirm that the asset exists. So there is no second membership <em>probe</em>; there is one other call site, and it is deliberate.</span></li>
     <li><span class="id">I-03</span><span>“Not a member” and “no such workspace” are indistinguishable: the same <code>403</code> with the same text, on every route and on the shell's screen.</span></li>
     <li><span class="id">I-04</span><span><code>GET /api/workspaces</code> returns <b>only</b> the caller's workspaces; no unscoped list exists in the read model.</span></li>
     <li><span class="id">I-05</span><span>Every route of the form <code>/workspaces/:id/…</code> carries <code>WorkspaceMemberGuard</code> — both preview counters included.</span></li>
@@ -1259,37 +1276,37 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">workspaces/server/AGENTS.md, “Deleting a workspace”</td>
         <td>The table of three mechanisms is presented as exhaustive: cascade, refusal, purge</td>
-        <td>There are workspace-scoped tables <b>outside</b> all three: <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code> and the <code>segments.workspace_ids</code> array. They have no foreign key and register no purger (in the whole repository only media and the local <code>ApiTokenGrantsPurger</code> implement <code>WorkspacePurger</code>), so after a deletion their rows point nowhere — precisely the class of orphaning the purge mechanism was introduced for</td>
+        <td><b>Fixed 2026-08-30.</b> There are workspace-scoped tables <b>outside</b> all three: <code>alarm_rules</code>, <code>alarm_findings</code>, <code>entry_access</code> and the <code>segments.workspace_ids</code> array. They have no foreign key and register no purger (in the whole repository only media and the local <code>ApiTokenGrantsPurger</code> implement <code>WorkspacePurger</code>), so after a deletion their rows point nowhere — precisely the class of orphaning the purge mechanism was introduced for</td>
       </tr>
       <tr>
         <td class="mono">workspaces/server/AGENTS.md, the “Cascade” row</td>
         <td>Lists <code>memberships</code>, <code>workspace_content</code>, <code>copilot_conversations</code> / <code>_proposals</code> / <code>_skills</code></td>
-        <td><code>saved_views</code> (<code>content/server</code>) also carries a cascading FK to <code>workspaces.id</code>. The list is incomplete</td>
+        <td><b>Fixed 2026-08-30.</b> <code>saved_views</code> (<code>content/server</code>) also carries a cascading FK to <code>workspaces.id</code>. The list is incomplete</td>
       </tr>
       <tr>
         <td class="mono">workspaces/admin/AGENTS.md, “Architecture”</td>
         <td><code>useUsersSearch</code> → <code>GET /api/users?q=</code></td>
-        <td>The gateway sends <code>?search=</code> and <code>?pageSize=10</code>; the <code>ListMembersQueryDto</code> DTO declares a <code>search</code> field. There is no <code>q</code> parameter</td>
+        <td><b>Fixed 2026-08-30.</b> The gateway sends <code>?search=</code> and <code>?pageSize=10</code>; the <code>ListMembersQueryDto</code> DTO declares a <code>search</code> field. There is no <code>q</code> parameter</td>
       </tr>
       <tr>
         <td class="mono">workspaces/admin/AGENTS.md, “Settings page → Members”</td>
         <td>“a roster where <b>every</b> member is removable; no member is special”</td>
-        <td>The last member is <b>not</b> removable: the server answers <code>409 LastMemberError</code>. The client does not distinguish that case — <code>confirmRemoval</code> catches any error in one <code>catch</code> and shows a generic “Couldn’t remove that member. Please try again.”, even though a retry certainly will not help. The neighbouring dialogs (deleting a workspace, revoking a grant) already use <code>isConflict</code> and a separate wording for the same <code>409</code></td>
+        <td><b>Fixed 2026-08-30.</b> The last member is <b>not</b> removable: the server answers <code>409 LastMemberError</code>. The client does not distinguish that case — <code>confirmRemoval</code> catches any error in one <code>catch</code> and shows a generic “Couldn’t remove that member. Please try again.”, even though a retry certainly will not help. The neighbouring dialogs (deleting a workspace, revoking a grant) already use <code>isConflict</code> and a separate wording for the same <code>409</code></td>
       </tr>
       <tr>
         <td class="mono">workspacesPlugin/index.tsx, JSDoc</td>
         <td>“a <code>Layers</code> item contributed into <code>NAVBAR_START_SLOT</code> at <code>order: 20</code>”</td>
-        <td>The item is put into <code>SIDEBAR_NAV_SLOT</code> with <code>order: 10</code>. The plugin does not use a <code>NAVBAR_START_SLOT</code> at all. <code>AGENTS.md</code>, meanwhile, describes it all correctly — the document and the code comment contradict each other</td>
+        <td><b>Fixed 2026-08-30.</b> The item is put into <code>SIDEBAR_NAV_SLOT</code> with <code>order: 10</code>. The plugin does not use a <code>NAVBAR_START_SLOT</code> at all. <code>AGENTS.md</code>, meanwhile, describes it all correctly — the document and the code comment contradict each other</td>
       </tr>
       <tr>
         <td class="mono">workspacesPlugin/index.tsx, JSDoc</td>
         <td>Lists two holdings: the management area and the workspace shell</td>
-        <td>The plugin also contributes into <code>COMMAND_SLOT</code> (the command palette) and <code>HOME_SECTION_SLOT</code> (the home page's tiles and panel). <code>AGENTS.md</code> mentions the home page but is silent about the command palette too</td>
+        <td><b>Fixed 2026-08-30.</b> The plugin also contributes into <code>COMMAND_SLOT</code> (the command palette) and <code>HOME_SECTION_SLOT</code> (the home page's tiles and panel). <code>AGENTS.md</code> mentions the home page but is silent about the command palette too</td>
       </tr>
       <tr>
         <td class="mono">WorkspacesPage/index.tsx, JSDoc</td>
         <td>“searchable, status-filterable <b>grid of workspace cards</b>”</td>
-        <td>The page renders a <code>WorkspacesTable</code> — a table, not a grid of cards. <code>AGENTS.md</code> says “table” correctly; it is the comment that is out of date, and the word “grid” leaked further — into <code>useDeleteWorkspace</code>'s comment and into a couple of state texts</td>
+        <td><b>Fixed 2026-08-30.</b> The page renders a <code>WorkspacesTable</code> — a table, not a grid of cards. <code>AGENTS.md</code> says “table” correctly; it is the comment that is out of date, and the word “grid” leaked further — into <code>useDeleteWorkspace</code>'s comment and into a couple of state texts</td>
       </tr>
       <tr>
         <td class="mono">workspaces/server/AGENTS.md, “The one hard rule”</td>
@@ -1308,6 +1325,25 @@ html{scroll-behavior:smooth}
       </tr>
     </tbody>
   </table>
+
+  <h3>What the QA pass changed (2026-08-30)</h3>
+  <p>This dossier was reconciled against the code and a live stack. Its own
+  discrepancy list held up in full — every entry in it was real — but three
+  statements elsewhere did not, and are corrected above: <code>segments.workspace_ids</code>
+  was listed as an oversight when it is a deliberate fail-safe,
+  <code>content_entry_revisions</code> was missing from the same list although it is
+  the sixth uncovered table, and <b>I-02</b> was worded more strongly than it holds.
+  Entries since fixed in the code are marked <b>Fixed</b>.</p>
+  <p>Four product defects were found and fixed in the pass. Rows in five tables
+  survived a workspace delete pointing nowhere — reproduced, then closed with three
+  new purgers. The sidebar's workspace quick-list rendered a failed load exactly as it
+  renders an empty membership, because it never read <code>isError</code> while four
+  sibling surfaces did. Removing the last member showed “Please try again”, discarding
+  the actionable 409 the server had already sent. And dismissing that dialog dropped
+  focus on <code>&lt;body&gt;</code>, because it is opened from state and Radix had no
+  trigger to restore to — found by a keyboard test written in the same pass, not by
+  hand.</p>
+  <p>Unit coverage of the invariants went from 4 of 34 to 30 of 34.</p>
   </div>
 </section>
 

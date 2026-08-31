@@ -853,11 +853,11 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-02</span><span>The database stores only the secret's SHA-256 and the non-secret <code>lookup_prefix</code>; the secret itself is persisted nowhere.</span></li>
     <li><span class="id">I-03</span><span>After the reveal dialog closes, the secret is absent from page state, the mutation cache, the query cache, the DOM, <code>localStorage</code>/<code>sessionStorage</code> and the URL.</span></li>
     <li><span class="id">I-04</span><span>No path out of the reveal dialog (button, <code>Esc</code>, backdrop, cross) discards an uncopied secret without an explicit confirmation.</span></li>
-    <li><span class="id">I-05</span><span>A token's workspace set is always non-empty: an empty one is rejected by the server (<code>400</code>) and cannot be submitted from the form; the token row and its set are written in one transaction, so a token "without a scope" is observable in no read.</span></li>
+    <li><span class="id">I-05</span><span>A token's workspace set is non-empty <b>at issue</b>: an empty one is rejected by the server (<code>400</code>) and cannot be submitted from the form, and the token row and its set are written in one transaction. It does <b>not</b> stay non-empty for life, and the stronger wording this invariant used to carry — "a token without a scope is observable in no read" — was disproved on a live stack. Deleting a workspace narrows every token's basket and deliberately stops short of revoking the credential, which is not the purger's call to make, so a live token with an empty basket is reachable. It now answers <code>403</code> naming that cause, rather than the <code>400</code> that used to ask the caller to name one of zero workspaces.</span></li>
     <li><span class="id">I-06</span><span>Duplicates in <code>workspaceIds</code> are collapsed; the set in the response is what was actually granted.</span></li>
     <li><span class="id">I-07</span><span>A non-existent workspace in the set gives <code>400</code> rather than a token pointing nowhere; with no <code>WORKSPACE_DIRECTORY</code> bound, the check is skipped rather than failing the issue.</span></li>
     <li><span class="id">I-08</span><span>An archived workspace is a legitimate scope: existence is checked, not status.</span></li>
-    <li><span class="id">I-09</span><span>An <code>expiresAt</code> in the past is rejected (<code>400</code>); <code>null</code> means "never" and is the only way to issue a token that does not expire.</span></li>
+    <li><span class="id">I-09</span><span>An <code>expiresAt</code> in the past is rejected (<code>400</code>), and so is one that is not a valid ISO timestamp. An <b>absent</b> expiry means "never" — that includes an explicit <code>null</code>, which for a while was the one spelling that could <em>not</em> issue a non-expiring token: <code>@IsOptional()</code> skips the rest of the chain for <code>null</code>, the parser guarded on <code>=== undefined</code>, and <code>new Date(null)</code> is the epoch, so the plainest way of saying "no expiry" came back as a date in the past. Fixed 2026-08-30; all four spellings are pinned together.</span></li>
     <li><span class="id">I-10</span><span>The status is derived rather than stored, and <b>revocation beats expiry</b>: a token with <code>revoked_at</code> is <code>revoked</code> whatever its <code>expires_at</code>.</span></li>
     <li><span class="id">I-11</span><span>Revocation is idempotent: a repeat <code>DELETE</code> answers <code>204</code>, does not change <code>revoked_at</code> and does <b>not</b> add a log row. Only the call that actually killed a live token writes an event.</span></li>
     <li><span class="id">I-12</span><span>Issue and revoke are committed together with their event in one transaction: there is no token without an audit row and no audit row without a token.</span></li>
@@ -879,7 +879,7 @@ html{scroll-behavior:smooth}
 
 <section id="qa">
   <h2 class="sec"><span class="num">12</span>Testing checklist</h2>
-  <p class="sub small">Phrased as "action → expected result". The server side is exercised with <code>curl</code> + <code>psql</code> (<code>apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts</code>, 537 lines), the admin side with a browser (<code>apps/admin-e2e/src/api-tokens/</code>: <code>api-tokens</code>, <code>reveal-secret</code>, <code>keyboard</code>, <code>a11y</code> — 1,059 lines).</p>
+  <p class="sub small">Phrased as "action → expected result". The server side is exercised with <code>curl</code> + <code>psql</code>. Note that the coverage is <b>not</b> in one file: <code>api-tokens-management.spec.ts</code> holds the management routes, but the authorization story is spread over eight more — <code>api-tokens-bearer</code>, the four public-content suites, GraphQL, MCP, media and segments — because every one of those consumers accepts the same credential. Looking only under <code>server/api-tokens/</code> understates it badly. The admin side is exercised with a browser (<code>apps/admin-e2e/src/api-tokens/</code>: <code>api-tokens</code>, <code>reveal-secret</code>, <code>keyboard</code>, <code>a11y</code> — 1,059 lines).</p>
 
   <h3>Issuing</h3>
   <ul class="check">
@@ -1016,12 +1016,12 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">create-api-token.dto.ts (and through it the OpenAPI on /reference)</td>
         <td>"<code>read</code> grants <code>content:read</code>; <code>full</code> grants the complete content CRUD set"</td>
-        <td>Both scopes are wider than described: <code>read</code> = <code>content:read</code> + <code>media:read</code> + <code>segments:read</code>; <code>full</code> additionally adds <code>media:create</code> + <code>segments:manage</code>. The only complete source is <code>scopePermissions</code>. This description travels into the generated OpenAPI, so it misleads an external integrator</td>
+        <td><b>Fixed 2026-08-30</b> — the description now names <code>media:read</code> and <code>segments:read</code> for <code>read</code>, and <code>media:create</code>/<code>segments:manage</code> for <code>full</code>. Both scopes are wider than described: <code>read</code> = <code>content:read</code> + <code>media:read</code> + <code>segments:read</code>; <code>full</code> additionally adds <code>media:create</code> + <code>segments:manage</code>. The only complete source is <code>scopePermissions</code>. This description travels into the generated OpenAPI, so it misleads an external integrator</td>
       </tr>
       <tr>
         <td class="mono">schema/api-tokens.ts</td>
         <td>The comment on <code>apiTokenScope</code>: "<code>read</code> maps to <code>content:read</code>; <code>full</code> maps to the full content CRUD set"</td>
-        <td>The same discrepancy, a second copy of the same stale wording</td>
+        <td><b>Fixed 2026-08-30</b> — the description now names <code>media:read</code> and <code>segments:read</code> for <code>read</code>, and <code>media:create</code>/<code>segments:manage</code> for <code>full</code>. The same discrepancy, a second copy of the same stale wording</td>
       </tr>
       <tr>
         <td class="mono">api-tokens/admin/AGENTS.md</td>
@@ -1061,6 +1061,29 @@ html{scroll-behavior:smooth}
     <span class="label">The name-length limit is not duplicated on the client</span>
     <p>The form checks only for non-emptiness, while the server rejects a name longer than 120 characters. The user gets a generic "Couldn't create the token. Please try again." toast with no field named and no reason — advice that will not help, because trying again gives the same result. A <code>maxLength</code> on the field or an explicit validation would close this in one line.</p>
   </div>
+
+  <h3>What the QA pass changed (2026-08-30)</h3>
+  <p>This dossier was reconciled against the code and a live stack. Three of its
+  statements did not survive and are corrected above — <b>I-05</b> (a token without a
+  scope <em>is</em> observable), <b>I-09</b> (<code>null</code> was the one spelling
+  that could not mean "never"), and the claim that one file covers the server side
+  when the authorization story is spread over nine.</p>
+  <p>The most consequential finding was not a defect at all but its cause:
+  <code>packages/api-tokens/admin</code> had <b>no <code>test</code> target</b> — no
+  vitest config, no spec tsconfig — unlike every sibling admin plugin. Seven of these
+  twenty-five invariants live on that side, and the sharpest of them are about a
+  plaintext credential leaving no trace: not in page state, not in a cache, not in the
+  DOM, not in storage, not in the URL. There was nowhere to assert any of it except a
+  browser, and a browser cannot see a React cache. The harness now exists, and two of
+  the eight defects surfaced on it within minutes.</p>
+  <p>The other defects: an unparseable <code>expiresAt</code> reached <code>mint</code>
+  as an Invalid Date because <code>NaN &lt;= Date.now()</code> is false; the create
+  dialog's Cancel left the form filled, so a cancelled token could be minted twice
+  under the same name; focus after the reveal dialog landed on <code>&lt;body&gt;</code>,
+  which is the failure <b>I-25</b> names for the revoke path but not for the path where
+  a credential has just been handed over; and the <code>MultiSelect</code> popover was
+  an unnamed <code>role="dialog"</code>, so a screen-reader user opening the workspace
+  picker heard "dialog" and nothing else.</p>
 </section>
 
 <footer class="end">
