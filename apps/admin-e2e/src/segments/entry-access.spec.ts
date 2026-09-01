@@ -2,6 +2,7 @@ import { test, expect } from '../support/fixtures';
 import { mockSignedIn } from '../support/api/auth';
 import { mockWorkspaces } from '../support/api/workspaces';
 import {
+    LIBRARY_WORKSPACE,
     RELATIONS_WORKSPACE,
     RELATIONS_SCHEMA_SEED,
     RELATIONS_DETAIL_SEED,
@@ -17,6 +18,7 @@ import {
     type EntrySaveSpy
 } from '../support/api/content';
 import { mockSegmentsApi, type SegmentsApiSpy } from '../support/api/segments';
+import { mockEntryRevisionFlow } from '../support/api/revisions';
 import { expectNoA11yViolations } from '../support/a11y';
 
 const WS = RELATIONS_WORKSPACE.id;
@@ -226,6 +228,64 @@ test.describe('Entry editor — Access tab', () => {
         );
     });
 
+    test('keeps a decision on an audience the list no longer shows', async ({
+        page,
+        contentLibraryPage,
+        segmentsPage
+    }) => {
+        // An audience narrowed out of this workspace after somebody restricted
+        // an entry to it. The directory read is workspace-scoped, so the row is
+        // gone from the tab — while the entry still holds the decision, and a
+        // reader is still matched against it.
+        //
+        // The tab writes **both lists whole** on every save, so anything it
+        // dropped from its own view it would erase from the record. That is the
+        // quiet failure this pins: nobody would connect an entry becoming
+        // readable to a change made on a screen about where an audience is
+        // offered.
+        await mockSegmentsApi(page, {
+            segments: [
+                {
+                    id: 'seg-acme',
+                    key: 'acme',
+                    label: 'Acme Corp',
+                    tags: ['acme'],
+                    workspaceIds: [],
+                    usageCount: 0
+                }
+            ],
+            access: { [ENTRY]: { allow: ['seg-elsewhere'], deny: [] } }
+        });
+        await openAccessTab(contentLibraryPage);
+
+        // Not on screen — it is not offered here, so it cannot be *decided*
+        // here…
+        await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
+        await expect(segmentsPage.accessSummary.first()).toHaveText(
+            'Restricted'
+        );
+        // …but it is counted, so the editor is not told the entry is governed
+        // only by what they can see.
+        await expect(
+            page.getByText(/1 more decision on audiences this list does not/)
+        ).toBeVisible();
+
+        await segmentsPage.setAccess('Acme Corp', 'Can see');
+        await contentLibraryPage.editorSave.click();
+
+        // The assertion: the hidden id is still in the body the save carried.
+        await expect
+            .poll(
+                () =>
+                    (
+                        saves.bodies.at(-1)?.extensions as
+                            | { access?: { allow?: string[] } }
+                            | undefined
+                    )?.access?.allow
+            )
+            .toEqual(expect.arrayContaining(['seg-elsewhere', 'seg-acme']));
+    });
+
     test('is read-only for an editor without segments:manage', async ({
         page,
         contentLibraryPage,
@@ -299,5 +359,135 @@ test.describe('Entry editor — Access tab', () => {
         await expect(segmentsPage.accessControl('Acme Corp')).toBeVisible();
 
         await expectNoA11yViolations(makeAxe());
+    });
+});
+
+/**
+ * The revision preview's **"Who can read this"** row — what a version captured
+ * about its audiences, and what restoring it would therefore change.
+ *
+ * Three states, and the third is the one that has to be right: a version taken
+ * before this plugin existed recorded **nothing**, and a restore leaves an
+ * unmentioned key alone. Rendering that as "readable by everyone" would promise
+ * a change the restore will not make — which is exactly the half of a restore
+ * nobody thinks to check.
+ */
+test.describe('Revision preview — who could read it', () => {
+    const ENTRY_ID = 'blog_post-access';
+
+    test.beforeEach(async ({ page }) => {
+        await mockSignedIn(page);
+        await mockWorkspaces(page, [LIBRARY_WORKSPACE]);
+        await mockContentSchema(page);
+        await mockContentSchemaDetail(page);
+        await mockContentEntries(page);
+        await mockEntryRelations(page);
+    });
+
+    /**
+     * Open version 1's preview.
+     *
+     * It saves once first, because the preview compares a version **against the
+     * current one** — `showPreview` is `!isLatest`, so the only version of a
+     * one-version entry offers no button, correctly: it would be comparing a
+     * version with itself.
+     */
+    async function openPreview(contentLibraryPage: {
+        gotoEntry: (ws: string, type: string, id: string) => Promise<void>;
+        openEditorTab: (name: string) => Promise<void>;
+        fieldTextbox: (label: string) => import('@playwright/test').Locator;
+        saveDraft: () => Promise<void>;
+        revisionPreview: (n: number) => import('@playwright/test').Locator;
+    }) {
+        await contentLibraryPage.gotoEntry(
+            LIBRARY_WORKSPACE.id,
+            'blog_post',
+            ENTRY_ID
+        );
+        await contentLibraryPage.fieldTextbox('Title').fill('Edited');
+        await contentLibraryPage.saveDraft();
+        await contentLibraryPage.openEditorTab('History');
+        await contentLibraryPage.revisionPreview(1).click();
+    }
+
+    test('names the audiences a version captured', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        await mockSegmentsApi(page);
+        await mockEntryRevisionFlow(page, {
+            name: 'blog_post',
+            id: ENTRY_ID,
+            values: { title: 'Restricted post' },
+            extras: { 1: { access: { allow: ['seg-acme'], deny: [] } } }
+        });
+
+        await openPreview(contentLibraryPage);
+
+        const dialog = page.getByRole('dialog');
+        // The label, not the uuid: the id is all the version holds, and a uuid
+        // on screen is not an answer to "who could read this".
+        await expect(dialog.getByText('Acme Corp')).toBeVisible();
+        await expect(dialog.getByText(/seg-acme/)).toHaveCount(0);
+    });
+
+    test('says so when the older version recorded nothing', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // The case a restore turns on: version 1 predates the plugin and
+        // captured no `access` key at all, while today's entry is restricted.
+        // Restoring it leaves the audiences alone — so the row must say "not
+        // recorded" rather than "readable by everyone", which would promise a
+        // change the restore will not make.
+        await mockSegmentsApi(page);
+        await mockEntryRevisionFlow(page, {
+            name: 'blog_post',
+            id: ENTRY_ID,
+            values: { title: 'Old post' },
+            extras: { 2: { access: { allow: ['seg-acme'], deny: [] } } }
+        });
+
+        await contentLibraryPage.gotoEntry(
+            LIBRARY_WORKSPACE.id,
+            'blog_post',
+            ENTRY_ID
+        );
+        // A second version, so the dialog has a *current* to compare against —
+        // with one revision the selected version is the latest and there is
+        // nothing to differ from.
+        await contentLibraryPage.fieldTextbox('Title').fill('Old post v2');
+        await contentLibraryPage.saveDraft();
+
+        await contentLibraryPage.openEditorTab('History');
+        await contentLibraryPage.revisionPreview(1).click();
+
+        const dialog = page.getByRole('dialog');
+        await expect(
+            dialog.getByText('Not recorded in this version')
+        ).toBeVisible();
+        await expect(dialog.getByText('Readable by everyone')).toHaveCount(0);
+    });
+
+    test('marks an audience deleted since as deleted, not as a uuid', async ({
+        page,
+        contentLibraryPage
+    }) => {
+        // The id the version holds resolves to nothing today. It is looked up
+        // **by id** rather than found on a page of the directory — a paginated
+        // miss rendered as "deleted" would be a claim rather than a gap.
+        await mockSegmentsApi(page);
+        await mockEntryRevisionFlow(page, {
+            name: 'blog_post',
+            id: ENTRY_ID,
+            values: { title: 'Post' },
+            extras: { 1: { access: { allow: ['seg-gone-since'], deny: [] } } }
+        });
+
+        await openPreview(contentLibraryPage);
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog.getByText('Deleted audience')).toBeVisible();
+        await expect(dialog.getByText(/seg-gone-since/)).toHaveCount(0);
     });
 });

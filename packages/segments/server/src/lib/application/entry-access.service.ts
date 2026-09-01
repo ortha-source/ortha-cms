@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+    BadRequestException,
+    Injectable,
+    NotFoundException
+} from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import {
     attachActor,
@@ -16,7 +20,10 @@ import {
     type EntryAccess
 } from '@orthacms/segments-domain';
 import { entryAccess } from '../schema/entry-access';
-import { localeGroupIds } from '../infrastructure/locale-group.query';
+import {
+    entryBelongsTo,
+    localeGroupIds
+} from '../infrastructure/locale-group.query';
 import { SegmentCatalogService } from './segment-catalog.service';
 import { entryAccessEvent } from '../segments.events';
 
@@ -156,7 +163,19 @@ export class EntryAccessService {
         if (isOpen({ allow, deny })) {
             await executor
                 .delete(entryAccess)
-                .where(eq(entryAccess.entryId, input.entryId));
+                // Both columns, matching the read above. `entry_id` is the
+                // primary key, so the second is redundant as long as every
+                // caller has already established that this entry is this
+                // workspace's — which is exactly the assumption that was wrong,
+                // and the one that made "open it back up" delete another
+                // workspace's restriction. A method that reads scoped and writes
+                // unscoped is one caller away from that again.
+                .where(
+                    and(
+                        eq(entryAccess.entryId, input.entryId),
+                        eq(entryAccess.workspaceId, input.workspaceId)
+                    )
+                );
             return OPEN;
         }
 
@@ -237,6 +256,28 @@ export class EntryAccessService {
         actor?: EventActor;
     }): Promise<{ access: EntryAccessView; entryIds: string[] }> {
         const executor = input.executor ?? this.uow.current();
+        // Before anything is written, and before the group is resolved: three of
+        // the four write paths reach here with an id straight from the caller,
+        // and only the entry save's had already resolved it inside the
+        // workspace. See `entryBelongsTo` for why a foreign id is not merely
+        // untidy here — the read predicate matches on `entry_id` alone, so a row
+        // written against one restricts, or unrestricts, another workspace's
+        // entry while its own editor sees nothing.
+        //
+        // The same refusal an id that exists nowhere gets, because telling those
+        // two apart would make every write path an oracle for entry ids — the
+        // flat answer the read side already gives by scoping its query.
+        if (
+            !(await entryBelongsTo(
+                executor,
+                input.type,
+                input.entryId,
+                input.workspaceId
+            ))
+        ) {
+            throw new NotFoundException('Unknown entry.');
+        }
+
         const ids = await localeGroupIds(
             executor,
             input.type,

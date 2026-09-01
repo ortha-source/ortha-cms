@@ -100,6 +100,26 @@ SQL's **shape** — which is right in all three cases. `uuidArray` binds the lis
 one `sql.param`; its spec counts parameters rather than reading SQL, and the
 server-e2e suites execute it.
 
+**An entry id is checked against the workspace before anything is written.**
+Content stamps `workspace_id` on create and filters its own reads and writes by
+it — its table builder says outright that the isolation lives in the app layer,
+because there is no foreign key to lean on. Three of the four write paths take
+an entry id straight from a caller and were never inside content's services to
+inherit that: the `PUT` route, the public route and `content_access_set`. Only
+the entry save had already resolved the id inside the workspace.
+
+It matters more than "tenant scoping" usually implies, because the enforcement
+predicate matches on `entry_id` **alone** — `entry_access.workspace_id` is
+carried for the admin's lists, not consulted by the read. So a row written
+against a foreign id governed that entry's reads all the same: two empty lists
+deleted another workspace's restriction outright, and a non-empty pair re-homed
+the row to the caller's workspace, where the owning editor could no longer see
+the restriction now hiding their own entry. `entryBelongsTo` is checked once in
+`writeGroup`, so all four paths inherit it, and the refusal is the same `404` an
+id that exists nowhere gets — telling those apart would make every write path an
+oracle for entry ids, which is the flat answer the read side already gives by
+scoping its query.
+
 **A write is one upsert, and there is nothing else to re-derive.** The row an
 editor saves is the row a reader is matched against, so a write that returns 200
 means the change is live. That property is the entire return on the simple
@@ -324,9 +344,11 @@ does.
 
 ## e2e
 
-`apps/server-e2e/src/server/segments/` holds four suites — the directory, the
-entry-save write path (permissions, atomicity, revisions, restore), the public
-read scope including relations, and the three filter fields. The harness bits are
+`apps/server-e2e/src/server/segments/` holds five suites — the directory, the
+entry-save write path (permissions, atomicity, revisions, restore, and the
+workspace boundary), the public read scope including relations, the three filter
+fields, and the agent surfaces (`agent-access.spec.ts`: the tool catalogue, the
+public route, and the same boundary from a token). The harness bits are
 in `src/support/segments.ts`: a **header** resolver (`x-reader-tags`), which is
 the production seam rather than a test hook beside one, and
 `reloadSegmentCatalogue`, which every suite must call after `resetDb` — the

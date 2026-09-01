@@ -22,8 +22,20 @@ import {
     SEGMENT_TAGS_MAX as TAGS_MAX
 } from '@orthacms/segments-domain';
 
-/** Segments one entry may name on either side. */
-const IDS_MAX = 200;
+/**
+ * Segments one entry may name on either side.
+ *
+ * Exported because the routes are not the only write path: the entry save's
+ * `extensions.access` bag reaches `EntryAccessWriteExtension` without passing a
+ * DTO at all, and it is the path the admin actually uses. A cap only the routes
+ * applied would be a cap an entry could exceed and then never be rewritten
+ * through — and `MATCHED_IDS_CAP` in the directory service is set to this number
+ * on the stated grounds that it is what an entry can store.
+ */
+export const ENTRY_ACCESS_IDS_MAX = 200;
+
+/** Shorthand, so the decorators below read as they did. */
+const IDS_MAX = ENTRY_ACCESS_IDS_MAX;
 
 /** Workspaces one segment may be scoped to. Empty means every one. */
 const WORKSPACES_MAX = 100;
