@@ -14,6 +14,7 @@ import { isOpen, type EntryAccess } from '@orthacms/segments-domain';
 import { EntryAccessService } from '../application/entry-access.service';
 import type { EventActor } from '@orthacms/database';
 import { PrincipalStore } from '../application/principal.store';
+import { ENTRY_ACCESS_IDS_MAX } from '../http/segments.dto';
 
 /**
  * The key this extension's state travels under — in a save body's `extensions`
@@ -50,6 +51,16 @@ function parse(value: unknown): AccessPayload {
         if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string')) {
             throw new BadRequestException(
                 `extensions.access.${name} must be a list of segment ids.`
+            );
+        }
+        // The same per-side cap the two `PUT` routes declare. It has to be
+        // repeated because this path has no DTO — content forwards the bag
+        // opaquely — and this is the path the admin actually writes through, so
+        // a cap only the routes applied was one an entry could exceed here and
+        // then never be rewritten through there.
+        if (raw.length > ENTRY_ACCESS_IDS_MAX) {
+            throw new BadRequestException(
+                `extensions.access.${name} may name at most ${ENTRY_ACCESS_IDS_MAX} segments.`
             );
         }
         return raw as string[];

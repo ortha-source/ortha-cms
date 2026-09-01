@@ -65,3 +65,49 @@ export async function localeGroupIds(
     // cannot see. Naming it explicitly costs nothing and cannot go wrong.
     return ids.includes(entryId) ? ids : [entryId, ...ids];
 }
+
+/**
+ * Whether this entry id names a row of **this workspace's** content.
+ *
+ * Content stamps `workspace_id` on create and filters every one of its own
+ * reads and writes by it — its table builder says outright that the isolation
+ * lives in the app layer, because there is no foreign key to lean on. A plugin
+ * writing against an entry id it was handed therefore has to make the same
+ * check, and every write path here but one was outside content's services and so
+ * inherited nothing: the admin's `PUT`, the public `PUT`, the MCP tool and an
+ * accepted copilot proposal. Only the entry save arrives with an id content has
+ * already resolved inside the workspace.
+ *
+ * It matters more here than the phrase "tenant scoping" usually implies, because
+ * the enforcement predicate matches on `entry_id` **alone** — `workspace_id` is
+ * carried on `entry_access` for the admin's lists, not consulted by the read. So
+ * a row written against a foreign id governs that entry's reads all the same,
+ * while the workspace that owns the entry cannot see it.
+ *
+ * Read on the caller's executor, so it sees a row inserted moments earlier by
+ * the same entry save — the create path applies extensions after the insert, in
+ * that transaction.
+ */
+export async function entryBelongsTo(
+    executor: AccessExecutor,
+    type: AnyContentType,
+    entryId: string,
+    workspaceId: string
+): Promise<boolean> {
+    const columns = type.table as unknown as Columns;
+    const id = columns['id'];
+    const workspace = columns['workspaceId'];
+    // Both are base columns every content table gets from the builder. Refusing
+    // rather than passing is the safe reading if one is ever absent: the caller
+    // is about to decide who may read published content.
+    if (!id || !workspace) return false;
+
+    const [row] = await executor
+        .select({ id })
+        .from(type.table)
+        // Soft-deleted rows count: a locale in the trash comes back on restore,
+        // and `localeGroupIds` deliberately writes to it for the same reason.
+        .where(and(eq(id, entryId), eq(workspace, workspaceId)))
+        .limit(1);
+    return Boolean(row);
+}

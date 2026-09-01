@@ -471,4 +471,122 @@ describe('Segments over MCP and the public API', () => {
                 .expect(400);
         });
     });
+
+    /**
+     * A token's bucket says which workspaces it may act in. It does **not** say
+     * which entries live in them, and these two paths take an entry id straight
+     * from the caller.
+     *
+     * The token here is entirely legitimate: `full` scope, its own workspace,
+     * a type that workspace was granted. Only the entry belongs to somebody
+     * else — which the guards cannot see, because they check the workspace
+     * header against the bucket and never look at the id in the path.
+     */
+    describe('an entry belonging to another workspace', () => {
+        const path = (id: string) =>
+            `/api/v1/content/test_article/${id}/access`;
+
+        /**
+         * A restricted article in the workspace the attacking token does *not*
+         * cover, written by a token that legitimately does.
+         */
+        async function theirRestrictedEntry(): Promise<string> {
+            const entryId = await seedPublished('Theirs', otherWorkspaceId);
+            const theirs = await mintToken({
+                scope: 'full',
+                workspaceIds: [otherWorkspaceId]
+            });
+            await request(harness.server)
+                .put(path(entryId))
+                .set('Authorization', `Bearer ${theirs}`)
+                .set('X-Workspace-Id', otherWorkspaceId)
+                .send({ allow: [acme], deny: [] })
+                .expect(200);
+            return entryId;
+        }
+
+        /** Their entry's stored access, asked with a token of their own. */
+        async function theirAccess(entryId: string) {
+            const theirs = await mintToken({
+                scope: 'read',
+                workspaceIds: [otherWorkspaceId]
+            });
+            const response = await request(harness.server)
+                .get(path(entryId))
+                .set('Authorization', `Bearer ${theirs}`)
+                .set('X-Workspace-Id', otherWorkspaceId)
+                .expect(200);
+            return response.body as { allow: string[]; deny: string[] };
+        }
+
+        it('is refused by the public route', async () => {
+            const entryId = await theirRestrictedEntry();
+            const secret = await mintToken({
+                scope: 'full',
+                workspaceIds: [workspaceId]
+            });
+
+            await request(harness.server)
+                .put(path(entryId))
+                .set('Authorization', `Bearer ${secret}`)
+                .set('X-Workspace-Id', workspaceId)
+                .send({ allow: [], deny: [] })
+                .expect(404);
+
+            await expect(theirAccess(entryId)).resolves.toMatchObject({
+                restricted: true,
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('is refused by content_access_set', async () => {
+            // The loosest of the write paths before this: unlike the public
+            // route it does not even check the type's workspace grant, so the
+            // entry id was the only thing standing between a token and another
+            // workspace's content.
+            const entryId = await theirRestrictedEntry();
+            const secret = await mintToken({
+                scope: 'full',
+                workspaceIds: [workspaceId]
+            });
+
+            const { isError } = await callTool(secret, 'content_access_set', {
+                entryId,
+                typeName: 'test_article',
+                allow: [],
+                deny: []
+            });
+
+            expect(isError).toBe(true);
+            await expect(theirAccess(entryId)).resolves.toMatchObject({
+                restricted: true,
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('reads as an unrestricted entry rather than saying whose it is', async () => {
+            // The read side already answered this way, and the write now gives
+            // the same flat refusal — neither tells a foreign id from one that
+            // exists nowhere, so neither is an oracle for entry ids.
+            const entryId = await theirRestrictedEntry();
+            const secret = await mintToken({
+                scope: 'read',
+                workspaceIds: [workspaceId]
+            });
+
+            const response = await request(harness.server)
+                .get(path(entryId))
+                .set('Authorization', `Bearer ${secret}`)
+                .set('X-Workspace-Id', workspaceId)
+                .expect(200);
+
+            expect(response.body).toMatchObject({
+                restricted: false,
+                allow: [],
+                deny: []
+            });
+        });
+    });
 });

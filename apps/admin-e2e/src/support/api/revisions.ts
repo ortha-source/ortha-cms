@@ -9,6 +9,17 @@ interface MockRevision {
     status: RevStatus;
     values: Record<string, unknown>;
     createdAt: string;
+    /**
+     * Plugin-owned state this version captured beside the values bag, keyed by
+     * extension — segments' audiences are the only one today.
+     *
+     * `undefined` is a **third state**, not an empty one: a version captured
+     * before a plugin existed recorded nothing, and the preview says "not
+     * recorded in this version" rather than claiming the entry was open. A
+     * restore leaves an unmentioned key alone, so those two readings lead to
+     * different outcomes.
+     */
+    extra?: Record<string, unknown>;
 }
 
 interface RevisionFlowOptions {
@@ -20,6 +31,12 @@ interface RevisionFlowOptions {
     values: Record<string, unknown>;
     /** Start already published (v1 = Live) vs. a plain draft. Defaults to published. */
     startPublished?: boolean;
+    /**
+     * What each revision captured outside the values bag, keyed by revision
+     * number. A number left out captured nothing, which is what a version taken
+     * before the plugin shipped looks like.
+     */
+    extras?: Record<number, Record<string, unknown>>;
 }
 
 /** Observable state the spec can assert on after driving the UI. */
@@ -68,7 +85,8 @@ export async function mockEntryRevisionFlow(
             number: 1,
             status: startPublished ? 'published' : 'draft',
             values: { ...opts.values },
-            createdAt: at
+            createdAt: at,
+            extra: opts.extras?.[1]
         }
     ];
     let unpublishCalls = 0;
@@ -103,11 +121,16 @@ export async function mockEntryRevisionFlow(
     const appendDraft = (newValues: Record<string, unknown>) => {
         values = { ...newValues };
         entryStatus = 'draft';
+        const number = latest().number + 1;
         revisions.push({
-            number: latest().number + 1,
+            number,
             status: 'draft',
             values: { ...newValues },
-            createdAt: at
+            createdAt: at,
+            // The server captures on **every** snapshot, including saves that
+            // never mentioned the plugin's state — so a version seeded for a
+            // later number gets it here rather than only at construction.
+            extra: opts.extras?.[number]
         });
     };
 
@@ -174,7 +197,14 @@ export async function mockEntryRevisionFlow(
                 isPublished: rev.status === 'published',
                 isLatest: rev.number === latestNumber,
                 createdAt: rev.createdAt,
-                snapshot: { values: rev.values, relations: {} },
+                snapshot: {
+                    values: rev.values,
+                    relations: {},
+                    // Omitted entirely when this version captured nothing, so
+                    // the dialog sees `undefined` rather than an empty bag —
+                    // the distinction its third state is built on.
+                    ...(rev.extra ? { extra: rev.extra } : {})
+                },
                 relationRefs: {},
                 relationTotals: {}
             });

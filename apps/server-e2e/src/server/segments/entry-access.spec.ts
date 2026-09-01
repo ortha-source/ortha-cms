@@ -196,6 +196,31 @@ describe('Entry access via the entry save', () => {
             expect(list.body.total).toBe(0);
         });
 
+        it('refuses more audiences on one side than an entry may hold', async () => {
+            // The cap the two PUT routes declare on their DTOs. This path has
+            // no DTO — content forwards the bag opaquely — and it is the path
+            // the admin writes through, so without the check here an entry
+            // could hold more than either route could ever rewrite.
+            const agent = await login(ADMIN);
+            await agent
+                .post('/api/content/test_article')
+                .send({
+                    values: VALUES,
+                    extensions: {
+                        access: {
+                            allow: Array.from({ length: 201 }, () => acme),
+                            deny: []
+                        }
+                    }
+                })
+                .expect(400);
+
+            const list = await agent
+                .get('/api/content/test_article')
+                .expect(200);
+            expect(list.body.total).toBe(0);
+        });
+
         it('ignores a key no plugin owns', async () => {
             // The bag is forwarded from a client that may be talking to a
             // deployment without that plugin.
@@ -626,6 +651,107 @@ describe('Entry access via the entry save', () => {
                 allow: [acme],
                 deny: []
             });
+        });
+    });
+
+    /**
+     * An entry id names one row in one workspace, and every write path has to
+     * say so.
+     *
+     * The read already does: `EntryAccessService.get` filters on both columns,
+     * so a foreign id answers as an unrestricted entry — indistinguishable from
+     * one that does not exist, which is the flat refusal every tenant boundary
+     * in this codebase gives. The write is the half that has to agree, because
+     * the enforcement predicate matches on `entry_id` **alone**: a row written
+     * under the wrong workspace still governs the reads of the entry it names.
+     */
+    describe('the workspace boundary', () => {
+        let elsewhere: string;
+        let theirEntry: string;
+
+        beforeEach(async () => {
+            elsewhere = (
+                await seedWorkspace({ name: 'Theirs', slug: 'theirs' })
+            ).id;
+            await seedMembership(admin.id, elsewhere);
+            await seedAllContentGrants(elsewhere);
+
+            // Restricted, in their workspace, by someone who is entitled to.
+            const asThem = request.agent(harness.server);
+            await asThem
+                .post('/api/auth/login')
+                .send({ email: ADMIN, password: PASSWORD })
+                .expect(201);
+            asThem.set('X-Workspace-Id', elsewhere);
+            const created = await asThem
+                .post('/api/content/test_article')
+                .send({
+                    values: VALUES,
+                    extensions: { access: { allow: [acme], deny: [] } }
+                })
+                .expect(201);
+            theirEntry = created.body.id as string;
+        });
+
+        /** Their entry's access, asked in their workspace. */
+        async function theirAccess() {
+            const asThem = request.agent(harness.server);
+            await asThem
+                .post('/api/auth/login')
+                .send({ email: ADMIN, password: PASSWORD })
+                .expect(201);
+            return asThem
+                .get(`/api/segments/entries/${theirEntry}`)
+                .set('X-Workspace-Id', elsewhere)
+                .expect(200)
+                .then((response) => response.body);
+        }
+
+        it('refuses to open up an entry belonging to another workspace', async () => {
+            // The damaging direction, and the one that needs no guesswork about
+            // audiences: two empty lists delete the row, and the entry the other
+            // workspace restricted goes public.
+            const agent = await login(ADMIN);
+
+            await agent
+                .put(`/api/segments/entries/${theirEntry}`)
+                .send({ typeSlug: 'test_article', allow: [], deny: [] })
+                .expect(404);
+
+            await expect(theirAccess()).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('refuses to restrict an entry belonging to another workspace', async () => {
+            // The other direction blacks their content out instead, and re-homes
+            // the row to the caller's workspace on the way — after which their
+            // own editor cannot see the restriction that is hiding their entry.
+            const agent = await login(ADMIN);
+
+            await agent
+                .put(`/api/segments/entries/${theirEntry}`)
+                .send({ typeSlug: 'test_article', allow: [globex], deny: [] })
+                .expect(404);
+
+            await expect(theirAccess()).resolves.toEqual({
+                allow: [acme],
+                deny: []
+            });
+        });
+
+        it('answers an entry id that exists nowhere the same way', async () => {
+            // Same refusal for "not yours" and "not there": telling them apart
+            // would make the route an oracle for entry ids.
+            const agent = await login(ADMIN);
+
+            await agent
+                .put(
+                    '/api/segments/entries/11111111-1111-4111-8111-111111111111'
+                )
+                .send({ typeSlug: 'test_article', allow: [], deny: [] })
+                .expect(404);
         });
     });
 });

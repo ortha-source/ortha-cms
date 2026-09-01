@@ -85,6 +85,19 @@ export class ContentLibraryPage extends BasePage {
         });
     }
 
+    /**
+     * The History-row "Preview version {n}" action (scoped to the tab panel).
+     *
+     * Scoped for the reason the panel getter above gives: the right-rail widget
+     * renders a compact copy of the same timeline, so an unscoped name matches
+     * both rows and the click fails on strict mode rather than on the product.
+     */
+    revisionPreview(n: number): Locator {
+        return this.editorTabPanel.getByRole('button', {
+            name: `Preview version ${n}`
+        });
+    }
+
     /** The confirm button inside the publish-version confirmation dialog. */
     get confirmPublishButton(): Locator {
         return this.page
