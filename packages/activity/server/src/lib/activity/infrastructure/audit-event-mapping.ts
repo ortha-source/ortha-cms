@@ -706,8 +706,33 @@ const FACET_MAPPERS: Record<string, (event: DomainEvent) => AuditFacet> = {
                   }
                 : {})
         }),
+    // The sign-out, and — when it was not the person's own doing — **how**.
+    // A back-channel logout is the directory ending the session: an
+    // offboarding, a compromised account, a licence revoked upstream. The
+    // person clicked nothing, and `sso-backchannel-logout.use-case.ts` puts
+    // the method and the provider in the payload precisely so the trail can
+    // say which of the two happened.
+    //
+    // Dropping them made a forced sign-out read exactly like somebody closing
+    // their own session — and "were they logged out, or did they leave?" is
+    // among the first questions asked of a trail after an incident.
+    // `auth.signed_in` records the same pair for the same reason; the
+    // asymmetry was the defect rather than a decision.
+    //
+    // An ordinary sign-out carries no method and keeps `meta: null`: inventing
+    // one would be worse than silence, because "not recorded" and "recorded as
+    // ordinary" would stop being distinguishable.
     'auth.signed_out': (e) =>
-        userSubject(e, IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT, null),
+        userSubject(
+            e,
+            IDENTITY_ACTIVITY_KINDS.USER_SIGNED_OUT,
+            typeof e.payload.method === 'string'
+                ? {
+                      method: e.payload.method,
+                      provider: nullableString(e.payload.provider)
+                  }
+                : null
+        ),
 
     // …and the refusal, which had no kind at all. `auth.signed_in` fires on
     // success only, so a log full of successful sign-ins was equally consistent

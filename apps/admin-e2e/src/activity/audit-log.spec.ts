@@ -145,6 +145,67 @@ test.describe('Activity Log resilience', () => {
         await mockSignedIn(page);
     });
 
+    /**
+     * Where the page number is allowed to be, and it is a two-sided rule.
+     *
+     * Narrowing a filter must not strand somebody on an empty page past the
+     * end — but the same correction, run a moment too early, would throw away
+     * a deep-linked `?page=N` before the first response has said how many
+     * pages there are. The guard is that the clamp runs only once real data
+     * has arrived; both halves are asserted here because a fix for either one
+     * alone reintroduces the other.
+     */
+    test.describe('the page number after the result set changes', () => {
+        /** Enough events that a page size of 25 leaves more than one page. */
+        const MANY = Array.from({ length: 60 }, (_, index) => ({
+            id: `ev_many_${index}`,
+            kind: 'user.signed_in',
+            subjectType: 'user',
+            subjectId: 'u_ada',
+            actorId: 'u_ada',
+            // One event in the set belongs to somebody else, so a search for
+            // them narrows sixty results down to a single page.
+            actorEmail: index === 0 ? 'grace@ortha.dev' : 'ada@ortha.dev',
+            meta: null,
+            at: '2026-06-10T09:00:00.000Z'
+        }));
+
+        test('comes back to the last page when a filter leaves fewer', async ({
+            page,
+            activityLogPage
+        }) => {
+            await mockActivity(page, MANY);
+            await activityLogPage.gotoWith('page=3');
+            await expect(activityLogPage.table).toBeVisible();
+
+            // Sixty events narrow to one. Page three no longer exists.
+            await activityLogPage.emailSearch.fill('grace');
+
+            await expect(
+                activityLogPage.row('grace@ortha.dev').first()
+            ).toBeVisible();
+            // The address is corrected too — a URL that says page three while
+            // showing page one is a link that reopens wrong.
+            await expect(page).toHaveURL(
+                (url) => !url.searchParams.has('page')
+            );
+        });
+
+        test('keeps a deep-linked page instead of resetting it on arrival', async ({
+            page,
+            activityLogPage
+        }) => {
+            // The other half: before the first response `total` is 0 and the
+            // page count reads as 1, so an unguarded correction would send a
+            // shared link to page one every time.
+            await mockActivity(page, MANY, { delayMs: 150 });
+            await activityLogPage.gotoWith('page=3');
+
+            await expect(activityLogPage.table).toBeVisible();
+            await expect(page).toHaveURL(/page=3/);
+        });
+    });
+
     test('an over-large ?pageSize is clamped instead of 400ing into a dead end', async ({
         activityLogPage,
         page

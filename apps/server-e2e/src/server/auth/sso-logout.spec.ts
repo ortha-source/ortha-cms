@@ -4,7 +4,7 @@ import {
     createTestApp,
     type TestApp
 } from '../../support/test-app';
-import { resetDb, seedActiveUser } from '../../support/seed';
+import { getActivityRows, resetDb, seedActiveUser } from '../../support/seed';
 import { fakeSsoProvider, SSO_EMAILS, SSO_SUBJECTS } from '../../support/sso';
 import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 
@@ -41,13 +41,9 @@ describe('SSO back-channel logout', () => {
     /** Sign in through the scripted provider and return the signed-in agent. */
     async function signInWithSso() {
         const agent = request.agent(harness.server);
-        const started = await agent
-            .get('/api/auth/sso/fake/start')
-            .expect(302);
+        const started = await agent.get('/api/auth/sso/fake/start').expect(302);
         const location = new URL(started.headers['location']);
-        await agent
-            .get(`${location.pathname}${location.search}`)
-            .expect(302);
+        await agent.get(`${location.pathname}${location.search}`).expect(302);
         await agent.get('/api/auth/me').expect(200);
         return agent;
     }
@@ -88,7 +84,7 @@ describe('SSO back-channel logout', () => {
         await second.get('/api/auth/me').expect(401);
     });
 
-    it('leaves a password session alone — it was never the provider\'s to end', async () => {
+    it("leaves a password session alone — it was never the provider's to end", async () => {
         const password = request.agent(harness.server);
         await password
             .post('/api/auth/login')
@@ -165,5 +161,71 @@ describe('SSO back-channel logout', () => {
         ).expect(200);
 
         expect(response.headers['cache-control']).toBe('no-store');
+    });
+
+    /**
+     * What the trail says afterwards.
+     *
+     * The session ending is only half of an offboarding; the other half is
+     * being able to answer, later, whether the person left or was removed.
+     * Both facts are on the same row, and both used to be missing from it.
+     */
+    describe('the audit row it leaves', () => {
+        it('records that the provider ended the session, not the person', async () => {
+            await signInWithSso();
+
+            await notify(
+                fakeSsoProvider.logoutToken({
+                    subject: SSO_SUBJECTS.linked
+                })
+            ).expect(200);
+
+            const rows = await getActivityRows();
+            const signedOut = rows.find(
+                (row) => row.kind === 'user.signed_out'
+            );
+
+            // The use case puts these in the payload for exactly this reason;
+            // the mapper used to drop them, so a forced sign-out read as an
+            // ordinary one.
+            expect(signedOut?.meta).toMatchObject({
+                method: 'sso_backchannel',
+                provider: 'fake'
+            });
+        });
+
+        it('names the account whose session was ended', async () => {
+            await signInWithSso();
+
+            await notify(
+                fakeSsoProvider.logoutToken({
+                    subject: SSO_SUBJECTS.linked
+                })
+            ).expect(200);
+
+            const rows = await getActivityRows();
+            const signedOut = rows.find(
+                (row) => row.kind === 'user.signed_out'
+            );
+
+            // An address snapshot, not an empty string: `''` is a third value
+            // between "an address" and "none", and the activity table renders
+            // it as a blank cell rather than as "Unknown".
+            expect(signedOut?.actorEmail).toBe(SSO_EMAILS.linked);
+        });
+
+        it('leaves an ordinary sign-out saying nothing about a method', async () => {
+            // The other side of the same rule: silence has to stay
+            // distinguishable from "recorded as ordinary".
+            const agent = await signInWithSso();
+            await agent.post('/api/auth/logout').expect(201);
+
+            const rows = await getActivityRows();
+            const signedOut = rows.find(
+                (row) => row.kind === 'user.signed_out'
+            );
+
+            expect(signedOut?.meta).toBeNull();
+        });
     });
 });

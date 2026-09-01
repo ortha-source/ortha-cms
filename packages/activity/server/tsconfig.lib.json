@@ -30,12 +30,6 @@
             "path": "../../database/tsconfig.lib.json"
         },
         {
-            "path": "../../copilot/server/tsconfig.lib.json"
-        },
-        {
-            "path": "../../copilot/domain/tsconfig.lib.json"
-        },
-        {
             "path": "../../bootstrap/server/tsconfig.lib.json"
         }
     ]

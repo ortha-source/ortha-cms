@@ -119,6 +119,14 @@ entirely.
   which of a workspace's tokens did it was unrecoverable. Naming the kind
   alongside the id is what lets a credential be the actor. Nullable — a
   system-initiated event still has none.
+- **There is no retention, and the table grows without bound.** Every sign-in,
+  every failed attempt and every token use is a row that is never trimmed —
+  `api_token.used` alone can add one per token per minute, forever. Nothing
+  deletes from this table and nothing is meant to: an audit trail that prunes
+  itself answers "what happened in March" with silence. But that makes growth
+  an operational fact somebody has to plan for, and it is stated here because
+  `outbox_events` states the same thing in the neighbouring package while this
+  section used to say nothing at all.
 - `workspace_id` — nullable, and **not a scoping boundary**. The trail records
   invites, role changes and workspace lifecycle alongside content edits, and
   several of those belong to no workspace at all; `activity:read` is still what
@@ -160,9 +168,11 @@ import-free at the other end, or move both lists into a shared package.
 ## The copilot tool (`src/lib/copilot/`)
 
 `ActivityCopilotToolProvider` binds one read tool, `activity_recent`, wrapping
-`ActivityService.list`. Registered by `copilotToolsRegistrar('activity', …)` in
-`ActivityModule.forRoot`, which injects the copilot registry **optionally** — a
-deployment without `CopilotPlugin` is normal.
+`ActivityService.list`. It registers **itself**, from its own `onModuleInit`,
+against an `@Optional()` `ToolRegistry` — the module simply lists it among the
+providers. A deployment with neither the copilot nor MCP is normal, and the
+optional injection is what makes the absence a working configuration rather
+than a start-up failure.
 
 **The tool is deployment-wide, not workspace-scoped, and that is not an
 oversight.** The trail records invites, role changes and workspace lifecycle

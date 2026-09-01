@@ -5,7 +5,7 @@ import {
     type EventActor
 } from '@orthacms/database';
 import { IDENTITY_ACTIVITY_KINDS } from '@orthacms/identity-server';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
     AUDIT_KINDS,
@@ -15,7 +15,6 @@ import {
     UnmappableAuditEventError,
     type AuditRow
 } from './audit-event-mapping';
-
 
 /**
  * Parity safety net (DB-free): for every audited domain event, the row
@@ -534,6 +533,43 @@ describe('toAuditRow — event → audit-row parity', () => {
                 at: AT
             });
         });
+
+        it('keeps how a sign-out happened when the provider ended it', () => {
+            // A back-channel logout is the directory terminating the session —
+            // an offboarding, a compromised account, a revoked licence. The
+            // person did not click anything.
+            //
+            // `sso-backchannel-logout.use-case.ts` puts the method and the
+            // provider in the payload precisely so the trail can say so, and
+            // dropping them makes a forced sign-out indistinguishable from
+            // somebody closing their own session. `auth.signed_in` records the
+            // same pair for the same reason — the asymmetry was the bug.
+            const row = toAuditRow(
+                event(
+                    'auth.signed_out',
+                    'user',
+                    TARGET_USER_ID,
+                    { method: 'sso_backchannel', provider: 'keycloak' },
+                    { id: TARGET_USER_ID, email: 'linked@example.com' }
+                )
+            );
+
+            expect(row?.meta).toEqual({
+                method: 'sso_backchannel',
+                provider: 'keycloak'
+            });
+        });
+
+        it('says nothing about the method when the person signed out themselves', () => {
+            // The ordinary path carries no method, and inventing one would be
+            // worse than silence: `meta` stays null so "not recorded" and
+            // "recorded as ordinary" cannot be confused.
+            const row = toAuditRow(
+                event('auth.signed_out', 'user', TARGET_USER_ID, {}, ACTOR)
+            );
+
+            expect(row?.meta).toBeNull();
+        });
     });
 
     describe('API token lifecycle', () => {
@@ -996,10 +1032,124 @@ describe('toAuditRow — event → audit-row parity', () => {
 
         it('names every subject type the server can stamp', () => {
             const missing = AUDIT_SUBJECT_TYPES.filter(
-                (type) =>
-                    !ACTIVITY_SUBJECT_TYPES.includes(type)
+                (type) => !ACTIVITY_SUBJECT_TYPES.includes(type)
             );
             expect(missing).toEqual([]);
+        });
+    });
+
+    /**
+     * The check the other two cannot make.
+     *
+     * Everything above compares the audit catalogue against itself and against
+     * the admin's copy of it — so it can only ever notice a kind this mapper
+     * already knows about. The failure this package actually has is the other
+     * direction: a plugin starts raising a **new** event kind, no mapper
+     * matches it, `toAuditRow` returns null, the dispatcher stamps the row
+     * delivered, and that action is missing from the trail forever with
+     * nothing going red anywhere.
+     *
+     * It has happened four times — API tokens, entry publishes, the whole media
+     * library, and content export/import — and each time it was found by a
+     * person looking for a row that was not there.
+     *
+     * So this reads the producers' own catalogues, as text (no import, and
+     * therefore no project-graph edge from this package to nine others), and
+     * asserts every kind they declare has somewhere to land. Adding an event
+     * kind and forgetting the mapper now fails here instead of going quiet.
+     */
+    describe('every kind a plugin can raise has a mapper', () => {
+        /** The `*-events.ts` catalogues, relative to this spec. */
+        const PRODUCERS = [
+            '../../../../../../alarms/server/src/lib/alarms.events.ts',
+            '../../../../../../content/server/src/lib/entries/domain/events/entry-events.ts',
+            '../../../../../../content/server/src/lib/views/domain/events/saved-view-events.ts',
+            '../../../../../../copilot/server/src/lib/copilot.events.ts',
+            '../../../../../../identity/server/src/lib/domain/events/identity-events.ts',
+            '../../../../../../media/server/src/lib/domain/events/media-events.ts',
+            '../../../../../../segments/server/src/lib/segments.events.ts',
+            '../../../../../../transfer/server/src/lib/transfer.events.ts',
+            '../../../../../../users/server/src/lib/member/domain/events/member-events.ts',
+            '../../../../../../workspaces/server/src/lib/workspace/domain/events/workspace-events.ts'
+        ];
+
+        /**
+         * Every event kind a producer declares.
+         *
+         * Read from the `*_EVENT_KINDS` object rather than from the file at
+         * large, because an events module also holds `aggregateType` literals
+         * of the same shape (`media.asset` beside `media.asset.uploaded`).
+         * Sweeping those in would force them onto the "deliberately not
+         * audited" list, which would be a false statement about them: they are
+         * not kinds at all.
+         *
+         * Under-reading is the failure this check exists to prevent, so a file
+         * that cannot be read, or one whose catalogue the pattern no longer
+         * matches, is an error rather than an empty list.
+         */
+        function declaredKinds(): string[] {
+            const kinds = new Set<string>();
+            for (const relative of PRODUCERS) {
+                const path = join(__dirname, relative);
+                if (!existsSync(path)) {
+                    throw new Error(
+                        `Event catalogue "${relative}" is not where this test ` +
+                            'expects it. Point the test at its new home rather ' +
+                            'than deleting the entry — an unreadable producer ' +
+                            'is exactly the silence this check exists to break.'
+                    );
+                }
+                const source = readFileSync(path, 'utf8');
+                const blocks = [
+                    ...source.matchAll(
+                        /export const [A-Z_]*EVENT_KINDS[^=]*= \{([\s\S]*?)\} as const;/g
+                    )
+                ];
+                if (!blocks.length) {
+                    throw new Error(
+                        `No "*_EVENT_KINDS" catalogue found in "${relative}". ` +
+                            'If the declaration changed shape, teach this test ' +
+                            'the new one — a producer that reads as empty ' +
+                            'passes the check below while proving nothing.'
+                    );
+                }
+                for (const [, body] of blocks) {
+                    for (const [, kind] of body.matchAll(
+                        /'([a-z_]+\.[a-z_.]+)'/g
+                    )) {
+                        kinds.add(kind);
+                    }
+                }
+            }
+            return [...kinds].sort();
+        }
+
+        /**
+         * Kinds that are raised and deliberately **not** audited.
+         *
+         * Empty today, and that is the point of listing it: a kind arriving
+         * here is a decision somebody made on purpose and can be read back,
+         * rather than an omission nobody can tell from one.
+         */
+        const NOT_AUDITED: readonly string[] = [];
+
+        it('leaves no raised kind without somewhere to land', () => {
+            const unmapped = declaredKinds().filter(
+                (kind) =>
+                    !AUDITED_EVENT_KINDS.includes(kind) &&
+                    !NOT_AUDITED.includes(kind)
+            );
+
+            // Named in the message rather than counted: the point of failing is
+            // to say which kind goes unrecorded.
+            expect(`unmapped: ${unmapped.join(', ')}`).toBe('unmapped: ');
+        });
+
+        it('reads the producers at all', () => {
+            // The guard on the guard. A regex defeated by a reformat would
+            // yield an empty list, and an empty list passes the check above
+            // while proving nothing.
+            expect(declaredKinds().length).toBeGreaterThan(40);
         });
     });
 });

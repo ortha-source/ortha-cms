@@ -150,7 +150,14 @@ export class SsoBackchannelLogoutUseCase {
                                 { method: 'sso_backchannel', provider }
                             )
                         ],
-                        { id: link.userId, email: email ?? '' }
+                        // The address as a snapshot, or nothing — never an
+                        // empty string. `EventActor.email` is nullable, the
+                        // log's `actor_email` column is nullable, and every
+                        // other producer passes the null through; `''` is a
+                        // third value none of them expect, and it renders in
+                        // the activity table as a blank cell rather than as
+                        // the "Unknown" an absent address is meant to show.
+                        { id: link.userId, email }
                     )
                 );
             }
