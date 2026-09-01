@@ -279,6 +279,7 @@ html{scroll-behavior:smooth}
     <li><a href="#qa">QA checklist</a></li>
     <li><a href="#bounds">Boundaries</a></li>
     <li><a href="#gaps">Divergences</a></li>
+    <li><a href="#pass">What the QA pass found</a></li>
   </ol>
 </nav>
 
@@ -1153,6 +1154,8 @@ html{scroll-behavior:smooth}
     <li><span class="id">I-12</span><span>Deleting an audience sweeps it out of both sides of every entry <b>in one transaction</b>, and an entry left with two empty lists loses its row.</span></li>
     <li><span class="id">I-13</span><span>Two empty lists <b>delete</b> the row rather than being stored as a row of empty arrays.</span></li>
     <li><span class="id">I-14</span><span>An access write is a <b>full replacement</b> of both lists, not a merge.</span></li>
+    <li><span class="id">I-41</span><span>Every write path checks that the entry id names a row of <b>this workspace's</b> content before writing anything, and answers a foreign id with the same <code>404</code> an id that exists nowhere gets. <span class="sub">Added after the QA pass — see section 17.</span></span></li>
+    <li><span class="id">I-42</span><span>Neither list may name more than <b>200</b> audiences, on every write path including the entry save's <code>extensions</code> bag. <span class="sub">Added after the QA pass — see section 17.</span></span></li>
     <li><span class="id">I-15</span><span>Access is written across the entry's <b>whole locale group</b>, soft-deleted siblings included; the group is resolved from content's own <code>locale_group_id</code> column, with no dependency on <code>@orthacms/i18n-server</code>.</span></li>
     <li><span class="id">I-16</span><span>A write arriving in the <code>extensions</code> bag runs on the <b>save's own transaction</b> — never on a connection of the plugin's own.</span></li>
     <li><span class="id">I-17</span><span>Changing audiences requires <code>segments:manage</code>, checked <b>in the extension</b>; a request asking for exactly what is already saved changes nothing and needs no authority.</span></li>
@@ -1224,10 +1227,23 @@ html{scroll-behavior:smooth}
     <li><b>The same request through GraphQL and through the <code>content_relations</code> MCP tool</b> → <span class="exp">the same result as over REST.</span></li>
   </ul>
 
+  <h3>The workspace boundary</h3>
+  <p class="sub small">An entry id names one row in one workspace, and every write path has to say so. The read already does — <code>EntryAccessService.get</code> filters on both columns — but the enforcement predicate matches on <code>entry_id</code> <b>alone</b>, so a row written under the wrong workspace still governs the reads of the entry it names. These are the checks that were missing when this dossier was written; see section 17.</p>
+  <ul class="check">
+    <li><b><code>PUT /api/segments/entries/:id</code> naming another workspace's entry, with two empty lists</b> → <span class="exp">404; the other workspace's stored access is unchanged. Before the fix this answered 200 and <b>deleted</b> their restriction, publishing their content.</span></li>
+    <li><b>The same with a non-empty pair</b> → <span class="exp">404. Before the fix it re-homed the row to the caller's workspace: the entry's readers were blacked out while its own editor read “unrestricted”.</span></li>
+    <li><b><code>PUT /api/v1/content/:type/:id/access</code> with a legitimate <code>full</code> token, on an entry outside its bucket</b> → <span class="exp">404, and the owning workspace's row untouched.</span></li>
+    <li><b><code>content_access_set</code> over MCP, same shape</b> → <span class="exp">a tool error. This was the loosest path: it checks neither the entry's workspace nor the type's grant.</span></li>
+    <li><b>A well-formed uuid that names no entry at all</b> → <span class="exp">404, and <b>no <code>entry_access</code> row created</b>. It used to succeed and leave a row behind for a record that does not exist.</span></li>
+    <li><b>A foreign id on <code>GET …/access</code></b> → <span class="exp">answers as an unrestricted entry, indistinguishable from an unknown id — the read side already gave this flat answer, and the write now matches it.</span></li>
+    <li><b>The legitimate write from the owning workspace, after all of the above</b> → <span class="exp">200; open-up deletes the row; the boundary check costs the normal path nothing.</span></li>
+  </ul>
+
   <h3>The write path through an entry save</h3>
   <ul class="check">
     <li><b>Save an entry with no <code>access</code> key in <code>extensions</code></b> → <span class="exp">the <code>entry_access</code> row is neither created nor changed.</span></li>
     <li><b>Save with <code>access</code> under a role without <code>segments:manage</code></b> → <span class="exp">403, and <b>the whole write rolled back</b> — the entry's values were not saved either.</span></li>
+    <li><b>Save with 201 ids on one side</b> → <span class="exp">400, the save rolled back. The two <code>PUT</code> DTOs always capped this; the save's <code>extensions</code> bag passes no DTO and did not.</span></li>
     <li><b>Save with an <code>access</code> exactly matching the current one</b> → <span class="exp">200 even without <code>segments:manage</code>: nothing changes, so no authority is needed.</span></li>
     <li><b>Save with <code>extensions.access = "a string"</code> or <code>allow: [1,2]</code></b> → <span class="exp">400, the save rolled back, with no partial write.</span></li>
     <li><b>Save with <code>{ allow: [id] }</code> and no <code>deny</code></b> → <span class="exp">the missing side reads as empty rather than being rejected.</span></li>
@@ -1373,7 +1389,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">packages/segments/server/AGENTS.md, the “e2e” section</td>
         <td>“<code>apps/server-e2e/src/server/segments/</code> holds <b>four</b> suites — the directory, the entry-save write path, the public read scope including relations, and the three filter fields”</td>
-        <td>There are <b>five</b> suites: those four plus <code>agent-access.spec.ts</code> — the suite for the agent tools and the public access route, absent from the enumeration</td>
+        <td><b>Fixed.</b> There were five suites, not four — those plus <code>agent-access.spec.ts</code>, for the agent tools and the public access route. The QA pass corrected the count and added a paragraph on the workspace boundary that did not exist when this was written</td>
       </tr>
       <tr>
         <td class="mono">packages/segments/server/AGENTS.md, the file tree</td>
@@ -1398,7 +1414,7 @@ html{scroll-behavior:smooth}
       <tr>
         <td class="mono">packages/segments/domain/src/lib/segment.spec.ts</td>
         <td>The file is called “segment.spec” and, per the domain's documentation, “the decision table lives here”</td>
-        <td>Only <code>isOfferedIn</code> is covered (three cases). <code>segmentIdsForTags</code> — the function that turns a reader's tags into audience ids and is the single point where raw tags are matched — has <b>no unit test at all</b>: not for “any one tag is enough”, not for case sensitivity, not for an empty tag list</td>
+        <td><b>Fixed.</b> Only <code>isOfferedIn</code> was covered (three cases), while <code>segmentIdsForTags</code> — the function that turns a reader's tags into audience ids, and the single point where a raw tag is matched against anything — had no unit test at all. The QA pass added eight, and <code>sameAccess</code> six; see section 17</td>
       </tr>
       <tr>
         <td class="mono">packages/segments/admin/AGENTS.md, “What is not here yet”</td>
@@ -1420,9 +1436,47 @@ html{scroll-behavior:smooth}
   </div>
 </section>
 
+<section id="pass">
+  <h2 class="sec"><span class="num">17</span>What the QA pass found</h2>
+  <p>This dossier was written from the code, and the code has since been read again — against a live database, a compiled server, the e2e suites and the units. What follows is what that pass changed, so the document and the implementation do not drift apart again. PR <a href="https://github.com/ortha-source/ortha-cms/pull/231">#231</a>; the full write-up is <a href="https://claude.ai/code/artifact/8a114b1a-ae60-4c81-9865-821650da79df">here</a>.</p>
+
+  <div class="note crit">
+    <span class="label">A write could cross the workspace boundary</span>
+    <p><code>entry_access</code> has an <code>entry_id</code> primary key and a <code>workspace_id</code> column. The read filtered on both; <b>the write filtered on neither</b>, taking the entry id from the caller and trusting it.</p>
+    <p>That mattered more than the phrase “tenant scoping” usually implies, because the enforcement predicate this dossier prints in section 4 matches on <code>entry_id</code> <b>alone</b> — <code>workspace_id</code> is carried for the admin's lists and is never consulted when a reader is matched. So a row written against a foreign id governed that entry's reads all the same. Observed on a live stand, both directions: two empty lists <b>deleted</b> another workspace's restriction and published its content; a non-empty pair <b>re-homed</b> the row to the caller's workspace, where the owning editor could no longer see the restriction that was hiding their own entry. A uuid naming no entry at all was accepted too, leaving a row for a record that does not exist.</p>
+    <p>Four of the five write paths could drive it — the admin <code>PUT</code>, the public <code>PUT</code>, <code>content_access_set</code>, and an accepted copilot proposal. Only the entry save was safe, because content had already resolved the id inside the workspace before handing the extension its id. The guards were all correct: they check the workspace in the <em>header</em> against membership or a token's bucket, and neither looks at the id in the path — that is the service's question, and it was not being asked.</p>
+    <p><b>Fixed</b> by one check in <code>writeGroup</code>, the single point all five paths pass through, answering a foreign id with the same <code>404</code> an id that exists nowhere gets — telling those apart would make every write path an oracle for entry ids. Now <b>I-41</b>.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="label">A cap only the routes applied</span>
+    <p>Both <code>PUT</code> DTOs cap each side at 200, and <code>MATCHED_IDS_CAP</code> in the directory service is set to that same number <em>on the stated grounds that it is what an entry can store</em>. But the entry save carries its lists in content's opaque <code>extensions</code> bag, which passes no DTO — and that is the path the admin actually writes through. It applied no cap at all. No damage was observed; it is fixed because the code's own reasoning depended on it being true. Now <b>I-42</b>.</p>
+  </div>
+
+  <h3>Coverage the pass closed</h3>
+  <ul>
+    <li><b><code>segmentIdsForTags</code></b> — the only place a raw reader tag is compared to anything, and therefore the whole seam between a deployment's vocabulary and this model's — had <b>no unit test</b>. Eight added: any-one-tag matching, case sensitivity, an unknown tag resolving to nothing rather than everything, the anonymous reader, and a tagless segment matching nobody.</li>
+    <li><b><code>sameAccess</code></b> decides whether the permission check runs at all (<b>I-17</b>), and had no unit test on the server side. Six added.</li>
+    <li><b>The revision line's three states</b> had no browser test — the admin-e2e revisions mock could not serve a snapshot's <code>extra</code> at all. Three added, including “not recorded in this version”, which is the state a restore turns on.</li>
+    <li><b>The boundary itself</b>, at every level it has: six server-e2e across the three affected paths, plus the manual pass against a compiled server.</li>
+  </ul>
+
+  <h3>Still open</h3>
+  <ul>
+    <li><b>The title chip</b> has no browser test.</li>
+    <li><b>The admin package keeps its own copies</b> of <code>sameAccess</code>, <code>isOpen</code> and <code>EntryAccess</code> while depending on <code>@orthacms/segments-domain</code> and importing <code>validateSegment</code> from it. They agree today; the domain's own documentation is the argument against it. A decision, not a bug.</li>
+    <li><b>Three admin checklist rows</b> remain undriven: switching locale after a save, the bulk control past 200 matches, and resetting the pager when a search is typed on page four.</li>
+  </ul>
+
+  <div class="note">
+    <span class="label">Recorded, not claimed</span>
+    <p>The development database holds <b>four fully orphaned <code>entry_access</code> rows with both lists empty</b> — the state <b>I-13</b> says is never stored. Neither their workspace nor their entry still exists, and their timestamps fall in a twelve-minute window during the <code>workspaces</code> pass, when probes were running against a build that turned out to be stale. It could not be reproduced against current code by any path tried, so it is written down rather than reported as a defect, and the rows were left in place. The fix above does close one route to a related state: writing access against an id that names no entry used to succeed.</p>
+  </div>
+</section>
+
 <footer class="end">
   <p><b>The series' second dossier.</b> Written for the <code>packages/segments</code> group on the frame of the pilot <code>identity</code> dossier: business description → composition → permissions → truth table → data → lifecycle → scenarios → API → agent surfaces → admin UI → configuration → security → invariants → checklist → boundaries → divergences. Two sections were added for this plugin: the <b><code>canRead</code> truth table</b> (which is both the specification and a draft set of tests) and <b>agent surfaces</b>, because the four ways into the plugin differ not by protocol but by who is acting. There are no “account lifecycle” or “SSO” sections here — the plugin has neither.</p>
-  <p>The source is the source code: the domain kernel and its specs, the Drizzle schema and both migrations, the controllers and DTOs, the <code>CONTENT_READ_SCOPE</code> and <code>EntryWriteExtension</code> implementations, the tool providers, the admin pages, hooks and slots, plus the wiring points in <code>identity-server</code>, <code>content-server</code> and <code>apps/server</code>. The <code>AGENTS.md</code> files were used as the frame, but every claim was checked against the implementation — the divergences are gathered in section 16.</p>
+  <p>The source is the source code: the domain kernel and its specs, the Drizzle schema and both migrations, the controllers and DTOs, the <code>CONTENT_READ_SCOPE</code> and <code>EntryWriteExtension</code> implementations, the tool providers, the admin pages, hooks and slots, plus the wiring points in <code>identity-server</code>, <code>content-server</code> and <code>apps/server</code>. The <code>AGENTS.md</code> files were used as the frame, but every claim was checked against the implementation — the divergences are gathered in section 16, and what the later QA pass changed in the code is section 17.</p>
 </footer>
 
 </main>
