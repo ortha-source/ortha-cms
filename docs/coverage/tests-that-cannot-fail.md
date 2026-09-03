@@ -20,9 +20,13 @@ Each needs a fixture change, not a new test. They are listed in the order found.
 | `copilot:I-02` | "refuses a withheld tool at execution, not only at offer time" | The tool was never in the profile, so the call exits down the unknown-tool branch before reaching the per-call re-resolve the invariant is about. Caching the profile across a conversation would break nothing. |
 | `copilot:I-34` | registry assertion | Uses `arrayContaining`, so registry *growth* while the feature is disabled would still pass. |
 
+| `i18n:I-17` | `i18n-locale-integrity.spec.ts` "leaves a mirrored relation unset where the target has no translation" | The German sibling's `author` is already `null` when the test starts, so an implementation that skips instead of nulling passes identically. The set → unresolvable → `null` transition the invariant exists for is never driven. |
+| `wysiwyg:I-05` | admin-e2e "offers no link to fall into on the way to the editor" | Asserts zero `getByRole('link')` in the preview, but the fixture `WYSIWYG_ENTRY_BODY` contains no anchor at all. Delete `flattenLinks` from `renderRichText` and the test stays green. |
+| `wysiwyg:I-25` | admin-e2e "records a decorative image as answered" | Inserts the image with no `alt`, so `alt === ''` held before the box was ticked. `setMediaAlt`'s `alt: decorative ? '' : alt` could be replaced by `alt` outright. |
+
 ## The pattern
 
-Four of the six share one shape: **a fixture too small to distinguish the two
+Six of the nine share one shape: **a fixture too small to distinguish the two
 behaviours**. Three audiences under a page size of ten, a graph with no second
 hop, a childless folder for a recursion test. The assertion is right; the world
 it runs in cannot tell the difference.
