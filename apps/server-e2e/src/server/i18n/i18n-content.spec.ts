@@ -1,4 +1,6 @@
 import request from 'supertest';
+import { sql } from 'drizzle-orm';
+import { getDatabase } from '@orthacms/database';
 import {
     closeTestApp,
     createTestApp,
@@ -80,9 +82,51 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
     ): Promise<ArticleRow> {
         const res = await agent
             .post('/api/content/test_article')
-            .send({ values: VALID, ...body })
-            .expect(201);
+            .send({ values: VALID, ...body });
+        if (res.status !== 201) {
+            await dumpDiag('createArticle', res.status, res.body);
+        }
+        expect(res.status).toBe(201);
         return res.body as ArticleRow;
+    }
+
+    /** TEMP DIAGNOSTIC — dumps who is missing when a content write is refused. */
+    async function dumpDiag(
+        where: string,
+        status: number,
+        body: unknown
+    ): Promise<void> {
+        const db = getDatabase();
+        const probe = await db.execute(sql`
+            select
+              (select count(*) from users where email = ${ADMIN_EMAIL}) as admin_rows,
+              (select count(*) from workspaces where id = ${workspaceId}::uuid) as ws_rows,
+              (select count(*) from memberships m join users u on u.id = m.user_id
+                 where u.email = ${ADMIN_EMAIL} and m.workspace_id = ${workspaceId}::uuid) as membership_rows,
+              (select count(*) from workspace_content where workspace_id = ${workspaceId}::uuid) as grant_rows,
+              (select count(*) from workspace_content) as grant_rows_total,
+              (select count(*) from workspaces) as ws_total,
+              (select count(*) from sessions) as session_total
+        `);
+        const acts = await db.execute(sql`
+            select pid, state, xact_start, left(query, 160) as query
+              from pg_stat_activity
+             where datname = current_database() and pid <> pg_backend_pid()
+               and state is distinct from 'idle'
+        `);
+        console.error(
+            '[diag]',
+            where,
+            '->',
+            status,
+            JSON.stringify(body),
+            'workspaceId=',
+            workspaceId,
+            'probe=',
+            JSON.stringify((probe as unknown as { rows: unknown[] }).rows),
+            'activity=',
+            JSON.stringify((acts as unknown as { rows: unknown[] }).rows)
+        );
     }
 
     /**
@@ -430,29 +474,43 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
             expect(await revisionCount(de.id)).toBe(beforeDe);
         });
 
-        it('leaves a mirrored relation unset where the target has no translation', async () => {
+        it('nulls a mirrored relation the source moved out of reach [i18n:I-17]', async () => {
             const agent = await login();
             // `test_author` is localized, so `article.author` is **mirrored**:
-            // each sibling links that author's row in its own language. Ada
-            // exists only in English here, so the German article gets nothing —
-            // a content gap on the author, and explicitly not a reason to fail
-            // the English save.
-            const authorEn = (
-                await agent
-                    .post('/api/content/test_author')
-                    .send({ values: { name: 'Ada' } })
-                    .expect(201)
-            ).body as { id: string };
+            // each sibling links that author's row in its own language.
+            const createAuthor = async (
+                name: string,
+                extra: Record<string, unknown> = {}
+            ) =>
+                (
+                    await agent
+                        .post('/api/content/test_author')
+                        .send({ values: { name }, ...extra })
+                        .expect(201)
+                ).body as { id: string; localeGroupId: string };
+
+            // Ada is translated into German; Grace is English-only.
+            const adaEn = await createAuthor('Ada');
+            const adaDe = await createAuthor('Ada (DE)', {
+                locale: 'de',
+                localeGroupId: adaEn.localeGroupId
+            });
+            const graceEn = await createAuthor('Grace');
+
             const en = await createArticle(agent, {
                 values: {
                     text: 'EN title',
                     select: 'article',
                     number: 1,
-                    author: authorEn.id
+                    author: adaEn.id
                 }
             });
-            // The de sibling starts with NO author (the client's prefill drops
-            // a per-locale relation, so the create body omits it).
+            // The create body omits `author` — a mirrored relation serializes
+            // as `localized`, so the translation prefill drops it and the
+            // server resolves it. That is the precondition this test needs:
+            // the German sibling starts **holding** the German Ada. Starting
+            // it at `null` (as this test used to) cannot tell "null it" from
+            // "skip it", because both leave `null` behind.
             const de = (
                 await agent
                     .post('/api/content/test_article')
@@ -467,11 +525,11 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                     })
                     .expect(201)
             ).body as { id: string; values: Record<string, unknown> };
-            expect(de.values.author ?? null).toBeNull();
+            expect(de.values.author).toBe(adaDe.id);
 
-            // Edit a shared field on en — it syncs — but the English author must
-            // NOT be pushed onto the de sibling: that would be a cross-locale
-            // link, which the writer rejects outright.
+            // Reassign the English article to Grace, who has no German row, and
+            // move a shared field in the same save. The German sibling's author
+            // is now unresolvable.
             await agent
                 .patch(`/api/content/test_article/${en.id}`)
                 .send({
@@ -479,7 +537,7 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                         text: 'EN title',
                         select: 'article',
                         number: 99,
-                        author: authorEn.id
+                        author: graceEn.id
                     }
                 })
                 .expect(200);
@@ -490,7 +548,11 @@ describe('Content i18n (/api/content/:type + /api/i18n)', () => {
                     .expect(200)
             ).body as { values: Record<string, unknown> };
             expect(deAfter.values.number).toBe(99); // shared field synced
-            expect(deAfter.values.author ?? null).toBeNull(); // relation NOT synced
+            // Nulled, not left: leaving `adaDe` would have the German article
+            // credit the PREVIOUS author, which reads as fact and is not one.
+            // And never `graceEn` — an English row in a German entry is a
+            // cross-locale link, which the writer rejects outright.
+            expect(deAfter.values.author).toBeNull();
         });
 
         it('syncs shared fields when a sibling is created into the group', async () => {

@@ -4,7 +4,11 @@ import {
     type FakeTurn
 } from '@orthacms/copilot-provider-fake';
 import { ConversationRepository } from '@orthacms/copilot-server';
-import { ToolRegistry, type ToolProvider } from '@orthacms/tools-server';
+import {
+    ToolRegistry,
+    type ToolProvider,
+    type ToolSurface
+} from '@orthacms/tools-server';
 import type {
     ModelCapabilities,
     ModelProvider,
@@ -136,6 +140,33 @@ export function registerCopilotTools(
     provider: ToolProvider
 ): void {
     app.get(ToolRegistry).register(provider);
+}
+
+/**
+ * Every tool name the running app's **shared registry** holds for `surface`,
+ * sorted.
+ *
+ * Reads the registry itself rather than a surface's HTTP catalogue, which is
+ * the only way to ask the question `copilot:I-34` poses: with the copilot
+ * unmounted there is no run to inspect, so "the registry is unchanged" can be
+ * asserted for the copilot's own tools only from inside DI. Sorted because
+ * registration order is a provider-discovery detail, not a contract — a test
+ * comparing two apps should go red on a *missing or extra* tool, never on a
+ * reordered one.
+ *
+ * Lives here for the same reason {@link registerCopilotTools} does:
+ * `src/support/**` is the only place exempt from
+ * `@nx/enforce-module-boundaries`.
+ */
+export function registryToolNames(
+    app: INestApplication,
+    surface: ToolSurface
+): string[] {
+    return app
+        .get(ToolRegistry)
+        .forSurface(surface)
+        .map((tool) => tool.name)
+        .sort();
 }
 
 /**

@@ -14,6 +14,7 @@ import {
 } from '../../support/seed';
 import {
     copilotCalls,
+    registryToolNames,
     resetCopilot,
     scriptCopilot
 } from '../../support/copilot';
@@ -42,6 +43,19 @@ const ACCEPT = 'application/json, text/event-stream';
  * (global, imported by both, provided by neither) exists to prevent.
  */
 describe('Tool registry (one registry, two surfaces)', () => {
+    /**
+     * What the shared registry holds when **everything** is mounted — the
+     * baseline the toggled-off apps below are compared against, exactly.
+     *
+     * Captured in the first block's `beforeAll` rather than hardcoded: the
+     * question `copilot:I-34` asks is not "which tools exist" (that list grows
+     * with every feature) but "does the *switch* change the list", and only a
+     * whole-set comparison between the two apps can answer it. Hardcoding
+     * would turn every new tool into a failing catalogue test in a file about
+     * wiring.
+     */
+    let mounted: { mcp: string[]; copilot: string[] } | undefined;
+
     /** Signs an admin in against a harness and returns a cookie-bearing agent. */
     async function signInAdmin(harness: TestApp, workspace: SeededWorkspace) {
         const user = await seedActiveUser(harness.app, {
@@ -106,6 +120,13 @@ describe('Tool registry (one registry, two surfaces)', () => {
 
         beforeAll(async () => {
             harness = await createTestApp();
+            // Read straight off the registry, before a single request: no
+            // seeding, no token, no permission filtering — the catalogue as
+            // registered, which is the thing the toggle must not change.
+            mounted = {
+                mcp: registryToolNames(harness.app, 'mcp'),
+                copilot: registryToolNames(harness.app, 'copilot')
+            };
         });
         afterAll(async () => {
             await closeTestApp(harness);
@@ -215,12 +236,27 @@ describe('Tool registry (one registry, two surfaces)', () => {
             const agent = await signInAdmin(harness, workspace);
             const secret = await mintToken(agent, workspace.id);
 
-            expect(await mcpToolNames(harness, secret)).toEqual(
-                expect.arrayContaining([
-                    'content_create',
-                    'media_assets_search',
-                    'i18n_locales_list'
-                ])
+            // Exact sets, not `arrayContaining`. The broken implementation is
+            // a registry that **changed** with the switch, in either direction:
+            // provided by `CopilotModule` so its tools vanish with the
+            // controller, or — the half a "contains these three" assertion is
+            // blind to — leaking the copilot's own tools onto the MCP surface
+            // because the surface filter went away with the run loop. A subset
+            // check passes both.
+            expect(mounted).toBeDefined();
+            expect(registryToolNames(harness.app, 'mcp')).toEqual(mounted?.mcp);
+            // The copilot's tools are still registered with nothing to serve
+            // them — which is the "registry stays identical" half that has no
+            // HTTP surface left to be asked over once the routes are gone.
+            expect(registryToolNames(harness.app, 'copilot')).toEqual(
+                mounted?.copilot
+            );
+
+            // And the endpoint still serves them: a full-scope token sees the
+            // whole MCP surface, so the served catalogue is the registered one
+            // exactly, not a subset of it.
+            expect((await mcpToolNames(harness, secret)).sort()).toEqual(
+                mounted?.mcp
             );
         });
 

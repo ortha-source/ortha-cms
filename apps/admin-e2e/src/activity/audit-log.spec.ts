@@ -206,21 +206,50 @@ test.describe('Activity Log resilience', () => {
         });
     });
 
-    test('an over-large ?pageSize is clamped instead of 400ing into a dead end', async ({
+    test('an over-large ?pageSize is clamped instead of 400ing into a dead end [activity:I-18]', async ({
         activityLogPage,
         page
     }) => {
-        await mockActivity(page, ALL_KINDS_ACTIVITY);
+        // `mockActivity` refuses a `pageSize` above 100 with a 400, the way the
+        // DTO's `@Max` makes the real API refuse it. That refusal is the whole
+        // test: while the mock echoed any page size back with a 200, an
+        // unclamped request rendered a table identical to a clamped one and this
+        // case passed with the clamp deleted.
+        //
+        // More than 100 events, so the clamped page is a full one — that is what
+        // separates a ceiling at the largest size the server serves from a
+        // retreat to the default 25, which would also dodge the 400.
+        const OVER_A_PAGE = Array.from({ length: 120 }, (_, index) => ({
+            id: `ev_over_${index}`,
+            kind: 'user.signed_in',
+            subjectType: 'user',
+            subjectId: 'u_ada',
+            actorId: 'u_ada',
+            actorEmail: 'ada@ortha.dev',
+            meta: null,
+            at: '2026-06-10T09:00:00.000Z'
+        }));
+        await mockActivity(page, OVER_A_PAGE);
         await activityLogPage.gotoWith('pageSize=1000');
 
-        // The server caps page size at 100 and answers 400 above it. A 400 here
-        // used to be unrecoverable: the rows-per-page Select is the only control
-        // that could fix it, and it lives inside the data branch that a failed
-        // query never renders — so Retry re-issued the same doomed request
-        // forever and the only way out was hand-editing the URL again.
+        // A 400 here is unrecoverable: the rows-per-page Select is the only
+        // control that could fix it, and it lives inside the data branch that a
+        // failed query never renders — so Retry re-issued the same doomed
+        // request forever and the only way out was hand-editing the URL again.
+        // (A 4xx skips the query client's retry, so the error state, if it came,
+        // would be on screen at once rather than seven seconds later.)
         await expect(activityLogPage.table).toBeVisible();
         await expect(activityLogPage.errorAlert()).toHaveCount(0);
         await expect(page.getByText('Rows per page')).toBeVisible();
+
+        // And the clamp is a ceiling, not a reset to the default: the request
+        // that succeeded asked for the largest page the server will serve. The
+        // URL is left alone — the clamp happens on the way out, not by rewriting
+        // what the reader typed.
+        await expect(page).toHaveURL(/pageSize=1000/);
+        await expect(activityLogPage.resultsStatus()).toContainText(
+            'Showing 1–100'
+        );
     });
 
     test('a malformed timestamp does not take the whole app down', async ({

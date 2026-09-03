@@ -14,6 +14,10 @@ import {
     WYSIWYG_MEDIA_ENTRY_BODY,
     WYSIWYG_INACCESSIBLE_ENTRY_ID,
     WYSIWYG_INACCESSIBLE_BODY,
+    WYSIWYG_HOSTILE_ENTRY_ID,
+    WYSIWYG_HOSTILE_BODY,
+    WYSIWYG_HOSTILE_IMAGE_SRC,
+    WYSIWYG_HOSTILE_FLAG,
     mockContentSchema,
     mockContentSchemaDetail,
     mockContentEntries,
@@ -90,6 +94,12 @@ test.describe('Entry editor — rich text field', () => {
                     body: WYSIWYG_INACCESSIBLE_BODY,
                     summary: '<p>Short and sweet.</p>',
                     rawHtml: ''
+                },
+                [`article/${WYSIWYG_HOSTILE_ENTRY_ID}`]: {
+                    title: 'Submitted copy',
+                    body: WYSIWYG_HOSTILE_BODY,
+                    summary: '<p>Short and sweet.</p>',
+                    rawHtml: ''
                 }
             },
             locales: {
@@ -122,16 +132,104 @@ test.describe('Entry editor — rich text field', () => {
             await expect(preview).not.toContainText('<strong>');
         });
 
-        test('offers no link to fall into on the way to the editor', async ({
+        test('flattens the body’s links, so there is none to fall into on the way to the editor [wysiwyg:I-05]', async ({
             wysiwygFieldPage
         }) => {
             await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_ENTRY_ID);
+
+            // The stored body **has** an anchor. Without one, "no links here"
+            // is a statement about the fixture rather than about the renderer,
+            // and deleting `flattenLinks` would leave this green.
+            await expect(
+                wysiwygFieldPage.previewFlattenedLinks('Body')
+            ).toHaveText('the full changelog');
+
             // The control is a button laid over the preview; a live anchor
             // underneath would be a tab stop hidden beneath it, and pressing it
             // would navigate out of the record.
             await expect(
                 wysiwygFieldPage.preview('Body').getByRole('link')
             ).toHaveCount(0);
+        });
+
+        test('renders a hostile stored body as inert markup [wysiwyg:I-04]', async ({
+            page,
+            wysiwygFieldPage
+        }) => {
+            // The image's own source, answered here so the failure that fires
+            // an `onerror` is this route and not the network.
+            let requested = 0;
+            await page.route(
+                `**${WYSIWYG_HOSTILE_IMAGE_SRC}`,
+                async (route) => {
+                    requested += 1;
+                    await route.fulfill({ status: 404, body: '' });
+                }
+            );
+
+            await wysiwygFieldPage.gotoArticle(WS, WYSIWYG_HOSTILE_ENTRY_ID);
+            const preview = wysiwygFieldPage.preview('Body');
+
+            // The control: the safe content came through, so nothing below is
+            // satisfied by a preview that rendered an empty card.
+            await expect(preview).toContainText('Filed by a contributor.');
+            await expect(preview).toContainText('Hover me.');
+
+            // An attribute the schema declares survives…
+            const image = wysiwygFieldPage.previewMarkup('Body', 'img');
+            await expect(image).toHaveAttribute('alt', 'A chart');
+            await expect(image).toHaveAttribute(
+                'src',
+                WYSIWYG_HOSTILE_IMAGE_SRC
+            );
+
+            // …and one it does not, does not — on a tag that was itself kept,
+            // so this is the attribute filter and not the tag filter. This is
+            // the whole difference between the schema round-trip and handing
+            // the stored string to `dangerouslySetInnerHTML`: `<script>` does
+            // not run on `innerHTML`, `<img onerror>` does.
+            await expect(
+                wysiwygFieldPage.previewMarkup('Body', '[onerror]')
+            ).toHaveCount(0);
+            await expect(
+                wysiwygFieldPage.previewMarkup('Body', '[onmouseover]')
+            ).toHaveCount(0);
+            // A tag no extension declares has nowhere in the schema to land.
+            await expect(
+                wysiwygFieldPage.previewMarkup('Body', 'iframe')
+            ).toHaveCount(0);
+            // The Link extension's protocol allowlist: `javascript:` fails it,
+            // so the mark is refused at parse time and the words come through
+            // as ordinary text — nothing is silently deleted, and there is no
+            // address left to press.
+            await expect(preview).toContainText('the original report');
+            await expect(
+                wysiwygFieldPage.previewMarkup('Body', '[href^="javascript:"]')
+            ).toHaveCount(0);
+            await expect(preview.getByRole('link')).toHaveCount(0);
+
+            // And nothing ran. The image has been asked for and answered, so
+            // the load has settled either way — under a raw-`innerHTML`
+            // renderer the handler would have fired by now. (`Loaded` is
+            // spelled out locally: this project's `tsconfig` has no `dom` lib.)
+            type Loaded = { complete: boolean };
+            await expect.poll(() => requested).toBeGreaterThan(0);
+            await expect
+                .poll(() =>
+                    image.evaluate(
+                        (element) => (element as unknown as Loaded).complete
+                    )
+                )
+                .toBe(true);
+            expect(
+                await page.evaluate(
+                    (flag) =>
+                        (globalThis as unknown as Record<string, unknown>)[
+                            flag
+                        ],
+                    WYSIWYG_HOSTILE_FLAG
+                )
+            ).toBeUndefined();
         });
 
         test('shows the field placeholder while empty', async ({
@@ -763,7 +861,7 @@ test.describe('Entry editor — rich text field', () => {
             ).toBe('Ada at her desk');
         });
 
-        test('records a decorative image as answered, not as missing [wysiwyg:I-26]', async ({
+        test('clears the alt when the image is marked decorative [wysiwyg:I-25, wysiwyg:I-26]', async ({
             wysiwygFieldPage,
             contentLibraryPage
         }) => {
@@ -772,9 +870,20 @@ test.describe('Entry editor — rich text field', () => {
 
             await wysiwygFieldPage.open('Body');
             await wysiwygFieldPage.openMediaSource('Image from a URL…');
+            // Inserted **with** a description. An image that arrives with no
+            // alt is already `alt === ''` before the box is ticked, so it can
+            // say nothing about ticking it: `alt: decorative ? '' : alt` could
+            // be `alt` outright and the assertion below would still hold. The
+            // author changing their mind is the transition this is about.
             await wysiwygFieldPage.fillMediaUrl(
-                'https://example.com/divider.png'
+                'https://example.com/divider.png',
+                'A ruled divider'
             );
+            await expect(wysiwygFieldPage.altControl('Alt text')).toBeVisible();
+
+            // The popover keeps the description in its box (disabled, not
+            // emptied) while the box is ticked, so a non-empty alt really is
+            // what reaches the command alongside `decorative: true`.
             await wysiwygFieldPage.markAltDecorative();
 
             // `alt=""` alone can't be told from "nobody wrote it yet", so the
@@ -792,6 +901,9 @@ test.describe('Entry editor — rich text field', () => {
                 'image'
             );
             expect(images).toHaveLength(1);
+            // The description is *gone*, not merely hidden behind the flag: a
+            // non-empty alt beside `data-decorative` cannot exist in the saved
+            // HTML, because a screen reader would announce it anyway.
             expect(attr(images[0], 'alt')).toBe('');
             expect(attr(images[0], 'decorative')).toBe(true);
         });

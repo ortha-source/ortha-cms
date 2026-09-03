@@ -17,7 +17,11 @@ import {
     spyEntrySave,
     type EntrySaveSpy
 } from '../support/api/content';
-import { mockSegmentsApi, type SegmentsApiSpy } from '../support/api/segments';
+import {
+    mockSegmentsApi,
+    PAGED_SEGMENT_SEED,
+    type SegmentsApiSpy
+} from '../support/api/segments';
 import { mockEntryRevisionFlow } from '../support/api/revisions';
 import { expectNoA11yViolations } from '../support/a11y';
 
@@ -192,26 +196,78 @@ test.describe('Entry editor — Access tab', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
-    test('sets every matched audience at once, not just the page', async ({
+    test('sets every matched audience at once, not just the page [segments:I-27]', async ({
+        page,
         contentLibraryPage,
         segmentsPage
     }) => {
         // A control called "set every audience" that quietly set the visible
         // rows would be worse than none: the mistake is invisible until a
         // reader is turned away.
+        //
+        // The broken implementation this has to tell apart is one line:
+        // `onApply` folding the state over `list` (the rows drawn) instead of
+        // `matchedIds` (the list response's `ids`). The default seed of three
+        // against the tab's page size of ten cannot see the difference — every
+        // match is on screen — so this case seeds **fourteen**, and four of
+        // them are never rendered.
+        await mockSegmentsApi(page, { segments: PAGED_SEGMENT_SEED });
         await openAccessTab(contentLibraryPage);
+
+        // The fixture only discriminates if page two is genuinely off screen.
+        await expect(segmentsPage.accessControl('Audience 01')).toBeVisible();
+        await expect(segmentsPage.accessControl('Audience 11')).toHaveCount(0);
+        // And the control says what it is about to do in terms of the match
+        // count, not the page's — 14, not 10.
+        await expect(
+            page.getByText(
+                'Applies to all 14 audiences, not just the ones on this page.'
+            )
+        ).toBeVisible();
 
         await segmentsPage.bulkAction('Can see').click();
         await contentLibraryPage.editorSave.click();
 
+        // Request-level, because the screen cannot answer for the rows it
+        // never drew: all fourteen matched ids have to be in the save body,
+        // and `seg-11`…`seg-14` can only have got there from the list
+        // response's `ids`.
         await expect
             .poll(() => saves.bodies.at(-1)?.extensions)
             .toEqual({
                 access: {
-                    allow: ['seg-acme', 'seg-globex', 'seg-initech'],
+                    allow: PAGED_SEGMENT_SEED.map((segment) => segment.id),
                     deny: []
                 }
             });
+    });
+
+    test('refuses the bulk set when more matched than an entry can name [segments:I-27]', async ({
+        page,
+        contentLibraryPage,
+        segmentsPage
+    }) => {
+        // The other half of the same invariant. The server caps the `ids` it
+        // returns (`MATCHED_IDS_CAP`), so past it the client is holding a
+        // *partial* set — and applying a partial set is worse than applying
+        // nothing, because "set every audience" would have set some of them.
+        // The controls go dead with the reason instead.
+        await mockSegmentsApi(page, {
+            segments: PAGED_SEGMENT_SEED,
+            matchedIdsCap: 12
+        });
+        await openAccessTab(contentLibraryPage);
+
+        await expect(segmentsPage.bulkAction('Can see')).toBeDisabled();
+        await expect(segmentsPage.bulkAction('Cannot see')).toBeDisabled();
+        await expect(segmentsPage.bulkAction('Clear all')).toBeDisabled();
+        // Disabled, not hidden, and with the way out named in the same
+        // sentence: the search is what narrows the match set back under the cap.
+        await expect(
+            page.getByText(
+                /more audiences than an entry can name at once[\s\S]*Narrow the list with the search/
+            )
+        ).toBeVisible();
     });
 
     test('clears every audience with the same control', async ({

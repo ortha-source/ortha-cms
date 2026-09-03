@@ -8,9 +8,9 @@ import { TEST_ALLOWED_ORIGIN } from '../../support/test-config';
 import {
     resetDb,
     seedActiveUser,
-    seedWorkspace,
-    type SeededUser
+    seedWorkspace
 } from '../../support/seed';
+import { webhookEndpoints } from '../../support/webhooks';
 
 const ADMIN_EMAIL = 'webhook-endpoints-admin@example.com';
 const CONTRIBUTOR_EMAIL = 'webhook-endpoints-contributor@example.com';
@@ -294,6 +294,129 @@ describe('Webhook endpoints API', () => {
                 .send({ name: 'x', url: 'https://example.com/h' })
                 .expect(404);
             await admin.delete(`/api/webhooks/${missing}`).expect(404);
+        });
+    });
+
+    /**
+     * The failure counter, driven through the repository rather than through
+     * twenty real dead deliveries.
+     *
+     * What is being pinned here is a **SQL statement**, not a decision the
+     * worker makes: `recordFailure` increments the counter and flips `enabled`
+     * in one `UPDATE`, so that two workers finishing failed deliveries at the
+     * same instant cannot both read the old count and both conclude the
+     * threshold is not reached yet. That race is only reachable by issuing the
+     * calls concurrently against a real Postgres, which is what these do.
+     */
+    describe('the auto-disable counter', () => {
+        let endpointId: string;
+        let endpoints: ReturnType<typeof webhookEndpoints>;
+
+        /** The endpoint as the API reports it — the shape the UI reads. */
+        async function readBack() {
+            const { body } = await admin
+                .get(`/api/webhooks/${endpointId}`)
+                .expect(200);
+            return body as {
+                enabled: boolean;
+                disabledReason: string | null;
+                consecutiveFailures: number;
+            };
+        }
+
+        beforeEach(async () => {
+            const { body } = await admin
+                .post('/api/webhooks')
+                .send({ name: 'Flaky', url: 'https://example.com/hooks' })
+                .expect(201);
+            endpointId = body.endpoint.id;
+            endpoints = webhookEndpoints(harness.app);
+        });
+
+        it('cannot be stepped over by two workers at once [webhooks:I-13]', async () => {
+            // Three failures arriving together against a threshold of three.
+            // A read-then-test-then-write implementation would have all three
+            // read `consecutive_failures = 0` before any of them wrote, land on
+            // 1, and leave the endpoint switched **on** — which is the whole
+            // failure mode the single statement exists to rule out. The row
+            // lock serialises them, and each `+ 1` sees its predecessor.
+            const flipped = await Promise.all([
+                endpoints.recordFailure(endpointId, 3),
+                endpoints.recordFailure(endpointId, 3),
+                endpoints.recordFailure(endpointId, 3)
+            ]);
+
+            const after = await readBack();
+            expect(after.consecutiveFailures).toBe(3);
+            expect(after.enabled).toBe(false);
+            expect(after.disabledReason).toContain('3 consecutive');
+
+            // And exactly one of them is told it did the switching, so the
+            // warning is logged once rather than three times or not at all.
+            expect(flipped.filter(Boolean)).toHaveLength(1);
+        });
+
+        it('leaves the endpoint on until the threshold is actually reached', async () => {
+            expect(await endpoints.recordFailure(endpointId, 3)).toBe(false);
+            expect(await endpoints.recordFailure(endpointId, 3)).toBe(false);
+
+            const after = await readBack();
+            expect(after.enabled).toBe(true);
+            expect(after.disabledReason).toBeNull();
+            expect(after.consecutiveFailures).toBe(2);
+        });
+
+        it('is cleared when the endpoint is switched back on by hand [webhooks:I-14]', async () => {
+            await endpoints.recordFailure(endpointId, 2);
+            await endpoints.recordFailure(endpointId, 2);
+
+            const disabled = await readBack();
+            expect(disabled.enabled).toBe(false);
+            expect(disabled.disabledReason).not.toBeNull();
+            expect(disabled.consecutiveFailures).toBe(2);
+
+            const { body: reEnabled } = await admin
+                .patch(`/api/webhooks/${endpointId}`)
+                .send({
+                    name: 'Flaky',
+                    url: 'https://example.com/hooks',
+                    enabled: true
+                })
+                .expect(200);
+
+            // Both, not just the switch. A reason left behind would go on
+            // saying the endpoint was stopped after failures while it is
+            // plainly running, and a count left behind would switch it off
+            // again on the very next failure.
+            expect(reEnabled).toMatchObject({
+                enabled: true,
+                disabledReason: null,
+                consecutiveFailures: 0
+            });
+        });
+
+        it('is left alone by a save that keeps the endpoint switched off', async () => {
+            await endpoints.recordFailure(endpointId, 2);
+            await endpoints.recordFailure(endpointId, 2);
+
+            // The control for the test above: the clearing is conditional on
+            // being re-enabled, so an implementation that simply zeroed the
+            // pair on every write would pass that one and fail this.
+            const { body: renamed } = await admin
+                .patch(`/api/webhooks/${endpointId}`)
+                .send({
+                    name: 'Flaky (renamed)',
+                    url: 'https://example.com/hooks',
+                    enabled: false
+                })
+                .expect(200);
+
+            expect(renamed).toMatchObject({
+                name: 'Flaky (renamed)',
+                enabled: false,
+                consecutiveFailures: 2
+            });
+            expect(renamed.disabledReason).toContain('2 consecutive');
         });
     });
 

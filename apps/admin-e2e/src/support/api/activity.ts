@@ -211,6 +211,19 @@ export const ALL_KINDS_ACTIVITY: ActivitySeed[] = [
     at: new Date(Date.UTC(2026, 5, 1, 12, 0, 0) - index * 60_000).toISOString()
 }));
 
+/**
+ * The largest `pageSize` `GET /api/activity` accepts — `MAX_PAGE_SIZE` on
+ * `ListActivityQueryDto`, enforced by the host's global `ValidationPipe`
+ * (`@Max`), which answers **400** above it before the controller runs.
+ *
+ * This mock has to enforce it, and that is not decoration. It used to echo
+ * whatever `pageSize` it was handed back with a 200, which made the page's
+ * clamp unfalsifiable: an unclamped `?pageSize=1000` rendered a table exactly
+ * like a clamped one, so "an over-large `?pageSize` is clamped instead of
+ * 400ing into a dead end" passed whether or not the clamp existed.
+ */
+const MAX_PAGE_SIZE = 100;
+
 /** Reads the filter/paging params the page sends from the intercepted URL. */
 function paramsOf(route: Route): {
     kinds: string[];
@@ -309,7 +322,9 @@ function applyFilter(events: ActivitySeed[], filter: string): ActivitySeed[] {
 /**
  * Stub `GET /api/activity` with a deterministic log, applying the same
  * filtering + pagination the server does (kind IN, actor-email substring,
- * offset paging) so the page's controls behave for real. The page sits behind
+ * offset paging) so the page's controls behave for real — **including the
+ * refusals**: a `pageSize` outside `1…`{@link MAX_PAGE_SIZE} comes back 400,
+ * exactly as the DTO's `@Max` makes the real API answer. The page sits behind
  * the shell's gate, so a test also needs `mockSignedIn`. Pass `delayMs` to hold
  * the response open and observe the loading skeleton.
  *
@@ -335,6 +350,29 @@ export async function mockActivity(
             page: pageNum,
             pageSize
         } = paramsOf(route);
+
+        // The `ValidationPipe`'s answer, not the controller's: a page size
+        // outside `1…MAX_PAGE_SIZE` never reaches the handler. Shaped like
+        // Nest's own error body so the admin's error branch sees what it would
+        // live. A 4xx skips TanStack Query's retry, so the failure is immediate.
+        if (
+            !Number.isInteger(pageSize) ||
+            pageSize < 1 ||
+            pageSize > MAX_PAGE_SIZE
+        ) {
+            await route.fulfill({
+                status: 400,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    statusCode: 400,
+                    error: 'Bad Request',
+                    message: [
+                        `pageSize must not be greater than ${MAX_PAGE_SIZE}`
+                    ]
+                })
+            });
+            return;
+        }
 
         const searched = events.filter((event) => {
             if (kinds.length > 0 && !kinds.includes(event.kind)) {

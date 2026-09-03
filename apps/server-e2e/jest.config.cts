@@ -41,7 +41,15 @@ export default {
         '^@orthacms/database$':
             '<rootDir>/../../packages/database/src/index.ts',
         '^@orthacms/identity-server$':
-            '<rootDir>/../../packages/identity/server/src/index.ts'
+            '<rootDir>/../../packages/identity/server/src/index.ts',
+        // Mapped for the same reason as identity-server above: `support/
+        // webhooks.ts` reaches two of the plugin's providers by path (they are
+        // bound for DI but not re-exported), and `app.get(X)` only returns a
+        // provider if the class the harness holds is the class the module
+        // registered. Both sides must resolve into `packages/`, rather than one
+        // through the `node_modules` symlink and one through the tree.
+        '^@orthacms/webhooks-server$':
+            '<rootDir>/../../packages/webhooks/server/src/index.ts'
     },
     moduleFileExtensions: ['ts', 'js', 'html'],
     coverageDirectory: 'test-output/jest/coverage',

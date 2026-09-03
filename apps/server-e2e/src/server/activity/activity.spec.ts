@@ -228,6 +228,27 @@ describe('Activity log (GET /api/activity + recording)', () => {
             expect(res.body.items).toHaveLength(2);
         });
 
+        it('refuses a pageSize above the 100-row maximum, and serves 100 itself [activity:I-18]', async () => {
+            const { agent } = await seedEvents();
+
+            // The cap is `@Max(MAX_PAGE_SIZE)` on `ListActivityQueryDto`, so the
+            // global `ValidationPipe` answers before the controller runs. A
+            // handler that passed `pageSize` straight into the query would
+            // answer 200 to all three of these, and on a three-row log a
+            // `LIMIT 101` is indistinguishable from a `LIMIT 100` — which is why
+            // the refusal, not the row count, is what this asserts.
+            await agent.get('/api/activity?pageSize=101').expect(400);
+            await agent.get('/api/activity?pageSize=1000').expect(400);
+
+            // The boundary itself is served, not refused: an off-by-one that
+            // rejected 100 too would take the admin's own largest rows-per-page
+            // option down with it.
+            const ok = await agent
+                .get('/api/activity?pageSize=100')
+                .expect(200);
+            expect(ok.body.pageSize).toBe(100);
+        });
+
         it('sorts by time, newest first by default and oldest first on asc', async () => {
             const { agent } = await seedEvents();
 

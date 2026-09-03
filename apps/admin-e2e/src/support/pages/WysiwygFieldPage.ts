@@ -77,6 +77,28 @@ export class WysiwygFieldPage extends BasePage {
         return this.control(label).locator('..');
     }
 
+    /**
+     * What a link becomes in the collapsed preview: a `<span data-link>`. The
+     * preview sits under a full-bleed button, so a live `<a>` inside it would
+     * be a tab stop the reader falls into on the way to that button — and
+     * pressing it would navigate out of the record.
+     */
+    previewFlattenedLinks(label: string): Locator {
+        return this.preview(label).locator('[data-link]');
+    }
+
+    /**
+     * Anything in the collapsed preview matching a raw CSS `selector`.
+     *
+     * The trust-boundary assertions are about **markup** — an `onerror`
+     * attribute, an `<iframe>`, a `javascript:` href — and none of those has a
+     * role or a label to locate it by. What is being asserted *is* the
+     * selector, so it belongs in the spec rather than behind a name here.
+     */
+    previewMarkup(label: string, selector: string): Locator {
+        return this.preview(label).locator(selector);
+    }
+
     /** Expand a field into the work area, and wait for the editor to arrive. */
     async open(label: string): Promise<void> {
         await this.control(label).click();

@@ -46,6 +46,24 @@ production path and the test path are two implementations of the same rule —
 a harness that re-implements the bootstrap, an executor carrying an inline copy
 of a guard — the test guards neither. Reach the real one.
 
+## Prove it can fail — by mutation, not by argument
+
+Once the test is written, **break the production code and watch your test fail.**
+Delete the guard, drop the `WHERE` clause, make the branch match nothing. Confirm
+the failure is *yours* and not a neighbour's, then revert. `git diff` must be
+clean of production changes afterwards.
+
+Two minutes, and it is the only proof that a test bites. Reasoning that it
+*should* fail is what produced every entry in `tests-that-cannot-fail.md`.
+
+Third thing to check, after the fixture and the module: **can the observable show
+the difference at all?** A media cascade repair asserted through
+`GET /api/media/assets`, which answers with the workspace *root* only — so a
+correct cascade and an over-deletion returned the same thing. The assertion was
+right, the fixture discriminated, and the test still could not fail. If the API
+you are reading through cannot express the state you are asserting about, read
+the table.
+
 ## Claim the invariant
 
 Every test you write names the invariant it pins, package-qualified:
