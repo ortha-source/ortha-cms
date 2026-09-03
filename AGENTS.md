@@ -249,6 +249,14 @@ package; the admin app's Vite transpiles the design-system source directly.
   is governed by the `server-plugin` skill — the `ServerPlugin` factory +
   dynamic-module pattern, `@InjectDatabase()` DI, config injection, and the
   Drizzle schema/migrations descriptor
+- **Invariant coverage** — every package dossier in [`docs/artifacts/`](docs/artifacts/)
+  ends with numbered invariants, and [`docs/coverage/`](docs/coverage/README.md)
+  is the ledger tying each to the test that pins it. A spec claims one by naming
+  it in its title (`[segments:I-01]`), so coverage is **derived by grep, never
+  declared**: `node tools/coverage/ledger.mjs check`. Adding a test for a
+  documented rule means citing it; the `coverage-sweep` skill governs closing the
+  gaps, and [`docs/coverage/tests-that-cannot-fail.md`](docs/coverage/tests-that-cannot-fail.md)
+  is the list of shapes not to reproduce.
 - **Tactical DDD inside plugins** ([ADR-0003](docs/adr/0003-tactical-ddd-inside-plugins.md)):
   we are migrating each plugin from feature-then-kind to a layered
   `domain / application / infrastructure / http(presentation)` layout
