@@ -1,0 +1,119 @@
+{
+    "package": "cli",
+    "citations": [
+        {
+            "id": "cli:I-01",
+            "file": "packages/nx/src/executors/db-migrate/executor.spec.ts",
+            "anchor": "applies the plugins the host built, against the configured URL",
+            "why": "The spec mocks the `@orthacms/cli` module and asserts the Nx db-migrate executor calls `applyPluginMigrations(plugins, url)`; a second migration implementation inside @orthacms/nx would leave the mock uncalled and fail it. (The generated-app half — migrateCommand calling the same export — is not itself pinned by a test.)"
+        },
+        {
+            "id": "cli:I-04",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "applies plugins in exactly the order the host listed them",
+            "why": "Asserts the sequence of `migrationsTable` values passed to drizzle's migrate() equals the host's list order exactly, so any sorting or reordering fails it."
+        },
+        {
+            "id": "cli:I-05",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "opens no connection when no plugin ships migrations",
+            "why": "Asserts the pg Pool constructor and migrate() are never called for a plugin list where nobody declares a migrations descriptor — the 'no connection is opened' clause."
+        },
+        {
+            "id": "cli:I-05",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "applies plugins in exactly the order the host listed them",
+            "why": "The same list contains a descriptor-less plugin (`{ name: 'mcp' }`) and the expected table sequence omits it — the 'a plugin without a migrations descriptor is skipped' clause."
+        },
+        {
+            "id": "cli:I-06",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "passes each plugin its own folder and tracking table",
+            "why": "Asserts migrate() is called with that plugin's own `migrationsFolder` and its own `migrationsTable`, which is what makes plugins version independently."
+        },
+        {
+            "id": "cli:I-07",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "names the plugin, how far it got, and the order it depends on",
+            "why": "Matches the thrown message against /Migrating plugin \"workspaces\" failed — applied 2 of 4 plugin\\(s\\)/ and against /plugin ORDER/ — the plugin name, the committed count, the total and the ordering hint."
+        },
+        {
+            "id": "cli:I-07",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "keeps the original error as the cause",
+            "why": "Asserts the thrown error's `cause` is the original driver error ('relation \"users\" does not exist')."
+        },
+        {
+            "id": "cli:I-07",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "does not attempt the plugins after it",
+            "why": "Asserts the plugin listed after the failing one never reaches migrate()."
+        },
+        {
+            "id": "cli:I-08",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "still closes the pool",
+            "why": "Asserts pool.end() ran exactly once after a plugin's migration threw — the failure half of the finally."
+        },
+        {
+            "id": "cli:I-08",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "closes the pool on success too",
+            "why": "Asserts pool.end() ran exactly once on a clean run — the success half."
+        },
+        {
+            "id": "cli:I-09",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "names host, port and database without the credentials",
+            "why": "Asserts describeTarget('postgresql://ortha:secret@localhost:5432/ortha_cms') is exactly 'localhost:5432/ortha_cms', so any credential in the target label fails it; the sibling case asserts the string does not contain 'secret'."
+        },
+        {
+            "id": "cli:I-09",
+            "file": "packages/cli/src/lib/migrate.spec.ts",
+            "anchor": "says so rather than guessing when the URL will not parse",
+            "why": "Asserts an unparseable URL yields the literal '(unparseable DATABASE_URL)' rather than a guessed host/database."
+        },
+        {
+            "id": "cli:I-10",
+            "file": "packages/cli/src/lib/studio.spec.ts",
+            "anchor": "hands drizzle-kit an ephemeral config that never holds the credential",
+            "why": "Reads the temp config drizzle-kit was pointed at and asserts it contains 'process.env.DATABASE_URL' and neither the password nor the database name — the 'never written to disk' clause."
+        },
+        {
+            "id": "cli:I-10",
+            "file": "packages/cli/src/lib/studio.spec.ts",
+            "anchor": "passes the URL through the child",
+            "why": "Asserts the execFileSync options carry DATABASE_URL=<url> in the child's env — the 'passed through the environment' clause."
+        },
+        {
+            "id": "cli:I-10",
+            "file": "packages/cli/src/lib/studio.spec.ts",
+            "anchor": "cleans up the temp directory even when Studio fails",
+            "why": "Asserts the temp path no longer exists after drizzle-kit threw — the finally clause; the sibling case pins removal on a clean exit."
+        },
+        {
+            "id": "cli:I-11",
+            "file": "packages/cli/src/lib/studio.spec.ts",
+            "anchor": "warns, naming the exposure and how to undo it",
+            "why": "Asserts a console.warn for --host 0.0.0.0 containing the bound address '0.0.0.0:4983'; a sibling case asserts no warning for each loopback spelling. Only the 'prints a warning with the address' half is pinned — nothing asserts the warning precedes the drizzle-kit spawn, since execFileSync is a mock whose call order is not checked."
+        },
+        {
+            "id": "cli:I-18",
+            "file": "packages/cli/src/lib/studio.spec.ts",
+            "anchor": "exits cleanly when stopped with %s",
+            "why": "Asserts runDrizzleKitStudio does not throw when the child dies on SIGINT or SIGTERM, so studio's interrupt is a success. Pins only the studio third: dev and start settle through run.ts / superviseUntilExit, which have no test."
+        },
+        {
+            "id": "cli:I-21",
+            "file": "packages/cli/src/lib/generate.spec.ts",
+            "anchor": "passes a hostile --name as one literal argv element",
+            "why": "Asserts '--name=a b; rm -rf /' arrives as a single argv element and that the execFileSync options carry no `shell` property."
+        }
+    ],
+    "judgments": {
+        "cli:I-22": {
+            "state": "not-mechanically-checkable",
+            "reason": "An absence claim about the whole package — 'the CLI reads no settings file of its own'. A test can assert what LAYOUT contains (packages/cli/src/lib/project.ts:25), but no harness can assert that nothing anywhere in the package ever reads a config file of its own; that is a review/grep property, not an assertion."
+        }
+    }
+}

@@ -1,0 +1,114 @@
+{
+    "package": "insights",
+    "citations": [
+        {
+            "id": "insights:I-03",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "keeps the widget in a trailing catch-all band",
+            "why": "A widget naming section 'nowhere' still appears, as the last band, with isFallback true — dropping the orphan or folding it into a registered band fails the assertions; the data-section-fallback=\"true\" attribute itself is only asserted negatively (toHaveCount(0)) in the e2e suite."
+        },
+        {
+            "id": "insights:I-04",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "drops a band whose every widget is gated out",
+            "why": "A section whose only widget is permission-gated out is absent from the resolved bands entirely, so nothing downstream can render its heading."
+        },
+        {
+            "id": "insights:I-04",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "hides content widgets from a user without content:read",
+            "why": "Pins the 'heading included' half in the DOM: section('Content') and section('Team') are level-2 heading locators asserted toHaveCount(0) while the still-populated band stays visible."
+        },
+        {
+            "id": "insights:I-05",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "an override only replaces the fields it sets",
+            "why": "A second contribution carrying only defaultTitle wins on that field while order and defaultDescription from the first survive — a whole-object replace fails both surviving-field assertions."
+        },
+        {
+            "id": "insights:I-05",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "an override does not move the band",
+            "why": "Pins the positional clause: re-contributing 'content' last still leaves the band first in the resolved order."
+        },
+        {
+            "id": "insights:I-06",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "keeps registration order for items sharing an order",
+            "why": "Two widgets with no order come back in registration order ['alpha','beta']; an unstable sort or a map-traversal fold fails it. Only the widget axis is exercised — the same rule for sections is not separately pinned."
+        },
+        {
+            "id": "insights:I-07",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "sorts an order-less section after the built-ins",
+            "why": "An order-less section sorts behind one with order 10, so the default cannot be 0 or a mid value; the exact constant 100 and the widget-side default are not separately asserted."
+        },
+        {
+            "id": "insights:I-08",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "drops widgets the user lacks the permission for",
+            "why": "A widget declaring 'content:read' is excluded from the band when the permission set is empty, while an ungated sibling stays."
+        },
+        {
+            "id": "insights:I-08",
+            "file": "packages/insights/admin/src/lib/utils/resolveInsightsLayout/index.spec.ts",
+            "anchor": "still applies permissions to orphaned widgets",
+            "why": "Pins the second clause: a gated widget naming an unregistered section is filtered out rather than surviving into the fallback band."
+        },
+        {
+            "id": "insights:I-09",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "hides content widgets from a user without content:read",
+            "why": "Pins only the slot-item half — no gated card and no band heading is rendered for a user without the permission. The second half (the data hook's `enabled`, in content-admin/media-admin) is unpinned: no test asserts that no /insights/content/* request goes out."
+        },
+        {
+            "id": "insights:I-10",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "a failing widget does not take down the rest of the page",
+            "why": "content/stale is failed, and StaleEntriesWidget computes isEmpty={total === 0} from undefined data, so both flags are true at once — asserting the error banner visible AND the empty copy absent is exactly the isError-outranks-isEmpty precedence."
+        },
+        {
+            "id": "insights:I-11",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "a stat tile that cannot load shows no figure at all",
+            "why": "With content/totals failing the tile contains an em dash and not a '0' — pins the 'never prints a number' half."
+        },
+        {
+            "id": "insights:I-11",
+            "file": "apps/admin-e2e/src/insights/announcements.spec.ts",
+            "anchor": "a failed stat tile says its value is unavailable",
+            "why": "Pins the second half: the same failed tile carries the sr-only 'Unavailable' text that stands in for the aria-hidden em dash."
+        },
+        {
+            "id": "insights:I-15",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "each widget calls its own endpoint",
+            "why": "Every widget's route is asserted present in the request spy, and content/totals exactly once for its three tiles. The negative half — that the page itself issues no request — is not asserted."
+        },
+        {
+            "id": "insights:I-17",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "changing the range refetches the range-dependent widgets",
+            "why": "Pins the `days` clause: selecting 90d must produce a fresh days=90 request for velocity and uploads, which only happens if days is part of the query key — drop it and TanStack serves the cached 30d entry. The workspace-id-in-the-key clause is unpinned (no test switches workspace and re-reads the numbers)."
+        },
+        {
+            "id": "insights:I-18",
+            "file": "packages/insights/admin/src/lib/utils/insightsRange/index.spec.ts",
+            "anchor": "falls back to the default on a value it does not offer",
+            "why": "Pins the unknown-value clause at the parser: '90', '90D', '1y' and '__proto__' all resolve to DEFAULT_RANGE."
+        },
+        {
+            "id": "insights:I-18",
+            "file": "apps/admin-e2e/src/insights/insights.spec.ts",
+            "anchor": "the selected range is in the URL, so the view can be shared",
+            "why": "Pins the URL-as-source-of-truth and default-not-written clauses end to end: no ?range= on load, ?range=90d after selecting, the selection surviving a reload, and the param removed rather than rewritten when the default is chosen again. The `replace` (no history entry) and merge-with-existing-params clauses are unpinned."
+        },
+        {
+            "id": "insights:I-24",
+            "file": "apps/admin-e2e/src/insights/announcements.spec.ts",
+            "anchor": "the document outline has no skipped heading level",
+            "why": "Asserts exactly one h1, at least one h2 and one h3, and zero h4 inside main — moving any widget title back to h4 fails it. The error boundary's placeholder h3 is not exercised, since no test makes a widget throw."
+        }
+    ],
+    "judgments": {}
+}

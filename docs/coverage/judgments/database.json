@@ -1,0 +1,210 @@
+{
+    "package": "database",
+    "citations": [
+        {
+            "id": "database:I-01",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('keeps the first pool, and silently keeps the first config with it'",
+            "why": "A second initDatabase with a different connection string and poolMax leaves getPool() identical to the first pool and its options unchanged, so a second pool/Drizzle client per process would fail here."
+        },
+        {
+            "id": "database:I-01",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('closes once the last holder shuts down'",
+            "why": "Two inits then two shutdowns end the pool, and one shutdown does not — the only way that holds is if the repeat init incremented the holder counter."
+        },
+        {
+            "id": "database:I-02",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('names the mistake instead of returning undefined'",
+            "why": "Asserts both getDatabase() and getPool() throw the exact 'Database not initialized. Call initDatabase() first.' message before any init."
+        },
+        {
+            "id": "database:I-03",
+            "file": "apps/server-e2e/src/server/database/connection-pool.spec.ts",
+            "anchor": "it('opens the pool with an explicit ceiling and an explicit wait'",
+            "why": "Reads the live pool's options on a booted app and asserts max is set and connectionTimeoutMillis is both the documented value and strictly greater than zero."
+        },
+        {
+            "id": "database:I-03",
+            "file": "apps/server-e2e/src/server/database/connection-pool.spec.ts",
+            "anchor": "it('fails a checkout it cannot serve instead of waiting forever'",
+            "why": "Holds all DEFAULT_POOL_MAX clients and asserts the next query rejects with a timeout near the configured bound — the 'error on one request, not an unbounded wait' half."
+        },
+        {
+            "id": "database:I-04",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('leaves the pool alone while a second application still holds it'",
+            "why": "Two inits then one shutdown hook: asserts pool.ended is false and getPool() still returns the same pool, so a neighbour in the process keeps its database."
+        },
+        {
+            "id": "database:I-04",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('closes once the last holder shuts down'",
+            "why": "The complementary half — after the second shutdown the pool is ended and the memo cleared, so the last holder out does close the door."
+        },
+        {
+            "id": "database:I-05",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('clears the memo so a later init really opens a new pool'",
+            "why": "After closeDatabase a fresh initDatabase yields a pool that is not the first object and carries the new poolMax, which is only possible if the memo was cleared before end()."
+        },
+        {
+            "id": "database:I-06",
+            "file": "packages/database/src/lib/utils/db.spec.ts",
+            "anchor": "it('never throws out of the hook'",
+            "why": "Makes Pool.end reject and asserts onApplicationShutdown still resolves while Logger.error was called with the failure — exception swallowed, only logged."
+        },
+        {
+            "id": "database:I-07",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('runs the callback in one transaction, and a nested run joins it'",
+            "why": "Compares txid_current() read inside the outer and the nested run and asserts they are equal, and that the nested executor is the same object — a second BEGIN would give a different txid."
+        },
+        {
+            "id": "database:I-08",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('reports whether a unit of work is active, and hands out the base connection outside one'",
+            "why": "Outside run, isActive() is false and uow.current().execute(...) runs a real query against the pool without throwing."
+        },
+        {
+            "id": "database:I-09",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('refuses an append outside a unit of work instead of committing it alone'",
+            "why": "Asserts append outside run rejects with 'must be called inside UnitOfWork.run' and that no row landed in outbox_events."
+        },
+        {
+            "id": "database:I-10",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('rolls the appended events back with the state change that produced them'",
+            "why": "Throws after append inside run and asserts the outbox holds nothing for that aggregate — the rollback half."
+        },
+        {
+            "id": "database:I-10",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('commits the events with the state change that produced them'",
+            "why": "A committing run leaves exactly the two appended rows visible — the commit half."
+        },
+        {
+            "id": "database:I-11",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('is a no-op for an empty event array'",
+            "why": "append([]) inside a run resolves; without the early return Drizzle's insert().values([]) would throw, so the 'no query, no error' pair is what makes this pass."
+        },
+        {
+            "id": "database:I-12",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('rejects the whole unit of work when one append repeats an eventId'",
+            "why": "Asserts the run rejects with Postgres error 23505 (unique violation on the uuid primary key) and that the aggregate's outbox rows are all gone."
+        },
+        {
+            "id": "database:I-13",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('commits the token and its event together, and survives a dead dispatcher'",
+            "why": "suspendOutboxDispatch makes the post-commit drain throw; the mint still returns 201 and the token is listable, and the event sits undispatched rather than lost."
+        },
+        {
+            "id": "database:I-13",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('picks up a row nothing asked it to, once the poll backstop is running'",
+            "why": "Pins the recovery clause: with the backstop stopped nothing is delivered, and once onApplicationBootstrap restarts it the row is delivered with no drain call."
+        },
+        {
+            "id": "database:I-14",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('claims the oldest batch, delivers it, and stamps what it delivered'",
+            "why": "Exactly the 100 rows the subscriber saw are the ones with dispatched_at set, so a stamp that did not follow delivery would fail."
+        },
+        {
+            "id": "database:I-14",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('increments attempts and leaves the row pending when a subscriber throws'",
+            "why": "The 'only after finishing without throwing' half: a throwing subscriber leaves dispatched_at NULL across two drains."
+        },
+        {
+            "id": "database:I-15",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('increments attempts and leaves the row pending when a subscriber throws'",
+            "why": "Pins the increment-and-stay-undelivered clause (attempts 2 after two drains, dispatched_at NULL); the 'the batch's other rows are delivered normally' clause is not pinned — no suite mixes a failing and a succeeding row inside one claimed batch."
+        },
+        {
+            "id": "database:I-15",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('spaces retries out instead of burning the ceiling at commit rate'",
+            "why": "Pins the next_attempt_at clause: after the first failure the row's next_attempt_at is in the future and back-to-back drains do not re-call the subscriber."
+        },
+        {
+            "id": "database:I-16",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('stops claiming a row once it has failed MAX_DELIVERY_ATTEMPTS times'",
+            "why": "Drains MAX_DELIVERY_ATTEMPTS + 3 times with retries forced due and asserts the subscriber was called exactly MAX_DELIVERY_ATTEMPTS times and attempts stopped climbing — the row left the selection."
+        },
+        {
+            "id": "database:I-16",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('does not let a full batch of poison rows starve the events behind them'",
+            "why": "100 parked rows at the head of the queue plus two newer healthy ones: the healthy pair is still delivered, which is exactly the head-of-line clause."
+        },
+        {
+            "id": "database:I-17",
+            "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
+            "anchor": "it('never schedules a retry in the past'",
+            "why": "Asserts nextAttemptAfter(n, now) > now for every n from 1 to MAX_DELIVERY_ATTEMPTS."
+        },
+        {
+            "id": "database:I-17",
+            "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
+            "anchor": "it('doubles with each further failure'",
+            "why": "Pins the curve's shape from the 1-second base: 2s, 4s, 8s, 128s for attempts 2, 3, 4, 8."
+        },
+        {
+            "id": "database:I-17",
+            "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
+            "anchor": "it('plateaus at five minutes rather than running away'",
+            "why": "Asserts the delay caps at 300000ms at the ceiling and stays there for an absurd attempt count."
+        },
+        {
+            "id": "database:I-18",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('collapses concurrent drains instead of running one per caller'",
+            "why": "Five simultaneous drain() calls over a 500-row backlog deliver between one and two batches with no duplicate event id — at most the active drain plus one deferred."
+        },
+        {
+            "id": "database:I-18",
+            "file": "apps/server-e2e/src/server/database/outbox-dispatcher.spec.ts",
+            "anchor": "it('keeps the pool usable when many units of work commit over a backlog'",
+            "why": "Twelve concurrent units of work over a 1200-row backlog, with subscribers that acquire their own client, all resolve and the pool ends with waitingCount 0 — the 'cannot be exhausted by drains' half."
+        },
+        {
+            "id": "database:I-20",
+            "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
+            "anchor": "it('waits for a drain already in flight instead of abandoning it'",
+            "why": "onModuleDestroy is still pending while the gated drain runs and only resolves once the drain has finished."
+        },
+        {
+            "id": "database:I-20",
+            "file": "packages/database/src/lib/outbox/outbox-dispatcher.spec.ts",
+            "anchor": "it('does not throw when the in-flight drain fails'",
+            "why": "A drain that rejects still leaves onModuleDestroy resolving undefined; the 'bounded by one batch' clause is not asserted anywhere."
+        },
+        {
+            "id": "database:I-21",
+            "file": "apps/server-e2e/src/server/database/unit-of-work.spec.ts",
+            "anchor": "it('commits the events with the state change that produced them'",
+            "why": "Two events of kinds nobody subscribes to come back with attempts 0 after the post-commit drain, pinning the attempts clause; the 'marked delivered immediately' clause is not pinned — the test never reads dispatched_at."
+        },
+        {
+            "id": "database:I-22",
+            "file": "packages/database/src/lib/events/domain-event.spec.ts",
+            "anchor": "it('merges the actor into each payload without touching the inputs'",
+            "why": "Asserts the actor lands under the `actor` key of the returned payload while the input event, its payload and the array itself are untouched and not the same objects."
+        },
+        {
+            "id": "database:I-22",
+            "file": "packages/database/src/lib/events/domain-event.spec.ts",
+            "anchor": "it('overwrites an actor a producer had already put on the payload'",
+            "why": "A payload that already carried `actor` comes back with the application layer's actor instead — the overwrite clause."
+        }
+    ],
+    "judgments": {}
+}

@@ -1,0 +1,336 @@
+{
+    "package": "api-tokens",
+    "citations": [
+        {
+            "id": "api-tokens:I-01",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('mints a token and returns the plaintext exactly once'",
+            "why": "Asserts the create response carries the secret and the subsequent list response carries neither `secret` nor `tokenHash`, only `lookupPrefix`."
+        },
+        {
+            "id": "api-tokens:I-01",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('never writes the secret or its hash into the log'",
+            "why": "Serialises every token.* activity row and asserts it contains neither the plaintext nor its SHA-256 — the 'no log' clause."
+        },
+        {
+            "id": "api-tokens:I-01",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "it('lets no event of any kind carry the secret or its hash'",
+            "why": "Sweeps every domain event the service emits for the secret and its hash — the 'no event' clause."
+        },
+        {
+            "id": "api-tokens:I-02",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('stores the SHA-256 of the secret, never the secret'",
+            "why": "Reads the stored column back out of Postgres and asserts it equals sha256(secret), is 64 hex chars, and is not the secret; the lookup_prefix is only a prefix."
+        },
+        {
+            "id": "api-tokens:I-03",
+            "file": "apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts",
+            "anchor": "the plaintext is gone from the client once the dialog is dismissed",
+            "why": "After dismissal it walks the live app and asserts the secret is in none of the mutation cache, query cache, localStorage, sessionStorage, the URL or the DOM."
+        },
+        {
+            "id": "api-tokens:I-03",
+            "file": "packages/api-tokens/admin/src/lib/application/useApiTokensMutation/index.spec.tsx",
+            "anchor": "drops the plaintext from the mutation cache as soon as the page lets go",
+            "why": "Pins the mechanism behind the e2e assertion: the create mutation's cached result holding the secret is gone on unmount (gcTime: 0)."
+        },
+        {
+            "id": "api-tokens:I-04",
+            "file": "apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts",
+            "anchor": "Done asks before discarding an uncopied secret",
+            "why": "The footer button raises the uncopied warning and keeps the dialog open instead of closing."
+        },
+        {
+            "id": "api-tokens:I-04",
+            "file": "apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts",
+            "anchor": "Escape asks too — every dismissal path funnels through the guard",
+            "why": "Esc raises the same warning and the dialog stays open — the keyboard exit clause."
+        },
+        {
+            "id": "api-tokens:I-04",
+            "file": "apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts",
+            "anchor": "the backdrop asks too — a stray click must not cost a credential",
+            "why": "A backdrop click raises the warning and the secret field still holds the value — the backdrop exit clause."
+        },
+        {
+            "id": "api-tokens:I-04",
+            "file": "apps/admin-e2e/src/api-tokens/reveal-secret.spec.ts",
+            "anchor": "the corner X asks too, so no exit is unguarded",
+            "why": "The DialogContent close button raises the warning too — the fourth exit clause."
+        },
+        {
+            "id": "api-tokens:I-05",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('rejects an empty workspace bucket'",
+            "why": "POST with workspaceIds: [] answers 400 — the 'empty set rejected at issue' clause. NOT pinned: 'the token row and its set are written in one transaction' — the service spec only proves repo.insert runs inside the UnitOfWork, and the repository's own bucket write has no test."
+        },
+        {
+            "id": "api-tokens:I-05",
+            "file": "packages/api-tokens/admin/src/lib/presentation/components/CreateApiTokenDialog/index.spec.tsx",
+            "anchor": "still refuses with a name but no workspace",
+            "why": "The submit stays disabled with a name but an empty workspace set — the 'cannot be submitted from the form' clause."
+        },
+        {
+            "id": "api-tokens:I-05",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "403s a token whose every workspace has been deleted",
+            "why": "Deletes the token's only workspace through the real route, then asserts 403 whose message names 'no workspaces left' and that the token is emphatically not revoked — the reachable-empty-basket clause."
+        },
+        {
+            "id": "api-tokens:I-06",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "collapses duplicate workspace ids",
+            "why": "A body naming the same workspace twice comes back with a single-element workspaceIds in the response."
+        },
+        {
+            "id": "api-tokens:I-06",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "collapses duplicate workspace ids",
+            "why": "Asserts the deduped set is what reaches repo.insert, so the response is what was actually granted rather than a cosmetic dedupe."
+        },
+        {
+            "id": "api-tokens:I-07",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('rejects a bucket naming a workspace that does not exist'",
+            "why": "A phantom workspace id answers 400 naming the id, and no token row is created."
+        },
+        {
+            "id": "api-tokens:I-07",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "skips the check entirely when no directory is bound",
+            "why": "With no WORKSPACE_DIRECTORY provided, a mint naming an unknown workspace resolves rather than throwing — the second clause."
+        },
+        {
+            "id": "api-tokens:I-08",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "still accepts an archived workspace — existence, not status",
+            "why": "Archives the workspace through the real helper and asserts the mint still 201s."
+        },
+        {
+            "id": "api-tokens:I-09",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "treats an omitted and an explicitly null expiry the same",
+            "why": "Both spellings of 'no expiry' mint a token whose expiresAt reads back null — the regression the invariant narrates."
+        },
+        {
+            "id": "api-tokens:I-09",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "rejects an expiry in the past",
+            "why": "A past ISO timestamp answers 400."
+        },
+        {
+            "id": "api-tokens:I-09",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "rejects an expiry that is not a timestamp",
+            "why": "A non-ISO string answers 400 and mints nothing — the 'not a valid ISO timestamp' clause."
+        },
+        {
+            "id": "api-tokens:I-10",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "keeps a revoked token dead despite an expiry still in the future",
+            "why": "The token authenticates before the revoke and 401s after, while its expires_at is still in the future — revocation beats expiry on the server side."
+        },
+        {
+            "id": "api-tokens:I-10",
+            "file": "packages/api-tokens/admin/src/lib/infrastructure/apiTokenMapper/index.spec.ts",
+            "anchor": "reports a revoked token as revoked even while its expiry is in the future",
+            "why": "The status is computed by the mapper from revokedAt/expiresAt (no status field on the wire), and revocation wins."
+        },
+        {
+            "id": "api-tokens:I-11",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "leaves revoked_at where it was when the revoke is replayed",
+            "why": "A second DELETE answers 204 and revokedAt reads back byte-identical to the first."
+        },
+        {
+            "id": "api-tokens:I-11",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "audits a replayed revoke once, not once per call",
+            "why": "Two DELETEs leave exactly one token.revoked activity row — only the killing call writes an event."
+        },
+        {
+            "id": "api-tokens:I-12",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('commits the token and its event together, and survives a dead dispatcher'",
+            "why": "With the outbox dispatcher suspended the token exists and its api_token.created row sits undispatched, then delivers exactly once on drain — no token without an audit row."
+        },
+        {
+            "id": "api-tokens:I-12",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "writes no audit row when the mint is rejected",
+            "why": "A rejected mint leaves both the token table and the activity log empty — no audit row without a token."
+        },
+        {
+            "id": "api-tokens:I-13",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "records token.created when a token is minted",
+            "why": "Pins the payload's field set — name, scope, lookupPrefix and the workspace ids — as what the event carries."
+        },
+        {
+            "id": "api-tokens:I-13",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('never writes the secret or its hash into the log'",
+            "why": "The negative half: no token.* row's serialisation contains the secret or its SHA-256."
+        },
+        {
+            "id": "api-tokens:I-14",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-bearer.spec.ts",
+            "anchor": "it('401s a bearer token minting another token — no self-issue'",
+            "why": "A token proven live against /api/v1 in the same suite still 401s on POST /api/api-tokens, and nothing is minted behind the refusal."
+        },
+        {
+            "id": "api-tokens:I-14",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "does not open the management API to a bearer token",
+            "why": "A full-scope bearer 401s on GET /api/api-tokens — the 'whatever its scope' clause."
+        },
+        {
+            "id": "api-tokens:I-14",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "it('gates management on the tokens permissions'",
+            "why": "A logged-in session with an empty role gets 403 on both list and create — the session must hold a tokens:* permission."
+        },
+        {
+            "id": "api-tokens:I-15",
+            "file": "packages/content/server/src/lib/public-api/http/guards/api-token.guard.spec.ts",
+            "anchor": "hands the policy the token as actor and the route keys as permissions",
+            "why": "Asserts the guard calls AccessPolicy.canAll with exactly tokenActor(token) and the route's @RequirePermissions keys, rather than deciding from the scope itself. The 'one AccessPolicy shared with the session path' claim is structural and only implied by the sibling test using the real policy."
+        },
+        {
+            "id": "api-tokens:I-15",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "refuses every write to a read-only token",
+            "why": "End to end: a read-scoped token is 403ed (not 401ed) on create, update, publish, unpublish and delete, which is the scope-expanded-into-permissions decision landing on the real routes."
+        },
+        {
+            "id": "api-tokens:I-16",
+            "file": "packages/identity/server/src/lib/api-tokens/domain/api-token-scope.spec.ts",
+            "anchor": "identifies the actor by the token, never by the minting user",
+            "why": "tokenActor().userId is the token id and explicitly not createdBy, so no access decision can reach the creator's role. NOT pinned: the 'createdBy is used only as attribution on a write' half (e.g. media uploaded_by)."
+        },
+        {
+            "id": "api-tokens:I-16",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-writes.spec.ts",
+            "anchor": "refuses every write to a read-only token",
+            "why": "The token is minted by an admin session holding the full content CRUD set; every write it attempts is still 403, so the creator's role took no part."
+        },
+        {
+            "id": "api-tokens:I-17",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "answers unknown, revoked and expired with byte-identical 401s",
+            "why": "Compares the response bodies of the three refusals for equality, not just their status codes."
+        },
+        {
+            "id": "api-tokens:I-18",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "403s a foreign X-Workspace-Id even on a single-workspace token",
+            "why": "A single-workspace token sending a foreign workspace header gets 403, while its own id is accepted — exactly the invariant's 'even if the token covers exactly one workspace'."
+        },
+        {
+            "id": "api-tokens:I-19",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "requires X-Workspace-Id when the token covers several",
+            "why": "A two-workspace token with no header answers 400 rather than picking one."
+        },
+        {
+            "id": "api-tokens:I-19",
+            "file": "apps/server-e2e/src/server/api-tokens/public-content-api.spec.ts",
+            "anchor": "defaults to the only workspace of a single-workspace token",
+            "why": "With one workspace the header is unnecessary and the read resolves to that workspace's content."
+        },
+        {
+            "id": "api-tokens:I-20",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-management.spec.ts",
+            "anchor": "lists a multi-workspace token under each of its workspaces",
+            "why": "The same token is counted once under each of its two workspaces (totals 2 and 1), so the filter is set membership."
+        },
+        {
+            "id": "api-tokens:I-20",
+            "file": "packages/identity/server/src/lib/api-tokens/infrastructure/persistence/drizzle-api-token.repository.spec.ts",
+            "anchor": "returns a multi-workspace token exactly once, with its whole bucket",
+            "why": "Pins the query shape: a set-membership subquery rather than a join, so a multi-workspace row is not duplicated."
+        },
+        {
+            "id": "api-tokens:I-21",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "leaves it alone one millisecond short of the interval",
+            "why": "With fake timers, a use 59,999 ms old touches nothing while a full 60,000 ms one does (sibling test) — the once-a-minute bound."
+        },
+        {
+            "id": "api-tokens:I-21",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "resolves without waiting for the touch to finish",
+            "why": "verify() resolves against a never-settling touch — the 'never blocks the request' clause."
+        },
+        {
+            "id": "api-tokens:I-21",
+            "file": "packages/identity/server/src/lib/api-tokens/application/api-token.service.spec.ts",
+            "anchor": "still returns the token when the touch rejects",
+            "why": "A throwing touch still resolves verify() and raises no unhandled rejection — the 'never fails it if the write errors' clause."
+        },
+        {
+            "id": "api-tokens:I-21",
+            "file": "apps/server-e2e/src/server/api-tokens/api-tokens-last-used.spec.ts",
+            "anchor": "writes one row for two requests inside the same minute",
+            "why": "The throttle holds over the real /api/v1 path: two authenticated requests leave one token.used row and an unchanged last_used_at."
+        },
+        {
+            "id": "api-tokens:I-22",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "without tokens:read the page refuses and never asks the API",
+            "why": "Asserts the no-access screen and that the mocked list route received zero calls — 'not a single request'."
+        },
+        {
+            "id": "api-tokens:I-22",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "without tokens:create a populated page offers no way in either",
+            "why": "With tokens:read only, the loaded table renders and the New token button is absent — the 'no issue buttons' clause."
+        },
+        {
+            "id": "api-tokens:I-22",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "without tokens:delete the actions column is absent entirely",
+            "why": "Asserts seven column headers and no actions header, against the eight a permitted admin gets in the sibling control test."
+        },
+        {
+            "id": "api-tokens:I-23",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "a failed list gets its own state, not the empty one",
+            "why": "A 500 on the list shows the error alert with the empty-state heading and the table both absent."
+        },
+        {
+            "id": "api-tokens:I-23",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "a broken workspace fetch says so instead of reading as empty",
+            "why": "A failed workspace fetch inside the create dialog renders the workspaces error rather than the selector's 'no workspaces' text; the sibling test asserts the converse."
+        },
+        {
+            "id": "api-tokens:I-24",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "the page lives in the URL, so it is linkable and survives a reload",
+            "why": "Paging writes ?page=2 into the URL and a reload lands back on page 2."
+        },
+        {
+            "id": "api-tokens:I-24",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "a deep link past the end clamps back to the last page",
+            "why": "?page=9 over a two-page list resolves to page 2 and rewrites the URL."
+        },
+        {
+            "id": "api-tokens:I-24",
+            "file": "apps/admin-e2e/src/api-tokens/api-tokens.spec.ts",
+            "anchor": "a nonsense ?page= lands on the first page rather than an error",
+            "why": "abc, 0 and -3 each render page 1 with no error alert — the 'invalid value collapses to the first page' clause."
+        },
+        {
+            "id": "api-tokens:I-25",
+            "file": "apps/admin-e2e/src/api-tokens/keyboard.spec.ts",
+            "anchor": "a revoke lands focus somewhere real instead of on the body",
+            "why": "After a keyboard-driven revoke unmounts the kebab, it polls the focused element and asserts it is not BODY."
+        }
+    ],
+    "judgments": {}
+}

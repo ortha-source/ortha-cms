@@ -1,0 +1,143 @@
+{
+    "package": "shell",
+    "citations": [
+        {
+            "id": "shell:I-01",
+            "file": "apps/admin/src/plugins.spec.ts",
+            "anchor": "has exactly one plugin contributing a layout, and it is the shell",
+            "why": "Filters buildPlugins() for a `layout` and asserts the contributor list is exactly ['shell'], so a second layout contributor (or a non-shell one) fails."
+        },
+        {
+            "id": "shell:I-02",
+            "file": "apps/admin-e2e/src/auth/private-routes.spec.ts",
+            "anchor": "redirects a signed-out user from / to the sign-in page",
+            "why": "Pins the hazard the invariant names: with RequireAuth outside AuthProvider, useAuth falls back to Loading forever and RequireAuth renders the AppLoader, so the asserted redirect to /identity/signin never happens. AppShell's position inside the gate is not separately pinned."
+        },
+        {
+            "id": "shell:I-03",
+            "file": "apps/admin/src/plugins.spec.ts",
+            "anchor": "gives identity the only public routes, so the sign-in page renders outside the gate",
+            "why": "Asserts the set of plugins owning a `public` route is exactly ['identity'], so shell's `/` (or any shell route) carrying public:true fails. The second clause — the catch-all redirect being mounted inside the layout — is bootstrap-admin's and is not pinned here."
+        },
+        {
+            "id": "shell:I-05",
+            "file": "packages/utils/admin/src/lib/slot/index.spec.ts",
+            "anchor": "is idempotent — running it again does not double anything",
+            "why": "Runs wireSlotContributions three times over the same contributions and asserts the slot still holds one item — exactly the hot-reload doubling the invariant forbids. That the wiring runs before the first render is bootstrap's ordering and is not pinned."
+        },
+        {
+            "id": "shell:I-05",
+            "file": "packages/utils/admin/src/lib/slot/index.spec.ts",
+            "anchor": "does not drop an earlier contribution to the same slot",
+            "why": "Three contributions to one slot must all survive, which fails the moment `_reset` is folded into the registration loop instead of being a separate pass."
+        },
+        {
+            "id": "shell:I-06",
+            "file": "packages/utils/admin/src/lib/slot/index.spec.ts",
+            "anchor": "does not let a consumer mutate the slot through the returned array",
+            "why": "Pushes, sorts and truncates the array getItems() handed back and asserts the slot's own contents are unchanged — the copy semantics the invariant states."
+        },
+        {
+            "id": "shell:I-07",
+            "file": "packages/utils/admin/src/lib/byOrder/index.spec.ts",
+            "anchor": "keeps registration order for ties, so slot order is stable",
+            "why": "Pins the stability clause: equal `order` keeps registration order. The other clause — that the shell's sidebar/palette actually read their slots through byOrder, and the resulting Overview/Directory row order — is not pinned by any test."
+        },
+        {
+            "id": "shell:I-08",
+            "file": "apps/admin-e2e/src/users/members.spec.ts",
+            "anchor": "offers the Members nav entry only to someone who can read it",
+            "why": "Signs in with users:read and asserts the Members row is visible in the Primary nav, then with no permissions and asserts it is gone — the permission-gated half of the rule. The palette half (the same rule inside SidebarSearch) is not pinned anywhere."
+        },
+        {
+            "id": "shell:I-13",
+            "file": "apps/admin-e2e/src/copilot/dock.spec.ts",
+            "anchor": "is the entry point, and opens a window focused on the composer",
+            "why": "Runs on a content-library route inside a workspace — where WorkspaceNav has taken over the sidebar's contextual area — and asserts the dock is on screen; CopilotLauncher is contributed only to SIDEBAR_FOOTER_SLOT, so a footer rendered inside the overridable region would unmount it and this fails."
+        },
+        {
+            "id": "shell:I-13",
+            "file": "apps/admin-e2e/src/users/account-menu.spec.ts",
+            "anchor": "shows the signed-in account in the toolbar dropdown",
+            "why": "The other context: the same footer slot's AccountMenu asserted on a global route, where GlobalSidebar owns the contextual area."
+        },
+        {
+            "id": "shell:I-18",
+            "file": "apps/admin-e2e/src/shell/right-panel.spec.ts",
+            "anchor": "collapsing it from the keyboard hands focus to the reopen button",
+            "why": "Collapses from the panel's own Hide button and asserts the top bar's Show button holds focus — the collapse direction of the handoff."
+        },
+        {
+            "id": "shell:I-18",
+            "file": "apps/admin-e2e/src/shell/right-panel.spec.ts",
+            "anchor": "reopening it from the keyboard hands focus back into the panel",
+            "why": "The reopen direction: pressing the bar's Show button must leave focus on the panel's Hide button, which is the clause a collapse-only handoff would miss."
+        },
+        {
+            "id": "shell:I-21",
+            "file": "apps/admin-e2e/src/shell/right-panel.spec.ts",
+            "anchor": "a collapse the user never asked for is not persisted as a preference",
+            "why": "Stores 'open' on a wide viewport, reloads at 390px and waits for the collapsed-state Show button (so the panel started collapsed despite storage), then asserts localStorage still reads 'open' (so the forced value was not written back). Both clauses."
+        },
+        {
+            "id": "shell:I-22",
+            "file": "apps/admin-e2e/src/shell/right-panel.spec.ts",
+            "anchor": "Escape dismisses it",
+            "why": "The panel is role=\"dialog\" on this breakpoint, so dropping the `:not(#app-right-panel)` exclusion makes the handler find the panel itself, yield, and leave Esc inert — the asserted collapse never happens."
+        },
+        {
+            "id": "shell:I-23",
+            "file": "apps/admin-e2e/src/shell/right-panel.spec.ts",
+            "anchor": "the scrim is decoration, not an unreachable control",
+            "why": "Asserts the scrim's tagName is not BUTTON, so reintroducing the hidden, keyboard-unreachable button fails. Its aria-hidden attribute is assumed by the locator rather than asserted."
+        },
+        {
+            "id": "shell:I-25",
+            "file": "apps/admin-e2e/src/host/host.spec.ts",
+            "anchor": "the first Tab reaches a visible skip link",
+            "why": "A single Tab from a freshly loaded private route must land on the skip link — i.e. it is the document's first focusable element — and it must be visible once focused."
+        },
+        {
+            "id": "shell:I-25",
+            "file": "apps/admin-e2e/src/host/host.spec.ts",
+            "anchor": "activating it puts focus inside main, past the sidebar",
+            "why": "Activating the link must move focus onto <main>, which only happens because the target carries tabIndex={-1} — the second clause."
+        },
+        {
+            "id": "shell:I-26",
+            "file": "apps/admin-e2e/src/shell/command-palette.spec.ts",
+            "anchor": "leaves the caret alone when a page search field has it",
+            "why": "Pins the ⌘K third of the invariant: with the caret in a page search box the palette must not open and the keystroke must reach the field. ⌘B and ⌘J are not pinned anywhere, nor is the claim that one shared function performs the check."
+        },
+        {
+            "id": "shell:I-27",
+            "file": "apps/admin-e2e/src/shell/command-palette.spec.ts",
+            "anchor": "closing it with Escape gives focus back to the trigger",
+            "why": "The restore half: closing without navigating puts focus back where it was."
+        },
+        {
+            "id": "shell:I-27",
+            "file": "apps/admin-e2e/src/shell/command-palette.spec.ts",
+            "anchor": "choosing a result does not drag focus back to the sidebar",
+            "why": "The deliberate non-restore half: after navigating from a result the sidebar's search trigger must not be focused."
+        },
+        {
+            "id": "shell:I-29",
+            "file": "apps/admin-e2e/src/host/host.spec.ts",
+            "anchor": "the sidebar is a named landmark",
+            "why": "Resolves the sidebar by role=complementary and the translated name 'Sidebar', so dropping or failing to translate the `label` prop fails. mobileTitle, mobileDescription and scrollLabel ('Page content') are asserted nowhere — the scrollport is only pinned as focusable, by data-slot, not by its name."
+        },
+        {
+            "id": "shell:I-32",
+            "file": "apps/admin-e2e/src/host/host.spec.ts",
+            "anchor": "activating it puts focus inside main, past the sidebar",
+            "why": "HostPage.main is page.getByRole('main'); a second <main> makes that locator resolve two nodes and toBeFocused() fails with a Playwright strict-mode violation."
+        }
+    ],
+    "judgments": {
+        "shell:I-09": {
+            "state": "not-mechanically-checkable",
+            "reason": "Calling useHasPermission unconditionally is an implementation-shape rule (react-hooks/rules-of-hooks), not observable behaviour. Each nav row is its own component instance and `item.permission` is fixed for that instance's whole life, so a conditional call would never change the hook order within any single component and produces no difference a test harness could see — only lint can catch it."
+        }
+    }
+}

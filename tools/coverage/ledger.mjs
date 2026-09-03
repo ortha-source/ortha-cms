@@ -332,33 +332,54 @@ function apply(args) {
             continue;
         }
         const lines = readFileSync(abs, 'utf8').split('\n');
-        // Group by anchor so several ids landing on one title are written once.
+        // Anchors are matched against a snapshot, never against the running
+        // edit. Two packages routinely cite the same test line, and an anchor
+        // that includes the closing quote (`it('foo'`) stops matching the moment
+        // another package's id is inserted into that title — which silently
+        // dropped nine citations before this was caught.
+        const original = [...lines];
+
         const byAnchor = new Map();
         for (const c of cs) {
             if (!byAnchor.has(c.anchor)) byAnchor.set(c.anchor, []);
             byAnchor.get(c.anchor).push(c.id);
         }
+
+        const edits = [];
         for (const [anchor, ids] of byAnchor) {
-            const i = lines.findIndex((l) => l.includes(anchor));
-            if (i < 0) {
+            const at = original.findIndex((l) => l.includes(anchor));
+            if (at < 0) {
                 console.error(`!! ${file}: anchor not found — ${anchor.slice(0, 60)}`);
                 skipped += ids.length;
                 continue;
             }
-            const fresh = ids.filter((id) => !lines[i].includes(id) && !(lines[i - 1] ?? '').includes(id));
+            edits.push({ at, ids });
+        }
+
+        // Several anchors can land on one line; merge so it is rewritten once.
+        const merged = new Map();
+        for (const e of edits) merged.set(e.at, [...(merged.get(e.at) ?? []), ...e.ids]);
+
+        // Bottom-up, so inserting a `// covers:` line above one edit cannot
+        // shift the index of an edit still to come.
+        for (const at of [...merged.keys()].sort((a, b) => b - a)) {
+            const ids = merged.get(at);
+            const fresh = ids.filter((id) => !lines[at].includes(id) && !(lines[at - 1] ?? '').includes(id));
             if (!fresh.length) continue;
-            const title = /^(\s*(?:describe|it|test)(?:\.\w+)?\s*\(\s*)(['"`])((?:\\.|(?!\2).)*)\2/.exec(lines[i]);
+            const title = /^(\s*(?:describe|it|test)(?:\.\w+)?\s*\(\s*)(['"`])((?:\\.|(?!\2).)*)\2/.exec(lines[at]);
             if (title) {
-                lines[i] =
-                    lines[i].slice(0, title[1].length) +
-                    title[2] +
+                const head = title[1].length;
+                const q = title[2];
+                lines[at] =
+                    lines[at].slice(0, head) +
+                    q +
                     title[3] +
                     ` [${fresh.join('] [')}]` +
-                    title[2] +
-                    lines[i].slice(title[1].length + title[2].length + title[3].length + title[2].length);
+                    q +
+                    lines[at].slice(head + q.length + title[3].length + q.length);
             } else {
-                const indent = /^\s*/.exec(lines[i])[0];
-                lines.splice(i, 0, `${indent}// covers: ${fresh.join(', ')}`);
+                const indent = /^\s*/.exec(lines[at])[0];
+                lines.splice(at, 0, `${indent}// covers: ${fresh.join(', ')}`);
             }
             done += fresh.length;
         }

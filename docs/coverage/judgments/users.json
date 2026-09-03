@@ -1,0 +1,324 @@
+{
+    "package": "users",
+    "citations": [
+        {
+            "id": "users:I-01",
+            "file": "apps/server-e2e/src/server/users/update-user.spec.ts",
+            "anchor": "refuses to demote the last remaining admin with 409",
+            "why": "PATCHing the sole active admin down to viewer is answered 409 and the role is asserted unchanged, so the last admin cannot be demoted."
+        },
+        {
+            "id": "users:I-01",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "refuses to disable the only active admin with 409",
+            "why": "Disabling the sole active admin is answered 409 and the account is asserted still active, pinning the other half of the guard."
+        },
+        {
+            "id": "users:I-01",
+            "file": "apps/server-e2e/src/server/users/update-user.spec.ts",
+            "anchor": "leaves one admin standing when two demotions race",
+            "why": "Two concurrent demotions of the last two admins end with exactly one admin left, which only holds if the count is read under the lock rather than count-then-write."
+        },
+        {
+            "id": "users:I-01",
+            "file": "packages/users/server/src/lib/member/application/use-cases/set-member-status.use-case.spec.ts",
+            "anchor": "loads under the admin lock and reads the count after it",
+            "why": "Asserts the ordering the invariant names: the aggregate is loaded with the global active-admin lock taken and the counter is read after it."
+        },
+        {
+            "id": "users:I-02",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "refuses to let a member disable themselves with 409",
+            "why": "An admin disabling their own id gets 409 and stays active."
+        },
+        {
+            "id": "users:I-02",
+            "file": "apps/server-e2e/src/server/users/update-user.spec.ts",
+            "anchor": "tags a self role change as SELF_ACTION",
+            "why": "PATCHing your own role is refused with 409/SELF_ACTION."
+        },
+        {
+            "id": "users:I-02",
+            "file": "apps/server-e2e/src/server/users/update-user.spec.ts",
+            "anchor": "lets a member rename themselves",
+            "why": "Pins the positive clause: a self-PATCH that only changes name succeeds and persists."
+        },
+        {
+            "id": "users:I-03",
+            "file": "packages/users/server/src/lib/member/application/use-cases/set-member-status.use-case.spec.ts",
+            "anchor": "sessions inside the transaction, after the save",
+            "why": "Asserts the session revoke is invoked inside the unit of work and after the aggregate save, so the two cannot commit separately."
+        },
+        {
+            "id": "users:I-03",
+            "file": "packages/users/server/src/lib/member/application/use-cases/set-member-status.use-case.spec.ts",
+            "anchor": "propagates a failing revoke out of the unit of work",
+            "why": "A throwing session revoker aborts the whole unit of work, ruling out the 'disabled but sessions alive' state."
+        },
+        {
+            "id": "users:I-03",
+            "file": "apps/server-e2e/src/server/users/disable-login-race.spec.ts",
+            "anchor": "leaves no usable credential behind, whichever side wins",
+            "why": "End-to-end: a login racing a disable never leaves a live session on a disabled account, whichever order the two commit in."
+        },
+        {
+            "id": "users:I-04",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "rotates the invite token, keeping exactly one live",
+            "why": "After a resend the invite-token rows for the user are asserted to number exactly one, and to be a different hash."
+        },
+        {
+            "id": "users:I-04",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "keeps one live token when two resends race",
+            "why": "Two concurrent resends leave exactly one token row, which is the per-user lock doing its job."
+        },
+        {
+            "id": "users:I-04",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.spec.ts",
+            "anchor": "takes the advisory lock before touching any row",
+            "why": "Asserts the delete+insert pair happens after the per-user advisory lock is taken."
+        },
+        {
+            "id": "users:I-04",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/password-reset-token.service.spec.ts",
+            "anchor": "takes the advisory lock before touching any row",
+            "why": "Same assertion for the reset token, pinning the 'at most one reset token' half."
+        },
+        {
+            "id": "users:I-05",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.spec.ts",
+            "anchor": "stores only the SHA-256, and returns the raw token exactly once",
+            "why": "The stored row carries only the hash and the raw token is handed back once by the rotate call."
+        },
+        {
+            "id": "users:I-05",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/password-reset-token.service.spec.ts",
+            "anchor": "stores only the SHA-256, and returns the raw token exactly once",
+            "why": "Same for the reset token."
+        },
+        {
+            "id": "users:I-05",
+            "file": "apps/server-e2e/src/server/users/list-users.spec.ts",
+            "anchor": "returns the paginated envelope with the expected shape",
+            "why": "Asserts the exact key set of a member in the list read, so a raw token appearing on that read would fail it; the 'exactly three routes' enumeration is not itself pinned anywhere."
+        },
+        {
+            "id": "users:I-05",
+            "file": "apps/server-e2e/src/server/auth/accept-invite.spec.ts",
+            "anchor": "hands the raw token back exactly once, on invite",
+            "why": "The invite response carries the raw token and the subsequent reads of that invite do not."
+        },
+        {
+            "id": "users:I-06",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "refuses a resend issued moments ago, with a machine code",
+            "why": "A resend inside the window is 409 with code INVITE_RECENTLY_SENT and a retryAfterSeconds bounded by 60, and the existing token is untouched."
+        },
+        {
+            "id": "users:I-06",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/invite-token.service.spec.ts",
+            "anchor": "refuses a rotation inside the cooldown, having already taken the lock",
+            "why": "Pins that the cooldown check runs after the advisory lock is taken, i.e. inside the same lock as the rotation."
+        },
+        {
+            "id": "users:I-06",
+            "file": "packages/users/server/src/lib/member/infrastructure/persistence/password-reset-token.service.spec.ts",
+            "anchor": "refuses an issue inside the cooldown, having already taken the lock",
+            "why": "Same ordering for the password-reset rotation."
+        },
+        {
+            "id": "users:I-07",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "revokes a pending invite, deleting the placeholder user (204)",
+            "why": "The pending row is the one the route deletes, asserted gone from the users table."
+        },
+        {
+            "id": "users:I-07",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "refuses to revoke an active member with 409",
+            "why": "A real account is refused, pinning 'a real account is never deleted' for the active case."
+        },
+        {
+            "id": "users:I-07",
+            "file": "packages/users/server/src/lib/member/domain/member.spec.ts",
+            "anchor": "rejects revoking a non-pending member",
+            "why": "The aggregate refuses revokeInvite for every non-pending status, covering disabled as well as active."
+        },
+        {
+            "id": "users:I-08",
+            "file": "packages/users/server/src/lib/member/domain/member.spec.ts",
+            "anchor": "rejects a pending member — there is no password to reset yet",
+            "why": "ensureCanResetPassword throws for pending; the HTTP status for this path is only pinned generically by conflict.spec, not end to end."
+        },
+        {
+            "id": "users:I-08",
+            "file": "packages/users/server/src/lib/member/domain/member.spec.ts",
+            "anchor": "rejects a disabled member — a reset must not reopen a closed account",
+            "why": "ensureCanResetPassword throws for disabled."
+        },
+        {
+            "id": "users:I-08",
+            "file": "packages/users/server/src/lib/member/application/use-cases/issue-password-reset.use-case.spec.ts",
+            "anchor": "returns the raw token for an active member",
+            "why": "Pins the positive half: only the active member gets a link minted."
+        },
+        {
+            "id": "users:I-09",
+            "file": "apps/server-e2e/src/server/users/manage-invites.spec.ts",
+            "anchor": "rejects resending to an active member with 409",
+            "why": "Resend is refused for a non-pending member."
+        },
+        {
+            "id": "users:I-09",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "rejects disabling an already-disabled member with 409",
+            "why": "Disable is refused for a non-active member."
+        },
+        {
+            "id": "users:I-09",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "rejects enabling an already-active member with 409",
+            "why": "Enable is refused for an active member."
+        },
+        {
+            "id": "users:I-09",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "rejects enabling a pending member with 409",
+            "why": "Enable is refused for a pending member, completing 're-enabling only for disabled'."
+        },
+        {
+            "id": "users:I-10",
+            "file": "apps/server-e2e/src/server/auth/email-uniqueness.spec.ts",
+            "anchor": "refuses a second row differing only in case",
+            "why": "Inserts directly into the users table, bypassing every application check, and asserts the database itself raises a duplicate-key error — which is the invariant's point that the guarantee is the lower(email) index."
+        },
+        {
+            "id": "users:I-10",
+            "file": "apps/server-e2e/src/server/users/invite-user.spec.ts",
+            "anchor": "treats an existing email case-insensitively (409)",
+            "why": "Inviting a differently-cased duplicate through the route is a 409."
+        },
+        {
+            "id": "users:I-10",
+            "file": "apps/server-e2e/src/server/users/invite-user.spec.ts",
+            "anchor": "lets only one of two concurrent invites to one address through",
+            "why": "Two concurrent invites to one address leave exactly one row, which no in-code check could guarantee."
+        },
+        {
+            "id": "users:I-11",
+            "file": "packages/users/server/src/lib/member/application/dto/invite-member.dto.spec.ts",
+            "anchor": "rejects a whitespace-only name — trimmed first, so isNotEmpty sees it",
+            "why": "The invite DTO trims before validating, so a spaces-only name fails validation."
+        },
+        {
+            "id": "users:I-11",
+            "file": "packages/users/server/src/lib/member/application/dto/update-member.dto.spec.ts",
+            "anchor": "rejects a whitespace-only name — trimmed first, so isNotEmpty sees it",
+            "why": "The patch DTO does the same, pinning the 'both DTOs' clause."
+        },
+        {
+            "id": "users:I-12",
+            "file": "packages/users/server/src/lib/users.module.spec.ts",
+            "anchor": "binds OriginGuard when it has a state-changing handler",
+            "why": "Iterates every controller the module mounts and asserts OriginGuard is bound exactly when the controller has a non-GET handler."
+        },
+        {
+            "id": "users:I-12",
+            "file": "packages/users/server/src/lib/users.module.spec.ts",
+            "anchor": "binds PermissionsGuard",
+            "why": "Every mounted controller is asserted to bind PermissionsGuard."
+        },
+        {
+            "id": "users:I-12",
+            "file": "packages/users/server/src/lib/users.module.spec.ts",
+            "anchor": "requires a permission from the shared catalogue",
+            "why": "Every controller declares at least one permission and each one is a member of the shared PERMISSIONS catalogue, pinning 'with a permission constant'."
+        },
+        {
+            "id": "users:I-12",
+            "file": "packages/users/server/src/lib/users.module.spec.ts",
+            "anchor": "exposes no public route",
+            "why": "No controller or handler carries @Public(), pinning 'the package has no public routes'."
+        },
+        {
+            "id": "users:I-13",
+            "file": "packages/users/server/src/lib/utils/users-plugin.spec.ts",
+            "anchor": "ships no migrations — it owns no schema",
+            "why": "Pins the first clause off the plugin descriptor; the second clause (every write lands in an identity- or workspaces-migrated table) is not asserted anywhere."
+        },
+        {
+            "id": "users:I-14",
+            "file": "packages/users/server/src/lib/member/application/use-cases/update-member.use-case.spec.ts",
+            "anchor": "appends both facts when a patch changes name and role",
+            "why": "A patch touching both fields appends exactly the two corresponding events, no more."
+        },
+        {
+            "id": "users:I-14",
+            "file": "packages/users/server/src/lib/member/application/use-cases/update-member.use-case.spec.ts",
+            "anchor": "writes nothing when the patch changes neither",
+            "why": "A no-op patch appends nothing, pinning 'every state change' against spurious events."
+        },
+        {
+            "id": "users:I-14",
+            "file": "packages/users/server/src/lib/member/application/use-cases/update-member.use-case.spec.ts",
+            "anchor": "stamps the actor on every appended event",
+            "why": "Pins the 'with the actor attached' clause."
+        },
+        {
+            "id": "users:I-14",
+            "file": "packages/users/server/src/lib/member/application/use-cases/update-member.use-case.spec.ts",
+            "anchor": "appends inside the unit of work, not after it",
+            "why": "Pins the 'in the same transaction as the write' clause."
+        },
+        {
+            "id": "users:I-14",
+            "file": "packages/users/server/src/lib/member/application/use-cases/set-member-status.use-case.spec.ts",
+            "anchor": "own member.disabled fact",
+            "why": "The disable path drains exactly the aggregate's member.disabled event into the outbox."
+        },
+        {
+            "id": "users:I-15",
+            "file": "packages/users/server/src/lib/member/domain/imports.spec.ts",
+            "anchor": "imports nothing from %s",
+            "why": "Reads every non-spec file under domain/ and asserts none imports @nestjs/*, drizzle-orm, class-validator, or anything under infrastructure — exactly the four prohibitions."
+        },
+        {
+            "id": "users:I-16",
+            "file": "apps/admin-e2e/src/users/destructive-actions.spec.ts",
+            "anchor": "Disable inert, with the reason on it",
+            "why": "The flag's only effect is on the control: the row menu's Disable is aria-disabled with the reason, and a forced click sends no request."
+        },
+        {
+            "id": "users:I-16",
+            "file": "apps/admin-e2e/src/users/roles.spec.ts",
+            "anchor": "locks the sole active admin with the reason",
+            "why": "The Role tab's Apply button is disabled with the reason when the flag is set, again a control-state effect only."
+        },
+        {
+            "id": "users:I-16",
+            "file": "apps/server-e2e/src/server/users/set-user-status.spec.ts",
+            "anchor": "refuses to disable the only active admin with 409",
+            "why": "The server refuses the request on its own recount, with no client flag in the payload — so a stale or wrong isLastAdmin cannot produce a violation of I-01."
+        },
+        {
+            "id": "users:I-17",
+            "file": "packages/users/server/src/lib/copilot/workspace-tool.provider.spec.ts",
+            "anchor": "reads the workspace from the run context",
+            "why": "The handler queries with the run context's workspace id."
+        },
+        {
+            "id": "users:I-17",
+            "file": "packages/users/server/src/lib/copilot/workspace-tool.provider.spec.ts",
+            "anchor": "ignores a workspaceId smuggled into the arguments",
+            "why": "A workspaceId in the tool arguments is not read, so the answer stays scoped to the run's workspace; the 'returns neither tokens nor session data' clause is not asserted anywhere — nothing pins the tool's output shape."
+        },
+        {
+            "id": "users:I-18",
+            "file": "packages/users/server/src/lib/users.module.spec.ts",
+            "anchor": "exports nothing and is not global",
+            "why": "Asserts forRoot() returns a module with no exports and global falsy, so no provider is visible to neighbours."
+        }
+    ],
+    "judgments": {}
+}

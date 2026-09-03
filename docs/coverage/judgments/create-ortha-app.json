@@ -1,0 +1,139 @@
+{
+    "package": "create-ortha-app",
+    "citations": [
+        {
+            "id": "create-ortha-app:I-01",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "%s is classified",
+            "why": "Enumerates every non-private `@orthacms/*` manifest under `packages/` and asserts each name is in the union of CORE_PACKAGES, CORE_DEV_PACKAGES, TRANSITIVE_PACKAGES and every feature's packages — an unclassified package fails as a named case."
+        },
+        {
+            "id": "create-ortha-app:I-01",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "puts no package in two groups at once",
+            "why": "The \"exactly once\" half: concatenates all four groups and asserts length equals Set size, so a name in two buckets fails."
+        },
+        {
+            "id": "create-ortha-app:I-02",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "classifies nothing that does not exist",
+            "why": "Asserts the phantom list — classified names not found on disk, with `@orthacms/cli` explicitly exempted — is empty."
+        },
+        {
+            "id": "create-ortha-app:I-03",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "pins every @orthacms dependency to this scaffolder",
+            "why": "Renders the manifest with orthaVersion '9.9.9' and asserts every `@orthacms/*` range in dependencies and devDependencies is exactly that string — which rules out a caret, a range and `latest` at once."
+        },
+        {
+            "id": "create-ortha-app:I-05",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "leaves no placeholder or directive in any rendered file",
+            "why": "Asserts neither /__[A-Z_]+__/ nor /ortha:(if|ifnot|end)/ survives in the rendered output — but only across nine named files (package.json, .env, README, index.html, docker-compose, ortha.config.ts, both plugins.ts, styles.css) under one selection; the conditional-only files under apps/server/config/ and the four generated app specs are not swept, so the \"whole application, any combination\" half is unpinned."
+        },
+        {
+            "id": "create-ortha-app:I-07",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "throws on an unclosed block rather than swallowing the rest",
+            "why": "Asserts applyConditionals throws /unclosed/ on an `ortha:if` with no `ortha:end`, rather than returning the truncated prefix."
+        },
+        {
+            "id": "create-ortha-app:I-07",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "names the file in that error",
+            "why": "Pins the \"naming the file\" clause: the thrown message must match /plugins\\.ts/, the file name passed in."
+        },
+        {
+            "id": "create-ortha-app:I-07",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "throws on a stray end",
+            "why": "The unpaired-`ortha:end` clause: asserts a lone end throws /no matching/."
+        },
+        {
+            "id": "create-ortha-app:I-08",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "nests, and an inner block inside a dropped one stays dropped",
+            "why": "Asserts that with only the inner flag on and the outer off the whole result is empty — the inner block must not leak out of a discarded parent."
+        },
+        {
+            "id": "create-ortha-app:I-09",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "keeps a block whose flag is on, without its markers",
+            "why": "The kept-block half: the result is exactly 'before\\nkept\\nafter', so a surviving `// ortha:if` marker line fails."
+        },
+        {
+            "id": "create-ortha-app:I-09",
+            "file": "packages/create-ortha-app/src/lib/conditionals.spec.ts",
+            "anchor": "drops a block whose flag is off",
+            "why": "The discarded-block half: the result is exactly 'before\\nafter', so a leftover marker line fails."
+        },
+        {
+            "id": "create-ortha-app:I-12",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "leaves exactly one storage adapter selectable by default",
+            "why": "Filters MEDIA_PROVIDERS on `enabledByDefault && available` and asserts the result has length 1 — literally the invariant."
+        },
+        {
+            "id": "create-ortha-app:I-13",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "starts every opt-in feature switched off",
+            "why": "Iterates COPILOT_PROVIDERS, SSO_PROVIDERS and the unlocked PROTOCOLS and asserts `enabledByDefault` is false on each — the same three groups the invariant names."
+        },
+        {
+            "id": "create-ortha-app:I-14",
+            "file": "packages/create-ortha-app/src/lib/features.spec.ts",
+            "anchor": "installs the copilot with nothing enabled",
+            "why": "With an empty selection, asserts resolvePackages contains copilot-server and copilot-admin and does not contain copilot-provider-fake; since those two are in CORE_PACKAGES the empty selection is the worst case, so it holds for every selection."
+        },
+        {
+            "id": "create-ortha-app:I-17",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "scaffolds no signing secrets",
+            "why": "Reads the rendered .env and asserts it contains neither SESSION_SECRET nor TOKEN_SECRET."
+        },
+        {
+            "id": "create-ortha-app:I-22",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "restores the dotfiles npm will not publish",
+            "why": "Asserts the scaffolded root holds `.gitignore`, does not hold `_gitignore`, and that the file contains a node_modules line."
+        },
+        {
+            "id": "create-ortha-app:I-22",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "renames the .tmpl files onto their real names",
+            "why": "Asserts package.json, .env and README.md exist and that no entry ending in `.tmpl` remains; every *.tmpl in the template lives at the root, which is what this readdir covers."
+        },
+        {
+            "id": "create-ortha-app:I-24",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "keeps the unit specs out of the build",
+            "why": "Parses the rendered apps/server/tsconfig.json and asserts `exclude` contains '**/*.spec.ts'."
+        },
+        {
+            "id": "create-ortha-app:I-25",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "points Tailwind at the installed packages",
+            "why": "Asserts the rendered styles.css contains the exact line `@source \"../../../node_modules/@orthacms\";` and matches no `@source` whose node_modules path carries a glob — both clauses."
+        },
+        {
+            "id": "create-ortha-app:I-26",
+            "file": "packages/create-ortha-app/src/lib/template.spec.ts",
+            "anchor": "names the Vite config .mts",
+            "why": "Asserts readdir of the rendered apps/admin contains 'vite.config.mts'."
+        }
+    ],
+    "judgments": {
+        "create-ortha-app:I-15": {
+            "state": "stale",
+            "reason": "The COPILOT_ENABLED=false half holds (packages/create-ortha-app/templates/default/env.tmpl:85 sits outside every block), but MCP_ENABLED=false does not: env.tmpl:111 is inside the `# ortha:if mcp` block opened at env.tmpl:106 and closed at env.tmpl:116, so an app scaffolded without the mcp feature has no MCP_ENABLED line in .env at all. The dossier's \"always written into .env, whatever was chosen\" is contradicted."
+        },
+        "create-ortha-app:I-23": {
+            "state": "stale",
+            "reason": "The root tsconfig references five projects, not four, and the order is not the one stated: packages/create-ortha-app/templates/default/tsconfig.json lists ./apps/server, ./apps/server/tsconfig.spec.json (line 9), ./apps/admin, ./apps/server-e2e, ./apps/admin-e2e. packages/create-ortha-app/src/lib/template.spec.ts:208 asserts that five-entry list, so the current code is deliberate and the invariant is the stale side."
+        },
+        "create-ortha-app:I-29": {
+            "state": "stale",
+            "reason": "The expected list does not match the actual one for any combination. packages/create-ortha-app/templates/default/apps/server/src/plugins.ts:178 registers `ContentViewsPlugin({ content })`, whose plugin name is 'content-views' (packages/content/server/src/lib/utils/content-views-plugin.ts:35), but EXPECTED_PLUGINS at packages/create-ortha-app/templates/default/apps/server/src/plugins.spec.ts:25-44 omits it — so `npm test` in a freshly generated app fails on 'registers exactly the plugins this app ships'. Nothing in this repo catches it: packages/create-ortha-app/jest.config.js restricts testMatch to `<rootDir>/src/**/*.spec.ts`, so the template's own specs are never executed, and template.spec.ts only greps the rendered text."
+        }
+    }
+}

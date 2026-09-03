@@ -1,0 +1,138 @@
+{
+    "package": "webhooks",
+    "citations": [
+        {
+            "id": "webhooks:I-01",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-fanout.subscriber.spec.ts",
+            "anchor": "queues one delivery per interested endpoint",
+            "why": "Two matching endpoints produce a single `enqueue` call carrying both rows (queued[0] holds ['a','b']), pinning the \"one batched INSERT\" clause; the \"no network I/O\" and \"inside the dispatcher's claim transaction\" clauses are not asserted by any test."
+        },
+        {
+            "id": "webhooks:I-03",
+            "file": "packages/webhooks/domain/src/lib/subscription.spec.ts",
+            "anchor": "the empty set means \"everything\"",
+            "why": "An empty eventKinds list admits a kind the endpoint never named and an empty contentTypes list admits an arbitrary type; the workspace clause is pinned only in its real form (allWorkspaces true), since an empty workspaceIds set with allWorkspaces false matches nothing (subscription.ts:69-79)."
+        },
+        {
+            "id": "webhooks:I-04",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-fanout.subscriber.spec.ts",
+            "anchor": "routes an entry with no workspace only to an all-workspaces endpoint",
+            "why": "With one named-workspace and one all-workspaces endpoint, a workspace-less event queues exactly ['all'] — both directions of the rule in one assertion."
+        },
+        {
+            "id": "webhooks:I-05",
+            "file": "packages/webhooks/domain/src/lib/subscription.spec.ts",
+            "anchor": "refuses a kind that is not in the catalogue",
+            "why": "`matches` returns false for a kind with no catalogue descriptor even on an all-workspaces endpoint — the \"unknown kind matches nothing\" clause."
+        },
+        {
+            "id": "webhooks:I-05",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-fanout.subscriber.spec.ts",
+            "anchor": "subscribes to the catalogue but never to ping",
+            "why": "Asserts subscriber.kinds contains entry.published and does not contain 'ping' — the \"subscriber declares the subscribable set, and ping is not in it\" clause."
+        },
+        {
+            "id": "webhooks:I-06",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-delivery.spec.ts",
+            "anchor": "queues a fresh delivery keeping the original event id",
+            "why": "A redelivery through the real API asserts repeat.id !== original.id while repeat.eventId === original.eventId, and that the second request on the wire carries the same eventId with the new delivery id."
+        },
+        {
+            "id": "webhooks:I-06",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-delivery.spec.ts",
+            "anchor": "carries a body that names its own delivery and event ids",
+            "why": "Pins that X-Ortha-Delivery is the row id and X-Ortha-Event-Id is the outbox event id, so the header a receiver deduplicates on is the stable one."
+        },
+        {
+            "id": "webhooks:I-07",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-delivery.worker.spec.ts",
+            "anchor": "sends the frozen payload and the attempt number",
+            "why": "http.send is asserted to receive the claimed row's stored payload verbatim as `body`; a worker that rebuilt the envelope from current state instead of resending what was frozen at fan-out would fail this."
+        },
+        {
+            "id": "webhooks:I-08",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-delivery.spec.ts",
+            "anchor": "queues nothing extra when the same event is delivered twice",
+            "why": "Replaying the outbox row and draining again leaves exactly one webhook_deliveries row — the partial unique index absorbing a redelivered outbox event, proved against a real Postgres."
+        },
+        {
+            "id": "webhooks:I-08",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-delivery.spec.ts",
+            "anchor": "queues a fresh delivery keeping the original event id",
+            "why": "The manual-resend clause: POST .../redeliver succeeds and produces a second row for the same (endpoint, event), so the index does not block a hand-triggered resend."
+        },
+        {
+            "id": "webhooks:I-09",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-endpoints.spec.ts",
+            "anchor": "never returns the secret again",
+            "why": "After create, the list body is scanned for the plaintext secret and the single-endpoint body's key set is asserted not to contain `secret` — a leak through either read route fails the test. Routes outside /api/webhooks (e.g. the delivery log) are not scanned."
+        },
+        {
+            "id": "webhooks:I-09",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-endpoints.spec.ts",
+            "anchor": "rotates the secret and returns the new one once",
+            "why": "The second of the two permitted routes: POST /:id/secret returns a plaintext secret that differs from the previous one, and the stored hint follows it."
+        },
+        {
+            "id": "webhooks:I-10",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-endpoints.spec.ts",
+            "anchor": "Webhook endpoints API — the shipped URL policy",
+            "why": "A second app booted with the shipped policy refuses http://, loopback, RFC 1918, the cloud metadata address and [::1] with 422 at write time. The connect-time check against the resolved address and the no-redirects rule are not exercised — WebhookHttpClient has no spec at all."
+        },
+        {
+            "id": "webhooks:I-11",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-endpoints.spec.ts",
+            "anchor": "refuses a reserved header",
+            "why": "POST /api/webhooks with headers { 'X-Ortha-Event': … } is a 422 from the server, which is the \"enforced on every write, not only in the UI\" clause for create; PATCH is not separately exercised."
+        },
+        {
+            "id": "webhooks:I-11",
+            "file": "packages/webhooks/domain/src/lib/envelope.spec.ts",
+            "anchor": "])('refuses %p', (name) => {",
+            "why": "isAllowedCustomHeader — the predicate the endpoints service enforces on write — is asserted to refuse both the X-Ortha- prefix (any case) and the transport headers Host, Content-Length, Content-Type and User-Agent."
+        },
+        {
+            "id": "webhooks:I-12",
+            "file": "packages/webhooks/domain/src/lib/retry-policy.spec.ts",
+            "anchor": "gives up on %i rather than spending five more attempts",
+            "why": "400/401/403/404/410/422 all classify as `dead`, pinning \"4xx is terminal\"."
+        },
+        {
+            "id": "webhooks:I-12",
+            "file": "packages/webhooks/domain/src/lib/retry-policy.spec.ts",
+            "anchor": "retries %i — it describes a moment, not the request",
+            "why": "408 and 429 classify as `retry`, pinning the two exceptions to the terminal-4xx rule."
+        },
+        {
+            "id": "webhooks:I-12",
+            "file": "packages/webhooks/domain/src/lib/retry-policy.spec.ts",
+            "anchor": "it.each([500, 502, 503, 504])",
+            "why": "5xx classifies as `retry`."
+        },
+        {
+            "id": "webhooks:I-12",
+            "file": "packages/webhooks/domain/src/lib/retry-policy.spec.ts",
+            "anchor": "caps a Retry-After so a receiver cannot park us for a day",
+            "why": "A 24-hour Retry-After is clamped to MAX_RETRY_AFTER_MS, which is 60 * 60_000 (retry-policy.ts:29) — the \"honoured up to one hour\" clause."
+        },
+        {
+            "id": "webhooks:I-12",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-delivery.worker.spec.ts",
+            "anchor": "treats a transport failure with no status as retryable",
+            "why": "A response with statusCode null and an error takes markRetrying and never markDead — the \"transport failures retry\" clause."
+        },
+        {
+            "id": "webhooks:I-15",
+            "file": "packages/webhooks/server/src/lib/infrastructure/webhook-delivery.worker.spec.ts",
+            "anchor": "the endpoint changed under the claim",
+            "why": "Both cases: findForDelivery returning null (deleted) and returning enabled:false assert http.send was never called and the row was closed with markDead — the worker re-reading the endpoint after claiming."
+        },
+        {
+            "id": "webhooks:I-18",
+            "file": "apps/server-e2e/src/server/webhooks/webhook-endpoints.spec.ts",
+            "anchor": "refuses a contributor, even for reads",
+            "why": "Contributor — the most privileged non-admin system role (identity/server/src/lib/rbac/system-roles.ts:137) — gets 403 on both GET and POST /api/webhooks, so neither key is held outside admin. The second clause (the editor page requiring webhooks:manage) is unpinned: admin-e2e only asserts the list page's create button is hidden, never that /webhooks/new itself refuses a webhooks:read-only user."
+        }
+    ],
+    "judgments": {}
+}

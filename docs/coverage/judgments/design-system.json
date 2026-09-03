@@ -1,0 +1,173 @@
+{
+    "package": "design-system",
+    "citations": [
+        {
+            "id": "design-system:I-05",
+            "file": "packages/design-system/src/lib/utils.spec.ts",
+            "anchor": "lets the later Tailwind class win a conflict",
+            "why": "Pins the tailwind-merge half — `cn('px-4','px-8')` resolves to `px-8`, so the argument written last wins a conflict; the other half (that every component actually passes the caller's `className` last into `cn`) is asserted for no component."
+        },
+        {
+            "id": "design-system:I-11",
+            "file": "packages/design-system/src/lib/components/ui/input-field.spec.tsx",
+            "anchor": "renders nothing for an empty errors array",
+            "why": "`FieldError` with `errors={[]}` renders an empty container (`container.innerHTML === ''`), so no `role=\"alert\"` is opened; the sibling cases cover no-children-no-errors and message-less entries."
+        },
+        {
+            "id": "design-system:I-12",
+            "file": "packages/design-system/src/lib/components/ui/input-field.spec.tsx",
+            "anchor": "still renders a supplied error when invalid={false} is passed",
+            "why": "Asserts `getByRole('alert').textContent === 'Nope'` with `invalid={false}` alongside `error`, so `invalid` cannot suppress the message."
+        },
+        {
+            "id": "design-system:I-13",
+            "file": "packages/design-system/src/lib/components/ui/input-field.spec.tsx",
+            "anchor": "describes the control with the hint and the error, hint first",
+            "why": "Asserts `aria-describedby === 'email-description email-error'`, so neither the hint nor the error is lost from the assembly."
+        },
+        {
+            "id": "design-system:I-13",
+            "file": "packages/design-system/src/lib/components/ui/input-field.spec.tsx",
+            "anchor": "appends a consumer aria-describedby rather than replacing it",
+            "why": "Asserts `aria-describedby === 'email-error extra-hint'`, so the caller-supplied value survives alongside the generated ids — the third clause of the invariant."
+        },
+        {
+            "id": "design-system:I-16",
+            "file": "packages/design-system/src/lib/components/ui/table.spec.tsx",
+            "anchor": "makes the scroll container a tab stop once it overflows",
+            "why": "Asserts `tabindex` is absent before overflow is simulated and `'0'` after; the paired `adds no tab stop to a table that fits` case pins the 'only on actual overflow' direction."
+        },
+        {
+            "id": "design-system:I-16",
+            "file": "packages/design-system/src/lib/components/ui/table.spec.tsx",
+            "anchor": "names the scroll region from the table it wraps",
+            "why": "Asserts `role === 'group'` and `aria-label === 'Members'` together on overflow, while `adds no tab stop to a table that fits` asserts `role` is null — the role and the name are set exclusively together."
+        },
+        {
+            "id": "design-system:I-17",
+            "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
+            "anchor": "keeps the scrollport a visibly-focusable tab stop",
+            "why": "Asserts `tabindex === '0'` and that the class list carries `focus-visible:ring-2` on `[data-slot=\"sidebar-inset-scroll\"]`; the third clause — that the ring is `inset` (`focus-visible:ring-inset`) — is not asserted by this or any other test."
+        },
+        {
+            "id": "design-system:I-18",
+            "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
+            "anchor": "exposes exactly one landmark of its own",
+            "why": "`getAllByRole('main')` has length 1 for a mounted `SidebarInset`, pinning the `<main>` clause; the enumeration of the other landmarks (complementary panel, breadcrumb/link-tab/pagination `<nav>`) is not pinned here."
+        },
+        {
+            "id": "design-system:I-18",
+            "file": "packages/design-system/src/lib/components/ui/table.spec.tsx",
+            "anchor": "expect(wrapper.getAttribute('role')).toBe('group')",
+            "why": "The one nameable scroll container in the library is asserted to take `role=\"group\"`, not `region` — the 'group, not region' clause, for the `Table` wrapper only."
+        },
+        {
+            "id": "design-system:I-19",
+            "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
+            "anchor": "takes the collapsed panel out of the tab order and the a11y tree",
+            "why": "After collapsing, asserts the sidebar container has `inert` and `aria-hidden=\"true\"` — both halves of the invariant."
+        },
+        {
+            "id": "design-system:I-20",
+            "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
+            "anchor": "leaves Ctrl+B alone inside a text field",
+            "why": "Asserts the sidebar stays expanded and `fireEvent.keyDown` returns true (no `preventDefault`) with focus in an `Input`; sibling cases cover `textarea` and `contenteditable`. `select` — the fourth element the invariant names — has no case."
+        },
+        {
+            "id": "design-system:I-21",
+            "file": "packages/design-system/src/lib/hooks/use-mobile.spec.tsx",
+            "anchor": "reports mobile on the very first frame, before any effect runs",
+            "why": "Records every rendered value and asserts `frames[0] === true` at a 500px viewport, so an effect-initialised `undefined` first frame fails."
+        },
+        {
+            "id": "design-system:I-22",
+            "file": "packages/design-system/src/lib/hooks/use-mobile.spec.tsx",
+            "anchor": "treats exactly 768px as desktop",
+            "why": "Asserts `useIsMobile()` is `false` at exactly 768px, with neighbouring cases at 500 and 1024 — the single breakpoint and its inclusive boundary."
+        },
+        {
+            "id": "design-system:I-23",
+            "file": "packages/design-system/src/lib/appearance/index.spec.tsx",
+            "anchor": "renders and still repaints when storage throws",
+            "why": "`localStorage.getItem`/`setItem` are stubbed to throw and the provider still applies the `dark` class — the localStorage clause: only persistence is lost."
+        },
+        {
+            "id": "design-system:I-23",
+            "file": "packages/design-system/src/lib/components/ui/sidebar.spec.tsx",
+            "anchor": "keeps toggling when the cookie jar is unwritable",
+            "why": "`document.cookie` is redefined to throw on get and set, and the sidebar still toggles to `collapsed` — the `document.cookie` clause."
+        },
+        {
+            "id": "design-system:I-23",
+            "file": "packages/design-system/src/lib/hooks/use-mobile.spec.tsx",
+            "anchor": "falls back to desktop when matchMedia is unavailable",
+            "why": "`window.matchMedia` is deleted and rendering must not throw — the `matchMedia` environment-check clause."
+        },
+        {
+            "id": "design-system:I-24",
+            "file": "packages/design-system/src/lib/appearance/index.spec.tsx",
+            "anchor": "reflects a chosen theme onto <html>",
+            "why": "Asserts both mechanisms in one case: `documentElement.classList.contains('dark')` and `documentElement.style.colorScheme === 'dark'`."
+        },
+        {
+            "id": "design-system:I-25",
+            "file": "packages/design-system/src/lib/appearance/index.spec.tsx",
+            "anchor": "falls back to a working no-op outside a provider",
+            "why": "Renders the `useAppearance` probe with no `AppearanceProvider`: theme is `system`, resolved is `light`, and calling `setTheme` does not throw."
+        },
+        {
+            "id": "design-system:I-27",
+            "file": "packages/design-system/src/lib/components/ui/top-bar.spec.tsx",
+            "anchor": "hoists itself into the inset strip, above the scrollport",
+            "why": "Asserts the `top-bar` node's `parentElement` is the `sidebar-inset-bar` strip, so inside an inset it renders only through the portal; the second clause — that a `null` host draws nothing at all — has no case (the spec covers `undefined`, i.e. no inset, instead)."
+        },
+        {
+            "id": "design-system:I-28",
+            "file": "packages/design-system/src/lib/components/ui/sonner.spec.tsx",
+            "anchor": "dismisses only the toast whose body was clicked",
+            "why": "Three toasts are raised, the second's body is clicked, and only the second is marked removed — the first clause exactly."
+        },
+        {
+            "id": "design-system:I-28",
+            "file": "packages/design-system/src/lib/components/ui/sonner.spec.tsx",
+            "anchor": "lets the close button own its own click",
+            "why": "Clicking `[data-close-button]` removes exactly one toast rather than being swallowed by the wrapper handler; the action/cancel buttons and inner links named in the invariant have no case."
+        },
+        {
+            "id": "design-system:I-32",
+            "file": "apps/admin-e2e/src/host/platform-preferences.spec.ts",
+            "anchor": "nothing opts out of the user palette",
+            "why": "Under `forcedColors: 'active'`, counts every element whose computed `forcedColorAdjust === 'none'` and asserts zero — the second clause exactly."
+        },
+        {
+            "id": "design-system:I-32",
+            "file": "apps/admin-e2e/src/host/platform-preferences.spec.ts",
+            "anchor": "a button keeps a visible focus indicator",
+            "why": "Under `forcedColors: 'active'` asserts the ring's `box-shadow` really is discarded and the focused button still resolves a non-`none` outline ≥1px — which is the single global `:focus-visible { outline: 2px solid !important }` rule in the library's styles.css, so removing it fails here; the sampling is two elements (a button and, in the next case, the scrollport), not 'every' focusable."
+        },
+        {
+            "id": "design-system:I-35",
+            "file": "packages/design-system/src/lib/components/ui/wizard.spec.tsx",
+            "anchor": "renders every step when two share a label",
+            "why": "Three steps, two sharing the label 'Details': asserts all three buttons render, both hints are present, and React logged no 'same key' warning — a caption-keyed list fails."
+        },
+        {
+            "id": "design-system:I-36",
+            "file": "packages/design-system/src/lib/components/ui/multi-select.spec.tsx",
+            "anchor": "keeps two options with the same label independently chosen",
+            "why": "Two options sharing the label 'Posts' with distinct values yield `aria-checked` `['false','true']`, so the rows did not merge; the sibling case pins that only one of the two is highlighted."
+        },
+        {
+            "id": "design-system:I-36",
+            "file": "packages/design-system/src/lib/components/ui/multi-select.spec.tsx",
+            "anchor": "finds an option by searching its value as well as its label",
+            "why": "Typing `media:` filters to the option whose value (not label) matches — the `keywords` half of the invariant."
+        }
+    ],
+    "judgments": {
+        "design-system:I-04": {
+            "state": "not-mechanically-checkable",
+            "reason": "As written the statement cannot fail: the disjunct 'either overridden or deliberately inherited' admits every token that has no `.dark` counterpart (packages/design-system/src/styles.css and apps/admin/src/styles.css), so any assertion over the two token sets passes by construction. Only a different, hand-maintained statement — an explicit allowlist of the tokens permitted to inherit — would be testable, and no such list exists in the repo."
+        }
+    }
+}
