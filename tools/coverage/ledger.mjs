@@ -68,8 +68,8 @@ const OUT_DIR = join(ROOT, 'docs/coverage');
 const INVARIANTS = join(OUT_DIR, 'invariants.json');
 const JUDGMENTS = join(OUT_DIR, 'judgments');
 
-/** The four states a row can be in. Only the last two are ever authored. */
-const STATES = ['covered', 'uncovered', 'not-mechanically-checkable', 'stale'];
+/** The states a row can be in. Only the last three are ever authored. */
+const STATES = ['covered', 'uncovered', 'not-mechanically-checkable', 'stale', 'needs-live-stack'];
 
 /* ------------------------------------------------------------------ parsing */
 
@@ -270,18 +270,21 @@ function check(args) {
     }
     const tally = (rs, s) => rs.filter((r) => r.state === s).length;
     const pad = (s, n) => String(s).padEnd(n);
-    console.log(`${pad('package', 20)} ${pad('inv', 5)} ${pad('cov', 5)} ${pad('uncov', 6)} ${pad('n/a', 5)} ${pad('stale', 6)} axes`);
-    console.log('-'.repeat(78));
+    console.log(
+        `${pad('package', 20)} ${pad('inv', 5)} ${pad('cov', 5)} ${pad('uncov', 6)} ${pad('n/a', 5)} ${pad('stale', 6)} ${pad('live', 5)} axes`
+    );
+    console.log('-'.repeat(84));
     let cov = 0;
     for (const [pkg, rs] of [...byPkg].sort((a, b) => b[1].length - a[1].length)) {
         const c = tally(rs, 'covered');
         cov += c;
         console.log(
             `${pad(pkg, 20)} ${pad(rs.length, 5)} ${pad(c, 5)} ${pad(tally(rs, 'uncovered'), 6)} ` +
-                `${pad(tally(rs, 'not-mechanically-checkable'), 5)} ${pad(tally(rs, 'stale'), 6)} ${rs[0].axes.join(',')}`
+                `${pad(tally(rs, 'not-mechanically-checkable'), 5)} ${pad(tally(rs, 'stale'), 6)} ` +
+                `${pad(tally(rs, 'needs-live-stack'), 5)} ${rs[0].axes.join(',')}`
         );
     }
-    console.log('-'.repeat(78));
+    console.log('-'.repeat(84));
     const total = inv.rows.length;
     console.log(`${pad('TOTAL', 20)} ${pad(total, 5)} ${pad(cov, 5)} ${pad(total - cov, 6)}   (${((cov / total) * 100).toFixed(1)}% cited)`);
     const conflicts = inv.rows.filter((r) => r.conflict);

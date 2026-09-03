@@ -30,7 +30,7 @@ so the ledger cannot drift from the suite the way a checklist would.
 The id is qualified (`segments:I-01`, not `I-01`) because every dossier numbers
 its own invariants from `I-01`.
 
-## The four states
+## The states
 
 | State | Set by | Meaning |
 | --- | --- | --- |
@@ -38,10 +38,15 @@ its own invariants from `I-01`.
 | `uncovered` | the default | a gap — this is the work list |
 | `not-mechanically-checkable` | `judgments/<pkg>.json` | no harness can reach it (architectural statements, e.g. "the dictionary is unreachable by any token") |
 | `stale` | `judgments/<pkg>.json` | the invariant has drifted from the code — fix the **dossier**, not the test |
+| `needs-live-stack` | `judgments/<pkg>.json` | no mocked harness can reach it; it needs a real server, a real database and applied migrations. This is the phase-4 work list, and a row leaves it by becoming `covered` — the browser finds the defect, an automated test holds it |
 
-Two states rather than a bare covered/uncovered pair exists for a reason: with
-only two, closing a row is always "write a test", and unreachable statements
+More than a bare covered/uncovered pair exists for a reason: with only two,
+closing a row is always "write a test", and statements no harness can reach
 attract tests written to satisfy the ledger rather than to catch a defect.
+
+`needs-live-stack` is not a resting place. It means "phase 4 owes this one a
+walk", and the walk ends in an automated test — a browser observation protects
+nothing on the next release.
 
 ## Commands
 

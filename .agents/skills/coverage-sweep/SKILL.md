@@ -1,20 +1,41 @@
 ---
 name: coverage-sweep
-description: Running the invariant coverage sweep — closing the gaps between the 816 numbered invariants in the package dossiers (docs/artifacts/) and the tests that pin them, tracked in the ledger at docs/coverage/. Covers the ledger contract and its four states, the citation bar, batching by harness rather than by package, the two anti-patterns that produce tests which cannot fail, the fan-out mechanics for one agent per package, and the operational traps in running the three harnesses. Use when triaging a package's invariants, closing coverage gaps, or continuing the sweep in a later session.
+description: Running the invariant qualification pass — establishing, for the first time, that the system does what its dossiers say, by connecting each of the 816 numbered invariants in docs/artifacts/ to a test that would fail if it broke. Tracked in the ledger at docs/coverage/. Covers the ledger contract and its states, the citation bar, batching by harness rather than by package, the two anti-patterns that produce tests which cannot fail, where the combinatorics belong versus what the live-stack pass is for, the fan-out mechanics for one agent per package, and the operational traps in the three harnesses. Use when triaging a package's invariants, closing coverage gaps, verifying against a live stack, or continuing the pass in a later session.
 user-invocable: true
 allowed-tools: Read, Edit, Write, Glob, Grep, Bash, Agent
 ---
 
-# Invariant coverage sweep
+# Invariant qualification pass
 
 Every package dossier in `docs/artifacts/` ends with a numbered list of
 **invariants** — statements the dossier itself calls "a draft set of test
-assertions". There are 816 across 26 dossiers. The sweep connects each one to a
+assertions". There are 816 across 26 dossiers. This pass connects each one to a
 test that would fail if it broke, and writes the test where none exists.
 
 The ledger lives in `docs/coverage/` and is documented in its own
 [README](../../../docs/coverage/README.md). Read that first: it defines the
-citation format and the four states. This skill is the procedure around it.
+citation format and the states. This skill is the procedure around it.
+
+## This is not a regression run — it produces one
+
+The distinction decides what gets built, so it is worth being exact. A regression
+run re-executes known-good checks to catch something that used to work breaking.
+It presupposes a known-good baseline to defend. There isn't one yet: phase 0
+found 234 uncovered invariants, nine tests that cannot fail, and four invariants
+the code had already contradicted. There is nothing to regress *from*.
+
+What this is, is **qualification** — establishing for the first time that the
+system does what its documentation claims. The regression net is the *output*:
+
+```
+phases 1-3   build the net       tests that did not exist
+phase 4      verify the assembly  what the mocks cannot see
+phase 5      run it + CI gate     from here on, every PR is the regression run
+```
+
+Until the gate in phase 5 lands, none of this defends itself. After it, a new
+invariant cannot enter a dossier without a test or a reasoned judgment, and a
+test carrying a citation cannot quietly disappear.
 
 ## The one rule everything else serves
 
@@ -44,16 +65,40 @@ environment up and down 26 times.
 | 1 | unit | no contention for ports or database, so maximum parallelism, and the cheapest signal |
 | 2 | server-e2e | testcontainers, isolated per suite |
 | 3 | admin-e2e | needs `:3000` **and** `:4200` free — it mocks `/api` |
-| 4 | agent-browser | the live stack, strictly serial |
-| 5 | full run | `nx run-many` + `ledger.mjs check --strict` |
+| 4 | agent-browser | the live stack, strictly serial. Its list is **produced by phases 1-3**, not written in advance |
+| 5 | full run + gate | `nx run-many` + `ledger.mjs check --strict` in CI |
 
 Within a phase: agents **write without running**, then the suite runs **once**
 for the whole phase, then failures get fixed. One expensive harness start-up
 amortised over the whole batch.
 
-Phase 4 exists for one reason worth stating: admin-e2e mocks `/api`, so **not
-one of its suites proves the admin and the server agree**. Contract drift is the
-only thing the browser pass should hunt; duplicating admin-e2e there is waste.
+## Where the combinatorics belong, and what phase 4 is actually for
+
+"Check every case and every variation through the browser" cannot be done, and
+the reason is not effort. The variations in a CMS are a product — content types ×
+locales × roles × permissions × workspaces × publication states — so a browser
+walk over them does not terminate. Worse, it does not repeat: walked once,
+observed once, and it defends nothing tomorrow.
+
+| Carries | What | Why there |
+| --- | --- | --- |
+| unit / server-e2e / admin-e2e | **the combinatorics** — every case and edge case | cheap, repeatable, runs in CI |
+| agent-browser | what the mocks cannot see: a real database, real migrations, and whether the admin and the server actually agree | all 83 admin-e2e suites mock `/api`, so **not one of them proves that agreement** |
+
+Contract drift is what the browser pass hunts. Re-driving what admin-e2e already
+covers is waste.
+
+**Every browser finding becomes an automated test, immediately.** A finding that
+stays a browser observation is a one-off; it protects nothing, and it will not be
+there on the next release. The browser is how a defect is *found*, never how it
+is *held*.
+
+**Phase 4's scenario list comes out of the ledger, not out of a tour of the app.**
+After phases 1-3, the invariants still uncovered *because they need a real server
+and a real database* are the list, and "phase 4 is done" becomes a checkable
+claim rather than a feeling. Mark those rows `needs-live-stack` as they surface
+during phases 1-3 — phase 0's triage had no such category, so nothing carries it
+yet, and inventing the list before those phases run would be guesswork.
 
 ## The two anti-patterns
 
@@ -160,11 +205,31 @@ Salvaged from the retired `qa-pass-ticket` skill and still true:
   later steps with spurious 429s), and restore it after.
 - **Mutations pass `OriginGuard`** — send `-H 'Origin: http://localhost:4200'`.
 
-## Definition of done for a phase
+## Definition of done — for a phase
 
 - Every gap in the phase's axis is either closed by a test, or judged
-  `not-mechanically-checkable` / `stale` **with a reason**.
+  `not-mechanically-checkable` / `stale` / `needs-live-stack` **with a reason**.
 - `node tools/coverage/ledger.mjs check` shows the phase's rows covered.
 - The suite for that axis runs green, once, at the end.
 - Fixes are in their own commits, each with the test that would have caught it.
 - Dossier prose corrections recorded; stale invariants fixed in the dossier.
+
+## Definition of done — for the whole pass
+
+"Everything works" has to be a claim someone can check, not a feeling. It is
+these five, and nothing softer:
+
+1. `ledger.mjs check` shows **zero** `uncovered`, and every judgment carries a
+   reason.
+2. All three suites green in one run.
+3. All nine entries in `tests-that-cannot-fail.md` repaired — and the repaired
+   tests pass. Repairing a fixture is the cheapest defect detector in the repo:
+   the test finally executes the behaviour it names, so it either confirms the
+   rule or exposes a live bug, without a single new test being written.
+4. Every `needs-live-stack` row walked, and each finding closed by an automated
+   test rather than a note.
+5. `check --strict` in CI, so point 1 cannot rot back.
+
+Points 1 and 5 are the answer to "is every case covered?" — not an assurance that
+we tried, but 816 named statements, each either pinned by a test or explicitly
+declared unreachable with a stated reason.
